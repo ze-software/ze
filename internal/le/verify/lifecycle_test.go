@@ -218,6 +218,42 @@ func TestDirtyAbandonedWorktreeIsNeverDestroyed(t *testing.T) {
 	}
 }
 
+// VALIDATES: a directory under tmp/verify-worktree that git no longer reports
+// as a worktree ROOT is swept, even while the enclosing checkout is dirty.
+// PREVENTS: the shape that filled the disk. `git worktree remove` unregisters
+// the checkout, and a failure after that leaves the files with no `.git` of
+// their own; `git -C <dir> status` then answers about the ENCLOSING tree and
+// names its paths relative to <dir>, so the main checkout's own untracked file
+// arrives as `?? ../../../keep-me.txt` and the directory is preserved forever
+// for a change it does not hold. Measured 2026-09-19: two such directories held
+// 22G and the run that met them died of `no space left on device`.
+func TestOrphanedWorktreeDirectoryIsSwept(t *testing.T) {
+	repo := newFixtureRepo(t)
+	path := filepath.Join(repo.root, "tmp", "verify-worktree", "orphaned1234")
+	if err := os.MkdirAll(filepath.Join(path, "bulk"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(ownerMarker(path), []byte("0\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	// The enclosing checkout carries an untracked file, which is what `git -C
+	// path status` reports when the directory has no `.git` of its own.
+	if err := os.WriteFile(filepath.Join(repo.root, "keep-me.txt"), []byte("main's own\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	report := Run(context.Background(), repo.root, Options{}, passingRunner)
+	if report.Code != 0 {
+		t.Fatalf("report = %#v", report)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("the orphaned directory survived: %v\n%s", err, report.Text())
+	}
+	if _, err := os.Stat(filepath.Join(repo.root, "keep-me.txt")); err != nil {
+		t.Fatalf("the checkout's own untracked file was touched: %v", err)
+	}
+}
+
 func TestKeepLeavesWorktreeRegistrationAndOwnerMarker(t *testing.T) {
 	repo := newFixtureRepo(t)
 	report := Run(context.Background(), repo.root, Options{Keep: true}, passingRunner)

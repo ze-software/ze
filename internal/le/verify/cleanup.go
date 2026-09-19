@@ -32,6 +32,32 @@ type sweep struct {
 	Failures    []CleanupFailure
 }
 
+// orphaned reports that git resolves this directory to a DIFFERENT tree, so
+// anything read there describes that tree rather than this one.
+//
+// It answers false whenever git cannot say, which keeps the conservative arm
+// below for a directory whose state is unknown: only a toplevel git NAMED, and
+// named as somewhere else, licenses the sweep.
+func orphaned(ctx context.Context, deps dependencies, path string) bool {
+	answer, err := deps.git(ctx, gitTimeoutWorktree, path, "rev-parse", "--show-toplevel")
+	if err != nil || answer.Code != 0 {
+		return false
+	}
+	top := strings.TrimSpace(answer.Output)
+	if top == "" {
+		return false
+	}
+	here, statErr := os.Stat(path)
+	if statErr != nil {
+		return false
+	}
+	there, statErr := os.Stat(top)
+	if statErr != nil {
+		return false
+	}
+	return !os.SameFile(here, there)
+}
+
 func sweepAbandoned(ctx context.Context, root, base string, deps dependencies) sweep {
 	entries, err := os.ReadDir(base)
 	if err != nil {
@@ -63,6 +89,34 @@ func sweepAbandoned(ctx context.Context, root, base string, deps dependencies) s
 			diagnostics = append(diagnostics, text.Reset().
 				Str("verify-worktree: cannot read owner of ").Str(entry.Name()).
 				Str(", treating it as abandoned: ").Err(readErr).String())
+		}
+
+		// A directory that is no longer a worktree ROOT is swept on its
+		// contents alone, because its status describes SOMEBODY ELSE.
+		//
+		// `git worktree remove` unregisters the checkout and a failure after
+		// that leaves the files with no `.git` of their own. `git -C <dir>
+		// status` then walks up to the enclosing checkout and answers about
+		// THAT tree, naming its paths relative to <dir>: the main checkout's
+		// one untracked file arrives as `?? ../../../continue`, the dirt count
+		// reads 1, and the directory is preserved for a change it does not
+		// hold. Nothing ever removes it. Measured 2026-09-19: two such
+		// directories held 22G between them and the run that met them died of
+		// `no space left on device`.
+		if orphaned(ctx, deps, path) {
+			cleanup := removeOrphan(context.WithoutCancel(ctx), root, path, deps.git)
+			if len(cleanup) != 0 {
+				for _, failure := range cleanup {
+					failure.Operation = text.Reset().Str("sweep orphaned ").Str(entry.Name()).Str(": ").
+						Str(failure.Operation).String()
+					failures = append(failures, failure)
+				}
+				continue
+			}
+			diagnostics = append(diagnostics, text.Reset().Str("verify-worktree: swept orphaned ").
+				Str(entry.Name()).Str(", which git no longer reports as a worktree root").String())
+			removed = append(removed, path)
+			continue
 		}
 
 		status, statusErr := deps.git(ctx, gitTimeoutWorktree, path, "status", "--porcelain")
@@ -230,6 +284,26 @@ func reclaimWorktree(ctx context.Context, root, path string, git gitRunner) []Cl
 		return nil
 	}
 	return removeWorktree(ctx, root, path, git)
+}
+
+// removeOrphan deletes a directory git no longer registers as a worktree.
+//
+// `git worktree remove` is not the verb here and answers "is not a working
+// tree" for one of these, because the registration is exactly what is already
+// gone. The files are removed directly and the prune still runs, so an admin
+// entry whose directory this call just deleted goes with it.
+func removeOrphan(ctx context.Context, root, path string, git gitRunner) []CleanupFailure {
+	failures := make([]CleanupFailure, 0)
+	if err := os.Remove(ownerMarker(path)); err != nil && !errors.Is(err, os.ErrNotExist) {
+		failures = append(failures, CleanupFailure{Operation: "remove owner marker", Message: err.Error()})
+	}
+	if err := os.RemoveAll(path); err != nil {
+		failures = append(failures, CleanupFailure{Operation: "remove orphaned directory", Message: err.Error()})
+	}
+	if prune := pruneWorktrees(ctx, root, git); prune != nil {
+		failures = append(failures, CleanupFailure{Operation: "git worktree prune", Message: prune.Error()})
+	}
+	return failures
 }
 
 func removeWorktree(ctx context.Context, root, path string, git gitRunner) []CleanupFailure {
