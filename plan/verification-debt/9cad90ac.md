@@ -16,5 +16,5 @@ is open.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-08-20 | 9cad90ac | fix(journal): a Spec cell names spec stems, never prose | ./le verify current mode full (not FRESH-green) | owner said commit it; the changed scripts own suites are green | open |
+| 2026-08-20 | 9cad90ac | fix(journal): a Spec cell names spec stems, never prose | ./le verify current mode full (not FRESH-green) | owner said commit it; the changed scripts own suites are green | cleared |
 | 2026-08-20 | 9cad90ac | fix(journal): a Spec cell names spec stems, never prose | ./le verify current mode full structural gates (red) | owner said commit it; the reds are another session uncommitted Go lint under scripts/evidence/l2tp-diag (retired; current producer: `internal/le/deployment/`), this commit is python and markdown only | cleared |

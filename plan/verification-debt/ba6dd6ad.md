@@ -5,8 +5,8 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-09-03 | ba6dd6ad | fix(cli): one spelling for each of a command's two help texts (+32 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
-| 2026-09-03 | ba6dd6ad | fix(cli): one spelling for each of a command's two help texts (+18 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-03 | ba6dd6ad | fix(cli): one spelling for each of a command's two help texts (+32 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | cleared |
+| 2026-09-03 | ba6dd6ad | fix(cli): one spelling for each of a command's two help texts (+18 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | cleared |
 | 2026-09-03 | ba6dd6ad | fix(cli): one spelling for each of a command's two help texts | discovery-index freshness | ./le discovery-index update regenerated ai/PACKAGE-MAP.md with no change: this commit renames fields inside existing packages and adds none | open |
 | 2026-09-03 | ba6dd6ad | feat(le): two checks for a command's summary and its explanation | discovery-index freshness | ./le discovery-index update regenerated ai/PACKAGE-MAP.md with no change: the new files join existing packages | open |
 | 2026-09-03 | ba6dd6ad | docs(yang): give every command node a one-line summary (+6 more) | discovery-index freshness | ./le discovery-index update regenerated ai/PACKAGE-MAP.md with no change: no package is added | open |

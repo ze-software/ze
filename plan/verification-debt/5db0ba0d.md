@@ -5,8 +5,8 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-09-03 | 5db0ba0d | docs(plan): close the spec that measured the RFC extraction drain (+54 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
-| 2026-09-03 | 5db0ba0d | feat(radius): bound what the NAS-Port-Id template resolves to (+25 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-03 | 5db0ba0d | docs(plan): close the spec that measured the RFC extraction drain (+54 more) | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | cleared |
+| 2026-09-03 | 5db0ba0d | feat(radius): bound what the NAS-Port-Id template resolves to (+25 more) | full native verification over this commit's Go | no full native verification covers this commit's Go | cleared |
 | 2026-09-03 | 5db0ba0d | feat(radius): report Calling-Station-Id on subscriber accounting | discovery-index freshness | ai/PACKAGE-MAP.md drift is another session's ike/eap move to internal/core/eap and the lg-tls-certificate spec row; this commit adds no package and changes no package doc | open |
 | 2026-09-03 | 5db0ba0d | refactor(eap): the EAP peer is a core package, not an IKE one | discovery-index freshness | ai/PACKAGE-MAP.md carries another session's uncommitted lg-tls-certificate rows in 2 of its 4 changed lines; my eap rename is in the working tree and lands with whoever commits that file | open |
 | 2026-09-03 | 5db0ba0d | feat(radius): report Acct-Terminate-Cause on the Stop record (+1 more) | discovery-index freshness | ai/PACKAGE-MAP.md drift is another session's ike/eap move to internal/core/eap and the lg-tls-certificate spec row; this commit adds no package | open |

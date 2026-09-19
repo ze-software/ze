@@ -5,5 +5,5 @@ Clear rows only through `le commit debt-clear` after the named gate exits 0.
 
 | Date | Session | Subject | Gate owed | Reason | Status |
 |------|---------|---------|-----------|--------|--------|
-| 2026-09-05 | 3aa0cada | fix(bgp): the Prefix-SID boundary holds on four rails, not five | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | open |
-| 2026-09-05 | 3aa0cada | fix(bgp): the Prefix-SID boundary holds on four rails, not five | full native verification over this commit's Go | no full native verification covers this commit's Go | open |
+| 2026-09-05 | 3aa0cada | fix(bgp): the Prefix-SID boundary holds on four rails, not five | full native verification (not FRESH-green) | verify-status is not FRESH-green: STALE: no status file (never verified) | cleared |
+| 2026-09-05 | 3aa0cada | fix(bgp): the Prefix-SID boundary holds on four rails, not five | full native verification over this commit's Go | no full native verification covers this commit's Go | cleared |
