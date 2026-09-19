@@ -102,14 +102,25 @@ func TestBuildTag_Gate12_AbsentBinaryDropsSymbols(t *testing.T) {
 		"internal/plugins/traffic/vpp",
 		"internal/plugins/static/vpp",
 		"go.fd.io/govpp",
-		// Phase 6 (ze_ike). Deliberately NOT the subtree prefix:
-		// ike/dataplane is the shared XFRM seam OSPF programs through
-		// (always-on); engine, ipsec, cmd, and the transitively-linked
-		// crypto/eap/wire/transport all drop.
+		// Phase 6 (ze_ike). Deliberately NOT the subtree prefix, and two
+		// packages under it are deliberately absent from this list.
+		//
+		// ike/dataplane is the shared XFRM seam OSPF programs through, so it
+		// is always-on. ike/crypto joined it on 2026-09-16 (665a070dda): it
+		// declares the IKEv2 transform registry, which is a WIRE VOCABULARY
+		// rather than the IKE feature, and `show mtu` reads it to size every
+		// IPsec tunnel the kernel holds (mtu/cmd/overhead.go, sizing an
+		// inventory core/ipsecinventory takes from XFRM). A box carries those
+		// SAs whether or not ze runs an IKE engine, so a hardened build that
+		// could not size them would have lost a diagnostic, not a feature.
+		// The package is a leaf: its only ze dependency is core/ccm.
+		//
+		// What the feature being gone still means is proved by the five below:
+		// engine, ipsec and cmd are the IKE daemon, and eap, wire and
+		// transport drop with them.
 		"internal/component/ike/engine",
 		"internal/component/ike/ipsec",
 		"internal/component/ike/cmd",
-		"internal/component/ike/crypto",
 		"internal/core/eap",
 		"internal/component/ike/wire",
 		"internal/component/ike/transport",

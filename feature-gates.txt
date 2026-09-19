@@ -177,11 +177,14 @@ ze_vpp     internal/plugins/traffic/vpp
 ze_vpp     internal/plugins/static/vpp
 
 # ze_ike -- the IKEv2/IPsec VPN control plane: engine, ipsec config plumbing,
-# command surface, schema (crypto/eap/wire/transport drop transitively with the
-# engine). internal/component/ike/dataplane deliberately stays UNGATED: it is
-# the shared kernel-XFRM programming seam OSPF also uses for RFC 4552
-# authentication (plugins/ospf/ipsec_install.go), independent of the IKE
-# daemon; its GoVPP file is ze_vpp-gated separately. The hub blank imports
+# command surface, schema (eap/wire/transport drop transitively with the
+# engine). Two packages under internal/component/ike deliberately stay UNGATED.
+# dataplane is the shared kernel-XFRM programming seam OSPF also uses for RFC
+# 4552 authentication (plugins/ospf/ipsec_install.go), independent of the IKE
+# daemon; its GoVPP file is ze_vpp-gated separately. crypto declares the IKEv2
+# transform registry, which `show mtu` reads to size every IPsec tunnel the
+# kernel holds (component/mtu/cmd/overhead.go), so it is a wire vocabulary a
+# box needs whether or not ze runs an IKE daemon. The hub blank imports
 # moved to cmd/ze/hub/register_ike.go; the web SA page is source-tagged with a
 # not-in-this-build stub counterpart.
 ze_ike     internal/component/ike
