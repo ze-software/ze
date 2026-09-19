@@ -1957,3 +1957,97 @@ func onlyCommand(t Translation) string {
 	}
 	return t.Commands[0].Text
 }
+
+// TestExabgpJSONStatesBothEndsOfTheSession pins the half of the neighbor object
+// that was absent from every line the bridge wrote.
+//
+// VALIDATES: `address` and `asn` each carry a `local` and a `peer` member, taken
+// from ze's own `peer.local`.
+// PREVENTS: the divergence this fixed. ExaBGP states both ends on every line
+// (src/exabgp/reactor/api/response/json.py, _neighbor), ze's document has
+// carried the near end all along (appendPeerJSON, component/bgp/format/text.go),
+// and ReadEvent simply never read it -- so a script parsing the bridge's output
+// the way it parses ExaBGP's found no local address at all. No fixture caught it
+// because the compatibility suite drops its :json: expectations unread
+// (readExaBGPCase).
+func TestExabgpJSONStatesBothEndsOfTheSession(t *testing.T) {
+	zebgp := map[string]any{
+		"type": "bgp",
+		"bgp": map[string]any{
+			"type": "update",
+			"peer": map[string]any{
+				"address": "10.0.0.1",
+				"remote":  map[string]any{"address": "10.0.0.1", "as": float64(65001)},
+				"local":   map[string]any{"address": "10.0.0.2", "as": float64(65002)},
+			},
+			"update": map[string]any{
+				"message": map[string]any{"id": float64(1), "direction": "received"},
+				"attr":    map[string]any{"origin": "igp"},
+				"nlri": map[string]any{
+					"ipv4/unicast": []any{map[string]any{
+						"action": "add", "next-hop": "10.0.0.1", "nlri": []any{"192.168.1.0/24"},
+					}},
+				},
+			},
+		},
+	}
+
+	neighbor, ok := ZebgpToExabgpJSON(zebgp)["neighbor"].(map[string]any)
+	require.True(t, ok, "the answer carries no neighbor object")
+
+	address, ok := neighbor["address"].(map[string]any)
+	require.True(t, ok, "the neighbor carries no address object")
+	assert.Equal(t, "10.0.0.2", address["local"], "the near end of the session must be named")
+	assert.Equal(t, "10.0.0.1", address["peer"])
+
+	asn, ok := neighbor["asn"].(map[string]any)
+	require.True(t, ok, "the neighbor carries no asn object")
+	assert.Equal(t, float64(65002), asn["local"], "the near AS must be named")
+	assert.Equal(t, float64(65001), asn["peer"])
+}
+
+// TestExabgpJSONSpellsSAFI4TheWayExaBGPDoes pins the two SAFI names where ze's
+// word and ExaBGP's word differ.
+//
+// VALIDATES: SAFI 4 leaves the bridge as `nlri-mpls`, not ze's `mpls-label`.
+// PREVENTS: a family key no ExaBGP script recognizes. convertUpdateIPC2 used to
+// build the exabgp family by replacing the slash with a space and renaming
+// nothing, which is correct for every SAFI except 4 and 5: ze registers them as
+// `mpls-label` and `mvpn` (plugins/nlri/labeled/types.go) where ExaBGP writes
+// `nlri-mpls` and `mcast-vpn` (src/exabgp/protocol/family.py). The sameness of
+// every other name is exactly why this one went unnoticed.
+func TestExabgpJSONSpellsSAFI4TheWayExaBGPDoes(t *testing.T) {
+	zebgp := map[string]any{
+		"type": "bgp",
+		"bgp": map[string]any{
+			"type": "update",
+			"peer": map[string]any{
+				"address": "10.0.0.1",
+				"remote":  map[string]any{"address": "10.0.0.1", "as": float64(65001)},
+			},
+			"update": map[string]any{
+				"message": map[string]any{"id": float64(1), "direction": "received"},
+				"attr":    map[string]any{"origin": "igp"},
+				"nlri": map[string]any{
+					"ipv4/mpls-label": []any{map[string]any{
+						"action": "add", "next-hop": "10.0.0.1", "nlri": []any{"192.168.1.0/24"},
+					}},
+				},
+			},
+		},
+	}
+
+	neighbor, ok := ZebgpToExabgpJSON(zebgp)["neighbor"].(map[string]any)
+	require.True(t, ok, "the answer carries no neighbor object")
+	message, ok := neighbor["message"].(map[string]any)
+	require.True(t, ok, "the neighbor carries no message: an update with NLRI must state one")
+	update, ok := message["update"].(map[string]any)
+	require.True(t, ok, "the message carries no update object")
+	announce, ok := update["announce"].(map[string]map[string][]any)
+	require.True(t, ok, "the update announces nothing")
+
+	assert.NotContains(t, announce, "ipv4 mpls-label",
+		"ze's own SAFI word reached the wire; an ExaBGP script keys on nlri-mpls and finds nothing")
+	assert.Contains(t, announce, "ipv4 nlri-mpls",
+		"SAFI 4 must be announced under ExaBGP's name")
+}

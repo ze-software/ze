@@ -8,8 +8,6 @@ package bridge
 import (
 	"errors"
 	"fmt"
-	"regexp"
-	"sort"
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -48,23 +46,6 @@ const (
 	bridgeUpdateNLRI = "nlri"
 )
 
-// The SAFI ze names for each family the bridge translates a route into. One
-// declaration serves the ExaBGP-to-ze mapping, the family a family-less route
-// is read as, and the set whose NLRI is a plain prefix.
-const (
-	bridgeUnicastSAFI   = "unicast"
-	bridgeMulticastSAFI = "multicast"
-	bridgeLabeledSAFI   = "nlri-mpls"
-	bridgeVPNSAFI       = "mpls-vpn"
-	bridgeMUPSAFI       = "mup"
-)
-
-// The AFI ExaBGP writes for the two IP families the bridge translates.
-const (
-	bridgeAFIv4 = "ipv4"
-	bridgeAFIv6 = "ipv6"
-)
-
 // The two verbs an ExaBGP route line starts with, and the two-word forms
 // convertRoute reads first.
 const (
@@ -74,62 +55,10 @@ const (
 	withdrawVerb  = "withdraw"
 )
 
-const (
-	bridgeFlowSAFI    = "flow"
-	bridgeFlowVPNSAFI = "flow-vpn"
-
-	// bridgeEveryPeer is the ze peer selector for every configured session. An
-	// ExaBGP line that names no neighbor goes to every neighbor, so the bridge
-	// translates it with this selector.
-	bridgeEveryPeer = "*"
-)
-
-var (
-	// bridgeSRPolicyRE matches an SR-Policy route, which states the AFI and
-	// then the policy fields in place of a prefix.
-	bridgeSRPolicyRE = regexp.MustCompile(`(?i)^(ipv[46])\s+sr-policy\s+(.+)$`)
-
-	// bridgeFamilyRE matches a route that states its family as an AFI and a
-	// SAFI. It captures both and the route that follows them.
-	//
-	// The alternation is BUILT from bridgeSAFI rather than written beside it. It
-	// was a second copy of that vocabulary until 2026-09-05, and the two had
-	// drifted: mcast-vpn was in neither, so every one of api-mvpn's fourteen
-	// frames was refused by a translator that could name the family perfectly
-	// well once it reached the mapping.
-	bridgeFamilyRE = regexp.MustCompile(`(?i)^(ipv[46])\s+(` + bridgeSAFIAlternation() + `)\s+(.+)$`)
-)
-
-// bridgeSAFI maps the SAFI an ExaBGP script writes to the one ze names. Most
-// are the same word; the rows that differ are the whole reason a mapping exists
-// rather than a passthrough.
-var bridgeSAFI = map[string]string{
-	bridgeUnicastSAFI:   bridgeUnicastSAFI,
-	bridgeMulticastSAFI: bridgeMulticastSAFI,
-	bridgeLabeledSAFI:   bridgeLabeledSAFI,
-	bridgeFlowSAFI:      bridgeFlowSAFI,
-	"flowspec":          bridgeFlowSAFI,
-	bridgeFlowVPNSAFI:   bridgeFlowVPNSAFI,
-	"flowspec-vpn":      bridgeFlowVPNSAFI,
-	"mcast-vpn":         "mvpn",
-	bridgeMUPSAFI:       bridgeMUPSAFI,
-}
-
-// bridgeSAFIAlternation renders bridgeSAFI's keys as a regexp alternation,
-// longest first so a reader never has to reason about which branch wins.
-func bridgeSAFIAlternation() string {
-	names := make([]string, 0, len(bridgeSAFI))
-	for name := range bridgeSAFI {
-		names = append(names, name)
-	}
-	sort.Slice(names, func(i, j int) bool {
-		if len(names[i]) != len(names[j]) {
-			return len(names[i]) > len(names[j])
-		}
-		return names[i] < names[j]
-	})
-	return strings.Join(names, "|")
-}
+// bridgeEveryPeer is the ze peer selector for every configured session. An
+// ExaBGP line that names no neighbor goes to every neighbor, so the bridge
+// translates it with this selector.
+const bridgeEveryPeer = "*"
 
 // Translation is what the bridge makes of one ExaBGP line: the ze command to
 // dispatch, and the selector whose forward pool the caller flushes once that
@@ -665,12 +594,6 @@ func familyOfRoute(routeStr string) string {
 	return safiFamily(afi, bridgeUnicastSAFI)
 }
 
-// safiFamily joins an AFI and a SAFI into the family ze names.
-func safiFamily(afi, safi string) string {
-	var tb textbuf.Buffer
-	return tb.Str(afi).Byte('/').Str(safi).String()
-}
-
 // convertAnnounceSRPolicy translates ExaBGP SR-Policy announce to Ze's update text format.
 //
 // ExaBGP: announce ipv4 sr-policy distinguisher 0 color 100 endpoint 10.0.0.1 next-hop 1.2.3.4 preference 100 ...
@@ -772,16 +695,6 @@ const (
 	srPolicyColor         = "color"
 	srPolicyEndpoint      = "endpoint"
 )
-
-// canonicalExabgpSAFI answers the SAFI ze names for the one an ExaBGP script
-// wrote. An unmapped word is returned unchanged, because the regexp that
-// selected it was built from the same map and cannot offer one.
-func canonicalExabgpSAFI(safi string) string {
-	if canonical, ok := bridgeSAFI[safi]; ok {
-		return canonical
-	}
-	return safi
-}
 
 // convertFlowSpec translates one ExaBGP `flow route { ... }` into the ze command
 // that puts it on the wire, under the NLRI verb the caller names.

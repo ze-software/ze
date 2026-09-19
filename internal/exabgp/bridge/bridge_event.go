@@ -80,8 +80,15 @@ type Event struct {
 	// Peer is the remote address, the one key both encoders and the fan-out
 	// filter read.
 	Peer string
+	// Local is THIS speaker's address for the session, empty when the event
+	// carries none. ExaBGP states both halves of a session on every line, so
+	// the JSON encoder owes it (src/exabgp/reactor/api/response/json.py,
+	// _neighbor).
+	Local string
 	// PeerASN is the remote AS, as JSON delivered it.
 	PeerASN float64
+	// LocalASN is THIS speaker's AS, as JSON delivered it.
+	LocalASN float64
 	// RouterID is THIS speaker's BGP Identifier for the session, empty when the
 	// event carries none.
 	RouterID string
@@ -141,6 +148,14 @@ func ReadEvent(zebgp map[string]any) Event {
 			event.Peer, _ = remote["address"].(string)
 			event.PeerASN, _ = remote["as"].(float64)
 		}
+		// ze states the near end of the session under `local`
+		// (internal/component/bgp/format/text.go, appendPeerJSON). It was read
+		// by nothing until 2026-09-19, so every ExaBGP JSON line the bridge
+		// wrote named one half of a session ExaBGP states both halves of.
+		if local, ok := peer["local"].(map[string]any); ok {
+			event.Local, _ = local["address"].(string)
+			event.LocalASN, _ = local["as"].(float64)
+		}
 		event.RouterID, _ = peer["router-id"].(string)
 	}
 
@@ -196,12 +211,18 @@ func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 //	  "exabgp": "6.0.0",
 //	  "type": "update",
 //	  "neighbor": {
-//	    "address": {"peer": "10.0.0.1"},
-//	    "asn": {"peer": 65001},
+//	    "address": {"local": "10.0.0.2", "peer": "10.0.0.1"},
+//	    "asn": {"local": 65002, "peer": 65001},
 //	    "direction": "receive",
 //	    "message": {"update": {...}}
 //	  }
 //	}
+//
+// Both halves of `address` and `asn` are written on every line, and neither key
+// is omitted when the event carries no value for it. ExaBGP's own encoder
+// renders the pair unconditionally (src/exabgp/reactor/api/response/json.py,
+// _neighbor), and a script that indexes `address["local"]` must not meet a
+// KeyError on the one line whose session was not yet established.
 func (e Event) ExabgpJSON() map[string]any {
 	result := map[string]any{
 		"exabgp": Version,
@@ -213,8 +234,8 @@ func (e Event) ExabgpJSON() map[string]any {
 	}
 
 	neighbor := map[string]any{
-		"address":   map[string]any{"peer": e.Peer},
-		"asn":       map[string]any{"peer": e.PeerASN},
+		"address":   map[string]any{"local": e.Local, "peer": e.Peer},
+		"asn":       map[string]any{"local": e.LocalASN, "peer": e.PeerASN},
 		"direction": e.Direction,
 	}
 	if e.RouterID != "" {
@@ -302,24 +323,31 @@ func convertNegotiated(zebgp map[string]any) map[string]any {
 	return result
 }
 
-// convertFamilyList converts a list of families from ZeBGP to ExaBGP format.
-// Converts "ipv4/unicast" to "ipv4 unicast".
+// convertFamilyList converts a list of families from ZeBGP to ExaBGP format:
+// "ipv4/unicast" becomes "ipv4 unicast".
+//
+// Through exabgpFamilyName, not a slash swap. Two SAFIs are spelled differently
+// by the two projects -- ze's mpls-label is ExaBGP's nlri-mpls, and ze's mvpn is
+// its mcast-vpn -- and every other name is identical, which is exactly why a
+// bare ReplaceAll looked right for years.
 func convertFamilyList(families []any) []string {
 	result := make([]string, 0, len(families))
 	for _, f := range families {
 		if s, ok := f.(string); ok {
-			result = append(result, strings.ReplaceAll(s, "/", " "))
+			result = append(result, exabgpFamilyName(s))
 		}
 	}
 	return result
 }
 
-// convertFamilyKeyMap converts a map with family keys from ZeBGP to ExaBGP format.
-// Keys: "ipv4/unicast" -> "ipv4 unicast". Values are preserved as-is.
+// convertFamilyKeyMap converts a map with family keys from ZeBGP to ExaBGP
+// format. Keys: "ipv4/unicast" -> "ipv4 unicast". Values are preserved as-is.
+//
+// Through exabgpFamilyName, for the reason convertFamilyList states.
 func convertFamilyKeyMap(m map[string]any) map[string]any {
 	result := make(map[string]any, len(m))
 	for k, v := range m {
-		result[strings.ReplaceAll(k, "/", " ")] = v
+		result[exabgpFamilyName(k)] = v
 	}
 	return result
 }
@@ -392,7 +420,7 @@ func convertUpdateIPC2(eventData map[string]any) map[string]any {
 	if nlriObj, ok := eventData["nlri"].(map[string]any); ok {
 		for fam, value := range nlriObj {
 			// Convert family: "ipv4/unicast" -> "ipv4 unicast"
-			exabgpFamily := strings.ReplaceAll(fam, "/", " ")
+			exabgpFamily := exabgpFamilyName(fam)
 
 			entries, ok := value.([]any)
 			if !ok {
