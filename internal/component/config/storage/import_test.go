@@ -20,9 +20,22 @@ import (
 	"github.com/ze-software/ze/pkg/zefs"
 )
 
+// storeSpelling answers the path the store itself records for a source blob.
+// openFolder is the store's one walk to a containing directory and on darwin it
+// rewrites /var to /private/var, so a fixture that keeps t.TempDir()'s own
+// spelling writes an import intent no crash could have produced: the resumed
+// run then refuses its own source as "another tree".
+func storeSpelling(t *testing.T, path string) string {
+	t.Helper()
+	folder, err := openFolder(filepath.Dir(path))
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, folder.Close()) })
+	return filepath.Join(folder.Name(), filepath.Base(path))
+}
+
 func importFixture(t *testing.T) (string, map[string][]byte) {
 	t.Helper()
-	path := filepath.Join(t.TempDir(), "database.zefs")
+	path := storeSpelling(t, filepath.Join(t.TempDir(), "database.zefs"))
 	s, err := CreateBlob(path)
 	require.NoError(t, err)
 	t.Cleanup(func() { require.NoError(t, s.Close()) })
