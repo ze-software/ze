@@ -1,8 +1,8 @@
 package wire
 
 import (
-	"slices"
 	"bytes"
+	"slices"
 	"testing"
 )
 
@@ -71,7 +71,7 @@ func TestPayloadNotifyWithSPI(t *testing.T) {
 // reference; this judges all of them, including one registered today and first
 // transmitted next month.
 //
-// RFC requirement: RFC7296-2.21.2-4 positive -- RFC 7296 Section 2.21.2:
+// RFC requirement: RFC7296-2.21.2-3 positive -- RFC 7296 Section 2.21.2:
 // "Extension documents may define new error notifications with these semantics,
 // but MUST NOT use them unless the peer has been shown to understand them, such
 // as by using the Vendor ID payload." Ze sends no Vendor ID, so it may register a
