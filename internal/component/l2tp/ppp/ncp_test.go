@@ -138,6 +138,17 @@ func TestIPResponseConfiguresInterface(t *testing.T) {
 		t.Errorf("p2p[0] = %+v, want ppp42 10.0.0.1/32 10.0.0.2/32", p2p[0])
 	}
 
+	// Fenced on EventSessionUp, NOT on the IPAssigned above. The two facts are
+	// produced in different phases: runNCPPhase emits EventSessionIPAssigned and
+	// programs the address, and SetAdminUp runs AFTER that phase returns, with
+	// EventSessionUp sent behind it (session_run.go). Reading UpCalls straight
+	// after IPAssigned therefore asks for a fact the session goroutine has not
+	// produced yet, and it lost that race in a verification sweep: "SetAdminUp
+	// calls = [], want at least 1", while passing 5 of 5 alone.
+	if _, ok := waitForEventOfType[EventSessionUp](t, td.driver.EventsOut(), 2*time.Second); !ok {
+		t.Fatal("no EventSessionUp, so the session never finished bringing the interface up")
+	}
+
 	up := td.backend.UpCalls()
 	if len(up) < 1 {
 		t.Errorf("SetAdminUp calls = %v, want at least 1", up)
