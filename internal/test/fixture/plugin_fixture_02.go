@@ -802,7 +802,15 @@ func pathASNTransitFree02(ctx context.Context, plugin *sdk.Plugin) error {
 			return fmt.Errorf("the pasteable line holds no AS3356: %q", line)
 		}
 		fmt.Fprintf(os.Stderr, "OK: reject-asn show answered %d networks and one pasteable line\n", len(networks))
-		return nil
+		// The .ci asserts the peer reads this session's End-of-RIB, and this
+		// plugin returning is what ends the daemon. Without the fence the two
+		// races: the CLI answer above needs no session, so the plugin can finish
+		// while the marker is still owed, and the peer then reads the Cease
+		// NOTIFICATION of the shutdown where it expected the marker. Observed
+		// 2026-09-19: the daemon logged this line at .577 and sent Cease at
+		// .579. pendingSync counts the owed marker (peer.go), so `request
+		// quiesce` is what waits for it.
+		return apiRIBReady02(ctx, plugin)
 	}
 	return fmt.Errorf("no `indirect [ ... ];` line in the block: %v", block)
 }
