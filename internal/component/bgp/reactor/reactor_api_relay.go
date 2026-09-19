@@ -217,13 +217,22 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 	relayed := 0
 	eligible := 0
 
-	for i := range routes {
+	for i := 0; i < len(routes); {
 		route := &routes[i]
+
+		// The routes this one reconstruction MAY coalesce: every leading route
+		// that shares the source, family, attribute block, next hop and NLRI
+		// framing, which is exactly the set the source could have sent in one
+		// UPDATE. buildRelayUpdate consumes as many of them as the message
+		// ceiling allows and reports how many, so a run longer than one message
+		// simply becomes the next iteration's run.
+		run := relayRunLen(routes[i:])
 
 		// Counted BEFORE the parse guard: a route dropped for an unparseable
 		// source is still a route the caller asked us to relay, and leaving it
-		// out of `eligible` made the completeness check below fail OPEN.
-		eligible++
+		// out of `eligible` made the completeness check below fail OPEN. The
+		// whole run shares the source, so a guard below rejects all of it.
+		eligible += run
 
 		srcAddr, parseErr := netip.ParseAddr(route.SourcePeer)
 		if parseErr != nil {
@@ -232,6 +241,7 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 				"source", route.SourcePeer, "destination", destination,
 				"family", route.Family, "err", parseErr)
 			lastErr = errors.New(tb.Str("relay-stored-route: invalid source peer ").Quoted(route.SourcePeer).String())
+			i += run
 			continue
 		}
 
@@ -240,7 +250,8 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 		// cannot trust a caller-supplied list to have done so.
 		if srcAddr == destination {
 			// Never eligible: a route is not relayed back to its own source.
-			eligible--
+			eligible -= run
+			i += run
 			continue
 		}
 
@@ -254,15 +265,24 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 			fwdLogger().Warn("relay-stored-route: source peer not established, route not relayed",
 				"source", route.SourcePeer, "destination", destination, "family", route.Family)
 			lastErr = errRelayNoSource
+			i += run
 			continue
 		}
 
-		update, updateID, buildErr := a.buildRelayUpdate(route, src, &spans)
+		update, updateID, consumed, buildErr := a.buildRelayUpdate(routes[i:i+run], src, &spans)
 		if buildErr != nil {
+			// The whole run is dropped, not just its first route. Every reason
+			// buildRelayUpdate refuses is read off the fields the run shares --
+			// the family, the attribute block, the next hop, the framing -- so
+			// the routes behind this one would each fail the same way. The one
+			// size-derived refusal cannot fire for a run, because the fill loop
+			// stops at the ceiling rather than overrunning it, and reports too
+			// large only when a SINGLE route cannot be encoded.
 			fwdLogger().Error("relay-stored-route: reconstruction failed",
 				"source", route.SourcePeer, "destination", destination,
-				"family", route.Family, "err", buildErr)
+				"family", route.Family, "routes", run, "err", buildErr)
 			lastErr = buildErr
+			i += run
 			continue
 		}
 
@@ -291,17 +311,19 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 		// exists to surface.
 		switch {
 		case fwdErr == nil:
-			relayed++
+			relayed += consumed
 		case errors.Is(fwdErr, errAllDestinationsSuppressed):
-			relayed++ // handled: egress policy decided this peer gets nothing
+			relayed += consumed // handled: egress policy decided this peer gets nothing
 			fwdLogger().Debug("relay-stored-route: suppressed for destination",
-				"source", route.SourcePeer, "destination", destination, "family", route.Family)
+				"source", route.SourcePeer, "destination", destination,
+				"family", route.Family, "routes", consumed)
 		default:
 			fwdLogger().Error("relay-stored-route: forward failed",
 				"source", route.SourcePeer, "destination", destination,
-				"family", route.Family, "err", fwdErr)
+				"family", route.Family, "routes", consumed, "err", fwdErr)
 			lastErr = fwdErr
 		}
+		i += consumed
 	}
 
 	// A partial relay is NOT a success.
@@ -340,10 +362,38 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 // evictLocked is the one place that returns all of them, exactly once. Inventing
 // a second refcount here would duplicate that contract and risk returning a
 // buffer still aliased by an in-flight write.
-func (a *reactorAPIAdapter) buildRelayUpdate(route *rpc.StoredRoute, src relaySource, spans *[]relayAttrSpan) (*ReceivedUpdate, uint64, error) {
+// relayRunLen reports how many leading routes share everything a single UPDATE
+// must state once: the source, the family, the attribute block, the next hop and
+// the NLRI framing. Those are precisely the fields writeRelayPayload emits
+// outside the NLRI section, so a run is a set of prefixes one message can carry.
+//
+// PathID is deliberately NOT part of the key. RFC 7911 Section 3 puts the
+// identifier in front of each NLRI, inside the section, so paths with different
+// identifiers still share one message.
+func relayRunLen(routes []rpc.StoredRoute) int {
+	first := &routes[0]
+	n := 1
+	for n < len(routes) {
+		next := &routes[n]
+		if next.SourcePeer != first.SourcePeer ||
+			next.Family != first.Family ||
+			next.NLRIFraming != first.NLRIFraming ||
+			next.NextHopHex != first.NextHopHex ||
+			next.AttrHex != first.AttrHex {
+			break
+		}
+		n++
+	}
+	return n
+}
+
+func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relaySource, spans *[]relayAttrSpan) (*ReceivedUpdate, uint64, int, error) {
+	// Every field read here outside the NLRI section is shared by the whole run,
+	// which is what relayRunLen guarantees, so the first route states them all.
+	route := &routes[0]
 	fam, known := family.LookupFamily(route.Family)
 	if !known {
-		return nil, 0, errRelayFamily
+		return nil, 0, 0, errRelayFamily
 	}
 
 	// The reconstruction is emitted under the source's relabeled receive
@@ -371,77 +421,122 @@ func (a *reactorAPIAdapter) buildRelayUpdate(route *rpc.StoredRoute, src relaySo
 			// The bytes already carry the source's framing, identifiers included.
 		default:
 			// Refuse before touching a buffer. See errRelayNLRIFraming.
-			return nil, 0, errRelayNLRIFraming
+			return nil, 0, 0, errRelayNLRIFraming
 		}
 	}
 
 	attrLen := hex.DecodedLen(len(route.AttrHex))
 	nhLen := hex.DecodedLen(len(route.NextHopHex))
-	nlriLen := hex.DecodedLen(len(route.NLRIHex))
-	if nlriLen == 0 || nhLen == 0 {
-		return nil, 0, errRelayHex
+	firstNLRILen := hex.DecodedLen(len(route.NLRIHex))
+	if firstNLRILen == 0 || nhLen == 0 {
+		return nil, 0, 0, errRelayHex
 	}
 
-	// Decode the three stored hex fields into ONE pooled scratch buffer rather
-	// than three heap slices: a peer-up replay runs this per stored route. The
-	// path identifier is written into the four octets reserved ahead of the NLRI,
-	// so the NLRI section stays one contiguous span.
-	scratchLen := attrLen + nhLen + pathIDLen + nlriLen
+	// Decode the stored hex fields into ONE pooled scratch buffer rather than
+	// separate heap slices. The attribute block and the next hop are stated once
+	// for the whole run; the NLRI region that follows them takes one element per
+	// route, so the NLRI section stays one contiguous span whatever the run
+	// length. The path identifier is written into the four octets reserved ahead
+	// of each element.
+	runNLRILen := 0
+	for i := range routes {
+		runNLRILen += pathIDLen + hex.DecodedLen(len(routes[i].NLRIHex))
+	}
+	scratchLen := attrLen + nhLen + runNLRILen
 	scratch := getReadBuf(scratchLen > message.MaxMsgLen-message.HeaderLen)
 	if scratch.Buf == nil {
-		return nil, 0, errRelayBufferPool
+		return nil, 0, 0, errRelayBufferPool
 	}
 	defer ReturnReadBuffer(scratch)
-	if scratchLen > len(scratch.Buf) {
-		return nil, 0, errRelayTooLarge
+	// Only the FIRST element has to fit. A run longer than one message is not an
+	// error: the fill loop below stops where the message stops, and the caller
+	// starts the next reconstruction at the route that did not fit.
+	if attrLen+nhLen+pathIDLen+firstNLRILen > len(scratch.Buf) {
+		return nil, 0, 0, errRelayTooLarge
 	}
 	attrs := scratch.Buf[:attrLen]
 	nextHop := scratch.Buf[attrLen : attrLen+nhLen]
-	nlri := scratch.Buf[attrLen+nhLen : scratchLen]
+	nlriRegion := scratch.Buf[attrLen+nhLen:]
 	// hex.Decode does not leak src, so the []byte conversions are elided by the
 	// compiler ("zero-copy string->[]byte conversion") and cost nothing per
 	// route. A hand-rolled decoder was tried here and reverted: it was premised
 	// on an allocation that measurement showed does not happen.
 	if _, err := hex.Decode(attrs, []byte(route.AttrHex)); err != nil {
-		return nil, 0, errRelayHex
+		return nil, 0, 0, errRelayHex
 	}
 	if _, err := hex.Decode(nextHop, []byte(route.NextHopHex)); err != nil {
-		return nil, 0, errRelayHex
-	}
-	if _, err := hex.Decode(nlri[pathIDLen:], []byte(route.NLRIHex)); err != nil {
-		return nil, 0, errRelayHex
-	}
-	if pathIDLen != 0 {
-		binary.BigEndian.PutUint32(nlri, route.PathID)
+		return nil, 0, 0, errRelayHex
 	}
 
 	scanned, ok := scanAttrBlock(*spans, attrs)
 	*spans = scanned
 	if !ok {
-		return nil, 0, errRelayAttrs
+		return nil, 0, 0, errRelayAttrs
 	}
 
 	needNextHop := relayNeedsNextHopAttr(scanned, fam)
 	// Checked here as well as inside relayPayloadLen so the refusal names the
 	// actual defect rather than being folded into "too large".
 	if fam == family.IPv4Unicast && needNextHop && len(nextHop) != 4 {
-		return nil, 0, errRelayNextHopLen
+		return nil, 0, 0, errRelayNextHopLen
 	}
-	size, ok := relayPayloadLen(scanned, nextHop, nlri, fam, needNextHop)
-	if !ok {
-		return nil, 0, errRelayTooLarge
+
+	// Fill the NLRI section with as much of the run as this UPDATE can carry.
+	// relayPayloadLen is asked before each element is accepted, so the message
+	// ceiling is a STOP rather than a refusal: the run resumes in the next
+	// reconstruction. That is what puts the replayed stream back into the
+	// message shape the source sent, and it is the whole point of coalescing --
+	// an egress policy that overflows the rebuilt message must overflow it on
+	// this rail exactly as it does on the live forward.
+	nlriLen := 0
+	size := 0
+	consumed := 0
+	for i := range routes {
+		elemLen := pathIDLen + hex.DecodedLen(len(routes[i].NLRIHex))
+		if elemLen == pathIDLen {
+			// An element with no NLRI bytes. Refused outright as the first
+			// route, and it stops the run otherwise.
+			break
+		}
+		if nlriLen+elemLen > len(nlriRegion) {
+			break
+		}
+		elem := nlriRegion[nlriLen : nlriLen+elemLen]
+		if _, err := hex.Decode(elem[pathIDLen:], []byte(routes[i].NLRIHex)); err != nil {
+			if consumed == 0 {
+				return nil, 0, 0, errRelayHex
+			}
+			break
+		}
+		if pathIDLen != 0 {
+			binary.BigEndian.PutUint32(elem, routes[i].PathID)
+		}
+		trialSize, fits := relayPayloadLen(scanned, nextHop, nlriRegion[:nlriLen+elemLen], fam, needNextHop)
+		if !fits {
+			if consumed == 0 {
+				return nil, 0, 0, errRelayTooLarge
+			}
+			break
+		}
+		nlriLen += elemLen
+		size = trialSize
+		consumed++
 	}
+	if consumed == 0 {
+		return nil, 0, 0, errRelayHex
+	}
+	nlri := nlriRegion[:nlriLen]
 
 	// The reconstruction buffer is NOT returned here: it backs the WireUpdate for
 	// the whole forward, including asynchronous per-peer writes, and is returned
 	// when the cache evicts the entry.
 	out := getReadBuf(size > message.MaxMsgLen-message.HeaderLen)
 	if out.Buf == nil {
-		return nil, 0, errRelayBufferPool
+		return nil, 0, 0, errRelayBufferPool
 	}
 	if size > len(out.Buf) {
 		ReturnReadBuffer(out)
-		return nil, 0, errRelayTooLarge
+		return nil, 0, 0, errRelayTooLarge
 	}
 	n := writeRelayPayload(out.Buf, 0, scanned, attrs, nextHop, nlri, fam, needNextHop)
 
@@ -490,5 +585,5 @@ func (a *reactorAPIAdapter) buildRelayUpdate(route *rpc.StoredRoute, src relaySo
 	a.r.recentUpdates.RetainN(updateID, 1)
 	a.r.recentUpdates.Activate(updateID, 0)
 
-	return ru, updateID, nil
+	return ru, updateID, consumed, nil
 }

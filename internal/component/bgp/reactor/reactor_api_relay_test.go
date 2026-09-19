@@ -656,6 +656,45 @@ func relayIngressPathID(t *testing.T, src *Peer, received uint32) uint32 {
 // octets.
 var relayStoredNLRIWire = []byte{0x18, 0x0a, 0x00, 0x00}
 
+// relayStoredNLRIHex is storedIPv4Route's prefix as it appears on the wire,
+// lowercased the way hex.EncodeToString writes it.
+const relayStoredNLRIHex = "180a0000"
+
+// relayStoredAttrHexAlternate is storedIPv4Route's attribute block with the
+// AS_PATH's first ASN changed (64496 -> 64498), so two fixtures differ in the
+// one field a single UPDATE can state only once.
+const relayStoredAttrHexAlternate = "4001010040020E02030000FBF20000FC000000FBF140030401010101"
+
+// storedIPv4RouteNLRI is storedIPv4Route carrying a caller-chosen prefix, for
+// the tests that need several prefixes under one attribute block. The source is
+// the fixture's own established peer, because a run is defined by sharing one,
+// so a caller that could vary it could only build routes that never coalesce.
+func storedIPv4RouteNLRI(nlriHex string) rpc.StoredRoute {
+	route := storedIPv4Route("10.0.0.1")
+	route.NLRIHex = nlriHex
+	return route
+}
+
+// relayBodyNLRIBytes is relayBodyNLRI without the *testing.T, for readers that
+// run inside a polling loop where a require would call FailNow off the test
+// goroutine. It answers nil for a body it cannot walk.
+func relayBodyNLRIBytes(body []byte) []byte {
+	if len(body) < 4 {
+		return nil
+	}
+	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
+	attrLenOff := 2 + withdrawnLen
+	if attrLenOff+2 > len(body) {
+		return nil
+	}
+	attrLen := int(binary.BigEndian.Uint16(body[attrLenOff : attrLenOff+2]))
+	nlriOff := attrLenOff + 2 + attrLen
+	if nlriOff > len(body) {
+		return nil
+	}
+	return body[nlriOff:]
+}
+
 // TestRelayAddPathRoundTrip verifies a route stored from an ADD-PATH source is
 // relayed, and reaches each destination in that destination's own framing.
 //
@@ -715,7 +754,7 @@ func TestRelayAddPathRoundTrip(t *testing.T) {
 // destination receives one prefix N times under RFC 7911 Section 5 replacement
 // semantics and keeps exactly one. Silent route loss on a route server.
 func TestRelayMultiPathPreserved(t *testing.T) {
-	api, _, dispatched, mu, done := relayFixture(t)
+	api, _, dispatched, mu, _ := relayFixture(t)
 	src := relayAddPathContexts(t, api, true, true)
 
 	routes := []rpc.StoredRoute{
@@ -724,33 +763,159 @@ func TestRelayMultiPathPreserved(t *testing.T) {
 	}
 	require.NoError(t, api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"), routes, plugin.OperatorSender()))
 
-	for range routes {
+	want := map[uint32]string{
+		relayIngressPathID(t, src, 1): relayStoredNLRIHex,
+		relayIngressPathID(t, src, 2): relayStoredNLRIHex,
+	}
+
+	// The assertion is on the PATHS the destination receives, not on how many
+	// messages carry them. These two share every field a reconstruction states
+	// once, so they coalesce into one UPDATE whose NLRI section holds both, and
+	// RFC 7911 Section 3 gives each element its own identifier there. Counting
+	// dispatches pinned the framing instead of the requirement, and the
+	// requirement is that neither path is lost.
+	got, ok := relayAwaitDispatchedPaths(dispatched, mu, len(want))
+	require.True(t, ok, "both relayed paths never reached the forward pool, got %v", got)
+	assert.Equal(t, want, got,
+		"two paths for one prefix reach the destination under two identifiers, both carrying the prefix")
+}
+
+// TestRelayCoalescesARunIntoTheMessageTheSourceSent verifies the replay rebuilds
+// the source's message framing instead of emitting one UPDATE per stored prefix.
+//
+// VALIDATES: stored routes sharing the source, family, attribute block, next hop
+// and framing are relayed in ONE UPDATE carrying every prefix.
+// PREVENTS: the two rails disagreeing about message SHAPE, which made an egress
+// policy's outcome depend on scheduling. A live forward rebuilds the received
+// UPDATE whole, so a modification that pushes it past the RFC 8654 ceiling is
+// refused and the route suppressed; the replay used to hand the same prefixes to
+// the same policy one at a time, where the modification always fit. A peer that
+// established a moment late therefore got routes the policy had refused to the
+// peer that established on time. It is also what made a 16373-prefix UPDATE
+// replay as 16373 messages, exhausting the read-buffer pool
+// (plan/journal/transient-failure-treated-as-fatal.md).
+func TestRelayCoalescesARunIntoTheMessageTheSourceSent(t *testing.T) {
+	api, _, dispatched, mu, done := relayFixture(t)
+	relayAddPathContexts(t, api, false, false)
+
+	routes := []rpc.StoredRoute{
+		storedIPv4RouteNLRI("180a0000"),
+		storedIPv4RouteNLRI("180a0100"),
+		storedIPv4RouteNLRI("180a0200"),
+	}
+	require.NoError(t, api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"), routes, plugin.OperatorSender()))
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the coalesced relay never reached the forward pool")
+	}
+
+	mu.Lock()
+	items := append([]fwdItem(nil), (*dispatched)...)
+	mu.Unlock()
+	require.Len(t, items, 1, "three prefixes sharing one attribute block are ONE UPDATE, as the source sent them")
+	assert.Equal(t, "180a0000180a0100180a0200",
+		hex.EncodeToString(relayDispatchedNLRI(t, items[0])),
+		"the NLRI section carries every prefix of the run, in the order it was stored")
+}
+
+// TestRelaySplitsARunOnAChangeOfAttributes verifies coalescing stops where the
+// source's own framing had to.
+//
+// VALIDATES: routes whose attribute blocks differ are relayed in separate
+// UPDATEs.
+// PREVENTS: the defect coalescing could introduce. One UPDATE states ONE
+// attribute block for every prefix in it (RFC 4271 Section 4.3), so merging two
+// blocks would silently advertise the first route's attributes for the second's
+// prefix -- a route server handing a peer the wrong AS_PATH.
+func TestRelaySplitsARunOnAChangeOfAttributes(t *testing.T) {
+	api, _, dispatched, mu, done := relayFixture(t)
+	relayAddPathContexts(t, api, false, false)
+
+	first := storedIPv4RouteNLRI("180a0000")
+	second := storedIPv4RouteNLRI("180a0100")
+	second.AttrHex = relayStoredAttrHexAlternate
+	require.NotEqual(t, first.AttrHex, second.AttrHex, "the fixture must actually differ, or this proves nothing")
+
+	require.NoError(t, api.RelayStoredRoute(netip.MustParseAddr("10.0.0.2"),
+		[]rpc.StoredRoute{first, second}, plugin.OperatorSender()))
+
+	for range 2 {
 		select {
 		case <-done:
 		case <-time.After(2 * time.Second):
-			t.Fatal("a relayed path never reached the forward pool")
+			t.Fatal("a relayed route never reached the forward pool")
 		}
 	}
 
 	mu.Lock()
 	items := append([]fwdItem(nil), (*dispatched)...)
 	mu.Unlock()
-	require.Len(t, items, 2, "one dispatch per stored path")
+	require.Len(t, items, 2, "a change of attribute block ends the run")
 
-	got := make(map[uint32]struct{}, len(items))
+	var carried []string
 	for _, item := range items {
-		nlri := relayDispatchedNLRI(t, item)
-		require.Len(t, nlri, relayPathIDLen+4)
-		assert.Equal(t, "180a0000", hex.EncodeToString(nlri[relayPathIDLen:]),
-			"both paths announce the same prefix")
-		got[binary.BigEndian.Uint32(nlri)] = struct{}{}
+		carried = append(carried, hex.EncodeToString(relayDispatchedNLRI(t, item)))
 	}
+	assert.ElementsMatch(t, []string{"180a0000", "180a0100"}, carried,
+		"each attribute block carries only its own prefix")
+}
 
-	want := map[uint32]struct{}{
-		relayIngressPathID(t, src, 1): {},
-		relayIngressPathID(t, src, 2): {},
+// relayAwaitDispatchedPaths polls the dispatch record until it holds want
+// distinct path identifiers, and returns what it found. It takes no *testing.T
+// on purpose: it runs inside a polling loop, where a require would call FailNow
+// off the test goroutine.
+func relayAwaitDispatchedPaths(dispatched *[]fwdItem, mu *sync.Mutex, want int) (map[uint32]string, bool) {
+	deadline := time.Now().Add(2 * time.Second)
+	var paths map[uint32]string
+	for {
+		mu.Lock()
+		items := append([]fwdItem(nil), (*dispatched)...)
+		mu.Unlock()
+		paths = relayDispatchedPaths(items)
+		if len(paths) >= want || time.Now().After(deadline) {
+			return paths, len(paths) == want
+		}
+		time.Sleep(10 * time.Millisecond)
 	}
-	assert.Equal(t, want, got, "two paths for one prefix reach the destination under two identifiers")
+}
+
+// relayDispatchedPaths walks every dispatched body's NLRI section and returns
+// each path identifier with the prefix it carries.
+//
+// It SPLITS the section rather than reading one element. A reconstruction now
+// carries every path its run coalesced, and RFC 7911 Section 3 frames each NLRI
+// with its own identifier, so the section is a sequence: a reader that took the
+// first element would pass while the rest were silently dropped.
+func relayDispatchedPaths(items []fwdItem) map[uint32]string {
+	paths := make(map[uint32]string)
+	for _, item := range items {
+		nlri := relayDispatchedBytes(item)
+		for off := 0; off+relayPathIDLen < len(nlri); {
+			id := binary.BigEndian.Uint32(nlri[off:])
+			off += relayPathIDLen
+			octets := (int(nlri[off]) + 7) / 8
+			if off+1+octets > len(nlri) {
+				return paths
+			}
+			paths[id] = hex.EncodeToString(nlri[off : off+1+octets])
+			off += 1 + octets
+		}
+	}
+	return paths
+}
+
+// relayDispatchedBytes is relayDispatchedNLRI without the *testing.T, for the
+// polling reader above.
+func relayDispatchedBytes(item fwdItem) []byte {
+	if len(item.rawBodies) > 0 {
+		return relayBodyNLRIBytes(item.rawBodies[0])
+	}
+	if len(item.updates) == 0 {
+		return nil
+	}
+	return item.updates[0].NLRI
 }
 
 // TestRelayAddPathZeroPathIDIsRelayed verifies a stored path identifier of 0 is
