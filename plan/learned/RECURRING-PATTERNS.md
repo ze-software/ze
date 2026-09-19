@@ -609,26 +609,35 @@ rely on test isolation.
 
 ---
 
-### `go test` cache hides compile breaks in dependent packages
+### Cached Go test results do not cover every external producer
 
-**Symptom.** `./le verify current mode full` is green. A package that imports
-your modified file fails to compile at the next build.
+**Symptom.** A test reports green after a producer changes, but the path the
+test was meant to exercise is broken.
 
-**Cause.** `go test` caches the compile result per package. Modifying
-file X invalidates the cache for X's package, but not for packages
-that transitively import X. If X's change broke a consumer's
-type signature, the broken consumer stays cached and the test result
-is stale.
+**Cause.** Go tracks package-source changes through build dependencies.
+An exec-reached producer, compiler or interpreter can change outside the
+test result cache's tracked inputs, so `ok (cached)` does not prove the
+changed producer ran. A dependent package's compile failure after a green
+verification also requires checking which packages and build tags that run
+covered; clearing the test cache cannot add an omitted package.
 
-**Evidence.** 394 (phase 3 forward-congestion), 457 (phase 2), 613
-(vpp-2-fib).
+**Historical evidence.** Summaries 394 (phase 3 forward-congestion), 457
+(phase 2), and 613 (vpp-2-fib) recorded green verification followed by a
+compile failure. Their attribution to missing transitive package-source
+invalidation is superseded by the package-source versus exec-reached
+distinction in `ai/rules/testing.md`.
 
-**Avoid it by.** After modifying any exported identifier (type,
-function signature, constant, interface method), run
-`go clean -testcache` before `./le verify current mode full`, OR touch one file
-in every importing package to force recompile.
+**Avoid it by.** For a discrimination proof, identify what changed. Package
+source needs no extra cache defeat. An exec-reached producer needs
+`-count=1` or a runner without a Go result cache, and the evidence must state
+which ran. `.ci`, `.et`, `.wb` and Docker runs have no Go result cache.
+Do not clear the whole cache or touch importing packages for a package-source
+change.
 
-**Recover if you hit it.** Clean the test cache and re-run.
+**Recover if you hit it.** Check the original command's package and build-tag
+coverage. For an exec-reached producer, rerun with the cache defeated and
+record the result; for an omitted consumer, run the consumer under the
+required build tags.
 
 ---
 
@@ -826,11 +835,14 @@ which means the spec was closed prematurely.
 decorator wiring requires populating GraphNode.Name"; 498 is the
 overhaul that fixed it — code existed, was not wired).
 
-**Avoid it by.** If you are about to write a learned summary that
-contains the phrase "future X", "requires Y in a follow-up", or
-"deferred to N": the spec is not done. Do not close it. Either wire
-it, or explicitly record the deferral in the source's `plan/deferrals/<source>.md`
-shard with a named destination spec.
+**Avoid it by.** A completion record that says "future X", "requires Y in a
+follow-up", or "deferred to N" must account for that unfinished in-scope item.
+Complete it, or obtain the owner's approval for a scope reduction and name
+the existing destination spec in the source's `Work Not Done` table. Search
+the three release buckets first; add the item to a matching spec's Task, or
+create its own spec in the bucket the item belongs to when none exists.
+`docs/contributing/spec-workflow.md` defines the procedure. A row or a prose
+promise alone does not own the work.
 
 **Recover if you hit it.** Read the entire summary for "future",
 "deferred", "not yet wired"; pick up the work.
@@ -1253,7 +1265,8 @@ At session start, scan headings. At each commit, re-scan for the two
 or three headings relevant to the change you made — most entries name
 a specific check you can run in under a minute.
 
-If you hit a symptom not listed here and it recurs (two or more
-learned summaries), add an entry. The threshold for listing is not
-"this happened once"; it is "this has happened more than once and
-cost at least one session to diagnose."
+If you hit a symptom not listed here and it recurs, add an entry with at
+least two recorded occurrences that cost at least one session to diagnose.
+Cite session or reproduction evidence directly; an existing learned-summary
+citation is optional. Route the preventive instruction to the governing
+rule under `ai/rules/planning.md`.

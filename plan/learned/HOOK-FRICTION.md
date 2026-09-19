@@ -1159,12 +1159,14 @@ for a listed hook changes:
 
 1. Add an entry following the template (Trigger / Blocks / Workaround
    / Evidence).
-2. Cite the learned summary number(s) where the pattern appeared.
+2. Cite the session and reproduction evidence (triggering input, hook refusal,
+   and the workaround result). Existing learned-summary citations are optional.
 3. Update the frequency table at the top.
 
-Threshold for listing: the hook must have generated a false positive
-in at least one session documented in `plan/learned/`. Do not list
-true positives — those are the hook doing its job.
+Threshold for listing: the hook must have generated a false positive in at
+least one session, with the evidence recorded in the entry. A separate
+learned summary is not required. True positives are the hook doing its job
+and do not belong here.
 
 ## How to retire an entry
 

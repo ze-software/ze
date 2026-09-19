@@ -74,9 +74,9 @@ in one thing: where the diff is.
 | `in-progress` | the working tree, uncommitted | nothing |
 | `verification` | already committed by the implementation session (`ai/rules/planning.md`, "Two-Session Handoff") | the reviewers read `git diff <handoff-sha>~1..<handoff-sha>` instead of the working tree, and `./le spec session review record` records over those same files |
 
-At `verification` the code is committed, so closure adds commit A (journal row,
-spec, any doc or fix edits this skill produced) and commit B (the native commit
-command removes the spec). The handoff commit is neither of them. Get the handoff SHA from
+At `verification` the code is committed, so closure adds commit A (the edited
+spec and any fixes, documentation, or warranted lesson records) and commit B
+(spec removal). The handoff commit is neither of them. Get the handoff SHA from
 `git log -1 --format=%H -- plan/<spec-name>`.
 
 ## Spec Sections Used by Each Step
@@ -166,23 +166,17 @@ command removes the spec). The handoff commit is neither of them. Get the handof
    Running the commit script finishes the work. There is no step 7. The script is the
    final action. Everything below MUST be in that single script.
 
-   a. **Record the lesson as a journal row.** The closure artifact is a row in
-      `plan/journal/<class>.md`, where `<class>` names the problem class (the trap
-      or pattern, not the subsystem). The row has five columns:
-      `| Date | Spec | Surface | Symptom | Fix |`. The Spec column carries the
-      spec stem so `spec_closure_stem` can read it. Create the file when the class
-      is new. All five cells, starting with `|`: `journal_row_problems` REFUSES
-      commit A over a row it cannot parse, because a row with no readable Spec
-      cell leaves the review gate with no stem and it stops firing on the code.
-      Answer this first, from the finished work: does this spec leave a decision
-      with a rejected alternative, a constraint discovered, or a trap that would
-      catch the next session?
-      - **Yes, there is a lesson:** append a row to the matching class file under
-        `plan/journal/`. Use today's date, the spec stem, the subsystem where it
-        appeared, a one-phrase symptom, and a one-phrase fix.
-      - **No, there is none:** create nothing and say so in the commit body.
-      A row is written because the work taught something, never because a commit
-      needs an artifact.
+   a. **Route any lesson to its governing surface.** Follow the lesson-routing
+      rule in `ai/rules/planning.md`. Update an existing rule, architecture page,
+      protocol record, or learned index when it governs the lesson.
+      Write a journal row only when the rule calls for one, never as a closure
+      artifact. Search `plan/journal/` for the problem class before adding a row.
+      A warranted row has five cells:
+      `| Date | Spec | Surface | Symptom | Fix |`.
+      The Spec cell records provenance, not a closure request. The commit command
+      validates journal row shape; removal of a spec identifies closure.
+      <!-- source: internal/le/commit/review.go -- closureStem, closedSpecStem -->
+      If there is no lesson, create no lesson record.
    b. Release this session's spec claim: `./le spec session release`. This also frees a slot against the WIP cap (`./le spec session wip`).
    c. List all changes made (files modified/created, tests added, docs updated, issues found and fixed).
    d. Prepare ONE commit script with `./le commit create` that produces TWO commits:
@@ -233,10 +227,8 @@ command removes the spec). The handoff commit is neither of them. Get the handof
       - The native command owns the session ID, message files, executable script, ignored-path rejection, `git commit -F`, and journal-row checks.
    e. Run the generated script yourself, with `bash` and the path from its `script=` line. Then report the resulting commit SHA(s), the script path, message files, commit subjects, and included files. This is the end.
 
-   **Why one script, two commits, no follow-up:** the user will not ask for a second step.
-   They will not remember that the spec needs closing. They will not prompt you for the
-   journal row. If closure is not in the script, it will never happen and the spec
-   rots in `plan/` forever. Include everything. There is nothing after this step.
+   **Why one script, two commits, no follow-up:** closure must not depend on a
+   later reminder to remove the spec. Include all required changes in the script.
    Two commits because removing the spec destroys the working copy. Commit A
    preserves the edited spec in git history; commit B cleanly removes it.
 

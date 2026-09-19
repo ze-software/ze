@@ -100,7 +100,7 @@ Ask the question from Bash instead
 | Task | Read first | Then use |
 |---|---|---|
 | Generate and run a commit script | `ai/rules/git-safety.md` | Fast path: use `./le commit create`, then run it with `bash` and the path its `script=` line prints. if verification is considered, run `./le verify status check` first and never rerun verify when FRESH (`ai/rules/precommit-verify.md`) |
-| Record a problem the work uncovered | `ai/rules/planning.md` ("Writing Journal Rows") | Append a row to `plan/journal/<class>.md`, then `--file` it on commit A; `./le journal report` prints every class that repeated |
+| Record a problem the work uncovered | `ai/rules/planning.md` | Follow the lesson-routing rule. Include a warranted journal row in its scoped commit with `file <path>`; a row is not a closure artifact |
 
 ### Modifying Existing Code
 

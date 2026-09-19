@@ -13,13 +13,14 @@ One file per problem class. Each file holds one table:
 - **Date** is the day the occurrence was found, as `YYYY-MM-DD`. It is what the
   span is computed from, so anything else is refused.
 - **Spec** names the spec that found this instance, or `-` when found outside a
-  spec. The cell is a KEY. The review gate in the retired `scripts/dev/commit_helper.py` (current producer: `internal/le/commit/prepare.go`)
-  looks up `tmp/review/<stem>-<session>.md` under it, so the cell holds spec
-  stems and nothing else. Two specs are separated by a comma. An explanation
-  goes in a trailing `(note)`, which the parser strips, or in the Symptom cell.
-  Prose in place of a stem is refused when the commit is prepared. A cell
-  reading `none (walked into during <spec> closure)` sent the gate to a path
-  nobody can write.
+  spec. The cell is an attribution key, so it holds spec stems separated by
+  commas. An explanation goes in a trailing `(note)`, which the parser strips,
+  or in the Symptom cell. Prose in place of a stem is refused when the commit
+  is prepared. A row records an occurrence; it neither closes the named spec
+  nor proves that its work is complete. The closure-candidate detector can
+  use committed rows as a prompt to check an `in-progress` spec, but the commit
+  review gate gets its closure stem only from a removed spec, excluding a
+  relocation between release buckets (`docs/contributing/spec-workflow.md`).
 - **Surface** names the subsystem where the symptom appeared.
 - **Symptom** describes what went wrong.
 - **Fix** describes what was done about it.

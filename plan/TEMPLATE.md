@@ -283,8 +283,10 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 | 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
 
 ## Design Insights
-<!-- LIVE: write immediately when you learn something. At closure these route to
-     a subsystem arch doc, a rule, or the learned summary. -->
+<!-- LIVE: write immediately when you learn something. Route each lesson to its
+     governing surface under ai/rules/planning.md. A problem-class journal row
+     is appropriate only when no surface governs the lesson yet; closure alone
+     requires no lesson artifact. -->
 
 ## Key Design Decisions
 <!-- "Chose X over Y because Z." The rejected alternative is the valuable half. -->
@@ -341,6 +343,6 @@ constraints, message ordering, and every MUST/MUST NOT.
 ### Closure
 - [ ] Append `plan/TEMPLATE-CLOSURE.md` and complete every section in it
 - [ ] `/ze-review` gate clean, recorded via `internal/le/spec/session/review.go`
-- [ ] Learned summary written to `plan/learned/NNN-<name>.md`
-- [ ] **Commit A:** code + tests + docs + spec + learned summary
-- [ ] **Commit B:** `git rm plan/<spec>` only (commit A preserves the spec in history)
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)

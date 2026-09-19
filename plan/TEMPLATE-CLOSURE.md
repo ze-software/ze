@@ -42,7 +42,7 @@
 
 ## Implementation Audit
 
-<!-- BLOCKING before the learned summary. See ai/rules/completion.md.
+<!-- BLOCKING before closure. See ai/rules/completion.md.
      Status: Done (with file:line) | Partial | Skipped | Changed.
      Partial and Skipped both require explicit user approval. -->
 
@@ -99,23 +99,26 @@
      subagents or a fresh session over the actual diff, never your own inline
      reasoning about code you just wrote.
 
-     The machine-checked artifact is the deliverable, not this table:
-     internal/le/spec/session/review.go record --spec <spec> --rounds <N> ... then check.
-     --rounds is the pass count and is required; more than five needs
-     --rounds-reason naming the PRODUCT defect a later round found, AND
-     --owner-authorised carrying Thomas's word, because more than five passes
+     Record the machine-checked artifact with:
+     ./le spec session review record spec <spec> verdict CLEAN rounds <N> file <path> ...
+     Then check the reviewed population with:
+     ./le spec session review check spec <spec> file <path> ...
+     rounds is the pass count and is required; more than five needs
+     rounds-reason naming the PRODUCT defect a later round found, AND
+     owner-authorised carrying Thomas's word, because more than five passes
      is his decision (owner ruling 2026-08-17). At the cap you stop and ask him;
-     you never set that flag on your own initiative. A false statement in this
-     record is a NOTE, never a reason for another round (ai/rules/planning.md).
-     commit_helper.py runs `review_gate.py check` on the closure commit and
-     refuses without a fresh, hash-pinned, CLEAN artifact. Record the artifact
-     first; this table exists only to carry what was FOUND and FIXED forward
-     into the learned summary. -->
+     you never set that keyword on your own initiative. A false statement in
+     this record is a NOTE, never a reason for another round (ai/rules/planning.md).
+     ./le commit create checks the closure commit for a fresh, hash-pinned,
+     CLEAN artifact. Closure is the spec removal in commit B; a journal row
+     never makes commit A a closure. This table preserves the findings and
+     fixes in the committed spec; it does not replace the artifact or require
+     a separate learned summary. -->
 
 | Field | Value |
 |-------|-------|
-| Artifact | [path printed by `review_gate.py record`] |
-| `review_gate.py check` | [clean / not run] |
+| Artifact | [path printed by `./le spec session review record`] |
+| `./le spec session review check` | [clean / not run] |
 | Rounds | [N, and for N>5 the product defect that earned each extra round] |
 | Reviewer lenses used | [e.g. logic+wiring, security+edge-cases, feature risk area] |
 
@@ -168,4 +171,4 @@
 ## Core Insight
 <!-- Optional: the single most important design revelation from this work.
      Not every spec has one. Delete the section if nothing qualifies.
-     Feeds the Decisions section of the learned summary. -->
+     Route it to the governing surface under ai/rules/planning.md. -->

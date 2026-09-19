@@ -542,7 +542,7 @@ inside a `terminator=` block):
 
 #### What each carrier earns in the ledger
 
-<!-- source: internal/le/rfc/carriers.go -- Carrier, suiteCarriers, interopCarriers, interopTrees -->
+<!-- source: internal/le/rfc/carriers.go -- Carrier, suiteCarriers, carriersFor, CarrierFor, interopCarriers, interopTrees -->
 
 Evidence has two axes: KIND (which layer the test exercises) and TIER (whether
 anything executes it). Both are DERIVED from the carrier table rather than
@@ -551,7 +551,8 @@ declared by the test.
 | Carrier | Kind | Executed by | Tier |
 |---------|------|-------------|------|
 | `*_test.go` outside `internal/le/` | `unit` | `./le test-unit all` | `verify`, on every push |
-| `test/<suite>/*.ci` | `functional` | `./le functional gating` | `verify`, but only from a suite the functional run actually gates. `suiteCarriers` builds one prefixed row per name in `functional.GatingNames()`, so a `.ci` in a non-gating suite (static, traffic, flow-export, vpp, vrrp) earns no verify tier, and `test/draft/` is skipped entirely |
+| `test/<suite>/*.ci` from `suiteCarriers` | `functional` | `./le functional gating` | `verify` for each suite in `functional.GatingNames()`. Other directories need a separately registered carrier; `test/draft/` is skipped entirely |
+| `test/exabgp-compat/*.ci` | `functional` | `./le functional exabgp-test` | `verify`, through the full verifier's separate ExaBGP stage |
 | `test/editor/*.et` | `editor` | `./le functional editor` | `verify`, on the same earned-per-suite basis |
 | `internal/le/interoplab/bgp/*.go` | `interop` | `./le integration interop` | `nightly` when a scheduled workflow names that runner, `unrun` otherwise |
 | `internal/le/interoplab/ipsec/*.go` | `interop` | `./le integration interop-ipsec` | same derivation |

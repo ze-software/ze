@@ -51,7 +51,7 @@ A related set of specs shares a prefix and a number.
 | Naming | `spec-<prefix>-<N>-<name>.md` |
 | Umbrella | `spec-utp-0-umbrella.md` |
 | Children | `spec-utp-1-event-format.md`, `spec-utp-2-command-format.md` |
-| Done path | A journal row in `plan/journal/<class>.md` naming the spec in its Spec column |
+| Done path | Removal of the spec after its completed contents are preserved in commit A; journal rows attribute occurrences and are not completion evidence |
 
 `inspectClosureSpec` in `internal/le/spec/status/closure.go` treats a stem
 containing `-umbrella-` as an umbrella, and never raises it to a high-confidence
@@ -65,7 +65,7 @@ closure candidate.
 
 | Gate | Where | What it reads |
 |------|-------|---------------|
-| Detector | `./le spec status closure list` | Every spec still `in-progress`. High confidence is a committed journal row whose Spec cell equals the stem, or a `plan/learned/NNN-<slug>.md` whose slug equals it, while the spec is not an umbrella. `closure check spec <s>` exits 3 only for the high-confidence set; weaker candidates are listed under NEEDS VERIFICATION |
+| Detector | `./le spec status closure list` | Every spec still `in-progress`. High confidence requires a non-umbrella spec and either an exact tracked `plan/learned/NNN-<slug>.md` match, or a committed journal row whose Spec cell equals the stem together with a Review Gate section and no unchecked closure marker. `closure check spec <s>` exits 3 only for that set; weaker learned-summary matches are listed under NEEDS VERIFICATION. These are detector heuristics, not proof that the work is complete |
 | Stop-hook block | `hookStop` (the `block-premature-stop` action) | The session's claimed spec. It calls `specstatus.CheckClosure`, and refuses the stop when the report is blocked |
 | Review artifact | `CheckReview` at `./le commit create` | The one spec this commit closes, which `closureStem` answers |
 
@@ -295,8 +295,9 @@ updates, the env-var registration check for any new YANG leaf under
 `environment/`, the dead-code and file-modularity review of every changed `.go`,
 the implementation audit, the Pre-Commit Verification section re-derived from the
 spec, the critical review, the spec's own Implementation Summary and Deviations,
-the `plan/journal/<class>.md` row naming the spec, `./le verify worktree`, and the
-executive summary.
+any lesson routed to its governing surface and any journal rows owed by the
+work, `./le verify worktree`, and the executive summary. Closure alone requires
+no lesson artifact.
 
 Pre-Commit Verification does not trust the audit. Re-read the spec from scratch,
 list every file in "Files to Create", give every acceptance criterion fresh
@@ -304,14 +305,15 @@ evidence, read every `.ci` file to confirm it tests the claimed path, and drive
 every assumption to `confirmed` or `broken` with evidence.
 
 A spec describing work that is ALREADY implemented runs this checklist
-immediately and closes in the same commit as its code. A spec for work that is
-already done is never left in `plan/`.
+immediately and uses the same two-commit closure below. Commit A preserves the
+completed spec and any remaining changes; commit B removes it. A spec for work
+that is already done is never left in `plan/`.
 
 ## The implementation audit
 
 Extract every requirement from the spec (task items, AC-N assertions, TDD tests,
 files listed), give each one a status, and fill the audit table from
-`plan/TEMPLATE.md`.
+`plan/TEMPLATE-CLOSURE.md`.
 
 | Status | What it owes |
 |--------|--------------|
@@ -383,9 +385,12 @@ implementation, trace which one each consumer reaches, and change that one.
 
 ## Closing a spec
 
-Closure runs in order: `in-progress`, then a clean Review Gate, then the journal
-row, then the deletion of the spec. A completed spec left in `plan/` is counted
-as open work by every later session.
+Closure follows implementation (`in-progress`, or `verification` after a
+handoff), a clean Review Gate, and the two commits below. Route any lesson to
+the surface that governs it under `ai/rules/planning.md`; use a problem-class
+journal row only when no surface governs that lesson yet. A closure without a
+lesson creates no lesson artifact. Defect-recording obligations still apply.
+A completed spec left in `plan/` is counted as open work by every later session.
 
 It takes TWO commits from ONE `./le commit create` script. The spec is edited
 throughout implementation, and those edits are design history that a deletion
@@ -393,7 +398,7 @@ destroys.
 
 | Commit | Carries |
 |--------|---------|
-| A | All code, tests, docs, the journal row, and the spec file itself with every implementation edit |
+| A | All code, tests, docs and the spec file itself with every implementation edit, plus any journal rows owed by the work |
 | B | `remove <the spec's path in its bucket>` only |
 
 Forcing the deletion of a spec that was never committed discards the uncommitted

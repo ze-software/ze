@@ -35,7 +35,7 @@ difference, so a triage sweep cannot bank a closure it did not earn.
 | `spec-<name>.md` | One spec per work item, status in its header table |
 | `immediate/`, `pre-release/` | The two buckets above, same spec format |
 | `TEMPLATE.md` | Design-time spec format: everything that must exist BEFORE code |
-| `TEMPLATE-CLOSURE.md` | Closure sections, appended by `/ze-implement` at stage 11 |
+| `TEMPLATE-CLOSURE.md` | Closure sections, appended by `/ze-close` at step 1 |
 | `journal/` | One file per problem class, one row per occurrence (`plan/journal/README.md`) |
 | `learned/` | The hand-written meta-indexes `RECURRING-PATTERNS.md`, `DESIGN-HISTORY.md`, `HOOK-FRICTION.md` |
 | `known-failures/` | One shard per failure nobody could reproduce |
@@ -51,9 +51,13 @@ Statuses: `skeleton` -> `design` -> `ready` -> `in-progress` -> closed.
 blocks them, because the author is then claiming those sections are written.
 
 A spec that passes its Review Gate is not done until it is **deleted**: closure is
-two commits (commit A: code + spec + the problem record; commit B: `git rm` the
-spec). The problem record is a row in `plan/journal/<class>.md` whose `Spec` cell
-names the spec (`plan/journal/README.md`). There is no `done/` directory.
+two commits from one `./le commit create` script. Commit A preserves the code,
+tests, docs and edited spec; commit B removes the spec. Route any lesson to the
+surface that governs it, and write a problem-class journal row only when no
+surface governs that lesson yet (`ai/rules/planning.md`). Include any journal
+rows owed by the work in commit A, but create no lesson artifact merely to
+close the spec. Defect-recording obligations still apply. There is no `done/`
+directory.
 
 ## Deferred work has no directory
 
