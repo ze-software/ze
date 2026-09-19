@@ -1848,7 +1848,45 @@ func (p *Peer) wakeForwardOverflow() {
 func (p *Peer) pendingSync() bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.sendingInitialRoutes.Load() != 0 || p.initialSyncEOROwed.Load() || len(p.opQueue) > 0
+	if p.sendingInitialRoutes.Load() != 0 || p.initialSyncEOROwed.Load() || len(p.opQueue) > 0 {
+		return true
+	}
+	// The three facts above are all set by setState at Established, so a peer
+	// that has not got there yet has none of them and used to read as SETTLED.
+	// That is "no work pending" and "work not started" answering the same way
+	// (ai/rules/principles.md): a peer mid-handshake owes its whole initial
+	// routing update, and a caller told it was settled tore the daemon down
+	// between the OPEN exchange and the End-of-RIB.
+	return handshakeInFlight(p.session)
+}
+
+// handshakeInFlight reports whether this peer holds a BGP handshake that is
+// going to resolve, so its initial routing update is work OWED rather than work
+// absent.
+//
+// OpenSent and OpenConfirm ONLY, and the narrowness is the point. Both mean a
+// TCP connection exists and the far end answered, so the session reaches
+// Established or dies inside the OPEN hold timer either way: waiting on it
+// terminates. Connect and Active are excluded because a peer dialing a port
+// nobody listens on sits in them for the life of the process, and counting that
+// as pending would hang every quiesce behind a peer that is never coming up --
+// 52 cases under test/plugin configure exactly that shape.
+//
+// This narrows the window rather than closing it. A quiesce that lands while
+// the TCP connect is still in flight still reads the peer as settled. That
+// window is the connect itself, against the OpenSent-to-Established window this
+// covers, which is where the failures were measured
+// (test/plugin/dns-cache-show.ci, a peer that got OPEN then Cease).
+func handshakeInFlight(session *Session) bool {
+	if session == nil {
+		return false
+	}
+	switch session.State() {
+	case fsm.StateOpenSent, fsm.StateOpenConfirm:
+		return true
+	default:
+		return false
+	}
 }
 
 // QueueAnnounce queues a route announcement for when session establishes.

@@ -71,11 +71,15 @@ type bridgeRunner struct {
 	// script commands cannot be passed between them on the stack.
 	config  bridgeConfig
 	started bool
-	// fleet runs every configured script. It is nil until OnAllPluginsReady.
+	// fleet runs every configured script. It exists from OnConfigure, so an
+	// event that arrives before the scripts start is queued rather than lost;
+	// `started` is what says whether Start has run (applyConfig).
 	fleet *bridgerun.Fleet
 }
 
-// scripts answers the running fleet, or nil while none is running.
+// scripts answers the configured fleet, or nil before OnConfigure has built one.
+// A non-nil fleet has not necessarily STARTED: it accepts and queues events from
+// the moment it exists, which is what keeps a BGP establishment out of the gap.
 func (r *bridgeRunner) scripts() *bridgerun.Fleet {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -166,6 +170,25 @@ func (r *bridgeRunner) applyConfig(p *sdk.Plugin, cfg bridgeConfig) error {
 	if caps := capabilityDecls(cfg); len(caps) > 0 {
 		p.SetCapabilities(caps)
 	}
+
+	// The fleet is BUILT here and STARTED later, and the split is the whole
+	// point. bridgerun.New forks nothing: it builds one script value per
+	// configured script, each with its own 1000-deep queue, so a fleet that
+	// exists but has not started buffers instead of discarding.
+	//
+	// Until this existed, r.fleet stayed nil until OnAllPluginsReady and
+	// onEvent dropped every event delivered before it, in silence. That is the
+	// whole BGP establishment: measured on test/exabgp-compat api-api, the sent
+	// OPEN, the received OPEN, both KEEPALIVEs, the state-up, the negotiated
+	// event, the received default route and BOTH End-of-RIB markers were
+	// discarded inside 16ms, and the fleet started 0.2ms after the last of
+	// them. The scripts' first line was then the 30-second keepalive. Which
+	// side of that race a run landed on decided whether the suite passed.
+	r.mu.Lock()
+	if r.fleet == nil {
+		r.fleet = bridgerun.New(r.log, cfg.Families, cfg.Scripts)
+	}
+	r.mu.Unlock()
 	return nil
 }
 
@@ -193,7 +216,12 @@ func (r *bridgeRunner) startWhenReady(ctx context.Context, p *sdk.Plugin) error 
 		return nil
 	}
 
-	fleet := bridgerun.New(r.log, cfg.Families, cfg.Scripts)
+	// The fleet applyConfig built, holding everything onEvent queued since
+	// OnConfigure. Start forks the scripts and drains that queue in order.
+	fleet := r.scripts()
+	if fleet == nil {
+		fleet = bridgerun.New(r.log, cfg.Families, cfg.Scripts)
+	}
 	if err := fleet.Start(ctx, p); err != nil {
 		// A script that did start is stopped here rather than left running
 		// behind a failed startup.
@@ -210,12 +238,22 @@ func (r *bridgeRunner) startWhenReady(ctx context.Context, p *sdk.Plugin) error 
 	return nil
 }
 
-// onEvent hands one ze JSON event to every running script. No-op until the
-// scripts start.
+// onEvent hands one ze JSON event to every configured script. The fleet exists
+// from OnConfigure, so an event that arrives before the scripts start is QUEUED
+// rather than lost; Fleet.Start drains it in arrival order.
+//
+// A nil fleet is now a defect rather than a phase: it means an event reached
+// this plugin before its configuration did. It is logged instead of discarded
+// in silence, because the silence is what hid a whole BGP establishment
+// (applyConfig).
 func (r *bridgeRunner) onEvent(event string) error {
-	if fleet := r.scripts(); fleet != nil {
-		fleet.Broadcast(event)
+	fleet := r.scripts()
+	if fleet == nil {
+		r.log.Warn("exabgp-bridge event arrived before the bridge was configured, so no script can receive it",
+			"bytes", len(event))
+		return nil
 	}
+	fleet.Broadcast(event)
 	return nil
 }
 

@@ -357,11 +357,17 @@ var ntfNotifyConstant = regexp.MustCompile(`wire\.(Notify[A-Za-z0-9]+)\b`)
 // it names no constant.
 var ntfNotifyLiteral = regexp.MustCompile(`NotifyMsgType:\s*(\d+)`)
 
-// VALIDATES: every notify message type ze can put on the wire is one RFC 7296 defines.
+// VALIDATES: every notify message type ze can put on the wire is one RFC 7296
+// defines, or else a private-use STATUS type, which Section 3.10.1 has a peer
+// ignore. No extension ERROR notification reaches the wire, in either set.
 // RFC requirement: RFC7296-2.21.2-3 positive -- the set of notify types ze transmits
 // is DERIVED from a scan of the ike source for references.
 // It never comes from a list written beside the assertion.
-// Each member is in the wire package registry, whose ERROR types are all RFC-defined.
+// Each member is in the wire package registry, and the loop below asserts the
+// second half separately: a member the RFC does not define MUST NOT be an error
+// type (wire.NotifyRFCDefined against wire.NotifyIsError). Registry membership
+// alone stopped meaning RFC-defined when the path probe's private status type was
+// registered, so the two questions are now asked separately.
 // Ze therefore uses no extension error notification at all.
 // The one private-use member, wire.NotifyZePathProbePadding, is a STATUS type: it
 // carries the padding of the path probe (engine/probe.go), and Section 3.10.1 has a
@@ -439,9 +445,39 @@ func TestNtfNotifyVocabularyIsRFCDefined(t *testing.T) {
 			t.Errorf("ze can transmit notify type %d (wire.%s), which the RFC registry "+
 				"does not hold. RFC 7296 Section 2.21.2 forbids using an extension error "+
 				"notification unless the peer has been shown to understand it", value, name)
+			continue
+		}
+		// Being in the registry stopped meaning being in the RFC when the path
+		// probe's private-use status type was registered, so this loop proves only
+		// the first half. The second half -- that no private-use member is an ERROR
+		// type, which is what RFC 7296 Section 2.21.2 would forbid ze sending -- is
+		// proven in the wire package beside the map it is a property of, by
+		// TestPrivateNotifyTypesAreStatusTypes. It is asserted there rather than
+		// here because it judges the WHOLE private set, including a member
+		// registered today and first transmitted next month, where this loop sees
+		// only what the source already references.
+		if wire.NotifyIsError(value) && !ntfRFCErrorType(value) {
+			t.Errorf("ze can transmit notify type %d (wire.%s), an ERROR type this test "+
+				"does not know as RFC-defined. RFC 7296 Section 2.21.2: an extension "+
+				"error notification MUST NOT be used \"unless the peer has been shown "+
+				"to understand them\", and ze sends no Vendor ID payload", value, name)
 		}
 	}
 }
+
+// ntfRFCErrorType reports whether an error-range notify value is one RFC 7296
+// itself defines. The error half of the registry is closed: RFC 7296 Section
+// 3.10.1 gives "the range 0 - 16383" to errors, and every error type ze names is
+// from the RFC's own list, so anything else in that range arriving here is an
+// extension error notification and Section 2.21.2 binds it.
+func ntfRFCErrorType(value uint16) bool {
+	return value <= ntfHighestRFCError
+}
+
+// ntfHighestRFCError is the last error type RFC 7296 Section 3.10.1 defines
+// (TEMPORARY_FAILURE 43, CHILD_SA_NOT_FOUND 44). A value above it and below
+// NotifyStatusFloor is an extension error notification.
+const ntfHighestRFCError uint16 = 44
 
 // ntfScanNotifyUse walks a directory of Go source.
 // It reports the wire notify constant names the source references.

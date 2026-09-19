@@ -40,11 +40,37 @@ var ErrAnswerTruncated = errors.New("answer ended before its terminator")
 const maxConsecutiveBadLines = 100
 
 // answerQueueDepth is the number of answer lines readLoop holds for one
-// CallAnswer whose consumer is behind. It is deep enough that a consumer which
-// is merely scheduled late never trips it, and bounded because the memory is
-// paid for each answer in flight. A full queue ends that answer with
+// CallAnswer whose consumer is behind. It is bounded because the memory is paid
+// for each answer in flight. A full queue ends that answer with
 // ErrAnswerQueueFull; readLoop never waits on a consumer.
-const answerQueueDepth = 256
+//
+// It is DERIVED from the producer's burst, and that is the whole point. A
+// streamed answer does not trickle: WriteRecordAnswer (answer_write.go) holds
+// records until one passes AnswerBufferThreshold, then writes the head and
+// every held record back to back with nothing between them. That first flush is
+// therefore 1 + AnswerBufferThreshold + 1 lines, and the queue has to absorb it
+// with no consumer having run at all.
+//
+// The two numbers used to be the same literal 256, described as "of the same
+// order ... one number covers the pair". They are not a pair: one is a BURST and
+// the other is the BUFFER that must hold it, so equal meant every streamed
+// answer overflowed by two lines on its first flush and survived only by the
+// consumer being scheduled inside the burst. Under load it was not, and the
+// answer was abandoned: measured about one invocation in thirty with 32 burners
+// on 16 cores (plan/journal/bound-too-small-for-its-own-burst.md), and it is
+// what reddened test/plugin/plugin-reads-engine-answer.ci in a verification
+// sweep. `system command list` streams about 423 lines, so the case is ordinary
+// rather than extreme.
+//
+// The depth is the SMALLEST COMPLETE streamed answer: the head, the
+// AnswerBufferThreshold+1 records that first flush carries, and the terminator.
+// An answer of that size is therefore delivered whole with no consumer having
+// run once, and a longer one has its entire burst absorbed before the consumer
+// needs to do anything.
+//
+// TestAnswerQueueAbsorbsTheProducersFirstFlush pins the relationship, so a
+// change to either constant reddens a test rather than losing answers.
+const answerQueueDepth = AnswerBufferThreshold + 3
 
 // answerCall is the pending entry of one CallAnswer: the queue readLoop
 // delivers the answer's lines into, and the fault that ended it.

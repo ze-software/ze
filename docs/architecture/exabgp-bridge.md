@@ -40,7 +40,14 @@ ExaBGP, so a change to ze's own CLI does not reach that script through the
 translated forms.
 
 <!-- source: internal/exabgp/bridge/bridge_command.go -- TranslateLine, Translation, convertRoute -->
-<!-- source: internal/exabgp/bridge/bridge_event.go -- ReadEvent, Event, ExabgpJSON -->
+An End-of-RIB is rendered as ExaBGP renders it, `{"eor": {"afi": ..., "safi": ...}}`
+inside `message`, and never as an update with the member missing. `ExabgpJSON`
+used to write `message` only when the converted update was non-empty, and an
+End-of-RIB converts to nothing, so the marker reached a script as an event with
+no message at all. A ported ExaBGP script reads that line, matches none of its
+keywords and takes its failure branch.
+
+<!-- source: internal/exabgp/bridge/bridge_event.go -- ReadEvent, Event, ExabgpJSON, the eor arm of the update case -->
 <!-- source: internal/exabgp/bridge/bridge_event_text.go -- Event.AppendText, TextForm -->
 
 ## The text encoder is ExaBGP's own, ported

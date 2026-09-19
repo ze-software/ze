@@ -809,3 +809,65 @@ func apiSyncReleased(p *Peer) bool {
 		return false
 	}
 }
+
+// TestQuiesceWaitsForAPeerStillInItsHandshake pins what "settled" means for a
+// peer that has not reached Established.
+//
+// pendingSync is the fact the bgp-peer-sync quiescer waits on, so it is what
+// `request quiesce` answers from. Its other three facts are all set by setState
+// AT Established, so before that a peer had none of them and read as settled --
+// "no work pending" and "work not started" giving the same answer, which is the
+// shape ai/rules/principles.md bans.
+//
+// VALIDATES: a peer whose session is in OpenSent or OpenConfirm is PENDING,
+// because a TCP connection exists and the far end answered, so the session
+// resolves either way inside the OPEN hold timer. A peer with no session, or one
+// still waiting for its TCP connect, is NOT pending.
+// PREVENTS: the daemon being torn down between the OPEN exchange and the
+// End-of-RIB. test/plugin/dns-cache-show.ci failed exactly so in a verification
+// sweep: its peer received ze's OPEN and then a Cease NOTIFICATION where the
+// marker belonged, because the observer's quiesce had answered "done".
+// The exclusions matter as much: 52 cases under test/plugin configure a peer
+// with nothing listening on the far end, which sits pre-socket for the life of
+// the run, and counting THAT as pending would hang every one of their quiesces
+// until the 10s subsystem timeout.
+func TestQuiesceWaitsForAPeerStillInItsHandshake(t *testing.T) {
+	settings := &PeerSettings{
+		Connection: ConnectionBoth,
+		Address:    netip.MustParseAddr("10.0.0.2"),
+		LocalAS:    65000,
+		PeerAS:     65001,
+		RouterID:   0x01020301,
+	}
+
+	peer := NewPeer(settings)
+	assert.False(t, peer.pendingSync(),
+		"a peer with no session at all owes nothing: there is no handshake to resolve")
+
+	session := NewSession(settings)
+	peer.mu.Lock()
+	peer.session = session
+	peer.mu.Unlock()
+
+	require.NoError(t, session.fsm.Event(fsm.EventManualStart))
+	assert.False(t, peer.pendingSync(),
+		"before the TCP connect completes there is no counterparty, and a peer dialing a "+
+			"port nobody listens on stays here for the life of the process")
+
+	require.NoError(t, session.fsm.Event(fsm.EventTCPConnectionConfirmed))
+	require.Equal(t, fsm.StateOpenSent, session.fsm.State())
+	assert.True(t, peer.pendingSync(),
+		"OpenSent means the socket is up and ze has sent its OPEN, so this peer's whole "+
+			"initial routing update is owed and a quiesce must not call it settled")
+
+	require.NoError(t, session.fsm.Event(fsm.EventBGPOpen))
+	require.Equal(t, fsm.StateOpenConfirm, session.fsm.State())
+	assert.True(t, peer.pendingSync(),
+		"OpenConfirm is still mid-handshake: the marker has not been sent and is still owed")
+
+	require.NoError(t, session.fsm.Event(fsm.EventKeepaliveMsg))
+	require.Equal(t, fsm.StateEstablished, session.fsm.State())
+	assert.False(t, peer.pendingSync(),
+		"at Established the handshake arm stands down, and the three initial-sync facts "+
+			"setState publishes are what answer from here on")
+}

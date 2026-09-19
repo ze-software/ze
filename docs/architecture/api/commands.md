@@ -1527,8 +1527,17 @@ this barrier: the two BGP quiescers together cover the forward pool AND the
 per-peer initial-sync drain, so a route sent during establishment is on the wire
 (past its EOR) before the barrier returns.
 
+**What the barrier does NOT cover.** A peer with no session, and a peer whose
+TCP connect has not completed, are both reported settled: neither has a
+counterparty, and a peer nobody is listening for waits in that state for the life
+of the process, so counting it would hang every quiesce behind it. A peer holding
+a LIVE handshake (OpenSent or OpenConfirm) is waited on, because the socket is up
+and the far end answered, so its whole initial routing update is owed. That arm
+was absent until 2026-09-19, and until then a caller could quiesce, be told
+"done", and shut the daemon down between the OPEN exchange and the End-of-RIB.
+
 <!-- source: internal/component/plugin/server/quiesce.go -- Quiescer, QuiescerRegistry, quiesceAll, handleQuiesce, registerReactorQuiescer -->
-<!-- source: internal/component/bgp/reactor/reactor_api.go -- DrainPeerSync, peersSynced; peer.go PendingSync -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- DrainPeerSync, peersSynced; peer.go pendingSync, handshakeInFlight -->
 <!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request/quiesce -> ze-system:quiesce -->
 
 ### Peer Selector Parsing

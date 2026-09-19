@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"slices"
 )
 
 // ErrSetWindowSizeLength reports SET_WINDOW_SIZE notification data whose length is not
@@ -135,9 +136,55 @@ func NotifyIsError(t uint16) bool { return t < NotifyStatusFloor }
 //
 // It fails closed. A type absent from the registry reads false, so an unknown value
 // can never pass as understood (ai/rules/evidence.md).
+//
+// It answers about the NAME and never about the standard. Use NotifyRFCDefined for
+// the second question: the registry holds every type ze can spell, which since the
+// path probe landed is a wider set than the types RFC 7296 defines.
 func NotifyTypeRecognized(t uint16) bool {
 	_, ok := notifyTypeNames[t]
 	return ok
+}
+
+// notifyTypePrivate names the registry members RFC 7296 does NOT define. They are
+// registered so a log line can spell them, and for no other reason.
+//
+// The set exists because one map cannot answer two questions. Until the path probe
+// there was no difference between "ze can name this type" and "RFC 7296 defines
+// this type", so NotifyTypeRecognized answered both and a test read it as the
+// second. Adding a private-use member made the two sets differ, silently: the test
+// kept passing while its conclusion stopped following (ai/rules/principles.md, one
+// fact declared once).
+var notifyTypePrivate = map[uint16]struct{}{
+	NotifyZePathProbePadding: {},
+}
+
+// notifyRFCDefined reports whether RFC 7296 defines this notify message type, as
+// distinct from ze merely being able to name it.
+//
+// The distinction is an obligation, not bookkeeping. RFC 7296 Section 2.21.2:
+// "Extension documents may define new error notifications with these semantics, but
+// MUST NOT use them unless the peer has been shown to understand them, such as by
+// using the Vendor ID payload." Section 3.10.1 puts errors in "the range 0 - 16383"
+// and has an unrecognized STATUS type ignored instead. So a private ERROR type ze
+// transmits violates 2.21.2, while a private STATUS type does not, and only a reader
+// that can tell RFC-defined from merely-named can enforce it.
+func notifyRFCDefined(t uint16) bool {
+	if _, private := notifyTypePrivate[t]; private {
+		return false
+	}
+	return NotifyTypeRecognized(t)
+}
+
+// notifyPrivateTypes answers the private-use members in a fixed order, so the
+// guard below can hold the WHOLE set to the status-type rule rather than only the
+// members some source happens to reference today.
+func notifyPrivateTypes() []uint16 {
+	types := make([]uint16, 0, len(notifyTypePrivate))
+	for t := range notifyTypePrivate {
+		types = append(types, t)
+	}
+	slices.Sort(types)
+	return types
 }
 
 // notifyTypeUnrecognized is the name NotifyTypeName returns for a type the

@@ -1337,3 +1337,61 @@ func TestAwaitAnswerHeadValidatesByKind(t *testing.T) {
 		})
 	}
 }
+
+// TestAnswerQueueAbsorbsTheProducersFirstFlush pins the one relationship that
+// decides whether a streamed answer survives a consumer which has not run yet.
+//
+// A streamed answer does not trickle. WriteRecordAnswer holds records until one
+// passes AnswerBufferThreshold, then writes the head and every held record back
+// to back. readLoop must be able to put that whole burst into the answer's queue
+// without any consumer draining it, because there is nothing in the burst for a
+// consumer to be scheduled between.
+//
+// VALIDATES: answerQueueDepth is strictly larger than the producer's first
+// flush, so the burst fits with room to spare.
+// PREVENTS: the two constants being set to the same number again. They were both
+// a literal 256, described as a pair covering one answer in flight; one is a
+// BURST and the other the BUFFER for it, so equal meant every streamed answer
+// overflowed by two lines on its first flush and survived only when the consumer
+// happened to be scheduled inside the burst. Under load it was not, and the
+// whole answer was abandoned with ErrAnswerQueueFull.
+func TestAnswerQueueAbsorbsTheProducersFirstFlush(t *testing.T) {
+	// The head line, then every record the producer held. It flushes on the
+	// record that makes len(held) exceed the threshold, so the flush carries
+	// AnswerBufferThreshold+1 records.
+	firstFlush := 1 + AnswerBufferThreshold + 1
+	assert.GreaterOrEqual(t, answerQueueDepth, firstFlush,
+		"the answer queue must hold the producer's first flush before any consumer runs: "+
+			"the head and every held record are written back to back, so a consumer cannot "+
+			"be scheduled between them")
+
+	// Stronger, and the property the depth is actually set to: the smallest
+	// answer that streams at all is the first flush plus its terminator, and
+	// that whole answer must land without a consumer running once.
+	smallestStreamed := firstFlush + 1
+	assert.GreaterOrEqual(t, answerQueueDepth, smallestStreamed,
+		"the smallest answer that streams must be deliverable whole with no consumer: "+
+			"head, the records of the first flush, and the terminator")
+}
+
+// TestAnswerQueueHoldsAWholeBurstWithNoConsumer proves the bound at the queue
+// itself rather than in arithmetic: a burst the size of the producer's first
+// flush is delivered with nothing reading it.
+//
+// VALIDATES: readLoop can route a whole first flush into one answer's queue
+// while its consumer is blocked.
+// PREVENTS: the abandonment this fixed. With the old depth the same burst filled
+// the queue two lines short of the end, and routeAnswerLine ended the answer with
+// ErrAnswerQueueFull after its fixed spin.
+func TestAnswerQueueHoldsAWholeBurstWithNoConsumer(t *testing.T) {
+	queue := make(chan AnswerTail, answerQueueDepth)
+	lines := 1 + AnswerBufferThreshold + 1 + 1 // head, first flush, terminator
+	for i := range lines {
+		select {
+		case queue <- AnswerTail{Kind: AnswerKindRecord}:
+		default:
+			t.Fatalf("the queue refused line %d of the %d-line smallest streamed answer with no consumer draining it",
+				i+1, lines)
+		}
+	}
+}

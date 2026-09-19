@@ -263,7 +263,17 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// b57ec4ab6b (ze:help wording) and 7c2119b63d (the approval lives in the
 	// commit trailer, no verdict). The value is the one this test computed
 	// over HEAD's blobs in a clean worktree.
-	const want = "609d57a51173ead3e386ce2efd7b7b00db40050e4bfa6538082ebc9d6bf84c02"
+	// Re-sealed 2026-09-19 over 678b2f144d for ONE production commit, 52debc3400,
+	// which reworded the `Why` string on the approve action and changes no
+	// verdict: the action's parameters, its refusals and what it writes are
+	// untouched, and the words moved because the old ones read as a prohibition
+	// on RUNNING the command rather than on manufacturing a ruling the owner had
+	// not given. Two other commits reached this package in the same span and are
+	// NOT in the value, because the digest skips `_test.go`: fbb0ba2905 (lint
+	// findings in approve_test.go) and e78411042c (check_test.go and this file).
+	// The value was recomputed over HEAD's own blobs and matched what this test
+	// reported, independently, before it was written here.
+	const want = "168caa1553ba3e3a85672ee092b94558b8bdca98ccbb9bb0fbc26d935f9cc237"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

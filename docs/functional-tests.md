@@ -1948,16 +1948,28 @@ differ. A short walk whose rows each fit and whose collapse does not is the
 third, and it separates the bound on a row from the bound on the document.
 <!-- source: pkg/plugin/rpc/answer_write.go -- WriteRecordAnswer, boundedRecord -->
 
-How much of a walk a test READS is load-bearing too. The engine holds 256 answer
+How much of a walk a test READS is load-bearing too. The engine holds answer
 lines for a consumer that has not been scheduled yet, and abandons the answer
-past that. A chain reading a whole streamed plugin answer is therefore at the
-mercy of the scheduler, and fails under load.
+past that.
 
-`stream-answer-renders-table.ci` reads through `| first 100`, which stops inside
-the 256 the queue guarantees. It measures the column schema it was written for
-rather than the queue. The bound is recorded in
+That bound is now DERIVED from the producer's burst rather than set beside it.
+`WriteRecordAnswer` holds records until one passes `AnswerBufferThreshold`, then
+writes the head and every held record back to back with nothing between them, so
+the queue has to absorb `1 + AnswerBufferThreshold + 1` lines before any consumer
+runs. The two numbers were both a literal 256 until 2026-09-19, which made every
+streamed answer overflow its consumer's queue by two lines on its first flush and
+survive only when the consumer happened to be scheduled inside the burst. Under
+load it was not: measured at about one invocation in thirty with 32 burners on 16
+cores, and it reddened `plugin-reads-engine-answer.ci` in a verification sweep.
+`answerQueueDepth` is now the smallest COMPLETE streamed answer, so one of that
+size lands whole with no consumer having run once.
+
+`stream-answer-renders-table.ci` reads through `| first 100`, which stops well
+inside what the queue guarantees. It measures the column schema it was written
+for rather than the queue. The history is recorded in
 `plan/journal/bound-too-small-for-its-own-burst.md`.
 <!-- source: pkg/plugin/rpc/mux.go -- answerQueueDepth, ErrAnswerQueueFull -->
+<!-- source: pkg/plugin/rpc/message.go -- AnswerBufferThreshold, the burst the queue is sized from -->
 
 #### Reading the exec channel's answer frame
 

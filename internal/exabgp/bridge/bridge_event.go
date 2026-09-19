@@ -30,8 +30,13 @@ const (
 // Message type constants: the `bgp.message.type` values ze writes
 // (docs/architecture/api/json-format.md, "Event Types").
 const (
-	msgTypeOpen         = "open"
-	msgTypeUpdate       = "update"
+	msgTypeOpen   = "open"
+	msgTypeUpdate = "update"
+	// msgTypeEOR is ze's kind for an End-of-RIB marker, and it is also the key
+	// the marker's family sits under inside an UPDATE's own body
+	// (internal/component/bgp/format/text_update.go, AppendEOR and
+	// appendEORUpdateJSON write the same word for the same thing).
+	msgTypeEOR          = "eor"
 	msgTypeState        = "state"
 	msgTypeKeepalive    = "keepalive"
 	msgTypeNotification = "notification"
@@ -223,10 +228,7 @@ func (e Event) ExabgpJSON() map[string]any {
 		neighbor["state"] = state
 
 	case msgTypeUpdate:
-		update := convertUpdateIPC2(e.Data)
-		if len(update) > 0 {
-			neighbor["message"] = map[string]any{"update": update}
-		}
+		neighbor["message"] = updateMessageJSON(e.Data)
 
 	case msgTypeNotification:
 		neighbor[msgTypeNotification] = map[string]any{
@@ -328,6 +330,48 @@ func hostname() string {
 		return "unknown"
 	}
 	return h
+}
+
+// updateMessageJSON renders the `message` member of an UPDATE event.
+//
+// ExaBGP writes one of two bodies and NEVER omits the member
+// (src/exabgp/reactor/api/response/json.py, _update): an End-of-RIB is
+// `{"eor": {"afi": "ipv4", "safi": "unicast"}}`, and every other UPDATE is
+// `{"update": {...}}`, empty object included.
+//
+// Omitting it was the silently-wrong value `ai/rules/principles.md` bans. A
+// sent End-of-RIB carries no announce, no withdraw and no attribute, so the
+// member was dropped and the script met an `update` event with no message in
+// it: test/exabgp-compat/etc/run/api-api.receive.run classifies each line it
+// reads and took its failure branch on that one.
+func updateMessageJSON(data map[string]any) map[string]any {
+	// A literal rather than msgTypeEOR, for the reason convertUpdateIPC2 spells
+	// `announce` and `withdraw` as literals: this one names a key in ExaBGP's
+	// own UPDATE JSON, and a rename of ze's event kind must not follow it here.
+	if afi, safi, ok := eorFamilyParts(data); ok {
+		return map[string]any{"eor": map[string]any{"afi": afi, "safi": safi}}
+	}
+	return map[string]any{msgTypeUpdate: convertUpdateIPC2(data)}
+}
+
+// eorFamilyParts answers the AFI and the SAFI of an End-of-RIB marker, and
+// whether the UPDATE is one.
+//
+// ze states the marker as `"eor": {"family": "ipv4/unicast"}` inside the update
+// object (internal/component/bgp/format/text_update.go, appendEORUpdateJSON),
+// and ExaBGP states the same two words apart. A family that does not split is
+// not answered, because an AFI invented from half a name is worse for a reader
+// than the ordinary update body.
+func eorFamilyParts(data map[string]any) (afi, safi string, ok bool) {
+	marker, isMarker := data[msgTypeEOR].(map[string]any)
+	if !isMarker {
+		return "", "", false
+	}
+	name, named := marker["family"].(string)
+	if !named {
+		return "", "", false
+	}
+	return strings.Cut(name, "/")
 }
 
 // convertUpdateIPC2 converts ze-bgp JSON UPDATE event data to ExaBGP format.

@@ -1,5 +1,7 @@
 # Removal leaves the file on disk
 
+| 2026-09-19 | - | the verify worktree sweeper, `sweepAbandoned` (`internal/le/verify/cleanup.go`) | Two holes, both found while reclaiming 42G. First, an `.owner` marker OUTLIVES its directory: the sweep skips a path that is not a directory, so a marker whose worktree was already removed is never swept, and seven had accumulated since 13 September (every owning pid dead). Second, the sweeper has no standalone entry point at all -- it is called only from a full `./le verify worktree` run, and `./le verify` offers `worktree`, `current`, `reds` and `list`. So reclaiming one orphan means running the whole verification, which rebuilds the cache the operator was trying to free. A 4.8G orphan holding only `cache/go-cache`, with no checkout and no `.git`, had to be removed by hand, mirroring `removeOrphan` step for step | not fixed, one occurrence for each half. The marker case is a missing arm in the same walk; the entry-point case is a registered action that calls the sweep alone. The orphan matched `orphaned()` exactly -- `git rev-parse --show-toplevel` from inside it answered the main checkout -- so the detection is right and only the reach is missing |
+
 A command removes a path from the tree it commits and does not remove it from
 the working tree. The commit is right, `git log` is right, and the file is still
 there, now untracked. Every gate that answers a question by asking the

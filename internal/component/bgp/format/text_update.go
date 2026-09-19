@@ -64,6 +64,30 @@ func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 		return appendSummary(buf, peer, msg.RawBytes, msg.MessageID, direction, messageType)
 	}
 
+	// An End-of-RIB marker names the family whose initial advertisement ended,
+	// and that family is the marker's whole content. The writers below render
+	// it from its wire sections, which are empty by construction, so they write
+	// an UPDATE with an empty `attr` and an empty `nlri` and the family is
+	// gone. A consumer then cannot tell which RIB ended, and the ExaBGP bridge
+	// cannot write the `eor` member ExaBGP's own encoder writes for the same
+	// message (src/exabgp/reactor/api/response/json.py, _update).
+	//
+	// RFC 4724 Section 2: "An UPDATE message with no reachable Network Layer
+	// Reachability Information (NLRI) and empty withdrawn NLRI is specified as
+	// the End-of-RIB marker that can be used by a BGP speaker to indicate to
+	// its peer the completion of the initial routing update after the session
+	// is established."
+	//
+	// Only the parsed JSON rendering is answered here. `raw`, `hex` and `full`
+	// each carry the marker's own wire bytes, from which the family is read
+	// back, so none of them loses it. The text encoding states the marker
+	// through AppendEOR, which already names the family.
+	if isParsedJSONUpdate(msg, content) {
+		if fam, isEOR := msg.WireUpdate.IsEOR(); isEOR {
+			return appendEORUpdateJSON(buf, peer, msg, fam, direction, messageType)
+		}
+	}
+
 	// Fast path: parsed JSON with no attribute or NLRI filter. Bypasses the
 	// filter machinery (map alloc, []Attribute slice, NLRI parsing) and writes
 	// directly from AttrsWire + body NLRI bytes. Falls through to the generic
@@ -114,6 +138,46 @@ func appendMessageTyped(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessa
 
 	// Non-UPDATE messages: pass typed direction (no .String() on hot path).
 	return appendNonUpdate(buf, peer, msg, content, direction)
+}
+
+// isParsedJSONUpdate reports whether msg is an UPDATE this call renders as
+// parsed ze-bgp JSON off its wire sections. A message whose WireUpdate is nil
+// is not one: nothing can be read back from it.
+func isParsedJSONUpdate(msg bgptypes.RawMessage, content bgptypes.ContentConfig) bool {
+	if msg.Type != msgtype.TypeUPDATE || msg.WireUpdate == nil {
+		return false
+	}
+	return content.Encoding == plugin.EncodingJSON && content.Format == plugin.FormatParsed
+}
+
+// appendEORUpdateJSON appends an End-of-RIB marker to buf, in the ze-bgp JSON
+// an UPDATE event carries.
+//
+// The `eor` member sits where `attr` and `nlri` sit for every other UPDATE, and
+// it spells the family the way the dedicated EOR event spells it (AppendEOR),
+// so one concept has one name in both:
+//
+//	{"type":"bgp","bgp":{"message":{"type":"sent","id":6,"direction":"sent"},
+//	 "peer":{...},"update":{"eor":{"family":"ipv4/unicast"}}}}
+func appendEORUpdateJSON(buf []byte, peer *plugin.PeerInfo, msg bgptypes.RawMessage, fam family.Family, direction rpc.MessageDirection, messageType string) []byte {
+	buf = append(buf, `{"type":"bgp","bgp":{"message":{"type":"`...)
+	buf = append(buf, messageType...)
+	buf = append(buf, '"')
+	if msg.MessageID > 0 {
+		buf = append(buf, `,"id":`...)
+		buf = strconv.AppendUint(buf, msg.MessageID, 10)
+	}
+	if direction != rpc.DirectionUnspecified {
+		buf = append(buf, `,"direction":"`...)
+		buf = direction.AppendTo(buf)
+		buf = append(buf, '"')
+	}
+	buf = append(buf, '}', ',')
+	buf = appendPeerJSON(buf, peer)
+	buf = append(buf, `,"update":{"eor":{"family":"`...)
+	buf = fam.AppendTo(buf)
+	buf = append(buf, `"}}}}`...)
+	return append(buf, '\n')
 }
 
 // appendEmptyUpdate appends an empty UPDATE message to buf.

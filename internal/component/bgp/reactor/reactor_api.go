@@ -1196,10 +1196,17 @@ func (a *reactorAPIAdapter) FlushForwardPoolPeer(ctx context.Context, addr strin
 // !pendingSync(): sendingInitialRoutes cleared AND its opQueue drained
 // (peer_initial_sync.go). A peer that is still establishing but already has
 // routes queued IS waited on: those routes drain when it comes up, so a test's
-// send() reaches the wire before its next send(). Only a down/idle peer with an
-// empty queue is skipped. Unlike shouldQueue, the condition does NOT gate on
-// peer state -- gating on state would let a route queued before establishment
-// race ahead of the initial-sync EOR (the nexthop.ci ordering).
+// send() reaches the wire before its next send(). Unlike shouldQueue, the
+// condition does NOT gate on peer state -- gating on state would let a route
+// queued before establishment race ahead of the initial-sync EOR (the
+// nexthop.ci ordering).
+//
+// A peer HOLDING A HANDSHAKE is waited on too, with an empty queue and none of
+// the initial-sync facts set: OpenSent and OpenConfirm mean the socket is up and
+// the far end answered, so that peer's whole initial routing update is owed
+// (pendingSync, peer.go). What is still skipped is a peer with no session and a
+// peer whose TCP connect has not completed, which is where a peer nobody is
+// listening for lives permanently.
 //
 // This complements FlushForwardPool. Routes sent during a peer's initial-sync
 // window are diverted into the opQueue and drained DIRECT to the session (not
@@ -1214,8 +1221,9 @@ func (a *reactorAPIAdapter) DrainPeerSync(ctx context.Context) error {
 }
 
 // peerSyncDrained reports whether no peer has pending route work (see peersSynced):
-// a still-establishing peer with queued routes is waited on; a down/idle peer with
-// an empty queue is not.
+// a still-establishing peer with queued routes is waited on, and so is one holding
+// a live handshake; a peer with no session, or one whose TCP connect has not
+// completed, is not.
 func (a *reactorAPIAdapter) peerSyncDrained() bool {
 	return peersSynced(a.r.Peers())
 }
@@ -1223,7 +1231,9 @@ func (a *reactorAPIAdapter) peerSyncDrained() bool {
 // peersSynced reports whether no peer has pending route work (!pendingSync for
 // every peer): a peer with routes queued while establishing IS waited on (those
 // routes drain when it comes up, and a test's send() must reach the wire before
-// the next send), while a down/idle peer with an empty queue is skipped.
+// the next send), and so is one whose handshake is in flight, whose initial
+// routing update is owed in its entirety. A peer with no session, or one still
+// waiting for its TCP connect, is skipped.
 func peersSynced(peers []*Peer) bool {
 	for _, p := range peers {
 		if p.pendingSync() {

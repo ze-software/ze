@@ -1,10 +1,12 @@
 package bridgeplugin
 
 import (
+	"log/slog"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/exabgp/bridge"
+	"github.com/ze-software/ze/internal/plugins/exabgp/bridgerun"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -277,5 +279,62 @@ func TestParseConfigRefusesAnUnknownEncoder(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "main") || !strings.Contains(err.Error(), "yaml") {
 		t.Errorf("error = %v, want it to name the process and the word", err)
+	}
+}
+
+// TestBridgeQueuesEventsFromConfigureNotFromStart pins the moment the bridge
+// begins accepting events.
+//
+// VALIDATES: applyConfig builds the fleet, so onEvent has somewhere to put an
+// event from OnConfigure onward, and an event delivered before the scripts start
+// is queued rather than discarded.
+// PREVENTS: the silent hole this closed. The fleet used to be built in
+// startWhenReady, which runs at OnAllPluginsReady, and onEvent's `if fleet != nil`
+// dropped everything before it without a word. Measured on
+// test/exabgp-compat api-api: the sent OPEN, the received OPEN, both KEEPALIVEs,
+// the state-up, the negotiated event, the received default route and BOTH
+// End-of-RIB markers were discarded inside 16ms, and the fleet started 0.2ms
+// after the last of them. A script whose first line must be `open` or the
+// received `0.0.0.0/32` then waited out the mock peer's 60s deadline, which is
+// why `api-open` and `api-api` failed by the clock and passed when run alone.
+func TestBridgeQueuesEventsFromConfigureNotFromStart(t *testing.T) {
+	runner := &bridgeRunner{log: slog.New(slog.DiscardHandler)}
+
+	if runner.scripts() != nil {
+		t.Fatal("a runner that has not been configured must hold no fleet")
+	}
+
+	cfg := bridgeConfig{
+		Present:  true,
+		Families: []string{"ipv4/unicast"},
+		Scripts:  []bridgerun.Script{{Name: "watcher", Argv: []string{"/bin/cat"}, Encoder: bridge.EncoderJSON}},
+	}
+	if err := runner.applyConfig(nil, cfg); err != nil {
+		t.Fatalf("applyConfig: %v", err)
+	}
+
+	fleet := runner.scripts()
+	if fleet == nil {
+		t.Fatal("the fleet must exist after OnConfigure, or every event until " +
+			"OnAllPluginsReady reaches no script and is dropped in silence")
+	}
+	if fleet.Count() != 1 {
+		t.Fatalf("the fleet carries %d script(s), want the 1 the config named", fleet.Count())
+	}
+
+	// Not started: the scripts are not forked, and that is the point. The fleet
+	// accepts an event anyway, because bridgerun.New allocates each script's
+	// queue at construction.
+	runner.mu.Lock()
+	started := runner.started
+	runner.mu.Unlock()
+	if started {
+		t.Error("applyConfig must not START the scripts: a script's first line is a " +
+			"command, and dispatching one during the bridge's own handshake aborts " +
+			"the startup barrier")
+	}
+
+	if err := runner.onEvent(`{"type":"bgp","bgp":{"message":{"type":"open"}}}`); err != nil {
+		t.Fatalf("onEvent before start: %v", err)
 	}
 }

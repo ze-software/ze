@@ -1,6 +1,7 @@
 package wire
 
 import (
+	"slices"
 	"bytes"
 	"testing"
 )
@@ -58,5 +59,61 @@ func TestPayloadNotifyWithSPI(t *testing.T) {
 	}
 	if !bytes.Equal(got.SPI, p.SPI) {
 		t.Errorf("SPI = %x, want %x", got.SPI, p.SPI)
+	}
+}
+
+// TestPrivateNotifyTypesAreStatusTypes holds every private-use member of the
+// notify registry to the one rule that makes registering it legal.
+//
+// It lives in this package, beside the map, because the obligation is a property
+// of the REGISTRY and not of any caller. Asserting it from a consumer would need
+// the set exported, and would only judge the members that consumer happens to
+// reference; this judges all of them, including one registered today and first
+// transmitted next month.
+//
+// RFC requirement: RFC7296-2.21.2-4 positive -- RFC 7296 Section 2.21.2:
+// "Extension documents may define new error notifications with these semantics,
+// but MUST NOT use them unless the peer has been shown to understand them, such
+// as by using the Vendor ID payload." Ze sends no Vendor ID, so it may register a
+// private-use notify type only as a STATUS type, which Section 3.10.1 has an
+// unrecognized peer ignore instead.
+//
+// VALIDATES: no member of notifyTypePrivate is an error type, and no member
+// answers RFC-defined.
+// PREVENTS: the hole that opened when the path probe's private status type was
+// registered. Until then the registry held exactly the RFC-defined types, so
+// NotifyTypeRecognized doubled as an RFC check and a consumer test read it as
+// one. Adding a private member made those two sets differ in silence: the
+// consumer test kept passing while its conclusion stopped following, and a
+// private-use ERROR type added the same way would have inherited the same green.
+func TestPrivateNotifyTypesAreStatusTypes(t *testing.T) {
+	// Pinned rather than skipped-when-empty. A loop over an empty set passes
+	// against any implementation, which is the vacuous green this repository
+	// bans, and the membership is itself the thing worth pinning: adding or
+	// removing a private-use type is a deliberate act that owes a reader a
+	// reason, so it reddens here first.
+	private := notifyPrivateTypes()
+	want := []uint16{NotifyZePathProbePadding}
+	if !slices.Equal(private, want) {
+		t.Fatalf("the private-use notify set is %v, want %v. A member added here is "+
+			"a type RFC 7296 does not define: say why it is one ze may send, and check "+
+			"it against the status-type rule below", private, want)
+	}
+
+	for _, value := range private {
+		if NotifyIsError(value) {
+			t.Errorf("private-use notify type %d (%s) is an ERROR type. RFC 7296 Section "+
+				"2.21.2 forbids ze using an extension error notification unless the peer "+
+				"has been shown to understand it, and ze sends no Vendor ID payload",
+				value, NotifyTypeName(value))
+		}
+		if notifyRFCDefined(value) {
+			t.Errorf("notify type %d is listed private-use and also answers RFC-defined, "+
+				"so the two sets disagree and neither can be trusted", value)
+		}
+		if !NotifyTypeRecognized(value) {
+			t.Errorf("private-use notify type %d is not in the registry at all, so nothing "+
+				"can spell it in a log line, which is the only reason to list it", value)
+		}
 	}
 }
