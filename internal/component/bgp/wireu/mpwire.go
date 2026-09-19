@@ -85,16 +85,30 @@ func (m MPReachWire) NextHop() netip.Addr {
 		return netip.Addr{}
 	}
 
-	// Parse based on AFI and NH length
+	// The LENGTH decides the address family of the next hop, not the AFI of the
+	// NLRI it carries. RFC 8950 Section 3 (which obsoletes RFC 5549) advertises
+	// IPv4 NLRI with an IPv6 next hop and states the field for it: "Length of
+	// Next Hop Address = 16 or 32". So an AFI of 1 says nothing about how wide
+	// this field is.
+	//
+	// Reading AFI alone truncated such a next hop to its first four octets and
+	// answered a VALID IPv4 address for them, which is the silently-wrong value
+	// ai/rules/principles.md bans: 0x0BADCAFE... came back as 11.173.202.254,
+	// and a caller could not tell it from a real next hop. Measured against
+	// test/exabgp-compat/encoding/extended-nexthop, whose own expectation states
+	// bad:cafe:bad:cafe:bad:cafe:bad:cafe.
+	//
+	// 32 and 48 are the RFC 2545 Section 3 pair, a global address followed by a
+	// link-local one; the global half alone is what this answers, as the
+	// contract above says. 24 and 48 are the VPN-IPv6 forms, whose 8-octet RD
+	// prefix is not an address, so they stay undecoded here.
 	afi := m.AFI()
 	switch {
-	case afi == 1 && nhLen >= 4:
-		// IPv4: 4 bytes
+	case nhLen == 4 && (afi == 1 || afi == 2):
 		var addr [4]byte
 		copy(addr[:], nhBytes[:4])
 		return netip.AddrFrom4(addr)
-	case afi == 2 && nhLen >= 16:
-		// IPv6: 16 bytes (may have link-local after, take first)
+	case (nhLen == 16 || nhLen == 32) && (afi == 1 || afi == 2):
 		var addr [16]byte
 		copy(addr[:], nhBytes[:16])
 		return netip.AddrFrom16(addr)

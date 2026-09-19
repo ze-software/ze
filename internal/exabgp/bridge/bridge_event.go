@@ -6,6 +6,7 @@
 package bridge
 
 import (
+	"strconv"
 	"maps"
 	"os"
 	"strings"
@@ -439,9 +440,13 @@ func convertUpdateIPC2(eventData map[string]any) map[string]any {
 
 				switch action {
 				case "add":
+					// ExaBGP's word for "this family carries no next hop",
+					// which is every flow route: its json.py writes the
+					// announce under `no-nexthop`. `null` was ze's own
+					// spelling and no ExaBGP script keys on it.
 					nhKey := nextHop
 					if nhKey == "" {
-						nhKey = "null"
+						nhKey = "no-nexthop"
 					}
 					if announce[exabgpFamily] == nil {
 						announce[exabgpFamily] = make(map[string][]any)
@@ -481,19 +486,119 @@ func convertUpdateIPC2(eventData map[string]any) map[string]any {
 	return update
 }
 
+// exabgpAttributeNames maps ze's name for an attribute to ExaBGP's, for the
+// members where the two projects disagree.
+//
+// ExaBGP writes the community attributes SINGULAR -- `community`,
+// `extended-community`, `large-community` -- where ze pluralises, and it names
+// attribute 9 `originator-id` where ze falls back to `attr-9`. Every other
+// attribute name is identical on both sides, which is why the disagreement
+// survived: it is invisible unless something compares the two documents, and
+// nothing did until the fixtures' own json expectations were turned on
+// (readExaBGPCase, internal/le/interoplab/bgp).
+var exabgpAttributeNames = map[string]string{
+	"communities":          "community",
+	"extended-communities": "extended-community",
+	"large-communities":    "large-community",
+	"attr-9":               "originator-id",
+}
+
 func normalizeOutgoingAttributes(attrObj map[string]any) map[string]any {
-	extComms, ok := attrObj["extended-community"]
-	if !ok {
+	extComms, hasExt := attrObj["extended-community"]
+	var normalized any
+	changed := false
+	if hasExt {
+		normalized, changed = normalizeOutgoingExtendedCommunities(extComms)
+	}
+
+	// ExaBGP states the next hop as the KEY the prefixes hang under inside
+	// `announce`, and never again inside `attribute`. Ze's own document carries
+	// it in both places, which is right for a ze reader and is one member too
+	// many for a script parsing ExaBGP's shape.
+	//
+	// An EMPTY as-path is dropped for the same reason: ExaBGP writes the member
+	// only when the path has hops, so an `"as-path": []` is a member its readers
+	// never see. Both were measured against test/exabgp-compat/api/api-api.ci,
+	// which states the exact document ExaBGP produces for one announce.
+	_, hasNextHop := attrObj["next-hop"]
+	emptyPath := false
+	if path, ok := attrObj["as-path"].([]any); ok && len(path) == 0 {
+		emptyPath = true
+	}
+	renameable := false
+	for zeName := range exabgpAttributeNames {
+		if _, held := attrObj[zeName]; held {
+			renameable = true
+			break
+		}
+	}
+	if !changed && !hasNextHop && !emptyPath && !renameable {
 		return attrObj
 	}
-	normalized, changed := normalizeOutgoingExtendedCommunities(extComms)
-	if !changed {
-		return attrObj
-	}
+
 	cloned := make(map[string]any, len(attrObj))
 	maps.Copy(cloned, attrObj)
-	cloned["extended-community"] = normalized
+	if changed {
+		cloned["extended-communities"] = normalized
+	}
+	delete(cloned, "next-hop")
+	if emptyPath {
+		delete(cloned, "as-path")
+	}
+	for zeName, exabgpName := range exabgpAttributeNames {
+		value, held := cloned[zeName]
+		if !held {
+			continue
+		}
+		delete(cloned, zeName)
+		cloned[exabgpName] = value
+	}
+	// ExaBGP states a community as its NUMBERS, not as the text a human reads:
+	// `[[30740, 0]]` where ze writes `["30740:0"]`, and `[[1, 2, 3]]` for a
+	// large community where ze writes `["1:2:3"]`. A script indexes those
+	// numbers, so the colon form is unreadable to it.
+	if split := splitColonCommunities(cloned["community"], 2); split != nil {
+		cloned["community"] = split
+	}
+	if split := splitColonCommunities(cloned["large-community"], 3); split != nil {
+		cloned["large-community"] = split
+	}
 	return cloned
+}
+
+// splitColonCommunities turns ze's colon-joined community strings into the
+// number tuples ExaBGP writes, and answers nil when the value is not that
+// shape, so a caller leaves what it was given alone.
+//
+// parts is how many numbers one community holds: two for a community, three for
+// a large one. A member with any other count is left as a string rather than
+// guessed at, because a wrong tuple is worse than an unconverted one.
+func splitColonCommunities(value any, parts int) []any {
+	list, ok := value.([]any)
+	if !ok || len(list) == 0 {
+		return nil
+	}
+	converted := make([]any, 0, len(list))
+	for _, member := range list {
+		text, isText := member.(string)
+		if !isText {
+			return nil
+		}
+		fields := strings.Split(text, ":")
+		if len(fields) != parts {
+			return nil
+		}
+		numbers := make([]any, 0, parts)
+		for _, field := range fields {
+			number, err := strconv.ParseUint(field, 10, 32)
+			if err != nil {
+				return nil
+			}
+			numbers = append(numbers, float64(number))
+		}
+		converted = append(converted, numbers)
+	}
+	return converted
 }
 
 func normalizeOutgoingExtendedCommunities(value any) (any, bool) {

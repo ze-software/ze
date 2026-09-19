@@ -6,16 +6,21 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/ze-software/ze/internal/exabgp/bridge"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 func runExaBGPServer(args []string, output io.Writer) error {
@@ -143,6 +148,25 @@ func readExaBGPCase(path string) (exabgpCase, error) {
 			spec.steps[connection] = append(spec.steps[connection], exabgpStep{kind: exabgpStepSignal, signal: name})
 			continue
 		}
+		// A `json:` line states the ExaBGP document the frame ABOVE it owes, so
+		// it is attached to that frame rather than being a step of its own.
+		// Until 2026-09-20 this loop dropped every one of them, which is why
+		// two defects in ze's own ExaBGP rendering reached a verification sweep
+		// unseen (plan/journal/gate-excludes-part-of-its-population.md).
+		if len(parts) >= 3 && parts[1] == "json" {
+			connection, err := exabgpCaseConnection(parts[0])
+			if err != nil {
+				return exabgpCase{}, err
+			}
+			steps := spec.steps[connection]
+			if len(steps) == 0 || steps[len(steps)-1].kind != exabgpStepFrame {
+				return exabgpCase{}, fmt.Errorf("json expectation names no frame above it: %q", line)
+			}
+			// The document itself may hold colons, so it is everything after
+			// the second field rather than parts[2] alone.
+			steps[len(steps)-1].wantJSON = strings.TrimSpace(strings.SplitN(line, ":", 3)[2])
+			continue
+		}
 		if len(parts) < 4 || parts[1] != "raw" {
 			continue
 		}
@@ -181,6 +205,10 @@ type exabgpStep struct {
 	kind   exabgpStepKind
 	frame  []byte
 	signal string
+	// wantJSON is the ExaBGP document this frame owes, as the fixture's `json:`
+	// line states it. Empty when the fixture states none, which is every frame
+	// that is not an UPDATE and most that are.
+	wantJSON string
 }
 
 // exabgpSignalMarker opens the line this mock writes on its stdout when a
@@ -269,6 +297,12 @@ func serveExaBGPConnection(connection net.Conn, spec exabgpCase, connectionIndex
 	if len(openBody) < 10 {
 		return errors.New("truncated OPEN")
 	}
+	// Read off the session itself, not off the fixture's ze config. Everything
+	// an ExaBGP document states about the neighbor is here: ze's OPEN carries
+	// its AS and its router id, and the socket carries both addresses. A
+	// fixture that changed its config would otherwise need this mock changed
+	// with it.
+	facts := exabgpSessionFacts(connection, openBody, spec.asn)
 	peerAS := uint16(spec.asn)
 	if spec.asn > 0xffff {
 		peerAS = 23456
@@ -301,7 +335,7 @@ func serveExaBGPConnection(connection net.Conn, spec exabgpCase, connectionIndex
 		for end < len(steps) && steps[end].kind == exabgpStepFrame {
 			end++
 		}
-		if err := matchExaBGPFrames(connection, steps[position:end], recorder); err != nil {
+		if err := matchExaBGPFrames(connection, steps[position:end], recorder, facts); err != nil {
 			return err
 		}
 		position = end
@@ -326,11 +360,9 @@ func serveExaBGPConnection(connection net.Conn, spec exabgpCase, connectionIndex
 // matchExaBGPFrames reads from the speaker until every frame of one segment has
 // matched. Inside a segment the frames match in any order, because a fixture
 // states what the speaker owes rather than the order its encoder picks.
-func matchExaBGPFrames(connection net.Conn, segment []exabgpStep, recorder *frameRecorder) error {
-	remaining := make([][]byte, 0, len(segment))
-	for _, step := range segment {
-		remaining = append(remaining, step.frame)
-	}
+func matchExaBGPFrames(connection net.Conn, segment []exabgpStep, recorder *frameRecorder, facts bridge.SessionFacts) error {
+	remaining := make([]exabgpStep, 0, len(segment))
+	remaining = append(remaining, segment...)
 	for len(remaining) > 0 {
 		messageType, body, err := readBGPWireMessage(connection)
 		if err != nil {
@@ -343,9 +375,18 @@ func matchExaBGPFrames(connection net.Conn, segment []exabgpStep, recorder *fram
 		recorder.record(actual)
 		found := -1
 		for index, wanted := range remaining {
-			if bgpFrameEqual(actual, wanted) {
+			if bgpFrameEqual(actual, wanted.frame) {
 				found = index
 				break
+			}
+		}
+		// The frame matched, so the fixture's document for it is now owed.
+		// Checked here rather than beside the hex because a `.ci` states the
+		// two as one expectation: the bytes, and what a script attached to
+		// this peer reads when those bytes arrive.
+		if found >= 0 && remaining[found].wantJSON != "" {
+			if err := matchExaBGPDocument(body, remaining[found].wantJSON, facts); err != nil {
+				return err
 			}
 		}
 		if found < 0 {
@@ -361,6 +402,74 @@ func matchExaBGPFrames(connection net.Conn, segment []exabgpStep, recorder *fram
 		remaining = append(remaining[:found], remaining[found+1:]...)
 	}
 	return nil
+}
+
+// matchExaBGPDocument compares the ExaBGP document one UPDATE renders to
+// against the one its fixture states.
+//
+// Both sides are put through bridge.DropVolatile first: it removes the members
+// no two runs agree on, which is upstream's own _cleanup list, and folds the
+// direction vocabulary, because the ExaBGP DAEMON writes receive/send while the
+// fixtures carry the in/out its test harness writes.
+func matchExaBGPDocument(payload []byte, want string, facts bridge.SessionFacts) error {
+	var expected map[string]any
+	if err := json.Unmarshal([]byte(want), &expected); err != nil {
+		return fmt.Errorf("the fixture's json expectation does not parse: %w", err)
+	}
+	rendered, err := bridge.WireUpdateToExabgpJSON(payload, facts, rpc.DirectionReceived)
+	if err != nil {
+		return fmt.Errorf("rendering the frame as ExaBGP json: %w", err)
+	}
+	bridge.DropVolatile(expected)
+	bridge.DropVolatile(rendered)
+
+	gotText, err := json.Marshal(rendered)
+	if err != nil {
+		return err
+	}
+	wantText, err := json.Marshal(expected)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(canonicalJSON(gotText), canonicalJSON(wantText)) {
+		return fmt.Errorf("json expectation:\n  want %s\n  got  %s", wantText, gotText)
+	}
+	return nil
+}
+
+// exabgpSessionFacts reads the neighbor facts an ExaBGP document states off the
+// session, so no fixture has to repeat them here.
+//
+// The perspective is ZE's, because the document is what a process attached to
+// ze would read: `local` is ze, which is this mock's REMOTE, and `peer` is this
+// mock. ze's AS and router id come out of the OPEN it just sent.
+func exabgpSessionFacts(connection net.Conn, openBody []byte, mockASN uint32) bridge.SessionFacts {
+	facts := bridge.SessionFacts{PeerAS: mockASN}
+	if host, _, err := net.SplitHostPort(connection.RemoteAddr().String()); err == nil {
+		facts.Local, _ = netip.ParseAddr(host)
+	}
+	if host, _, err := net.SplitHostPort(connection.LocalAddr().String()); err == nil {
+		facts.Peer, _ = netip.ParseAddr(host)
+	}
+	if len(openBody) >= 9 {
+		facts.LocalAS = uint32(binary.BigEndian.Uint16(openBody[1:3]))
+		facts.RouterID = binary.BigEndian.Uint32(openBody[5:9])
+	}
+	return facts
+}
+
+// canonicalJSON re-marshals a document so two equal documents compare equal
+// whatever order their members were written in.
+func canonicalJSON(document []byte) []byte {
+	var value any
+	if err := json.Unmarshal(document, &value); err != nil {
+		return document
+	}
+	canonical, err := json.Marshal(value)
+	if err != nil {
+		return document
+	}
+	return canonical
 }
 
 // frameRecorder writes every frame the speaker sent, so an expectation can be
