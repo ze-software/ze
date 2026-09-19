@@ -815,7 +815,7 @@ func parseFlowSpecBridgeRoute(family, routeStr string) (string, []string, string
 // so the bare aliases never reach it and the qualified spellings always do.
 func isFlowSpecComponentKeyword(token string) bool {
 	switch strings.ToLower(token) {
-	case "destination-ipv4", "destination-ipv6", "source-ipv4", "source-ipv6",
+	case bridgeFlowDestIPv4, bridgeFlowDestIPv6, bridgeFlowSourceIPv4, bridgeFlowSourceIPv6,
 		"protocol", "next-header", "port", "destination-port", "source-port",
 		"icmp-type", "icmp-code", "tcp-flags", "packet-length", "dscp",
 		"fragment", "traffic-class", "flow-label":

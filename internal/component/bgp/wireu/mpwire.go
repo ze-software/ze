@@ -102,16 +102,24 @@ func (m MPReachWire) NextHop() netip.Addr {
 	// link-local one; the global half alone is what this answers, as the
 	// contract above says. 24 and 48 are the VPN-IPv6 forms, whose 8-octet RD
 	// prefix is not an address, so they stay undecoded here.
-	afi := m.AFI()
-	switch {
-	case nhLen == 4 && (afi == 1 || afi == 2):
-		var addr [4]byte
-		copy(addr[:], nhBytes[:4])
-		return netip.AddrFrom4(addr)
-	case (nhLen == 16 || nhLen == 32) && (afi == 1 || afi == 2):
-		var addr [16]byte
-		copy(addr[:], nhBytes[:16])
-		return netip.AddrFrom16(addr)
+	// The AFI is not consulted at all. It says what the NLRI is, and this field
+	// is described by its own length: RFC 8950 Section 3 carries IPv4 NLRI
+	// behind an IPv6 next hop, and RFC 4761 VPLS (AFI 25) carries an ordinary
+	// one, so a switch on AFI answered nothing for every family but two.
+	//
+	// RFC 4364 Section 4.3.2 prefixes a VPN next hop with an 8-octet Route
+	// Distinguisher set to zero. The RD is not part of the address, so it is
+	// stepped over rather than decoded: 12 is RD+IPv4 and 24 is RD+IPv6, and
+	// RFC 8950 Section 3 states 48 for the RD+IPv6 pair.
+	switch nhLen {
+	case 4:
+		return netip.AddrFrom4([4]byte(nhBytes[:4]))
+	case 16, 32:
+		return netip.AddrFrom16([16]byte(nhBytes[:16]))
+	case 12:
+		return netip.AddrFrom4([4]byte(nhBytes[8:12]))
+	case 24, 48:
+		return netip.AddrFrom16([16]byte(nhBytes[8:24]))
 	default:
 		return netip.Addr{}
 	}

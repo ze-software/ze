@@ -454,15 +454,15 @@ func convertUpdateIPC2(eventData map[string]any) map[string]any {
 
 					for _, nlri := range nlriList {
 						if s, ok := nlri.(string); ok {
-							announce[exabgpFamily][nhKey] = append(announce[exabgpFamily][nhKey], map[string]any{"nlri": s})
+							announce[exabgpFamily][nhKey] = append(announce[exabgpFamily][nhKey], map[string]any{bridgeUpdateNLRI: s})
 						} else {
-							announce[exabgpFamily][nhKey] = append(announce[exabgpFamily][nhKey], nlri)
+							announce[exabgpFamily][nhKey] = append(announce[exabgpFamily][nhKey], exabgpNLRIObject(nlri))
 						}
 					}
 				case "del":
 					for _, nlri := range nlriList {
 						if s, ok := nlri.(string); ok {
-							withdraw[exabgpFamily] = append(withdraw[exabgpFamily], map[string]any{"nlri": s})
+							withdraw[exabgpFamily] = append(withdraw[exabgpFamily], map[string]any{bridgeUpdateNLRI: s})
 						} else {
 							withdraw[exabgpFamily] = append(withdraw[exabgpFamily], nlri)
 						}
@@ -484,6 +484,239 @@ func convertUpdateIPC2(eventData map[string]any) map[string]any {
 	}
 
 	return update
+}
+
+// flowComponentOrder is the order ExaBGP prints a flow's components in its
+// `string` member, which is the order a flow route is WRITTEN in rather than
+// the ascending component-type order the wire carries.
+var flowComponentOrder = []string{
+	bridgeFlowDestIPv4, bridgeFlowSourceIPv4, bridgeFlowDestIPv6, bridgeFlowSourceIPv6,
+	bridgeFlowProtocol, bridgeFlowNextHeader, "port", "destination-port", "source-port",
+	bridgeFlowICMPType, "icmp-code", bridgeFlowTCPFlags, "packet-length", "dscp", "traffic-class",
+	bridgeFlowFragment, "flow-label",
+}
+
+// The flow component names this file and bridge_command.go both spell.
+const (
+	bridgeFlowDestIPv4   = "destination-ipv4"
+	bridgeFlowSourceIPv4 = "source-ipv4"
+	bridgeFlowDestIPv6   = "destination-ipv6"
+	bridgeFlowSourceIPv6 = "source-ipv6"
+	bridgeFlowNextHeader = "next-header"
+	bridgeFlowICMPType   = "icmp-type"
+	bridgeFlowProtocol   = "protocol"
+	bridgeFlowTCPFlags   = "tcp-flags"
+	bridgeFlowFragment   = "fragment"
+)
+
+// exabgpNLRIMembers renames the members of a non-flow NLRI object to the words
+// ExaBGP writes, for the families where the two projects chose differently.
+//
+// `prefix` against `nlri` and `labels` against `label` are labeled-unicast
+// (RFC 8277); the five l2vpn names are VPLS (RFC 4761). Every other member is
+// spelled the same on both sides, which is why only these are listed.
+var exabgpNLRIMembers = map[string]string{
+	"prefix":          bridgeUpdateNLRI,
+	"labels":          "label",
+	"label-base":      "base",
+	"ve-id":           "endpoint",
+	"ve-block-offset": "offset",
+	"ve-block-size":   "size",
+}
+
+// exabgpNLRIObject restates one non-string NLRI the way ExaBGP writes it: a
+// flow through its own rules, anything else by renaming the members above.
+func exabgpNLRIObject(nlri any) any {
+	object, ok := nlri.(map[string]any)
+	if !ok {
+		return nlri
+	}
+	if _, isFlow := object[bridgeFlowSourceIPv4]; isFlow {
+		return exabgpFlowNLRI(nlri)
+	}
+	if _, isFlow := object[bridgeFlowDestIPv4]; isFlow {
+		return exabgpFlowNLRI(nlri)
+	}
+	renamed := make(map[string]any, len(object))
+	for key, value := range object {
+		if exabgpName, held := exabgpNLRIMembers[key]; held {
+			renamed[exabgpName] = value
+			continue
+		}
+		renamed[key] = value
+	}
+	return renamed
+}
+
+// exabgpFlowNLRI restates one flow NLRI the way ExaBGP writes it.
+//
+// Three differences, all of them ze's own representation showing through:
+//
+//   - ze nests each component's values twice, because componentToJSON answers
+//     [][]string to carry flowspec's OR-of-ANDs (plugins/nlri/flowspec,
+//     plugin_decode.go). ExaBGP writes one flat list per component.
+//   - an IPv4 prefix carries a trailing offset, `10.0.1.0/24/0`. RFC 5575 gives
+//     an IPv4 flow prefix no offset at all -- it is RFC 8956's IPv6 form that
+//     has one -- so a zero offset is noise no ExaBGP reader expects.
+//   - ExaBGP adds a `string` member holding the flow as an operator writes it,
+//     and ze writes none.
+//
+// Anything that is not a flow object is returned untouched, so this is safe on
+// every family.
+func exabgpFlowNLRI(nlri any) any {
+	components, ok := nlri.(map[string]any)
+	if !ok {
+		return nlri
+	}
+	flat := make(map[string]any, len(components)+1)
+	for key, value := range components {
+		flat[key] = flattenFlowComponent(key, value)
+	}
+	if text := flowComponentString(flat); text != "" {
+		flat["string"] = text
+	}
+	return flat
+}
+
+// flowBitmaskComponents are the components whose values are FLAGS rather than
+// comparisons, so ExaBGP writes them bare: `urg`, `first-fragment`. ze prefixes
+// every value with the `=` its numeric components use.
+var flowBitmaskComponents = map[string]bool{bridgeFlowTCPFlags: true, bridgeFlowFragment: true}
+
+// flattenFlowComponent restates one component's values the way ExaBGP does.
+//
+// ze's outer list is the OR and its INNER list is the AND (componentToJSON,
+// plugins/nlri/flowspec/plugin_decode.go). ExaBGP states the same thing on one
+// level by joining an AND group with `&`: `[[">8080", "<8088"], ["=3128"]]`
+// becomes `[">8080&<8088", "=3128"]`. Flattening both levels instead would say
+// three independent matches where the route states two, which is a different
+// filter.
+func flattenFlowComponent(key string, value any) any {
+	outer, ok := value.([]any)
+	if !ok {
+		return value
+	}
+	joined := make([]any, 0, len(outer))
+	for _, member := range outer {
+		inner, nested := member.([]any)
+		if !nested {
+			joined = append(joined, flowValueText(key, member))
+			continue
+		}
+		var tb textbuf.Buffer
+		for index, item := range inner {
+			if index > 0 {
+				tb.Byte('&')
+			}
+			text, isText := flowValueText(key, item).(string)
+			if !isText {
+				return value
+			}
+			tb.Str(text)
+		}
+		joined = append(joined, tb.String())
+	}
+	return joined
+}
+
+// flowICMPTypeNames is ExaBGP main's own table, transcribed from
+// ICMPType.names (src/exabgp/protocol/ip/icmp.py): the IANA icmp-parameters
+// values it chooses to name, lowercased with underscores as hyphens. ze writes
+// the number, so a script matching on `=echo-request` sees nothing.
+//
+// A type absent here keeps its number, which is what ExaBGP does for one it
+// does not name.
+var flowICMPTypeNames = map[string]string{
+	"0": "echo-reply", "3": "unreachable", "5": "redirect", "8": "echo-request",
+	"9": "router-advertisement", "10": "router-solicit", "11": "time-exceeded",
+	"12": "parameter-problem", "13": "timestamp", "14": "timestamp-reply",
+	"40": "photuris", "41": "experimental-mobility",
+	"42": "extended-echo-request", "43": "extended-echo-reply",
+	"253": "experimental-one", "254": "experimental-two",
+}
+
+// flowValueText normalises one value: an IPv4 prefix loses the offset it does
+// not have, a bitmask flag loses the `=` ze writes and ExaBGP does not, and an
+// ICMP type is named rather than numbered.
+func flowValueText(key string, value any) any {
+	trimmed := trimFlowPrefixOffset(key, value)
+	text, ok := trimmed.(string)
+	if !ok {
+		return trimmed
+	}
+	if flowBitmaskComponents[key] {
+		return strings.TrimPrefix(text, "=")
+	}
+	if key == bridgeFlowICMPType {
+		// The operator travels with the value: `=8` is named `=echo-request`.
+		operator, number := flowSplitOperator(text)
+		if name, named := flowICMPTypeNames[number]; named {
+			return operator + name
+		}
+	}
+	return text
+}
+
+// flowSplitOperator separates a match operator from the value it compares, so
+// a rename touches the value alone. ExaBGP writes the same operators ze does.
+func flowSplitOperator(text string) (string, string) {
+	for index, char := range text {
+		if char != '=' && char != '<' && char != '>' && char != '!' && char != '&' {
+			return text[:index], text[index:]
+		}
+	}
+	return text, ""
+}
+
+// trimFlowPrefixOffset drops the `/0` ze appends to an IPv4 flow prefix.
+//
+// Only for the IPv4 keys, and only a ZERO offset: RFC 8956 Section 3 gives an
+// IPv6 flow prefix a real offset, and dropping a non-zero one would state a
+// different match.
+func trimFlowPrefixOffset(key string, value any) any {
+	if key != bridgeFlowSourceIPv4 && key != bridgeFlowDestIPv4 {
+		return value
+	}
+	text, ok := value.(string)
+	if !ok {
+		return value
+	}
+	return strings.TrimSuffix(text, "/0")
+}
+
+// flowComponentString renders the `string` member: the flow as an operator
+// writes it, which is what ExaBGP puts beside the components.
+func flowComponentString(flat map[string]any) string {
+	var tb textbuf.Buffer
+	tb.Str("flow")
+	wrote := false
+	for _, key := range flowComponentOrder {
+		values, held := flat[key].([]any)
+		if !held || len(values) == 0 {
+			continue
+		}
+		tb.Byte(' ').Str(key)
+		// ExaBGP brackets a component that states more than one match and
+		// writes a single one bare, which is how an operator writes it back.
+		if len(values) > 1 {
+			tb.Str(" [")
+		}
+		for _, value := range values {
+			text, isText := value.(string)
+			if !isText {
+				return ""
+			}
+			tb.Byte(' ').Str(text)
+		}
+		if len(values) > 1 {
+			tb.Str(" ]")
+		}
+		wrote = true
+	}
+	if !wrote {
+		return ""
+	}
+	return tb.String()
 }
 
 // exabgpAttributeNames maps ze's name for an attribute to ExaBGP's, for the

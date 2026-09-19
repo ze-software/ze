@@ -77,9 +77,14 @@ func TestASPathKeepsItsSegments(t *testing.T) {
 	}, rpc.DirectionReceived)
 	require.NoError(t, err)
 
-	update := got["neighbor"].(map[string]any)["message"].(map[string]any)["update"].(map[string]any)
-	attributes, ok := update["attribute"].(map[string]any)
-	require.True(t, ok, "the update states no attributes")
+	neighbor, ok := got["neighbor"].(map[string]any)
+	require.True(t, ok, "no neighbor object")
+	message, ok := neighbor["message"].(map[string]any)
+	require.True(t, ok, "no message object")
+	update, ok := message["update"].(map[string]any)
+	require.True(t, ok, "no update object")
+	attributes, held := update["attribute"].(map[string]any)
+	require.True(t, held, "the update states no attributes")
 
 	segments, ok := attributes["as-path"].(map[string]any)
 	require.True(t, ok, "as-path is not the segment map ExaBGP states, it is %T", attributes["as-path"])

@@ -41,8 +41,32 @@ func appendOriginatorIDJSON(buf []byte, attr attribute.Attribute) []byte {
 	return append(buf, '"')
 }
 
+// appendClusterListJSON renders CLUSTER_LIST as the addresses it holds.
+//
+// The same gap ORIGINATOR_ID had, and the same plugin owns it: RFC 4456 Section
+// 8 defines both, and without a formatter the generic arm printed
+// `"attr-10": "03030303c0a8c901"`. ExaBGP writes the list of addresses, which
+// is also the only form a reader can compare against a router id.
+func appendClusterListJSON(buf []byte, attr attribute.Attribute) []byte {
+	list, ok := attr.(attribute.ClusterList)
+	if !ok {
+		return nil
+	}
+	buf = append(buf, '[')
+	for index, id := range list {
+		if index > 0 {
+			buf = append(buf, ',')
+		}
+		buf = append(buf, '"')
+		buf = netip.AddrFrom4([4]byte{byte(id >> 24), byte(id >> 16), byte(id >> 8), byte(id)}).AppendTo(buf)
+		buf = append(buf, '"')
+	}
+	return append(buf, ']')
+}
+
 func init() {
 	attribute.RegisterJSONFormatter(attribute.AttrOriginatorID, "originator-id", appendOriginatorIDJSON)
+	attribute.RegisterJSONFormatter(attribute.AttrClusterList, "cluster-list", appendClusterListJSON)
 
 	reg := registry.Registration{
 		Name:         "bgp-rr",
