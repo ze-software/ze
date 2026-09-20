@@ -256,6 +256,21 @@ func (ks *keyStore) helloChain(iface string, level lsdbLevel) *keyChain {
 	return ks.ifaceL1[iface]
 }
 
+// circuitAuthenticated reports whether a resolved chain holding at least one usable key
+// signs the IIH of this circuit, at either level. `show isis interface` reports it, so it
+// asks the RESOLVED chain rather than the configured name: a name that resolved to no
+// chain, and a chain whose keys were all dropped by resolveChain, both leave the circuit
+// sending and accepting unsigned hellos, and an operator MUST NOT be told such a circuit
+// is authenticated.
+func (ks *keyStore) circuitAuthenticated(iface string) bool {
+	for _, level := range []lsdbLevel{levelOne, levelTwo} {
+		if c := ks.helloChain(iface, level); c != nil && len(c.keys) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
 // levelChain returns the per-level (LSP/CSNP/PSNP) chain for a level: the area
 // key for L1, the domain key for L2 (RFC 5304 sec 2). nil means unauthenticated.
 func (ks *keyStore) levelChain(level lsdbLevel) *keyChain {

@@ -139,6 +139,7 @@ var (
 	ErrInterfaceCostZero  = errors.New("ospf: interface cost must be greater than 0 (RFC 2328 App C.3)")
 	ErrTransmitDelayZero  = errors.New("ospf: interface transmit-delay must be greater than 0 (RFC 2328 App C.3 InfTransDelay)")
 	ErrSimplePasswordLen  = errors.New("ospf: simple-password (AuType 1) secret must be at most 8 octets (RFC 2328 App D); use md5/hmac-sha for longer keys")
+	ErrUnknownKeyChain    = errors.New("ospf: authentication key-chain reference names no key-chains entry")
 	ErrInstanceIDRange    = errors.New("ospf: address-family instance-id is outside its RFC 5838 §2.1 range (ipv6-unicast 0-31, ipv6-multicast 32-63, ipv4-unicast 64-95, ipv4-multicast 96-127)")
 	ErrNBMANoNeighbors    = errors.New("ospf: nbma interface requires at least one nbma-neighbor (RFC 2328 App C.6: NBMA has no multicast fallback, so with no configured neighbor it unicasts to nobody and forms no adjacency); use point-to-multipoint for multicast neighbor discovery")
 	ErrGraceIntervalRange = errors.New("ospf: graceful-restart restart-interval must be 1..1800 seconds (RFC 3623 sec 2.1 / App B.1: SHOULD NOT exceed LSRefreshTime)")
@@ -965,6 +966,9 @@ func validateConfigAF(cfg ospfConfig, isV6 bool) error {
 			return err
 		}
 	}
+	if err := validateKeyChainRefs(cfg); err != nil {
+		return err
+	}
 	if cfg.V6 != nil {
 		// RFC 5838 §2.1: the default AF's Instance ID must fall in the IPv6-unicast range.
 		if !afInstanceIDInRange(afIPv6Unicast, cfg.V6.InstanceID) {
@@ -982,6 +986,44 @@ func validateConfigAF(cfg ospfConfig, isV6 bool) error {
 		}
 		if err := validateConfig(ex.cfg); err != nil {
 			return fmt.Errorf("address-family %s: %w", ex.af, err)
+		}
+	}
+	return nil
+}
+
+// validateKeyChainRefs refuses an authentication key-chain reference that names no
+// declared chain. A dangling name and an unset one reach the same branch in
+// (*authStore).configure: neither puts an entry in the store, so the interface accepts
+// and sends every packet UNAUTHENTICATED. The two cases are told apart here, at commit,
+// where the operator is still holding the typo. A reference that is unset stays
+// legitimate, because that is how an operator asks for no authentication.
+//
+// The IS-IS sibling is validateKeyChainRefs in internal/plugins/isis/config.go. The two
+// plugins share no config type, no key-chain type and no validator entry point, so the
+// shape is written once in each rather than lifted into a helper that would take the
+// flattened references both plugins would have had to build anyway.
+func validateKeyChainRefs(cfg ospfConfig) error {
+	declared := make(map[string]struct{}, len(cfg.KeyChains))
+	for _, kc := range cfg.KeyChains {
+		declared[kc.Name] = struct{}{}
+	}
+	for _, a := range cfg.Areas {
+		if a.AuthKeyChain == "" {
+			continue
+		}
+		if _, ok := declared[a.AuthKeyChain]; !ok {
+			return fmt.Errorf("%w: area %s names key-chain %q", ErrUnknownKeyChain, a.AreaID.String(), a.AuthKeyChain)
+		}
+	}
+	for _, ic := range cfg.Interfaces {
+		name := ic.Authentication.KeyChain
+		// configure takes the area chain in both of these cases, and the loop above has
+		// already refused a dangling area chain.
+		if ic.Authentication.Mode == authModeInherit || name == "" {
+			continue
+		}
+		if _, ok := declared[name]; !ok {
+			return fmt.Errorf("%w: interface %q names key-chain %q", ErrUnknownKeyChain, ic.Name, name)
 		}
 	}
 	return nil

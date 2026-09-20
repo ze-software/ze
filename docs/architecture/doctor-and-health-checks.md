@@ -238,6 +238,20 @@ a corrupt key inside an open store is `doctor-store-integrity`.
 `CheckAllInterfaceErrors()`. Each kernel call runs on a goroutine with a
 one-second timeout, so a stuck kernel call cannot stall the health endpoint.
 
+`AuditTables` has three outcomes, not two: it finds drift, it finds none, or it
+could not read the kernel at all. The third returns an error beside its zero
+finding count, and `checkFirewallHealth` reports it as degraded with the reason
+"firewall audit could not run". A check that answers healthy for a kernel it
+never read publishes an answer it does not have.
+
+A desired ze_* table the kernel no longer has is DRIFT, and it raises
+`firewall-drift` with the other structural differences. The apply that
+installed the table returned long ago, so its absence means something outside
+ze removed it, and nothing else looks for it: the `firewall-stale-table` branch
+reports only tables ze does NOT want. `ze_vrrp` carries the RFC 9568 Section
+6.4.3 accept filter, so the table vanishing means a non-owner router accepts
+packets for the virtual address.
+
 <!-- source: internal/component/firewall/audit.go -- firewall drift audit -->
 <!-- source: internal/component/iface/health.go -- interface error counter tracking -->
 <!-- source: internal/component/bgp/reactor/session_health.go -- EOR timeout and session anomaly -->

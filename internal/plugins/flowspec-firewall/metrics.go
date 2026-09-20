@@ -17,6 +17,7 @@ const (
 	refusedReasonUnknownProtocol = "unknown-protocol"
 	refusedReasonUnsupported     = "unsupported-component"
 	refusedReasonNoAction        = "no-action"
+	refusedReasonUnsupportedAct  = "unsupported-action"
 	refusedReasonParse           = "parse"
 	refusedReasonMaxRules        = "max-rules"
 )
@@ -64,6 +65,8 @@ func refusalReason(err error) string {
 		return refusedReasonUnsupported
 	case errors.Is(err, errNoAction):
 		return refusedReasonNoAction
+	case errors.Is(err, errUnsupportedAction):
+		return refusedReasonUnsupportedAct
 	default:
 		return refusedReasonParse
 	}

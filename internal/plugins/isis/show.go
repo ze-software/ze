@@ -147,8 +147,9 @@ type interfaceRow struct {
 	// DIS reports whether the local node is the elected DIS on this broadcast
 	// circuit at either level ("l1", "l2", "l1-l2", or "" for P2P / not DIS).
 	DIS string `json:"dis,omitempty"`
-	// Authenticated reports whether an auth key chain is configured on the
-	// circuit. It NEVER exposes key material (security review: no key leak).
+	// Authenticated reports whether a resolved key chain signs the IIH of the
+	// circuit at either level. It NEVER exposes key material (security review: no
+	// key leak).
 	Authenticated bool `json:"authenticated,omitempty"`
 }
 
@@ -171,6 +172,13 @@ func (e *engine) interfaceSnapshot() []any {
 	cfgIfaces := append([]InterfaceConfig(nil), e.cfg.Interfaces...)
 	e.mu.Unlock()
 
+	// The authenticated column reads the resolved key store, never the configured
+	// chain NAME: a name that resolves to nothing leaves the circuit unsigned, and
+	// reporting it as authenticated is what stops an operator finding the typo.
+	e.ksMu.RLock()
+	ks := e.keystore
+	e.ksMu.RUnlock()
+
 	rows := make([]interfaceRow, 0, len(cfgIfaces))
 	for _, ic := range cfgIfaces {
 		if !ic.Enabled {
@@ -184,7 +192,7 @@ func (e *engine) interfaceSnapshot() []any {
 			HelloInterval: ic.HelloInterval,
 			HoldMulti:     ic.HoldMult,
 			Passive:       ic.Passive,
-			Authenticated: ic.Level1.AuthKeyChain != "" || ic.Level2.AuthKeyChain != "",
+			Authenticated: ks.circuitAuthenticated(ic.Name),
 		}
 		if c := live[ic.Name]; c != nil {
 			row.AdjacenciesUp = c.Table().UpCount()

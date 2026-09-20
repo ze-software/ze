@@ -261,6 +261,74 @@ func TestRouteWithNoActionIsCountedAndLogged(t *testing.T) {
 	assert.Contains(t, logged.String(), "rule refused", "the refusal must reach the log")
 }
 
+// TestRouteWithAnActionZeCannotPerformIsRefusedAndNamed drives a received
+// FlowSpec route, not the parser, because the rule table is what an operator
+// and the peer's traffic actually meet.
+//
+// VALIDATES: a route carrying rt-redirect beside a rate limit installs nothing,
+// moves ze_flowspec_rules_refused_total with reason "unsupported-action", and
+// names the community in the log.
+// PREVENTS: parseExtendedCommunities skipping every community its three
+// prefixes do not match. RFC 8955 Section 7 says that where not all traffic
+// filtering actions can be applied "they should be treated as interfering
+// Traffic Filtering Actions", and Section 7.7 leaves the choice among them to
+// the implementation provided the behavior is documented. Skipping the
+// redirect was not a choice: it installed Limit plus Accept, so the traffic the
+// peer asked ze to send to a scrubbing instance went to its destination, and
+// the route was reported accepted.
+func TestRouteWithAnActionZeCannotPerformIsRefusedAndNamed(t *testing.T) {
+	reg := newReasonRegistry()
+	previous := bridgeMetricsPtr.Load()
+	t.Cleanup(func() { bridgeMetricsPtr.Store(previous) })
+	bindMetrics(reg)
+
+	var logged bytes.Buffer
+	b := newBridge(slog.New(slog.NewTextHandler(&logged, nil)))
+
+	event := daemonUpdateJSON("10.0.0.1", []string{"rate-limit:1000", "redirect:65000:100"},
+		daemonOp{action: "add", nlri: []string{`{"destination-ipv4": [["10.3.0.0/24"]]}`}})
+	require.NoError(t, b.handleEvent(event))
+
+	assert.Nil(t, b.rules.buildTable(), "a route ze cannot fully perform installs nothing")
+	assert.Equal(t, 1, reg.count(refusedReasonUnsupportedAct), "the refusal must reach the counter")
+	assert.Contains(t, logged.String(), "redirect:65000:100", "the log must name the community")
+}
+
+// TestRedirectOnlyRouteIsNotReportedAsNoAction pins the diagnosis, which is the
+// half a counter cannot show.
+//
+// VALIDATES: a route whose only extended community is an rt-redirect is
+// refused as an action ze cannot perform, not as a route carrying no action.
+// PREVENTS: the zero flowAction answering for two different inputs. The peer
+// asked for something; "no traffic action" told the operator it had not.
+func TestRedirectOnlyRouteIsNotReportedAsNoAction(t *testing.T) {
+	reg := newReasonRegistry()
+	previous := bridgeMetricsPtr.Load()
+	t.Cleanup(func() { bridgeMetricsPtr.Store(previous) })
+	bindMetrics(reg)
+
+	b := testBridge()
+	event := daemonAddJSON("10.0.0.1", "redirect:8.8.8.8:100",
+		`{"destination-ipv4": [["10.4.0.0/24"]]}`)
+	require.NoError(t, b.handleEvent(event))
+
+	assert.Nil(t, b.rules.buildTable())
+	assert.Equal(t, 1, reg.count(refusedReasonUnsupportedAct))
+	assert.Equal(t, 0, reg.count(refusedReasonNoAction), "the peer sent an action ze could not perform")
+}
+
+// TestRouteTargetIsNotATrafficAction pins the guard the refusal must not eat: a
+// VPN FlowSpec route (RFC 8955 Section 8) carries a route target beside its
+// action, and the route target is not an action ze failed to perform.
+func TestRouteTargetIsNotATrafficAction(t *testing.T) {
+	b := testBridge()
+	event := daemonUpdateJSON("10.0.0.1", []string{"target:65000:100", "rate-limit:0"},
+		daemonOp{action: "add", nlri: []string{`{"destination-ipv4": [["10.5.0.0/24"]]}`}})
+	require.NoError(t, b.handleEvent(event))
+
+	assert.NotNil(t, b.rules.buildTable(), "a route target must not refuse the route")
+}
+
 // TestUnknownProtocolRouteIsCountedAndNamed covers the other half of AC-2: the
 // refusal is visible to an operator.
 //

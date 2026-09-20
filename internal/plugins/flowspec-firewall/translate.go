@@ -22,6 +22,7 @@ var (
 	errUnsupportedComponent = errors.New("flowspec: unsupported component type")
 	errUnsupportedOperator  = errors.New("flowspec: non-equality operator not supported")
 	errNoAction             = errors.New("flowspec: no traffic action")
+	errUnsupportedAction    = errors.New("flowspec: traffic filtering action ze cannot perform")
 	errUnknownProtocol      = errors.New("flowspec: IP protocol has no canonical firewall name")
 	errUnreadableValue      = errors.New("flowspec: NLRI value cannot be read")
 )
@@ -38,6 +39,13 @@ type flowAction struct {
 	rateInPackets bool
 	markDSCP      uint8
 	hasMark       bool
+	// unperformable holds the first RFC 8955 Section 7 traffic filtering
+	// action ze recognized and has no firewall action for, and is empty when
+	// every community was either performed or is not a traffic filtering
+	// action at all. It is NOT the zero-action case: a route carrying no
+	// action leaves it empty and is refused with errNoAction, and the two
+	// refusals say different things to the operator.
+	unperformable string
 }
 
 // translateFlowSpec converts a parsed FlowSpec NLRI and its actions into
@@ -50,10 +58,12 @@ type flowAction struct {
 //
 // It returns errUnsupportedComponent for a component ze cannot map,
 // errUnknownProtocol for a protocol with no canonical firewall name,
-// errUnreadableValue for a value ze cannot read, and errNoAction when the
-// route carries no filtering or shaping action. Each refuses the WHOLE route:
+// errUnreadableValue for a value ze cannot read, errUnsupportedAction for a
+// traffic filtering action ze cannot perform, and errNoAction when the route
+// carries no filtering or shaping action. Each refuses the WHOLE route:
 // enforcing a rule without one of its narrowing conditions would drop more
-// traffic than the peer asked ze to drop.
+// traffic than the peer asked ze to drop, and enforcing it without one of its
+// ACTIONS would permit traffic the peer asked ze to move elsewhere.
 func translateFlowSpec(fs *flowspec.FlowSpec, act flowAction, nlriKey string) ([]firewall.Term, error) {
 	var matches []firewall.Match
 	var protoMatches []firewall.MatchProtocol
@@ -82,6 +92,24 @@ func translateFlowSpec(fs *flowspec.FlowSpec, act flowAction, nlriKey string) ([
 			}
 			matches = append(matches, one)
 		}
+	}
+
+	// RFC 8955 Section 7: "Multiple Traffic Filtering Actions defined in this
+	// document may be present for a single Flow Specification and SHOULD be
+	// applied to the traffic flow [...] If not all of the Traffic Filtering
+	// Actions can be applied to a traffic flow, they should be treated as
+	// interfering Traffic Filtering Actions". Section 7.7 leaves the choice
+	// among interfering actions to the implementation and asks that the
+	// behavior be documented, so this is ze's documented choice: refuse the
+	// whole route and name the action (docs/guide/flowspec-protected-router.md).
+	//
+	// The alternative is to enforce the subset ze can perform, which for a
+	// route carrying rt-redirect beside a rate limit installs a rule ending in
+	// Accept: the traffic the peer asked ze to send to a scrubbing instance
+	// then flows to its original destination, and the peer is told the route
+	// was accepted. A refusal is counted and logged, so an operator can see it.
+	if act.unperformable != "" {
+		return nil, fmt.Errorf("%w: %s", errUnsupportedAction, act.unperformable)
 	}
 
 	actions := actionToFirewall(act)
@@ -256,6 +284,12 @@ func actionToFirewall(act flowAction) []firewall.Action {
 
 // parseExtendedCommunities extracts traffic actions from string-encoded
 // extended communities in the BGP event.
+//
+// A community that is a traffic filtering action ze cannot perform is recorded
+// in flowAction.unperformable rather than skipped, so translateFlowSpec can
+// refuse the route and name it. Skipping it made a redirect indistinguishable
+// from a route target, and a route carrying only a redirect was refused as
+// "no traffic action", which told the operator the peer had asked for nothing.
 func parseExtendedCommunities(extComms []string) flowAction {
 	var act flowAction
 	for _, ec := range extComms {
@@ -287,9 +321,48 @@ func parseExtendedCommunities(extComms []string) flowAction {
 				act.markDSCP = uint8(v)
 				act.hasMark = true
 			}
+		default:
+			if act.unperformable == "" && unperformableAction(ec) {
+				act.unperformable = ec
+			}
 		}
 	}
 	return act
+}
+
+// unperformableAction reports whether ec names a traffic filtering action that
+// the arms above did not perform.
+//
+// Two spellings reach it, and both come from AppendDecoded
+// (internal/core/bgp/attribute/extcomm_decoded.go), which writes every extended
+// community the daemon puts in the event.
+//
+// The first is a name that renderer gives an action ze has no firewall action
+// for: rt-redirect in its three administrator forms (RFC 8955 Section 7.4),
+// traffic-action (Section 7.3), and the redirect-to-nexthop pair of
+// draft-ietf-idr-flowspec-redirect-ip.
+//
+// The second is the "0x<type><subtype>:<hex>" form that renderer falls back to
+// for a type it does not name. RFC 8955 Section 7 Table 8 takes every traffic
+// filtering action it defines from types 0x80, 0x81 and 0x82, so a hex form
+// opening on one of those three is an action ze did not even decode, and a
+// later action added to that range is refused here without an edit.
+//
+// A route target, a route origin and every other community a FlowSpec route
+// carries render under their own name or under a type outside that range, so
+// they are ignored rather than refused.
+func unperformableAction(ec string) bool {
+	for _, name := range []string{"redirect:", "traffic-action:", "redirect-to-nexthop ", "copy-to-nexthop "} {
+		if strings.HasPrefix(ec, name) {
+			return true
+		}
+	}
+	for _, experimental := range []string{"0x80", "0x81", "0x82"} {
+		if strings.HasPrefix(ec, experimental) {
+			return true
+		}
+	}
+	return false
 }
 
 const maxUint32Safe = 429496729 // largest value where n*10+9 <= math.MaxUint32

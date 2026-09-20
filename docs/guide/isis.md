@@ -145,6 +145,9 @@ isis {
       secret $9$....               # entered plaintext, stored $9$-encoded on commit
     }
   }
+  key-chains domain-key {
+    key 1 { algorithm hmac-sha-256  secret ... }
+  }
   key-chains iih-key {
     key 1 { algorithm hmac-sha-256  secret ... }
   }
@@ -171,6 +174,12 @@ the first whose `send-lifetime` is current; on receive, every key whose
 `accept-lifetime` is current is tried. Configuring an overlap window (a new key
 accepted before it becomes the signing key, the old key accepted for a while after)
 lets you roll a key without dropping adjacencies.
+
+**A name that does not resolve is refused.** An `auth-key-chain` leaf naming no
+`key-chains` entry is rejected at commit, and the error names the chain. A
+misspelled name would otherwise leave the circuit or the level running unsigned,
+which reads exactly like asking for no authentication. Naming no chain at all
+stays legitimate: that is how you run a circuit unauthenticated.
 
 **Enforcement.** When a chain is configured for a PDU class, a PDU that arrives
 with no Authentication TLV, with the TLV not first, or with a digest no current key

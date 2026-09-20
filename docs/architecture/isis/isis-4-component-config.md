@@ -70,8 +70,12 @@ that disagrees with the NET is rejected.
 Every numeric, enum and identifier leaf carries `range`, `pattern`,
 `enumeration`, or `length`, so out-of-range metric, priority and lifetime values
 and a bad level enum are rejected at schema validation before the engine sees
-them. The custom validators handle only the NET and the system ID, where native
-YANG is insufficient.
+them. The custom validators handle the NET, the system ID, and every
+`auth-key-chain` reference, which are the checks native YANG cannot carry. A
+reference is checked against the `key-chains` list of the same config, so a name
+that resolves to no chain is refused at commit with the name in the error:
+`newKeyStore` cannot tell a dangling name from an unset one, and both would leave
+the circuit signing and accepting nothing.
 
 Defaults are mirrored as Go constants **and** asserted equal to the YANG defaults
 by a test that reads the YANG file from disk, so the two cannot drift silently.

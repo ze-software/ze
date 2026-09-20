@@ -975,7 +975,8 @@ chain of its area. An interface that names its own key chain overrides this defa
                     leaf key-chain {
                         type string { length "1..63"; }
                         description "The value MUST name an entry of the key-chains list. Ze
-leaves the interface unauthenticated when the name matches no entry.";
+refuses the configuration when the name matches no entry, because an interface that
+inherits a chain which does not resolve would accept every packet unsigned.";
                         ze:help "Default key chain inherited by interfaces.";
                     }
                 }
@@ -1248,9 +1249,9 @@ keys in the resolved chain.";
                     }
                     leaf key-chain {
                         type string { length "1..63"; }
-                        description "The value MUST name an entry of the key-chains list. Ze
-takes the area chain instead when the mode leaf is inherit, even when this leaf names a
-chain.";
+                        description "The value MUST name an entry of the key-chains list, and Ze
+refuses the configuration when it names no entry. Ze takes the area chain instead when the
+mode leaf is inherit, even when this leaf names a chain.";
                         ze:help "Key chain reference.";
                     }
                 }

@@ -73,7 +73,7 @@ when any component is `down`.
 |-----------|-----------------|
 | `bgp` | Session stuck, flap, EOR timeout warnings |
 | `fib` | Sync failure, orphan routes, programming lag |
-| `firewall` | Stale ze_* tables, chain drift vs config |
+| `firewall` | Stale ze_* tables, chain drift vs config, a ze_* table the kernel lost, and an audit that could not read the kernel |
 | `iface` | RX/TX error counter increases |
 | `plugins` | Plugin crashes and disabled-by-respawn-limit |
 | `vpp` | VPP API socket reachability (when present) |
@@ -129,7 +129,7 @@ show warnings source bgp
 | `fib-orphan` | fib | warning | Orphan routes swept at startup |
 | `fib-programming-lag` | fib | warning | Routes pending >30s |
 | `firewall-stale-table` | firewall | warning | ze_* table in kernel not in config |
-| `firewall-drift` | firewall | warning | Chain count mismatch vs config |
+| `firewall-drift` | firewall | warning | Chain count mismatch vs config, or a ze_* table the kernel no longer has |
 | `plugin-crash` | plugin | error | Plugin process exited unexpectedly |
 | `plugin-down` | plugin | warning | Plugin disabled (respawn limit) |
 | `iface-errors` | iface | warning | RX/TX error counters increasing |

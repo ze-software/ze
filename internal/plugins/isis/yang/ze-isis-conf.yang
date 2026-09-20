@@ -336,8 +336,10 @@ module ze-isis-conf {
         list key-chains {
             key "name";
             description "A chain holds the keys that sign and verify IS-IS PDUs. Ze authenticates nothing until an
-                `auth-key-chain` leaf names the chain. A key whose algorithm token Ze does not know, or whose secret
-                does not decode, is dropped from the chain and signs nothing.";
+                `auth-key-chain` leaf names the chain. Ze refuses the configuration when an `auth-key-chain` leaf
+                names no entry of this list, because a circuit whose chain does not resolve sends and accepts every
+                PDU unsigned. A key whose algorithm token Ze does not know, or whose secret does not decode, is
+                dropped from the chain and signs nothing.";
             ze:help "Named authentication key chains for hitless key rotation.";
             leaf name {
                 type string { length "1..63"; }

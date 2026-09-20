@@ -136,6 +136,29 @@ and the rulesets of every other firewall owner, continue to reach the kernel.
 
 <!-- source: internal/plugins/flowspec-firewall/translate.go -- protocolMatches -->
 
+### Traffic filtering actions ze does not perform
+
+Ze performs three of the RFC 8955 Section 7 traffic filtering actions:
+traffic-rate-bytes, traffic-rate-packets and traffic-marking. It does not
+perform rt-redirect (Section 7.4), traffic-action (Section 7.3), or the
+redirect-to-nexthop pair of draft-ietf-idr-flowspec-redirect-ip.
+
+A route carrying one of those is REFUSED as a whole, logged with the community
+that caused the refusal, and counted in `ze_flowspec_rules_refused_total` under
+the reason `unsupported-action`. Ze does not install the part of the route it
+can perform.
+
+RFC 8955 Section 7 says that where not all traffic filtering actions can be
+applied "they should be treated as interfering Traffic Filtering Actions", and
+Section 7.7 leaves the choice among interfering actions to the implementation
+while asking that the behavior be documented. This section is that document.
+The choice is to refuse, because the alternative installs a rule ending in
+accept: a route asking ze to rate-limit AND redirect would then send the
+traffic to its original destination while the peer was told the route was
+accepted.
+
+<!-- source: internal/plugins/flowspec-firewall/translate.go -- unperformableAction -->
+
 ## 4. Test with a safe FlowSpec rule
 
 The bridge only programs nftables from FlowSpec that `edge-01` *receives*, so the rule must be announced from a peer toward `edge-01`, not injected on `edge-01` itself. Use a lab prefix first. The example below drops TCP traffic to `10.0.0.0/8` port 80.
