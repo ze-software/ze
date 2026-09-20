@@ -26,6 +26,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/featuretags"
+	"github.com/ze-software/ze/internal/le/gotoolchain"
 )
 
 // buildTimeout bounds the cross-compile. It allows a cold-cache build on a slow
@@ -119,7 +120,7 @@ func runDaemonBuild(tree, outRel string, extra []string, progress io.Writer) err
 	build.Env = append(build.Env, extra...)
 	if os.Getenv("GOCACHE") == "" {
 		var tb textbuf.Buffer
-		build.Env = append(build.Env, tb.Str("GOCACHE=").Str(filepath.Join(tree, "tmp", "go-cache")).String())
+		build.Env = append(build.Env, tb.Str("GOCACHE=").Str(gotoolchain.BootstrapCache(tree)).String())
 	}
 
 	if err := build.Run(); err != nil {

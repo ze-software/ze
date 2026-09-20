@@ -23,6 +23,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/featuretags"
+	"github.com/ze-software/ze/internal/le/gotoolchain"
 )
 
 const (
@@ -185,7 +186,7 @@ func (v *VPP) runBuild(argv []string, failed error) error {
 	var tb textbuf.Buffer
 	build.Env = append(os.Environ(), "GOOS=linux", tb.Str("GOARCH=").Str(v.Goarch).String(), "CGO_ENABLED=0")
 	if os.Getenv("GOCACHE") == "" {
-		build.Env = append(build.Env, tb.Reset().Str("GOCACHE=").Str(filepath.Join(v.Tree, "tmp", "go-cache")).String())
+		build.Env = append(build.Env, tb.Reset().Str("GOCACHE=").Str(gotoolchain.BootstrapCache(v.Tree)).String())
 	}
 	if err := build.Run(); err != nil {
 		return failed

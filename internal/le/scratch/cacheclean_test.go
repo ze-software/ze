@@ -1,6 +1,7 @@
 package scratch
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -8,6 +9,14 @@ import (
 
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 )
+
+// errWriterRace is what `go clean -cache` returns when a concurrent build
+// writes into a subdirectory the walk has already passed.
+var errWriterRace = errors.New("go clean -cache: unlinkat /cache/go-cache/18: directory not empty")
+
+// errCacheUnwritable is a refusal that is NOT a race: the cache is still
+// there, the disk is as full as it was, and the next build fails the same way.
+var errCacheUnwritable = errors.New("go clean -cache: unlinkat /cache/go-cache/18: permission denied")
 
 // VALIDATES: the action empties the cache directory the toolchain names, and
 // measures the device that directory sits on.
@@ -53,6 +62,7 @@ func TestCacheTargetsCoverTheLintCache(t *testing.T) {
 	want := []struct{ name, path string }{
 		{checkoutCache, gotoolchain.GoCache(root)},
 		{ambientCache, "/machine/default"},
+		{bootstrapCache, gotoolchain.BootstrapCache(root)},
 		{lintCache, gotoolchain.LintCache(root)},
 	}
 	if len(targets) != len(want) {
@@ -170,5 +180,90 @@ func TestCleanReportVerdictIsZeroWithoutAnError(t *testing.T) {
 	report := CleanReport{Caches: []CacheClean{{Name: checkoutCache, Path: "/cache"}}}
 	if code := report.verdict(); code != 0 {
 		t.Errorf("verdict = %d, want 0", code)
+	}
+}
+
+// VALIDATES: a sweep that freed space and then lost a race with a live writer
+// is reported as CONTENDED, carries the bytes it reclaimed, and does not make
+// the run exit 1.
+// PREVENTS: the shape measured on 2026-09-19. `go clean -cache` walks the cache
+// removing each subdirectory; a concurrent `go` command writing into one it has
+// already walked leaves it non-empty and the run ends `unlinkat .../18:
+// directory not empty`. The cache had gone from 41G to 114M and the command
+// still printed REFUSE and exited 1, which an operator reads as "the clean
+// failed" before reaching for `rm -rf` on a cache directory
+// (plan/journal/full-disk-false-red.md).
+func TestMeasureCleanReportsAWriterRaceAsContendedNotRefused(t *testing.T) {
+	cache := t.TempDir()
+
+	// The emptier frees the cache and then fails, which is the order the race
+	// produces: the walk removes what it reaches, then trips on what a writer
+	// put back behind it.
+	raced := func() error {
+		if err := os.RemoveAll(filepath.Join(cache, "18")); err != nil {
+			return err
+		}
+		return errWriterRace
+	}
+	if err := os.MkdirAll(filepath.Join(cache, "18"), 0o750); err != nil {
+		t.Fatalf("seed cache subdirectory: %v", err)
+	}
+
+	result := measureClean("checkout", cache, raced)
+
+	if result.Error != "" {
+		t.Errorf("a sweep that freed space was reported as a refusal: %s", result.Error)
+	}
+	if result.Contended == "" {
+		t.Error("the writer race was not named, so the operator cannot tell it from a clean run")
+	}
+	report := CleanReport{Caches: []CacheClean{result}}
+	if code := report.verdict(); code != 0 {
+		t.Errorf("verdict %d for a cache that freed its space and met a writer, want 0", code)
+	}
+	if !strings.Contains(report.Text(), "concurrent build") {
+		t.Errorf("the report does not say a concurrent build kept writing:\n%s", report.Text())
+	}
+}
+
+// VALIDATES: an emptier that frees nothing and fails is still a refusal, and
+// still exits 1.
+// PREVENTS: the fix above swallowing a real failure. A cache that could not be
+// emptied leaves the disk as full as it was, and the next build fails the same
+// way, so the operator has to be told.
+func TestMeasureCleanStillRefusesWhenNothingWasFreed(t *testing.T) {
+	cache := t.TempDir()
+
+	result := measureClean("checkout", cache, func() error { return errCacheUnwritable })
+
+	if result.Error == "" {
+		t.Error("an emptier that freed nothing and failed was not reported as a refusal")
+	}
+	if result.Contended != "" {
+		t.Errorf("a failure that freed nothing was excused as contention: %s", result.Contended)
+	}
+	report := CleanReport{Caches: []CacheClean{result}}
+	if code := report.verdict(); code != 1 {
+		t.Errorf("verdict %d for a cache that refused, want 1", code)
+	}
+}
+
+// VALIDATES: the bootstrap cache is one of the caches this action empties.
+// PREVENTS: the published claim outrunning the behavior. The action states it
+// empties every build cache this checkout fills and walked past tmp/go-cache,
+// which four writers fill and which held 1.3G when an operator found it by hand
+// (plan/journal/full-disk-false-red.md).
+func TestCacheTargetsCoverTheBootstrapCache(t *testing.T) {
+	root := t.TempDir()
+	want := gotoolchain.BootstrapCache(root)
+
+	var found bool
+	for _, target := range cleanTargets(t.Context(), root, filepath.Join(root, "ambient")) {
+		if target.path == want {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("no target empties %s, the cache the le bootstrap and the deployment builds write", want)
 	}
 }

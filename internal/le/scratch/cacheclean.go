@@ -1,18 +1,24 @@
 // Design: docs/architecture/core-design.md -- native scratch-link gates
 // Overview: scratch.go -- filesystem policy and implementation
 //
-// This file empties the three build caches a Ze checkout fills, and reports
-// the disk space each one returned.
+// This file empties the four build caches a Ze checkout fills, and reports the
+// disk space each one returned.
 //
-// Two of them are Go caches, on two filesystems, and a session that empties one
-// keeps filling the other. Every le action writes the checkout cache, because
-// gotoolchain.Overrides points GOCACHE at cache/go-cache. A bare `go` command
-// typed outside le writes the ambient cache, which is the machine default.
+// Three of them are Go caches, on as many filesystems, and a session that
+// empties one keeps filling the others. Every le action writes the checkout
+// cache, because gotoolchain.Overrides points GOCACHE at cache/go-cache. A bare
+// `go` command typed outside le writes the ambient cache, which is the machine
+// default. The bootstrap cache is what runs with no inherited GOCACHE at all:
+// the `le` script building bin/ze-le, the deployment daemon and VPP evidence
+// builds, and the QEMU guest. It was missed until 2026-09-20, because each of
+// those four writers spelled the path itself and this action could not know
+// about a path nobody declared; it held 1.3G and an operator found it by hand.
+// gotoolchain.BootstrapCache is the declaration all of them now read.
 //
-// The third is golangci-lint's, which no `go clean` reaches and which the
+// The fourth is golangci-lint's, which no `go clean` reaches and which the
 // scratch relocation leaves on the checkout's own device. Emptying only the Go
-// pair left it growing unbounded: it was measured at 9.5G on 2026-09-13, larger
-// than both Go caches together, on a volume that had 1G left.
+// caches left it growing unbounded: it was measured at 9.5G on 2026-09-13,
+// larger than both Go caches together, on a volume that had 1G left.
 //
 // The cost of not having this action is recorded in
 // plan/journal/full-disk-false-red.md, one row for each time a full cache disk
@@ -25,10 +31,12 @@ package scratch
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/diskspace"
@@ -46,9 +54,10 @@ const goCacheKey = "GOCACHE"
 
 // The three caches, named as a person reads them in the report.
 const (
-	checkoutCache = "checkout"
-	ambientCache  = "ambient"
-	lintCache     = "lint"
+	checkoutCache  = "checkout"
+	ambientCache   = "ambient"
+	lintCache      = "lint"
+	bootstrapCache = "bootstrap"
 )
 
 // bytesPerGiB converts a byte count to the unit the report prints.
@@ -63,6 +72,21 @@ type CacheClean struct {
 	Freed      int64  `json:"freed"`
 	Skipped    string `json:"skipped,omitempty"`
 	Error      string `json:"error,omitempty"`
+
+	// Contended carries the emptier's complaint when the sweep FREED space and
+	// then met a writer, rather than failing to clean. `go clean -cache` walks
+	// the cache and removes each subdirectory, so a concurrent `go` command
+	// writing into one it has already walked leaves it non-empty and the run
+	// ends "unlinkat .../18: directory not empty". Measured 2026-09-19: the
+	// cache had gone 41G to 114M and the command still exited 1
+	// (plan/journal/full-disk-false-red.md).
+	//
+	// It is a separate field from Error because the two ask the operator for
+	// different things. An Error means the disk is still full and the next
+	// build will fail the same way. This means the space came back and another
+	// session is using the cache, which is the normal state of a shared
+	// checkout and needs no action at all.
+	Contended string `json:"contended,omitempty"`
 }
 
 // CleanReport is the answer of one cache-clean run, one row for each cache.
@@ -83,6 +107,10 @@ func (r CleanReport) Text() string {
 			line.Str("REFUSE   ").Str(cache.Path).Str(": ").Str(cache.Error)
 		case cache.Skipped != "":
 			line.Str("SKIP     ").Str(cache.Path).Str(": ").Str(cache.Skipped)
+		case cache.Contended != "":
+			line.PadRight(cache.Path, 48).Str(" freed ").Str(gibibytes(cache.Freed)).
+				Str(", free ").Str(gibibytes(int64(cache.FreeAfter))). //nolint:gosec // a free-space count never exceeds the signed range on any device this runs on
+				Str(" (a concurrent build kept writing: ").Str(cache.Contended).Byte(')')
 		default:
 			line.PadRight(cache.Path, 48).Str(" freed ").Str(gibibytes(cache.Freed)).
 				Str(", free ").Str(gibibytes(int64(cache.FreeAfter))) //nolint:gosec // a free-space count never exceeds the signed range on any device this runs on
@@ -140,6 +168,7 @@ type cleanTarget struct {
 func cleanTargets(ctx context.Context, root, ambient string) []cleanTarget {
 	checkout := gotoolchain.GoCache(root)
 	lint := gotoolchain.LintCache(root)
+	bootstrap := gotoolchain.BootstrapCache(root)
 
 	targets := []cleanTarget{{
 		name: checkoutCache, path: checkout,
@@ -147,6 +176,9 @@ func cleanTargets(ctx context.Context, root, ambient string) []cleanTarget {
 	}, {
 		name: ambientCache, path: ambient,
 		empty: func() error { return goCleanCache(ctx, ambient) },
+	}, {
+		name: bootstrapCache, path: bootstrap,
+		empty: func() error { return goCleanCache(ctx, bootstrap) },
 	}, {
 		name: lintCache, path: lint,
 		empty: func() error { return removeCache(lint) },
@@ -158,6 +190,13 @@ func cleanTargets(ctx context.Context, root, ambient string) []cleanTarget {
 }
 
 // verdict answers 1 when any cache refused, so a caller sees the failure.
+//
+// A CONTENDED cache is not a refusal and does not reach this. It freed its
+// space and then lost a race with a live writer, which is the ordinary state of
+// a checkout several sessions share. Exiting 1 there told an operator the clean
+// had failed on a run that had just returned 41G, and the next thing they
+// reached for was `rm -rf` on a cache directory, which is the action this
+// command exists to make unnecessary (plan/journal/full-disk-false-red.md).
 func (r CleanReport) verdict() int {
 	for _, cache := range r.Caches {
 		if cache.Error != "" {
@@ -180,10 +219,10 @@ func measureClean(name, path string, empty func() error) CacheClean {
 	}
 	cache.FreeBefore = before
 
-	if err := empty(); err != nil {
-		cache.Error = err.Error()
-		return cache
-	}
+	// The emptier's error is held, not returned, until the disk has been read
+	// again. What it MEANS depends on whether the space came back, and only the
+	// second reading answers that.
+	emptyErr := empty()
 
 	after, err := diskspace.Free(path)
 	if err != nil {
@@ -191,8 +230,44 @@ func measureClean(name, path string, empty func() error) CacheClean {
 		return cache
 	}
 	cache.FreeAfter = after
+	if emptyErr != nil {
+		if !isWriterRace(emptyErr) {
+			cache.Error = emptyErr.Error()
+			return cache
+		}
+		cache.Contended = emptyErr.Error()
+	}
 	cache.Freed = int64(after) - int64(before) //nolint:gosec // a free-space count never exceeds the signed range on any device this runs on
 	return cache
+}
+
+// isWriterRace answers whether an emptier's failure is another session writing
+// rather than a cache that could not be emptied.
+//
+// It reads the error and NOT the free-space delta. The delta looks like the
+// obvious test and is not one: this device is shared, so a second session
+// allocating while this one frees can leave the reading flat or negative after
+// a clean that worked perfectly, and a small cache frees less than the
+// granularity the reading has. That is the machine-dependent verdict this
+// repository already collects rows about
+// (plan/journal/gate-verdict-depends-on-the-machine.md).
+//
+// ENOTEMPTY is a race BY CONSTRUCTION, which is what makes it a sound signal.
+// `go clean -cache` only ever removes, so a directory it walked cannot be
+// non-empty unless something put entries back behind it. Nothing else this
+// command does produces that error.
+//
+// The match is on text because the error arrives as another tool's combined
+// output rather than as a wrapped syscall error, and `go clean` prints the
+// operating system's wording. Both spellings are listed: Go's os package
+// renders ENOTEMPTY as "directory not empty", and a localized or BSD libc path
+// can produce the bare errno name.
+func isWriterRace(err error) bool {
+	if errors.Is(err, syscall.ENOTEMPTY) {
+		return true
+	}
+	text := strings.ToLower(err.Error())
+	return strings.Contains(text, "directory not empty") || strings.Contains(text, "enotempty")
 }
 
 // goCleanCache runs `go clean -cache` against one explicit cache directory.

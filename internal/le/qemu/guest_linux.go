@@ -22,6 +22,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/featuretags"
+	"github.com/ze-software/ze/internal/le/gotoolchain"
 )
 
 const (
@@ -407,7 +408,7 @@ func buildGuestZe(ctx context.Context, root, output string, overrideKeys ...stri
 	binary := filepath.Join(bindir, output)
 	environ := withGuestEnv(os.Environ(), map[string]string{
 		"CGO_ENABLED": "0",
-		"GOCACHE":     settingFromEnv("GOCACHE", filepath.Join(root, "tmp", "go-cache")),
+		"GOCACHE":     settingFromEnv("GOCACHE", gotoolchain.BootstrapCache(root)),
 	})
 	result, err := guestRun(ctx, "", []string{"go", goCommandBuild, "-tags", tags, "-o", binary, "./cmd/ze"}, environ)
 	if err != nil {

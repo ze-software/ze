@@ -340,3 +340,29 @@ func TestALanguageVersionGoDirectiveYieldsNoPin(t *testing.T) {
 		t.Errorf("GoToolchain = %q, want empty: go1.26 is not a toolchain version", chain.GoToolchain)
 	}
 }
+
+// TestBootstrapCacheMatchesTheShellScript pins the one copy of the bootstrap
+// cache path that cannot ask BootstrapCache.
+//
+// VALIDATES: the `le` script and the Go declaration name the same directory.
+// PREVENTS: the drift that let `./le scratch cache-clean` walk past 1.3G. Four
+// writers spelled tmp/go-cache themselves and the cleaner knew about none of
+// them (plan/journal/full-disk-false-red.md). Three of the four now derive; the
+// script runs before any Go binary exists, so it keeps its literal and this
+// test is what holds the pair together.
+func TestBootstrapCacheMatchesTheShellScript(t *testing.T) {
+	root, err := filepath.Abs(filepath.Join("..", "..", ".."))
+	if err != nil {
+		t.Fatalf("resolve repository root: %v", err)
+	}
+	script, err := os.ReadFile(filepath.Join(root, "le"))
+	if err != nil {
+		t.Fatalf("read the le bootstrap script: %v", err)
+	}
+
+	// The script writes it as a shell assignment against its own $root.
+	want := "GOCACHE=$root/" + strings.TrimPrefix(BootstrapCache(""), string(filepath.Separator))
+	if !strings.Contains(string(script), want) {
+		t.Errorf("the le script does not assign %q, so the bootstrap cache it fills is not the one cache-clean empties", want)
+	}
+}

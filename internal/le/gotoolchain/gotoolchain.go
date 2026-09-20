@@ -379,6 +379,24 @@ func LintCache(root string) string {
 	return filepath.Join(root, "tmp", "golangci-lint-cache")
 }
 
+// BootstrapCache answers the Go build cache used before, or instead of, the
+// checkout cache: the `le` bootstrap that builds bin/ze-le, the deployment
+// daemon and VPP evidence builds, and the QEMU guest. Each of those runs with
+// no inherited GOCACHE and would otherwise write the machine default.
+//
+// It is declared here because four writers spelled the same path themselves,
+// and the cache cleaner knew about none of them: `./le scratch cache-clean`
+// published that it empties every build cache this checkout fills, walked past
+// 1.3G of this one, and the operator had to be told about it by hand
+// (plan/journal/full-disk-false-red.md).
+//
+// The `le` shell script holds the one copy that cannot ask this function,
+// because it runs before any Go binary exists. `TestBootstrapCacheMatchesTheShellScript`
+// compares the two so the pair cannot drift.
+func BootstrapCache(root string) string {
+	return filepath.Join(root, "tmp", "go-cache")
+}
+
 // LDFlags answers the linker flags every released binary carries.
 //
 // One string, because that is how `go build -ldflags` takes it. A binary built
