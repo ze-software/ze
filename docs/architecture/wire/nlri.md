@@ -61,9 +61,11 @@ NLRI (interface)
 ├── PrefixNLRI [embedded: family, prefix, pathID]
 │   ├── INET (IPv4/IPv6 unicast/multicast)
 │   └── LabeledUnicast (SAFI 4) [+labels]
-├── RDNLRIBase [embedded: rd, data, cached]
-│   ├── MVPN (RFC 6514) [+afi, +routeType]
-│   └── MUP (Mobile User Plane) [+afi, +archType, +routeType]
+├── MUP (Mobile User Plane, draft-ietf-bess-mup-safi) [standalone - the route type
+│                    specific field as it arrived, plus the afi, archType, routeType,
+│                    rd, prefix, address, endpoint, source, teid and qfi read from it]
+├── MVPN (RFC 6514) [standalone - packed wire octets, route type and length included,
+│                    plus the rd, source, group and source-as read from them]
 ├── IPVPN (VPNv4/VPNv6) [standalone - field order: family, rd, labels, prefix, pathID]
 ├── EVPN (L2VPN EVPN, RFC 7432)
 │   ├── EVPNType1 (Ethernet Auto-Discovery)
@@ -542,6 +544,37 @@ nlri.WriteNLRI(n, buf, 0, ctx)  // Prepends path ID when ctx.AddPath=true
 - `ctx.AddPath=false` or `ctx=nil`: writes `[payload]` only
 
 <!-- source: internal/core/bgp/nlri/nlri.go -- LenWithContext, WriteNLRI -->
+
+### ADD-PATH Decoding for Plugin Families (RFC 7911)
+
+A family with no dedicated in-process parser (mpls-vpn, evpn, flowspec, mup,
+vpls, rtc, sr-policy, labeled, bgp-ls) reaches `ParseNLRIs` through its default
+arm, which wraps the whole remaining section in one opaque `*nlri.WireNLRI` and
+hands the detailed decode to the plugin registered for the family.
+
+`WireNLRI.Bytes()` returns those octets as they arrived, Path Identifier
+included, and nothing in the octets says whether the first four are one. So the
+negotiation result travels beside them, on three surfaces:
+
+| Surface | Carrier |
+|---------|---------|
+| Formatter to registry | `nlri.AddPathAware`, probed by `appendNLRIJSONValue` |
+| Registry to plugin | `DecodeNLRIByFamily(family, hex, addPath)` and `Registration.InProcessNLRIDecoder` |
+| Engine to external plugin | The `add-path` field of `rpc.DecodeNLRIInput` |
+
+Each decoder consumes the 4-octet Path Identifier for each NLRI in the section
+and publishes it as `"path-id"`. `nlri.SplitPathID` performs the split and
+returns `ErrPathIDTruncated` for a section shorter than the identifier the
+negotiation promised, so a caller never reads a zero identifier it cannot tell
+from a real one.
+
+The plugin text command `decode nlri <family> <hex>` and the `ze bgp decode`
+CLI both read a hex blob with no session behind it, so both decode with no Path
+Identifier.
+
+<!-- source: internal/core/bgp/nlri/nlri.go -- AddPathAware, SplitPathID -->
+<!-- source: internal/component/bgp/format/text_json.go -- appendNLRIJSONValue -->
+<!-- source: internal/component/plugin/registry/registry.go -- DecodeNLRIByFamily -->
 
 ### Index Generation
 

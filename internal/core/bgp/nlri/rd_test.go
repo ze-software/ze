@@ -103,12 +103,14 @@ func TestLabelStackSingle(t *testing.T) {
 	// 16 << 4 | 1 = 0x000101
 	data := []byte{0x00, 0x01, 0x01}
 
-	labels, remaining, err := ParseLabelStack(data)
+	entries, remaining, err := ParseLabelStack(data)
 	require.NoError(t, err)
 	require.Empty(t, remaining)
 
-	require.Len(t, labels, 1)
-	assert.Equal(t, uint32(16), labels[0])
+	require.Len(t, entries, 1)
+	// The ENTRY is what the wire carried, and the label is read out of it.
+	assert.Equal(t, uint32(0x000101), entries[0])
+	assert.Equal(t, uint32(16), LabelValue(entries[0]))
 }
 
 // TestLabelStackMultiple verifies multiple label parsing.
@@ -123,13 +125,14 @@ func TestLabelStackMultiple(t *testing.T) {
 	// Label 200: 0x000C81 (200 << 4 | 1 = 0xC81)
 	data := []byte{0x00, 0x06, 0x40, 0x00, 0x0C, 0x81}
 
-	labels, remaining, err := ParseLabelStack(data)
+	entries, remaining, err := ParseLabelStack(data)
 	require.NoError(t, err)
 	require.Empty(t, remaining)
 
-	require.Len(t, labels, 2)
-	assert.Equal(t, uint32(100), labels[0])
-	assert.Equal(t, uint32(200), labels[1])
+	require.Len(t, entries, 2)
+	assert.Equal(t, uint32(0x000640), entries[0])
+	assert.Equal(t, uint32(0x000C81), entries[1])
+	assert.Equal(t, []uint32{100, 200}, LabelValues(entries))
 }
 
 // Note: VPN NLRI tests moved to internal/plugin/vpn/vpn_test.go.

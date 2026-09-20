@@ -1,4 +1,6 @@
 // Design: docs/architecture/wire/nlri.md — MVPN NLRI plugin
+// RFC: rfc/short/rfc6514.md -- MCAST-VPN NLRI (SAFI 5), Section 4 framing
+// Related: json.go -- AppendJSON, the in-process writer of the same members
 //
 // Package bgp_mvpn implements a Multicast VPN family plugin for ze.
 // It handles MVPN NLRI (RFC 6514, SAFI 5).
@@ -8,12 +10,14 @@ import (
 	"bufio"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -47,10 +51,12 @@ const (
 
 	// cmdDecode is the text-protocol verb this plugin answers on stdin.
 	cmdDecode = "decode"
-
-	// jsonKeyRouteType is the route type field of the decoded JSON object.
-	jsonKeyRouteType = "route-type"
 )
+
+// errMVPNEmptySection reports an MCAST-VPN NLRI section with no octets in it.
+// A caller asking for a decode and receiving an empty list cannot tell that
+// from a section it never handed over, so the walk names the case.
+var errMVPNEmptySection = errors.New("mvpn: empty NLRI section")
 
 var logger = slogutil.DiscardLogger()
 
@@ -84,9 +90,17 @@ func runMVPNPlugin(conn net.Conn) int {
 	return 0
 }
 
-// DecodeNLRIHex decodes MVPN NLRI from hex bytes, returning a data structure.
-// This is the in-process fast path registered in the plugin registry.
-func DecodeNLRIHex(family, hexStr string) (any, error) {
+// DecodeNLRIHex decodes an MVPN NLRI section from hex bytes, returning a data
+// structure. This is the in-process fast path registered in the plugin registry.
+//
+// The hex is a whole MP_REACH_NLRI or MP_UNREACH_NLRI section, which packs as
+// many NLRIs as fit, so every one of them is decoded. One NLRI answers as an
+// object and several answer as an array, which is the shape the vpn plugin and
+// decode_mp.go's nlriRoutes already agree on.
+//
+// addPath states whether each NLRI carries a 4-octet Path Identifier ahead of it
+// (RFC 7911 Section 3). The hex alone cannot say, so the flag travels with it.
+func DecodeNLRIHex(family, hexStr string, addPath bool) (any, error) {
 	afi, err := familyToAFI(family)
 	if err != nil {
 		return nil, err
@@ -97,12 +111,11 @@ func DecodeNLRIHex(family, hexStr string) (any, error) {
 		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
-	mvpn, _, err := parseMVPN(afi, data)
+	routes, err := decodeMVPNSection(afi, data, addPath)
 	if err != nil {
-		return nil, fmt.Errorf("parse MVPN failed: %w", err)
+		return nil, err
 	}
-
-	return mvpnToJSON(mvpn), nil
+	return sectionJSON(routes, addPath), nil
 }
 
 // RunCLIDecode decodes MVPN NLRI from hex string for CLI mode.
@@ -129,19 +142,25 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 		return 1
 	}
 
-	mvpn, _, err := parseMVPN(afi, data)
+	// The CLI is handed a whole NLRI section too, and `ze bgp decode` reads a hex
+	// blob with no session behind it, so no Path Identifier precedes an NLRI
+	// (RFC 7911 Section 3).
+	routes, err := decodeMVPNSection(afi, data, false)
 	if err != nil {
-		writeErr("error: parse MVPN failed: %v\n", err)
+		// decodeMVPNSection already names the failure, so the prefix would say
+		// "parse MVPN failed" twice.
+		writeErr("error: %v\n", err)
 		return 1
 	}
 
 	if textOutput {
-		writeOut(mvpn.String())
+		for _, route := range routes {
+			writeOut(route.nlri.String())
+		}
 		return 0
 	}
 
-	result := mvpnToJSON(mvpn)
-	jsonBytes, err := json.MarshalIndent(result, "", "  ")
+	jsonBytes, err := json.MarshalIndent(sectionJSON(routes, false), "", "  ")
 	if err != nil {
 		writeErr("error: JSON encoding failed: %v\n", err)
 		return 1
@@ -170,7 +189,10 @@ func RunDecode(input io.Reader, output io.Writer) int {
 		if len(parts) >= 4 && parts[0] == cmdDecode && parts[1] == "nlri" {
 			fam := parts[2]
 			hexData := parts[3]
-			data, err := DecodeNLRIHex(fam, hexData)
+			// The CLI and the plugin text command both hand over NLRI octets with no
+			// negotiation behind them, so no Path Identifier precedes them
+			// (RFC 7911 Section 3 puts one there only when ADD-PATH is negotiated).
+			data, err := DecodeNLRIHex(fam, hexData, false)
 			if err == nil {
 				if raw, merr := json.Marshal(data); merr == nil {
 					write("decoded json " + string(raw))
@@ -191,11 +213,101 @@ func RunDecode(input io.Reader, output io.Writer) int {
 }
 
 // mvpnToJSON converts a parsed MVPN NLRI to a JSON-friendly map.
+//
+// The members are ExaBGP's, and AppendJSON (json.go) writes the same ones for
+// the same octets. Two decoders serve this family, the registry map path here
+// and the in-process appender, and a reader cannot tell which one answered it.
 func mvpnToJSON(m *MVPN) map[string]any {
-	return map[string]any{
-		jsonKeyRouteType: int(m.RouteType()),
-		"rd":             m.RD().String(),
+	routeType := m.RouteType()
+
+	// RFC 6514 Section 4 frames every NLRI as Route Type, Length and the route
+	// type specific field. "raw" carries all three, so a reader can decode a
+	// route type ze does not parse.
+	result := map[string]any{
+		"code":   int(routeType),
+		"parsed": routeType.bodyParsed(),
+		"raw":    textbuf.StringHexUpper(m.packed),
 	}
+	if !routeType.bodyParsed() {
+		return result
+	}
+
+	result["name"] = routeType.name()
+	result["rd"] = m.RD().String()
+	result["source"] = m.source.String()
+	result["group"] = m.group.String()
+
+	// RFC 6514 Section 4.6 gives only the two C-multicast routes a Source AS,
+	// and ExaBGP writes it as a decimal string rather than a number.
+	if routeType.hasSourceAS() {
+		result["source-as"] = textbuf.StringUint32(m.sourceAS)
+	}
+	return result
+}
+
+// decodeMVPNSection decodes every NLRI packed into one MCAST-VPN section.
+//
+// MP_REACH_NLRI carries as many NLRIs as fit into one attribute, so a decoder
+// that parses the first and drops the rest publishes one route where the peer
+// sent several, and no reader can tell a section of one from a section of ten
+// (plan/journal/validated-value-discarded-by-its-caller.md).
+//
+// A remainder that will not parse is an error rather than the end of the walk.
+// Ending quietly would publish the routes read so far and lose the rest with no
+// word, which is the failure that reads as success (ai/rules/principles.md).
+func decodeMVPNSection(afi AFI, data []byte, addPath bool) ([]mvpnRoute, error) {
+	if len(data) == 0 {
+		return nil, errMVPNEmptySection
+	}
+
+	var routes []mvpnRoute
+	for remaining := data; len(remaining) > 0; {
+		// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending
+		// the Path Identifier field, which is of four octets." The identifier
+		// precedes each NLRI, so it is read inside the walk rather than once.
+		pathID, rest, err := nlri.SplitPathID(remaining, addPath)
+		if err != nil {
+			return nil, err
+		}
+
+		mvpn, tail, err := parseMVPN(afi, rest)
+		if err != nil {
+			return nil, fmt.Errorf("parse MVPN failed: %w", err)
+		}
+
+		routes = append(routes, mvpnRoute{nlri: mvpn, pathID: pathID})
+		remaining = tail
+	}
+	return routes, nil
+}
+
+// mvpnRoute is one decoded NLRI and the RFC 7911 Path Identifier that preceded
+// it. The identifier is not part of the MCAST-VPN NLRI, so the MVPN itself does
+// not carry it and the walk keeps the pair together.
+type mvpnRoute struct {
+	nlri   *MVPN
+	pathID uint32
+}
+
+// sectionJSON renders a decoded section as the value the plugin registry
+// publishes: one object for a section of one NLRI, an array for a section of
+// several. decode_mp.go's nlriRoutes and the vpn plugin already read that shape.
+func sectionJSON(routes []mvpnRoute, addPath bool) any {
+	objects := make([]map[string]any, 0, len(routes))
+	for _, route := range routes {
+		object := mvpnToJSON(route.nlri)
+		if addPath {
+			// RFC 7911 Section 3 gives the Path Identifier four octets and
+			// reserves no value, so zero is an identifier rather than its
+			// absence. Publish it whenever ADD-PATH put one on the wire.
+			object["path-id"] = route.pathID
+		}
+		objects = append(objects, object)
+	}
+	if len(objects) == 1 {
+		return objects[0]
+	}
+	return objects
 }
 
 // familyToAFI resolves a family name to the AFI of the MVPN family it names.

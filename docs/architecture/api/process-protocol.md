@@ -1215,9 +1215,9 @@ NLRI encode/decode requests are routed via the engine's plugin registry:
 | Direction | RPC Method | Input | Output |
 |-----------|-----------|-------|--------|
 | Plugin to Engine | `ze-plugin-engine:encode-nlri` | `{"family":"...","args":[...]}` | `{"hex":"..."}` |
-| Plugin to Engine | `ze-plugin-engine:decode-nlri` | `{"family":"...","hex":"..."}` | `{"json":<raw JSON>}` |
+| Plugin to Engine | `ze-plugin-engine:decode-nlri` | `{"family":"...","hex":"...","add-path":<bool>}` | `{"json":<raw JSON>}` |
 | Engine to Plugin | `ze-plugin-callback:encode-nlri` | `{"family":"...","args":[...]}` | `{"hex":"..."}` |
-| Engine to Plugin | `ze-plugin-callback:decode-nlri` | `{"family":"...","hex":"..."}` | `{"json":<raw JSON>}` |
+| Engine to Plugin | `ze-plugin-callback:decode-nlri` | `{"family":"...","hex":"...","add-path":<bool>}` | `{"json":<raw JSON>}` |
 
 **How it works:**
 1. Plugin calls `EncodeNLRI`/`DecodeNLRI` via engine RPC

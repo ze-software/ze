@@ -327,7 +327,7 @@ func TestRPCDecodeNLRI(t *testing.T) {
 		err  error
 	}, 1)
 	go func() {
-		j, err := engineConn.SendDecodeNLRI(context.Background(), "ipv4/flow", "180a0000")
+		j, err := engineConn.SendDecodeNLRI(context.Background(), "ipv4/flow", "180a0000", false)
 		done <- struct {
 			json string
 			err  error

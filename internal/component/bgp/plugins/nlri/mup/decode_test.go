@@ -13,7 +13,7 @@ import (
 // PREVENTS: Regression in in-process decode path used by CLI fallback.
 func TestRunDecode(t *testing.T) {
 	t.Parallel()
-	input := "decode nlri ipv4/mup 0100010c0000fde9000000640a000001\n"
+	input := "decode nlri ipv4/mup 0100010c0000fde900000064180a0000\n"
 	var output bytes.Buffer
 	RunDecode(strings.NewReader(input), &output)
 
@@ -21,7 +21,7 @@ func TestRunDecode(t *testing.T) {
 	if !strings.Contains(response, "decoded json") {
 		t.Fatalf("expected 'decoded json' prefix, got: %s", response)
 	}
-	if !strings.Contains(response, `"route-type"`) {
+	if !strings.Contains(response, `"code"`) {
 		t.Errorf("missing route-type in response: %s", response)
 	}
 	if !strings.Contains(response, `"rd"`) {
@@ -62,21 +62,21 @@ func TestDecodeNLRIHex(t *testing.T) {
 		{
 			name:      "ipv4 mup type 1 ISD",
 			family:    "ipv4/mup",
-			hex:       "0100010c0000fde9000000640a000001",
-			wantKey:   "route-type",
+			hex:       "0100010c0000fde900000064180a0000",
+			wantKey:   "code",
 			wantValue: float64(1),
 		},
 		{
 			name:      "ipv4 mup rd field",
 			family:    "ipv4/mup",
-			hex:       "0100010c0000fde9000000640a000001",
+			hex:       "0100010c0000fde900000064180a0000",
 			wantKey:   "rd",
 			wantValue: "0:65001:100",
 		},
 		{
 			name:    "unsupported family",
 			family:  "ipv4/unicast",
-			hex:     "0100010c0000fde9000000640a000001",
+			hex:     "0100010c0000fde900000064180a0000",
 			wantErr: true,
 		},
 		{
@@ -96,7 +96,7 @@ func TestDecodeNLRIHex(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := DecodeNLRIHex(tt.family, tt.hex)
+			result, err := DecodeNLRIHex(tt.family, tt.hex, false)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got nil")

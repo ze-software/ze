@@ -93,7 +93,7 @@ All path attributes share a common header:
 | 26 | 0x1A | AIGP | 0x80 (O-NT) | RFC 7311 | implemented |
 | 29 | 0x1D | BGP_LS | 0x80 (O-NT) | RFC 7752 | not implemented |
 | 32 | 0x20 | LARGE_COMMUNITY | 0xC0 (O-T) | RFC 8092 | implemented |
-| 40 | 0x28 | BGP_PREFIX_SID | 0xC0 (O-T) | RFC 8669 | not implemented |
+| 40 | 0x28 | BGP_PREFIX_SID | 0xC0 (O-T) | RFC 8669, RFC 9252 | parsed (TLVs kept whole, decoded for JSON) |
 | 252 | 0xFC | ATTR_TOMBSTONE | 0x80/0xC0 (O, T mirrors discarded attr) | draft-mangin-idr-attr-tombstone-00 | marker implemented, Section 5.3 egress clear not implemented (provisional code point) |
 
 Legend: WK=Well-known, O=Optional, M=Mandatory, D=Discretionary, T=Transitive, NT=Non-transitive.
@@ -552,6 +552,60 @@ RFC 8092 - Large community values (12 bytes each).
 
 Format: GlobalAdmin:LocalData1:LocalData2 (e.g., 4294967295:100:200)
 <!-- source: internal/core/bgp/attribute/community.go -- LargeCommunity, LargeCommunities -->
+
+---
+
+## 40. BGP_PREFIX_SID (Code 40)
+
+RFC 8669 and RFC 9252 - Segment Routing SIDs carried with a prefix.
+
+The value is a run of TLVs. Every nesting level uses the same 3-octet header,
+so one walk reads the TLVs, the SRv6 Sub-TLVs and the SRv6 Sub-Sub-TLVs.
+
+```
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|     Type      |            Length             |  Value       //
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+```
+
+**Flags:** 0xC0 (Optional Transitive)
+
+| TLV | Name | RFC | Value |
+|-----|------|-----|-------|
+| 1 | Label-Index | 8669 Section 3.1 | RESERVED(1), Flags(2), Label Index(4). Length is 7 |
+| 3 | Originator SRGB | 8669 Section 3.2 | Flags(2), then 6-octet ranges of Base(3) and Range(3) |
+| 5 | SRv6 L3 Service | 9252 Section 2 | RESERVED(1), then Sub-TLVs |
+| 6 | SRv6 L2 Service | 9252 Section 2 | RESERVED(1), then Sub-TLVs |
+
+Sub-TLV 1 is the SRv6 SID Information Sub-TLV (RFC 9252 Section 3.1):
+RESERVED1(1), SID(16), Flags(1), Endpoint Behavior(2), RESERVED2(1), then
+Sub-Sub-TLVs. Sub-Sub-TLV 1 is the SID Structure (RFC 9252 Section 3.2.1): six
+1-octet bit lengths, length 6.
+
+Ze keeps the attribute value whole and decodes a field where a reader asks for
+one. RFC 8669 Section 3 requires unknown TLVs to be propagated unmodified, and
+RFC 9252 Section 2 requires every Reserved field to be propagated unchanged, so
+a relayed Prefix-SID is byte-identical to the one received.
+
+A malformed TLV is refused: the parse returns an error and no attribute, rather
+than a value filled as far as the bytes allowed.
+
+JSON, under the key `bgp-prefix-sid`, with one member per TLV. The member names
+are ExaBGP's, so the two agree on the wire and in the API:
+
+```json
+{"sr-label-index": 777}
+{"sr-label-index": 300, "sr-srgbs": [[800000, 4096], [1000000, 5000]]}
+{"l3-service": [{"sid": "2001:db8:1:1::", "flags": 0, "endpoint_behavior": 72,
+  "structure": {"locator-block-length": 64, "locator-node-length": 24,
+  "function-length": 16, "argument-length": 0, "transposition-length": 0,
+  "transposition-offset": 0}}]}
+```
+
+A TLV ze does not decode keeps its bytes and is named by its code:
+`"attribute-not-implemented-9": "aabbcc"` for a TLV, `{"type": 7, "raw": "dead"}`
+for an SRv6 Sub-TLV, and `"sub-sub-tlv-4": "beef"` for a Sub-Sub-TLV.
+<!-- source: internal/core/bgp/attribute/prefixsid_wire.go -- ParsePrefixSID, appendPrefixSIDJSON -->
 
 ---
 

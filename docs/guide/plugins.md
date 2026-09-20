@@ -1283,7 +1283,7 @@ Available post-handshake commands:
 | `dispatch-command <cmd>` | Dispatch an engine command |
 | `subscribe-events <events>` | Subscribe to events |
 | `unsubscribe-events` | Unsubscribe from events |
-| `decode-nlri <family> <hex>` | Decode NLRI from hex |
+| `decode-nlri <family> <hex>` | Decode NLRI from hex. The text command carries no ADD-PATH token, so the hex holds no Path Identifier |
 | `encode-nlri <family> <args>` | Encode NLRI |
 | `bye` | Disconnect |
 

@@ -1333,7 +1333,7 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 			prefix:     "10.0.0.0/24",
 			labels:     []uint32{100},
 			pathID:     0,
-			wantLabels: `"labels":[100]`,
+			wantLabels: `"labels":[[100,1601]]`,
 			wantPathID: false,
 		},
 		{
@@ -1341,7 +1341,7 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 			prefix:     "192.168.1.0/24",
 			labels:     []uint32{100, 200},
 			pathID:     0,
-			wantLabels: `"labels":[100,200]`,
+			wantLabels: `"labels":[[100,1600],[200,3201]]`,
 			wantPathID: false,
 		},
 		{
@@ -1349,7 +1349,7 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 			prefix:     "172.16.0.0/16",
 			labels:     []uint32{300},
 			pathID:     42,
-			wantLabels: `"labels":[300]`,
+			wantLabels: `"labels":[[300,4801]]`,
 			wantPathID: false, // path-id is transport-level (ADD-PATH), not in decoder output
 		},
 	}
@@ -1455,7 +1455,7 @@ func buildTestUpdateBodyWithDualIPv4NextHop(
 // TestJSONEncoderMPLSVPN verifies MPLS-VPN NLRI JSON output format.
 //
 // RFC 4364: IPVPN NLRI includes RD and labels in structured format.
-// Output: {"prefix":"10.0.0.0/24", "rd":"0:65000:1", "labels":[100]}.
+// Output: {"prefix":"10.0.0.0/24", "rd":"0:65000:1", "labels":[[100,1601]]}.
 //
 // VALIDATES: IPVPN NLRI includes all required fields.
 // PREVENTS: Missing RD or labels in VPN route output.
@@ -1478,7 +1478,7 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 			rdValue:    [6]byte{0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}, // 65000:100
 			labels:     []uint32{100},
 			wantRD:     "0:65000:100",
-			wantLabels: `"labels":[[100]]`, // Plugin uses nested arrays for MPLS label stacks
+			wantLabels: `"labels":[[100,1601]]`, // each member is the label and the RFC 8277 stack entry it came from
 		},
 		{
 			name:       "vpnv4_type1_rd",
@@ -1487,7 +1487,7 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 			rdValue:    [6]byte{0x0A, 0x00, 0x00, 0x01, 0x00, 0x64}, // 10.0.0.1:100
 			labels:     []uint32{200, 300},
 			wantRD:     "1:10.0.0.1:100",
-			wantLabels: `"labels":[[200],[300]]`, // Plugin uses nested arrays for MPLS label stacks
+			wantLabels: `"labels":[[200,3200],[300,4801]]`, // the first entry has no bottom-of-stack bit, the last has
 		},
 		{
 			name:       "vpnv4_type2_rd",
@@ -1497,7 +1497,7 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 			labels:     []uint32{400},
 			pathID:     42,
 			wantRD:     "2:65536:100",
-			wantLabels: `"labels":[[400]]`, // Plugin uses nested arrays for MPLS label stacks
+			wantLabels: `"labels":[[400,6401]]`, // each member is the label and the RFC 8277 stack entry it came from
 			wantPathID: false,              // path-id is transport-level, not in plugin decode output
 		},
 	}

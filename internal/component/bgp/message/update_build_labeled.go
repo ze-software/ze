@@ -246,7 +246,7 @@ func (ub *UpdateBuilder) BuildLabeledUnicastNLRIBytes(p *LabeledUnicastParams) [
 	totalBits := len(p.Labels)*24 + prefixBits
 
 	// Build: [path-id] + length + labels + prefix
-	// Write labels directly via WriteLabelStack (zero-alloc).
+	// Write labels directly via WriteLabelValues (zero-alloc).
 	// RFC 7911: Path Identifier MUST be included when ADD-PATH is negotiated
 	var buf []byte
 	if ub.AddPath {
@@ -257,12 +257,12 @@ func (ub *UpdateBuilder) BuildLabeledUnicastNLRIBytes(p *LabeledUnicastParams) [
 		buf[2] = byte(p.PathID >> 8)
 		buf[3] = byte(p.PathID)
 		buf[4] = byte(totalBits)
-		nlri.WriteLabelStack(buf, 5, p.Labels)
+		nlri.WriteLabelValues(buf, 5, p.Labels)
 		copy(buf[5+labelLen:], prefixData)
 	} else {
 		buf = ub.alloc(1 + labelLen + prefixBytes)
 		buf[0] = byte(totalBits)
-		nlri.WriteLabelStack(buf, 1, p.Labels)
+		nlri.WriteLabelValues(buf, 1, p.Labels)
 		copy(buf[1+labelLen:], prefixData)
 	}
 

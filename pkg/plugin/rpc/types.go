@@ -638,6 +638,11 @@ type EncodeNLRIOutput struct {
 type DecodeNLRIInput struct {
 	Family string `json:"family"`
 	Hex    string `json:"hex"`
+	// AddPath states whether each NLRI in Hex carries a 4-octet Path Identifier
+	// ahead of it. RFC 7911 Section 3: "the NLRI encoding MUST be extended by
+	// prepending the Path Identifier field, which is of four octets." The octets
+	// do not say so themselves, so the negotiation result crosses with them.
+	AddPath bool `json:"add-path,omitempty"`
 }
 
 // DecodeNLRIOutput is the output for ze-plugin-engine:decode-nlri (plugin→engine).

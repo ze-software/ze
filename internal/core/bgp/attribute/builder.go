@@ -188,7 +188,7 @@ func (b *Builder) SetAIGP(metric uint64) *Builder { //nolint:unparam // fluent-b
 }
 
 // SetPrefixSID sets the BGP Prefix-SID attribute (code 40) from its already
-// encoded TLV bytes, as ParsePrefixSID and ParsePrefixSIDSRv6 produce them.
+// encoded TLV bytes, as EncodePrefixSID and EncodePrefixSIDSRv6 produce them.
 //
 // RFC 8669 Section 3: "The BGP Prefix-SID attribute is an optional, transitive
 // BGP path attribute." The flags are written 0xC0 for that reason, and the TLVs

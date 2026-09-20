@@ -326,9 +326,15 @@ func init() {
 	knownAttrParsers[AttrIPv6ExtCommunity] = func(d []byte, _ bool) (Attribute, error) { return ParseIPv6ExtendedCommunities(d) }
 	knownAttrParsers[AttrAIGP] = func(d []byte, _ bool) (Attribute, error) { return ParseAIGP(d) }
 	knownAttrParsers[AttrTunnelEncap] = func(d []byte, _ bool) (Attribute, error) { return ParseTunnelEncap(d) }
+	knownAttrParsers[AttrPrefixSID] = func(d []byte, _ bool) (Attribute, error) { return ParsePrefixSID(d) }
 	// Known codes without parsers yet (PMSI, BGPLS):
 	// left nil — treated as opaque, same as truly unknown codes.
-	// PrefixSID (40): stored in OtherAttrs; SRv6 SID extracted at best-path time.
+	//
+	// The RIB reaches PrefixSID (40) by a different road: rib/storage/attrparse.go
+	// switches on the raw type code and stores 40 in OtherAttrs, from which
+	// rib_bestchange.go extracts the SRv6 SID at best-path time. That road does
+	// not read this table, so the entry above changes what a JSON reader sees and
+	// nothing about what the RIB stores.
 }
 
 // parseKnownAttribute parses a known attribute value by code.

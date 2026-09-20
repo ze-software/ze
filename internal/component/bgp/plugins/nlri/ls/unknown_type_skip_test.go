@@ -49,7 +49,7 @@ func TestDecodeBGPLSSkipsUnknownTypeAndContinues(t *testing.T) {
 	data = append(data, lsUnknownType...)
 	data = append(data, lsNode...)
 
-	results := decodeBGPLSNLRI(data)
+	results := decodeBGPLSNLRI(data, false)
 	require.Len(t, results, 3, "each NLRI must be reported separately")
 
 	assert.Contains(t, results[0], "ls-nlri-type", "the first known NLRI must still parse")
@@ -69,7 +69,7 @@ func TestDecodeBGPLSSkipsConsecutiveUnknownTypes(t *testing.T) {
 	data = append(data, lsUnknownType...)
 	data = append(data, lsNode...)
 
-	results := decodeBGPLSNLRI(data)
+	results := decodeBGPLSNLRI(data, false)
 	require.Len(t, results, 3)
 	assert.Equal(t, false, results[0]["parsed"])
 	assert.Equal(t, false, results[1]["parsed"])
@@ -86,7 +86,7 @@ func TestDecodeBGPLSStopsOnBrokenFraming(t *testing.T) {
 	// Declares 200 octets but only 2 follow: the next boundary is unknowable.
 	data = append(data, 0x00, 0x01, 0x00, 0xc8, 0xaa, 0xbb)
 
-	results := decodeBGPLSNLRI(data)
+	results := decodeBGPLSNLRI(data, false)
 	require.Len(t, results, 2)
 	assert.Contains(t, results[0], "ls-nlri-type")
 	assert.Equal(t, false, results[1]["parsed"])

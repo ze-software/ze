@@ -291,22 +291,54 @@ func formatBitmaskMatches(comp FlowComponent, flagMap map[uint8]string) [][]stri
 
 	matches := nc.Matches()
 	result := make([][]string, 0, len(matches))
+	var andGroup []string
 
-	// Each FlowMatch becomes its own inner array
-	// E.g., "=ack+cwr" and "!fin+ece" become [["=ack","cwr"],["!fin","ece"]]
+	// The outer array is the OR and the inner array is the AND, exactly as
+	// formatNumericMatches builds it. Until 2026-09-20 this loop gave every
+	// match an inner array of its own and never read m.And, so
+	// `syn | rst & fin & !=push` decoded as four independent alternatives: a
+	// filter that matches a SYN-only packet, which the route does not ask for.
+	// RFC 8955 Section 4.2.1.1 makes the AND bit part of what the component
+	// MEANS, so dropping it is not a display choice.
 	for _, m := range matches {
-		valStrs := formatBitmaskValue(m, flagMap)
-		result = append(result, valStrs)
+		valStr := formatBitmaskValue(m, flagMap)
+
+		if m.And && len(andGroup) > 0 {
+			andGroup = append(andGroup, valStr)
+			continue
+		}
+		if len(andGroup) > 0 {
+			result = append(result, andGroup)
+		}
+		andGroup = []string{valStr}
+	}
+
+	if len(andGroup) > 0 {
+		result = append(result, andGroup)
 	}
 
 	return result
 }
 
-// formatBitmaskValue formats a bitmask value as separate flag elements.
-// Returns ["=ack", "cwr"] for ack+cwr with match operator.
-// The operator prefix (= or !) is only on the first flag.
-func formatBitmaskValue(m FlowMatch, flagMap map[uint8]string) []string {
-	// Build prefix from operator
+// formatBitmaskValue formats one bitmask match as a single string: the
+// operator, then every named bit joined with `+`.
+//
+// RFC 8955 Section 4.2.1.2 gives the operator two bits that are not the same
+// question, and both are written here:
+//
+//   - N (NOT) negates the result, and renders `!`.
+//   - M (MATCH) asks for an EXACT match rather than "any of these bits set",
+//     and renders `=`.
+//
+// An operator with neither bit renders BARE. Writing `=` for it, which this
+// function did until 2026-09-20, published an exact-match route for one that
+// asked for any bit: `tcp-flags syn` and `tcp-flags =syn` select different
+// packets, and a reader had no way to tell which the peer sent.
+//
+// The bits of ONE value are joined rather than listed, because they are one
+// operand and not a sequence of matches. `+` is the separator every FlowSpec
+// grammar uses for it, including Ze's own config parser.
+func formatBitmaskValue(m FlowMatch, flagMap map[uint8]string) string {
 	var prefix string
 	if m.Op&FlowOpNot != 0 {
 		prefix = "!"
@@ -314,34 +346,31 @@ func formatBitmaskValue(m FlowMatch, flagMap map[uint8]string) []string {
 	if m.Op&FlowOpMatch != 0 {
 		prefix += "="
 	}
-	if prefix == "" {
-		prefix = "=" // Default to match
-	}
 
 	flags := uint8(m.Value) //nolint:gosec // Bitmask values are 8-bit
-	var names []string
+	var b textbuf.Buffer
+	b.Reset().Str(prefix)
 
-	// Check each bit in order
+	named := false
 	for bit := uint8(0x01); bit != 0; bit <<= 1 {
-		if flags&bit != 0 {
-			if name, ok := flagMap[bit]; ok {
-				names = append(names, name)
-			}
+		if flags&bit == 0 {
+			continue
 		}
+		name, ok := flagMap[bit]
+		if !ok {
+			continue
+		}
+		if named {
+			b.Byte('+')
+		}
+		b.Str(name)
+		named = true
 	}
 
-	if len(names) == 0 {
-		var b textbuf.Buffer
-		return []string{b.Reset().Str(prefix).Uint8(flags).String()}
+	if !named {
+		return b.Reset().Str(prefix).Uint8(flags).String()
 	}
-
-	// Prefix only on first flag, rest are bare names
-	result := make([]string, len(names))
-	result[0] = prefix + names[0]
-	for i := 1; i < len(names); i++ {
-		result[i] = names[i]
-	}
-	return result
+	return b.String()
 }
 
 // formatFlowSpecText formats FlowSpec components as human-readable text.

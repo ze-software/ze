@@ -179,7 +179,7 @@ func testDecodeVPN(t *testing.T, n nlri.NLRI) map[string]any {
 	wire, ok := n.(*nlri.WireNLRI)
 	require.True(t, ok, "expected WireNLRI, got %T", n)
 	hexData := hex.EncodeToString(wire.Bytes())
-	result, err := vpn.DecodeNLRIHex(wire.Family().String(), hexData)
+	result, err := vpn.DecodeNLRIHex(wire.Family().String(), hexData, false)
 	require.NoError(t, err, "VPN decode failed")
 	raw, err := json.Marshal(result)
 	require.NoError(t, err, "VPN JSON marshal failed")
@@ -197,7 +197,7 @@ func testDecodeEVPN(t *testing.T, n nlri.NLRI) map[string]any {
 	wire, ok := n.(*nlri.WireNLRI)
 	require.True(t, ok, "expected WireNLRI, got %T", n)
 	hexData := hex.EncodeToString(wire.Bytes())
-	result, err := evpn.DecodeNLRIHex(wire.Family().String(), hexData)
+	result, err := evpn.DecodeNLRIHex(wire.Family().String(), hexData, false)
 	require.NoError(t, err, "EVPN decode failed")
 	raw, err := json.Marshal(result)
 	require.NoError(t, err, "EVPN JSON marshal failed")
@@ -1886,10 +1886,10 @@ func TestParseUpdateText_LabeledUnicast(t *testing.T) {
 
 	wireNLRI, ok := result.Groups[0].Announce[0].(*nlri.WireNLRI)
 	require.True(t, ok, "expected WireNLRI, got %T", result.Groups[0].Announce[0])
-	decoded, err := registry.DecodeNLRIByFamily(wireNLRI.Family().String(), hex.EncodeToString(wireNLRI.Bytes()))
+	decoded, err := registry.DecodeNLRIByFamily(wireNLRI.Family().String(), hex.EncodeToString(wireNLRI.Bytes()), wireNLRI.HasAddPath())
 	require.NoError(t, err)
 	assert.Contains(t, string(decoded), `"prefix":"10.0.0.0/24"`)
-	assert.Contains(t, string(decoded), `"labels":[1000]`)
+	assert.Contains(t, string(decoded), `"labels":[[1000,16001]]`)
 }
 
 // TestParseUpdateText_LabeledUnicastMissingLabel verifies labeled unicast requires label.
@@ -1940,7 +1940,7 @@ func TestParseUpdateText_IPv6LabeledUnicast(t *testing.T) {
 
 	wireNLRI, ok := result.Groups[0].Announce[0].(*nlri.WireNLRI)
 	require.True(t, ok, "expected WireNLRI, got %T", result.Groups[0].Announce[0])
-	decoded, err := registry.DecodeNLRIByFamily(wireNLRI.Family().String(), hex.EncodeToString(wireNLRI.Bytes()))
+	decoded, err := registry.DecodeNLRIByFamily(wireNLRI.Family().String(), hex.EncodeToString(wireNLRI.Bytes()), wireNLRI.HasAddPath())
 	require.NoError(t, err)
 	assert.Contains(t, string(decoded), `"prefix":"2001:db8:1::/48"`)
 }
@@ -2048,9 +2048,9 @@ func TestParseUpdateText_InNLRIModifierLabelOnly(t *testing.T) {
 
 	wireNLRI, ok := result.Groups[0].Announce[0].(*nlri.WireNLRI)
 	require.True(t, ok, "expected WireNLRI, got %T", result.Groups[0].Announce[0])
-	decoded, err := registry.DecodeNLRIByFamily(wireNLRI.Family().String(), hex.EncodeToString(wireNLRI.Bytes()))
+	decoded, err := registry.DecodeNLRIByFamily(wireNLRI.Family().String(), hex.EncodeToString(wireNLRI.Bytes()), wireNLRI.HasAddPath())
 	require.NoError(t, err)
-	assert.Contains(t, string(decoded), `"labels":[1000]`)
+	assert.Contains(t, string(decoded), `"labels":[[1000,16001]]`)
 }
 
 // TestParseUpdateText_InNLRIModifierRDOnlyStillNeedsLabel verifies rd-only still requires label.

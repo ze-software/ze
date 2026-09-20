@@ -15,6 +15,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -52,9 +53,6 @@ const (
 	// kwRouteType is the keyword that introduces the route type in the
 	// CLI-style argument list config.go builds and encode.go parses.
 	kwRouteType = "route-type"
-
-	// jsonKeyRouteType is the route type field of the decoded JSON object.
-	jsonKeyRouteType = "route-type"
 )
 
 var logger = slogutil.DiscardLogger()
@@ -91,7 +89,10 @@ func runMUPPlugin(conn net.Conn) int {
 
 // DecodeNLRIHex decodes MUP NLRI from hex bytes, returning a data structure.
 // This is the in-process fast path registered in the plugin registry.
-func DecodeNLRIHex(family, hexStr string) (any, error) {
+//
+// addPath states whether the NLRI carries a 4-octet Path Identifier ahead of it
+// (RFC 7911 Section 3). The hex alone cannot say, so the flag travels with it.
+func DecodeNLRIHex(family, hexStr string, addPath bool) (any, error) {
 	afi, err := familyToAFI(family)
 	if err != nil {
 		return nil, err
@@ -102,12 +103,23 @@ func DecodeNLRIHex(family, hexStr string) (any, error) {
 		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
+	// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending the
+	// Path Identifier field, which is of four octets."
+	pathID, data, err := nlri.SplitPathID(data, addPath)
+	if err != nil {
+		return nil, err
+	}
+
 	mup, _, err := ParseMUP(afi, data)
 	if err != nil {
 		return nil, fmt.Errorf("parse MUP failed: %w", err)
 	}
 
-	return mupToJSON(mup), nil
+	result := mupToJSON(mup)
+	if addPath {
+		result["path-id"] = pathID
+	}
+	return result, nil
 }
 
 // RunCLIDecode decodes MUP NLRI from hex string for CLI mode.
@@ -175,7 +187,10 @@ func RunDecode(input io.Reader, output io.Writer) int {
 		if len(parts) >= 4 && parts[0] == cmdDecode && parts[1] == "nlri" {
 			fam := parts[2]
 			hexData := parts[3]
-			data, err := DecodeNLRIHex(fam, hexData)
+			// The CLI and the plugin text command both hand over NLRI octets with no
+			// negotiation behind them, so no Path Identifier precedes them
+			// (RFC 7911 Section 3 puts one there only when ADD-PATH is negotiated).
+			data, err := DecodeNLRIHex(fam, hexData, false)
 			if err == nil {
 				if raw, merr := json.Marshal(data); merr == nil {
 					write("decoded json " + string(raw))
@@ -193,15 +208,6 @@ func RunDecode(input io.Reader, output io.Writer) int {
 		return 1
 	}
 	return 0
-}
-
-// mupToJSON converts a parsed MUP NLRI to a JSON-friendly map.
-func mupToJSON(m *MUP) map[string]any {
-	return map[string]any{
-		jsonKeyRouteType: int(m.RouteType()),
-		"arch-type":      int(m.ArchType()),
-		"rd":             m.RD().String(),
-	}
 }
 
 // familyToAFI resolves a family name to the AFI of the MUP family it names. The

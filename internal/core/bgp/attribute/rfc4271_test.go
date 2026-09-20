@@ -218,12 +218,12 @@ func TestRFC4271PartialFromPreviousASNotCleared(t *testing.T) {
 // true and false, and RegisterName is what moves a code from the third group to the second.
 //
 // PREVENTS: deriving "unrecognized" from the parser table, which holds no entry for
-// PREFIX_SID or ATTR_TOMBSTONE and would have ze stamp attributes it does understand.
+// ATTR_TOMBSTONE and would have ze stamp attributes it does understand.
 func TestAttributeRecognizedTracksTheNamesRegistry(t *testing.T) {
 	assert.True(t, AttrCommunity.Recognized(), "a core attribute is recognized")
-	assert.True(t, AttrPrefixSID.Recognized(),
-		"PREFIX_SID has no entry in knownAttrParsers and is still an attribute ze implements")
-	assert.True(t, AttrTombstone.Recognized())
+	assert.True(t, AttrPrefixSID.Recognized())
+	assert.True(t, AttrTombstone.Recognized(),
+		"ATTR_TOMBSTONE has no entry in knownAttrParsers and is still an attribute ze implements")
 
 	const unassigned AttributeCode = 249
 	require.False(t, unassigned.Recognized(), "an unassigned code starts unrecognized")

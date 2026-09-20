@@ -7,6 +7,7 @@ package bridge
 
 import (
 	"maps"
+	"math"
 	"os"
 	"strconv"
 	"strings"
@@ -456,7 +457,7 @@ func convertUpdateIPC2(eventData map[string]any) map[string]any {
 						if s, ok := nlri.(string); ok {
 							announce[exabgpFamily][nhKey] = append(announce[exabgpFamily][nhKey], map[string]any{bridgeUpdateNLRI: s})
 						} else {
-							announce[exabgpFamily][nhKey] = append(announce[exabgpFamily][nhKey], exabgpNLRIObject(nlri))
+							announce[exabgpFamily][nhKey] = append(announce[exabgpFamily][nhKey], exabgpNLRIObject(exabgpFamily, nlri))
 						}
 					}
 				case "del":
@@ -492,21 +493,23 @@ func convertUpdateIPC2(eventData map[string]any) map[string]any {
 var flowComponentOrder = []string{
 	bridgeFlowDestIPv4, bridgeFlowSourceIPv4, bridgeFlowDestIPv6, bridgeFlowSourceIPv6,
 	bridgeFlowProtocol, bridgeFlowNextHeader, "port", "destination-port", "source-port",
-	bridgeFlowICMPType, "icmp-code", bridgeFlowTCPFlags, "packet-length", "dscp", "traffic-class",
+	bridgeFlowICMPType, "icmp-code", bridgeFlowTCPFlags, "packet-length", bridgeFlowDSCP, bridgeFlowTrafficClass,
 	bridgeFlowFragment, "flow-label",
 }
 
 // The flow component names this file and bridge_command.go both spell.
 const (
-	bridgeFlowDestIPv4   = "destination-ipv4"
-	bridgeFlowSourceIPv4 = "source-ipv4"
-	bridgeFlowDestIPv6   = "destination-ipv6"
-	bridgeFlowSourceIPv6 = "source-ipv6"
-	bridgeFlowNextHeader = "next-header"
-	bridgeFlowICMPType   = "icmp-type"
-	bridgeFlowProtocol   = "protocol"
-	bridgeFlowTCPFlags   = "tcp-flags"
-	bridgeFlowFragment   = "fragment"
+	bridgeFlowDestIPv4     = "destination-ipv4"
+	bridgeFlowSourceIPv4   = "source-ipv4"
+	bridgeFlowDestIPv6     = "destination-ipv6"
+	bridgeFlowSourceIPv6   = "source-ipv6"
+	bridgeFlowNextHeader   = "next-header"
+	bridgeFlowICMPType     = "icmp-type"
+	bridgeFlowProtocol     = "protocol"
+	bridgeFlowTCPFlags     = "tcp-flags"
+	bridgeFlowFragment     = "fragment"
+	bridgeFlowDSCP         = "dscp"
+	bridgeFlowTrafficClass = "traffic-class"
 )
 
 // exabgpNLRIMembers renames the members of a non-flow NLRI object to the words
@@ -526,19 +529,30 @@ var exabgpNLRIMembers = map[string]string{
 
 // exabgpNLRIObject restates one non-string NLRI the way ExaBGP writes it: a
 // flow through its own rules, anything else by renaming the members above.
-func exabgpNLRIObject(nlri any) any {
+//
+// The FAMILY decides which, rather than the members the object happens to
+// carry. Asking whether an IPv4 source or destination was present answered
+// wrong for `flow packet-length [ >200&<300 ]`, which is a flow that matches no
+// address at all: RFC 8955 Section 4.2 makes every component optional, so no
+// member is the one that identifies the family.
+func exabgpNLRIObject(exabgpFamily string, nlri any) any {
 	object, ok := nlri.(map[string]any)
 	if !ok {
 		return nlri
 	}
-	if _, isFlow := object[bridgeFlowSourceIPv4]; isFlow {
-		return exabgpFlowNLRI(nlri)
-	}
-	if _, isFlow := object[bridgeFlowDestIPv4]; isFlow {
-		return exabgpFlowNLRI(nlri)
+	if isFlowFamily(exabgpFamily) {
+		return exabgpFlowNLRI(exabgpFamily, nlri)
 	}
 	renamed := make(map[string]any, len(object))
 	for key, value := range object {
+		if key == bridgeNLRIRD {
+			renamed[key] = exabgpRD(value)
+			continue
+		}
+		if key == bridgeNLRIPathID {
+			renamed["path-information"] = exabgpPathInformation(value)
+			continue
+		}
 		if exabgpName, held := exabgpNLRIMembers[key]; held {
 			renamed[exabgpName] = value
 			continue
@@ -546,6 +560,91 @@ func exabgpNLRIObject(nlri any) any {
 		renamed[key] = value
 	}
 	return renamed
+}
+
+// bridgeNLRIRD is the member every VPN family states its route distinguisher
+// in, spelled the same by both projects. bridgeNLRIPathID is ze's name for the
+// RFC 7911 Path Identifier.
+const (
+	bridgeNLRIRD     = "rd"
+	bridgeNLRIPathID = "path-id"
+)
+
+// exabgpPathInformation restates an RFC 7911 Path Identifier the way ExaBGP
+// writes it: the four octets joined with dots, `1.2.3.4` for 16909060.
+//
+// ze states the number, which is what Section 3 calls it ("a 4-octet value").
+// ExaBGP prints the octets (PathInfo.json, nlri/qualifier/path.py), and
+// operators read them that way because a path identifier is commonly derived
+// from a router id. Nothing is lost either way, so the fold is a spelling and
+// not a conversion.
+func exabgpPathInformation(value any) any {
+	number, isNumber := value.(float64)
+	if !isNumber || number < 0 || number > math.MaxUint32 {
+		return value
+	}
+	identifier := uint32(number)
+	var tb textbuf.Buffer
+	tb.Uint8(uint8(identifier >> 24)).Byte('.').Uint8(uint8(identifier >> 16)).Byte('.').
+		Uint8(uint8(identifier >> 8)).Byte('.').Uint8(uint8(identifier))
+	return tb.String()
+}
+
+// exabgpRD restates a route distinguisher the way ExaBGP writes it.
+//
+// ze states the RFC 4364 Section 4.2 type ahead of the value -- `0:65000:1`,
+// `1:192.168.201.1:123` -- because Type 0 and Type 2 are indistinguishable for
+// an AS number of 65535 or less, and ParseRDString has to read String()'s own
+// output back (internal/core/bgp/nlri/rd.go). ExaBGP writes the value alone,
+// `65000:1`, and lives with the ambiguity because make_from_elements picks the
+// type from how large the administrator is (_str, qualifier/rd.py).
+//
+// Nothing is lost by dropping the type here. The wire carried it, ze's own
+// readers still see it, and this text is read by a person rather than parsed
+// back into an RD.
+func exabgpRD(value any) any {
+	text, isText := value.(string)
+	if !isText {
+		return value
+	}
+	declared, rest, split := strings.Cut(text, ":")
+	if !split {
+		return value
+	}
+	// Only the three types ze prefixes. Its fallback arm writes `rd-typeN:` for
+	// anything else, which ExaBGP renders as hex, so leaving it alone states
+	// something a reader can still act on rather than a truncation.
+	switch declared {
+	case "0", "1", "2":
+		return rest
+	}
+	return value
+}
+
+// exabgpFlowComponentName renames the one component the two projects spell
+// differently, and answers every other name unchanged.
+//
+// RFC 8956 Section 8 registers component type 11 as `DSCP` under both its IPv4
+// and its IPv6 name, which is the name ze publishes. ExaBGP calls the IPv6 one
+// `traffic-class` (FlowTrafficClass.NAME, its flow.py), after the IPv6 header
+// field RFC 8200 Section 3 gives those octets, and a script keying on the
+// ExaBGP name finds nothing under ze's.
+//
+// The family decides it, because the SAME component type is `dscp` on IPv4 and
+// `traffic-class` on IPv6 in ExaBGP's vocabulary.
+func exabgpFlowComponentName(exabgpFamily, component string) string {
+	if component == bridgeFlowDSCP && strings.HasPrefix(exabgpFamily, "ipv6 ") {
+		return bridgeFlowTrafficClass
+	}
+	return component
+}
+
+// isFlowFamily answers for the two SAFIs RFC 8955 Section 3 defines, `flow`
+// (SAFI 133) and `flow-vpn` (SAFI 134), which the bridge writes as the second
+// word of a family name.
+func isFlowFamily(exabgpFamily string) bool {
+	_, safi, split := strings.Cut(exabgpFamily, " ")
+	return split && strings.HasPrefix(safi, "flow")
 }
 
 // exabgpFlowNLRI restates one flow NLRI the way ExaBGP writes it.
@@ -563,25 +662,24 @@ func exabgpNLRIObject(nlri any) any {
 //
 // Anything that is not a flow object is returned untouched, so this is safe on
 // every family.
-func exabgpFlowNLRI(nlri any) any {
+func exabgpFlowNLRI(exabgpFamily string, nlri any) any {
 	components, ok := nlri.(map[string]any)
 	if !ok {
 		return nlri
 	}
 	flat := make(map[string]any, len(components)+1)
 	for key, value := range components {
-		flat[key] = flattenFlowComponent(key, value)
+		if key == bridgeNLRIRD {
+			flat[key] = exabgpRD(value)
+			continue
+		}
+		flat[exabgpFlowComponentName(exabgpFamily, key)] = flattenFlowComponent(key, value)
 	}
 	if text := flowComponentString(flat); text != "" {
 		flat["string"] = text
 	}
 	return flat
 }
-
-// flowBitmaskComponents are the components whose values are FLAGS rather than
-// comparisons, so ExaBGP writes them bare: `urg`, `first-fragment`. ze prefixes
-// every value with the `=` its numeric components use.
-var flowBitmaskComponents = map[string]bool{bridgeFlowTCPFlags: true, bridgeFlowFragment: true}
 
 // flattenFlowComponent restates one component's values the way ExaBGP does.
 //
@@ -636,16 +734,18 @@ var flowICMPTypeNames = map[string]string{
 }
 
 // flowValueText normalises one value: an IPv4 prefix loses the offset it does
-// not have, a bitmask flag loses the `=` ze writes and ExaBGP does not, and an
-// ICMP type is named rather than numbered.
+// not have, and an ICMP type is named rather than numbered.
+//
+// A bitmask flag used to lose a `=` here, because ze wrote one for every
+// operator including RFC 8955 Section 4.2.1.2's bare "any bit set". That is
+// fixed at the decoder now (formatBitmaskValue, plugins/nlri/flowspec), so the
+// `=` that arrives is the one the peer really sent and stripping it would lose
+// the distinction a second time.
 func flowValueText(key string, value any) any {
 	trimmed := trimFlowPrefixOffset(key, value)
 	text, ok := trimmed.(string)
 	if !ok {
 		return trimmed
-	}
-	if flowBitmaskComponents[key] {
-		return strings.TrimPrefix(text, "=")
 	}
 	if key == bridgeFlowICMPType {
 		// The operator travels with the value: `=8` is named `=echo-request`.
@@ -716,6 +816,11 @@ func flowComponentString(flat map[string]any) string {
 	if !wrote {
 		return ""
 	}
+	// The route distinguisher closes the line, which is where an operator
+	// writes it and where ExaBGP's extensive() puts it: `flow` + rules + rd.
+	if rd, held := flat[bridgeNLRIRD].(string); held && rd != "" {
+		tb.Str(" rd ").Str(rd)
+	}
 	return tb.String()
 }
 
@@ -733,6 +838,10 @@ var exabgpAttributeNames = map[string]string{
 	"communities":          bridgeAttrCommunity,
 	"extended-communities": "extended-community",
 	"large-communities":    bridgeAttrLargeCommunity,
+	// RFC 5701's 20-octet form. ExaBGP puts the family word LAST here and
+	// first nowhere else (attribute.py, Attribute.CODE names), so the two
+	// spellings differ by more than ze's plural.
+	"ipv6-extended-communities": "extended-community-ipv6",
 	// attr-9 is gone: bgp-rr now registers a real originator-id formatter, so
 	// ze names it the same as ExaBGP does and there is nothing to translate.
 }

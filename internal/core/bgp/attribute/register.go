@@ -6,4 +6,5 @@ func init() {
 	RegisterJSONFormatter(AttrASPath, "as-path", appendASPathJSON)
 	RegisterJSONFormatter(AttrMED, "med", appendMEDJSON)
 	RegisterJSONFormatter(AttrLocalPref, "local-preference", appendLocalPrefJSON)
+	RegisterJSONFormatter(AttrPrefixSID, "bgp-prefix-sid", appendPrefixSIDJSON)
 }

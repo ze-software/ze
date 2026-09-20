@@ -18,6 +18,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -75,7 +76,10 @@ func runVPNPlugin(conn net.Conn) int {
 // DecodeNLRIHex decodes VPN NLRI from hex bytes, returning a data structure.
 // This is the in-process fast path registered in the plugin registry.
 // Same logic as the OnDecodeNLRI SDK callback but callable without RPC.
-func DecodeNLRIHex(family, hexStr string) (any, error) {
+//
+// addPath states whether each NLRI in the section carries a 4-octet Path
+// Identifier ahead of it (RFC 7911 Section 3). The hex alone cannot say.
+func DecodeNLRIHex(family, hexStr string, addPath bool) (any, error) {
 	if !isValidVPNFamily(family) {
 		return nil, fmt.Errorf("unsupported family: %s", family)
 	}
@@ -85,7 +89,7 @@ func DecodeNLRIHex(family, hexStr string) (any, error) {
 		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
-	results := decodeVPNNLRI(family, data)
+	results := decodeVPNNLRI(family, data, addPath)
 	if len(results) == 0 {
 		return nil, errNoValidVpnRoutesDecoded
 	}
@@ -228,7 +232,10 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 		return 1
 	}
 
-	results := decodeVPNNLRI(family, data)
+	// The CLI and the plugin text command both hand over NLRI octets with no
+	// negotiation behind them, so no Path Identifier precedes them
+	// (RFC 7911 Section 3 puts one there only when ADD-PATH is negotiated).
+	results := decodeVPNNLRI(family, data, false)
 	if len(results) == 0 {
 		writeErr("error: no valid VPN routes decoded\n")
 		return 1
@@ -331,7 +338,10 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		return
 	}
 
-	results := decodeVPNNLRI(fam, data)
+	// The CLI and the plugin text command both hand over NLRI octets with no
+	// negotiation behind them, so no Path Identifier precedes them
+	// (RFC 7911 Section 3 puts one there only when ADD-PATH is negotiated).
+	results := decodeVPNNLRI(fam, data, false)
 	if len(results) == 0 {
 		writeUnknown()
 		return
@@ -389,7 +399,7 @@ func isValidVPNFamily(name string) bool {
 
 // decodeVPNNLRI decodes VPN NLRI wire bytes to array of JSON maps.
 // MP_REACH/MP_UNREACH can contain multiple packed NLRIs.
-func decodeVPNNLRI(family string, data []byte) []map[string]any {
+func decodeVPNNLRI(family string, data []byte, addPath bool) []map[string]any {
 	var results []map[string]any
 	remaining := data
 
@@ -400,7 +410,10 @@ func decodeVPNNLRI(family string, data []byte) []map[string]any {
 	}
 
 	for len(remaining) > 0 {
-		v, rest, err := ParseVPN(afi, SAFIVPN, remaining, false)
+		// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending
+		// the Path Identifier field, which is of four octets." ParseVPN consumes
+		// that field, and vpnToJSON publishes it, so the walk stays one call.
+		v, rest, err := ParseVPN(afi, SAFIVPN, remaining, addPath)
 		if err != nil {
 			vpnLogger.Debug("parse vpn failed", "err", err)
 			// Add as unparsed
@@ -410,7 +423,14 @@ func decodeVPNNLRI(family string, data []byte) []map[string]any {
 			})
 			break
 		}
-		results = append(results, vpnToJSON(v))
+		route := vpnToJSON(v)
+		if addPath {
+			// RFC 7911 Section 3 gives the Path Identifier four octets and
+			// reserves no value, so zero is an identifier rather than its
+			// absence. Publish it whenever ADD-PATH put one on the wire.
+			route["path-id"] = v.PathID()
+		}
+		results = append(results, route)
 		remaining = rest
 	}
 
@@ -418,18 +438,22 @@ func decodeVPNNLRI(family string, data []byte) []map[string]any {
 }
 
 // vpnToJSON converts VPN route to JSON representation.
-// Format: {"rd": "...", "prefix": "...", "labels": [[n], ...]}.
+// Format: {"rd": "...", "prefix": "...", "labels": [[label, entry], ...]}.
 func vpnToJSON(v *VPN) map[string]any {
 	result := map[string]any{
 		"rd":     v.rd.String(),
 		"prefix": v.prefix.String(),
 	}
 
-	// Format labels as nested array [[label1], [label2], ...]
-	if len(v.labels) > 0 {
-		labels := make([][]int, len(v.labels))
-		for i, l := range v.labels {
-			labels[i] = []int{int(l)}
+	// Each member is the label and the stack entry it came from, the pair
+	// AppendJSON writes and ExaBGP publishes.
+	if entries := v.LabelEntries(); len(entries) > 0 {
+		labels := make([][]int, len(entries))
+		for i, entry := range entries {
+			labels[i] = []int{int(nlri.LabelValue(entry))}
+			if entry != 0 {
+				labels[i] = append(labels[i], int(entry))
+			}
 		}
 		result["labels"] = labels
 	}

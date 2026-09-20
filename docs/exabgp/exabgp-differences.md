@@ -105,6 +105,53 @@ is gone.
 
 ---
 
+## JSON member spellings the bridge folds
+
+Four members carry the same fact under different words. Ze keeps its own word,
+because each is load-bearing on Ze's side, and the bridge writes ExaBGP's word
+so a script reads one vocabulary.
+
+| Fact | Ze writes | ExaBGP writes | Why Ze keeps its word |
+|------|-----------|---------------|-----------------------|
+| Route distinguisher | `0:65000:1` | `65000:1` | Type 0 and Type 2 are indistinguishable for an AS number of 65535 or less, and `ParseRDString` has to read `String()`'s own output back |
+| RFC 7911 Path Identifier | `"path-id": 16909060` | `"path-information": "1.2.3.4"` | RFC 7911 Section 3 calls it a 4-octet value, and Ze's CLI and RIB read the number |
+| FlowSpec DSCP on IPv6 | `dscp` | `traffic-class` | RFC 8956 Section 8 registers component type 11 as `DSCP` under both its IPv4 and its IPv6 name |
+| FlowSpec traffic-marking and traffic-action | `mark:10`, `traffic-action:sample` | `mark 10`, `action sample` | the FlowSpec firewall lowering keys on the colon form |
+
+Nothing is lost either way, so each is a spelling rather than a conversion. The
+RFC governs the wire and says nothing about a JSON member, which is what leaves
+the choice open.
+
+Where an RFC or Ze's own grammar DOES decide, Ze changed instead of folding: a
+two-octet AS Route Origin renders its 4-octet local administrator as a dotted
+quad in both projects, and so do `l2info` and the FlowSpec redirect-to-IP
+communities, because Ze's config parser already read those spellings and its
+renderer wrote something the parser refuses.
+<!-- source: internal/exabgp/bridge/bridge_event.go -- exabgpRD, exabgpPathInformation, exabgpFlowComponentName -->
+<!-- source: internal/exabgp/bridge/bridge_wire_json.go -- exabgpCommunitySpellings -->
+
+---
+
+## The live bridge writes less than a fixture checks
+
+`WireUpdateToExabgpJSON` renders an UPDATE from its WIRE BYTES, so it can state
+three members Ze's own JSON does not carry: the AS_PATH's segments and their
+types, the numeric value beside each extended community, and the flag octet in
+an unknown attribute's `attribute-0xCC-0xFF` name.
+
+The live bridge cannot. `translateAndForward` receives Ze's JSON event as text
+and has no wire to read, so an ExaBGP process attached to a running Ze gets Ze's
+flattened AS_PATH and no community values. The ExaBGP compatibility fixtures go
+through the wire path, so they check more than a live process receives.
+
+Closing it means the bridge subscribing at `FormatFull`, which carries
+`raw.update` beside the parsed body, and rendering from those bytes. Until then
+this page is the only statement of what the fixtures do not prove.
+<!-- source: internal/exabgp/bridge/bridge_wire_json.go -- WireUpdateToExabgpJSON, overlayASPath, overlayExtendedCommunities, overlayUnknownAttributes -->
+<!-- source: internal/exabgp/bridge/bridge.go -- translateAndForward -->
+
+---
+
 ## Template for Future Differences
 
 ### Feature Name

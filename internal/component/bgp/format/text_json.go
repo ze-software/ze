@@ -245,7 +245,18 @@ func appendNLRIJSONValue(buf []byte, n nlri.NLRI, fam family.Family) []byte {
 	familyStr := fam.String()
 	if registry.PluginForFamily(familyStr) != "" {
 		hexData := hex.EncodeToString(n.Bytes())
-		decoded, err := registry.DecodeNLRIByFamily(familyStr, hexData)
+
+		// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending
+		// the Path Identifier field, which is of four octets." Bytes() hands the
+		// decoder the octets as they arrived, identifier included, and nothing in
+		// them says whether the first four are one. Ask the NLRI, which was built
+		// with the negotiated layout; a carrier that stays silent carries none.
+		addPath := false
+		if a, ok := n.(nlri.AddPathAware); ok {
+			addPath = a.HasAddPath()
+		}
+
+		decoded, err := registry.DecodeNLRIByFamily(familyStr, hexData, addPath)
 		if err == nil {
 			return append(buf, decoded...)
 		}

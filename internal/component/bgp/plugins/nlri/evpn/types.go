@@ -328,7 +328,7 @@ func (e *EVPNType1) RouteType() EVPNRouteType { return EVPNRouteType1 }
 func (e *EVPNType1) RD() RouteDistinguisher   { return e.rd }
 func (e *EVPNType1) ESI() ESI                 { return e.esi }
 func (e *EVPNType1) EthernetTag() uint32      { return e.ethernetTag }
-func (e *EVPNType1) Labels() []uint32         { return e.labels }
+func (e *EVPNType1) Labels() []uint32         { return nlri.LabelValues(e.labels) }
 func (e *EVPNType1) PathID() uint32           { return e.pathID }
 func (e *EVPNType1) HasPathID() bool          { return e.hasPath }
 func (e *EVPNType1) SupportsAddPath() bool    { return true }
@@ -368,9 +368,9 @@ func (e *EVPNType1) String() string {
 	var b textbuf.Buffer
 	b.Str("ethernet-ad rd ").Str(e.rd.String()).Str(" esi ").Str(e.esi.String()).Str(" etag ").Uint32(e.ethernetTag)
 	if len(e.labels) > 0 {
-		b.Str(" label ").Uint32(e.labels[0])
+		b.Str(" label ").Uint32(nlri.LabelValue(e.labels[0]))
 		for _, l := range e.labels[1:] {
-			b.Byte(',').Uint32(l)
+			b.Byte(',').Uint32(nlri.LabelValue(l))
 		}
 	}
 	return b.String()
@@ -462,7 +462,7 @@ func (e *EVPNType2) ESI() ESI                 { return e.esi }
 func (e *EVPNType2) EthernetTag() uint32      { return e.ethernetTag }
 func (e *EVPNType2) MAC() [6]byte             { return e.mac }
 func (e *EVPNType2) IP() netip.Addr           { return e.ip }
-func (e *EVPNType2) Labels() []uint32         { return e.labels }
+func (e *EVPNType2) Labels() []uint32         { return nlri.LabelValues(e.labels) }
 func (e *EVPNType2) PathID() uint32           { return e.pathID }
 func (e *EVPNType2) HasPathID() bool          { return e.hasPath }
 func (e *EVPNType2) SupportsAddPath() bool    { return true }
@@ -536,9 +536,9 @@ func (e *EVPNType2) String() string {
 		b.Str(" etag ").Uint32(e.ethernetTag)
 	}
 	if len(e.labels) > 0 {
-		b.Str(" label ").Uint32(e.labels[0])
+		b.Str(" label ").Uint32(nlri.LabelValue(e.labels[0]))
 		for _, l := range e.labels[1:] {
-			b.Byte(',').Uint32(l)
+			b.Byte(',').Uint32(nlri.LabelValue(l))
 		}
 	}
 	return b.String()
@@ -845,7 +845,7 @@ func (e *EVPNType5) ESI() ESI                 { return e.esi }
 func (e *EVPNType5) EthernetTag() uint32      { return e.ethernetTag }
 func (e *EVPNType5) Prefix() netip.Prefix     { return e.prefix }
 func (e *EVPNType5) Gateway() netip.Addr      { return e.gateway }
-func (e *EVPNType5) Labels() []uint32         { return e.labels }
+func (e *EVPNType5) Labels() []uint32         { return nlri.LabelValues(e.labels) }
 func (e *EVPNType5) PathID() uint32           { return e.pathID }
 func (e *EVPNType5) HasPathID() bool          { return e.hasPath }
 func (e *EVPNType5) SupportsAddPath() bool    { return true }
@@ -920,9 +920,9 @@ func (e *EVPNType5) String() string {
 		b.Str(" gateway ").Addr(e.gateway)
 	}
 	if len(e.labels) > 0 {
-		b.Str(" label ").Uint32(e.labels[0])
+		b.Str(" label ").Uint32(nlri.LabelValue(e.labels[0]))
 		for _, l := range e.labels[1:] {
-			b.Byte(',').Uint32(l)
+			b.Byte(',').Uint32(nlri.LabelValue(l))
 		}
 	}
 	return b.String()
@@ -976,12 +976,12 @@ func (e *eVPNGeneric) WriteTo(buf []byte, off int) int {
 
 // NewEVPNType1 creates an Ethernet Auto-Discovery route (Type 1).
 func NewEVPNType1(rd RouteDistinguisher, esi [10]byte, ethernetTag uint32, labels []uint32) *EVPNType1 {
-	return &EVPNType1{rd: rd, esi: esi, ethernetTag: ethernetTag, labels: labels}
+	return &EVPNType1{rd: rd, esi: esi, ethernetTag: ethernetTag, labels: nlri.LabelEntriesFor(labels)}
 }
 
 // NewEVPNType2 creates a MAC/IP Advertisement route (Type 2).
 func NewEVPNType2(rd RouteDistinguisher, esi [10]byte, ethernetTag uint32, mac [6]byte, ip netip.Addr, labels []uint32) *EVPNType2 {
-	return &EVPNType2{rd: rd, esi: esi, ethernetTag: ethernetTag, mac: mac, ip: ip, labels: labels}
+	return &EVPNType2{rd: rd, esi: esi, ethernetTag: ethernetTag, mac: mac, ip: ip, labels: nlri.LabelEntriesFor(labels)}
 }
 
 // NewEVPNType3 creates an Inclusive Multicast Ethernet Tag route (Type 3).
@@ -996,7 +996,7 @@ func NewEVPNType4(rd RouteDistinguisher, esi [10]byte, originatorIP netip.Addr) 
 
 // newEVPNType5 creates an IP Prefix route (Type 5).
 func newEVPNType5(rd RouteDistinguisher, esi [10]byte, ethernetTag uint32, prefix netip.Prefix, gateway netip.Addr, labels []uint32) *EVPNType5 {
-	return &EVPNType5{rd: rd, esi: esi, ethernetTag: ethernetTag, prefix: prefix, gateway: gateway, labels: labels}
+	return &EVPNType5{rd: rd, esi: esi, ethernetTag: ethernetTag, prefix: prefix, gateway: gateway, labels: nlri.LabelEntriesFor(labels)}
 }
 
 // eVPNFamilies returns the address families this plugin can decode.

@@ -52,7 +52,7 @@ func TestHandleDecodeNLRI(t *testing.T) {
 		Name:        "test-decoder",
 		Description: "test",
 		Families:    []string{"ipv4/flow"},
-		InProcessNLRIDecoder: func(family, hex string) (any, error) {
+		InProcessNLRIDecoder: func(family, hex string, _ bool) (any, error) {
 			return []map[string]string{{"family": family, "hex": hex}}, nil
 		},
 		RunEngine:  func(_ net.Conn) int { return 0 },

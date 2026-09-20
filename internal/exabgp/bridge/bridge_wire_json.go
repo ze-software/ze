@@ -4,19 +4,22 @@
 package bridge
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"net/netip"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/bgp/format"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -33,6 +36,17 @@ type SessionFacts struct {
 	LocalAS  uint32
 	PeerAS   uint32
 	RouterID uint32
+
+	// Encoding is what the session NEGOTIATED, and it decides how the UPDATE's
+	// own bytes are read rather than how they are described.
+	//
+	// RFC 7911 Section 3 puts a 4-octet Path Identifier ahead of each NLRI when
+	// ADD-PATH was negotiated for that family, and nothing in the message says
+	// so: a decoder that does not know reads the identifier's octets as prefix
+	// bytes and produces routes the peer never sent. A nil value means no
+	// capability beyond four-octet AS numbers, which is what an API-originated
+	// message carries.
+	Encoding *capability.EncodingCaps
 }
 
 // WireUpdateToExabgpJSON renders one UPDATE's wire body as the ExaBGP JSON
@@ -51,11 +65,15 @@ func WireUpdateToExabgpJSON(payload []byte, facts SessionFacts, direction rpc.Me
 	// EncodingContext, so the attribute block decodes to nothing and the render
 	// comes out with no attributes and a null next hop -- which looks like a
 	// defect in the renderer's subject rather than in its setup.
-	var wire wireu.WireUpdate
-	wireu.InitWireUpdate(&wire, payload, bgpctx.APIContextID)
-	attrs, err := wire.Attrs()
+	contextID, err := sessionContextID(facts)
 	if err != nil {
-		return nil, fmt.Errorf("exabgp-bridge: parse update attributes: %w", err)
+		return nil, err
+	}
+	var wire wireu.WireUpdate
+	wireu.InitWireUpdate(&wire, payload, contextID)
+	attrs, attrErr := wire.Attrs()
+	if attrErr != nil {
+		return nil, fmt.Errorf("exabgp-bridge: parse update attributes: %w", attrErr)
 	}
 
 	peer := &plugin.PeerInfo{
@@ -97,7 +115,87 @@ func WireUpdateToExabgpJSON(payload []byte, facts SessionFacts, direction rpc.Me
 	// it is not owed here: ze's flattened form is right for a ze reader.
 	overlayASPath(document, attrs)
 	overlayExtendedCommunities(document, attrs)
+	overlayUnknownAttributes(document, attrs)
 	return document, nil
+}
+
+// overlayUnknownAttributes renames every attribute Ze has no parser for, from
+// `attr-<code>` to the `attribute-0x<code>-0x<flags>` ExaBGP writes.
+//
+// The flags are the difference that matters. ExaBGP names an unknown attribute
+// by its code AND the flag octet the peer set (_generate_json,
+// bgp/message/update/attribute/collection.py), because two peers can send the
+// same unknown code with different transitivity, and a script deciding whether
+// to propagate it has to read RFC 4271 Section 4.3's Optional and Transitive
+// bits. Ze's own document states the code alone unless a caller asks for the
+// flag booleans, so the bridge reads them off the parsed attribute instead.
+//
+// The value gains the `0x` ExaBGP prefixes its hex with, so a reader can tell
+// the payload from a decimal.
+func overlayUnknownAttributes(document map[string]any, attrs *attribute.AttributesWire) {
+	update, ok := exabgpUpdateObject(document)
+	if !ok {
+		return
+	}
+	attrObject, ok := update["attribute"].(map[string]any)
+	if !ok {
+		return
+	}
+	for key, value := range attrObject {
+		number, isUnknown := strings.CutPrefix(key, "attr-")
+		if !isUnknown {
+			continue
+		}
+		code, err := strconv.ParseUint(number, 10, 8)
+		if err != nil {
+			continue
+		}
+		parsed, err := attrs.Get(attribute.AttributeCode(code))
+		if err != nil || parsed == nil {
+			continue
+		}
+		text, isText := value.(string)
+		if !isText {
+			continue
+		}
+		delete(attrObject, key)
+		var value textbuf.Buffer
+		attrObject[exabgpUnknownAttributeName(uint8(code), parsed.Flags())] =
+			value.Str("0x").Str(text).String()
+	}
+}
+
+// exabgpUnknownAttributeName spells `attribute-0xCC-0xFF`.
+//
+// Both octets are UPPER case, because ExaBGP builds the name with `{:02X}`
+// (_generate_json, bgp/message/update/attribute/collection.py) and a script
+// keyed on its name finds nothing under a lower-case one.
+func exabgpUnknownAttributeName(code uint8, flags attribute.AttributeFlags) string {
+	var name textbuf.Buffer
+	octets := [1]byte{code}
+	name.Str("attribute-0x").HexUpper(octets[:])
+	octets[0] = uint8(flags)
+	return name.Str("-0x").HexUpper(octets[:]).String()
+}
+
+// sessionContextID answers the registered EncodingContext for what the session
+// negotiated, and the API context when it negotiated nothing.
+//
+// The direction is SEND, read from the speaker whose message this is: RFC 7911
+// Section 4 makes ADD-PATH asymmetric, so the question the decoder needs
+// answered is whether that speaker SENDS path identifiers for the family, not
+// whether it would accept them.
+func sessionContextID(facts SessionFacts) (bgpctx.ContextID, error) {
+	if facts.Encoding == nil {
+		return bgpctx.APIContextID, nil
+	}
+	id, err := bgpctx.Registry.Register(
+		bgpctx.NewEncodingContext(nil, facts.Encoding, bgpctx.DirectionSend),
+	)
+	if err != nil {
+		return bgpctx.APIContextID, fmt.Errorf("exabgp-bridge: register session context: %w", err)
+	}
+	return id, nil
 }
 
 // exabgpASPathElements names each AS_PATH segment type the way ExaBGP does
@@ -141,7 +239,8 @@ func overlayASPath(document map[string]any, attrs *attribute.AttributesWire) {
 			// An unnamed segment type is not guessed at: the index is kept so
 			// the path's shape survives, and the type is stated as the number
 			// the wire carried.
-			element = "type-" + strconv.FormatUint(uint64(segment.Type), 10)
+			var unnamed textbuf.Buffer
+			element = unnamed.Str("type-").Uint8(uint8(segment.Type)).String()
 		}
 		segments[strconv.Itoa(index)] = map[string]any{"element": element, "value": asns}
 	}
@@ -154,34 +253,102 @@ func overlayASPath(document map[string]any, attrs *attribute.AttributesWire) {
 // overlayExtendedCommunities restores the numeric value beside each community.
 //
 // ExaBGP states both halves -- {"string": "target:72:1", "value": 563259191066625}
-// -- and ze's document carries the display text alone. The number is the eight
-// octets as they sit on the wire, so it is read from the attribute rather than
+// -- and ze's document carries the display text alone. The number is the octets
+// as they sit on the wire, so it is read from the attribute rather than
 // reconstructed from the text: a display form is not a wire form, and parsing
 // one back is the lossy re-derivation ai/rules/principles.md warns about.
+//
+// Both widths are folded, because ExaBGP writes the same pair for RFC 4360's
+// 8-octet communities and RFC 5701's 20-octet IPv6 ones. The 20-octet value
+// does not fit a uint64, so it is accumulated as a float the way JSON will
+// carry it either way.
 func overlayExtendedCommunities(document map[string]any, attrs *attribute.AttributesWire) {
 	update, ok := exabgpUpdateObject(document)
 	if !ok {
 		return
 	}
-	raw, err := attrs.GetRaw(attribute.AttrExtCommunity)
-	if err != nil || len(raw) == 0 || len(raw)%8 != 0 {
+	attrObject := attributeOf(update)
+	overlayCommunityWidth(attrObject, attrs, attribute.AttrExtCommunity, "extended-community", 8)
+	overlayCommunityWidth(attrObject, attrs, attribute.AttrIPv6ExtCommunity, "extended-community-ipv6", 20)
+}
+
+// overlayCommunityWidth rebuilds one community list as the {string, value}
+// members ExaBGP writes, pairing each rendered text with the octets it came
+// from by position.
+func overlayCommunityWidth(
+	attrObject map[string]any,
+	attrs *attribute.AttributesWire,
+	code attribute.AttributeCode,
+	key string,
+	width int,
+) {
+	raw, err := attrs.GetRaw(code)
+	if err != nil || len(raw) == 0 || len(raw)%width != 0 {
 		return
 	}
-	attrObject := attributeOf(update)
-	existing, _ := attrObject["extended-community"].([]any)
-	rebuilt := make([]any, 0, len(raw)/8)
-	for offset := 0; offset+8 <= len(raw); offset += 8 {
-		member := map[string]any{"value": float64(binary.BigEndian.Uint64(raw[offset : offset+8]))}
+	existing, _ := attrObject[key].([]any)
+	rebuilt := make([]any, 0, len(raw)/width)
+	for offset := 0; offset+width <= len(raw); offset += width {
+		member := map[string]any{"value": communityValue(raw[offset : offset+width])}
 		// The string ze already rendered, in the order it rendered them, so the
 		// two halves describe the same community.
-		if index := offset / 8; index < len(existing) {
+		if index := offset / width; index < len(existing) {
 			if text, isText := existing[index].(string); isText {
-				member["string"] = text
+				member["string"] = exabgpCommunityText(text)
 			}
 		}
 		rebuilt = append(rebuilt, member)
 	}
-	attrObject["extended-community"] = rebuilt
+	attrObject[key] = rebuilt
+}
+
+// communityValue reads a community's octets as the one big-endian number
+// ExaBGP prints beside its text.
+//
+// A float is what comes out, because JSON has one number type and both sides of
+// any comparison land on a float64. The value is built EXACTLY first and
+// rounded once: RFC 5701's community is 160 bits wide, and accumulating
+// `value*256 + octet` in float rounds at every octet, which put this member two
+// thousand off the expectation for an 8-octet community whose decimal literal
+// rounds cleanly.
+func communityValue(octets []byte) float64 {
+	value, _ := new(big.Int).SetBytes(octets).Float64()
+	return value
+}
+
+// exabgpCommunitySpellings are the FlowSpec actions the two projects write with
+// different words, as a prefix of the rendered community and its replacement.
+//
+// The values below are matched as prefixes rather than whole strings because
+// each carries an operand: a DSCP number, an address.
+//
+//   - ze writes `mark:10` and ExaBGP writes `mark 10` (TrafficMark.__repr__).
+//     ze's colon form is load-bearing on its own side: the FlowSpec firewall
+//     bridge keys on `mark:<n>` (extcomm_decoded.go), so the fold belongs here
+//     and not at the renderer.
+//   - both projects write `redirect-to-nexthop` and mean DIFFERENT communities
+//     by it. ze's names draft-ietf-idr-flowspec-redirect-ip's 0x01:0x0c, which
+//     carries an address; ExaBGP calls that one `redirect-to-nexthop-ietf` and
+//     keeps the bare word for 0x08:0x00, the pre-draft form that carries none
+//     (TrafficNextHopSimpson). Folding the address-carrying one is what makes
+//     the two vocabularies agree on which community is which.
+var exabgpCommunitySpellings = [][2]string{
+	{"mark:", "mark "},
+	{"traffic-action:", "action "},
+	{"redirect-to-nexthop ", "redirect-to-nexthop-ietf "},
+	{"copy-to-nexthop ", "copy-to-nexthop-ietf "},
+}
+
+// exabgpCommunityText restates one rendered extended community in ExaBGP's
+// words, and answers the text unchanged when both projects already agree.
+func exabgpCommunityText(text string) string {
+	for _, spelling := range exabgpCommunitySpellings {
+		if rest, found := strings.CutPrefix(text, spelling[0]); found {
+			var folded textbuf.Buffer
+			return folded.Str(spelling[1]).Str(rest).String()
+		}
+	}
+	return text
 }
 
 // exabgpUpdateObject answers the `update` object of a rendered document, and

@@ -69,7 +69,9 @@ func runEVPNPlugin(conn net.Conn) int {
 // DecodeNLRIHex decodes EVPN NLRI from hex bytes, returning a data structure.
 // This is the in-process fast path registered in the plugin registry.
 // Same logic as the OnDecodeNLRI SDK callback but callable without RPC.
-func DecodeNLRIHex(family, hexStr string) (any, error) {
+// addPath states whether each NLRI in the section carries a 4-octet Path
+// Identifier ahead of it (RFC 7911 Section 3). The hex alone cannot say.
+func DecodeNLRIHex(family, hexStr string, addPath bool) (any, error) {
 	if !isValidEVPNFamily(family) {
 		return nil, fmt.Errorf("unsupported family: %s", family)
 	}
@@ -79,7 +81,7 @@ func DecodeNLRIHex(family, hexStr string) (any, error) {
 		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
-	results := decodeEVPNNLRI(data)
+	results := decodeEVPNNLRI(data, addPath)
 	if len(results) == 0 {
 		return nil, errNoValidEvpnRoutesDecoded
 	}
@@ -297,7 +299,10 @@ func RunCLIDecode(hexData, family string, textOutput bool, output, errOut io.Wri
 		return 1
 	}
 
-	results := decodeEVPNNLRI(data)
+	// The CLI and the plugin text command both hand over NLRI octets with no
+	// negotiation behind them, so no Path Identifier precedes them
+	// (RFC 7911 Section 3 puts one there only when ADD-PATH is negotiated).
+	results := decodeEVPNNLRI(data, false)
 	if len(results) == 0 {
 		writeErr("error: no valid EVPN routes decoded\n")
 		return 1
@@ -394,7 +399,10 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		return
 	}
 
-	results := decodeEVPNNLRI(data)
+	// The CLI and the plugin text command both hand over NLRI octets with no
+	// negotiation behind them, so no Path Identifier precedes them
+	// (RFC 7911 Section 3 puts one there only when ADD-PATH is negotiated).
+	results := decodeEVPNNLRI(data, false)
 	if len(results) == 0 {
 		writeUnknown()
 		return
@@ -428,15 +436,34 @@ func isValidEVPNFamily(family string) bool {
 
 // decodeEVPNNLRI decodes EVPN NLRI wire bytes to array of JSON maps.
 // MP_REACH/MP_UNREACH can contain multiple packed NLRIs.
-func decodeEVPNNLRI(data []byte) []map[string]any {
+func decodeEVPNNLRI(data []byte, addPath bool) []map[string]any {
 	var results []map[string]any
 	remaining := data
 
 	for len(remaining) >= 2 {
-		routeType := remaining[0]
-		routeLen := int(remaining[1])
+		// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending
+		// the Path Identifier field, which is of four octets." Split it first,
+		// so the route type and length octets are read at the right offset.
+		_, body, err := nlri.SplitPathID(remaining, addPath)
+		if err != nil {
+			results = append(results, map[string]any{
+				"parsed": false,
+				"raw":    textbuf.StringHexUpper(remaining),
+			})
+			break
+		}
+		if len(body) < 2 {
+			results = append(results, map[string]any{
+				"parsed": false,
+				"raw":    textbuf.StringHexUpper(remaining),
+			})
+			break
+		}
 
-		if len(remaining) < 2+routeLen {
+		routeType := body[0]
+		routeLen := int(body[1])
+
+		if len(body) < 2+routeLen {
 			// Truncated - add as unparsed
 			results = append(results, map[string]any{
 				"code":   int(routeType),
@@ -446,22 +473,27 @@ func decodeEVPNNLRI(data []byte) []map[string]any {
 			break
 		}
 
-		routeData := remaining[:2+routeLen]
+		// routeData holds the path identifier and the route, which is what
+		// ParseEVPN reads. routeBody holds the route alone, which is what the
+		// "raw" field publishes: the identifier is transport level and reaches
+		// JSON as its own key.
+		routeBody := body[:2+routeLen]
+		routeData := remaining[:len(remaining)-len(body)+2+routeLen]
 
 		// Parse single NLRI
-		evpn, _, err := ParseEVPN(routeData, false)
+		evpn, _, err := ParseEVPN(routeData, addPath)
 		if err != nil {
 			evpnLogger.Debug("parse evpn failed", "err", err)
 			results = append(results, map[string]any{
 				"code":   int(routeType),
 				"parsed": false,
-				"raw":    textbuf.StringHexUpper(routeData),
+				"raw":    textbuf.StringHexUpper(routeBody),
 			})
 		} else {
-			results = append(results, evpnToJSON(evpn, routeData))
+			results = append(results, evpnToJSON(evpn, routeBody))
 		}
 
-		remaining = remaining[2+routeLen:]
+		remaining = body[2+routeLen:]
 	}
 
 	return results
@@ -486,6 +518,12 @@ func evpnToJSON(e EVPN, rawData []byte) map[string]any {
 	result["raw"] = textbuf.StringHexUpper(rawData)
 	result["name"] = evpnRouteName(e.RouteType())
 	result["rd"] = e.RD().String()
+
+	// RFC 7911 Section 3: the Path Identifier rides in front of the NLRI rather
+	// than inside it, so it reaches JSON under its own key.
+	if e.HasPathID() {
+		result["path-id"] = e.PathID()
+	}
 
 	switch v := e.(type) {
 	case *EVPNType1:

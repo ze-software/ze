@@ -40,7 +40,7 @@ The primary registry. A plugin registration carries everything the core needs.
 | `Features` | Space-separated flags: `"nlri yang capa"` |
 | `EventTypes` | Events this plugin produces `[]string{"update-rpki"}` |
 | `SendTypes` | Send operations this plugin enables |
-| `InProcessNLRIDecoder` | NLRI hex -> JSON |
+| `InProcessNLRIDecoder` | NLRI hex plus the ADD-PATH flag -> JSON |
 | `InProcessNLRIEncoder` | NLRI args -> hex |
 | `InProcessDecoder` | Full message decode (for `ze bgp decode`) |
 | `ConfigureEngineLogger` | Callback to set plugin logger |

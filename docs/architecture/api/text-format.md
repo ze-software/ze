@@ -96,25 +96,25 @@ Shared keyword constants defined in `textparse/keywords.go`. The alias `e-com` i
 
 ### NLRI String Formats
 
-Each NLRI type plugin implements `String()` which produces the text representation appended after the `nlri` keyword. All verified against source.
+Each NLRI type plugin implements `String()`, which produces the text appended after the `nlri` keyword. Every row below is read from the method its Source column names.
 
 | Type | Format | Optional Fields | Source |
 |------|--------|-----------------|--------|
-| IPv4/IPv6 unicast | `10.0.0.0/24` | — | `nlri/inet.go` |
-| + ADD-PATH | `10.0.0.0/24 path-id set 42` | path-id | `nlri/inet.go` |
-| VPN | `rd set 65000:100 prefix set 10.0.0.0/24 label set 1000` | label, path-id | `bgp-nlri-vpn/types.go` |
-| Labeled unicast | `prefix set 10.0.0.0/24 label set 1000` | label, path-id | `bgp-nlri-labeled/types.go` |
-| EVPN Type1 | `ethernet-ad rd set X esi set Y etag set Z` | label | `bgp-nlri-evpn/types.go` |
-| EVPN Type2 | `mac-ip rd set X mac set Y ip set Z` | ip, etag, label | `bgp-nlri-evpn/types.go` |
-| EVPN Type3 | `multicast rd set X ip set Y` | etag | `bgp-nlri-evpn/types.go` |
-| EVPN Type4 | `ethernet-segment rd set X esi set Y ip set Z` | — | `bgp-nlri-evpn/types.go` |
-| EVPN Type5 | `ip-prefix rd set X prefix set Y` | esi, etag, gateway, label | `bgp-nlri-evpn/types.go` |
-| EVPN unknown | `evpn-type<N>` | — | `bgp-nlri-evpn/types.go` |
-| FlowSpec | `flow destination-ipv4 10.0.0.0/24 port ==80` | varies by components | `bgp-nlri-flowspec/types.go` |
-| VPLS | `rd set X ve-id set Y label set Z` | — | `bgp-nlri-vpls/types.go` |
-| MVPN | `<route-type> rd set X` | rd (conditional) | `bgp-nlri-mvpn/types.go` |
-| RTC | `origin-as set X rt set Y` or `default` | default case has no sub-keys | `bgp-nlri-rtc/types.go` |
-| MUP | `<route-type> rd set X` | rd (conditional) | `bgp-nlri-mup/types.go` |
+| IPv4/IPv6 unicast | `10.0.0.0/24` | none | `nlri/inet.go` |
+| IPv4/IPv6 unicast, ADD-PATH negotiated | `10.0.0.0/24` | none: the path identifier is not printed | `nlri/inet.go` |
+| VPN | `rd 65000:100 prefix 10.0.0.0/24 label 1000` | label, path-id | `nlri/vpn/types.go` |
+| Labeled unicast | `prefix 10.0.0.0/24 label 1000` | label, path-id | `nlri/labeled/types.go` |
+| EVPN Type1 | `ethernet-ad rd X esi Y etag Z` | label | `nlri/evpn/types.go` |
+| EVPN Type2 | `mac-ip rd X mac Y ip Z` | ip, etag, label | `nlri/evpn/types.go` |
+| EVPN Type3 | `multicast rd X ip Y` | etag | `nlri/evpn/types.go` |
+| EVPN Type4 | `ethernet-segment rd X esi Y ip Z` | none | `nlri/evpn/types.go` |
+| EVPN Type5 | `ip-prefix rd X prefix Y` | esi, etag, gateway, label | `nlri/evpn/types.go` |
+| EVPN unknown | `evpn-type<N>` | none | `nlri/evpn/types.go` |
+| FlowSpec | `flow destination-ipv4 10.0.0.0/24 port ==80` | varies by components | `nlri/flowspec/types.go` |
+| VPLS | `rd X ve-id Y label Z` | none | `nlri/vpls/types.go` |
+| MVPN | `source-active rd 65000:100` | rd (conditional) | `nlri/mvpn/types.go` |
+| RTC | `origin-as X rt Y` or `default` | default case has no sub-keys | `nlri/rtc/types.go` |
+| MUP | `isd rd 65000:100` | rd (conditional) | `nlri/mup/types.go` |
 <!-- source: internal/core/bgp/nlri/inet.go -- INET.String -->
 <!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- String -->
 <!-- source: internal/component/bgp/plugins/nlri/evpn/types.go -- String -->
@@ -125,7 +125,22 @@ Each NLRI type plugin implements `String()` which produces the text representati
 <!-- source: internal/component/bgp/plugins/nlri/rtc/types.go -- String -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/types.go -- String -->
 
-All complex NLRIs use the `set` keyword between field name and value. FlowSpec match operators (`==`, `>=`, `!=`, etc.) pass through as part of the value token.
+A field name is followed by a space and then its value. No `set` keyword sits between the two. FlowSpec match operators (`==`, `>=`, `!=`) pass through as part of the value token.
+
+A label stack of more than one label prints as a comma-separated list, `label 1000,2000`. VPN, labeled unicast and the three EVPN types that carry labels hold RFC 3032 Section 2.1 stack entries. `String()` prints the 20-bit label of each entry through `nlri.LabelValue`. The traffic class and the bottom-of-stack bit of an entry are kept on the wire and are not printed.
+<!-- source: internal/core/bgp/nlri/rd.go -- LabelValue -->
+
+`path-id <id>` is printed by VPN and labeled unicast, and only when the NLRI carries a nonzero path identifier. `INET.String` prints the prefix alone, so an IPv4 or IPv6 unicast NLRI reads the same whether or not ADD-PATH was negotiated.
+<!-- source: internal/core/bgp/nlri/inet.go -- INET.String -->
+
+MVPN prints a route type name from RFC 6514 Section 4, such as `source-active` or `shared-tree-join`, and `type(<N>)` for a route type it does not name. It adds `rd <rd>` whenever the route body was long enough to hold a Route Distinguisher and that Route Distinguisher parsed. Route types 1 to 4 keep their body as octets, and ze still reads the Route Distinguisher at the front of it.
+<!-- source: internal/component/bgp/plugins/nlri/mvpn/types.go -- MVPN.String, MVPN.parseBody -->
+
+MUP prints a route type name from draft-ietf-bess-mup-safi, one of `isd`, `dsd`, `t1st` and `t2st`, and `type(<N>)` for any other route type. It adds `rd <rd>` only for a route type ze decodes, which is these four under architecture type 3gpp-5G. Every other pair of architecture type and route type prints the route type name alone. Ze keeps the octets of such a route and does not read them.
+<!-- source: internal/component/bgp/plugins/nlri/mup/types.go -- MUP.String, MUP.parseBody -->
+<!-- source: internal/component/bgp/plugins/nlri/mup/rfc7606.go -- MUPRouteType.Implemented -->
+
+The Source column above is relative to `internal/component/bgp/plugins/`, and `nlri/inet.go` is relative to `internal/core/bgp/`.
 
 ### Address Family Names
 

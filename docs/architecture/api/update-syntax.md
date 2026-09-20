@@ -599,7 +599,7 @@ send bgp edge1 update text \
   bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] ) \
   next-hop 2001::1 nlri ipv4/mup add route-type mup-isd rd 100:100 prefix 10.0.1.0/24
 ```
-<!-- source: internal/core/bgp/attribute/prefixsid.go -- ParsePrefixSIDSRv6 -->
+<!-- source: internal/core/bgp/attribute/prefixsid.go -- EncodePrefixSIDSRv6 -->
 
 ```bash
 send bgp rr1 update text \

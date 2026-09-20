@@ -256,7 +256,7 @@ func TestPrefixSIDSRv6RefusesAMalformedValue(t *testing.T) {
 // PREVENTS: the two spellings drifting, which is the defect this keyword was
 // added to close (ai/rules/principles.md).
 func TestPrefixSIDSRv6MatchesTheConfigPath(t *testing.T) {
-	fromConfig, err := attribute.ParsePrefixSIDSRv6("l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0]")
+	fromConfig, err := attribute.EncodePrefixSIDSRv6("l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0]")
 	require.NoError(t, err)
 
 	result, err := ParseUpdateText([]string{

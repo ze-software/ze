@@ -93,9 +93,9 @@ func TestRFCMUPFamiliesCoverBothAFIs(t *testing.T) {
 	}
 
 	// The same ISD NLRI must decode under either MUP family.
-	const isdHex = "0100010c0000fde9000000640a000001"
+	const isdHex = "0100010c0000fde900000064180a0000"
 	for _, fam := range []string{"ipv4/mup", "ipv6/mup"} {
-		got, err := DecodeNLRIHex(fam, isdHex)
+		got, err := DecodeNLRIHex(fam, isdHex, false)
 		if err != nil {
 			t.Fatalf("DecodeNLRIHex(%s) returned error: %v", fam, err)
 		}
@@ -103,8 +103,8 @@ func TestRFCMUPFamiliesCoverBothAFIs(t *testing.T) {
 		if !ok {
 			t.Fatalf("DecodeNLRIHex(%s) returned %T, want map", fam, got)
 		}
-		if m["route-type"] != int(MUPISD) {
-			t.Errorf("DecodeNLRIHex(%s) route-type = %v, want %d", fam, m["route-type"], MUPISD)
+		if m["code"] != int(MUPISD) {
+			t.Errorf("DecodeNLRIHex(%s) code = %v, want %d", fam, m["code"], MUPISD)
 		}
 	}
 
@@ -132,7 +132,7 @@ func TestRFCMUPRejectsNonMUPFamily(t *testing.T) {
 
 	// RFC requirement: DRAFT-IETF-BESS-MUP-SAFI-3.3-1 negative -- the MUP codec rejects any family outside (AFI 1|2, SAFI 85), so BGP-MUP NLRI exchange is scoped to the two MUP families (Section 3.3)
 	for _, fam := range []string{"ipv4/unicast", "ipv6/unicast", "l2vpn/evpn", "ipv4/flow", "mup", ""} {
-		if _, err := DecodeNLRIHex(fam, "0100010c0000fde9000000640a000001"); err == nil {
+		if _, err := DecodeNLRIHex(fam, "0100010c0000fde900000064180a0000", false); err == nil {
 			t.Errorf("DecodeNLRIHex(%q) accepted a non-MUP family", fam)
 		}
 	}
@@ -152,7 +152,7 @@ func TestRFCMUPUnknownRouteTypeIsNotRejected(t *testing.T) {
 
 	// Two concatenated NLRIs: an unknown route type 0x0063 followed by an ISD.
 	unknown := []byte{0x01, 0x00, 0x63, 0x04, 0xde, 0xad, 0xbe, 0xef}
-	isdBytes, err := hex.DecodeString("0100010c0000fde9000000640a000001")
+	isdBytes, err := hex.DecodeString("0100010c0000fde900000064180a0000")
 	if err != nil {
 		t.Fatalf("fixture decode failed: %v", err)
 	}

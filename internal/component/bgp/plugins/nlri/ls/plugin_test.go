@@ -148,7 +148,7 @@ func TestBGPLSNodeNLRIDecode(t *testing.T) {
 		IGPRouterID:     []byte{1, 1, 1, 1},
 	})
 
-	results := decodeBGPLSNLRI(node.Bytes())
+	results := decodeBGPLSNLRI(node.Bytes(), false)
 	require.Len(t, results, 1)
 	result := results[0]
 
@@ -175,7 +175,7 @@ func TestBGPLSLinkNLRIDecode(t *testing.T) {
 		LinkDescriptor{LinkLocalID: 100, LinkRemoteID: 200},
 	)
 
-	results := decodeBGPLSNLRI(link.Bytes())
+	results := decodeBGPLSNLRI(link.Bytes(), false)
 	require.Len(t, results, 1)
 	result := results[0]
 
@@ -201,7 +201,7 @@ func TestBGPLSPrefixV4NLRIDecode(t *testing.T) {
 		PrefixDescriptor{IPReachabilityInfo: []byte{24, 10, 0, 0}},
 	)
 
-	results := decodeBGPLSNLRI(prefix.Bytes())
+	results := decodeBGPLSNLRI(prefix.Bytes(), false)
 	require.Len(t, results, 1)
 
 	assert.Equal(t, "bgpls-prefix-v4", results[0]["ls-nlri-type"])
@@ -219,7 +219,7 @@ func TestBGPLSPrefixV6NLRIDecode(t *testing.T) {
 		PrefixDescriptor{IPReachabilityInfo: []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0}},
 	)
 
-	results := decodeBGPLSNLRI(prefix.Bytes())
+	results := decodeBGPLSNLRI(prefix.Bytes(), false)
 	require.Len(t, results, 1)
 
 	assert.Equal(t, "bgpls-prefix-v6", results[0]["ls-nlri-type"])
@@ -237,7 +237,7 @@ func TestBGPLSSRv6SIDNLRIDecode(t *testing.T) {
 		SRv6SIDDescriptor{SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},
 	)
 
-	results := decodeBGPLSNLRI(srv6.Bytes())
+	results := decodeBGPLSNLRI(srv6.Bytes(), false)
 	require.Len(t, results, 1)
 	result := results[0]
 
@@ -268,7 +268,7 @@ func TestBGPLSProtocolIDs(t *testing.T) {
 		t.Run(proto.String(), func(t *testing.T) {
 			t.Parallel()
 			node := NewBGPLSNode(proto, 0x100, NodeDescriptor{ASN: 65001})
-			results := decodeBGPLSNLRI(node.Bytes())
+			results := decodeBGPLSNLRI(node.Bytes(), false)
 			require.Len(t, results, 1)
 		})
 	}
@@ -292,7 +292,7 @@ func TestBGPLSMalformedInput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			results := decodeBGPLSNLRI(tt.data)
+			results := decodeBGPLSNLRI(tt.data, false)
 			// Malformed input returns a result with parsed=false
 			require.Len(t, results, 1)
 			assert.Equal(t, false, results[0]["parsed"])
@@ -411,7 +411,7 @@ func TestBGPLSMultipleNLRIDecode(t *testing.T) {
 	// Concatenate both NLRIs
 	combined := append(node1.Bytes(), node2.Bytes()...)
 
-	results := decodeBGPLSNLRI(combined)
+	results := decodeBGPLSNLRI(combined, false)
 
 	// Should decode both NLRIs
 	require.Len(t, results, 2, "should decode both packed NLRIs")

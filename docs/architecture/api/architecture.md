@@ -382,6 +382,10 @@ No other wiring is needed. The engine discovers it through registry queries, the
 
 **Registration struct fields:** Each plugin provides its name, handlers (`RunEngine`, `CLIHandler`), and optional metadata: address families, capability codes, dependencies, YANG schema, event types, declared commands, and in-process codec functions. See `registry/registry.go` for the full `Registration` type, and `docs/architecture/plugin/plugin-system.md` for the field-by-field table.
 
+`InProcessNLRIDecoder` is `func(family, hex string, addPath bool) (any, error)`, and `DecodeNLRIByFamily` passes the same three arguments on. RFC 7911 Section 3 puts a 4-octet Path Identifier ahead of each NLRI once ADD-PATH is negotiated for the family. The hex octets do not say whether that field is there, so the negotiation result travels beside them. A decoder that does not get the flag reads the Path Identifier as prefix bytes. The RPC carries the same fact in `rpc.DecodeNLRIInput.AddPath`, under the JSON key `add-path`, for a plugin that runs out of process.
+<!-- source: internal/component/plugin/registry/registry.go -- Registration, DecodeNLRIByFamily -->
+<!-- source: pkg/plugin/rpc/types.go -- DecodeNLRIInput -->
+
 `Commands` is the one field a running plugin also sends over the wire. It holds the same `[]rpc.CommandDecl` the runner passes to `p.Run` at Stage 1, taken from the plugin's one `commandDecls()` function, so a reader that links the composition root sees what a plugin serves without starting its engine.
 
 **Key registry queries used at runtime:**
@@ -392,7 +396,7 @@ No other wiring is needed. The engine discovers it through registry queries, the
 | `All()` | CLI help, inventory | All registered plugins (sorted) |
 | `FamilyMap()` | Config loader | Map address families to plugin names |
 | `CapabilityMap()` | Wire decoder | Map capability codes to plugin names |
-| `DecodeNLRIByFamily()` | `ze bgp decode` | Fast-path NLRI decoding (no RPC) |
+| `DecodeNLRIByFamily(family, hex, addPath)` | `ze bgp decode` | Fast-path NLRI decoding (no RPC) |
 | `YANGSchemas()` | YANG loader | All YANG schemas for CLI generation |
 | `ResolveDependencies()` | Engine startup | Expand dependency graph (with cycle detection) |
 | `TopologicalTiers()` | Engine startup | Order plugins for startup (Kahn's algorithm) |

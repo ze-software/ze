@@ -1,5 +1,5 @@
 // RFC: rfc/short/rfc8669.md — BGP Prefix-SID attribute (code 40) SR-MPLS TLVs
-// Overview: ../../../core/bgp/attribute/prefixsid.go — ParsePrefixSID builds the
+// Overview: ../../../core/bgp/attribute/prefixsid.go — EncodePrefixSID builds the
 // Label-Index and Originator SRGB TLV wire bytes carried in attribute 40. The
 // test stays here, beside the config path that reaches it, so the RFC carrier
 // path does not move.
@@ -30,7 +30,7 @@ import (
 // RFC requirement: RFC8669-3.1-3 positive -- the Label-Index TLV Reserved octet is emitted as 0 by the sender.
 // RFC requirement: RFC8669-3.1-5 positive -- the Label-Index TLV Flags field is emitted as 0 by the sender.
 func TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission(t *testing.T) {
-	sid, err := attribute.ParsePrefixSID("777")
+	sid, err := attribute.EncodePrefixSID("777")
 	require.NoError(t, err)
 	require.Len(t, sid, 10, "Label-Index TLV = Type(1) + Length(2) + Value(7)")
 
@@ -54,7 +54,7 @@ func TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission(t *testing.T) {
 //
 // RFC requirement: RFC8669-3.2-1 positive -- the Originator SRGB TLV Flags field is emitted as 0 by the sender.
 func TestRFC8669OriginatorSRGBTLVFlagsClearOnTransmission(t *testing.T) {
-	sid, err := attribute.ParsePrefixSID("300, [( 800000,4096) ,( 1000000,5000)]")
+	sid, err := attribute.EncodePrefixSID("300, [( 800000,4096) ,( 1000000,5000)]")
 	require.NoError(t, err)
 
 	// Label-Index TLV occupies the first 10 octets; the SRGB TLV follows.

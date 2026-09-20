@@ -132,10 +132,18 @@ func TestReceivedCommunitiesRenderDecoded(t *testing.T) {
 	// (docs/architecture/api/text-format.md).
 	extHex := hex.EncodeToString(fixtureExtCommunity)
 
-	// IPV6_EXTENDED_COMMUNITIES stays hex on every surface: RFC 5701 Section 2
-	// puts a 16-octet IPv6 global administrator where RFC 4360 Section 3.1 puts
-	// a 2-octet AS, so the named vocabulary reads nothing in it.
-	ipv6ExtHex := hex.EncodeToString(fixtureIPv6ExtCommunity)
+	// IPV6_EXTENDED_COMMUNITIES has a vocabulary of its OWN, because RFC 5701
+	// Section 2 puts a 16-octet IPv6 global administrator where RFC 4360
+	// Section 3.1 puts a 2-octet AS, so every field offset the 8-octet names
+	// read points at something else.
+	//
+	// This fixture is an IPv6 Route Target, which neither Ze nor ExaBGP has a
+	// spelling for and neither can produce, so it keeps its octets under the
+	// fallback shape the 8-octet renderer also uses. The one sub-type that IS
+	// named is draft-ietf-idr-flowspec-redirect-ip's redirect-to-IP, which Ze
+	// writes from a `redirect-to-nexthop <IPv6>` in config and could not read
+	// back until 2026-09-20 (IPv6ExtendedCommunity.AppendDecoded).
+	ipv6ExtName := "0x0002:" + hex.EncodeToString(fixtureIPv6ExtCommunity[2:])
 
 	tests := []struct {
 		name     string
@@ -151,7 +159,7 @@ func TestReceivedCommunitiesRenderDecoded(t *testing.T) {
 			wants: []string{
 				`"communities":["65001:100"]`,
 				`"extended-communities":["` + extName + `"]`,
-				`"ipv6-extended-communities":["` + ipv6ExtHex + `"]`,
+				`"ipv6-extended-communities":["` + ipv6ExtName + `"]`,
 				`"large-communities":["65001:1:2"]`,
 			},
 			unwanted: []attribute.AttributeCode{
@@ -169,7 +177,7 @@ func TestReceivedCommunitiesRenderDecoded(t *testing.T) {
 			wants: []string{
 				`"communities":["65001:100"]`,
 				`"extended-communities":["` + extName + `"]`,
-				`"ipv6-extended-communities":["` + ipv6ExtHex + `"]`,
+				`"ipv6-extended-communities":["` + ipv6ExtName + `"]`,
 				`"large-communities":["65001:1:2"]`,
 			},
 			unwanted: []attribute.AttributeCode{

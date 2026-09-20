@@ -133,7 +133,7 @@ func TestSRPolicyAppendJSON(t *testing.T) {
 }
 
 func TestSRPolicyDecodeNLRIHex(t *testing.T) {
-	result, err := DecodeNLRIHex("ipv4/sr-policy", "00000000000000640A000001")
+	result, err := DecodeNLRIHex("ipv4/sr-policy", "00000000000000640A000001", false)
 	require.NoError(t, err)
 	m, ok := result.(map[string]any)
 	require.True(t, ok)
@@ -143,7 +143,7 @@ func TestSRPolicyDecodeNLRIHex(t *testing.T) {
 }
 
 func TestSRPolicyDecodeNLRIHexIPv6(t *testing.T) {
-	result, err := DecodeNLRIHex("ipv6/sr-policy", "0000002A000000C820010DB8000000000000000000000001")
+	result, err := DecodeNLRIHex("ipv6/sr-policy", "0000002A000000C820010DB8000000000000000000000001", false)
 	require.NoError(t, err)
 	m, ok := result.(map[string]any)
 	require.True(t, ok)

@@ -104,6 +104,43 @@ type JSONAppender interface {
 	AppendJSON(buf []byte) []byte
 }
 
+// AddPathAware is an optional interface implemented by NLRI types that hold raw
+// wire bytes whose layout depends on the ADD-PATH negotiation.
+//
+// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
+// message, the NLRI encoding MUST be extended by prepending the Path Identifier
+// field, which is of four octets."
+//
+// A decoder handed those octets cannot tell a Path Identifier from the first
+// octets of the NLRI itself, so the flag has to travel with the data. The
+// formatters probe for this interface to learn the layout of the bytes they
+// hold, rather than switching on a concrete type: a new opaque NLRI carrier
+// answers the question by implementing the method, and no formatter is edited.
+type AddPathAware interface {
+	HasAddPath() bool
+}
+
+// SplitPathID removes the 4-octet Path Identifier from the head of one NLRI and
+// returns it with the octets that follow. When addPath is false the data is
+// returned unchanged and the identifier is zero.
+//
+// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending the
+// Path Identifier field, which is of four octets."
+//
+// A section that is too short to hold the identifier the negotiation promised is
+// malformed, so this returns an error rather than a zero identifier: a caller
+// cannot tell a real path identifier of zero from four octets that were never
+// there.
+func SplitPathID(data []byte, addPath bool) (pathID uint32, rest []byte, err error) {
+	if !addPath {
+		return 0, data, nil
+	}
+	if len(data) < 4 {
+		return 0, nil, ErrPathIDTruncated
+	}
+	return binary.BigEndian.Uint32(data[:4]), data[4:], nil
+}
+
 // LenWithContext returns the wire-format length adjusted for ADD-PATH.
 //
 // RFC 7911 Section 3 - Extended NLRI Encodings:

@@ -62,7 +62,7 @@ func TestParseNLRIByFamilyReachesAPluginItDoesNotName(t *testing.T) {
 		Families:    []string{claimable},
 		RunEngine:   func(net.Conn) int { return 0 },
 		CLIHandler:  func([]string) int { return 0 },
-		InProcessNLRIDecoder: func(string, string) (any, error) {
+		InProcessNLRIDecoder: func(string, string, bool) (any, error) {
 			return map[string]any{"decoder": marker}, nil
 		},
 	})

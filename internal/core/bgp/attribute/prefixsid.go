@@ -32,7 +32,9 @@ var (
 	errEmptyPrefixSIDSRv6                  = errors.New("srv6 prefix-sid requires a service and a SID: l3-service <ipv6> [0xNN] [struct]")
 )
 
-// ParsePrefixSID parses a prefix-sid string.
+// EncodePrefixSID encodes operator text into BGP Prefix-SID TLV bytes.
+// It is the ENCODE direction; ParsePrefixSID (prefixsid_wire.go) is the
+// DECODE direction and reads the same TLVs back off the wire.
 // Formats:
 //   - Simple: "777" → Label Index 777
 //   - With SRGB: "300, [( 800000,4096) ,( 1000000,5000)]"
@@ -42,7 +44,7 @@ var (
 //
 // Label Index TLV (Type 1):
 //   - Reserved (1 byte) + Flags (2 bytes) + Label-Index (4 bytes)
-func ParsePrefixSID(s string) ([]byte, error) {
+func EncodePrefixSID(s string) ([]byte, error) {
 	// An empty value names no SID. It is refused rather than answered with a nil
 	// TLV, which a caller cannot tell from a Prefix-SID it asked for and did not
 	// get (ai/rules/principles.md).
@@ -67,7 +69,7 @@ func ParsePrefixSID(s string) ([]byte, error) {
 	}
 
 	// Build TLV for Label Index (Type 1)
-	// RFC 8669 Section 4.1: Type(1) + Length(2) + Reserved(1) + Flags(2) + LabelIndex(4) = 10 bytes
+	// RFC 8669 Section 3.1: Type(1) + Length(2) + Reserved(1) + Flags(2) + LabelIndex(4) = 10 bytes
 	tlv := []byte{
 		1,               // Type: Label Index
 		0,               // Length high byte
@@ -211,7 +213,9 @@ func parseSRGBList(s string) ([]srgbEntry, error) {
 	return entries, nil
 }
 
-// ParsePrefixSIDSRv6 parses SRv6 Prefix-SID format.
+// EncodePrefixSIDSRv6 encodes operator text into SRv6 Service TLV bytes.
+// It is the ENCODE direction; ParsePrefixSID (prefixsid_wire.go) is the
+// DECODE direction and reads the same TLVs back off the wire.
 // Formats:
 //   - "l3-service IPv6"
 //   - "l3-service IPv6 behavior"
@@ -225,8 +229,8 @@ func parseSRGBList(s string) ([]srgbEntry, error) {
 //   - struct = [LB,LN,Func,Arg,TransLen,TransOffset] (optional)
 //
 // RFC 9252 defines the wire format for SRv6-VPN SID.
-func ParsePrefixSIDSRv6(s string) ([]byte, error) {
-	// As ParsePrefixSID: an empty value is refused by name, so
+func EncodePrefixSIDSRv6(s string) ([]byte, error) {
+	// As EncodePrefixSID: an empty value is refused by name, so
 	// `bgp-prefix-sid-srv6 ( )` cannot silently drop the attribute.
 	if strings.TrimSpace(s) == "" {
 		return nil, errEmptyPrefixSIDSRv6
@@ -327,7 +331,7 @@ func ParsePrefixSIDSRv6(s string) ([]byte, error) {
 	//       Optional sub-sub-TLV: Type 1 (SRv6 SID Structure, 6 bytes)
 
 	// Build inner sub-TLV value (Type 1: SRv6 SID Information)
-	// RFC 9252 Section 3.2: Reserved(1) + SID(16) + Flags(1) + Behavior(2) + Reserved(1) + [sub-sub-TLVs]
+	// RFC 9252 Section 3.1: Reserved(1) + SID(16) + Flags(1) + Behavior(2) + Reserved(1) + [sub-sub-TLVs]
 	var innerValue []byte
 	innerValue = append(innerValue, 0) // Reserved
 	innerValue = append(innerValue, ipv6.AsSlice()...)

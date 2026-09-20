@@ -58,9 +58,23 @@ func TestExtendedCommunityAppendDecoded(t *testing.T) {
 			want: "target:65536:100",
 		},
 		{
+			// RFC 4360 Section 5: a type 0x00 Route Origin. Its 4-octet Local
+			// Administrator is written as a dotted quad, which is the spelling
+			// route/route_community.go parses on input and the one ExaBGP
+			// prints (OriginASNIP.__repr__).
 			name: "route origin two-octet AS",
 			comm: ExtendedCommunity{0x00, 0x03, 0x00, 0x64, 0x00, 0x00, 0x00, 0x02},
-			want: "origin:100:2",
+			want: "origin:100:0.0.0.2",
+		},
+		{
+			// draft-ietf-bess-mup-safi Section 3.2: the MUP Extended Community,
+			// a Direct-Type Segment Identifier in two halves. Ze's config
+			// parser has read this spelling since MUP arrived and nothing
+			// rendered it, so a segment identifier an operator configured came
+			// back as hex that same parser refuses.
+			name: "mup direct segment identifier",
+			comm: ExtendedCommunity{0x0c, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x0a},
+			want: "mup:10:10",
 		},
 		{
 			// RFC 4360 Section 5: a type 0x01 Route Origin, IPv4 address form.
@@ -166,9 +180,10 @@ func TestExtendedCommunityNamedFormRoundTrip(t *testing.T) {
 		"target:65000:1",
 		"target:192.0.2.1:100",
 		"target:65536:100",
-		"origin:100:2",
+		"origin:100:0.0.0.2",
 		"origin:192.0.2.2:200",
 		"origin:65537:200",
+		"mup:10:10",
 	} {
 		t.Run(spelling, func(t *testing.T) {
 			comm, err := ParseSingleExtCommunity(spelling)

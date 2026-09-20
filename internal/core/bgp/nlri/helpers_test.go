@@ -37,11 +37,12 @@ func TestPrefixBytes(t *testing.T) {
 	}
 }
 
-// TestWriteLabelStack verifies WriteLabelStack encodes labels with BOS.
+// TestWriteLabelValues verifies WriteLabelValues encodes bare labels with BOS.
 //
-// VALIDATES: Labels encoded per RFC 3032/8277: 20-bit label + TC=0 + S bit.
+// VALIDATES: Labels a speaker ORIGINATES are encoded per RFC 3032 Section 2.1:
+// 20-bit label + TC=0 + S on the last entry.
 // PREVENTS: Incorrect label encoding, missing BOS bit on last label.
-func TestWriteLabelStack(t *testing.T) {
+func TestWriteLabelValues(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name   string
@@ -77,27 +78,27 @@ func TestWriteLabelStack(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			buf := make([]byte, len(tt.labels)*3)
-			n := WriteLabelStack(buf, 0, tt.labels)
+			n := WriteLabelValues(buf, 0, tt.labels)
 			if n != len(tt.want) {
-				t.Errorf("WriteLabelStack() wrote %d bytes, want %d", n, len(tt.want))
+				t.Errorf("WriteLabelValues() wrote %d bytes, want %d", n, len(tt.want))
 			}
 			if !bytes.Equal(buf[:n], tt.want) {
-				t.Errorf("WriteLabelStack() = %x, want %x", buf[:n], tt.want)
+				t.Errorf("WriteLabelValues() = %x, want %x", buf[:n], tt.want)
 			}
 		})
 	}
 }
 
-// TestWriteLabelStackOffset verifies WriteLabelStack respects offset.
+// TestWriteLabelValuesOffset verifies WriteLabelValues respects offset.
 //
 // VALIDATES: Labels written at correct buffer offset.
 // PREVENTS: Buffer overwrite bugs.
-func TestWriteLabelStackOffset(t *testing.T) {
+func TestWriteLabelValuesOffset(t *testing.T) {
 	t.Parallel()
 	buf := make([]byte, 10)
 	buf[0] = 0xFF // Should not be overwritten
 
-	n := WriteLabelStack(buf, 1, []uint32{100})
+	n := WriteLabelValues(buf, 1, []uint32{100})
 	if n != 3 {
 		t.Errorf("wrote %d bytes, want 3", n)
 	}
@@ -107,5 +108,41 @@ func TestWriteLabelStackOffset(t *testing.T) {
 	want := []byte{0x00, 0x06, 0x41}
 	if !bytes.Equal(buf[1:4], want) {
 		t.Errorf("buf[1:4] = %x, want %x", buf[1:4], want)
+	}
+}
+
+// TestWriteLabelStackKeepsTheTrafficClass pins the half WriteLabelValues cannot
+// state: an entry a peer SENT, relayed back out unchanged.
+//
+// VALIDATES: WriteLabelStack writes the whole 3-octet entry, so the traffic
+// class survives a parse and a re-encode, and the bottom-of-stack bit is set on
+// the last entry and cleared on the rest whatever the caller passed.
+// PREVENTS: the relay this repository shipped until 2026-09-20, which read the
+// 20-bit label, dropped RFC 3032 Section 2.1's TC field, and published a
+// traffic class of zero for one the peer had set.
+func TestWriteLabelStackKeepsTheTrafficClass(t *testing.T) {
+	t.Parallel()
+	// Two entries as they sit on the wire: label 100 with TC 5 and no S bit,
+	// then label 200 with TC 0 and S set.
+	wire := []byte{0x00, 0x06, 0x4A, 0x00, 0x0C, 0x81}
+
+	entries, remaining, err := ParseLabelStack(wire)
+	if err != nil {
+		t.Fatalf("ParseLabelStack() error = %v", err)
+	}
+	if len(remaining) != 0 {
+		t.Errorf("remaining = %x, want empty", remaining)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("parsed %d entries, want 2", len(entries))
+	}
+	if got := LabelValue(entries[0]); got != 100 {
+		t.Errorf("LabelValue(entries[0]) = %d, want 100", got)
+	}
+
+	buf := make([]byte, len(entries)*3)
+	WriteLabelStack(buf, 0, entries)
+	if !bytes.Equal(buf, wire) {
+		t.Errorf("relayed stack = %x, want %x: the traffic class did not survive", buf, wire)
 	}
 }

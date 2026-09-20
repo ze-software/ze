@@ -9,12 +9,16 @@ import (
 	"encoding/hex"
 	"fmt"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
 // DecodeNLRIHex decodes SR-Policy NLRI from hex bytes, returning a JSON-friendly map.
 // Registered as InProcessNLRIDecoder in the plugin registry.
-func DecodeNLRIHex(familyStr, hexStr string) (any, error) {
+//
+// addPath states whether the NLRI carries a 4-octet Path Identifier ahead of it
+// (RFC 7911 Section 3). The hex alone cannot say, so the flag travels with it.
+func DecodeNLRIHex(familyStr, hexStr string, addPath bool) (any, error) {
 	afi, err := familyToAFI(familyStr)
 	if err != nil {
 		return nil, err
@@ -25,16 +29,27 @@ func DecodeNLRIHex(familyStr, hexStr string) (any, error) {
 		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
+	// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending the
+	// Path Identifier field, which is of four octets."
+	pathID, data, err := nlri.SplitPathID(data, addPath)
+	if err != nil {
+		return nil, err
+	}
+
 	sp, err := Parse(afi, data)
 	if err != nil {
 		return nil, fmt.Errorf("parse sr-policy: %w", err)
 	}
 
-	return map[string]any{
+	result := map[string]any{
 		fieldColor:         sp.color,
 		fieldDistinguisher: sp.distinguisher,
 		fieldEndpoint:      sp.endpoint.String(),
-	}, nil
+	}
+	if addPath {
+		result["path-id"] = pathID
+	}
+	return result, nil
 }
 
 // familyToAFI resolves a family name to the AFI of the SR-Policy family it

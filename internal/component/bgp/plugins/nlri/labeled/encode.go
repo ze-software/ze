@@ -35,7 +35,10 @@ var (
 //
 // Wire format (RFC 8277 Section 2.2): [length_byte][label_stack (3*N bytes)][prefix_bytes].
 // Output: map with "prefix" and "labels" keys.
-func DecodeNLRIHex(famName, hexStr string) (any, error) {
+//
+// addPath states whether the NLRI carries a 4-octet Path Identifier ahead of it
+// (RFC 7911 Section 3). The hex alone cannot say, so the flag travels with it.
+func DecodeNLRIHex(famName, hexStr string, addPath bool) (any, error) {
 	fam, ok := family.LookupFamily(famName)
 	if !ok {
 		return nil, fmt.Errorf("unknown family: %s", famName)
@@ -49,24 +52,29 @@ func DecodeNLRIHex(famName, hexStr string) (any, error) {
 		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
+	// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending the
+	// Path Identifier field, which is of four octets." Split it before reading
+	// the length octet, which follows it.
+	pathID, data, err := nlri.SplitPathID(data, addPath)
+	if err != nil {
+		return nil, err
+	}
+
 	if len(data) < 4 { // minimum: 1 length + 3 label bytes
 		return nil, errTruncatedLabeledUnicastNlri
 	}
 
 	totalBits := int(data[0])
 
-	// Parse label stack: each label is 3 bytes (20-bit label + 3-bit TC + 1-bit S)
-	pos := 1
-	var labels []uint32
-	for pos+3 <= len(data) {
-		label := uint32(data[pos])<<12 | uint32(data[pos+1])<<4 | uint32(data[pos+2])>>4
-		bos := data[pos+2] & 0x01
-		labels = append(labels, label)
-		pos += 3
-		if bos == 1 {
-			break
-		}
+	// RFC 8277 Section 2.1: one or more 3-octet stack entries, each a 20-bit
+	// label, a 3-bit traffic class and the bottom-of-stack bit. ParseLabelStack
+	// keeps the entry whole, so the traffic class survives.
+	entries, _, err := nlri.ParseLabelStack(data[1:])
+	if err != nil {
+		return nil, errTruncatedLabeledUnicastNlri
 	}
+	labels := nlri.LabelValues(entries)
+	pos := 1 + len(entries)*3
 
 	// Parse prefix
 	prefixBits := totalBits - len(labels)*24
@@ -94,10 +102,31 @@ func DecodeNLRIHex(famName, hexStr string) (any, error) {
 	result := map[string]any{
 		"prefix": prefix.String(),
 	}
-	if len(labels) > 0 {
-		result["labels"] = labels
+	if len(entries) > 0 {
+		result["labels"] = labelPairs(entries)
+	}
+	if addPath {
+		result["path-id"] = pathID
 	}
 	return result, nil
+}
+
+// labelPairs states each stack entry as the pair [label, entry].
+//
+// The label is what a reader matches on and the entry is the three octets it
+// came from, carrying the traffic class and the bottom-of-stack bit. Writing
+// the label alone left no way to tell a one-label stack from the first entry of
+// a longer one. The entry is dropped when it is zero, the one case where it
+// says nothing the label did not.
+func labelPairs(entries []uint32) [][]uint32 {
+	pairs := make([][]uint32, len(entries))
+	for index, entry := range entries {
+		pairs[index] = []uint32{nlri.LabelValue(entry)}
+		if entry != 0 {
+			pairs[index] = append(pairs[index], entry)
+		}
+	}
+	return pairs
 }
 
 // EncodeNLRIHex encodes labeled unicast NLRI from CLI-style args and returns uppercase hex.

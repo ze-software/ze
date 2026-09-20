@@ -75,7 +75,7 @@ importing its package:
 | `ConfigurePluginServer` | `func(server PluginServerAccessor)` | Called before `RunEngine` with the plugin server, through a leaf interface |
 | `RPCHandlers` | `map[string]func(json.RawMessage) (any, error)` | RPC method name to handler, collected by the plugin server |
 | `InProcessDecoder` | `func(input, output *bytes.Buffer) int` | Decode function for the CLI fallback path |
-| `InProcessNLRIDecoder` | `func(family, hex string) (any, error)` | NLRI decode without RPC |
+| `InProcessNLRIDecoder` | `func(family, hex string, addPath bool) (any, error)` | NLRI decode without RPC. `addPath` states whether each NLRI in `hex` carries a 4-octet Path Identifier ahead of it (RFC 7911 Section 3) |
 | `InProcessNLRIEncoder` | `func(family string, args []string) (string, error)` | NLRI encode without RPC |
 | `InProcessRouteEncoder` | `func(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath bool) ([]byte, []byte, error)` | Builds a full UPDATE for `ze bgp encode` |
 | `InProcessConfigVerifier` | `func([]rpc.ConfigSection) error` | Side-effect-free equivalent of `OnConfigVerify`, used by static, API and CLI validation |

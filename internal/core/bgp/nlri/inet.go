@@ -34,6 +34,10 @@ var (
 	ErrShortRead      = errors.New("nlri: short read")
 	ErrInvalidPrefix  = errors.New("nlri: invalid prefix length")
 	ErrInvalidAddress = errors.New("nlri: invalid address")
+
+	// ErrPathIDTruncated reports a section that ADD-PATH says carries a 4-octet
+	// Path Identifier and that holds fewer than four octets.
+	ErrPathIDTruncated = errors.New("nlri: truncated ADD-PATH path identifier")
 )
 
 // INET represents an IPv4 or IPv6 unicast/multicast NLRI.

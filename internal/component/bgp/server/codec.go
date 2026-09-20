@@ -37,7 +37,7 @@ func handleDecodeNLRI(params json.RawMessage) (any, error) {
 	if err := json.Unmarshal(params, &input); err != nil {
 		return nil, fmt.Errorf("invalid decode-nlri params: %w", err)
 	}
-	raw, err := registry.DecodeNLRIByFamily(input.Family, input.Hex)
+	raw, err := registry.DecodeNLRIByFamily(input.Family, input.Hex, input.AddPath)
 	if err != nil {
 		return nil, err
 	}
@@ -189,7 +189,7 @@ func decodeMPNLRIs(nlriBytes []byte, fam family.Family, addPath bool) (json.RawM
 	familyStr := fam.String()
 	if registry.PluginForFamily(familyStr) != "" {
 		nlriHex := hex.EncodeToString(nlriBytes)
-		return registry.DecodeNLRIByFamily(familyStr, nlriHex)
+		return registry.DecodeNLRIByFamily(familyStr, nlriHex, addPath)
 	}
 
 	// Core families: parse via nlri package (IPv4/IPv6 unicast/multicast)

@@ -212,8 +212,12 @@ type Registration struct {
 	// In-process NLRI decode/encode: fast path for infrastructure code (text.go, update_text.go)
 	// that avoids plugin package imports. Same semantics as the SDK's OnDecodeNLRI/OnEncodeNLRI
 	// callbacks, but callable directly without RPC. External plugins use the RPC path instead.
-	InProcessNLRIDecoder func(family, hex string) (any, error)              // (family, hex) → data (marshaled by registry)
-	InProcessNLRIEncoder func(family string, args []string) (string, error) // (family, args) → hex
+	// InProcessNLRIDecoder decodes one NLRI section for a family. addPath states
+	// whether the negotiation put a 4-octet Path Identifier in front of each NLRI
+	// (RFC 7911 Section 3); the bytes alone cannot answer that, so the flag
+	// travels with them.
+	InProcessNLRIDecoder func(family, hex string, addPath bool) (any, error) // (family, hex, addPath) → data (marshaled by registry)
+	InProcessNLRIEncoder func(family string, args []string) (string, error)  // (family, args) → hex
 
 	// In-process route encoder: builds a full UPDATE message for a given family.
 	// Used by `ze bgp encode` to delegate family-specific encoding to plugins,
@@ -1073,15 +1077,17 @@ func RequiredPlugins(families []string) []string {
 }
 
 // DecodeNLRIByFamily finds the plugin registered for a family and calls its
-// in-process NLRI decoder. Returns the JSON result and nil on success.
+// in-process NLRI decoder. addPath states whether each NLRI in hexData is
+// prefixed with a 4-octet Path Identifier (RFC 7911 Section 3).
+// Returns the JSON result and nil on success.
 // Returns an error if no decoder is registered or the decoder fails.
 // This is the fast path — external plugins use RPC via Server.DecodeNLRI instead.
-func DecodeNLRIByFamily(family, hexData string) (json.RawMessage, error) {
+func DecodeNLRIByFamily(family, hexData string, addPath bool) (json.RawMessage, error) {
 	mu.RLock()
 	defer mu.RUnlock()
 
 	if reg := familyIndex[family]; reg != nil && reg.InProcessNLRIDecoder != nil {
-		data, err := reg.InProcessNLRIDecoder(family, hexData)
+		data, err := reg.InProcessNLRIDecoder(family, hexData, addPath)
 		if err != nil {
 			return nil, err
 		}

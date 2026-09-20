@@ -44,28 +44,57 @@ func PrefixBytes(bits int) int {
 	return (bits + 7) / 8
 }
 
-// WriteLabelStack writes MPLS labels to buf at offset.
+// WriteLabelStack writes MPLS label stack ENTRIES to buf at offset.
 // Returns number of bytes written.
 //
-// RFC 3032 - MPLS Label Stack Encoding (for BGP, 3 bytes per label):
+// RFC 3032 Section 2.1 - label stack entry (3 octets in BGP, which RFC 8277
+// Section 2.1 carries without the data plane's TTL octet):
 //
 //	Byte 0: label[19:12]
 //	Byte 1: label[11:4]
 //	Byte 2: label[3:0] | TC[2:0] | S
 //
-// The S (bottom-of-stack) bit is set on the last label only.
-// TC (Traffic Class) is always 0 for BGP label encoding.
+// The entry is written whole, so a traffic class a peer set survives a relay.
+// LabelEntryFor builds one from a bare label for a caller that has no entry.
 //
-// NOTE: RFC 3032 data plane uses 4 bytes (includes TTL).
-// BGP uses 3 bytes (no TTL) per RFC 8277.
-func WriteLabelStack(buf []byte, off int, labels []uint32) int {
+// The S bit is the one field this function OWNS rather than copies: RFC 3032
+// Section 2.1 says "this bit is set to one for the last entry in the label
+// stack, and zero for all other label stack entries", which is a property of
+// the stack's shape and not of any entry's data. A caller that reorders,
+// truncates or concatenates stacks cannot be asked to maintain it.
+func WriteLabelStack(buf []byte, off int, entries []uint32) int {
+	for i, entry := range entries {
+		pos := off + i*3
+		if i == len(entries)-1 {
+			entry |= 0x000001
+		} else {
+			entry &^= 0x000001
+		}
+		buf[pos] = byte(entry >> 16)
+		buf[pos+1] = byte(entry >> 8)
+		buf[pos+2] = byte(entry)
+	}
+	return len(entries) * 3
+}
+
+// WriteLabelValues writes a stack built from 20-bit LABEL VALUES, with a zero
+// traffic class on every entry and the bottom-of-stack bit on the last.
+// Returns number of bytes written.
+//
+// For a speaker that ORIGINATES the stack: an operator's config, a CLI
+// argument. It allocates nothing, which is why a caller on the UPDATE build
+// path uses it rather than widening the slice with LabelEntriesFor first.
+//
+// A speaker RELAYING a stack it parsed calls WriteLabelStack with the entries,
+// so the traffic class the peer set is not replaced by this function's zero.
+func WriteLabelValues(buf []byte, off int, labels []uint32) int {
 	for i, label := range labels {
 		pos := off + i*3
 		buf[pos] = byte(label >> 12)
 		buf[pos+1] = byte(label >> 4)
 		buf[pos+2] = byte(label<<4) & 0xF0
 		if i == len(labels)-1 {
-			buf[pos+2] |= 0x01 // RFC 3107: S (bottom-of-stack) bit
+			buf[pos+2] |= 0x01 // RFC 3032 Section 2.1: S (bottom-of-stack) bit
 		}
 	}
 	return len(labels) * 3

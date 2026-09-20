@@ -210,8 +210,14 @@ func ParseSingleExtCommunity(s string) (ExtendedCommunity, error) {
 		subtype = 0x02 // Route Target
 	case "origin", "soo":
 		subtype = 0x03 // Route Origin
+	case "mup":
+		// draft-ietf-bess-mup-safi Section 3.2: the MUP Extended Community has
+		// ONE administrator form, a 2-octet and a 4-octet Direct-Type Segment
+		// Identifier under type 0x0c sub-type 0x00, so it never reaches the
+		// administrator probe below.
+		return parseMUPSegmentIdentifier(parts[1], parts[2])
 	default:
-		return ExtendedCommunity{}, fmt.Errorf("unknown extended-community type: %s (expected target or origin)", parts[0])
+		return ExtendedCommunity{}, fmt.Errorf("unknown extended-community type: %s (expected target, origin or mup)", parts[0])
 	}
 
 	// Detect admin field format: IPv4 address or ASN
@@ -245,15 +251,15 @@ func ParseSingleExtCommunity(s string) (ExtendedCommunity, error) {
 		if !forced4Byte && asn <= 65535 {
 			// 2-byte ASN format: target:65000:100
 			// Type 0x00 (2-byte AS), 2-byte ASN, 4-byte value
-			val, err := strconv.ParseUint(parts[2], 10, 32)
+			local, err := parseExtCommunityLocalAdmin4(parts[2])
 			if err != nil {
-				return ExtendedCommunity{}, fmt.Errorf("invalid extended-community value: %s", parts[2])
+				return ExtendedCommunity{}, err
 			}
 
-			ec[0] = 0x00 // Type: 2-byte ASN
+			ec[0] = 0x00 // Type: 2-byte AS
 			ec[1] = subtype
 			binary.BigEndian.PutUint16(ec[2:4], uint16(asn)) //nolint:gosec // G115: bounded by check
-			binary.BigEndian.PutUint32(ec[4:8], uint32(val)) //nolint:gosec // G115: bounded by ParseUint 32-bit
+			binary.BigEndian.PutUint32(ec[4:8], local)
 		} else {
 			// 4-byte ASN format: target:4200000001:100
 			// Type 0x02 (4-byte AS), 4-byte ASN, 2-byte value
@@ -269,5 +275,55 @@ func ParseSingleExtCommunity(s string) (ExtendedCommunity, error) {
 		}
 	}
 
+	return ec, nil
+}
+
+// parseExtCommunityLocalAdmin4 reads the 4-octet Local Administrator of a
+// two-octet AS specific extended community, in both spellings Ze writes.
+//
+// A number is the plain form RFC 4360 Section 3.1 describes, and Route Target
+// uses it. Route Origin's four octets are also written as a dotted quad --
+// `origin:100:0.0.3.232` -- which is what AppendDecoded renders
+// (appendExtCommOriginAS2, extcomm_decoded.go) and what ExaBGP prints, so this
+// parser reads its own renderer's output back.
+//
+// Accepting both here rather than branching on the sub-type keeps one answer
+// for one field: the octets are the same four either way, and refusing a
+// spelling would only mean refusing something a peer or an operator already
+// wrote.
+func parseExtCommunityLocalAdmin4(text string) (uint32, error) {
+	if addr, err := netip.ParseAddr(text); err == nil && addr.Unmap().Is4() {
+		octets := addr.Unmap().As4()
+		return binary.BigEndian.Uint32(octets[:]), nil
+	}
+	value, err := strconv.ParseUint(text, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid extended-community value: %s", text)
+	}
+	return uint32(value), nil //nolint:gosec // G115: bounded by ParseUint 32-bit
+}
+
+// parseMUPSegmentIdentifier reads `mup:<2-octet>:<4-octet>` into the eight
+// octets draft-ietf-bess-mup-safi Section 3.2 gives the MUP Extended Community.
+//
+// Exported behavior lives here rather than beside the config parser because
+// this function is the one that reads AppendDecoded's output back, and
+// AppendDecoded renders `mup:` (extcomm_decoded.go). The config parser's own
+// copy (parseMUPExtCommunity) writes the same octets from the same text; the
+// two are checked against each other by the round-trip test in this package.
+func parseMUPSegmentIdentifier(segment2, segment4 string) (ExtendedCommunity, error) {
+	high, err := strconv.ParseUint(segment2, 10, 16)
+	if err != nil {
+		return ExtendedCommunity{}, fmt.Errorf("invalid mup segment identifier: %s", segment2)
+	}
+	low, err := strconv.ParseUint(segment4, 10, 32)
+	if err != nil {
+		return ExtendedCommunity{}, fmt.Errorf("invalid mup segment identifier: %s", segment4)
+	}
+	var ec ExtendedCommunity
+	ec[0] = 0x0c                                      // draft-ietf-bess-mup-safi Section 3.2: Generic Transitive Experimental Use
+	ec[1] = 0x00                                      // Direct-Type Segment Identifier
+	binary.BigEndian.PutUint16(ec[2:4], uint16(high)) //nolint:gosec // G115: bounded by ParseUint 16-bit
+	binary.BigEndian.PutUint32(ec[4:8], uint32(low))  //nolint:gosec // G115: bounded by ParseUint 32-bit
 	return ec, nil
 }

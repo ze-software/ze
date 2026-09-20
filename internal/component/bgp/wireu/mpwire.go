@@ -10,6 +10,7 @@ import (
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
+	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -452,13 +453,42 @@ func ParseNLRIs(data []byte, fam family.Family, hasAddPath bool) ([]nlri.NLRI, e
 		case fam.AFI == family.AFIIPv6 && fam.SAFI == family.SAFIMulticast:
 			n, rest, err = nlri.ParseINET(family.AFIIPv6, family.SAFIMulticast, data, hasAddPath)
 		default: // VPN, EVPN, FlowSpec, etc. — no dedicated parser
-			// Wrap remaining NLRI bytes as opaque WireNLRI to preserve the family
-			// in JSON output. Detailed parsing delegated to plugin-registered decoders.
-			w, wErr := nlri.NewWireNLRI(fam, data, hasAddPath)
-			if wErr != nil {
-				return result, fmt.Errorf("wrapping NLRI for %s: %w", fam, wErr)
+			// Wrap NLRI bytes as opaque WireNLRI to preserve the family in JSON
+			// output. Detailed parsing is delegated to plugin-registered decoders.
+			//
+			// MP_REACH_NLRI packs as many NLRIs as fit, and nlrisplit already
+			// holds every family's framing, so ONE carrier is built per NLRI.
+			// Wrapping the whole remainder in one carrier told every consumer
+			// the peer had sent one route where it sent several: the JSON
+			// renderer wrote the decoder's list of routes into the slot where
+			// one route goes, and no reader could name the second one
+			// (plan/journal/validated-value-discarded-by-its-caller.md).
+			if !nlrisplit.Supported(fam) {
+				// A family with no registered splitter has no framing this
+				// package knows, and guessing at a boundary would publish a
+				// route nobody sent. The whole remainder stays one carrier.
+				w, wErr := nlri.NewWireNLRI(fam, data, hasAddPath)
+				if wErr != nil {
+					return result, fmt.Errorf("wrapping NLRI for %s: %w", fam, wErr)
+				}
+				return append(result, w), nil
 			}
-			return append(result, w), nil
+
+			// Split answers the NLRIs it read before any corruption, plus the
+			// error. Both are carried out: the routes that parsed are real, and
+			// the caller still learns the section was malformed.
+			parts, splitErr := nlrisplit.Split(fam, data, hasAddPath)
+			for _, part := range parts {
+				w, wErr := nlri.NewWireNLRI(fam, part, hasAddPath)
+				if wErr != nil {
+					return result, fmt.Errorf("wrapping NLRI for %s: %w", fam, wErr)
+				}
+				result = append(result, w)
+			}
+			if splitErr != nil {
+				return result, fmt.Errorf("splitting NLRI section for %s: %w", fam, splitErr)
+			}
+			return result, nil
 		}
 
 		if err != nil {

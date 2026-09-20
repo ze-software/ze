@@ -500,7 +500,7 @@ func TestExtendedCommunities(t *testing.T) {
 			name: "route_origin",
 			data: []byte{0x00, 0x03, 0x00, 0x64, 0x00, 0x00, 0x00, 0x02},
 			want: []map[string]any{
-				{"value": uint64(844854426861570), "string": "origin:100:2"},
+				{"value": uint64(844854426861570), "string": "origin:100:0.0.0.2"},
 			},
 		},
 		{

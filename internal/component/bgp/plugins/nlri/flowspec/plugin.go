@@ -20,6 +20,7 @@ import (
 	"log/slog"
 	"net"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -66,7 +67,10 @@ func runFlowSpecPlugin(conn net.Conn) int {
 // DecodeNLRIHex decodes FlowSpec NLRI from hex bytes, returning a data structure.
 // This is the in-process fast path registered in the plugin registry.
 // Same logic as the OnDecodeNLRI SDK callback but callable without RPC.
-func DecodeNLRIHex(family, hexStr string) (any, error) {
+//
+// addPath states whether the NLRI carries a 4-octet Path Identifier ahead of it
+// (RFC 7911 Section 3). The hex alone cannot say, so the flag travels with it.
+func DecodeNLRIHex(family, hexStr string, addPath bool) (any, error) {
 	if !isValidFlowSpecFamily(family) {
 		return nil, fmt.Errorf("unsupported family: %s", family)
 	}
@@ -76,11 +80,21 @@ func DecodeNLRIHex(family, hexStr string) (any, error) {
 		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
+	// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending the
+	// Path Identifier field, which is of four octets."
+	pathID, data, err := nlri.SplitPathID(data, addPath)
+	if err != nil {
+		return nil, err
+	}
+
 	result := decodeFlowSpecNLRI(family, data)
 	if result == nil {
 		return nil, errNoValidFlowspecDecoded
 	}
 
+	if addPath {
+		result["path-id"] = pathID
+	}
 	return result, nil
 }
 

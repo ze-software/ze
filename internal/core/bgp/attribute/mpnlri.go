@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/wire"
@@ -71,6 +72,7 @@ const (
 	SAFIEVPN      SAFI = 70  // RFC 7432
 	SAFIVPN       SAFI = 128 // RFC 4364
 	SAFIFlowSpec  SAFI = 133 // RFC 5575
+	SAFIMVPN      SAFI = 5   // RFC 6514
 )
 
 // MPReachNLRI represents the MP_REACH_NLRI attribute (Type Code 14).
@@ -383,6 +385,8 @@ func ValidNextHopLens(afi AFI, safi SAFI) []int {
 			return []int{12, 24, 48} // RD+IPv4, RD+IPv6, or RD+IPv6 pair
 		case SAFISRPolicy:
 			return []int{4, 16} // RFC 9830: NH AFI independent of policy AFI
+		case SAFIMVPN:
+			return mvpnNextHopLens
 		case SAFIFlowSpec, SAFIEVPN:
 			// FlowSpec: permissive (no test coverage yet for strict validation)
 			// EVPN: uses AFI L2VPN (25), not IPv4
@@ -397,6 +401,8 @@ func ValidNextHopLens(afi AFI, safi SAFI) []int {
 			return []int{24, 48} // RD+IPv6 or dual
 		case SAFISRPolicy:
 			return []int{4, 16, 32} // RFC 9830: NH AFI independent of policy AFI
+		case SAFIMVPN:
+			return mvpnNextHopLens
 		case SAFIFlowSpec, SAFIEVPN:
 			// FlowSpec: permissive (no test coverage yet for strict validation)
 			// EVPN: uses AFI L2VPN (25), not IPv6
@@ -411,6 +417,18 @@ func ValidNextHopLens(afi AFI, safi SAFI) []int {
 	}
 	return nil // unknown AFI/SAFI combination
 }
+
+// mvpnNextHopLens are the next-hop lengths an MCAST-VPN route carries, under
+// either AFI.
+//
+// RFC 6514 Section 5: "The Next Hop field of the MP_REACH_NLRI attribute of the
+// route MUST be set to the same IP address as the one carried in the
+// Originating Router's IP Address field", and that field holds an IPv4 or an
+// IPv6 address whichever AFI the NLRI uses. So the AFI of an MCAST-VPN route
+// does not decide the family of its next hop, and RFC 8950 Section 3 says what
+// does: the length field, "out of the set of protocols allowed by the AFI/SAFI
+// definition". This slice IS that set for SAFI 5.
+var mvpnNextHopLens = []int{4, 16, 32}
 
 // parseNextHops parses next-hop address(es) based on AFI, SAFI, and length.
 //
@@ -479,7 +497,23 @@ func parseNextHops(afi AFI, safi SAFI, data []byte) ([]netip.Addr, error) {
 		}
 
 	case AFIIPv6:
-		// Other IPv6 lengths are invalid per RFC 2545
+		// RFC 2545 Section 3 gives an IPv6 NLRI an IPv6 next hop, so no other
+		// length is valid there. It is not valid for EVERY SAFI under this AFI,
+		// though: RFC 8950 Section 3 reads the length "out of the set of
+		// protocols allowed by the AFI/SAFI definition", and an MCAST-VPN route
+		// (RFC 6514) is allowed an IPv4 next hop under AFI 2.
+		//
+		// Refusing it cost more than a next hop. ParseMPReachNLRI returns the
+		// error, AttributesWire.All() gives up on the whole set, and every
+		// attribute of an otherwise well-formed UPDATE is dropped: its origin,
+		// its AS path, its communities, all of it. ExaBGP sends exactly this
+		// shape.
+		if len(data) == 4 && slices.Contains(ValidNextHopLens(afi, safi), 4) {
+			var ip [4]byte
+			copy(ip[:], data)
+			hops = append(hops, netip.AddrFrom4(ip))
+			break
+		}
 		return nil, ErrInvalidNextHopLen
 
 	case AFIL2VPN:

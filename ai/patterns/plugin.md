@@ -271,7 +271,7 @@ filterapi.Register(filterapi.Filter{
 ```go
 Families: []string{"ipv4/my-safi"},
 Features: "nlri",
-InProcessNLRIDecoder: func(family, hex string) (string, error) { ... },
+InProcessNLRIDecoder: func(family, hex string, addPath bool) (any, error) { ... },
 InProcessNLRIEncoder: func(family string, args []string) (string, error) { ... },
 ```
 

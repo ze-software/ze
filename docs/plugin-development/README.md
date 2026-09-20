@@ -128,6 +128,13 @@ Each plugin receives its own unique auth token. The token is bound to the plugin
 - **Emit events** -- Push events for other plugins to consume
 - **Dispatch commands** -- Invoke commands on other plugins through the engine
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEvent, OnConfigure, OnExecuteCommand, OnEncodeNLRI, OnDecodeNLRI, OnConfigVerify, OnConfigApply, OnValidateOpen -->
+
+The decode handler an address family registers takes an add-path flag beside the
+hex: `func(family string, hex string, addPath bool) (any, error)`. RFC 7911
+Section 3 puts a 4-octet Path Identifier ahead of each NLRI once ADD-PATH is
+negotiated, and the octets do not announce it. `docs/plugin-development/handlers.md`,
+"NLRI Handlers", carries the example.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- DecodeNLRIHandler, OnDecodeNLRI -->
 <!-- source: pkg/plugin/sdk/sdk_engine.go -- EmitEvent, DispatchCommand -->
 
 ## Architecture

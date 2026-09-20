@@ -259,7 +259,7 @@ func (ub *UpdateBuilder) buildVPNNLRIBytes(p *VPNParams) []byte {
 	totalBits := len(p.Labels)*24 + 64 + prefixBits
 
 	// Build: [path-id] + length + labels + RD + prefix
-	// Write labels directly via WriteLabelStack (zero-alloc).
+	// Write labels directly via WriteLabelValues (zero-alloc).
 	var buf []byte
 	if ub.AddPath && p.PathID != 0 {
 		buf = ub.alloc(4 + 1 + labelLen + 8 + prefixBytes)
@@ -268,13 +268,13 @@ func (ub *UpdateBuilder) buildVPNNLRIBytes(p *VPNParams) []byte {
 		buf[2] = byte(p.PathID >> 8)
 		buf[3] = byte(p.PathID)
 		buf[4] = byte(totalBits)
-		nlri.WriteLabelStack(buf, 5, p.Labels)
+		nlri.WriteLabelValues(buf, 5, p.Labels)
 		copy(buf[5+labelLen:5+labelLen+8], p.RDBytes[:])
 		copy(buf[5+labelLen+8:], prefixData)
 	} else {
 		buf = ub.alloc(1 + labelLen + 8 + prefixBytes)
 		buf[0] = byte(totalBits)
-		nlri.WriteLabelStack(buf, 1, p.Labels)
+		nlri.WriteLabelValues(buf, 1, p.Labels)
 		copy(buf[1+labelLen:1+labelLen+8], p.RDBytes[:])
 		copy(buf[1+labelLen+8:], prefixData)
 	}

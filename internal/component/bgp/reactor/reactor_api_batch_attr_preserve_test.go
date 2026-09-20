@@ -54,10 +54,16 @@ type preserveCase struct {
 }
 
 // unknownTransitiveAttr is an optional-transitive attribute with an unassigned
-// type code, which AttributesWire.All decodes to an OpaqueAttribute. 40 is chosen
-// so it sorts above AIGP (26) and LARGE_COMMUNITIES (32), proving the last range
-// [17,255) carries an attribute this builder has never heard of.
-const unknownTransitiveAttr = "c02804deadbeef" // flags C0, code 40 (0x28), len 4
+// type code, which AttributesWire.All decodes to an OpaqueAttribute. 41 sorts
+// above AIGP (26) and LARGE_COMMUNITIES (32), proving the last range [17,255)
+// carries an attribute this builder has never heard of.
+//
+// The code MUST be one Ze has no parser for, and that is the whole reason this
+// constant exists. It was 40 until 2026-09-20, when attribute 40 stopped being
+// unknown: RFC 8669 BGP Prefix-SID gained a parser, which then refused
+// `deadbeef` as a truncated TLV and failed this case for the right reason. A
+// future Ze that parses 41 moves it again rather than loosening the parser.
+const unknownTransitiveAttr = "c02904deadbeef" // flags C0, code 41 (0x29), len 4
 
 // aigpMetric1234 is an AIGP (RFC 7311) carrying the metric TLV for 1234.
 //
@@ -81,14 +87,14 @@ func preserveCases() []preserveCase {
 
 	return []preserveCase{
 		{
-			// AIGP (26) between MP_REACH (14) and the unknown transitive (40).
+			// AIGP (26) between MP_REACH (14) and the unknown transitive (41).
 			name:      "aigp-and-unknown-transitive-ipv6",
 			fam:       family.IPv6Unicast,
 			nlriHex:   "202001 0db8",
 			nextHop:   "2001:db8::1",
 			isIBGP:    true,
 			packedHex: originIGP + asPath65000 + community + aigpMetric1234 + unknownTransitiveAttr,
-			wantCodes: []int{1, 2, 5, 8, 14, 26, 40},
+			wantCodes: []int{1, 2, 5, 8, 14, 26, 41},
 		},
 		{
 			// The same on IPv4 unicast, where there is no MP_REACH to anchor the
@@ -99,7 +105,7 @@ func preserveCases() []preserveCase {
 			nextHop:   "10.0.0.1",
 			isIBGP:    true,
 			packedHex: originIGP + asPath65000 + community + aigpMetric1234 + unknownTransitiveAttr,
-			wantCodes: []int{1, 2, 3, 5, 8, 26, 40},
+			wantCodes: []int{1, 2, 3, 5, 8, 26, 41},
 		},
 	}
 }
@@ -258,7 +264,7 @@ func TestQueuedRailPreservesUnknownTransitiveValue(t *testing.T) {
 	c := preserveCases()[1] // IPv4 unicast
 	queued := buildPreserveQueuedRail(t, c)
 
-	flags, value, ok := findPathAttr(queued, 40)
+	flags, value, ok := findPathAttr(queued, 41)
 	require.True(t, ok, "the unknown transitive attribute must survive the queued rail")
 	assert.Equal(t, byte(0xC0), flags, "optional-transitive flags must be preserved verbatim")
 	assert.Equal(t, "deadbeef", hex.EncodeToString(value), "value must be preserved verbatim")

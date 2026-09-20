@@ -97,7 +97,7 @@ func TestDecodeNLRIHex(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result, err := DecodeNLRIHex(tt.family, tt.hex)
+			result, err := DecodeNLRIHex(tt.family, tt.hex, false)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got nil")

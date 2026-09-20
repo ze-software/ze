@@ -69,7 +69,9 @@ func TestVPNv6WireRoundTrip(t *testing.T) {
 
 	// RFC 4659 Section 3.2: the MPLS label MUST travel with the IPv6 VPN route.
 	require.NotEmpty(t, parsed.labels)
-	assert.Equal(t, uint32(200), parsed.labels[0])
+	// parsed.labels holds RFC 8277 Section 2.1 stack ENTRIES; Labels() reads
+	// the 20-bit label out of each.
+	assert.Equal(t, uint32(200), parsed.Labels()[0])
 }
 
 // TestVPNv6RejectsLabellessEncode verifies a VPNv6 NLRI cannot be encoded without
@@ -144,7 +146,7 @@ func TestVPNLabelStack(t *testing.T) {
 	parsed, _, err := ParseVPN(AFIIPv4, SAFIVPN, wireBytes, false)
 	require.NoError(t, err)
 
-	assert.Equal(t, labels, parsed.labels)
+	assert.Equal(t, labels, parsed.Labels())
 }
 
 // TestVPNDecodeMode verifies the decode mode protocol.
@@ -272,7 +274,7 @@ func TestVPNBoundaryLabel(t *testing.T) {
 			parsed, _, err := ParseVPN(AFIIPv4, SAFIVPN, wireBytes, false)
 			require.NoError(t, err)
 			require.Len(t, parsed.labels, 1)
-			assert.Equal(t, tt.label, parsed.labels[0])
+			assert.Equal(t, tt.label, parsed.Labels()[0])
 		})
 	}
 }

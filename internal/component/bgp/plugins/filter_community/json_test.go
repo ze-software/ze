@@ -1,7 +1,6 @@
 package filter_community
 
 import (
-	"encoding/hex"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,8 +44,11 @@ func TestIPv6ExtCommunityJSONFormatter(t *testing.T) {
 	copy(comm[:], []byte{0x00, 0x0c, 0x2a, 0x02, 0x0b, 0x80, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00})
 	comms := attribute.IPv6ExtendedCommunities{comm}
 	buf := f.AppendValue(nil, comms)
-	expected := `["` + hex.EncodeToString(comm[:]) + `"]`
-	assert.Equal(t, expected, string(buf))
+	// The named form, not hex: these octets are a FlowSpec redirect to an IPv6
+	// next hop, which is a community Ze itself produces from a
+	// `redirect-to-nexthop <IPv6>` in config, and rendered as hex it was the
+	// one action an operator could write and could not read back.
+	assert.Equal(t, `["redirect-to-nexthop 2a02:b80:0:1::1"]`, string(buf))
 }
 
 // TestCommunityJSONFormattersRejectPointer pins the ONE shape these formatters

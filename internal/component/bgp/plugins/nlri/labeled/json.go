@@ -8,20 +8,31 @@ package labeled
 
 import (
 	"strconv"
+
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 )
 
 // AppendJSON satisfies nlri.JSONAppender.
-// Matches DecodeNLRIHex output: {"labels":[n,...],"prefix":"..."}.
-// Note: labels is a flat array here (not nested like VPN).
+// Matches DecodeNLRIHex output: {"labels":[[label,entry],...],"prefix":"..."}.
+//
+// Each member is the pair RFC 8277 Section 2.1 puts on the wire: the 20-bit
+// label a reader matches on, and the 3-octet entry it came from, which carries
+// the traffic class and the bottom-of-stack bit.
 func (l *LabeledUnicast) AppendJSON(buf []byte) []byte {
 	buf = append(buf, '{')
 	if len(l.labels) > 0 {
 		buf = append(buf, `"labels":[`...)
-		for i, lab := range l.labels {
+		for i, entry := range l.labels {
 			if i > 0 {
 				buf = append(buf, ',')
 			}
-			buf = strconv.AppendUint(buf, uint64(lab), 10)
+			buf = append(buf, '[')
+			buf = strconv.AppendUint(buf, uint64(nlri.LabelValue(entry)), 10)
+			if entry != 0 {
+				buf = append(buf, ',')
+				buf = strconv.AppendUint(buf, uint64(entry), 10)
+			}
+			buf = append(buf, ']')
 		}
 		buf = append(buf, `],`...)
 	}

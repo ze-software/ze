@@ -483,7 +483,7 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		if err != nil {
 			return 0, fmt.Errorf("invalid bgp-prefix-sid-srv6: %w", err)
 		}
-		tlvs, err := attribute.ParsePrefixSIDSRv6(value)
+		tlvs, err := attribute.EncodePrefixSIDSRv6(value)
 		if err != nil {
 			return 0, err
 		}

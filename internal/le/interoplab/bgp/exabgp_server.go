@@ -19,6 +19,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/exabgp/bridge"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -103,6 +105,9 @@ func readExaBGPCase(path string) (exabgpCase, error) {
 	}
 	defer func() { _ = file.Close() }()
 	spec := exabgpCase{steps: make(map[int][]exabgpStep), asn: 65000}
+	// The connection whose last frame a `json:` line attaches to. Zero means no
+	// frame has been read yet, which makes a leading `json:` line an error.
+	lastDocumentable := 0
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -153,15 +158,19 @@ func readExaBGPCase(path string) (exabgpCase, error) {
 		// Until 2026-09-20 this loop dropped every one of them, which is why
 		// two defects in ze's own ExaBGP rendering reached a verification sweep
 		// unseen (plan/journal/gate-excludes-part-of-its-population.md).
+		//
+		// The leading number is NOT the connection, and reading it as one broke
+		// conf-watchdog, whose `1:raw:` frame is followed by a `5:json:` line.
+		// Upstream's own reader (parse_ci_file, qa/bin/test_json) attaches an
+		// expectation to "the immediately preceding non-EOR raw UPDATE message"
+		// and never looks at the digits, which are the step the line was
+		// GENERATED at. Three of that fixture's blocks repeat one route, so all
+		// three carry the step-5 number the generator last wrote.
 		if len(parts) >= 3 && parts[1] == "json" {
-			connection, err := exabgpCaseConnection(parts[0])
-			if err != nil {
-				return exabgpCase{}, err
-			}
-			steps := spec.steps[connection]
-			if len(steps) == 0 || steps[len(steps)-1].kind != exabgpStepFrame {
+			if lastDocumentable == 0 {
 				return exabgpCase{}, fmt.Errorf("json expectation names no frame above it: %q", line)
 			}
+			steps := spec.steps[lastDocumentable]
 			// The document itself may hold colons, so it is everything after
 			// the second field rather than parts[2] alone.
 			steps[len(steps)-1].wantJSON = strings.TrimSpace(strings.SplitN(line, ":", 3)[2])
@@ -179,8 +188,37 @@ func readExaBGPCase(path string) (exabgpCase, error) {
 			return exabgpCase{}, fmt.Errorf("decode raw directive: %w", err)
 		}
 		spec.steps[connection] = append(spec.steps[connection], exabgpStep{kind: exabgpStepFrame, frame: wire})
+		// An EOR and a KEEPALIVE carry no document, so a `json:` line below one
+		// belongs to the UPDATE before it. Upstream skips both when it decides
+		// which frame an expectation attaches to.
+		if documentableFrame(wire) {
+			lastDocumentable = connection
+		}
 	}
 	return spec, scanner.Err()
+}
+
+// documentableFrame answers whether a frame is one an ExaBGP JSON document is
+// written for: an UPDATE that is not an End-of-RIB marker.
+//
+// RFC 4271 Section 4.1 puts the type octet at offset 18, after the 16-octet
+// marker and the 2-octet length. RFC 4724 Section 2 makes the End-of-RIB an
+// UPDATE "with no reachable NLRI and empty withdrawn NLRI", which is a 23-octet
+// message whose four body octets are zero.
+func documentableFrame(wire []byte) bool {
+	const (
+		headerLength = 19
+		typeOffset   = 18
+		typeUpdate   = 2
+	)
+	if len(wire) <= typeOffset || wire[typeOffset] != typeUpdate {
+		return false
+	}
+	body := wire[headerLength:]
+	if len(body) != 4 {
+		return true
+	}
+	return body[0]|body[1]|body[2]|body[3] != 0
 }
 
 // exabgpStepKind says what one entry of a connection's script is. Zero is
@@ -455,7 +493,46 @@ func exabgpSessionFacts(connection net.Conn, openBody []byte, mockASN uint32) br
 		facts.LocalAS = uint32(binary.BigEndian.Uint16(openBody[1:3]))
 		facts.RouterID = binary.BigEndian.Uint32(openBody[5:9])
 	}
+	facts.Encoding = exabgpNegotiatedEncoding(openBody)
 	return facts
+}
+
+// exabgpNegotiatedEncoding reads what the speaker's OPEN advertised, so the
+// renderer decodes the UPDATEs that follow the way the session encoded them.
+//
+// Only ADD-PATH is read, and only because RFC 7911 Section 3 changes the NLRI's
+// own LAYOUT: without it a decoder reads the 4-octet Path Identifier as prefix
+// bytes, and one route comes out as five. Every other capability changes what
+// an UPDATE may contain rather than how its octets are cut, so a document
+// rendered without them is still the right document.
+//
+// This mock mirrors the speaker's OPEN back to it, so what the speaker
+// advertised is what the session negotiated.
+func exabgpNegotiatedEncoding(openBody []byte) *capability.EncodingCaps {
+	const openFixedLength = 10 // version, AS, hold time, router id, param length
+	if len(openBody) < openFixedLength {
+		return nil
+	}
+	paramLength := int(openBody[9])
+	if openFixedLength+paramLength > len(openBody) {
+		return nil
+	}
+	caps, err := capability.ParseFromOptionalParams(openBody[openFixedLength:openFixedLength+paramLength], false)
+	if err != nil {
+		return nil
+	}
+	for _, advertised := range caps {
+		addPath, isAddPath := advertised.(*capability.AddPath)
+		if !isAddPath {
+			continue
+		}
+		modes := make(map[family.Family]capability.AddPathMode, len(addPath.Families))
+		for _, entry := range addPath.Families {
+			modes[family.Family{AFI: entry.AFI, SAFI: entry.SAFI}] = entry.Mode
+		}
+		return &capability.EncodingCaps{ASN4: true, AddPathMode: modes}
+	}
+	return nil
 }
 
 // canonicalJSON re-marshals a document so two equal documents compare equal

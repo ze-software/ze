@@ -16,6 +16,7 @@ import (
 	"net/netip"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -43,7 +44,7 @@ func runBGPLSPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn("bgp-nlri-ls", conn)
 	defer func() { _ = p.Close() }()
 
-	p.OnDecodeNLRI(func(family string, hexStr string) (any, error) {
+	p.OnDecodeNLRI(func(family string, hexStr string, addPath bool) (any, error) {
 		if !isValidBGPLSFamily(family) {
 			return nil, fmt.Errorf("unsupported family: %s", family)
 		}
@@ -53,7 +54,7 @@ func runBGPLSPlugin(conn net.Conn) int {
 			return nil, fmt.Errorf("invalid hex: %w", err)
 		}
 
-		results := decodeBGPLSNLRI(data)
+		results := decodeBGPLSNLRI(data, addPath)
 		if len(results) == 0 {
 			return nil, errNoValidBgpLsNlrisDecoded
 		}
@@ -156,7 +157,10 @@ func runBGPLSCLIDecode(hexData, family string, textOutput bool, output, errOut i
 		return 1
 	}
 
-	results := decodeBGPLSNLRI(data)
+	// The CLI and the plugin text command both hand over NLRI octets with no
+	// negotiation behind them, so no Path Identifier precedes them
+	// (RFC 7911 Section 3 puts one there only when ADD-PATH is negotiated).
+	results := decodeBGPLSNLRI(data, false)
 	if len(results) == 0 {
 		writeErr("error: no valid BGP-LS routes decoded\n")
 		return 1
@@ -256,7 +260,10 @@ func handleDecodeNLRI(parts []string, format string, output io.Writer, writeUnkn
 		return
 	}
 
-	results := decodeBGPLSNLRI(data)
+	// The CLI and the plugin text command both hand over NLRI octets with no
+	// negotiation behind them, so no Path Identifier precedes them
+	// (RFC 7911 Section 3 puts one there only when ADD-PATH is negotiated).
+	results := decodeBGPLSNLRI(data, false)
 	if len(results) == 0 {
 		writeUnknown()
 		return
@@ -297,7 +304,7 @@ func isValidBGPLSFamily(name string) bool {
 
 // decodeBGPLSNLRI decodes BGP-LS NLRI wire bytes to array of JSON maps.
 // MP_REACH/MP_UNREACH can contain multiple packed NLRIs.
-func decodeBGPLSNLRI(data []byte) []map[string]any {
+func decodeBGPLSNLRI(data []byte, addPath bool) []map[string]any {
 	var results []map[string]any
 
 	// Handle empty/truncated data
@@ -311,6 +318,20 @@ func decodeBGPLSNLRI(data []byte) []map[string]any {
 
 	remaining := data
 	for len(remaining) > 0 {
+		// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending
+		// the Path Identifier field, which is of four octets." Split it before
+		// the NLRI header, so parseBGPLSWithRest reads the type and length at
+		// the right offset.
+		pathID, body, pathErr := nlri.SplitPathID(remaining, addPath)
+		if pathErr != nil {
+			results = append(results, map[string]any{
+				jsonKeyParsed: false,
+				jsonKeyRaw:    strings.ToUpper(textbuf.StringHex(remaining)),
+			})
+			break
+		}
+		remaining = body
+
 		parsed, rest, err := parseBGPLSWithRest(remaining)
 		if err != nil {
 			bgplsLogger.Debug("parse bgpls failed", "err", err)
@@ -339,7 +360,11 @@ func decodeBGPLSNLRI(data []byte) []map[string]any {
 			remaining = rest
 			continue
 		}
-		results = append(results, bgplsToJSON(parsed, remaining[:len(remaining)-len(rest)]))
+		route := bgplsToJSON(parsed, remaining[:len(remaining)-len(rest)])
+		if addPath {
+			route["path-id"] = pathID
+		}
+		results = append(results, route)
 		remaining = rest
 	}
 

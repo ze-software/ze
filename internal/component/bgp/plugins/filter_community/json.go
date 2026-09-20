@@ -3,7 +3,6 @@
 package filter_community
 
 import (
-	"encoding/hex"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
@@ -83,15 +82,14 @@ func appendExtCommunitiesJSON(buf []byte, attr attribute.Attribute) []byte {
 }
 
 // appendIPv6ExtCommunitiesJSON renders IPV6_EXTENDED_COMMUNITIES (RFC 5701) as
-// a JSON array of 20-octet hex strings. It returns nil when attr is not an
-// IPv6ExtendedCommunities value.
+// a JSON array of named strings, the way its 8-octet sibling above does. It
+// returns nil when attr is not an IPv6ExtendedCommunities value.
 //
-// Hex, not the named form its 8-octet sibling above renders. RFC 5701 Section 2
-// puts a 16-octet IPv6 global administrator where RFC 4360 Section 3.1 puts a
-// 2-octet AS, so every field offset the vocabulary reads names something else
-// here, and no RFC 8955 traffic filtering action uses this attribute. Naming it
-// needs its own spelling for an IPv6 global administrator, which no parser in
-// Ze accepts on input yet.
+// The names come from attribute.IPv6ExtendedCommunity.AppendDecoded, which has
+// its own vocabulary rather than the 8-octet one: RFC 5701 Section 2 puts a
+// 16-octet IPv6 global administrator where RFC 4360 Section 3.1 puts a 2-octet
+// AS, so every field offset names something else. A sub-type it does not name
+// keeps its octets as "0x<transitivity><sub-type>:<hex>".
 func appendIPv6ExtCommunitiesJSON(buf []byte, attr attribute.Attribute) []byte {
 	ec, ok := attr.(attribute.IPv6ExtendedCommunities)
 	if !ok {
@@ -103,7 +101,7 @@ func appendIPv6ExtCommunitiesJSON(buf []byte, attr attribute.Attribute) []byte {
 			buf = append(buf, ',')
 		}
 		buf = append(buf, '"')
-		buf = hex.AppendEncode(buf, comm[:])
+		buf = comm.AppendDecoded(buf)
 		buf = append(buf, '"')
 	}
 	return append(buf, ']')

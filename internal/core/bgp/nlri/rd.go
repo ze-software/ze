@@ -261,57 +261,114 @@ func ParseRDString(s string) (RouteDistinguisher, error) {
 	return rd, nil
 }
 
-// ParseLabelStack parses MPLS labels from wire format.
+// ParseLabelStack parses an MPLS label stack from wire format and returns the
+// ENTRIES, the remaining bytes, and any error.
 //
-// RFC 3107 (MPLS-BGP) specifies label encoding for BGP NLRI:
+// RFC 8277 Section 2.1 carries "one or more 3-octet entries in the form
+// described in RFC 3032 Section 2.1", and each entry is three facts, not one:
 //
-//	Each label is 3 bytes: 20-bit label value, 3-bit EXP/TC, 1-bit S (BOS)
+//	Byte 0: label[19:12]
+//	Byte 1: label[11:4]
+//	Byte 2: label[3:0], TC[2:0], S (bottom of stack)
 //
-// RFC 4364 Section 4.3.2 states PE routers distribute labeled VPN-IPv4 routes.
-// RFC 4659 Section 3.2 extends this for labeled VPN-IPv6 routes.
+// This returns each entry whole, so the traffic class and the bottom-of-stack
+// bit survive. Returning the 20-bit label alone discarded both, and a decoder
+// that re-encoded a route then published a traffic class of zero for one the
+// peer had set. LabelValue answers the label a caller wants to display or
+// match on.
 //
-// Returns the label values and remaining bytes.
+// Parsing stops after the entry whose S bit is set, which is what terminates
+// the stack.
 func ParseLabelStack(data []byte) ([]uint32, []byte, error) {
-	var labels []uint32
+	var entries []uint32
 
 	for {
 		if len(data) < 3 {
 			return nil, nil, ErrShortRead
 		}
 
-		// RFC 3107: Label is in upper 20 bits of 3 bytes
-		// Byte 0: label[19:12]
-		// Byte 1: label[11:4]
-		// Byte 2: label[3:0], EXP[2:0], S (bottom-of-stack)
-		labelVal := uint32(data[0])<<12 | uint32(data[1])<<4 | uint32(data[2]>>4)
-		bos := data[2]&0x01 != 0
-
-		labels = append(labels, labelVal)
+		entry := uint32(data[0])<<16 | uint32(data[1])<<8 | uint32(data[2])
+		entries = append(entries, entry)
 		data = data[3:]
 
-		if bos {
+		if entry&labelBottomOfStack != 0 {
 			break
 		}
 	}
 
-	return labels, data, nil
+	return entries, data, nil
 }
 
-// EncodeLabelStack encodes labels to wire format per RFC 3107.
+// labelBottomOfStack is the S bit of an RFC 3032 Section 2.1 label stack entry:
+// set on the last entry of a stack and clear on every other.
+const labelBottomOfStack = 0x000001
+
+// LabelValue answers the 20-bit label of one stack entry, which is what a
+// display, a match or a forwarding decision reads.
+func LabelValue(entry uint32) uint32 { return entry >> 4 }
+
+// LabelEntryFor builds a stack entry from a label value, with a zero traffic
+// class and the bottom-of-stack bit set when bottom is true.
 //
-// RFC 3107 label encoding (3 bytes per label):
+// For a caller that HAS a label and no entry: an operator's config, a CLI
+// argument, a route this speaker originates. A caller relaying an entry it
+// parsed passes that entry through instead, so the peer's traffic class is not
+// replaced by this function's zero.
+func LabelEntryFor(label uint32, bottom bool) uint32 {
+	entry := label << 4
+	if bottom {
+		entry |= labelBottomOfStack
+	}
+	return entry
+}
+
+// LabelEntriesFor builds a whole stack from label values, setting the
+// bottom-of-stack bit on the last.
+func LabelEntriesFor(labels []uint32) []uint32 {
+	if len(labels) == 0 {
+		return nil
+	}
+	entries := make([]uint32, len(labels))
+	for index, label := range labels {
+		entries[index] = LabelEntryFor(label, index == len(labels)-1)
+	}
+	return entries
+}
+
+// LabelValues answers the label of every entry in a stack.
+func LabelValues(entries []uint32) []uint32 {
+	if len(entries) == 0 {
+		return nil
+	}
+	labels := make([]uint32, len(entries))
+	for index, entry := range entries {
+		labels[index] = LabelValue(entry)
+	}
+	return labels
+}
+
+// EncodeLabelStack encodes label stack ENTRIES to wire format, three octets
+// each, and returns a standalone slice.
+//
+// RFC 3032 Section 2.1 gives each entry its layout, which RFC 8277 Section 2.1
+// carries in an NLRI without the data plane's TTL octet:
 //
 //	Byte 0: label[19:12]
 //	Byte 1: label[11:4]
-//	Byte 2: label[3:0] | EXP[2:0] | S
+//	Byte 2: label[3:0] | TC[2:0] | S
 //
-// The S (bottom-of-stack) bit is set on the last label only.
+// The entry is written whole, so a traffic class a peer set survives. The S bit
+// is the one field WriteLabelStack owns rather than copies, and it sets it on
+// the last entry and clears it on the rest.
 //
-// Retained as a convenience wrapper for JSON / test callers that need a
-// standalone slice. Hot-path encoders should call WriteLabelStack
-// (helpers.go) directly with a pool buffer to skip the make.
-func EncodeLabelStack(labels []uint32) []byte {
-	buf := make([]byte, len(labels)*3) // pool-fallback: result owned by caller
-	WriteLabelStack(buf, 0, labels)
+// A caller holding bare 20-bit LABELS rather than entries wants
+// LabelEntriesFor first, or WriteLabelValues, which writes them directly.
+//
+// Retained as a convenience wrapper for JSON and test callers that need a
+// standalone slice. Hot-path encoders call WriteLabelStack (helpers.go)
+// directly with a pool buffer to skip the make.
+func EncodeLabelStack(entries []uint32) []byte {
+	buf := make([]byte, len(entries)*3) // pool-fallback: result owned by caller
+	WriteLabelStack(buf, 0, entries)
 	return buf
 }

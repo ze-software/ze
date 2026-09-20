@@ -12,7 +12,7 @@ Qualifiers are reusable components used within NLRI types:
 | Qualifier | Size | Used By |
 |-----------|------|---------|
 | RouteDistinguisher | 8 bytes | IPVPN, FlowSpec VPN, BGP-LS VPN, EVPN |
-| Labels | 3n bytes | IPVPN, Label, EVPN |
+| Label stack | 3 bytes for each entry | IPVPN, Label, EVPN |
 | PathInfo | 4 bytes | All (with ADD-PATH) |
 | ESI | 10 bytes | EVPN |
 | EthernetTag | 4 bytes | EVPN |
@@ -115,11 +115,12 @@ class RouteDistinguisher:
 
 ---
 
-## MPLS Labels (RFC 3107)
+## MPLS Labels (RFC 3032, RFC 8277)
 
 ### Wire Format
 
-Each label is 3 bytes (24 bits):
+A label stack is one or more entries. Each entry is 3 bytes (24 bits), and
+carries three facts rather than one:
 
 ```
  0                   1                   2
@@ -158,7 +159,7 @@ def decode_label(data: bytes) -> tuple[int, bool]:
 
 ### Label Stack
 
-Multiple labels appear consecutively, last has BoS=1:
+Entries appear consecutively, and the last one has BoS=1:
 
 ```
 Label 1000, Label 2000 (stack):
@@ -167,6 +168,56 @@ Label 1000, Label 2000 (stack):
 ```
 
 <!-- source: internal/core/bgp/nlri/helpers.go -- WriteLabelStack -->
+
+### The Codec in Ze
+
+Ze holds a parsed stack as entries. `ParseLabelStack` returns one `uint32` for
+each 3-octet entry, and stops after the entry whose S bit is set. A codec that
+returns the 20-bit label alone discards the traffic class and the
+bottom-of-stack bit. A route relayed through such a codec publishes a traffic
+class of zero for one the peer had set.
+<!-- source: internal/core/bgp/nlri/rd.go -- ParseLabelStack -->
+
+Four helpers convert between an entry and a label value:
+
+| Helper | Answers |
+|--------|---------|
+| `LabelValue(entry)` | The 20-bit label of one entry, which is what a display, a match or a forwarding decision reads |
+| `LabelValues(entries)` | The label of every entry in a stack |
+| `LabelEntryFor(label, bottom)` | One entry built from a label value, with a zero traffic class and the S bit set when `bottom` is true |
+| `LabelEntriesFor(labels)` | A whole stack built from label values, with the S bit on the last entry |
+<!-- source: internal/core/bgp/nlri/rd.go -- LabelValue, LabelValues, LabelEntryFor, LabelEntriesFor -->
+
+### Which Writer to Call
+
+Two writers put a stack on the wire, and the choice between them decides whether
+a peer's traffic class survives. Each one reads its input one way only, so a
+stack given to the wrong writer encodes a wrong label.
+
+| Writer | Input | Call it when |
+|--------|-------|--------------|
+| `WriteLabelStack(buf, off, entries)` | Stack entries | The speaker RELAYS a stack it parsed. Each entry is written whole, so the traffic class the peer set survives |
+| `WriteLabelValues(buf, off, labels)` | Bare 20-bit label values | The speaker ORIGINATES the stack, from operator config or a CLI argument. Every entry goes out with a zero traffic class |
+
+`WriteLabelValues` allocates nothing, which is why a caller on the UPDATE build
+path calls it rather than widening the values with `LabelEntriesFor` first.
+
+`WriteLabelStack` owns one field it does not copy. RFC 3032 Section 2.1 says
+"this bit is set to one for the last entry in the label stack, and zero for all
+other label stack entries". The S bit is therefore a property of the stack's
+shape, and not of any entry's data. A caller that reorders, truncates or
+concatenates stacks cannot be asked to maintain it. The writer sets it on the
+last entry and clears it on every other entry.
+
+`EncodeLabelStack(entries)` is the allocating form of `WriteLabelStack`, for a
+JSON writer or a test that needs a standalone slice.
+<!-- source: internal/core/bgp/nlri/helpers.go -- WriteLabelStack, WriteLabelValues -->
+<!-- source: internal/core/bgp/nlri/rd.go -- EncodeLabelStack -->
+
+The same split reaches the NLRI constructors. `NewVPN` takes label values and
+widens them with `LabelEntriesFor`, and `NewVPNFromEntries` takes entries as the
+wire carries them.
+<!-- source: internal/component/bgp/plugins/nlri/vpn/types.go -- NewVPN, NewVPNFromEntries -->
 
 ### ExaBGP Implementation
 
@@ -203,12 +254,18 @@ class Labels:
 ### JSON Output
 
 ```json
-"label": [ [100, 1601] ]
+"labels": [ [100, 1601] ]
 ```
 
-Format: `[ [label_value, raw_24bit_value], ... ]`
+Each member is a pair: the 20-bit label a reader matches on, and the 3-octet
+entry it came from. The entry carries the traffic class and the bottom-of-stack
+bit, so a reader that needs either one reads the second number. An entry of zero
+prints as a one-member pair, `[0]`.
 
-<!-- source: internal/core/bgp/nlri/rd.go -- ParseLabelStack, EncodeLabelStack -->
+The VPN and labeled unicast writers produce this shape. EVPN writes its labels
+under a `label` key of its own.
+<!-- source: internal/component/bgp/plugins/nlri/labeled/json.go -- LabeledUnicast.AppendJSON -->
+<!-- source: internal/component/bgp/plugins/nlri/vpn/json.go -- VPN.AppendJSON -->
 
 ---
 

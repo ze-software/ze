@@ -54,7 +54,7 @@ type LabeledUnicast struct {
 	family Family
 	prefix netip.Prefix
 	pathID uint32   // RFC 7911: 0 means no path ID
-	labels []uint32 // Label stack per RFC 3032 (BOS on last)
+	labels []uint32 // RFC 8277 Section 2.1 stack ENTRIES: label + traffic class + S
 }
 
 // NewLabeledUnicast creates a new labeled unicast NLRI.
@@ -70,7 +70,7 @@ func NewLabeledUnicast(fam Family, prefix netip.Prefix, labels []uint32, pathID 
 		family: Family{AFI: fam.AFI, SAFI: SAFIMPLSLabel},
 		prefix: prefix,
 		pathID: pathID,
-		labels: labels,
+		labels: nlri.LabelEntriesFor(labels),
 	}
 }
 
@@ -89,10 +89,14 @@ func (l *LabeledUnicast) HasPathID() bool { return l.pathID != 0 }
 // SupportsAddPath returns true - labeled unicast supports ADD-PATH per RFC 7911.
 func (l *LabeledUnicast) SupportsAddPath() bool { return true }
 
-// Labels returns the MPLS label stack.
+// Labels returns the 20-bit MPLS labels of the stack.
 func (l *LabeledUnicast) Labels() []uint32 {
-	return l.labels
+	return nlri.LabelValues(l.labels)
 }
+
+// LabelEntries returns the stack as the wire carries it: one 3-octet entry per
+// label, each holding the label, its traffic class and the bottom-of-stack bit.
+func (l *LabeledUnicast) LabelEntries() []uint32 { return l.labels }
 
 // Bytes returns the wire-format encoding (payload only, no path ID).
 //
@@ -154,10 +158,10 @@ func (l *LabeledUnicast) String() string {
 	sb.Str("prefix ").Str(l.prefix.String())
 	if len(l.labels) > 0 {
 		sb.Str(" label ")
-		fmt.Fprintf(&sb, "%d", l.labels[0]) //nolint:errcheck // buffer output
-		for _, lbl := range l.labels[1:] {
+		fmt.Fprintf(&sb, "%d", nlri.LabelValue(l.labels[0])) //nolint:errcheck // buffer output
+		for _, entry := range l.labels[1:] {
 			sb.Byte(',')
-			fmt.Fprintf(&sb, "%d", lbl) //nolint:errcheck // buffer output
+			fmt.Fprintf(&sb, "%d", nlri.LabelValue(entry)) //nolint:errcheck // buffer output
 		}
 	}
 	if l.pathID != 0 {

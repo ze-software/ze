@@ -52,7 +52,7 @@ var (
 	ErrInvalidAddress = nlri.ErrInvalidAddress
 )
 
-// WriteLabelStack writes MPLS labels to wire format at offset.
+// WriteLabelStack writes RFC 8277 label stack ENTRIES to wire format at offset.
 // Returns bytes written.
 var WriteLabelStack = nlri.WriteLabelStack
 
@@ -72,19 +72,29 @@ var WriteLabelStack = nlri.WriteLabelStack
 type VPN struct {
 	family Family             // RFC 4364/4659: AFI + SAFI
 	rd     RouteDistinguisher // RFC 4364 Section 4.1: 8-byte RD
-	labels []uint32           // RFC 3107: MPLS label stack
+	labels []uint32           // RFC 8277: MPLS label stack ENTRIES, label+TC+S per entry
 	prefix netip.Prefix       // IPv4 (RFC 4364) or IPv6 (RFC 4659) prefix
 	pathID uint32             // RFC 7911: 0 means no path ID
 }
 
-// NewVPN creates a new VPN NLRI.
+// NewVPN creates a new VPN NLRI from LABEL VALUES.
 // pathID=0 means no path identifier; pathID>0 stores the path ID.
 // Use WriteNLRI() with addPath=true to encode with path ID.
+//
+// The values are widened to RFC 3032 Section 2.1 stack entries, with a zero
+// traffic class and the bottom-of-stack bit on the last. A caller relaying a
+// stack it parsed uses NewVPNFromEntries, so the peer's traffic class is kept.
 func NewVPN(fam Family, rd RouteDistinguisher, labels []uint32, prefix netip.Prefix, pathID uint32) *VPN {
+	return NewVPNFromEntries(fam, rd, nlri.LabelEntriesFor(labels), prefix, pathID)
+}
+
+// NewVPNFromEntries creates a VPN NLRI from label stack ENTRIES as the wire
+// carries them.
+func NewVPNFromEntries(fam Family, rd RouteDistinguisher, entries []uint32, prefix netip.Prefix, pathID uint32) *VPN {
 	return &VPN{
 		family: fam,
 		rd:     rd,
-		labels: labels,
+		labels: entries,
 		prefix: prefix,
 		pathID: pathID,
 	}
@@ -145,11 +155,11 @@ func ParseVPN(afi AFI, safi SAFI, data []byte, addpath bool) (*VPN, []byte, erro
 	if len(nlriData) < 3 {
 		return nil, nil, ErrShortRead
 	}
-	labels, nlriData, err := ParseLabelStack(nlriData)
+	entries, nlriData, err := ParseLabelStack(nlriData)
 	if err != nil {
 		return nil, nil, err
 	}
-	labelBits := len(labels) * 24
+	labelBits := len(entries) * 24
 
 	// RFC 4364 Section 4.1/4.2: Parse RD (8 bytes = 64 bits)
 	if len(nlriData) < 8 {
@@ -195,7 +205,7 @@ func ParseVPN(afi AFI, safi SAFI, data []byte, addpath bool) (*VPN, []byte, erro
 	v := &VPN{
 		family: Family{AFI: afi, SAFI: safi},
 		rd:     rd,
-		labels: labels,
+		labels: entries,
 		prefix: prefix,
 		pathID: pathID,
 	}
@@ -211,8 +221,12 @@ func (v *VPN) Family() Family { return v.family }
 // RD returns the Route Distinguisher per RFC 4364 Section 4.1.
 func (v *VPN) RD() RouteDistinguisher { return v.rd }
 
-// Labels returns the MPLS label stack per RFC 3107.
-func (v *VPN) Labels() []uint32 { return v.labels }
+// Labels returns the 20-bit MPLS labels of the stack per RFC 8277.
+func (v *VPN) Labels() []uint32 { return nlri.LabelValues(v.labels) }
+
+// LabelEntries returns the stack as the wire carries it: one 3-octet entry per
+// label, each holding the label, its traffic class and the bottom-of-stack bit.
+func (v *VPN) LabelEntries() []uint32 { return v.labels }
 
 // Prefix returns the IP prefix (IPv4 per RFC 4364, IPv6 per RFC 4659).
 func (v *VPN) Prefix() netip.Prefix { return v.prefix }
@@ -256,9 +270,9 @@ func (v *VPN) String() string {
 	var sb textbuf.Buffer
 	sb.Str("rd ").Str(v.rd.String()).Str(" prefix ").Str(v.prefix.String())
 	if len(v.labels) > 0 {
-		sb.Str(" label ").Uint32(v.labels[0])
-		for _, l := range v.labels[1:] {
-			sb.Byte(',').Uint32(l)
+		sb.Str(" label ").Uint32(nlri.LabelValue(v.labels[0]))
+		for _, entry := range v.labels[1:] {
+			sb.Byte(',').Uint32(nlri.LabelValue(entry))
 		}
 	}
 	if v.pathID != 0 {

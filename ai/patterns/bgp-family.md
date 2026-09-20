@@ -52,7 +52,7 @@ from wire encode/decode.
 ```
 [ ] AppendJSON(buf []byte) []byte method on the NLRI struct
       (satisfies nlri.JSONAppender -- hot-path JSON, no map[string]any)
-[ ] DecodeNLRIHex(family, hex string) (any, error) function
+[ ] DecodeNLRIHex(family, hex string, addPath bool) (any, error) function
       (CLI decode path: ze bgp decode --nlri)
 [ ] parseNLRIByFamily() case in cli/decode_mp.go
       (dispatch for the new SAFI in UPDATE decode)

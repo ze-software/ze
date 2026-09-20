@@ -57,7 +57,9 @@ func (s *Server) EncodeNLRI(family string, args []string) ([]byte, error) {
 // DecodeNLRI decodes NLRI by routing to the appropriate family plugin via RPC.
 // Returns the JSON representation of the decoded NLRI.
 // Returns error if no plugin registered or plugin not running.
-func (s *Server) DecodeNLRI(family, hexData string) (string, error) {
+// addPath states whether each NLRI in hexData carries a 4-octet Path Identifier
+// ahead of it (RFC 7911 Section 3).
+func (s *Server) DecodeNLRI(family, hexData string, addPath bool) (string, error) {
 	pm := s.procManager.Load()
 	if s.registry == nil || pm == nil {
 		return "", errServerNotConfiguredForPlugins
@@ -81,7 +83,7 @@ func (s *Server) DecodeNLRI(family, hexData string) (string, error) {
 	ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
 	defer cancel()
 
-	jsonResult, err := conn.SendDecodeNLRI(ctx, family, hexData)
+	jsonResult, err := conn.SendDecodeNLRI(ctx, family, hexData, addPath)
 	if err != nil {
 		return "", fmt.Errorf("plugin request failed: %w", err)
 	}

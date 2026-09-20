@@ -334,8 +334,14 @@ p.OnStarted(func(ctx context.Context) error {
 
 ### NLRI Handlers
 
-Plugins that handle address families register encode/decode handlers:
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEncodeNLRI, OnDecodeNLRI, OnDecodeCapability -->
+Plugins that handle address families register encode/decode handlers.
+
+The decode handler takes a third argument, `addPath`. It states whether each
+NLRI in `hex` carries a 4-octet Path Identifier ahead of it. RFC 7911 Section 3
+adds that field once the two speakers negotiate ADD-PATH for the family, and the
+octets do not announce it. A handler that ignores the flag reads the Path
+Identifier as the first bytes of the NLRI.
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEncodeNLRI, OnDecodeNLRI, OnDecodeCapability, DecodeNLRIHandler -->
 
 ```go
 // Encode NLRI from text arguments to hex
@@ -346,8 +352,8 @@ p.OnEncodeNLRI(func(family string, args []string) (string, error) {
 })
 
 // Decode NLRI from hex to data structure (SDK marshals once)
-p.OnDecodeNLRI(func(family string, hex string) (any, error) {
-    result, err := decodeFlowSpec(family, hex)
+p.OnDecodeNLRI(func(family string, hex string, addPath bool) (any, error) {
+    result, err := decodeFlowSpec(family, hex, addPath)
     return result, err
 })
 

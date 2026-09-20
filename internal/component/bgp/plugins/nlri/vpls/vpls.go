@@ -15,6 +15,7 @@ import (
 	"net"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -56,7 +57,10 @@ func runVPLSPlugin(conn net.Conn) int {
 
 // DecodeNLRIHex decodes VPLS NLRI from hex bytes, returning a data structure.
 // This is the in-process fast path registered in the plugin registry.
-func DecodeNLRIHex(family, hexStr string) (any, error) {
+//
+// addPath states whether the NLRI carries a 4-octet Path Identifier ahead of it
+// (RFC 7911 Section 3). The hex alone cannot say, so the flag travels with it.
+func DecodeNLRIHex(family, hexStr string, addPath bool) (any, error) {
 	if family != familyVPLS {
 		return nil, fmt.Errorf("unsupported family: %s", family)
 	}
@@ -66,12 +70,23 @@ func DecodeNLRIHex(family, hexStr string) (any, error) {
 		return nil, fmt.Errorf("invalid hex: %w", err)
 	}
 
+	// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending the
+	// Path Identifier field, which is of four octets."
+	pathID, data, err := nlri.SplitPathID(data, addPath)
+	if err != nil {
+		return nil, err
+	}
+
 	vpls, _, err := ParseVPLS(data)
 	if err != nil {
 		return nil, fmt.Errorf("parse VPLS failed: %w", err)
 	}
 
-	return vplsToJSON(vpls), nil
+	result := vplsToJSON(vpls)
+	if addPath {
+		result["path-id"] = pathID
+	}
+	return result, nil
 }
 
 // RunCLIDecode decodes VPLS NLRI from hex string for CLI mode.
@@ -138,7 +153,10 @@ func RunDecode(input io.Reader, output io.Writer) int {
 		if len(parts) >= 4 && parts[0] == "decode" && parts[1] == "nlri" {
 			fam := parts[2]
 			hexData := parts[3]
-			data, err := DecodeNLRIHex(fam, hexData)
+			// The CLI and the plugin text command both hand over NLRI octets with no
+			// negotiation behind them, so no Path Identifier precedes them
+			// (RFC 7911 Section 3 puts one there only when ADD-PATH is negotiated).
+			data, err := DecodeNLRIHex(fam, hexData, false)
 			if err == nil {
 				if raw, merr := json.Marshal(data); merr == nil {
 					write("decoded json " + string(raw))

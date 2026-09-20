@@ -184,15 +184,21 @@ func TestBuildLabeledUnicast_MultiLabel(t *testing.T) {
 	require.NotEmpty(t, update.PathAttributes)
 }
 
-// TestEncodeLabelStackConsistency verifies that buildVPNNLRIBytes uses nlri.EncodeLabelStack.
+// TestEncodeLabelStackConsistency verifies that the VPN build path and the nlri
+// package encode one stack of LABEL VALUES to the same bytes.
 //
-// VALIDATES: Wire encoding matches nlri.EncodeLabelStack for label stacks.
-// PREVENTS: Divergent label encoding between build path and nlri package.
+// VALIDATES: Wire encoding matches nlri.EncodeLabelStack over the entries
+// LabelEntriesFor builds from those values.
+// PREVENTS: Divergent label encoding between build path and nlri package. The
+// two take different entry points now, because they answer different questions:
+// the build path ORIGINATES a stack from config values and calls
+// WriteLabelValues, and EncodeLabelStack relays entries a peer sent, keeping
+// their traffic class. For a stack built from values both write the same bytes,
+// and this case is what says so.
 func TestEncodeLabelStackConsistency(t *testing.T) {
 	labels := []uint32{100, 200, 300}
 
-	// Encode using nlri.EncodeLabelStack
-	expected := nlri.EncodeLabelStack(labels)
+	expected := nlri.EncodeLabelStack(nlri.LabelEntriesFor(labels))
 
 	// Verify expectations about the encoding
 	require.Equal(t, 9, len(expected), "3 labels should be 9 bytes")
