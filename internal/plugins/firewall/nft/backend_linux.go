@@ -237,27 +237,27 @@ func (b *backend) applyChain(t *nftables.Table, sets map[string]*nftables.Set, c
 		if err != nil {
 			return fmt.Errorf("term %q: %w", chain.Terms[i].Name, err)
 		}
-		for _, exprs := range rules {
+		for _, rule := range rules {
 			// Ensure the rule carries at least one counter expression so
-			// `show firewall ruleset` can always report per-rule packet/
-			// byte counts. If the operator already declared an explicit
-			// `counter` action (lowered to an expr.Counter in exprs), use
-			// theirs -- prepending a second one would give us two Counter
-			// exprs on the wire and readRuleCounter would silently pick
-			// whichever comes first, making any named/explicit counter
-			// inaccessible.
-			var allExprs []expr.Any
-			if hasCounterExpr(exprs) {
-				allExprs = exprs
-			} else {
-				allExprs = make([]expr.Any, 0, len(exprs)+1)
-				allExprs = append(allExprs, &expr.Counter{})
-				allExprs = append(allExprs, exprs...)
+			// `show firewall ruleset` can always report per-term packet and
+			// byte counts. The counter goes at the term's match/action
+			// boundary, which is what makes it count the term's own packets:
+			// nftables evaluates a rule from left to right and abandons it at
+			// the first match that fails, so a counter ahead of the matches
+			// counts every packet the chain offered this rule (loweredRule,
+			// lower_linux.go). If the operator already declared an explicit
+			// `counter` action (lowered to an expr.Counter in the actions),
+			// use theirs -- a second one would give us two Counter exprs on
+			// the wire and readRuleCounter would silently pick whichever
+			// comes first, making any named/explicit counter inaccessible.
+			exprs := rule.exprs
+			if !hasCounterExpr(exprs) {
+				exprs = rule.withCounter()
 			}
 			b.conn.AddRule(&nftables.Rule{
 				Table:    t,
 				Chain:    c,
-				Exprs:    allExprs,
+				Exprs:    exprs,
 				UserData: []byte(chain.Terms[i].Name),
 			})
 		}
@@ -318,10 +318,11 @@ func (b *backend) ListTables() ([]firewall.Table, error) {
 }
 
 // GetCounters returns per-term packet/byte counter values for a table.
-// Each rule carries its term name in UserData (set by applyChain) and
-// an anonymous counter expression as its first Expr (also set by
-// applyChain). readRuleCounter decodes both; rules lacking either
-// (e.g. inserted out-of-band) surface with empty Name and zeroes.
+// Each rule carries its term name in UserData (set by applyChain) and an
+// anonymous counter expression that sits after the term's matches, ahead of
+// its actions (also set by applyChain). readRuleCounter decodes both; rules
+// lacking either (e.g. inserted out-of-band) surface with empty Name and
+// zeroes.
 //
 // One term can hold more than one rule, so the counters of the rules
 // sharing a term name are summed into one entry: the result is one row per

@@ -130,11 +130,10 @@ several, where N is the interface's position in the list, counted from
 and each row names the rule the traffic can take, rather than one merged
 row for the whole policy.
 
-The packet and byte counts in those rows are not per interface. The nft
-backend puts the counter at the front of the rule, ahead of the interface
-match, so the counter increments for every packet the `ze_pr` chain sees.
-Two interfaces on one policy report the same count. Read the rows to see
-which rules exist, not to see how much traffic each interface carried.
+The packet and byte counts in those rows are per interface. The nft
+backend puts the counter after the rule's matches, so each row counts
+the packets that arrived on the interface the row names. An interface
+that carries nothing reads zero while its siblings climb.
 
 A policy that names no interface matches every ingress interface.
 

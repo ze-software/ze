@@ -1105,7 +1105,7 @@ func lowerTermOneRule(t *testing.T, ctx *lowerCtx, term *firewall.Term) []expr.A
 	if len(rules) != 1 {
 		t.Fatalf("lowerTerm produced %d rules, want 1", len(rules))
 	}
-	return rules[0]
+	return rules[0].exprs
 }
 
 // l4protoDepRest asserts that exprs opens with the `meta l4proto <want>`
@@ -1630,7 +1630,7 @@ func TestLowerTermInetDSCPSetSplitsPerFamily(t *testing.T) {
 	}{
 		{
 			name:       "ipv4 rule writes the TOS byte and fixes the header checksum",
-			rule:       rules[0],
+			rule:       rules[0].exprs,
 			wantProto:  unix.NFPROTO_IPV4,
 			wantOffset: 1,
 			wantLen:    1,
@@ -1645,7 +1645,7 @@ func TestLowerTermInetDSCPSetSplitsPerFamily(t *testing.T) {
 			// endian: mask f0 3f, xor 0b 80), payload write 2b @ nh+0
 			// csum_type 0.
 			name:       "ipv6 rule writes the traffic class and fixes no checksum",
-			rule:       rules[1],
+			rule:       rules[1].exprs,
 			wantProto:  unix.NFPROTO_IPV6,
 			wantOffset: 0,
 			wantLen:    2,
@@ -1982,5 +1982,85 @@ func TestLowerICMPErrorQuotedDestinationRefusesAnAddressItCannotRead(t *testing.
 		if _, err := lowerMatch(inetCtx(nil), firewall.MatchICMPErrorQuotedDestination{Addr: addr}); err == nil {
 			t.Errorf("lowerMatch accepted quoted destination %v, want a refusal", addr)
 		}
+	}
+}
+
+// exprTypeNames renders an expression list as its Go type names, so a test can
+// state the order the kernel will evaluate in one readable line.
+func exprTypeNames(exprs []expr.Any) []string {
+	names := make([]string, 0, len(exprs))
+	for _, e := range exprs {
+		names = append(names, reflect.TypeOf(e).String())
+	}
+	return names
+}
+
+// VALIDATES: the anonymous counter applyChain adds sits AFTER the term's
+// matches and BEFORE its actions, so it counts the packets the term selected.
+// Driven through lowerTerm and withCounter, the pair applyChain composes.
+// PREVENTS: the counter returning to the front of the rule. nftables evaluates
+// a rule from left to right and abandons it at the first expression that does
+// not match, so a leading counter counts every packet the chain offered the
+// rule. Measured in a QEMU guest on 2026-09-08: a policy naming lo and dummy0
+// reported the same 3 packets on both rules, and the dummy0 row carried
+// traffic only lo had seen (plan/journal/counter-counts-the-wrong-packets.md).
+// PREVENTS ALSO: the counter moving behind the verdict, where it would never
+// increment at all, because accept, drop and jump each end the rule when they
+// run.
+func TestLowerTermCounterSitsBetweenTheMatchesAndTheActions(t *testing.T) {
+	tests := []struct {
+		name string
+		term *firewall.Term
+		want []string
+	}{
+		{
+			name: "an interface match precedes the counter and the verdict follows it",
+			term: &firewall.Term{
+				Name:    "loopback",
+				Matches: []firewall.Match{firewall.MatchInputInterface{Name: "lo"}},
+				Actions: []firewall.Action{firewall.Accept{}},
+			},
+			want: []string{"*expr.Meta", "*expr.Cmp", "*expr.Counter", "*expr.Verdict"},
+		},
+		{
+			name: "two matches both precede the counter",
+			term: &firewall.Term{
+				Name: "loopback-marked",
+				Matches: []firewall.Match{
+					firewall.MatchInputInterface{Name: "lo"},
+					firewall.MatchMark{Value: 7, Mask: 0xFFFFFFFF},
+				},
+				Actions: []firewall.Action{firewall.Drop{}},
+			},
+			want: []string{
+				"*expr.Meta", "*expr.Cmp",
+				"*expr.Meta", "*expr.Bitwise", "*expr.Cmp",
+				"*expr.Counter", "*expr.Verdict",
+			},
+		},
+		{
+			name: "a term that selects nothing counts from the first expression",
+			term: &firewall.Term{
+				Name:    "catch-all",
+				Actions: []firewall.Action{firewall.Accept{}},
+			},
+			want: []string{"*expr.Counter", "*expr.Verdict"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rules, err := lowerTerm(inetCtx(nil), tt.term)
+			if err != nil {
+				t.Fatalf("lowerTerm: %v", err)
+			}
+			if len(rules) != 1 {
+				t.Fatalf("lowerTerm produced %d rules, want 1", len(rules))
+			}
+			got := exprTypeNames(rules[0].withCounter())
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("expression order = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }

@@ -287,7 +287,7 @@ func nfprotoGuard(family nftables.TableFamily, nfproto byte) []expr.Any {
 // lowerTerm translates a ze Term (matches + actions) into the nftables rules
 // that carry it. One term is one rule, except in an inet table where an action
 // rewrites a network-header field: there it is TWO rules, one for each address
-// family. The caller programs each returned expression list as its own rule.
+// family. The caller programs each returned loweredRule as its own rule.
 //
 // The context allows helpers that need to register anonymous sets (e.g. a
 // multi-range port match lowers to a Lookup against an anonymous interval set).
@@ -303,7 +303,7 @@ func nfprotoGuard(family nftables.TableFamily, nfproto byte) []expr.Any {
 // state is per-family, so a term carrying both `dscp-set` and `limit` gets one
 // token bucket per address family rather than one for the term. nftables has
 // no branch inside a rule, so no single-rule form of this exists.
-func lowerTerm(ctx *lowerCtx, term *firewall.Term) ([][]expr.Any, error) {
+func lowerTerm(ctx *lowerCtx, term *firewall.Term) ([]loweredRule, error) {
 	family := ctx.tableFamily()
 
 	if familySplitNeeded(family, term) {
@@ -315,14 +315,46 @@ func lowerTerm(ctx *lowerCtx, term *firewall.Term) ([][]expr.Any, error) {
 		if err != nil {
 			return nil, err
 		}
-		return [][]expr.Any{v4, v6}, nil
+		return []loweredRule{v4, v6}, nil
 	}
 
-	exprs, err := lowerTermForNFProto(ctx, term, tableNFProto(family))
+	rule, err := lowerTermForNFProto(ctx, term, tableNFProto(family))
 	if err != nil {
 		return nil, err
 	}
-	return [][]expr.Any{exprs}, nil
+	return []loweredRule{rule}, nil
+}
+
+// loweredRule is one nftables rule: the expressions in the order the kernel
+// evaluates them, and the index where the term's actions begin. Everything
+// before actionsAt selects the packet, and everything from actionsAt on acts
+// on it.
+//
+// The boundary is what a counter needs. nftables evaluates a rule from left to
+// right and abandons the rule at the first expression that does not match, so
+// a counter ahead of the matches counts every packet the chain offered this
+// rule and not the packets the term selected. A counter after an action can
+// count nothing at all, because a verdict (accept, drop, jump) and a nat
+// statement each end the rule at the moment they run. actionsAt is the one
+// position that counts what the term's name promises.
+//
+// A `limit` action is the one place the boundary is a judgement rather than a
+// necessity. limit acts as a conditional inside the rule, so a counter ahead
+// of it reports the packets the term matched rather than the packets that
+// survived the rate. Matching is what the term's row in
+// `show firewall ruleset` names, so the counter stays at the boundary.
+type loweredRule struct {
+	exprs     []expr.Any
+	actionsAt int
+}
+
+// withCounter returns the rule's expressions with an anonymous counter at the
+// match/action boundary. The receiver keeps its own expressions.
+func (r loweredRule) withCounter() []expr.Any {
+	exprs := make([]expr.Any, 0, len(r.exprs)+1)
+	exprs = append(exprs, r.exprs[:r.actionsAt]...)
+	exprs = append(exprs, &expr.Counter{})
+	return append(exprs, r.exprs[r.actionsAt:]...)
 }
 
 // familySplitNeeded reports whether a term must be programmed as one rule per
@@ -367,26 +399,31 @@ func tableNFProto(family nftables.TableFamily) byte {
 // restricted to one address family. nfproto is NFPROTO_IPV4 or NFPROTO_IPV6
 // when the rule is one half of a family split, and NFPROTO_UNSPEC otherwise;
 // nfprotoGuard emits the leading guard only where the table needs one.
-func lowerTermForNFProto(ctx *lowerCtx, term *firewall.Term, nfproto byte) ([]expr.Any, error) {
+func lowerTermForNFProto(ctx *lowerCtx, term *firewall.Term, nfproto byte) (loweredRule, error) {
 	exprs := nfprotoGuard(ctx.tableFamily(), nfproto)
 
 	for _, m := range term.Matches {
 		me, err := lowerMatch(ctx, m)
 		if err != nil {
-			return nil, err
+			return loweredRule{}, err
 		}
 		exprs = append(exprs, me...)
 	}
 
+	// The nfproto guard and the matches select the packet. Every expression
+	// from here on acts on it, so this index is where the rule's counter
+	// belongs (loweredRule).
+	actionsAt := len(exprs)
+
 	for _, a := range term.Actions {
 		ae, err := lowerAction(a, nfproto)
 		if err != nil {
-			return nil, err
+			return loweredRule{}, err
 		}
 		exprs = append(exprs, ae...)
 	}
 
-	return exprs, nil
+	return loweredRule{exprs: exprs, actionsAt: actionsAt}, nil
 }
 
 func lowerMatch(ctx *lowerCtx, m firewall.Match) ([]expr.Any, error) {

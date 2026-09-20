@@ -18,10 +18,12 @@
 # expect lines require the suffixed names, and the reject line refuses the
 # unsuffixed one, which no correct output ever carries.
 #
-# The packet counts are NOT asserted, and they would not discriminate: applyChain
-# prepends the counter expression BEFORE the term's matches, so every rule in the
-# chain counts every packet the chain sees and both rows report the same number
-# whichever interface the traffic arrived on.
+# The packet counts are NOT asserted because this test sends no traffic, so every
+# row reads zero. They would discriminate now that they answer per term: applyChain
+# puts the counter expression AFTER the term's matches, so each row counts the
+# packets that arrived on the interface it names. That placement is proved against
+# a real kernel by TestNftIntegrationCounterCountsOnlyTheTermsOwnPackets
+# (internal/plugins/firewall/nft/counter_integration_linux_test.go).
 #
 # WHY THIS IS A SEPARATE FILE from policy-interface-list.ci, which proves the
 # same policy installs two rules. `ze cli` is a foreground `ze`, and the runner

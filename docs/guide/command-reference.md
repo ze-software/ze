@@ -1044,9 +1044,11 @@ ze show firewall group <name>           # Elements of a named group
 **`show firewall ruleset`** joins the applied desired state (chains +
 terms) with kernel counters read back via the nft backend's `GetCounters`
 call. Every rule is auto-instrumented with an anonymous counter
-expression when applied; the term name is stored in nftables'
-`Rule.UserData` and recovered on readback so the join is explicit (not
-index-based). Rejects when no firewall backend is loaded or when the
+expression when applied. The expression sits after the term's matches
+and ahead of its actions, so the row reports the packets that term
+matched and not the packets the chain saw. The term name is stored in
+nftables' `Rule.UserData` and recovered on readback so the join is
+explicit (not index-based). Rejects when no firewall backend is loaded or when the
 active backend is not `nft`.
 
 **`show firewall group`** reads from the applied-state snapshot, not
