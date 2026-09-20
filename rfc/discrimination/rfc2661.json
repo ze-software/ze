@@ -33,7 +33,7 @@
       "claim-sha": "721ed73309b98d91",
       "route": "revert",
       "producer": "internal/component/l2tp/reactor.go::sendUnassociatedStopCCN",
-      "producer-sha": "e97697054f5850b9",
+      "producer-sha": "a1dfde0bbf13820c",
       "break": "body of sendUnassociatedStopCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -44,7 +44,7 @@
       "claim-sha": "15945f76611dc204",
       "route": "revert",
       "producer": "internal/component/l2tp/tunnel_fsm.go::handleSCCRQ",
-      "producer-sha": "a5e281e874d1b21f",
+      "producer-sha": "306c6aefbc6060ab",
       "break": "body of handleSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -66,9 +66,9 @@
       "claim-sha": "70e2a021fac3ba59",
       "route": "revert",
       "producer": "internal/component/l2tp/reactor.go::sendUnassociatedStopCCN",
-      "producer-sha": "e97697054f5850b9",
+      "producer-sha": "a1dfde0bbf13820c",
       "break": "body of sendUnassociatedStopCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-      "citation": "expect=stderr:contains=SCCRQ missing Framing Capabilities AVP"
+      "citation": "expect=stderr:contains=malformed SCCRQ answered with StopCCN"
     },
     {
       "rid": "RFC2661-6.1-1",
@@ -78,7 +78,7 @@
       "claim-sha": "19e6ebdfbf692c57",
       "route": "revert",
       "producer": "internal/component/l2tp/tunnel_fsm.go::handleSCCRQ",
-      "producer-sha": "a5e281e874d1b21f",
+      "producer-sha": "306c6aefbc6060ab",
       "break": "body of handleSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=stderr:contains=new tunnel created from SCCRQ"
     },
@@ -101,7 +101,7 @@
       "claim-sha": "9f06a3026ff8f3f6",
       "route": "revert",
       "producer": "internal/component/l2tp/tunnel_initiator.go::handleSCCRP",
-      "producer-sha": "4ea9bf1241f47cb2",
+      "producer-sha": "ebdd3436cc9a6b36",
       "break": "body of handleSCCRP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

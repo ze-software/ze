@@ -388,7 +388,7 @@ func tombstoneHandler() filterapi.AttrModHandler {
 // A marker whose value is produced by a GENERATOR reads as empty here, because
 // those bytes exist only at write time, and it takes the conservative answer for
 // the same reason an unknown code does. Every producer today records the pair as
-// bytes (wireu.ASPathEdit.recordAggregator), which is what a two-octet value
+// bytes (wireu.ASPathEdit.recordAggregatorDiscard), which is what a two-octet value
 // costs nothing to do.
 func tombstoneFlags(value []byte) byte {
 	if len(value) < 2 {

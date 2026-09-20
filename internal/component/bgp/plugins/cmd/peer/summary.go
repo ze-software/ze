@@ -215,22 +215,44 @@ var familyArgRE = regexp.MustCompile(`^[a-z0-9/_-]+$`)
 //
 // The family test is a registry lookup, not validateFamilyArg. That guard bounds
 // the length and the charset of the string, and "nonsense" passes it.
+//
+// The command reads ONE token, so a second one is refused rather than dropped.
+// The dispatcher hands over every trailing token it could not consume
+// (matchBuiltinTokens), and a handler that indexes args[0] alone answers a
+// different question than the operator asked.
 func handleBgpOverview(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	if len(args) > 0 && !isFamilyArg(args[0]) {
-		// The token lands in the response envelope, so it is bounded here.
-		// validateFamilyArg bounds its own for the same reason: it is operator
-		// input of any length. %q escapes whatever charset survives the clamp.
-		token := args[0]
+		return unknownBgpPath(args[:1],
+			"names no subcommand and no address family")
+	}
+	// The family is the last token `show bgp` reads, so anything after it
+	// reached nobody. Answering the family-scoped summary here gave the
+	// operator a different question's answer and told them nothing about the
+	// token they typed (plan/journal/silent-fall-through.md, 2026-08-21).
+	if len(args) > 1 {
+		return unknownBgpPath(args[:2],
+			"names no subcommand: show bgp takes one address family and nothing after it")
+	}
+	return handleBgpSummary(ctx, args)
+}
+
+// unknownBgpPath answers the refusal for tokens below `show bgp` that name no
+// command, quoting the path the operator typed and why it resolves to nothing.
+//
+// Every token lands in the response envelope, so each is bounded here.
+// validateFamilyArg bounds its own for the same reason: it is operator input of
+// any length. %q escapes whatever charset survives the clamp.
+func unknownBgpPath(tokens []string, why string) (*plugin.Response, error) {
+	var path textbuf.Buffer
+	path.Str("show bgp")
+	for _, token := range tokens {
 		if len(token) > maxFamilyArgLen {
 			token = token[:maxFamilyArgLen]
 		}
-		var path textbuf.Buffer
-		path.Str("show bgp ").Str(token)
-		err := fmt.Errorf("%q names no subcommand and no address family: %w",
-			path.String(), pluginserver.ErrUnknownCommand)
-		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
+		path.Byte(' ').Str(token)
 	}
-	return handleBgpSummary(ctx, args)
+	err := fmt.Errorf("%q %s: %w", path.String(), why, pluginserver.ErrUnknownCommand)
+	return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 }
 
 // isFamilyArg reports whether in names a registered address family, in the full

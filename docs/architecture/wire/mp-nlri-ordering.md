@@ -164,9 +164,17 @@ asked lazily, so a rebuild that only rewrites existing attributes never asks.
 When every code is refused the rebuild reports "nothing to apply". A relayed
 withdrawal therefore keeps the zero-copy forward path.
 
+The AGGREGATOR discard shows what the gate refuses and what it lets through.
+`ASPathEdit.Record` discards a malformed AGGREGATOR before it dispatches to a rail,
+because no width and no prepend makes an unreadable length readable (RFC 7606
+Section 7.7). The suppress that performs the discard names an attribute the source
+already carries, so it is a MODIFY and the gate passes it. The ATTR_TOMBSTONE that
+records the discard is a CREATE, so on a body with no reachable NLRI the gate refuses
+it. A withdrawal loses the record of the discard, never the discard.
+
 <!-- source: internal/component/bgp/wireu/advertise.go -- PayloadAdvertisesNLRI, the one definition -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- advertiseGate, planAttr create-versus-modify gate -->
-<!-- source: internal/component/bgp/wireu/aspath_slot.go -- ASPathEdit.Record, the AS_PATH half -->
+<!-- source: internal/component/bgp/wireu/aspath_slot.go -- ASPathEdit.Record, recordAggregatorDiscard, the AS_PATH half -->
 <!-- source: test/interop/scenarios/bgp-relay-withdraw-nexthop-self-frr -- FRR accepts the withdrawal with next-hop-self on -->
 <!-- source: test/interop/scenarios/bgp-relay-withdraw-reflector-frr -- FRR accepts the reflected withdrawal -->
 

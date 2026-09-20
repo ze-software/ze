@@ -54,8 +54,16 @@ type Open struct {
 	// Set to an IP address assigned to the BGP speaker, same for all peers
 	BGPIdentifier uint32
 
-	// ASN4 is the 4-byte AS number if > 65535.
-	// When set, MyAS should be AS_TRANS (23456) per RFC 6793.
+	// ASN4 is the AS this OPEN is SENT under, and it is written by the builder alone.
+	// When it is above 65535, MyAS goes out as AS_TRANS (23456) per RFC 6793 Section 3.
+	//
+	// UnpackOpen does NOT populate it, so it is zero on every OPEN ze receives and a
+	// receiver MUST NOT read it. The parser leaves it alone on purpose: the peer's AS lives
+	// in the Four-octet AS capability, and parsing that capability here would have to
+	// swallow a malformed capability list, which rejectOpenCapabilityError owns and answers
+	// with its own NOTIFICATION subcode. openAdvertisedAS (reactor/peer.go) is the ONE
+	// answer to "what AS did this peer advertise", and sessionPeerAS is the one answer to
+	// "what AS is this session's peer".
 	ASN4 uint32
 
 	// RFC 4271 Section 4.2 - Optional Parameters: variable length field

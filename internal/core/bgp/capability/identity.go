@@ -15,10 +15,23 @@ type PeerIdentity struct {
 	LocalRouterID uint32
 	// PeerRouterID is the peer's router ID from OPEN.
 	PeerRouterID uint32
+	// Internal is the session's own verdict on whether the peer is internal, decided by
+	// the reactor before negotiation and carried here. IsIBGP returns it unchanged.
+	Internal bool
 }
 
-// IsIBGP returns true if this is an iBGP session (same AS).
+// IsIBGP returns true if this is an iBGP session.
 // RFC 4271: iBGP sessions have different path attribute rules.
+//
+// The verdict is CARRIED, not recomputed here. Equality of the two AS numbers is the
+// ordinary rule but not the whole rule: RFC 7705 Section 4.2 lets a renumbering speaker
+// form one iBGP session under either of its two AS numbers, and requires it to "treat
+// UPDATEs sent and received to this peer as if this was a natively configured iBGP
+// session". A migrating session therefore has LocalASN != PeerASN and is internal.
+//
+// PeerSettings.isIBGPWith (reactor/session_as_migration.go) is the ONE rule that decides
+// it, and negotiateWith puts its answer in this field. Recomputing the equality here was a
+// second declaration of the verdict, and it was fed a PeerASN of 0 on every session.
 func (p *PeerIdentity) IsIBGP() bool {
-	return p.LocalASN == p.PeerASN
+	return p.Internal
 }

@@ -95,130 +95,89 @@ type RFC7606ValidationResult struct {
 
 // Attribute type codes per RFC 4271.
 const (
-	attrCodeOrigin        uint8 = 1
-	attrCodeASPath        uint8 = 2
-	attrCodeNextHop       uint8 = 3
-	attrCodeMED           uint8 = 4
-	attrCodeLocalPref     uint8 = 5
-	attrCodeAtomicAgg     uint8 = 6
-	attrCodeAggregator    uint8 = 7
-	attrCodeCommunity     uint8 = 8
-	attrCodeOriginatorID  uint8 = 9
-	attrCodeClusterList   uint8 = 10
-	attrCodeMPReachNLRI   uint8 = 14
-	attrCodeMPUnreachNLRI uint8 = 15
-	attrCodeExtCommunity  uint8 = 16
-	// RFC 7311 Section 3: "The attribute type code for the AIGP attribute is 26."
-	// Derived from the core declaration rather than repeated, so the flags check below
-	// and attribute.AIGP cannot come to disagree about which codepoint AIGP owns.
-	attrCodeAIGP                 = uint8(attribute.AttrAIGP)
+	attrCodeOrigin         uint8 = 1
+	attrCodeASPath         uint8 = 2
+	attrCodeNextHop        uint8 = 3
+	attrCodeMED            uint8 = 4
+	attrCodeLocalPref      uint8 = 5
+	attrCodeAtomicAgg      uint8 = 6
+	attrCodeAggregator     uint8 = 7
+	attrCodeCommunity      uint8 = 8
+	attrCodeOriginatorID   uint8 = 9
+	attrCodeClusterList    uint8 = 10
+	attrCodeMPReachNLRI    uint8 = 14
+	attrCodeMPUnreachNLRI  uint8 = 15
+	attrCodeExtCommunity   uint8 = 16
 	attrCodeLargeCommunity uint8 = 32
 	attrCodePrefixSID      uint8 = 40
 )
 
 // Attribute flags bits (RFC 4271 Section 4.3).
 const (
-	attrFlagOptional   uint8 = 0x80 // Bit 0: Optional (1) vs Well-known (0)
-	attrFlagTransitive uint8 = 0x40 // Bit 1: Transitive (1) vs Non-transitive (0)
+	attrFlagOptional uint8 = 0x80 // Bit 0: Optional (1) vs Well-known (0)
 )
 
-// wellKnownAttrs lists attributes that are well-known (not optional).
-// Well-known attributes must NOT have the Optional bit set.
-// Well-known attributes MUST have the Transitive bit set.
-var wellKnownAttrs = map[uint8]bool{
-	attrCodeOrigin:    true,
-	attrCodeASPath:    true,
-	attrCodeNextHop:   true,
-	attrCodeLocalPref: true, // Well-known for IBGP
-	attrCodeAtomicAgg: true,
-}
-
-// validateAttributeFlags validates attribute flags per RFC 7606 Section 3.c, plus the two
-// per-attribute flag rules other RFCs add: RFC 4760 for the MP attributes and RFC 7311
-// Section 3.2 for AIGP.
+// validateAttributeFlags validates attribute flags per RFC 7606 Section 3.c, for every
+// attribute whose own specification fixes a value for the Optional or Transitive bit.
 //
-// Well-known attributes must:
-// - NOT have the Optional bit set (they are mandatory)
-// - MUST have the Transitive bit set
+// Which values an attribute owes, and the handling its specification mandates for a
+// received octet that disagrees, are declared once on the attribute code
+// (attribute.AttributeCode.FlagsConflict). Nothing about an attribute is decided here: this
+// function maps that verdict onto the RFC 7606 action ze takes, and writes the
+// operator-facing description.
 //
-// Returns nil if valid, or RFC7606ValidationResult carrying the action that attribute's
-// own RFC asks for: session reset, treat-as-withdraw, or attribute discard.
+// Returns nil when the flags raise no conflict, which includes every attribute ze holds no
+// specification for. RFC 4271 Section 5 requires an unrecognized optional transitive
+// attribute to be passed on unchanged, so an octet ze has no specified values for is never
+// judged.
 func validateAttributeFlags(code, flags uint8) *RFC7606ValidationResult {
-	// RFC 7606 Section 5.3: the MP_REACH_NLRI/MP_UNREACH_NLRI attribute is "incorrect" if
-	// its flags are inconsistent with RFC 4760, which defines both as optional (Optional bit
-	// set) and non-transitive (Transitive bit clear). Section 3(j) escalates that to session
-	// reset -- STRONGER than the generic Section 3.c treat-as-withdraw for a well-known flag
-	// conflict -- because an MP attribute whose framing is in doubt cannot have its NLRI
-	// boundaries trusted. Only the Optional and Transitive bits are constrained: the
-	// Extended-Length bit (0x10) is a legal encoding choice and the Partial bit (0x20) is
-	// not restricted by RFC 4760, so neither is rejected here.
-	if code == attrCodeMPReachNLRI || code == attrCodeMPUnreachNLRI {
-		if flags&attrFlagOptional == 0 || flags&attrFlagTransitive != 0 {
-			var b textbuf.Buffer
-			return &RFC7606ValidationResult{
-				Action:   RFC7606ActionSessionReset,
-				AttrCode: code,
-				Description: b.Reset().Str("RFC 7606 Section 5.3: MP attribute ").Int(int64(code)).
-					Str(" flags inconsistent with RFC 4760 (must be optional, non-transitive)").String(),
-			}
-		}
+	conflict, mandate := attribute.AttributeCode(code).FlagsConflict(attribute.AttributeFlags(flags))
+	if conflict == attribute.FlagsConflictNone {
 		return nil
 	}
 
-	// RFC 7311 Section 3.2: "If a BGP path attribute is received that has the AIGP
-	// attribute codepoint but also has the transitive bit set, the attribute MUST be
-	// considered to be a malformed AIGP attribute and MUST be discarded as specified in
-	// this section."
-	//
-	// "As specified in this section" is attribute discard, not treat-as-withdraw and not a
-	// session reset. The same section says a malformed AIGP "MUST be treated exactly as if
-	// it were an unrecognized non-transitive attribute", which "is equivalent to the
-	// 'attribute discard' action specified in [BGP-ERROR]". So the UPDATE keeps its routes
-	// and loses only the AIGP.
-	//
-	// The discard is not silent. recordError turns this verdict into a DiscardEntry, and
-	// ApplyAttrDiscard stamps an ATTR_TOMBSTONE carrying code 26 and the reason below, so a
-	// downstream reader tells "an AIGP was discarded" from "no AIGP was present" by reading
-	// the marker rather than by finding nothing.
-	if code == attrCodeAIGP {
-		if flags&attrFlagTransitive != 0 {
-			return &RFC7606ValidationResult{
-				Action:      RFC7606ActionAttributeDiscard,
-				AttrCode:    code,
-				Reason:      DiscardReasonMalformedValue,
-				Description: "RFC 7311 Section 3.2: AIGP attribute received with the transitive bit set is malformed",
-			}
-		}
-		// AIGP is optional, so nothing else about its flags is constrained.
-		return nil
+	// FlagsConflictUnspecified says a declaration fixed a value for one of the two bits and
+	// mandated no handling for a received octet that disagrees. That is an authoring hole
+	// rather than anything the peer did, so there is no section to cite and mandate is empty.
+	// Naming it here keeps the description honest and keeps the fall-through below a named
+	// branch rather than a zero nobody reads.
+	if conflict == attribute.FlagsConflictUnspecified {
+		mandate = "no declared handling"
 	}
 
-	if !wellKnownAttrs[code] {
-		// Optional attribute - flags not restricted
-		return nil
-	}
+	var b textbuf.Buffer
+	description := b.Reset().Str(mandate).Str(": attribute ").Int(int64(code)).
+		Str(" flags conflict with its specified optional and transitive values").String()
 
-	// Well-known attribute: must NOT be optional
-	if flags&attrFlagOptional != 0 {
-		var b textbuf.Buffer
+	if conflict == attribute.FlagsConflictSessionReset {
 		return &RFC7606ValidationResult{
-			Action:      RFC7606ActionTreatAsWithdraw,
+			Action:      RFC7606ActionSessionReset,
 			AttrCode:    code,
-			Description: b.Reset().Str("RFC 7606 Section 3.c: well-known attribute ").Int(int64(code)).Str(" marked as optional").String(),
+			Description: description,
 		}
 	}
 
-	// Well-known attribute: must be transitive
-	if flags&attrFlagTransitive == 0 {
-		var b textbuf.Buffer
+	if conflict == attribute.FlagsConflictAttributeDiscard {
+		// The discard is not silent. recordError turns this verdict into a DiscardEntry, and
+		// ApplyAttrDiscard stamps an ATTR_TOMBSTONE carrying the attribute code and the reason
+		// below, so a downstream reader tells "this attribute was discarded" from "no such
+		// attribute was present" by reading the marker rather than by finding nothing.
 		return &RFC7606ValidationResult{
-			Action:      RFC7606ActionTreatAsWithdraw,
+			Action:      RFC7606ActionAttributeDiscard,
 			AttrCode:    code,
-			Description: b.Reset().Str("RFC 7606 Section 3.c: well-known attribute ").Int(int64(code)).Str(" not transitive").String(),
+			Reason:      DiscardReasonMalformedValue,
+			Description: description,
 		}
 	}
 
-	return nil
+	// Treat-as-withdraw is the Section 3.c default, and it is also the answer for a verdict
+	// this build does not know: accepting an attribute whose flags conflict is the one thing
+	// Section 3.c forbids, so an unknown verdict fails closed.
+	return &RFC7606ValidationResult{
+		Action:      RFC7606ActionTreatAsWithdraw,
+		AttrCode:    code,
+		Description: description,
+	}
 }
 
 // ValidateUpdateRFC7606 validates an UPDATE message per RFC 7606.

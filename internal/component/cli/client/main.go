@@ -468,7 +468,7 @@ func (c *cliClient) execute(command, format string, tw *unicli.TranscriptWriter)
 	if tw != nil {
 		transcript = &textbuf.Buffer{}
 	}
-	out := newDaemonOutput(os.Stdout, command, transcript)
+	out := newDaemonOutput(os.Stdout, os.Stderr, command, transcript)
 
 	// This emitter has no command of its own: the daemon resolves the operator's
 	// text against the registry and answers an unknown one.
@@ -486,6 +486,14 @@ func (c *cliClient) execute(command, format string, tw *unicli.TranscriptWriter)
 	}
 	if closeErr := out.Close(); closeErr != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", closeErr)
+		return 1
+	}
+	// The daemon runs the operator's pipe chain, and a chain the answer's shape
+	// cannot support is refused AFTER the command has run: the refusal then
+	// arrives as the answer itself. daemonOutput has already sent it to stderr,
+	// and the status is what a script reads, so it says refused here. This is
+	// the reading emitLocalResult does for a locally served answer.
+	if out.Refused() {
 		return 1
 	}
 	return 0

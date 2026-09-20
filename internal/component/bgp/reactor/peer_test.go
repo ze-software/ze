@@ -875,7 +875,7 @@ func TestPeerSetEncodingContexts(t *testing.T) {
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
 		&capability.ASN4{ASN: 65001},
 	}
-	neg := capability.Negotiate(local, remote, 65000, 65001)
+	neg := capability.Negotiate(local, remote, capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001})
 
 	// Set contexts
 	peer.setEncodingContexts(neg)
@@ -907,7 +907,7 @@ func TestPeerClearEncodingContexts(t *testing.T) {
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
 		&capability.ASN4{ASN: 65001},
 	}
-	neg := capability.Negotiate(local, remote, 65000, 65001)
+	neg := capability.Negotiate(local, remote, capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001})
 	peer.setEncodingContexts(neg)
 
 	require.NotNil(t, peer.recvContext(), "recvCtx should be set before clear")
@@ -948,7 +948,7 @@ func TestPeerEncodingContextAddPath(t *testing.T) {
 			{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast, Mode: capability.AddPathReceive},
 		}},
 	}
-	neg := capability.Negotiate(local, remote, 65000, 65001)
+	neg := capability.Negotiate(local, remote, capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001})
 	peer.setEncodingContexts(neg)
 
 	ipv4 := bgpctx.Family{AFI: 1, SAFI: 1}

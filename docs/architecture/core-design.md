@@ -1979,14 +1979,18 @@ withdrawal cannot precede the announcement it takes back.
 The capability set is the one conditional member. `negotiationOutcomeUnchanged`
 (`peer_settings_negotiation.go`) re-runs the negotiation: it builds the candidate
 OPEN from the new settings with `buildOpen`, negotiates it against the capabilities
-the peer really advertised, and compares the result with the running session's. An
-identical outcome means the session is already what the new config asks for, so the
+the peer really advertised, and compares the result with the running session's. Both
+runs take ONE identity, because a reload changes the capabilities ze offers and never
+who the two speakers are: the peer AS comes from `sessionPeerAS` (`peer.go`) and the
+internal verdict from `PeerSettings.isIBGPWith`, and neither negotiation derives them.
+An identical outcome means the session is already what the new config asks for, so the
 set is delivered and the session stays up. Anything the probe cannot prove
 identical restarts, an unparsable OPEN and a peer with no session included. RFC 5492
 Section 2 is why there is no third option: a peer's capabilities come from its OPEN
 alone, so a change applies at the next OPEN or not at all.
 
 <!-- source: internal/component/bgp/reactor/peer_settings_negotiation.go -- negotiationOutcomeUnchanged, openHeaderEqual -->
+<!-- source: internal/component/bgp/reactor/peer.go -- sessionPeerAS, the one answer to a session's peer AS -->
 
 The swap writes onto the struct the peer points at, under `p.mu`, rather than
 replacing the pointer: `Session` holds its own copy of the same pointer, so

@@ -93,7 +93,15 @@ connection initiated by the speaker with the larger AS number. Ze also refuses t
 start with its own `router-id 0.0.0.0`, since Section 2.1 defines the BGP Identifier
 as a non-zero integer and every conformant peer would reject such an OPEN.
 
-<!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — DetectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
+Two facts decide "internal peer" for that check, and neither is taken from the
+OPEN alone. The AS is the configured `session { asn { remote } }` when the session
+has one, and the AS the peer advertises only for a dynamic peer that has none. That
+AS is internal when it equals Ze's own AS, and also when it equals a configured
+`session { asn { migration } }`: RFC 7705 Section 4.2 makes a peer reached under
+either ASN of a migrating pair an iBGP peer, so the Section 2.2 identifier check
+binds it exactly as it binds a peer in the same AS.
+
+<!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/reactor/peer.go — sessionPeerAS; internal/component/bgp/reactor/session_as_migration.go — isIBGPWith; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — DetectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
 
 ## OSPF
 

@@ -33,7 +33,7 @@ func TestPeerPathsLimitOutputAbsence(t *testing.T) {
 				}}})
 			}
 			p := NewPeer(negotiationSettings(caps...))
-			p.negotiated.Store(NewNegotiatedCapabilities(capability.Negotiate(caps, caps, 65001, 65002)))
+			p.negotiated.Store(NewNegotiatedCapabilities(capability.Negotiate(caps, caps, capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002})))
 			if state == "disconnected" {
 				// The peer lifecycle clears this published snapshot on teardown.
 				p.negotiated.Store(nil)

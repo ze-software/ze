@@ -103,7 +103,7 @@ func TestNegotiateBFDStrictMode(t *testing.T) {
 				remote = append(remote, &BFDStrictMode{})
 			}
 
-			neg := Negotiate(local, remote, 65001, 65002)
+			neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 			require.Equal(t, tc.want, neg.BFDStrictMode)
 			require.Equal(t, tc.want, neg.Session.BFDStrictMode,
 				"the session sub-component carries the same answer")
@@ -133,10 +133,10 @@ func TestNegotiateBFDStrictMode(t *testing.T) {
 // CheckRequiredCodes, where an unlisted code defaults to false and would be
 // reported missing even on a session that negotiated it.
 func TestBFDStrictModeRequiredCode(t *testing.T) {
-	both := Negotiate([]Capability{&BFDStrictMode{}}, []Capability{&BFDStrictMode{}}, 1, 2)
+	both := Negotiate([]Capability{&BFDStrictMode{}}, []Capability{&BFDStrictMode{}}, PeerIdentity{LocalASN: 1, PeerASN: 2})
 	require.Empty(t, both.CheckRequiredCodes([]Code{CodeBFDStrictMode}))
 
-	oneSided := Negotiate([]Capability{&BFDStrictMode{}}, nil, 1, 2)
+	oneSided := Negotiate([]Capability{&BFDStrictMode{}}, nil, PeerIdentity{LocalASN: 1, PeerASN: 2})
 	require.Equal(t, []Code{CodeBFDStrictMode}, oneSided.CheckRequiredCodes([]Code{CodeBFDStrictMode}))
 }
 

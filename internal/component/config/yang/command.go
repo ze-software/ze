@@ -826,11 +826,22 @@ func getTaskSupportExtension(entry *gyang.Entry) string {
 // reader answers all three.
 func GetHelpExtension(exts []*gyang.Statement) string {
 	for _, ext := range exts {
-		if ext.Keyword == HelpExtensionKeyword || strings.HasSuffix(ext.Keyword, ":help") {
+		if IsHelpExtension(ext) {
 			return ext.Argument
 		}
 	}
 	return ""
+}
+
+// IsHelpExtension reports whether one statement declares a node's summary. A
+// caller that REPLACES the summary on a merged entry needs the same reading
+// GetHelpExtension does, and one reading means the two cannot disagree about
+// which prefix spells it.
+func IsHelpExtension(ext *gyang.Statement) bool {
+	if ext == nil {
+		return false
+	}
+	return ext.Keyword == HelpExtensionKeyword || strings.HasSuffix(ext.Keyword, ":help")
 }
 
 // HelpExtensionKeyword is the keyword a ze:help statement carries once the

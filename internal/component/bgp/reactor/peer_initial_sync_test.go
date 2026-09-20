@@ -696,7 +696,7 @@ func TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink(t *testing.T) {
 // defect in the producer that fills it.
 func TestInitialSyncEORSentWhenNeitherSideDeclaredAFamily(t *testing.T) {
 	peer, conn := newInitialSyncPeer(t, true)
-	peer.negotiated.Store(NewNegotiatedCapabilities(capability.Negotiate(nil, nil, 65000, 65001)))
+	peer.negotiated.Store(NewNegotiatedCapabilities(capability.Negotiate(nil, nil, capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001})))
 
 	peer.sendInitialRoutes()
 

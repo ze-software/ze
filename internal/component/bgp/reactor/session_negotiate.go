@@ -25,13 +25,30 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 		return
 	}
 
-	// Negotiate.
-	s.negotiated = capability.Negotiate(
-		localCaps,
-		peerCaps,
-		s.settings.LocalAS,
-		s.peerOpen.ASN4,
-	)
+	// Negotiate. The peer's AS is resolved ONCE (sessionPeerAS, peer.go) and the internal
+	// verdict comes from the one rule that owns it (isIBGPWith, session_as_migration.go),
+	// because negotiation itself can read neither off the wire.
+	//
+	// RFC 6793 Section 4.1: "When a NEW BGP speaker processes an OPEN message from another
+	// NEW BGP speaker, it MUST use the AS number encoded in the Capability Value field of
+	// the 'support for four-octet AS number capability' in lieu of the 'My Autonomous
+	// System' field of the OPEN message." openAdvertisedAS is where ze obeys it, and
+	// sessionPeerAS reaches it for a peer with no configured AS.
+	//
+	// RFC 7705 Section 4.2 is the second reason: a renumbering speaker forms one iBGP
+	// session under either of two configured ASNs, so the internal verdict is a question
+	// about configuration rather than about the two numbers being equal.
+	//
+	// s.peerOpen.ASN4 used to be passed here as the peer's AS. UnpackOpen never populates
+	// that field, so the identity carried PeerASN 0 on every established session, and every
+	// reader of the encoding context's IsIBGP -- the commit rail's LOCAL_PREF and AS_PATH
+	// decisions among them (rib/commit.go) -- took the eBGP arm for a genuine iBGP peer.
+	peerAS := sessionPeerAS(s.settings.PeerAS, s.peerOpen)
+	s.negotiated = capability.Negotiate(localCaps, peerCaps, capability.PeerIdentity{
+		LocalASN: s.settings.LocalAS,
+		PeerASN:  peerAS,
+		Internal: s.settings.isIBGPWith(peerAS),
+	})
 
 	s.writeMu.Lock()
 	s.initPathsLimit(s.negotiated.Encoding)

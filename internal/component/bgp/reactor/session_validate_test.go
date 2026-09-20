@@ -250,7 +250,7 @@ func TestValidateUpdateFamilies_Matching(t *testing.T) {
 		[]capability.Capability{
 			&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
 		},
-		65001, 65002,
+		capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002},
 	)
 
 	// UPDATE with MP_REACH_NLRI for IPv4 unicast (matches negotiated).
@@ -285,7 +285,7 @@ func TestValidateUpdateFamilies_NotNegotiated(t *testing.T) {
 		[]capability.Capability{
 			&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
 		},
-		65001, 65002,
+		capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002},
 	)
 
 	// UPDATE with MP_REACH_NLRI for IPv6 unicast (NOT negotiated).
@@ -332,7 +332,7 @@ func TestValidateUpdateFamilies_IgnoreMode(t *testing.T) {
 		[]capability.Capability{
 			&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
 		},
-		65001, 65002,
+		capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002},
 	)
 
 	// IPv6 UPDATE: dropped rather than refused in ignore mode.

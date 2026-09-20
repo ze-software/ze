@@ -728,11 +728,17 @@ func TestTranscodeASPath_4to2_MalformedAggregator(t *testing.T) {
 }
 
 // TestTranscodeASPath_4to2_MalformedAggregatorTinyValue verifies that a
-// malformed AGGREGATOR with value length < 2 is copied verbatim (tombstone
-// cannot fit the code+reason pair).
+// malformed AGGREGATOR whose value cannot hold the (code, reason) pair is still
+// DISCARDED, and that the marker is rebuilt at its own fixed size rather than
+// inherited from the attribute.
 //
-// VALIDATES: WriteTombstone fallback when valueLen < 2.
-// PREVENTS: Panic or corrupt output on degenerate malformed AGGREGATOR.
+// VALIDATES: RFC 7606 Section 7.7 -- an AGGREGATOR of any length but 6 or 8
+// "SHALL be handled using the approach of 'attribute discard'", which Section 2
+// defines as "the malformed attribute MUST be discarded and the UPDATE message
+// continues to be processed". No length is exempt, so the in-place marker not
+// fitting cannot license forwarding the octets.
+// PREVENTS: The WriteTombstone zero being read as leave to copy the attribute
+// verbatim, which relayed a malformed AGGREGATOR to every narrowed destination.
 func TestTranscodeASPath_4to2_MalformedAggregatorTinyValue(t *testing.T) {
 	origin := buildOriginAttr()
 	aspath := buildASPathAttr([]attribute.ASPathSegment{
@@ -749,11 +755,13 @@ func TestTranscodeASPath_4to2_MalformedAggregatorTinyValue(t *testing.T) {
 	require.Positive(t, n)
 	result := dst[:n]
 
-	// No tombstone (value too short). AGGREGATOR copied verbatim.
-	_, _, _, found := parseTombstoneFromPayload(t, result)
-	assert.False(t, found, "tombstone should not be generated for 1-byte value")
+	origCode, reason, valLen, found := parseTombstoneFromPayload(t, result)
+	require.True(t, found, "the discard must still be marked, at the rebuilt size")
+	assert.Equal(t, byte(attribute.AttrAggregator), origCode, "original code preserved")
+	assert.Equal(t, TombstoneInvalidLength, reason, "reason: invalid length")
+	assert.Equal(t, TombstoneMinValueLen, valLen,
+		"draft Section 5.1: the rebuilt marker carries one (code, reason) pair, not the original length")
 
-	// Verify output contains the original malformed AGGREGATOR bytes.
-	// The attribute header (C0 07 01) + value (FF) should appear in the output.
-	assert.Contains(t, string(result), string(malformedAgg), "malformed AGGREGATOR bytes preserved")
+	assert.NotContains(t, string(result), string(malformedAgg),
+		"RFC 7606 Section 2: a discarded attribute does not reach the destination")
 }

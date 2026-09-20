@@ -56,7 +56,7 @@ import (
 // makeNegotiated creates a Negotiated state from local/remote capabilities.
 // Uses fixed ASNs for simplicity in tests.
 func makeNegotiated(local, remote []capability.Capability, peerAS uint32) *capability.Negotiated {
-	return capability.Negotiate(local, remote, 65000, peerAS)
+	return capability.Negotiate(local, remote, capability.PeerIdentity{LocalASN: 65000, PeerASN: peerAS, Internal: peerAS == 65000})
 }
 
 // baseCaps returns basic IPv4 unicast + ASN4 capabilities (4-byte AS speaker).

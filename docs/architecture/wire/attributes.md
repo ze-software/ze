@@ -64,6 +64,24 @@ All path attributes share a common header:
 | Optional Transitive | 0xC0 (Optional + Transitive) |
 | Optional Non-transitive | 0x80 (Optional only) |
 
+Which shape each attribute owes is declared once, per type code, and ze judges a received
+flags octet against that declaration: a conflicting Optional or Transitive bit is
+treat-as-withdraw (RFC 7606 Section 3.c), unless the attribute's own RFC mandates other
+handling. MP_REACH_NLRI and MP_UNREACH_NLRI carry a session reset and a transitive AIGP an
+attribute discard. An attribute ze does not recognize fixes no values, so its flags are
+never judged.
+
+The declaration travels with the registration. `attribute.RegisterName` takes the type
+code, the display name and the flags specification in one call, and it is the only writer
+of all three registries, so an attribute cannot become recognized without stating what its
+flags must be. A plugin declares its own attribute that way: BGP-LS (29) in
+`plugins/nlri/ls/register.go` and OTC (35) in `plugins/role/register.go` each pass one of
+`WellKnownFlags`, `OptionalTransitiveFlags` or `OptionalNonTransitiveFlags`, the only
+constructors of a `FlagsSpec`. The zero value declares nothing, and `RegisterName` panics
+on it at startup rather than registering an attribute whose flags nothing judges.
+<!-- source: internal/core/bgp/attribute/flags_spec.go -- flagsSpecs, AttributeCode.FlagsConflict -->
+<!-- source: internal/core/bgp/attribute/attribute.go -- RegisterName -->
+
 ---
 
 ## Attribute Type Codes
@@ -739,7 +757,9 @@ attribute count is 10, and 8 covers 99.9% of the corpus.
 
 ## BGP-LS Attribute (Type 29)
 
-Code 29, Optional Non-Transitive. Defined by RFC 7752 (BGP Link-State).
+Code 29, Optional Non-Transitive. RFC 9552 Section 5.3, which obsoletes RFC 7752: "The
+BGP-LS Attribute (assigned value 29 by IANA) is an optional, non-transitive BGP Attribute".
+The ls plugin passes those two fixed bit values to `attribute.RegisterName` with the name.
 
 The BGP-LS attribute carries node, link, and prefix properties as a sequence of TLVs (Type-Length-Value). Ze decodes 40 TLV sub-types organized into categories:
 
@@ -753,7 +773,7 @@ The BGP-LS attribute carries node, link, and prefix properties as a sequence of 
 Each TLV: 2-byte type + 2-byte length + value. Decoded via offset-based iterators (no allocation). See `docs/architecture/wire/bgpls-attribute-naming.md` for the full naming convention and JSON key mapping.
 
 Source: `internal/component/bgp/plugins/nlri/ls/`.
-<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- RegisterName(29, "BGP_LS") -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- the BGP-LS code 29 registration -->
 <!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGP-LS TLV decoding -->
 
 ---
@@ -778,14 +798,26 @@ the decision rather than on the bytes.
 
 | Rail | Procedure | Marker value |
 |------|-----------|--------------|
-| `wireu.TranscodeASPath`, which narrows one payload for an OLD-speaker destination | in place | the pair, then the discarded attribute's remaining octets zeroed |
+| `wireu.TranscodeASPath`, which narrows one payload for an OLD-speaker destination | in place, or rebuild for a value under 2 octets | the pair, then the discarded attribute's remaining octets zeroed |
 | `wireu.ASPathEdit`, which records per-destination operations the forward path rebuilds from | rebuild | the pair alone, 2 octets |
 
 Both mark the same attribute: an AGGREGATOR whose length is neither 6 nor 8, which
-RFC 7606 Section 7.7 makes malformed and subject to attribute discard. An
-AGGREGATOR whose value is under 2 octets is forwarded unchanged on both rails,
-because the in-place procedure cannot fit the pair in it, and the two rails answer
-one attribute the same way (`plan/journal/silent-fall-through.md`).
+RFC 7606 Section 7.7 makes malformed and subject to attribute discard.
+
+No length is exempt from the discard, because RFC 7606 Section 2 states the
+treatment without a condition: "the malformed attribute MUST be discarded and the
+UPDATE message continues to be processed". A value under 2 octets cannot hold the
+pair in the space it occupies, so the in-place procedure does not apply to it and
+the transcode rail takes the rebuild procedure for that one case, writing a
+2-octet marker in place of the attribute and adjusting the attribute-section
+length. `WriteTombstone` returning 0 is the guard that says so, and it is never
+leave to forward the attribute.
+
+The rebuild rail asks the question BEFORE it picks a rail
+(`ASPathEdit.recordAggregatorDiscard`, called from `ASPathEdit.Record`), because
+the answer depends on neither the AS number width nor the prepend. A destination
+of the same width as the source reaches no AS-path re-encoding at all, and it is
+owed the discard just the same.
 
 The rebuild rail reaches the wire through one handler registered for code 252,
 `reactor.tombstoneHandler`. It exists because the flags of every other attribute
@@ -824,13 +856,13 @@ Source: `internal/component/bgp/message/attr_discard.go` (receive-time stamp),
 `internal/component/bgp/wireu/tombstone.go` (`WriteTombstone`),
 `internal/component/bgp/wireu/aspath_transcode.go` (the marker written in place
 over an AGGREGATOR ze cannot re-encode),
-`internal/component/bgp/wireu/aspath_slot.go` (`recordAggregator`, the same
-decision recorded as operations for the rebuild),
+`internal/component/bgp/wireu/aspath_slot.go` (`recordAggregatorDiscard`, the
+same decision recorded as operations for the rebuild),
 `internal/component/bgp/reactor/filter_delta_handlers.go` (`tombstoneHandler`,
 which emits the recorded marker).
 <!-- source: internal/core/bgp/attribute/attribute.go -- AttrTombstone = 252 -->
 <!-- source: internal/component/bgp/wireu/tombstone.go -- WriteTombstone -->
-<!-- source: internal/component/bgp/wireu/aspath_slot.go -- recordAggregator -->
+<!-- source: internal/component/bgp/wireu/aspath_slot.go -- recordAggregatorDiscard -->
 <!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- tombstoneHandler -->
 
 ---

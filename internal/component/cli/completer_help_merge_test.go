@@ -15,7 +15,9 @@ import (
 // description (the long explanation) and one child, which is the shape a
 // plugin module writes when it attaches leaves to a node another module also
 // declares. The ze:help summary is the same on every declaration, so the test
-// can check that the merge leaves the extension list alone.
+// can check that one sentence written twice is shown once. The row for
+// declarations that summarize the node differently is in
+// completer_help_summary_merge_test.go.
 func helpEntry(help, child string) *gyang.Entry {
 	const name = "interface"
 	return &gyang.Entry{
@@ -58,7 +60,7 @@ func TestMergeKeepsEveryDeclarationsHelp(t *testing.T) {
 		t.Errorf("the input entry was mutated: %q", got)
 	}
 	if got := yang.GetHelpExtension(merged.Exts); got != "An interface." {
-		t.Errorf("merged summary = %q, want the first declaration's ze:help", got)
+		t.Errorf("merged summary = %q, want the one summary both declarations carry", got)
 	}
 }
 

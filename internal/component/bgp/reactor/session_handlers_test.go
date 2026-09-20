@@ -449,7 +449,7 @@ func TestHandleRouteRefresh_NoCapability(t *testing.T) {
 			&capability.ASN4{ASN: 65002},
 			&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
 		},
-		65001, 65002,
+		capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002},
 	)
 
 	// Valid ROUTE-REFRESH body: AFI=1 (IPv4), Subtype=0 (normal), SAFI=1 (Unicast)
@@ -482,7 +482,7 @@ func TestHandleRouteRefresh_NonNegotiatedFamily(t *testing.T) {
 			&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
 			&capability.RouteRefresh{},
 		},
-		65001, 65002,
+		capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002},
 	)
 
 	// Request ROUTE-REFRESH for IPv6 unicast (not negotiated)

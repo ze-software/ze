@@ -1774,6 +1774,18 @@ the session directory. The marker was written when a session was one agent.
 
 ## The RFC-tag lock fires on a tag the same session just added (2026-09-09)
 
+**Seen twice more on 2026-09-20, in one session, by two different agents.** One
+could not repair a compile error in a tagged test it had written minutes
+earlier; it moved the draft to scratch, rewrote it, and added the tag last. The
+other met the same refusal from the Bash side when it tried to delete its own
+draft. Both reached a correct result and both paid for it, which is what makes
+this recurrence rather than bad luck: the workaround below is now being
+rediscovered faster than it is being fixed. The producer is
+`proposedRFCChanges` (`internal/le/testweakened/proposed.go`), which reads the
+WORKING-TREE text as the protected version; `revisionText` in the same package
+already reads a file at a revision, so the fix named below has its helper
+waiting for it.
+
 `pretool-writeedit` refuses a body change to a test carrying an `RFC requirement:`
 tag until a discrimination record exists. That is right for a tag already in HEAD,
 where a published claim rests on it. It also fires when a session ADDS the tag and

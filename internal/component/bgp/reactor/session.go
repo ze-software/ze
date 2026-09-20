@@ -914,18 +914,11 @@ func (s *Session) DetectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 // takes p.mu from Session code -- or fires a peer callback under s.mu -- closes
 // the cycle and deadlocks connection collision resolution.
 func (s *Session) collisionPeerAS() uint32 {
-	if as := s.settings.PeerAS; as != 0 {
-		return as
-	}
-
 	s.mu.RLock()
 	open := s.peerOpen
 	s.mu.RUnlock()
 
-	if open == nil {
-		return 0
-	}
-	return openAdvertisedAS(open)
+	return sessionPeerAS(s.settings.PeerAS, open)
 }
 
 // Start triggers the ManualStart event to begin the connection process.

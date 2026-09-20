@@ -10,14 +10,10 @@ import (
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
 func init() {
-	// RFC 8669: Register Prefix SID attribute (type 40).
-	attribute.RegisterName(40, "PREFIX_SID")
-
 	reg := registry.Registration{
 		Name:                  "bgp-nlri-labeled",
 		Description:           "Labeled Unicast family plugin (RFC 8277)",

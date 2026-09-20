@@ -62,7 +62,7 @@ func TestLinkLocalNextHopCapabilityParse(t *testing.T) {
 // true (Peer.linkLocalOnlyNextHopPermitted,
 // internal/component/bgp/reactor/peer.go).
 func TestLinkLocalNextHopNegotiatedOnlyWhenBothAdvertiseIt(t *testing.T) {
-	both := Negotiate([]Capability{&LinkLocalNextHop{}}, []Capability{&LinkLocalNextHop{}}, 65000, 65001)
+	both := Negotiate([]Capability{&LinkLocalNextHop{}}, []Capability{&LinkLocalNextHop{}}, PeerIdentity{LocalASN: 65000, PeerASN: 65001})
 	require.True(t, both.LinkLocalNextHop, "both speakers advertised it")
 	require.True(t, both.Session.LinkLocalNextHop, "the session view carries the same answer")
 
@@ -75,13 +75,13 @@ func TestLinkLocalNextHopNegotiatedOnlyWhenBothAdvertiseIt(t *testing.T) {
 		{"neither", nil, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			neg := Negotiate(tc.local, tc.remote, 65000, 65001)
+			neg := Negotiate(tc.local, tc.remote, PeerIdentity{LocalASN: 65000, PeerASN: 65001})
 			require.False(t, neg.LinkLocalNextHop,
 				"one side advertising it is not a negotiation")
 		})
 	}
 
-	oneSided := Negotiate([]Capability{&LinkLocalNextHop{}}, nil, 65000, 65001)
+	oneSided := Negotiate([]Capability{&LinkLocalNextHop{}}, nil, PeerIdentity{LocalASN: 65000, PeerASN: 65001})
 	found := false
 	for _, m := range oneSided.Mismatches {
 		if m.Code == CodeLinkLocalNextHop {

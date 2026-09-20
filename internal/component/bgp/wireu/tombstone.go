@@ -18,6 +18,12 @@ const (
 	TombstoneLocalPolicy   byte = 4
 )
 
+// TombstoneMinValueLen is the smallest ATTR_TOMBSTONE value, one (code, reason)
+// pair, per draft-mangin-idr-attr-tombstone-00 Section 4.3. It is also the
+// smallest attribute WriteTombstone can mark IN PLACE, because the marker there
+// inherits the discarded attribute's own length.
+const TombstoneMinValueLen = 2
+
 // WriteTombstone writes an ATTR_TOMBSTONE marker into dst at offset n,
 // replacing a malformed or policy-discarded attribute. The marker occupies
 // exactly the same wire space as the original attribute (no data movement).
@@ -31,10 +37,16 @@ const (
 //   - Value[2..]: zeroed
 //
 // Returns the number of bytes written (always hdrLen + valueLen).
-// If valueLen < 2, the (code, reason) pair cannot fit; returns 0 to signal
-// the caller should fall back to copy-verbatim.
+//
+// The zero return is a GUARD, and it says one thing only: the IN-PLACE form does
+// not fit, because a value shorter than TombstoneMinValueLen cannot hold the
+// (code, reason) pair. It does not say the discard may be skipped, and a caller
+// MUST NOT read it as leave to forward the attribute. RFC 7606 Section 2 makes
+// the discard unconditional, so the caller answers a zero by rebuilding the
+// marker at its own fixed size (draft-mangin-idr-attr-tombstone-00 Section 5.1),
+// which is what aspath_transcode.go does.
 func WriteTombstone(dst []byte, n int, origFlags byte, origCode attribute.AttributeCode, hdrLen, valueLen int, reason byte) int {
-	if valueLen < 2 {
+	if valueLen < TombstoneMinValueLen {
 		return 0
 	}
 

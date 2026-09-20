@@ -525,6 +525,19 @@ type Negotiated struct {
 
 <!-- source: internal/core/bgp/capability/negotiated.go -- Negotiated struct -->
 
+`Identity` is an INPUT to negotiation, not a result of it. `Negotiate` takes a
+`PeerIdentity` from its caller and copies it unchanged, because neither half is
+readable from the OPEN alone. A four-octet speaker sends AS_TRANS (23456) in My
+Autonomous System (RFC 6793 Section 3), so the peer's real AS is in the capability
+value or nowhere. RFC 7705 Section 4.2 lets a renumbering router hold an internal
+session under its second AS, so equal AS numbers are the ordinary internal case and
+not the whole rule. The reactor answers both before it negotiates: `sessionPeerAS`
+takes the configured AS before the advertised one, `PeerSettings.isIBGPWith` decides
+`Internal`, and `PeerIdentity.IsIBGP` returns that verdict unchanged.
+
+<!-- source: internal/core/bgp/capability/identity.go -- PeerIdentity, IsIBGP -->
+<!-- source: internal/component/bgp/reactor/session_negotiate.go -- negotiateWith, the PeerIdentity it states -->
+
 ---
 
 ## Capability Mode Enforcement

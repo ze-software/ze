@@ -441,9 +441,9 @@ func TestNegotiatedOutcomeEqualIgnoresMismatchesOnly(t *testing.T) {
 	peerCaps := []capability.Capability{capIPv4()}
 
 	withExtMsg := capability.Negotiate(
-		[]capability.Capability{capIPv4(), &capability.ExtendedMessage{}}, peerCaps, 65001, 65002)
+		[]capability.Capability{capIPv4(), &capability.ExtendedMessage{}}, peerCaps, capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 	withoutExtMsg := capability.Negotiate(
-		[]capability.Capability{capIPv4()}, peerCaps, 65001, 65002)
+		[]capability.Capability{capIPv4()}, peerCaps, capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	require.NotEmpty(t, withExtMsg.Mismatches, "the fixture must produce a mismatch to ignore")
 	require.Empty(t, withoutExtMsg.Mismatches)
@@ -452,7 +452,7 @@ func TestNegotiatedOutcomeEqualIgnoresMismatchesOnly(t *testing.T) {
 
 	supported := capability.Negotiate(
 		[]capability.Capability{capIPv4(), &capability.ExtendedMessage{}},
-		[]capability.Capability{capIPv4(), &capability.ExtendedMessage{}}, 65001, 65002)
+		[]capability.Capability{capIPv4(), &capability.ExtendedMessage{}}, capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 	assert.False(t, negotiatedOutcomeEqual(withoutExtMsg, supported),
 		"a capability the peer DOES offer changes the encoding and must stay visible")
 

@@ -1,0 +1,71 @@
+{
+  "rfc": "rfc7606",
+  "records": [
+    {
+      "rid": "RFC7606-3.c-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7606_flags_optional_test.go::TestRFC7606FlagsOptionalAttributeAsSpecifiedAccepted",
+      "unit-sha": "c5a20171e2efb893",
+      "claim-sha": "f3d91ac74a3a823d",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/flags_spec.go::FlagsConflict",
+      "producer-sha": "726dc4ceeeb2fd75",
+      "break": "body of FlagsConflict replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-3.c-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_flags_optional_test.go::TestRFC7606FlagsOptionalAttributeConflict",
+      "unit-sha": "369e84360a259d49",
+      "claim-sha": "ff955644c1d54838",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/flags_spec.go::FlagsConflict",
+      "producer-sha": "726dc4ceeeb2fd75",
+      "break": "body of FlagsConflict replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-3.c-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/rfc7606_flags_plugin_test.go::TestRFC7606FlagsPluginAttributeAsSpecifiedAccepted",
+      "unit-sha": "515ec55fe5a267fa",
+      "claim-sha": "67c09cc88f4cc0d8",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/flags_spec.go::FlagsConflict",
+      "producer-sha": "726dc4ceeeb2fd75",
+      "break": "body of FlagsConflict replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-3.c-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/rfc7606_flags_plugin_test.go::TestRFC7606FlagsPluginAttributeConflict",
+      "unit-sha": "f74ab37ffa477d35",
+      "claim-sha": "671258240bd77871",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/flags_spec.go::FlagsConflict",
+      "producer-sha": "726dc4ceeeb2fd75",
+      "break": "body of FlagsConflict replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-7.7-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc7606_aggregator_relay_test.go::TestForwardDiscardsMalformedAggregatorAtMatchingWidth",
+      "unit-sha": "c66bbbc1fe621a27",
+      "claim-sha": "f24e7aa5ff0605bd",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/aspath_slot.go::recordAggregatorDiscard",
+      "producer-sha": "94123ef5bb8e3b85",
+      "break": "body of recordAggregatorDiscard replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-7.7-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc7606_aggregator_relay_test.go::TestForwardRelaysWellFormedAggregatorAtMatchingWidth",
+      "unit-sha": "d0039450bae86136",
+      "claim-sha": "744bf8dc37d76cb9",
+      "route": "revert",
+      "producer": "internal/component/bgp/wireu/aspath_slot.go::recordAggregatorDiscard",
+      "producer-sha": "94123ef5bb8e3b85",
+      "break": "body of recordAggregatorDiscard replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

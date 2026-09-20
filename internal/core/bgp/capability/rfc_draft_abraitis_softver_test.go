@@ -44,8 +44,8 @@ func TestSoftwareVersionCapabilityDecidesNothing(t *testing.T) {
 	t.Parallel()
 	local := softverSessionCaps(false)
 
-	without := Negotiate(local, softverSessionCaps(false), 65001, 65002)
-	with := Negotiate(local, softverSessionCaps(true), 65001, 65002)
+	without := Negotiate(local, softverSessionCaps(false), PeerIdentity{LocalASN: 65001, PeerASN: 65002})
+	with := Negotiate(local, softverSessionCaps(true), PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	require.NotNil(t, with)
 	assert.Equal(t, without.ASN4, with.ASN4)
@@ -74,6 +74,6 @@ func TestSoftwareVersionCapabilityIsRecordedForDisplay(t *testing.T) {
 	assert.Equal(t, codeSoftwareVersion, unknown.Code())
 	assert.Equal(t, value, unknown.Data)
 
-	neg := Negotiate(softverSessionCaps(false), softverSessionCaps(true), 65001, 65002)
+	neg := Negotiate(softverSessionCaps(false), softverSessionCaps(true), PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 	assert.True(t, neg.PeerAdvertised(codeSoftwareVersion), "the peer's advertisement is recorded")
 }

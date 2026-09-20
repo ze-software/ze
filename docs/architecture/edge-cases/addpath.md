@@ -67,7 +67,7 @@ def receive(self, afi, safi):
     peer = self.received.get((afi, safi), 0)
     return (local & 1) and (peer & 2)  # local can receive, peer can send
 ```
-<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate, addPath negotiation -->
+<!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate, the per-family ADD-PATH send/receive intersection -->
 
 ---
 

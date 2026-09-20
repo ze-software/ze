@@ -25,7 +25,7 @@ func TestNegotiateBasic(t *testing.T) {
 		&ASN4{ASN: 65002},
 	}
 
-	neg := Negotiate(local, remote, 65001, 65002)
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	// IPv4 Unicast should be negotiated (both have it)
 	assert.True(t, neg.SupportsFamily(Family{AFI: AFIIPv4, SAFI: SAFIUnicast}))
@@ -56,7 +56,7 @@ func TestNegotiateGracefulRestartLastInstance(t *testing.T) {
 		},
 	}
 
-	neg := Negotiate(nil, remote, 65001, 65002)
+	neg := Negotiate(nil, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 	require.NotNil(t, neg.GracefulRestart)
 
 	// RFC requirement: RFC4724-3-4 positive -- Negotiate keeps the LAST Graceful Restart instance: the
@@ -96,7 +96,7 @@ func TestNegotiateAddPath(t *testing.T) {
 		}},
 	}
 
-	neg := Negotiate(local, remote, 65001, 65002)
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	// Local can send+receive, remote can only receive
 	// Therefore: local can send (remote receives), local cannot receive (remote can't send)
@@ -119,11 +119,11 @@ func TestNegotiateExtendedMessage(t *testing.T) {
 		&ExtendedMessage{},
 	}
 
-	neg := Negotiate(local, remote, 65001, 65002)
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 	assert.True(t, neg.ExtendedMessage)
 
 	// Without remote support
-	neg2 := Negotiate(local, []Capability{}, 65001, 65002)
+	neg2 := Negotiate(local, []Capability{}, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 	assert.False(t, neg2.ExtendedMessage)
 }
 
@@ -144,7 +144,7 @@ func TestNegotiatedFamilies(t *testing.T) {
 		&Multiprotocol{AFI: AFIIPv6, SAFI: SAFIUnicast},
 	}
 
-	neg := Negotiate(local, remote, 65001, 65002)
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 	families := neg.Families()
 
 	require.Len(t, families, 2)
@@ -165,7 +165,7 @@ func TestNegotiatedFamilies(t *testing.T) {
 // corrected, not relaxed: the family set is still pinned exactly.
 func TestNegotiateEmpty(t *testing.T) {
 	t.Parallel()
-	neg := Negotiate(nil, nil, 65001, 65002)
+	neg := Negotiate(nil, nil, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	assert.False(t, neg.ASN4)
 	assert.False(t, neg.ExtendedMessage)
@@ -200,7 +200,7 @@ func TestNegotiateMismatches(t *testing.T) {
 		&RouteRefresh{}, // Both
 	}
 
-	neg := Negotiate(local, remote, 65001, 65002)
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	// Verify negotiated capabilities
 	assert.True(t, neg.ASN4)
@@ -304,7 +304,7 @@ func TestNegotiateExtendedNextHop(t *testing.T) {
 		}},
 	}
 
-	neg := Negotiate(local, remote, 65001, 65002)
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	// Should be negotiated since both advertise same tuple
 	nhAFI := neg.ExtendedNextHopAFI(Family{AFI: AFIIPv4, SAFI: SAFIUnicast})
@@ -341,7 +341,7 @@ func TestNegotiateExtendedNextHopMismatch(t *testing.T) {
 		// No ExtendedNextHop
 	}
 
-	neg := Negotiate(local, remote, 65001, 65002)
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	// Should NOT be negotiated
 	nhAFI := neg.ExtendedNextHopAFI(Family{AFI: AFIIPv4, SAFI: SAFIUnicast})
@@ -377,7 +377,7 @@ func TestNegotiateExtendedNextHopMultipleFamilies(t *testing.T) {
 		}},
 	}
 
-	neg := Negotiate(local, remote, 65001, 65002)
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	// IPv4/Unicast should be negotiated
 	nhAFI := neg.ExtendedNextHopAFI(Family{AFI: AFIIPv4, SAFI: SAFIUnicast})
@@ -415,7 +415,7 @@ func TestNegotiateComposite(t *testing.T) {
 		}},
 	}
 
-	neg := Negotiate(local, remote, 65001, 65002)
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	// Verify Identity sub-component
 	require.NotNil(t, neg.Identity, "Identity should be populated")
@@ -449,7 +449,7 @@ func TestNegotiateCompositeIBGP(t *testing.T) {
 		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
 	}
 
-	neg := Negotiate(local, remote, 65000, 65000) // Same ASN = iBGP
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65000, PeerASN: 65000, Internal: true}) // Same ASN = iBGP
 	assert.True(t, neg.Identity.IsIBGP())
 }
 
@@ -513,7 +513,7 @@ func TestCheckRequiredCodes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			neg := Negotiate(tt.local, tt.remote, 65001, 65002)
+			neg := Negotiate(tt.local, tt.remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 			got := neg.CheckRequiredCodes(tt.required)
 			assert.Equal(t, tt.want, got)
 		})
@@ -573,7 +573,7 @@ func TestCheckRefusedCodes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			neg := Negotiate(tt.local, tt.remote, 65001, 65002)
+			neg := Negotiate(tt.local, tt.remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 			got := neg.CheckRefusedCodes(tt.refused)
 			assert.Equal(t, tt.want, got)
 		})
@@ -601,7 +601,7 @@ func TestNegotiatePathsLimit(t *testing.T) {
 		&PathsLimit{Entries: []PathsLimitEntry{{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10}}},
 	}
 
-	neg := Negotiate(local, remote, 65001, 65002)
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	// Remote's limit (10) constrains our send
 	assert.Equal(t, uint16(10), neg.Encoding.PathsLimitSend[ipv4])
@@ -627,7 +627,7 @@ func TestNegotiatePathsLimitOneSided(t *testing.T) {
 		&PathsLimit{Entries: []PathsLimitEntry{{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10}}},
 	}
 
-	neg := Negotiate(local, remote, 65001, 65002)
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	// Remote advertises: constrains our send
 	assert.Equal(t, uint16(10), neg.Encoding.PathsLimitSend[ipv4])
@@ -654,7 +654,7 @@ func TestNegotiatePathsLimitNoAddPath(t *testing.T) {
 		&PathsLimit{Entries: []PathsLimitEntry{{AFI: AFIIPv4, SAFI: SAFIUnicast, Limit: 10}}},
 	}
 
-	neg := Negotiate(local, remote, 65001, 65002)
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	// No ADD-PATH negotiated: no limits
 	assert.Equal(t, uint16(0), neg.Encoding.PathsLimitSend[ipv4])
@@ -692,7 +692,7 @@ func TestNegotiatePathsLimitPartialAddPath(t *testing.T) {
 		}},
 	}
 
-	neg := Negotiate(local, remote, 65001, 65002)
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	// IPv4 has ADD-PATH: limits apply
 	assert.Equal(t, uint16(10), neg.Encoding.PathsLimitSend[ipv4])
@@ -725,7 +725,7 @@ func TestNegotiatePathsLimitDirections(t *testing.T) {
 					{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: remoteMode},
 				}})
 			}
-			neg := Negotiate(local, remote, 65001, 65002)
+			neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 			var send, recv uint16
 			if localMode&AddPathSend != 0 && remoteMode&AddPathReceive != 0 {
 				send = 10
@@ -768,7 +768,7 @@ func TestNegotiatePathsLimitDuplicateEntries(t *testing.T) {
 	require.NoError(t, err)
 	for _, c := range []Capability{pl, parsed[0]} {
 		caps := append(append([]Capability(nil), base...), c)
-		neg := Negotiate(caps, caps, 65001, 65002)
+		neg := Negotiate(caps, caps, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 		want := map[Family]uint16{ipv6: 7}
 		assert.Equal(t, want, neg.Encoding.PathsLimitSend)
 		assert.Equal(t, want, neg.Encoding.PathsLimitRecv)
@@ -797,7 +797,7 @@ func TestNegotiatePathsLimitMultipleInstances(t *testing.T) {
 			params = append(params, 2, 13, 76, 5, 0, 1, 1, 0, 9, 69, 4, 0, 1, 1, 3)
 			caps, err := ParseFromOptionalParams(params, false)
 			require.NoError(t, err)
-			neg := Negotiate(caps, caps, 65001, 65002)
+			neg := Negotiate(caps, caps, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 			assert.Equal(t, tc.want, neg.Encoding.PathsLimitSend[ipv4])
 			assert.Equal(t, tc.want, neg.Encoding.PathsLimitRecv[ipv4])
 			assert.True(t, neg.PeerAdvertised(CodePathsLimit))
@@ -877,7 +877,7 @@ func TestNegotiateImplicitIPv4UnicastWhenNoMultiprotocol(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			neg := Negotiate(tt.local, tt.remote, 65001, 65002)
+			neg := Negotiate(tt.local, tt.remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 			assert.Len(t, neg.Families(), len(tt.want),
 				"negotiated family count for local=%v remote=%v", tt.local, tt.remote)
@@ -908,7 +908,7 @@ func TestNegotiateSilentPeerSatisfiesRequiredIPv4Unicast(t *testing.T) {
 	v4 := Family{AFI: AFIIPv4, SAFI: SAFIUnicast}
 	local := []Capability{&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast}}
 
-	neg := Negotiate(local, nil, 65001, 65002)
+	neg := Negotiate(local, nil, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	assert.Empty(t, neg.CheckRequired([]Family{v4}),
 		"a silent peer supports ipv4/unicast, so requiring it must not report it missing")

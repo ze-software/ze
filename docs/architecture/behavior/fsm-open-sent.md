@@ -82,7 +82,12 @@ In order:
    NOTIFICATION but does **not** fire an FSM event (the caller returns
    the error and the read loop exits, which later trips
    `handleConnectionClose` -> `EventTCPConnectionFails`).
-5. Capabilities are parsed and negotiated via `negotiateWith`.
+5. Capabilities are parsed and negotiated via `negotiateWith`, which also fixes
+   the session's peer AS and its internal verdict. `sessionPeerAS` (`peer.go`)
+   answers the AS, taking the configured value before the one the OPEN
+   advertises. `PeerSettings.isIBGPWith` (`session_as_migration.go`) answers the
+   verdict. Both go into `capability.Negotiate` as a `PeerIdentity`, so
+   `Negotiated.Identity` is what every later reader of the two gets.
 6. `CheckRequired(requiredFamilies)` must pass. Missing required families
    sends NOTIFICATION (UnsupportedCapability) and fires
    `EventBGPOpenMsgErr`.
@@ -114,6 +119,8 @@ is in `fsm.md`.
 <!-- source: internal/component/bgp/reactor/session_bfd_strict.go — advanceAfterOpen, bfdStrictHolds, handleBFDEvent -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleOpen -->
 <!-- source: internal/component/bgp/reactor/session_negotiate.go — negotiateWith -->
+<!-- source: internal/component/bgp/reactor/peer.go -- sessionPeerAS, openAdvertisedAS -->
+<!-- source: internal/component/bgp/reactor/session_as_migration.go -- isIBGPWith -->
 <!-- source: internal/component/bgp/reactor/session.go — openValidator, SetOpenValidator -->
 
 ## Timers running in this state

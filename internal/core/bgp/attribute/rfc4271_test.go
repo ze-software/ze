@@ -227,7 +227,7 @@ func TestAttributeRecognizedTracksTheNamesRegistry(t *testing.T) {
 
 	const unassigned AttributeCode = 249
 	require.False(t, unassigned.Recognized(), "an unassigned code starts unrecognized")
-	RegisterName(unassigned, "TEST_ONLY_UNASSIGNED")
+	RegisterName(unassigned, "TEST_ONLY_UNASSIGNED", OptionalTransitiveFlags())
 	assert.True(t, unassigned.Recognized(),
 		"registering a name is what makes a plugin's attribute recognized")
 }

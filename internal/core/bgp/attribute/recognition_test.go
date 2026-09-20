@@ -19,7 +19,7 @@ func TestRegisterNameOnlyDoesNotClaimRecognition(t *testing.T) {
 	const implemented = AttributeCode(241)
 
 	RegisterNameOnly(named, "NAMED_ONLY")
-	RegisterName(implemented, "IMPLEMENTED")
+	RegisterName(implemented, "IMPLEMENTED", OptionalTransitiveFlags())
 
 	if named.Recognized() {
 		t.Error("RegisterNameOnly claimed recognition. An attribute ze can only " +

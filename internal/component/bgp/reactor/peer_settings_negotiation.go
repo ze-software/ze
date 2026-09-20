@@ -91,8 +91,18 @@ func (s *Session) negotiationOutcomeUnchanged(next *PeerSettings) bool {
 		return false
 	}
 
-	base := capability.Negotiate(baseCaps, peerCaps, localOpen.ASN4, peerOpen.ASN4)
-	candidate := capability.Negotiate(nextCaps, peerCaps, nextOpen.ASN4, peerOpen.ASN4)
+	// One identity for both sides: a reload changes the capabilities ze offers, never who
+	// the two speakers are, so the identity is a constant of this comparison rather than
+	// something either negotiation derives (sessionPeerAS, peer.go).
+	peerAS := sessionPeerAS(s.settings.PeerAS, peerOpen)
+	identity := capability.PeerIdentity{
+		LocalASN: s.settings.LocalAS,
+		PeerASN:  peerAS,
+		Internal: s.settings.isIBGPWith(peerAS),
+	}
+
+	base := capability.Negotiate(baseCaps, peerCaps, identity)
+	candidate := capability.Negotiate(nextCaps, peerCaps, identity)
 	return negotiatedOutcomeEqual(base, candidate)
 }
 

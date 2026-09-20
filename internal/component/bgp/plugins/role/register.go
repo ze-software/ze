@@ -13,8 +13,12 @@ import (
 )
 
 func init() {
-	// RFC 9234: Register OTC attribute (type 35) as a known attribute.
-	attribute.RegisterName(attribute.AttributeCode(otcAttrCode), "OTC")
+	// RFC 9234 Section 5: "The OTC Attribute is an optional transitive Path Attribute of
+	// the UPDATE message with Attribute Type Code 35 and a length of 4 octets." That
+	// sentence fixes both bits, so it travels with the name: recognition and the RFC 7606
+	// Section 3.c judgement of a received flags octet are one registration, and dropping
+	// this plugin takes both away together.
+	attribute.RegisterName(attribute.AttributeCode(otcAttrCode), "OTC", attribute.OptionalTransitiveFlags())
 
 	// Register attr mod handler for OTC egress stamping (progressive build path).
 	// Called by buildModifiedPayload in the reactor forward path after egress filters accept.

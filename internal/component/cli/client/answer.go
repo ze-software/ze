@@ -23,6 +23,15 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// headBytes is how much of the answer is held before its destination is known.
+//
+// The daemon's pipe layer marks a refusal by writing cmd.PipeErrorPrefix in
+// front of it, so the first bytes of the answer say whether the stream is data
+// or a diagnostic. Holding exactly that many bytes is what lets a streamed
+// refusal reach stderr, the way every other surface sends one (runPipe in
+// cmd/ze/ze_core_pipe.go, emitLocalResult in main.go).
+const headBytes = len(cmd.PipeErrorPrefix)
+
 // okAnswerLine is what a command reporting no data prints, so silence never
 // reads as a failure.
 const okAnswerLine = "OK\n"
@@ -43,12 +52,28 @@ const answerNewline = "\n"
 // formatters, which indent with spaces and end lines with a newline, so no
 // other space character is ever at an edge of one.
 //
+// An answer the daemon refused is a diagnostic about the operator's own pipe
+// chain rather than an answer to their question, so it goes to errw and the
+// client exits non-zero. The refusal is only knowable from the first bytes of
+// the stream, so the first headBytes of the answer are held until the
+// destination is known: before that, a script redirecting stdout collected the
+// refusal as data and read exit 0 (plan/journal/silent-fall-through.md,
+// 2026-09-05).
+//
 // A caller MUST call Close exactly once, after the answer ends. Close is what
 // writes the final newline and the OK.
 type daemonOutput struct {
 	w       io.Writer
+	errw    io.Writer
 	command string
 	kept    bool
+
+	// head is the start of the answer, held until sinkKnown. refused is what
+	// those bytes turned out to say, and it decides which writer the rest of
+	// the answer reaches.
+	head      []byte
+	sinkKnown bool
+	refused   bool
 
 	// pending is the run of whitespace read but not yet written. It is written
 	// when a non-whitespace byte follows it and dropped when the stream ends.
@@ -61,9 +86,17 @@ type daemonOutput struct {
 }
 
 // newDaemonOutput returns the writer for one command's answer. command is the
-// operator's text, which decides whether an empty answer prints OK.
-func newDaemonOutput(w io.Writer, command string, transcript *textbuf.Buffer) *daemonOutput {
-	return &daemonOutput{w: w, command: command, transcript: transcript}
+// operator's text, which decides whether an empty answer prints OK. w takes the
+// answer and errw takes a refusal, which is the stdout/stderr split every
+// command owes (ai/rules/cli.md).
+func newDaemonOutput(w, errw io.Writer, command string, transcript *textbuf.Buffer) *daemonOutput {
+	return &daemonOutput{w: w, errw: errw, command: command, transcript: transcript}
+}
+
+// Refused reports whether the daemon answered with a pipe refusal rather than
+// data, so the caller exits non-zero. It is valid after Close.
+func (d *daemonOutput) Refused() bool {
+	return d.refused
 }
 
 // Write writes the part of the answer that is not whitespace at an edge of it.
@@ -97,6 +130,16 @@ func (d *daemonOutput) Write(p []byte) (int, error) {
 // A command that names a format gets nothing at all, because OK is not valid
 // JSON and a caller that asked for JSON is parsing what it receives.
 func (d *daemonOutput) Close() error {
+	if err := d.end(); err != nil {
+		return err
+	}
+	// An answer shorter than headBytes is still held at this point, and this
+	// is the last chance to write it.
+	return d.flushHead()
+}
+
+// end writes what ends the answer, before the held head is flushed.
+func (d *daemonOutput) end() error {
 	if d.kept {
 		return d.emit([]byte(answerNewline))
 	}
@@ -117,6 +160,10 @@ func (d *daemonOutput) Transcript() string {
 
 // emit writes one piece to the terminal, and to the transcript when one is
 // kept.
+//
+// The transcript is written first and never waits for the destination: a
+// session recording holds the answer whatever it turns out to be, and a caller
+// reads it before Close.
 func (d *daemonOutput) emit(piece []byte) error {
 	if len(piece) == 0 {
 		return nil
@@ -124,8 +171,49 @@ func (d *daemonOutput) emit(piece []byte) error {
 	if d.transcript != nil {
 		d.transcript.Write(piece) //nolint:errcheck // textbuf.Write never fails
 	}
-	_, err := d.w.Write(piece)
+	if !d.sinkKnown {
+		d.head = append(d.head, piece...)
+		if len(d.head) < headBytes {
+			return nil
+		}
+		return d.flushHead()
+	}
+	_, err := d.sink().Write(piece)
 	return err
+}
+
+// flushHead reads what the held bytes say the answer is, then writes them to
+// the writer that reading chose. It does nothing once the destination is known.
+func (d *daemonOutput) flushHead() error {
+	if d.sinkKnown {
+		return nil
+	}
+	d.sinkKnown = true
+	// Only the prefix decides, so only the prefix is copied: one Write can
+	// deliver a whole table, and the reading must not copy it to answer a
+	// question about its first bytes. A head shorter than the prefix cannot be
+	// a refusal, and IsPipeError answers false for it.
+	lead := d.head
+	if len(lead) > headBytes {
+		lead = lead[:headBytes]
+	}
+	d.refused = cmd.IsPipeError(string(lead))
+	head := d.head
+	d.head = nil
+	if len(head) == 0 {
+		return nil
+	}
+	_, err := d.sink().Write(head)
+	return err
+}
+
+// sink is where the rest of the answer goes: the operator's terminal for data,
+// stderr for a refusal.
+func (d *daemonOutput) sink() io.Writer {
+	if d.refused {
+		return d.errw
+	}
+	return d.w
 }
 
 // trimLeadingSpace drops the whitespace in front of the first byte of the

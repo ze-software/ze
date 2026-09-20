@@ -20,6 +20,9 @@ func testContext(localAS, peerAS uint32, asn4 bool) *bgpctx.EncodingContext { //
 	identity := &capability.PeerIdentity{
 		LocalASN: localAS,
 		PeerASN:  peerAS,
+		// The tests vary the two ASNs to select the eBGP or the iBGP arm, so the verdict
+		// the session would carry is their equality here (isIBGPWith, reactor).
+		Internal: localAS == peerAS,
 	}
 	encoding := &capability.EncodingCaps{
 		ASN4: asn4,
@@ -32,6 +35,9 @@ func testContextWithAddPath(localAS, peerAS uint32, asn4 bool, addPath map[famil
 	identity := &capability.PeerIdentity{
 		LocalASN: localAS,
 		PeerASN:  peerAS,
+		// The tests vary the two ASNs to select the eBGP or the iBGP arm, so the verdict
+		// the session would carry is their equality here (isIBGPWith, reactor).
+		Internal: localAS == peerAS,
 	}
 
 	// Convert bool map to AddPathMode map (Send mode enables sending)

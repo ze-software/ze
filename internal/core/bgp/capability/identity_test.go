@@ -6,42 +6,56 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// TestPeerIdentityIsIBGP verifies iBGP detection.
+// TestPeerIdentityIsIBGP verifies that the internal verdict is CARRIED, not re-derived.
 //
-// VALIDATES: IsIBGP() returns true when LocalASN == PeerASN.
+// VALIDATES: IsIBGP() answers the Internal field the session set, for equal ASNs, for
+// different ASNs, and for the RFC 7705 Section 4.2 migration case where the two ASNs differ
+// and the session is internal all the same.
 //
-// PREVENTS: Wrong path attribute handling (iBGP vs eBGP rules differ).
+// PREVENTS: a second declaration of the iBGP rule. Recomputing LocalASN == PeerASN here
+// disagreed with PeerSettings.isIBGPWith (reactor/session_as_migration.go), which is the one
+// rule, and it read a PeerASN that negotiateWith left at 0 on every session. The last row is
+// the case the equality gets WRONG even when the ASNs are truthful: RFC 7705 Section 4.2
+// requires a renumbering speaker to "treat UPDATEs sent and received to this peer as if this
+// was a natively configured iBGP session", and eBGP rules there send the wrong AS_PATH to a
+// peer that trusts it.
 func TestPeerIdentityIsIBGP(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
 		name     string
 		localASN uint32
 		peerASN  uint32
-		want     bool
+		internal bool
 	}{
 		{
 			name:     "iBGP session",
 			localASN: 65000,
 			peerASN:  65000,
-			want:     true,
+			internal: true,
 		},
 		{
 			name:     "eBGP session",
 			localASN: 65000,
 			peerASN:  65001,
-			want:     false,
+			internal: false,
 		},
 		{
 			name:     "4-byte ASN iBGP",
 			localASN: 4200000000,
 			peerASN:  4200000000,
-			want:     true,
+			internal: true,
 		},
 		{
 			name:     "4-byte ASN eBGP",
 			localASN: 4200000000,
 			peerASN:  4200000001,
-			want:     false,
+			internal: false,
+		},
+		{
+			name:     "RFC 7705 migration session under the legacy ASN",
+			localASN: 65000,
+			peerASN:  64500,
+			internal: true,
 		},
 	}
 
@@ -51,8 +65,9 @@ func TestPeerIdentityIsIBGP(t *testing.T) {
 			id := &PeerIdentity{
 				LocalASN: tt.localASN,
 				PeerASN:  tt.peerASN,
+				Internal: tt.internal,
 			}
-			assert.Equal(t, tt.want, id.IsIBGP())
+			assert.Equal(t, tt.internal, id.IsIBGP())
 		})
 	}
 }

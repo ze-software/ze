@@ -262,7 +262,7 @@ func TestTheOperatorSeesTheDaemonRenderingWhileItArrives(t *testing.T) {
 		} {
 			t.Run(tt.name+", "+split.name, func(t *testing.T) {
 				var got bytes.Buffer
-				out := newDaemonOutput(&got, tt.command, nil)
+				out := newDaemonOutput(&got, io.Discard, tt.command, nil)
 				split.write(out, tt.output)
 				if err := out.Close(); err != nil {
 					t.Fatalf("Close: %v", err)
@@ -288,7 +288,7 @@ func TestTheOperatorSeesTheDaemonRenderingWhileItArrives(t *testing.T) {
 func TestTheTranscriptRecordsWhatTheOperatorSaw(t *testing.T) {
 	var transcript textbuf.Buffer
 	var got bytes.Buffer
-	out := newDaemonOutput(&got, "show version", &transcript)
+	out := newDaemonOutput(&got, io.Discard, "show version", &transcript)
 	for _, piece := range []string{"version ", " ze", " 26.08.18\n"} {
 		if _, err := out.Write([]byte(piece)); err != nil {
 			t.Fatalf("Write: %v", err)

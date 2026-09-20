@@ -375,6 +375,12 @@ on the heap and increments this counter. A public-internet corpus of 112M routes
 has a maximum of 10 attributes and 99.9% at 8 or fewer, so a steady rate here
 means either an unusual peer or an attribute set worth raising the inline size
 for.
+
+The count is taken over the attributes Ze publishes, not over the attributes the
+peer sent. Unrecognized non-transitive attributes are dropped first, as RFC 4271
+Section 5 requires, so a peer that sends nine attributes of which two Ze does not
+recognize and must not pass on never reaches the inline limit and never appears
+here.
 <!-- source: internal/core/bgp/attribute/span.go -- SpanInline -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- publishBase -->
 

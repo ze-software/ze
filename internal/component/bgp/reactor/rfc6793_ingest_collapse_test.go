@@ -146,7 +146,7 @@ func collapseRecvSession(t *testing.T, settings *PeerSettings, asn4 bool) (*Sess
 	}
 
 	s := NewSession(settings)
-	s.negotiated = capability.Negotiate(caps, caps, settings.LocalAS, settings.PeerAS)
+	s.negotiated = capability.Negotiate(caps, caps, capability.PeerIdentity{LocalASN: settings.LocalAS, PeerASN: settings.PeerAS, Internal: settings.IsIBGP()})
 	require.Equal(t, asn4, s.negotiated.ASN4, "the fixture must negotiate the width it claims")
 
 	ctxID, err := bgpctx.Registry.Register(bgpctx.FromNegotiatedRecv(s.negotiated))

@@ -292,7 +292,7 @@ func negotiateAgainstMirror(t *testing.T, open *message.Open) *NegotiatedCapabil
 	t.Helper()
 	caps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
 	require.NoError(t, err)
-	return NewNegotiatedCapabilities(capability.Negotiate(caps, caps, 65001, 65002))
+	return NewNegotiatedCapabilities(capability.Negotiate(caps, caps, capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}))
 }
 
 // TestBuildOpenNoFamilyNegotiatesImplicitIPv4Unicast covers the peer this spec

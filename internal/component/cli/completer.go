@@ -1231,12 +1231,13 @@ func (c *Completer) findModuleEntry(name string) *gyang.Entry {
 // alphabetical order of the module names. The merged entry therefore carries
 // every declaration's description, joined.
 //
-// The SUMMARY, which the ze:help extension declares, is NOT an exception, and
-// a one-line row cannot make it one: it shows one text, and nothing in the
-// schema says which module OWNS a shared node. So the row still names the
-// first module in sorted order, which reads wrong wherever a plugin's module
-// sorts before the module that defines the node. `interface` is the measured
-// case (ze-cos-conf before ze-iface-conf).
+// The SUMMARY, which the ze:help extension declares, is the same exception for
+// the same reason. Nothing in the schema says which module OWNS a shared node,
+// so a row that showed the first declaration showed whichever module sorts
+// first: `interface` read as the cos plugin's scaffolding text, because
+// ze-cos-conf sorts before ze-iface-conf, and a declaration carrying no summary
+// at all erased one that did. The merged entry therefore carries every
+// declaration's summary, joined onto the one line the row draws.
 //
 // The joined text is not measured against command.MaxDescriptionBytes. That bound
 // governs one DECLARATION, and the ? box draws what fits in any case
@@ -1255,23 +1256,73 @@ func mergeAugmentedEntries(entries []*gyang.Entry) *gyang.Entry {
 		}
 	}
 	explanation, joined := mergeDescriptions(entries)
-	if len(groups) == 0 {
-		if !joined {
-			return entries[0]
-		}
-		merged := *entries[0]
-		merged.Description = explanation
-		return &merged
+	summary, summarized := mergeHelpExts(entries)
+	if len(groups) == 0 && !joined && !summarized {
+		return entries[0]
 	}
 	merged := *entries[0]
 	if joined {
 		merged.Description = explanation
 	}
-	merged.Dir = make(map[string]*gyang.Entry, len(groups))
-	for name, children := range groups {
-		merged.Dir[name] = mergeAugmentedEntries(children)
+	if summarized {
+		merged.Exts = summary
+	}
+	if len(groups) > 0 {
+		merged.Dir = make(map[string]*gyang.Entry, len(groups))
+		for name, children := range groups {
+			merged.Dir[name] = mergeAugmentedEntries(children)
+		}
 	}
 	return &merged
+}
+
+// mergeHelpExts answers the extension list a merged entry carries when more
+// than one declaration summarizes the node. The bool is false when the first
+// entry's own summary already says everything there is to say, so the caller
+// keeps the list the loader parsed.
+//
+// Every distinct summary is kept, in declaration order, joined onto one line:
+// entryShortHelp collapses whitespace for the row, so the join needs no
+// sentence of its own. The list is written to the merged COPY of the first
+// entry, never to the entry the loader parsed, for the reason mergeDescriptions
+// gives: that one is shared by every reader of the schema tree.
+func mergeHelpExts(entries []*gyang.Entry) ([]*gyang.Statement, bool) {
+	var texts []string
+	for _, e := range entries {
+		text := yang.GetHelpExtension(e.Exts)
+		if text == "" || slices.Contains(texts, text) {
+			continue
+		}
+		texts = append(texts, text)
+	}
+	if len(texts) == 0 {
+		return nil, false
+	}
+	// One summary the first entry already carries needs no copy. One it does
+	// NOT carry does: it belongs to a later declaration, and answering false
+	// here would leave the row with the empty summary of a silent module.
+	if len(texts) == 1 && yang.GetHelpExtension(entries[0].Exts) == texts[0] {
+		return nil, false
+	}
+	var tb textbuf.Buffer
+	for i, text := range texts {
+		if i > 0 {
+			tb.Byte(' ')
+		}
+		tb.Str(text)
+	}
+	merged := make([]*gyang.Statement, 0, len(entries[0].Exts)+1)
+	for _, ext := range entries[0].Exts {
+		if yang.IsHelpExtension(ext) {
+			continue
+		}
+		merged = append(merged, ext)
+	}
+	return append(merged, &gyang.Statement{
+		Keyword:     yang.HelpExtensionKeyword,
+		HasArgument: true,
+		Argument:    tb.String(),
+	}), true
 }
 
 // mergeDescriptions answers the long explanation a merged entry carries when

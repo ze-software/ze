@@ -47,7 +47,7 @@ func TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated(t *testing.T) {
 
 	local := []Capability{&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast}, mp}
 	remote := []Capability{&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast}, &Multiprotocol{AFI: AFIBGPLS, SAFI: SAFIBGPLS}}
-	neg := Negotiate(local, remote, 65001, 65002)
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 	assert.True(t, neg.SupportsFamily(bgpLSFamily),
 		"both speakers advertised BGP-LS, so the family is negotiated")
 }
@@ -64,7 +64,7 @@ func TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent(t *testing.T) {
 	local := []Capability{&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast}, &Multiprotocol{AFI: AFIBGPLS, SAFI: SAFIBGPLS}}
 	remote := []Capability{&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast}}
 
-	neg := Negotiate(local, remote, 65001, 65002)
+	neg := Negotiate(local, remote, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 	assert.False(t, neg.SupportsFamily(bgpLSFamily),
 		"the peer never advertised BGP-LS, so the family is not negotiated")
 	assert.True(t, neg.SupportsFamily(Family{AFI: AFIIPv4, SAFI: SAFIUnicast}),
@@ -73,7 +73,7 @@ func TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent(t *testing.T) {
 
 	// The VPN link-state SAFI is negotiated separately from the non-VPN one.
 	vpnOnly := []Capability{&Multiprotocol{AFI: AFIBGPLS, SAFI: SAFIBGPLSVPN}}
-	negVPN := Negotiate(vpnOnly, vpnOnly, 65001, 65002)
+	negVPN := Negotiate(vpnOnly, vpnOnly, PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 	assert.False(t, negVPN.SupportsFamily(bgpLSFamily),
 		"advertising SAFI 72 does not negotiate SAFI 71")
 }

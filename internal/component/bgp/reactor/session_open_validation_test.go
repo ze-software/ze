@@ -21,11 +21,21 @@ import (
 func openSentSessionAS(t *testing.T, peerAS, localID uint32) (*Session, chan []byte) {
 	t.Helper()
 
-	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, peerAS, localID)
+	return openSentSessionASPair(t, 65001, peerAS, localID)
+}
+
+// openSentSessionASPair is openSentSessionAS with the LOCAL AS chosen by the caller too, so
+// a test can build a session whose two ASNs are equal (iBGP) or four octets wide. The
+// Four-octet AS capability ze offers carries the same local AS, which is what buildOpen
+// sends (RFC 6793 Section 3).
+func openSentSessionASPair(t *testing.T, localAS, peerAS, localID uint32) (*Session, chan []byte) {
+	t.Helper()
+
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), localAS, peerAS, localID)
 	settings.Connection = ConnectionPassive
 	settings.ReceiveHoldTime = 90 * time.Second
 	settings.Capabilities = []capability.Capability{
-		&capability.ASN4{ASN: 65001},
+		&capability.ASN4{ASN: localAS},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
 	}
 

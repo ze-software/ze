@@ -43,7 +43,7 @@ func newAddPathSession(t *testing.T, fams ...capability.Family) *Session {
 	local = append(local, &capability.AddPath{Families: apFams})
 	remote = append(remote, &capability.AddPath{Families: apFams})
 
-	s.negotiated = capability.Negotiate(local, remote, 65001, 65002)
+	s.negotiated = capability.Negotiate(local, remote, capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002})
 
 	ctxID, err := bgpctx.Registry.Register(bgpctx.FromNegotiatedRecv(s.negotiated))
 	require.NoError(t, err, "receive encoding context must register")

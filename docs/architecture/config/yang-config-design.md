@@ -653,11 +653,13 @@ tell which module wrote each one. The `?` box also draws what fits and no more:
 no key scrolls it. A node several modules explain can therefore hold more text
 than the box will ever show.
 
-The one-line `ze:help` can show only one text, and it is the first in
-module-name order. Nothing in the schema says which module OWNS a shared node,
-so that row can name the wrong module until one does.
+The one-line `ze:help` of every declaration is joined the same way, onto the one
+line the completion row draws, because nothing in the schema says which module
+OWNS a shared node. Showing the first in module-name order showed `interface` as
+the cos plugin's scaffolding text, and a module that declares no summary erased
+one that does.
 
-<!-- source: internal/component/cli/completer.go -- mergeAugmentedEntries, mergeDescriptions -->
+<!-- source: internal/component/cli/completer.go -- mergeAugmentedEntries, mergeDescriptions, mergeHelpExts -->
 
 ---
 

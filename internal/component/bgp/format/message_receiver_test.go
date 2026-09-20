@@ -395,7 +395,7 @@ func TestDecodeNegotiated_UnknownAfiSafi(t *testing.T) {
 			},
 		},
 	}
-	neg := capability.Negotiate(caps, caps, 65001, 65001)
+	neg := capability.Negotiate(caps, caps, capability.PeerIdentity{LocalASN: 65001, PeerASN: 65001, Internal: true})
 
 	decoded := NegotiatedToDecoded(neg)
 
@@ -405,7 +405,7 @@ func TestDecodeNegotiated_UnknownAfiSafi(t *testing.T) {
 
 	// Mixed known-SAFI + unknown-AFI: family-package fallback emits "afi-99/unicast".
 	mixedCaps := []capability.Capability{&capability.Multiprotocol{AFI: 99, SAFI: 1}}
-	negMixed := capability.Negotiate(mixedCaps, mixedCaps, 65001, 65001)
+	negMixed := capability.Negotiate(mixedCaps, mixedCaps, capability.PeerIdentity{LocalASN: 65001, PeerASN: 65001, Internal: true})
 	decodedMixed := NegotiatedToDecoded(negMixed)
 	require.Contains(t, decodedMixed.Families, "afi-99/unicast", "afi-99/unicast: %v", decodedMixed.Families)
 }

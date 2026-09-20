@@ -59,6 +59,10 @@ type Negotiated struct {
 	Encoding *EncodingCaps // Shared with EncodingContexts
 	Session  *SessionCaps  // Owned by Negotiated only
 
+	// identity is what the caller of Negotiate stated about the two speakers. Identity is
+	// built from it, so the two never disagree.
+	identity PeerIdentity
+
 	// Backward compatibility fields (delegating to sub-components)
 	// TODO: Remove these after all consumers migrate to sub-components
 
@@ -127,10 +131,17 @@ type Negotiated struct {
 //   - RFC 7911: ADD-PATH - complex mode negotiation per family
 //   - RFC 8654: Extended Message - enabled if both peers advertise
 //   - RFC 2918: Route Refresh - enabled if both peers advertise
-func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated {
+//
+// identity is the caller's answer about the two speakers: their AS numbers and whether the
+// session is internal. Negotiation does not derive any of it, because none of it is on the
+// wire in a form this package can read: a four-octet peer sends AS_TRANS in My Autonomous
+// System (RFC 6793 Section 3), and RFC 7705 Section 4.2 makes the internal verdict a
+// question about configuration rather than about the two numbers being equal.
+func Negotiate(local, remote []Capability, identity PeerIdentity) *Negotiated {
 	neg := &Negotiated{
-		LocalASN:        localASN,
-		PeerASN:         peerASN,
+		identity:        identity,
+		LocalASN:        identity.LocalASN,
+		PeerASN:         identity.PeerASN,
 		families:        make(map[Family]bool),
 		addPath:         make(map[Family]AddPathMode),
 		extendedNextHop: make(map[Family]AFI),
@@ -459,12 +470,10 @@ func (n *Negotiated) buildSubComponents() {
 		return families[i].SAFI < families[j].SAFI
 	})
 
-	// Create Identity
-	n.Identity = &PeerIdentity{
-		LocalASN: n.LocalASN,
-		PeerASN:  n.PeerASN,
-		// Router IDs will be set separately when available
-	}
+	// Create Identity from what the caller stated. Router IDs are set separately when
+	// available.
+	id := n.identity
+	n.Identity = &id
 
 	// Create Encoding (copy maps to avoid aliasing)
 	addPathCopy := make(map[Family]AddPathMode, len(n.addPath))

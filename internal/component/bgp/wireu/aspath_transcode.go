@@ -194,6 +194,15 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 		newAttrLen += 3 + 8 // header(3) + AS4_AGGREGATOR value(8)
 	}
 
+	// An AGGREGATOR value under two octets is discarded below and marked by a
+	// REBUILT tombstone rather than an in-place one, because the space it
+	// occupies cannot hold the (code, reason) pair. The marker's own size is
+	// fixed, so the attribute section grows or shrinks by the difference.
+	rebuiltTombstone := aggAttrOff != -1 && aggValueLen < TombstoneMinValueLen
+	if rebuiltTombstone {
+		newAttrLen += (3 + TombstoneMinValueLen) - (aggHdrLen + aggValueLen)
+	}
+
 	// --- Build output: iterate attributes, replace/skip special ones ---
 
 	n := copy(dst, payload[:attrsStart])
@@ -241,12 +250,34 @@ func TranscodeASPath(dst, payload []byte, srcASN4, dstASN4 bool) (int, error) {
 				n += copy(dst[n:], aggIP)
 			case length != 6 && length != 8:
 				// Genuinely malformed: no other AGGREGATOR length is readable
-				// (RFC 4271 Section 5.1.7, RFC 6793 Section 4.2.2).
+				// (RFC 4271 Section 5.1.7, RFC 6793 Section 4.2.2). RFC 7606
+				// Section 7.7 makes it an "attribute discard", and Section 2 says
+				// what that is: "the malformed attribute MUST be discarded and the
+				// UPDATE message continues to be processed." Discarded is not
+				// forwarded, so the attribute does not survive either branch below.
+				//
+				// The two branches differ only in the FORM of the marker, because
+				// they differ in the space available. WriteTombstone marks the
+				// attribute where it sits and inherits its length, which needs the
+				// two octets the (code, reason) pair occupies; its zero return is
+				// the guard that says the in-place form does not fit. Under that
+				// length the discard takes the rebuild procedure of
+				// draft-mangin-idr-attr-tombstone-00 Section 5.1 instead, writing a
+				// marker of fixed size in place of the attribute, which is also
+				// what the prepend rail records for every malformed length
+				// (aspath_slot.go, recordAggregatorDiscard).
 				if tn := WriteTombstone(dst, n, payload[off], attribute.AttrAggregator, hdrLen, length, TombstoneInvalidLength); tn > 0 {
 					n += tn
-				} else {
-					n += copy(dst[n:], payload[off:off+hdrLen+length])
+					break
 				}
+				n += attribute.WriteHeaderTo(dst, n,
+					// draft-mangin-idr-attr-tombstone-00 Section 4.2:
+					// new_flags = 0x80 | (original_flags & 0x50).
+					attribute.AttributeFlags(0x80|(payload[off]&0x50)),
+					attribute.AttrTombstone, TombstoneMinValueLen)
+				dst[n] = byte(attribute.AttrAggregator)
+				dst[n+1] = TombstoneInvalidLength
+				n += TombstoneMinValueLen
 			default:
 				// Well formed but not re-encodable at this width. Optional
 				// transitive, so it travels on unchanged (RFC 4271 Section 5.1.7).

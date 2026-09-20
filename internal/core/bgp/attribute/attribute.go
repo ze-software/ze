@@ -67,29 +67,10 @@ const (
 	AttrTombstone        AttributeCode = 252 // draft-mangin-idr-attr-tombstone-00 (provisional)
 )
 
-var attrCodeNames = map[AttributeCode]string{
-	AttrOrigin:           "ORIGIN",
-	AttrASPath:           "AS_PATH",
-	AttrNextHop:          "NEXT_HOP",
-	AttrMED:              "MULTI_EXIT_DISC",
-	AttrLocalPref:        "LOCAL_PREF",
-	AttrAtomicAggregate:  "ATOMIC_AGGREGATE",
-	AttrAggregator:       "AGGREGATOR",
-	AttrCommunity:        "COMMUNITIES",
-	AttrOriginatorID:     "ORIGINATOR_ID",
-	AttrClusterList:      "CLUSTER_LIST",
-	AttrMPReachNLRI:      "MP_REACH_NLRI",
-	AttrMPUnreachNLRI:    "MP_UNREACH_NLRI",
-	AttrExtCommunity:     "EXTENDED_COMMUNITIES",
-	AttrAS4Path:          "AS4_PATH",
-	AttrAS4Aggregator:    "AS4_AGGREGATOR",
-	AttrTunnelEncap:      "TUNNEL_ENCAPSULATION",
-	AttrIPv6ExtCommunity: "IPV6_EXTENDED_COMMUNITIES",
-	AttrAIGP:             "AIGP",
-	AttrLargeCommunity:   "LARGE_COMMUNITIES",
-	AttrPrefixSID:        "PREFIX_SID",
-	AttrTombstone:        "ATTR_TOMBSTONE",
-}
+// attrCodeNames is written by RegisterName and RegisterNameOnly, never authored: the core
+// attributes arrive from coreAttributes (flags_spec.go) and a plugin's attribute from its
+// own registration.
+var attrCodeNames = map[AttributeCode]string{}
 
 // recognizedCodes is attrCodeNames in bit-set form: bit N is set when ze holds a
 // meaning for attribute type code N. It is DERIVED from that map, never authored,
@@ -101,22 +82,33 @@ var attrCodeNames = map[AttributeCode]string{
 // carries the same 256-bit-set idiom for the same reason.
 var recognizedCodes [4]uint64
 
-func init() {
-	for code := range attrCodeNames {
-		markRecognized(code)
-	}
-}
-
 func markRecognized(c AttributeCode) { recognizedCodes[c>>6] |= 1 << (c & 63) }
 
-// RegisterName registers an attribute code and display name.
+// RegisterName registers an attribute code, its display name, and the Optional and
+// Transitive values its own specification fixes.
 // MUST only be called from init() functions. Not safe for concurrent use.
 //
 // Registering a name is also what makes the code RECOGNIZED (see Recognized), so
 // a plugin that stops being built takes its attribute's recognition with it and
 // ze passes that attribute along as an unknown one again.
-func RegisterName(code AttributeCode, name string) {
+//
+// The flags specification travels with the name because RFC 7606 Section 3.c judges a
+// received Attribute Flags octet against the values the attribute's own specification
+// fixes, and an attribute ze recognizes but declares nothing for is accepted with any
+// flags. The two arguments make that state unreachable from outside this package:
+// FlagsSpec has no exported field, so the three constructors in flags_spec.go are the only
+// way to build one, and the zero value declares nothing and panics here. A plugin author
+// who has no answer for an attribute's flags has RegisterNameOnly, which claims no
+// recognition either.
+func RegisterName(code AttributeCode, name string, flags FlagsSpec) {
+	if !flags.declared() {
+		// A programmer error at init, so the daemon refuses to start rather than run with
+		// an attribute nothing judges the flags of (docs/contributing/ze-go-style.md,
+		// "Assertions, in a language that has none").
+		panic("BUG: attribute " + name + " registered with no Optional or Transitive declaration")
+	}
 	attrCodeNames[code] = name
+	flagsSpecs[code] = flags
 	markRecognized(code)
 }
 
@@ -132,6 +124,10 @@ func RegisterName(code AttributeCode, name string) {
 //
 // Use this when ze can NAME an attribute and nothing more. Use RegisterName when
 // a parser exists, which is the claim that function makes.
+//
+// It declares no flags specification either, and that is the same claim read twice: an
+// attribute ze does not recognize is passed on unchanged under RFC 4271 Section 5, so ze
+// judges no bit of a flags octet it holds no specified values for.
 func RegisterNameOnly(code AttributeCode, name string) {
 	attrCodeNames[code] = name
 }

@@ -21,10 +21,12 @@ package attribute
 // because Section 4.3 defines both classes out of that same octet: the Optional
 // bit "defines whether the attribute is optional (if set to 1) or well-known (if
 // set to 0)", and the Transitive bit "defines whether an optional attribute is
-// transitive (if set to 1) or non-transitive (if set to 0)". Ze holds no table of
-// the specified flags for each type code, and a plugin registers codes ze knows
-// nothing else about, so a table would be a second declaration of a fact only the
-// attribute's own definition holds.
+// transitive (if set to 1) or non-transitive (if set to 0)". Reading the octet is
+// safe here because RFC 7606 validation has already rejected an octet that
+// conflicts with the values the attribute's own specification fixes
+// (flags_spec.go, AttributeCode.FlagsConflict), so a class read here is the class
+// the specification names. An attribute ze holds no specification for keeps
+// whatever octet arrived, which is what RFC 4271 Section 5 requires of it.
 //
 // One class is deliberately left alone, and leaving it alone is its own
 // requirement. An OPTIONAL TRANSITIVE attribute keeps whatever Partial bit

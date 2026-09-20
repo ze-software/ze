@@ -305,7 +305,7 @@ func announceFactNegotiate(dest announceFactPeer, localAS uint32) *capability.Ne
 		local = append(local, &capability.ExtendedMessage{})
 		remote = append(remote, &capability.ExtendedMessage{})
 	}
-	return capability.Negotiate(local, remote, localAS, dest.peerAS)
+	return capability.Negotiate(local, remote, capability.PeerIdentity{LocalASN: localAS, PeerASN: dest.peerAS, Internal: localAS == dest.peerAS})
 }
 
 // announceFactBatch is one originated route with no caller attributes, which is

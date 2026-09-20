@@ -1593,7 +1593,9 @@ ze show bgp | summary    # the aggregate fields alone
 
 `show bgp` takes an optional family argument and carries no subcommand of its
 own. A token that names no family and no subcommand comes back as an unknown
-command, so a mistyped subcommand is not reported as an invalid family.
+command, so a mistyped subcommand is not reported as an invalid family. The
+family is the last token the command reads, so a token after it is refused the
+same way: `show bgp ipv4 rubbish` names no command and answers no summary.
 
 The two aliases and the column order are declared on `show bgp`, and a command
 inherits a declaration from its own path or an ancestor of it. Each branch under
@@ -2426,7 +2428,7 @@ Many commands take a `peer <selector>` argument:
 | `show bgp peer <sel> history` | read-only | FSM transition history |
 | `show bgp` | read-only | BGP summary table (all peers) |
 | `show bgp update-delay` | read-only | The startup convergence hold: whether this speaker is withholding its first advertisement, which condition ended a hold that has finished (`converged`, `establish-wait`, `max-delay`), and how many of the expected peers have converged. Read it when a speaker has come up and advertised nothing: it separates a working hold from a wedged daemon <!-- source: internal/component/bgp/plugins/cmd/peer/update_delay.go -- handleBgpUpdateDelay --> |
-| `show bgp <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
+| `show bgp <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count. A token after the family is refused as an unknown command |
 | `request peer <sel> pause` | write | Pause read loop (flow control) |
 | `request peer <sel> resume` | write | Resume read loop |
 | `request peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |

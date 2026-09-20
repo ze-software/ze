@@ -1241,17 +1241,36 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 // claimPeerAS returns the AS that scopes this peer's BGP Identifier claim.
 //
 // RFC 6286 Section 2.1 scopes identifier uniqueness to an AS, so the claim key needs the
-// peer's AS at OPEN time. A configured peer has it in its settings. A DYNAMIC peer does not:
-// resolveDynamicPeerSettings publishes the learned ASN at establishment, which is after this
-// runs, so its configured PeerAS is still the template value. Fall back to the AS the peer
-// advertises in its OPEN, computed the same way resolveDynamicPeerSettings computes it
-// (RFC 6793: the 4-byte ASN when present, else the two-octet My AS).
+// peer's AS at OPEN time. That is sessionPeerAS, the one answer, below.
 //
 // Reads PeerAS through the p.mu-guarded accessor because resolveDynamicPeerSettings writes it
 // from the establishment goroutine.
 func (p *Peer) claimPeerAS(remote *message.Open) uint32 {
-	if as := p.PeerAS(); as != 0 {
-		return as
+	return sessionPeerAS(p.PeerAS(), remote)
+}
+
+// sessionPeerAS returns the AS a session's peer is judged by: the CONFIGURED remote AS when
+// the session has one, and the AS the peer advertises in its OPEN when it does not.
+//
+// It is the ONE answer to that question. Every AS-scoped decision taken at or before
+// establishment reads it: the RFC 6286 Section 2.1 identifier claim (claimPeerAS), the
+// Section 2.2 internal-peer test (validateOpenIdentifier), the Section 2.3 equal-identifier
+// tie-break (collisionPeerAS), and the identity the capability negotiation carries
+// (negotiateWith). They were four copies of these two branches, and each copy that was
+// missed read a configured 0 as if it were an AS.
+//
+// The configured value comes first because a session's own AS facts must not be derived from
+// what the peer advertised (session_as_migration.go). A DYNAMIC peer has no configured AS to
+// prefer: buildDynamicPeerSettings leaves PeerAS 0 and resolveDynamicPeerSettings fills it at
+// establishment, strictly after every caller above, so the OPEN is the only source there.
+// validateOpenPeerAS has already refused an OPEN whose advertised AS is not one this session
+// accepts (session_open_as.go), so the fallback widens nothing the peer can claim.
+func sessionPeerAS(configured uint32, remote *message.Open) uint32 {
+	if configured != 0 {
+		return configured
+	}
+	if remote == nil {
+		return 0
 	}
 	return openAdvertisedAS(remote)
 }

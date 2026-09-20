@@ -15,8 +15,12 @@ import (
 )
 
 func init() {
-	// RFC 7752: Register BGP-LS attribute (type 29).
-	attribute.RegisterName(29, "BGP_LS")
+	// RFC 9552 Section 5.3: "The BGP-LS Attribute (assigned value 29 by IANA) is an
+	// optional, non-transitive BGP Attribute that is used to carry link, node, and prefix
+	// parameters and attributes." That sentence fixes both bits, so it travels with the
+	// name: recognition and the RFC 7606 Section 3.c judgement of a received flags octet
+	// are one registration, and dropping this plugin takes both away together.
+	attribute.RegisterName(29, "BGP_LS", attribute.OptionalNonTransitiveFlags())
 
 	reg := registry.Registration{
 		Name:         "bgp-nlri-ls",
