@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -168,7 +169,7 @@ var probeServer = func(url string) bool {
 }
 
 func waitForServer(url string, maxAttempts int) error {
-	slog.Info("network: probing server", "url", url)
+	slog.Info("network: probing server", "url", redact.URL(url))
 	for attempt := range maxAttempts {
 		if probeServer(url) {
 			slog.Info("network: server reachable", "attempt", attempt+1)
@@ -180,7 +181,7 @@ func waitForServer(url string, maxAttempts int) error {
 		time.Sleep(1 * time.Second)
 	}
 
-	return fmt.Errorf("server %s not reachable after %d attempts", url, maxAttempts)
+	return fmt.Errorf("server %s not reachable after %d attempts", redact.URL(url), maxAttempts)
 }
 
 // ifaceForMAC returns the kernel interface name whose MAC matches mac.

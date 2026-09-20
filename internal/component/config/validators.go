@@ -24,6 +24,7 @@ import (
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -832,15 +833,18 @@ func ValidateFetchURL(rawURL string) error {
 		return errors.New("the url is empty")
 	}
 
+	// A refusal names what it refused, and an operator's URL can carry
+	// userinfo, so every spelling of it here is the redacted one: this message
+	// reaches the terminal, the web and the log (internal/core/redact).
 	parsed, err := url.Parse(rawURL)
 	if err != nil {
-		return fmt.Errorf("%q is not a url: %w", rawURL, err)
+		return fmt.Errorf("%q is not a url: %w", redact.URL(rawURL), redact.URLError(err))
 	}
 
 	switch parsed.Scheme {
 	case "https":
 		if parsed.Host == "" {
-			return fmt.Errorf("%q names no host", rawURL)
+			return fmt.Errorf("%q names no host", redact.URL(rawURL))
 		}
 		return nil
 	case "http":
@@ -848,10 +852,10 @@ func ValidateFetchURL(rawURL string) error {
 			return nil
 		}
 		return fmt.Errorf("%q reads %s over plain http: use https, or read from %s",
-			rawURL, parsed.Hostname(), strings.Join(loopbackFetchHosts, ", "))
+			redact.URL(rawURL), parsed.Hostname(), strings.Join(loopbackFetchHosts, ", "))
 	default:
 		return fmt.Errorf("%q uses the %q scheme: use https, or http from %s",
-			rawURL, parsed.Scheme, strings.Join(loopbackFetchHosts, ", "))
+			redact.URL(rawURL), parsed.Scheme, strings.Join(loopbackFetchHosts, ", "))
 	}
 }
 

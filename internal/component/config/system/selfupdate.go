@@ -25,6 +25,7 @@ import (
 	"github.com/ze-software/ze/internal/core/crashlog"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/identity"
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
@@ -227,7 +228,7 @@ func (su *selfUpdater) check(ctx context.Context) {
 
 	manifest, err := su.fetchManifest(ctx)
 	if err != nil {
-		logger.Warn("fetch failed", "url", su.url, "error", err)
+		logger.Warn("fetch failed", "url", redact.URL(su.url), "error", err)
 		su.mu.Lock()
 		su.status = UpdateStatus{
 			LastCheck:      su.nowFunc(),
@@ -373,7 +374,7 @@ func (su *selfUpdater) download(ctx context.Context, manifest extendedManifest, 
 
 	tempPath, err := su.downloadBinary(ctx, downloadURL)
 	if err != nil {
-		logger.Warn("download failed", "url", downloadURL, "error", err)
+		logger.Warn("download failed", "url", redact.URL(downloadURL), "error", err)
 		su.mu.Lock()
 		su.downloadStatus = "error: download failed"
 		su.mu.Unlock()
@@ -693,19 +694,22 @@ func (su *selfUpdater) Rollback() error {
 func (su *selfUpdater) fetchManifest(ctx context.Context) (extendedManifest, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, su.url, http.NoBody)
 	if err != nil {
-		return extendedManifest{}, err
+		return extendedManifest{}, redact.URLError(err)
 	}
 	req.Header.Set("User-Agent", version.HTTPHeader())
 	req.Header.Set("X-Ze-Arch", runtime.GOOS+"/"+runtime.GOARCH)
 
+	// The URL is operator-supplied and may carry userinfo, and every error on
+	// this path reaches the operator's terminal through UpdateStatus.LastError
+	// as well as the log, so each one names the URL through redact.
 	resp, err := su.client.Do(req)
 	if err != nil {
-		return extendedManifest{}, err
+		return extendedManifest{}, redact.URLError(err)
 	}
 	defer resp.Body.Close() //nolint:errcheck // best-effort close on read path
 
 	if resp.StatusCode != http.StatusOK {
-		return extendedManifest{}, fmt.Errorf("HTTP %d from %s", resp.StatusCode, su.url)
+		return extendedManifest{}, fmt.Errorf("HTTP %d from %s", resp.StatusCode, redact.URL(su.url))
 	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, updateMaxBody))
@@ -744,18 +748,21 @@ func (su *selfUpdater) resolveDownloadURL(manifest extendedManifest) (string, er
 func (su *selfUpdater) downloadBinary(ctx context.Context, downloadURL string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, http.NoBody)
 	if err != nil {
-		return "", err
+		return "", redact.URLError(err)
 	}
 	req.Header.Set("User-Agent", version.HTTPHeader())
 
+	// The download URL comes from whichever server answered the manifest, so
+	// it is no more trusted than the configured one and carries userinfo the
+	// same way.
 	resp, err := su.client.Do(req)
 	if err != nil {
-		return "", err
+		return "", redact.URLError(err)
 	}
 	defer resp.Body.Close() //nolint:errcheck // best-effort close on read path
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("HTTP %d from %s", resp.StatusCode, downloadURL)
+		return "", fmt.Errorf("HTTP %d from %s", resp.StatusCode, redact.URL(downloadURL))
 	}
 
 	dir := filepath.Dir(su.targetPath)

@@ -16,7 +16,8 @@ redact credential tokens in the command log.
 <!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskBcrypt, MaskSecrets, MaskSecretsInPlace, SecretKeys, DisplayValueAtPath, DisplayMessageAtPath, MaskSecretInMessage, RejectMaskedSecretLeaves -->
 <!-- source: internal/component/config/schema.go -- Schema.LookupTokenPath -->
 <!-- source: internal/component/cli/editor_mask.go -- DisplayContentAtPath, DisplayOriginalContentAtPath -->
-<!-- source: internal/core/redact/redact.go -- IsBcryptHash, Command, JSON, Placeholder -->
+<!-- source: internal/core/redact/redact.go -- IsBcryptHash, Command, JSON, URL, URLError, Placeholder -->
+<!-- source: internal/component/cli/transcript.go -- TranscriptWriter.Record -->
 
 ## Decisions
 
@@ -79,6 +80,35 @@ bcrypt-shape pattern and the config helper delegates to it. Command redaction
 scrubs bcrypt-shaped tokens and password-family key values BEFORE the log
 truncation, so a secret straddling the cut cannot half-leak.
 
+**Four shapes of input, four entry points, and each surface asks the one that
+fits it.** A surface leaks because it did not ask, never because the answer was
+missing, so the vocabulary is short and each shape has exactly one home.
+
+| The input | The entry point | Where it lives |
+|-----------|-----------------|----------------|
+| A command line the operator typed | `redact.Command` | `internal/core/redact` |
+| A captured JSON payload | `redact.JSON` | `internal/core/redact` |
+| A URL the operator configured, and the transport failure carrying one | `redact.URL`, `redact.URLError` | `internal/core/redact` |
+| A config leaf value | `config.DisplayValueAtPath`, `config.DisplayMessageAtPath` | `internal/component/config` |
+
+The split is not arbitrary. The first three read the STRING, so they live in a
+leaf package any tier may import. The fourth reads the YANG SCHEMA to decide
+whether the leaf at that path is marked, so it cannot live below the config
+component.
+
+`redact.Command` has two callers: the SSH exec log and the CLI session
+transcript. The transcript is the one that writes to a FILE, so a credential
+typed at the prompt outlived the session until `Record` was routed through it.
+
+**A URL's secret is its userinfo, and the WHOLE userinfo goes.** `redact.URL`
+replaces `user:password@` with the placeholder, and it replaces `token@` too.
+`(*url.URL).Redacted` and net/http's own `stripPassword` keep the username and
+blank the password, so a bare-token userinfo survives both, and a bare token is
+a credential. `redact.URLError` rebuilds the `*url.Error` that net/url and
+net/http attach to a failure, because that wrapper carries the URL into any
+error text a caller prints. Both fail CLOSED: a string that does not parse
+cannot be searched for its userinfo, so the answer carries none of the input.
+
 ## Traps this code exists to avoid
 
 **Masking must be line-preserving.** Only the value token changes, so validation
@@ -107,6 +137,12 @@ tests instead.
   component with its own authorization.
 - An operator-installed local TCP proxy in front of the loopback SSH port is
   outside Ze's control. A dedicated unix-socket listener would close it.
-- Redaction is scoped to the password family and to bcrypt tokens. It does not
-  cover `secret`, `community` or key-suffixed names, because that would redact
-  BGP communities and host-key file paths out of the operational log.
+- Redaction is scoped to the names `isSecretConfigKey` answers for: the words
+  `password`, `secret`, `passphrase`, `psk`, `md5` and `token`, the suffixes
+  `-password`, `-secret`, `-passphrase` and `-key`, and on a command line the
+  `plaintext-` prefix as well. The bare word `key` is deliberately absent,
+  because it names a key-chain entry id and a YANG list key far more often than
+  it names a secret, and every real secret leaf spells the suffix.
+- `cmd/ze/hub/main_system.go` logs the configured update-check URL at daemon
+  start without `redact.URL`, so a mirror credential still reaches that one
+  line.

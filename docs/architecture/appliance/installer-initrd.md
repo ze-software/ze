@@ -52,6 +52,12 @@ with its own build tag, and the plugin tree is not in it.
 
 `./le qemu install-test` proves the initrd boots and installs cleanly.
 
+The installer fetches over URLs an operator supplies, so every line it writes
+about one goes through `redact.URL`. `waitForServer` and the download path name
+the URL in a progress line and in each error they wrap, and an image server
+reached as `user:password@host` would otherwise put that credential on the
+console of a machine being installed in front of whoever is installing it.
+
 <!-- source: internal/install/disk/network.go -- waitForCarrier, fallbackDHCP, probeServer, waitForServer -->
 <!-- source: internal/install/disk/netlink_linux.go -- netlinkOps, realNetlinkOps -->
 <!-- source: internal/install/disk/rescue_linux.go -- the sysfs interface report and unix.Reboot -->

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/report"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/version"
@@ -137,7 +138,7 @@ func (uc *UpdateChecker) check(ctx context.Context) {
 
 	remoteVer, err := uc.fetchVersion(ctx)
 	if err != nil {
-		logger.Warn("fetch failed", "url", uc.url, "error", err)
+		logger.Warn("fetch failed", "url", redact.URL(uc.url), "error", err)
 		uc.mu.Lock()
 		uc.status = UpdateStatus{
 			LastCheck:      time.Now(),
@@ -244,19 +245,22 @@ type versionManifest struct {
 func (uc *UpdateChecker) fetchVersion(ctx context.Context) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, uc.url, http.NoBody)
 	if err != nil {
-		return "", err
+		return "", redact.URLError(err)
 	}
 	req.Header.Set("User-Agent", version.HTTPHeader())
 	req.Header.Set("X-Ze-Arch", runtime.GOOS+"/"+runtime.GOARCH)
 
+	// The URL is operator-supplied and may carry userinfo, and every error on
+	// this path reaches the operator's terminal through UpdateStatus.LastError
+	// as well as the log, so each one names the URL through redact.
 	resp, err := uc.client.Do(req)
 	if err != nil {
-		return "", err
+		return "", redact.URLError(err)
 	}
 	defer resp.Body.Close() //nolint:errcheck // best-effort close on read path
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("HTTP %d from %s", resp.StatusCode, uc.url)
+		return "", fmt.Errorf("HTTP %d from %s", resp.StatusCode, redact.URL(uc.url))
 	}
 
 	body, err := io.ReadAll(io.LimitReader(resp.Body, updateMaxBody))

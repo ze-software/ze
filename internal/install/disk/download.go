@@ -13,15 +13,20 @@ import (
 	"os"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 const (
 	retryMax            = 3
-	retryDelay          = 5 * time.Second
+	defaultRetryDelay   = 5 * time.Second
 	metadataTimeout     = 30 * time.Second
 	defaultStallTimeout = 60 * time.Second
 )
+
+// retryDelay is the wait before the first retry, doubled on each further
+// attempt. A var so tests can shorten it, as stallTimeout below is.
+var retryDelay = defaultRetryDelay
 
 // stallTimeout is the maximum time without receiving any data before the
 // streaming download is considered stalled. A var so tests can shorten it.
@@ -34,6 +39,11 @@ var (
 
 // downloadToFile downloads url to dest with retry. Returns error after
 // retryMax failed attempts.
+//
+// The URL is operator-supplied and may carry userinfo for a private mirror,
+// so every site that names it here writes redact.URL and every wrapped
+// transport error goes through redact.URLError: an installer console is read
+// over a serial line and photographed.
 func downloadToFile(url, dest string) error {
 	delay := retryDelay
 	for attempt := 1; attempt <= retryMax; attempt++ {
@@ -41,28 +51,28 @@ func downloadToFile(url, dest string) error {
 		if err == nil {
 			return nil
 		}
-		slog.Warn("download failed", "url", url, "attempt", attempt, "error", err)
+		slog.Warn("download failed", "url", redact.URL(url), "attempt", attempt, "error", err)
 		if attempt < retryMax {
 			time.Sleep(delay)
 			delay *= 2
 		}
 	}
-	return fmt.Errorf("download %s failed after %d attempts", url, retryMax)
+	return fmt.Errorf("download %s failed after %d attempts", redact.URL(url), retryMax)
 }
 
 func doDownloadToFile(url, dest string) error {
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
 	if err != nil {
-		return fmt.Errorf("build request for %s: %w", url, err)
+		return fmt.Errorf("build request for %s: %w", redact.URL(url), redact.URLError(err))
 	}
 	resp, err := metadataClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("GET %s: %w", url, err)
+		return fmt.Errorf("GET %s: %w", redact.URL(url), redact.URLError(err))
 	}
 	defer resp.Body.Close() //nolint:errcheck // read-only
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("GET %s: status %d", url, resp.StatusCode)
+		return fmt.Errorf("GET %s: status %d", redact.URL(url), resp.StatusCode)
 	}
 
 	f, err := os.Create(dest) //nolint:gosec // dest from installer logic
@@ -94,13 +104,13 @@ func downloadToDisk(url, disk, expectedSHA string) error {
 		if err == nil {
 			return nil
 		}
-		slog.Warn("stream to disk failed", "url", url, "disk", disk, "attempt", attempt, "error", err)
+		slog.Warn("stream to disk failed", "url", redact.URL(url), "disk", disk, "attempt", attempt, "error", err)
 		if attempt < retryMax {
 			time.Sleep(delay)
 			delay *= 2
 		}
 	}
-	return fmt.Errorf("stream %s to %s failed after %d attempts", url, disk, retryMax)
+	return fmt.Errorf("stream %s to %s failed after %d attempts", redact.URL(url), disk, retryMax)
 }
 
 // stallReader wraps an io.Reader with a per-read stall timeout. Each Read
@@ -151,16 +161,16 @@ func (sr *stallReader) Close() {
 func doDownloadToDisk(url, disk, expectedSHA string) error {
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
 	if err != nil {
-		return fmt.Errorf("build request for %s: %w", url, err)
+		return fmt.Errorf("build request for %s: %w", redact.URL(url), redact.URLError(err))
 	}
 	resp, err := streamClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("GET %s: %w", url, err)
+		return fmt.Errorf("GET %s: %w", redact.URL(url), redact.URLError(err))
 	}
 	defer resp.Body.Close() //nolint:errcheck // read-only
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("GET %s: status %d", url, resp.StatusCode)
+		return fmt.Errorf("GET %s: status %d", redact.URL(url), resp.StatusCode)
 	}
 
 	f, err := os.OpenFile(disk, os.O_WRONLY, 0) //nolint:gosec // disk from validated cmdline

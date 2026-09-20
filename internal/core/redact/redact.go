@@ -4,11 +4,21 @@
 // logged. It owns the canonical bcrypt-shape regex (config.IsBcryptHash
 // delegates here) so the pattern has a single home, and it is a leaf package
 // (no ze imports) so any tier may use it.
+//
+// It answers three shapes of input, and each shape has exactly one entry
+// point: Command for an operator's command line, JSON for a captured payload,
+// and URL (with URLError for the transport failure that carries one) for an
+// operator-supplied endpoint. A surface that writes one of those three to a
+// log, a file or a terminal calls the matching function. A config leaf VALUE
+// is the fourth shape and it is not here: it is answered from the YANG schema
+// by config.DisplayValueAtPath, which this package cannot reach.
 package redact
 
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
+	"net/url"
 	"regexp"
 	"strings"
 )
@@ -142,4 +152,50 @@ func Command(cmd string) string {
 		return cmd
 	}
 	return strings.Join(fields, " ")
+}
+
+// URL returns rawURL in a form that is safe to log. When the URL carries
+// userinfo, the whole userinfo is replaced by Placeholder, so an operator's
+// `https://operator:<credential>@host/v.json` is logged as
+// `https://<redacted>@host/v.json`. A URL with no userinfo is returned
+// unchanged, so the operator still reads which endpoint answered.
+//
+// The WHOLE userinfo goes, not the password half alone. (*url.URL).Redacted
+// keeps the username and blanks the password, which leaves a bare-token
+// userinfo (`https://<token>@host/`) in the clear, and that shape is a
+// credential too.
+//
+// It fails CLOSED. A string that does not parse cannot be searched for its
+// userinfo, so the answer is a bare Placeholder carrying none of the input.
+func URL(rawURL string) string {
+	parsed, err := url.Parse(rawURL)
+	if err != nil {
+		return Placeholder
+	}
+	if parsed.User == nil {
+		return rawURL
+	}
+	parsed.User = nil
+	// url.URL.String percent-encodes a placeholder written back into User, and
+	// escapes the "@" written into Host, so the marker is spliced into the text
+	// form instead. The first "//" always opens the authority: a URL that holds
+	// userinfo has an authority, and only the scheme can precede it.
+	return strings.Replace(parsed.String(), "//", "//"+Placeholder+"@", 1)
+}
+
+// URLError returns err with the URL that net/url and net/http attach to a
+// transport failure replaced by its URL form, so a credential inside that URL
+// cannot reach a log through the error text. An error carrying no *url.Error
+// is returned unchanged.
+//
+// Neither wrapper is safe to print as it arrives. net/http builds one through
+// stripPassword, which blanks a password and keeps a bare-token userinfo
+// whole, and net/url builds one from the RAW string, credential and all, when
+// the URL does not parse.
+func URLError(err error) error {
+	var wrapped *url.Error
+	if !errors.As(err, &wrapped) {
+		return err
+	}
+	return &url.Error{Op: wrapped.Op, URL: URL(wrapped.URL), Err: wrapped.Err}
 }

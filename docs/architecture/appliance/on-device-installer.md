@@ -13,6 +13,15 @@ reimplementing the logic in shell.
 <!-- source: internal/install/disk/cmdline.go -- kernel cmdline parsing -->
 <!-- source: internal/install/disk/network.go -- network fallback -->
 
+**The image URL never reaches the console as the operator typed it.** A private
+mirror is reached with `https://user:password@host/`, and the installer prints
+its URL on every retry, in the failure it returns, and in the line that names
+the server it is probing. Each of those writes `redact.URL`, and each wrapped
+transport failure goes through `redact.URLError`, so the userinfo is replaced
+with `<redacted>`. An installer console is read over a serial line and
+photographed, which is the worst place for a credential to appear.
+<!-- source: internal/core/redact/redact.go -- URL, URLError -->
+
 ## What this work exists to prevent
 
 An Intel N150 appliance bricked silently. The build wrote a broken image, and

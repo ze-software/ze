@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -128,7 +129,7 @@ func runHTTP(cfg installConfig) int {
 	}
 
 	imageURL := tb.Reset().Str(baseURL).Str("/install/image/").Str(cfg.Image).String()
-	slog.Info("streaming image to disk", "url", imageURL, "disk", disk)
+	slog.Info("streaming image to disk", "url", redact.URL(imageURL), "disk", disk)
 	if err := downloadToDisk(imageURL, disk, expectedSHA); err != nil {
 		slog.Error("image write failed", "error", err)
 		return 1

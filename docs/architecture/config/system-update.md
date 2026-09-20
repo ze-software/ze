@@ -84,6 +84,20 @@ branch, and it guards a self-update manifest's download URL as well as the
 <!-- source: internal/component/config/validators.go -- ValidateFetchURL -->
 <!-- source: internal/component/config/system/update.go -- ValidateUpdateCheckURL -->
 
+**An accepted URL can carry a credential, so no site prints it as it arrived.**
+A private mirror is reached with `https://user:password@host/`, and the
+userinfo is a secret the operator typed. Every place that names the URL writes
+`redact.URL`, which replaces the whole userinfo with `<redacted>`, and every
+wrapped transport failure goes through `redact.URLError`. That covers the log
+line, the refusal the validator writes, and `UpdateStatus.LastError`, which
+`show firmware` prints on the operator's terminal.
+
+The whole userinfo goes, not the password half. `(*url.URL).Redacted` and
+net/http's own `stripPassword` keep the username and blank the password, which
+leaves `https://<token>@host/` in the clear, and a bare token is a credential
+too.
+<!-- source: internal/core/redact/redact.go -- URL, URLError -->
+
 **The reload path validates too.** It did not at first, so a SIGHUP could
 install an HTTP URL that the initial load would have refused.
 

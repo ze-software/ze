@@ -3163,6 +3163,12 @@ client, for `ze cli -c <command>` and for a loose-file `ze config edit`, named
 username, and remote host. Transcript writes are best-effort and never block
 CLI operation. Default is `disabled`.
 
+A credential typed at the prompt is not written. The command line goes through
+the same redaction the SSH command log uses, so a bcrypt-shaped token and the
+value after a password-family keyword are each replaced with `<redacted>`
+before the line reaches the file. The answer needs no pass of its own: a
+command that echoes a config value masks it where it is written.
+
 The `mtu { reference-address }` leaf names the address `show mtu` measures
 beside the IPsec peers. A reference outside the tunnels is what tells a clamped
 access circuit from a clamped peer path. The value is one IPv4 or IPv6 address

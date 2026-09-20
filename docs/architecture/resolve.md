@@ -217,7 +217,15 @@ number, so a transport nobody authenticates must not carry it off the box. The
 host is compared after parsing rather than by prefix, so
 `http://127.0.0.1.example.com` is not loopback. The same rule guards the
 self-update URLs, and it carried that prefix test until 2026-09-03.
+
+A URL that carries `user:password@host` is admitted, because a fetch may need
+credentials, and it is never written out whole: every site that names one logs
+and wraps it through `redact.URL`, which keeps the scheme, host and path and
+replaces the userinfo. The refusal above is about the TRANSPORT; this is about
+the log, and a URL an operator typed once reaches a log file that is read by
+more people than the config is.
 <!-- source: internal/component/config/validators.go -- ValidateFetchURL, DelegationSourceValidator -->
+<!-- source: internal/core/redact/redact.go -- URL, URLError -->
 <!-- source: internal/component/config/system/update.go -- ValidateUpdateCheckURL -->
 
 The sources are read from the config tree when the command RUNS, not at
