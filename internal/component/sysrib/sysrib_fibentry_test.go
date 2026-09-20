@@ -111,14 +111,14 @@ func TestReplayAgreesWithTheLiveAddForAnUnresolvedGateway(t *testing.T) {
 	}
 }
 
-// TestResolvedNextHopIsASubsetOfBest pins the invariant recomputeBest's first
+// TestInstalledIsASubsetOfBest pins the invariant recomputeBest's first
 // Add relies on: a prefix with no previous winner has no install outstanding,
 // so the change it owes is an Add and never an Update. Every path that writes
 // the resolved next-hop writes the winner, and every path that takes a prefix
 // out of the best table takes it out of both, so a key here is a key there. The
 // four states that hold a best route with nothing programmed are driven below,
 // because each is a chance for the two tables to part.
-func TestResolvedNextHopIsASubsetOfBest(t *testing.T) {
+func TestInstalledIsASubsetOfBest(t *testing.T) {
 	redistevents.RegisterProtocol("bgp")
 	redistevents.RegisterProtocol("ospf")
 	redistevents.RegisterProtocol("static")
@@ -146,7 +146,7 @@ func TestResolvedNextHopIsASubsetOfBest(t *testing.T) {
 	loc.Remove(family.IPv4Unicast, covering, connectedID, 0)
 	s.processCascade([]netip.Addr{gateway})
 
-	for key := range s.resolvedNH {
+	for key := range s.installed {
 		if s.best[key] == nil {
 			t.Errorf("%s has a resolved next-hop and no best route: recomputeBest reads a nil "+
 				"previous winner as \"Ze programmed nothing\" and would send an Add for a prefix "+

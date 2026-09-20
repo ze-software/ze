@@ -161,7 +161,7 @@ func TestOSInstalledLoserLeavesTheZeRouteProgrammed(t *testing.T) {
 	if best := s.best[prefixKey{family: family.IPv4Unicast, prefix: pfx}]; best == nil || best.protocol != "bgp" {
 		t.Errorf("system best is %+v, want the BGP path", best)
 	}
-	if resolved := s.resolvedNH[prefixKey{family: family.IPv4Unicast, prefix: pfx}]; resolved != nextHop {
+	if resolved := s.installed[prefixKey{family: family.IPv4Unicast, prefix: pfx}].nextHop; resolved != nextHop {
 		t.Errorf("Ze's programmed next-hop is %v, want %v", resolved, nextHop)
 	}
 }

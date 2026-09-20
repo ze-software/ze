@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"net/netip"
 
-	sysribevents "github.com/ze-software/ze/internal/component/sysrib/events"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/family"
@@ -125,7 +124,7 @@ func (s *sysRIB) fibPermitted(protocol string) bool {
 func (s *sysRIB) recordWithheldWinner(key prefixKey, prev, winner *protocolRoute, protocols map[string]*protocolRoute) *outgoingChange {
 	hadZeRoute := s.programmedByZe(key)
 	s.best[key] = winner
-	s.lastECMP[key] = s.ecmpCollect(protocols, winner)
+	s.lastECMP[key] = ecmpPaths(s.ecmpCollect(protocols, winner))
 
 	// The next-hop is tracked for a route Ze programs, so the resolver can tell
 	// it when the path to that next-hop changes. Nothing is programmed here, so
@@ -139,7 +138,7 @@ func (s *sysRIB) recordWithheldWinner(key prefixKey, prev, winner *protocolRoute
 	if !hadZeRoute {
 		return nil
 	}
-	delete(s.resolvedNH, key)
+	delete(s.installed, key)
 	logger().Info("sysrib: withdrawing the route Ze programmed, the prefix is held by a withheld protocol now",
 		"prefix", key.prefix, "protocol", winner.protocol)
 	return &outgoingChange{
@@ -190,26 +189,39 @@ func untrackNextHops(prefix netip.Prefix, route *protocolRoute) {
 	}
 }
 
-// fibChange renders the change that programs a prefix for its current winner.
+// fibChange renders the change that programs a prefix: what the PREFIX owns,
+// from the route that won it, and what the PATH owns, from the next-hop that
+// carries the traffic (ecmp.go, forwardingPath). The two come from one route
+// for an ordinary entry, and they part when the winner's gateway resolves to
+// nothing and an equal-cost member is promoted to carry the prefix.
+//
+// The split is the whole point of taking a forwardingPath rather than the
+// fields. A field added to BestChangeEntry is added on one side or the other
+// here, so a promotion carries it without a second decision, and the two
+// fields a promotion used to override by name are no longer a list anybody has
+// to keep (plan/journal/helper-bypassed-by-an-open-coded-copy.md).
 //
 // The action is Add, because fibEntry is the one caller and it answers what the
 // FIB owes rather than what Ze already holds. A caller that knows Ze holds an
 // install for the prefix overwrites the action with Update, which is the one
 // thing neither function can see.
-func fibChange(key prefixKey, route *protocolRoute, nextHop netip.Addr, paths []sysribevents.ECMPPath) outgoingChange {
+func fibChange(key prefixKey, route *protocolRoute, path forwardingPath, group []forwardingPath) outgoingChange {
 	return outgoingChange{
 		Action:    routeaction.Add,
 		Prefix:    key.prefix,
-		NextHop:   nextHop,
-		Interface: route.nextHopInterface,
-		Weight:    route.nextHopWeight,
+		NextHop:   path.NextHop,
+		Interface: path.Interface,
+		Weight:    path.Weight,
+		Labels:    path.Labels,
+		SRv6SID:   path.srv6SID,
 		Protocol:  route.protocol,
-		Labels:    route.labels,
-		SRv6SID:   route.srv6SID,
 		RouteType: route.routeType,
 		Metric:    route.metric,
-		ECMPPaths: paths,
-		Backup:    backupPaths(route),
+		ECMPPaths: ecmpPaths(group),
+		// The fast-reroute alternate is the PREFIX's: the winner's protocol
+		// computed a loop-free alternate for this prefix, and it stays one
+		// whichever equal-cost path carries the primary traffic.
+		Backup: backupPaths(route),
 	}
 }
 
@@ -260,7 +272,7 @@ func (s *sysRIB) applyFIBImport(permit map[string]bool) map[family.Family][]outg
 			if !s.programmedByZe(key) {
 				continue
 			}
-			delete(s.resolvedNH, key)
+			delete(s.installed, key)
 			changesByFamily[key.family] = append(changesByFamily[key.family], outgoingChange{
 				Action: routeaction.Withdraw,
 				Prefix: key.prefix,
@@ -309,7 +321,7 @@ func (s *sysRIB) groupPermissionChanged(key prefixKey, winner *protocolRoute, pr
 		return fibPermits(previous, protocol)
 	})
 	after := s.ecmpGroup(protocols, winner, s.fibPermitted)
-	return ecmpChanged(before, after)
+	return ecmpChanged(ecmpPaths(before), ecmpPaths(after))
 }
 
 // fibStateChange answers with the change a prefix owes after the permission set
@@ -325,20 +337,17 @@ func (s *sysRIB) groupPermissionChanged(key prefixKey, winner *protocolRoute, pr
 // a member the resolver dropped back into the kernel multipath, and pair a
 // promoted member's address with the winner's device.
 //
-// The VERDICT is read the way recomputeBest reads it, and NOT the way
-// cascadeRecompute reads it. A cascade is reachability NEWS, so a verdict of
-// anything but reachable says the prefix lost the path it was programmed over.
 // A permission change is no news about a path. It is a fresh install decision,
 // and the Loc-RIB is not the router's whole picture of reachability: an OSPF or
 // IS-IS next-hop on a link whose connected route no plugin inserted resolves to
 // nothing and is on-link all the same, which is why recomputeBest programs it
-// (test/ospf/ospf-route-install.ci). So the sweep programs it too.
-//
-// Taking the cascade's rule here loses the prefix twice over. A permit
-// publishes NOTHING and nothing later repairs it, because an identical
+// (test/ospf/ospf-route-install.ci). So the sweep programs it too, and so does
+// the cascade: fibInstall is the one tail all three take, and reading the
+// resolver's answer a second way there lost the prefix twice over. A permit
+// published NOTHING and nothing later repaired it, because an identical
 // re-announcement is a no-op at recomputeBest and a cascade fires only when a
 // covering route changes. And withholding one MEMBER of an equal-cost group
-// withdraws a prefix its permitted winner still holds, which blackholes it.
+// withdrew a prefix its permitted winner still holds, which blackholes it.
 //
 // REQUIRES: the caller holds s.mu, and has taken the next-hop tracking for a
 // prefix it newly permits.
@@ -350,38 +359,8 @@ func (s *sysRIB) fibStateChange(key prefixKey, route *protocolRoute) *outgoingCh
 		return nil
 	}
 
-	programmed := s.programmedByZe(key)
-
-	// RFC 9252 Section 5 is the one rule that forbids the write outright, and
-	// fibEntry is where the SID is read. A prefix Ze holds an install for is
-	// withdrawn, as recomputeBest withdraws it: the kernel entry encapsulates
-	// to a SID no route reaches.
-	entry, path := s.fibEntry(key, route)
-	if path == fibPathForbidden {
-		delete(s.lastECMP, key)
-		delete(s.resolvedNH, key)
-		if !programmed {
-			return nil
-		}
-		return &outgoingChange{
-			Action: routeaction.Withdraw,
-			Prefix: key.prefix,
-		}
-	}
-
-	if programmed && entry.NextHop == s.resolvedNH[key] && !ecmpChanged(s.lastECMP[key], entry.ECMPPaths) {
-		return nil
-	}
-
-	s.resolvedNH[key] = entry.NextHop
-	s.lastECMP[key] = entry.ECMPPaths
-	// An Update names an entry to replace and a prefix Ze holds no install for
-	// has none, so the verb follows the install rather than the change:
-	// recomputeBest says what each one becomes at the kernel writer.
-	if programmed {
-		entry.Action = routeaction.Update
-	}
-	return &entry
+	entry, verdict := s.fibEntry(key, route)
+	return s.fibInstall(key, entry, verdict)
 }
 
 // publishFIBImport installs the permission set and publishes what the switch

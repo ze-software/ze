@@ -12,6 +12,73 @@ import (
 	"github.com/ze-software/ze/internal/core/rib/nexthop"
 )
 
+// forwardingPath is one next-hop a prefix can be forwarded over, with
+// everything that belongs to THAT path: where the packet goes, out of which
+// device, what share of the group it takes, and what the path imposes on it.
+//
+// The split it names is the one a FIB entry is built from. A path field
+// belongs to the route that owns the NEXT-HOP, which is the winner for an
+// ordinary entry and the promoted member when the winner's gateway resolves to
+// nothing. Everything else belongs to the PREFIX -- the protocol credited with
+// it, the forwarding action, the metric, the fast-reroute alternate the
+// winner's protocol computed for it -- and comes from the winner whichever
+// path carries the traffic (fibimport.go, fibChange).
+//
+// A field added to sysribevents.BestChangeEntry belongs to one side or the
+// other, and adding it to this struct or to fibChange's route fields IS that
+// decision. Enumerating the path fields at the promotion instead was the MPLS
+// misforward in plan/journal/helper-bypassed-by-an-open-coded-copy.md: the
+// list was correct for the two fields it named and silently wrong for the
+// three it did not.
+//
+// The embedded ECMPPath is the part a group MEMBER carries on the wire. The
+// SID is not on it: a FIB backend programs one SID for the entry, so a member
+// that owns one can only carry it by being promoted to the primary next-hop.
+type forwardingPath struct {
+	sysribevents.ECMPPath
+	srv6SID netip.Addr
+}
+
+// routePath is the forwarding path a route names for itself. nextHop is the
+// address the FIB programs, which is the direct address the resolver proved
+// where it proved one, and the route's own gateway where there was nothing to
+// resolve or the resolver proved nothing.
+func routePath(route *protocolRoute, nextHop netip.Addr) forwardingPath {
+	path := sysribevents.ECMPPath{
+		NextHop:   nextHop,
+		Interface: route.nextHopInterface,
+		Weight:    route.nextHopWeight,
+		Labels:    route.labels,
+	}
+	return forwardingPath{ECMPPath: path, srv6SID: route.srv6SID}
+}
+
+// memberPath is the forwarding path of one equal-cost group member: the route
+// that produced it, over the target the member names rather than the route's
+// own. A member's share is rendered for the FIB here, because a group member
+// with no stated share takes an equal one (ecmpWeight).
+func memberPath(route *protocolRoute, nextHop netip.Addr, iface string, weight uint8) forwardingPath {
+	path := sysribevents.ECMPPath{
+		NextHop:   nextHop,
+		Interface: iface,
+		Weight:    ecmpWeight(weight),
+		Labels:    route.labels,
+	}
+	return forwardingPath{ECMPPath: path, srv6SID: route.srv6SID}
+}
+
+// ecmpPaths renders a collected group as the wire form a FIB entry carries.
+func ecmpPaths(paths []forwardingPath) []sysribevents.ECMPPath {
+	if len(paths) == 0 {
+		return nil
+	}
+	wire := make([]sysribevents.ECMPPath, len(paths))
+	for i, path := range paths {
+		wire[i] = path.ECMPPath
+	}
+	return wire
+}
+
 // Intra-protocol equal-cost sibling next-hops (IS-IS ECMP, umbrella A-2) used
 // to be recomputed here via a per-change Loc-RIB Lookup. They are now computed
 // at Loc-RIB emit (locrib.siblingNextHops) and carried on locrib.Change.ECMP,
@@ -34,7 +101,7 @@ import (
 //
 // REQUIRES: the caller holds s.mu. The permission read takes fibMu, which is
 // the lock order every caller of this package uses (mu, then fibMu).
-func (s *sysRIB) ecmpCollect(protocols map[string]*protocolRoute, winner *protocolRoute) []sysribevents.ECMPPath {
+func (s *sysRIB) ecmpCollect(protocols map[string]*protocolRoute, winner *protocolRoute) []forwardingPath {
 	if !s.fibPermitted(winner.protocol) {
 		// The winner is not programmed either, so the group has no member to
 		// carry. recordWithheldWinner stores what this returns and emits
@@ -53,7 +120,7 @@ func (s *sysRIB) ecmpCollect(protocols map[string]*protocolRoute, winner *protoc
 // ecmpCollect is what produces that.
 //
 // REQUIRES: the caller holds s.mu.
-func (s *sysRIB) ecmpRIBGroup(protocols map[string]*protocolRoute, winner *protocolRoute) []sysribevents.ECMPPath {
+func (s *sysRIB) ecmpRIBGroup(protocols map[string]*protocolRoute, winner *protocolRoute) []forwardingPath {
 	return s.ecmpGroup(protocols, winner, everyProtocol)
 }
 
@@ -70,8 +137,8 @@ func everyProtocol(string) bool { return true }
 // REQUIRES: the caller holds s.mu. A permits that reads the permission set
 // takes fibMu, which is the lock order every caller of this package uses.
 func (s *sysRIB) ecmpGroup(protocols map[string]*protocolRoute, winner *protocolRoute,
-	permits func(protocol string) bool) []sysribevents.ECMPPath {
-	var paths []sysribevents.ECMPPath
+	permits func(protocol string) bool) []forwardingPath {
+	var paths []forwardingPath
 	for _, route := range protocols {
 		if route == winner {
 			continue
@@ -88,27 +155,18 @@ func (s *sysRIB) ecmpGroup(protocols map[string]*protocolRoute, winner *protocol
 		if !permits(route.protocol) {
 			continue
 		}
-		paths = append(paths, sysribevents.ECMPPath{
-			NextHop:   route.nextHop,
-			Interface: route.nextHopInterface,
-			Weight:    ecmpWeight(route.nextHopWeight),
-			Labels:    route.labels,
-		})
+		paths = append(paths, memberPath(route, route.nextHop, route.nextHopInterface, route.nextHopWeight))
 	}
 	// Intra-protocol equal-cost siblings of the winner (same source, same
 	// admin distance + metric, different next-hop), recovered from the Loc-RIB
-	// path-group. These share the winner's labels (a labeled ECMP group imposes
-	// the same stack on every member today).
+	// path-group. Each is another target of the WINNER's own route, so it
+	// carries the winner's labels and the winner's SID (a labeled ECMP group
+	// imposes the same stack on every member today).
 	for _, nh := range winner.ecmpNextHops {
 		if sameTarget(nh, winner) || !namesATarget(nh.Addr, nh.Interface) {
 			continue
 		}
-		paths = append(paths, sysribevents.ECMPPath{
-			NextHop:   nh.Addr,
-			Interface: nh.Interface,
-			Weight:    ecmpWeight(nh.Weight),
-			Labels:    winner.labels,
-		})
+		paths = append(paths, memberPath(winner, nh.Addr, nh.Interface, nh.Weight))
 	}
 	return finishECMP(paths)
 }
@@ -143,11 +201,11 @@ func sameTarget(nh nexthop.NextHop, winner *protocolRoute) bool {
 
 // finishECMP sorts, dedups and bounds a collected group. Both collectors end
 // this way, so the ordering the FIB sees does not depend on which one ran.
-func finishECMP(paths []sysribevents.ECMPPath) []sysribevents.ECMPPath {
+func finishECMP(paths []forwardingPath) []forwardingPath {
 	if len(paths) == 0 {
 		return nil
 	}
-	slices.SortFunc(paths, ecmpPathCompare)
+	slices.SortFunc(paths, func(a, b forwardingPath) int { return ecmpPathCompare(a.ECMPPath, b.ECMPPath) })
 	paths = dedupECMP(paths)
 	if len(paths) > sysribevents.MaxECMPPaths-1 {
 		paths = paths[:sysribevents.MaxECMPPaths-1]
@@ -177,11 +235,11 @@ type dedupKey struct {
 // first occurrence. A next-hop can appear both as an inter-protocol route and an
 // intra-protocol sibling; the kernel multipath must list it once. Two members
 // are the same next-hop only when their gateway AND their device agree.
-func dedupECMP(paths []sysribevents.ECMPPath) []sysribevents.ECMPPath {
+func dedupECMP(paths []forwardingPath) []forwardingPath {
 	if len(paths) <= 1 {
 		return paths
 	}
-	key := func(p sysribevents.ECMPPath) dedupKey {
+	key := func(p forwardingPath) dedupKey {
 		return dedupKey{addr: p.NextHop, iface: p.Interface}
 	}
 	out := paths[:1]

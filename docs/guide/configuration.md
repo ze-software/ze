@@ -1787,9 +1787,17 @@ holds every peer's routes in the RIB and serves them on the plugin API. It
 forwards no traffic, so a kernel route for each prefix is work with no reader.
 `fib-withhold [ bgp ]` programs none of them. The RIB is untouched, and so is
 `bgp-rib/best-change`, the stream the plugin API serves those routes on.
+Withholding is the one verdict that refuses the write outright. Ze reaches the
+same install decision by three doors, a route arriving live, the permission
+sweep and a next-hop cascade, and only that verdict makes any of them decline.
+The other two decide what the install RECORDS rather than whether it happens,
+so a route whose next-hop the resolver cannot reach is still programmed: the
+Loc-RIB is not the router's whole picture of reachability, and an IGP next-hop
+on a link whose connected route no plugin inserted is on-link all the same.
+
 <!-- source: internal/component/sysrib/yang/ze-rib-conf.yang -- fib-withhold leaf-list -->
-<!-- source: internal/component/sysrib/fibimport.go -- recordWithheldWinner, applyFIBImport -->
-<!-- source: internal/component/sysrib/sysrib.go -- recomputeBest, cascadeRecompute -->
+<!-- source: internal/component/sysrib/fibimport.go -- recordWithheldWinner, applyFIBImport, fibStateChange -->
+<!-- source: internal/component/sysrib/sysrib.go -- recomputeBest, cascadeRecompute, fibInstall -->
 
 ## Static Routes
 

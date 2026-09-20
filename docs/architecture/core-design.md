@@ -1553,19 +1553,40 @@ each prefix the new set withholds, `fibStateChange` answers for the rest, and
 cannot depend on which of them spoke. A FIB
 plugin that reconnects and asks for the table is handed no withheld prefix, and
 a prefix a promotion moved onto an equal-cost member arrives over that member's
-address, device and share in the live change and in the replay alike. Reading
-the winner's own next-hop there answered a THIRD way, and re-programmed the
-prefix over the gateway the resolver had declared unreachable.
+WHOLE path in the live change and in the replay alike: its address, its device,
+its share, its MPLS label stack and its SRv6 SID. Reading the winner's own
+next-hop there answered a THIRD way, and re-programmed the prefix over the
+gateway the resolver had declared unreachable.
 
-`fibEntry` returns a VERDICT beside the entry, and the callers read it
-differently because they ask at different moments. `fibPathReachable` says the
-resolver proved the path. `fibPathUnreachable` says it proves none: a live
-change still programs the target its producer named, because the Loc-RIB is not
-the router's whole picture of reachability and an OSPF or IS-IS next-hop sits on
-a link whose connected route no plugin inserted; a cascade reads the same
-verdict as reachability LOST, because it runs only when the resolver reports a
-path change, and withdraws the entry. `fibPathForbidden` is RFC 9252 Section 5,
-an SRv6 SID that does not resolve, and it programs nothing anywhere.
+What the prefix owns and what the PATH owns is the split `fibChange` is built
+from, and it is a type rather than a list of field names. A `forwardingPath`
+(`internal/component/sysrib/ecmp.go`) carries everything the packet's treatment
+depends on, and the winner's route supplies the rest: the protocol credited
+with the prefix, the forwarding action, the metric and the fast-reroute
+alternate its protocol computed. A promotion swaps the path and nothing else,
+so a field added to `BestChangeEntry` lands on the right side by construction.
+Overriding two fields by name at the promotion left a cross-protocol member
+forwarding out its own interface while imposing the WINNER's label stack, which
+is an MPLS misforward rather than a mismatched report.
+
+`fibEntry` returns a VERDICT beside the entry, and ONE of its three values
+refuses the write. `fibForbidden` is RFC 9252 Section 5, an SRv6 SID that does
+not resolve, and it programs nothing anywhere; every caller tests for it and
+for nothing else, so no two of them can disagree about whether a prefix may be
+programmed. The other two both PROGRAM. `fibProved` says the resolver proved
+the path, and `fibUnproved` says it proves none and the entry carries the
+target its producer named, because the Loc-RIB is not the router's whole
+picture of reachability and an OSPF or IS-IS next-hop sits on a link whose
+connected route no plugin inserted.
+
+The difference between the two decides what the install RECORDS, not what any
+caller does next. `installedPath` keeps it beside the address, and the cascade
+is its one reader: a prefix whose PROVED path the resolver no longer proves has
+LOST it and is withdrawn, while one the resolver never covered is in the state
+it was installed in and owes nothing. The address cannot answer that on its
+own, because a gateway inside a connected covering route resolves to itself.
+Reading the verdict as a second answer to "may I program this" made a cascade
+withdraw a prefix the live path had deliberately programmed, permanently.
 `ecmpCollect` and `ecmpCollectResolved` drop a withheld protocol from the
 multipath group, because a group member is programmed exactly as the winner is.
 A Withdraw carries one test, and every producer makes it: ze owes a Withdraw
@@ -1587,20 +1608,25 @@ Whether a member's permission moved is answered by collecting the group twice,
 once under each permission set, so the answer holds no other difference.
 
 What the prefix then owes is `fibEntry`'s answer, the SAME answer a route
-arriving live takes, and `fibStateChange` chooses only the verb: an Update where
-ze holds an install, an Add where it does not. Permitting a protocol is a fresh
-install decision, so it follows the live rule rather than the cascade's. The
-distinction is load-bearing and it is not a spelling. A cascade is reachability
-NEWS, so it reads any verdict but reachable as a path LOST and withdraws. A
-sweep is not news about the network, so reading it that way meant a prefix whose
-gateway the Loc-RIB does not cover could be withheld and never restored, and a
-prefix programmed under that verdict could be WITHDRAWN because an unrelated
-protocol's member left its group. Both are outages the setting caused, and the
-Loc-RIB not covering a gateway is an ordinary state: an OSPF or IS-IS next-hop
-on a link whose connected route no plugin inserted is on-link all the same, and
-the kernel resolves it against its own connected routes.
+arriving live takes, and only the verb is chosen: an Update where ze holds an
+install, an Add where it does not. `fibInstall` is that tail, and the sweep and
+the cascade both take it, so no state can be programmed through one door and
+withdrawn through the other. Permitting a protocol is a fresh install decision
+and no news about any path, which is why it follows the live rule. Reading it
+as news meant a prefix whose gateway the Loc-RIB does not cover could be
+withheld and never restored, and a prefix programmed under that verdict could
+be WITHDRAWN because an unrelated protocol's member left its group. Both are
+outages the setting caused, and the Loc-RIB not covering a gateway is an
+ordinary state: an OSPF or IS-IS next-hop on a link whose connected route no
+plugin inserted is on-link all the same, and the kernel resolves it against its
+own connected routes.
 
-One verdict still declines the write: `fibPathForbidden`, which RFC 9252
+The cascade adds ONE rule above that tail and it is about a TRANSITION rather
+than about the verdict: the proved path recorded with the install is gone. That
+is what a cascade exists to report, and it is the only thing it reads that the
+other doors do not.
+
+One verdict still declines the write: `fibForbidden`, which RFC 9252
 Section 5 is the only rule to produce today. A prefix ze programs is withdrawn
 there, and one it does not is left alone.
 
@@ -1616,8 +1642,8 @@ over every registered protocol, and it is a different table from the
 resolved-next-hop one above.
 <!-- source: internal/component/sysrib/yang/ze-rib-conf.yang -- fib-withhold leaf-list -->
 <!-- source: internal/component/sysrib/fibimport.go -- recordWithheldWinner, applyFIBImport, fibPermitted -->
-<!-- source: internal/component/sysrib/sysrib.go -- recomputeBest, cascadeRecompute, fibEntry, replayBest -->
-<!-- source: internal/component/sysrib/ecmp.go -- ecmpCollect, ecmpRIBGroup -->
+<!-- source: internal/component/sysrib/sysrib.go -- recomputeBest, cascadeRecompute, fibEntry, fibInstall, installedPath, replayBest -->
+<!-- source: internal/component/sysrib/ecmp.go -- forwardingPath, ecmpCollect, ecmpRIBGroup -->
 
 After distance selection, the system RIB performs two additional phases:
 

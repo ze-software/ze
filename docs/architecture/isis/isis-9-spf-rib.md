@@ -101,8 +101,16 @@ reads the equal-cost paths that competed for the prefix.
 
 <!-- source: internal/core/rib/locrib/change.go -- Change.ECMP -->
 <!-- source: internal/core/rib/locrib/manager.go -- siblingNextHops -->
-<!-- source: internal/component/sysrib/ecmp.go -- ecmpCollect, ecmpRIBGroup -->
-<!-- source: internal/component/sysrib/sysrib.go -- BestChangeEntry.ECMPPaths -->
+A member of that group carries its own forwarding path, not the winner's. The
+collectors return a `forwardingPath`, which holds the label stack and the SRv6
+SID beside the device and the share, so an equal-cost member promoted to take
+the prefix is programmed with the labels IS-IS gave IT. Until 2026-09-20 the
+promotion overrode the device and the share alone and the winner's label stack
+rode onto the member, which is an MPLS misforward wherever the two protocols
+impose different labels.
+
+<!-- source: internal/component/sysrib/ecmp.go -- forwardingPath, ecmpCollect, ecmpRIBGroup -->
+<!-- source: internal/component/sysrib/sysrib.go -- BestChangeEntry.ECMPPaths, fibChange -->
 
 ## Decision: leaking is a one-pass fixpoint
 

@@ -353,7 +353,7 @@ func trackedPrefixes(t *testing.T, nextHop netip.Addr) []netip.Prefix {
 
 // TestWithheldWinnerWithdrawsADeviceOnlyRoute pins the FIB state test at
 // recordWithheldWinner. A route naming a device and no gateway is programmed
-// with an INVALID address in resolvedNH, which a validity test cannot tell from
+// with an INVALID address in the install record, which a validity test cannot tell from
 // a prefix Ze never programmed. Reading it that way leaves the device route in
 // the kernel after a withheld protocol takes the prefix.
 func TestWithheldWinnerWithdrawsADeviceOnlyRoute(t *testing.T) {
