@@ -1,6 +1,7 @@
 // Design: docs/features/interfaces.md -- Router Advertisement sender lifecycle
 // Related: config_ra.go -- parses the router-advertisement container this file reconciles
 // Related: register.go -- calls reconcileRA beside reconcileDHCP, and stops senders on shutdown
+// Related: config_apply.go -- forEachEnabledUnit, the units both reconciles serve
 
 package iface
 
@@ -100,7 +101,7 @@ func reconcileRA(cfg *ifaceConfig, active map[raUnitKey]raEntry, log *slog.Logge
 	}
 
 	desired := make(map[raUnitKey]RASenderSpec)
-	forEachConfiguredUnit(cfg, func(ifaceName string, u *unitEntry) {
+	forEachEnabledUnit(cfg, func(ifaceName string, u *unitEntry) {
 		if u.IPv6 == nil || u.IPv6.RouterAdvertisement == nil || !u.IPv6.RouterAdvertisement.Enabled {
 			return
 		}
@@ -182,39 +183,4 @@ func raSpecFor(ifaceName, unit string, cfg *raUnitConfig) RASenderSpec {
 		})
 	}
 	return spec
-}
-
-// forEachConfiguredUnit calls fn for every unit of every interface kind that
-// carries units, with the interface's logical name. One list keeps a new
-// interface kind from reaching some per-unit services and not others.
-func forEachConfiguredUnit(cfg *ifaceConfig, fn func(ifaceName string, u *unitEntry)) {
-	visit := func(name string, units []unitEntry) {
-		for i := range units {
-			fn(name, &units[i])
-		}
-	}
-	for i := range cfg.Ethernet {
-		visit(cfg.Ethernet[i].Name, cfg.Ethernet[i].Units)
-	}
-	for i := range cfg.Dummy {
-		visit(cfg.Dummy[i].Name, cfg.Dummy[i].Units)
-	}
-	for i := range cfg.Veth {
-		visit(cfg.Veth[i].Name, cfg.Veth[i].Units)
-	}
-	for i := range cfg.Bridge {
-		visit(cfg.Bridge[i].Name, cfg.Bridge[i].Units)
-	}
-	for i := range cfg.Tunnel {
-		visit(cfg.Tunnel[i].Name, cfg.Tunnel[i].Units)
-	}
-	for i := range cfg.Wireguard {
-		visit(cfg.Wireguard[i].Name, cfg.Wireguard[i].Units)
-	}
-	for i := range cfg.XFRM {
-		visit(cfg.XFRM[i].Name, cfg.XFRM[i].Units)
-	}
-	if cfg.Loopback != nil {
-		visit("lo", cfg.Loopback.Units)
-	}
 }

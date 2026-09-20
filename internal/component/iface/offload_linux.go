@@ -116,27 +116,46 @@ func applyRFSGlobal(cfg *ifaceConfig) {
 	}
 }
 
-// rfsState scans all L2 interfaces for RFS config. Returns (anyEnabled, anyConfigured).
-// anyConfigured is true if at least one interface has RFS set (true or false).
+// rfsState scans the enabled L2 interfaces for RFS config. Returns
+// (anyEnabled, anyConfigured). anyConfigured is true if at least one interface
+// has RFS set (true or false).
+//
+// A disabled interface is skipped, for the reason applyConfig skips it when it
+// applies the per-interface offloads: ze configures nothing on it. Counting one
+// here sized the global flow table for an interface that then received no RFS
+// at all.
 func rfsState(cfg *ifaceConfig) (anyEnabled, anyConfigured bool) {
 	check := func(o *offloadConfig) {
-		if o != nil && o.RFS != nil {
-			anyConfigured = true
-			if *o.RFS {
-				anyEnabled = true
-			}
+		if o == nil || o.RFS == nil {
+			return
+		}
+		anyConfigured = true
+		if *o.RFS {
+			anyEnabled = true
 		}
 	}
 	for _, e := range cfg.Ethernet {
+		if e.Disable {
+			continue
+		}
 		check(e.Offload)
 	}
 	for _, e := range cfg.Dummy {
+		if e.Disable {
+			continue
+		}
 		check(e.Offload)
 	}
 	for _, e := range cfg.Veth {
+		if e.Disable {
+			continue
+		}
 		check(e.Offload)
 	}
 	for _, e := range cfg.Bridge {
+		if e.Disable {
+			continue
+		}
 		check(e.Offload)
 	}
 	return anyEnabled, anyConfigured

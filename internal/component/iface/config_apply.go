@@ -447,6 +447,46 @@ func allIfaceEntries(cfg *ifaceConfig) []ifaceEntry {
 	return entries
 }
 
+// forEachEnabledUnit calls fn once for every unit ze must configure: every
+// unit of every interface kind that carries units, minus the ones the operator
+// disabled. Both halves matter. One list keeps a new interface kind from
+// reaching some per-unit services and not others, and one subtraction keeps
+// `disable` from stopping some of those services and not others.
+//
+// A disabled entry takes all of its units out, and a disabled unit goes out on
+// its own. That is what both `disable` leaves promise in
+// yang/ze-iface-conf.yang: ze skips the interface, and ze skips the unit, at
+// every apply step. A per-unit service that starts anyway puts ze on a link
+// the operator took out of service -- a DHCP client completing a lease and
+// installing its address is the shape that reached an operator.
+//
+// A caller asking whether the operator WROTE something, rather than what ze
+// must run now, wants the disabled entries too and reads the config directly:
+// dhcpDeclared (register.go) is the one such reader.
+func forEachEnabledUnit(cfg *ifaceConfig, fn func(ifaceName string, u *unitEntry)) {
+	if cfg == nil {
+		return
+	}
+	visit := func(name string, units []unitEntry) {
+		for i := range units {
+			if units[i].Disable {
+				continue
+			}
+			fn(name, &units[i])
+		}
+	}
+	entries := allIfaceEntries(cfg)
+	for i := range entries {
+		if entries[i].Disable {
+			continue
+		}
+		visit(entries[i].Name, entries[i].Units)
+	}
+	if cfg.Loopback != nil {
+		visit("lo", cfg.Loopback.Units)
+	}
+}
+
 // indexTunnelSpecs returns a name -> Spec map for the previous config's
 // tunnel entries. Used by applyConfig to detect Spec changes across reloads
 // so that only changed tunnels are recreated. Returns an empty map if

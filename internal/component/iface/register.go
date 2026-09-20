@@ -1011,66 +1011,49 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 	// Build the desired set from all interface types that have units.
 	desired := make(map[dhcpUnitKey]dhcpParams)
 
-	// Collect from all interface types. Veth and bridge embed ifaceEntry;
-	// tunnel and wireguard embed ifaceEntry; loopback has only units.
-	collectDHCPUnits := func(name string, units []unitEntry) {
-		for i := range units {
-			u := &units[i]
-			var dhcp *dhcpUnitConfig
-			var dhcpv6 *dhcpv6UnitConfig
-			if u.IPv4 != nil {
-				dhcp = u.IPv4.DHCP
-			}
-			if u.IPv6 != nil {
-				dhcpv6 = u.IPv6.DHCPv6
-			}
-			v4 := dhcp != nil && dhcp.Enabled
-			v6 := dhcpv6 != nil && dhcpv6.Enabled
-			if !v4 && !v6 {
-				continue
-			}
-			key := dhcpUnitKey{ifaceName: name, unit: u.Label}
-			p := dhcpParams{v4: v4, v6: v6, routePriority: u.RoutePriority, routePrioritySet: u.RoutePrioritySet}
-			if dhcp != nil {
-				p.hostname = dhcp.Hostname
-				p.clientID = dhcp.ClientID
-			}
-			if dhcpv6 != nil {
-				p.pdLength = dhcpv6.PDLength
-				p.duid = dhcpv6.DUID
-			}
-			desired[key] = p
+	// Collect from every interface kind that carries units, disabled entries
+	// and disabled units excluded (forEachEnabledUnit, config_apply.go). A
+	// client on a disabled interface completes a lease and installs the
+	// address on a link the operator took out of service, which is the same
+	// instruction desiredState already obeys when it installs none of that
+	// interface's configured addresses.
+	forEachEnabledUnit(cfg, func(name string, u *unitEntry) {
+		var dhcp *dhcpUnitConfig
+		var dhcpv6 *dhcpv6UnitConfig
+		if u.IPv4 != nil {
+			dhcp = u.IPv4.DHCP
 		}
-	}
-
-	for _, e := range cfg.Ethernet {
-		collectDHCPUnits(e.Name, e.Units)
-	}
-	for _, e := range cfg.Dummy {
-		collectDHCPUnits(e.Name, e.Units)
-	}
-	for _, e := range cfg.Veth {
-		collectDHCPUnits(e.Name, e.Units)
-	}
-	for _, e := range cfg.Bridge {
-		collectDHCPUnits(e.Name, e.Units)
-	}
-	for i := range cfg.Tunnel {
-		collectDHCPUnits(cfg.Tunnel[i].Name, cfg.Tunnel[i].Units)
-	}
-	for i := range cfg.Wireguard {
-		collectDHCPUnits(cfg.Wireguard[i].Name, cfg.Wireguard[i].Units)
-	}
-	for i := range cfg.XFRM {
-		collectDHCPUnits(cfg.XFRM[i].Name, cfg.XFRM[i].Units)
-	}
-	if cfg.Loopback != nil {
-		collectDHCPUnits("lo", cfg.Loopback.Units)
-	}
+		if u.IPv6 != nil {
+			dhcpv6 = u.IPv6.DHCPv6
+		}
+		v4 := dhcp != nil && dhcp.Enabled
+		v6 := dhcpv6 != nil && dhcpv6.Enabled
+		if !v4 && !v6 {
+			return
+		}
+		key := dhcpUnitKey{ifaceName: name, unit: u.Label}
+		p := dhcpParams{v4: v4, v6: v6, routePriority: u.RoutePriority, routePrioritySet: u.RoutePrioritySet}
+		if dhcp != nil {
+			p.hostname = dhcp.Hostname
+			p.clientID = dhcp.ClientID
+		}
+		if dhcpv6 != nil {
+			p.pdLength = dhcpv6.PDLength
+			p.duid = dhcpv6.DUID
+		}
+		desired[key] = p
+	})
 
 	// Auto-discovery: if dhcp-auto is true and no explicit DHCP is configured,
 	// find the first ethernet interface and run DHCPv4 on it.
-	if cfg.DHCPAuto && len(desired) == 0 {
+	//
+	// The question is what the config DECLARES, not what ze runs: the leaf
+	// promises to stand aside when "any explicit DHCP config exists"
+	// (yang/ze-iface-conf.yang, leaf dhcp-auto), and disabling the interface
+	// that carries that config tells ze to run no client, never to go and find
+	// another NIC. desired can no longer answer it, because desired now
+	// subtracts the disabled units.
+	if cfg.DHCPAuto && !dhcpDeclared(cfg) {
 		if name := discoverPrimaryEthernet(log); name != "" {
 			// Bring the interface administratively UP before DHCP.
 			// Without this, the kernel cannot send DHCP packets.
@@ -1116,6 +1099,39 @@ func reconcileDHCP(cfg *ifaceConfig, eb ze.EventBus, active map[dhcpUnitKey]dhcp
 		active[key] = dhcpEntry{client: client, params: p}
 		log.Info("interface: DHCP client started", "iface", key.ifaceName, "unit", key.unit, "v4", p.v4, "v6", p.v6)
 	}
+}
+
+// dhcpDeclared says the operator wrote an enabled dhcp or dhcpv6 block on some
+// unit, whether or not the interface or the unit carrying it is disabled.
+// dhcp-auto is the only caller and the only question this shape answers: every
+// other reader wants the units ze must run a client on, which is
+// forEachEnabledUnit (config_apply.go).
+func dhcpDeclared(cfg *ifaceConfig) bool {
+	if cfg == nil {
+		return false
+	}
+	declared := func(units []unitEntry) bool {
+		for i := range units {
+			u := &units[i]
+			if u.IPv4 != nil && u.IPv4.DHCP != nil && u.IPv4.DHCP.Enabled {
+				return true
+			}
+			if u.IPv6 != nil && u.IPv6.DHCPv6 != nil && u.IPv6.DHCPv6.Enabled {
+				return true
+			}
+		}
+		return false
+	}
+	entries := allIfaceEntries(cfg)
+	for i := range entries {
+		if declared(entries[i].Units) {
+			return true
+		}
+	}
+	if cfg.Loopback == nil {
+		return false
+	}
+	return declared(cfg.Loopback.Units)
 }
 
 // discoverPrimaryEthernet finds the first ethernet interface on the system.
@@ -1416,34 +1432,37 @@ func writtenRoutePriorities(cfg *ifaceConfig) map[string]int {
 	priorities := make(map[string]int)
 	collect := func(name string, units []unitEntry) {
 		for i := range units {
-			if !units[i].RoutePrioritySet || units[i].RoutePriority <= 0 {
+			u := &units[i]
+			if u.Disable {
+				continue
+			}
+			if !u.RoutePrioritySet {
+				continue
+			}
+			if u.RoutePriority <= 0 {
 				continue
 			}
 			if _, seen := priorities[name]; !seen {
-				priorities[name] = units[i].RoutePriority
+				priorities[name] = u.RoutePriority
 			}
 		}
 	}
-	for _, e := range cfg.Ethernet {
-		collect(e.Name, e.Units)
-	}
-	for _, e := range cfg.Dummy {
-		collect(e.Name, e.Units)
-	}
-	for _, e := range cfg.Veth {
-		collect(e.Name, e.Units)
-	}
-	for _, e := range cfg.Bridge {
-		collect(e.Name, e.Units)
-	}
-	for i := range cfg.Tunnel {
-		collect(cfg.Tunnel[i].Name, cfg.Tunnel[i].Units)
-	}
-	for i := range cfg.Wireguard {
-		collect(cfg.Wireguard[i].Name, cfg.Wireguard[i].Units)
-	}
-	for i := range cfg.XFRM {
-		collect(cfg.XFRM[i].Name, cfg.XFRM[i].Units)
+	// A disabled interface is left out for the same reason a disabled unit is:
+	// suppression writes accept_ra_defrtr on the interface and makes ze own its
+	// IPv6 default routes, which is managing a link the operator took out of
+	// service.
+	//
+	// Loopback is absent rather than forgotten, which is why this walks
+	// allIfaceEntries instead of forEachEnabledUnit (config_apply.go): lo
+	// learns no default route from the network, and naming it here would make
+	// cleanupStaleIPv6DefaultRoutes remove every ::/0 route the kernel shows on
+	// lo, which is where a blackhole default sits.
+	entries := allIfaceEntries(cfg)
+	for i := range entries {
+		if entries[i].Disable {
+			continue
+		}
+		collect(entries[i].Name, entries[i].Units)
 	}
 	return priorities
 }

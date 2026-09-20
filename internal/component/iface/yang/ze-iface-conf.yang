@@ -48,9 +48,12 @@ module ze-iface-conf {
 
         leaf disable {
             type empty;
-            description "Ze skips a disabled interface at every apply step, so it creates no device
-                         and it installs no address. A device ze created before is deleted, because a
-                         disabled interface leaves the managed set. The config block stays in place.";
+            description "Ze skips a disabled interface at every apply step, so it creates no device,
+                         it installs no address, it starts no DHCP client and it sends no router
+                         advertisement. A DHCP client that is already running stops, and it takes
+                         away the address and the default route its lease installed. A device ze
+                         created before is deleted, because a disabled interface leaves the managed
+                         set. The config block stays in place.";
             ze:help "Administratively disable this interface";
         }
     }
@@ -234,9 +237,12 @@ module ze-iface-conf {
 
             leaf disable {
                 type empty;
-                description "Ze skips a disabled unit at apply, so it installs none of its addresses
-                             and it installs no mirror for the unit. A VLAN subinterface ze created
-                             for the unit is deleted. The config block stays in place.";
+                description "Ze skips a disabled unit at apply, so it installs none of its addresses,
+                             it installs no mirror, it starts no DHCP client and it sends no router
+                             advertisement for the unit. A DHCP client that is already running
+                             stops, and it takes away the address and the default route its lease
+                             installed. A VLAN subinterface ze created for the unit is deleted. The
+                             config block stays in place.";
                 ze:help "Administratively disable this unit";
             }
 
