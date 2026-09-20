@@ -7,7 +7,9 @@
 package l2tpauthradius
 
 import (
+	"bytes"
 	"context"
+	"encoding/hex"
 	"net"
 	"sync"
 	"time"
@@ -78,10 +80,25 @@ func (a *radiusAuth) handle(req ppp.EventAuthRequest, respond l2tp.AuthRespondFu
 	policy := attributePolicy{nasPortIDFormat: a.nasPortIDFormat, exclusions: a.exclusions}
 	a.mu.RUnlock()
 
+	// RFC 2865 Section 4.1: "An Access-Request MUST contain either a
+	// User-Password or a CHAP-Password or a State." A session the operator
+	// configured for no authentication carries none of the three, so there is
+	// no conformant Access-Request for this handler to send and no server
+	// answer to wait for. The operator already decided the question the
+	// Access-Request would have asked.
+	//
+	// Admitting it HERE is what lets a RADIUS server be configured for
+	// accounting alone. activateRadiusConfig (register.go) claims the single
+	// auth slot for every RADIUS deployment, accounting-only included, so a
+	// refusal here refuses every session on a wholesale LNS that bills and
+	// never authenticates. The guard below still holds for every method that
+	// does carry a credential: buildAccessRequestAttrs refuses to build a
+	// request without one.
+	if req.Method == ppp.AuthMethodNone {
+		return l2tp.AuthResult{Accept: true, Message: "no-auth accepted (RADIUS carries no credential for it)"}
+	}
+
 	if client == nil {
-		if req.Method == ppp.AuthMethodNone {
-			return l2tp.AuthResult{Accept: true, Message: "no-auth accepted (no RADIUS client)"}
-		}
 		logger().Warn("l2tp-auth-radius: no RADIUS client configured; rejecting",
 			"tunnel", req.TunnelID, "session", req.SessionID)
 		return l2tp.AuthResult{Accept: false, Message: "no RADIUS client"}
@@ -182,6 +199,14 @@ func (a *radiusAuth) doRADIUS(req ppp.EventAuthRequest, client *radius.Client, n
 		var authBlob []byte
 		if req.Method == ppp.AuthMethodMSCHAPv2 {
 			authBlob = extractMSCHAP2Success(resp)
+			if authBlob == nil {
+				logger().Warn("l2tp-auth-radius: Access-Accept carries no readable MS-CHAP2-Success; rejecting",
+					"tunnel", req.TunnelID, "session", req.SessionID, "username", req.Username)
+				if respErr := respond(false, "no MS-CHAP2-Success in Access-Accept", nil); respErr != nil {
+					logger().Warn("l2tp-auth-radius: respond failed", "error", respErr)
+				}
+				return
+			}
 		}
 		logger().Info("l2tp-auth-radius: accepted",
 			"tunnel", req.TunnelID, "session", req.SessionID, "username", req.Username)
@@ -326,9 +351,59 @@ func extractMSCHAP2Success(resp *radius.Packet) []byte {
 		if err != nil {
 			continue
 		}
-		if vendorID == radius.VendorMicrosoft && vendorType == radius.MSCHAP2Success {
-			return data
+		if vendorID != radius.VendorMicrosoft || vendorType != radius.MSCHAP2Success {
+			continue
 		}
+		return decodeMSCHAP2Success(data)
 	}
 	return nil
+}
+
+// mschapv2AuthenticatorResponseLen is the raw Authenticator Response the PPP
+// authenticator declares it needs. runMSCHAPv2AuthPhase
+// (internal/component/l2tp/ppp/mschapv2.go) fails the session on any other
+// length and hex-encodes these octets itself into the Success packet.
+const mschapv2AuthenticatorResponseLen = 20
+
+// mschap2SuccessPrefix opens the authenticator string RFC 2548 carries.
+var mschap2SuccessPrefix = []byte("S=")
+
+// decodeMSCHAP2Success turns one MS-CHAP2-Success attribute value into the raw
+// Authenticator Response its consumer requires, and returns nil for a value
+// this format does not describe.
+//
+// RFC 2548 Section 2.3.3 gives the attribute value two fields: an "Ident"
+// octet "Identical to the PPP MS-CHAP v2 Identifier", then "String: The
+// 42-octet authenticator string". RFC 2759 Section 5 says of that string: "The
+// <auth_string> quantity is a 20 octet number encoded in ASCII as 40
+// hexadecimal digits."
+//
+// So the attribute carries 43 octets where the consumer requires 20, and
+// handing it over verbatim failed the consumer's length guard on every
+// RADIUS-backed MS-CHAPv2 session. The Ident octet is dropped and the hex is
+// decoded here, in the one function that knows the attribute's format.
+//
+// A value that does not match the format is refused rather than passed on
+// half-read. The caller then rejects the session, which is the honest answer:
+// a Success packet built from octets ze could not read carries an S= field the
+// peer verifies and discards (RFC 2759 Section 5: "If the authenticator
+// response is either missing or incorrect, the peer MUST" terminate).
+func decodeMSCHAP2Success(data []byte) []byte {
+	// The Ident octet is not part of the authenticator string.
+	if len(data) < 1 {
+		return nil
+	}
+	authString := data[1:]
+	if !bytes.HasPrefix(authString, mschap2SuccessPrefix) {
+		return nil
+	}
+	digits := authString[len(mschap2SuccessPrefix):]
+	if len(digits) < 2*mschapv2AuthenticatorResponseLen {
+		return nil
+	}
+	raw := make([]byte, mschapv2AuthenticatorResponseLen)
+	if _, err := hex.Decode(raw, digits[:2*mschapv2AuthenticatorResponseLen]); err != nil {
+		return nil
+	}
+	return raw
 }

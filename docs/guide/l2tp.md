@@ -311,7 +311,16 @@ Access-Reject, and the session is denied with `unsupported Service-Type`. The
 LNS provides framed PPP access and asks for it by name, so an Accept authorizing
 anything else authorizes a service ze cannot bring up (RFC 2865 Sections 5.6
 and 1.1).
-<!-- source: internal/component/l2tp/plugins/authradius/handler.go -- buildAuthAttrs, doRADIUS -->
+
+For MS-CHAPv2 the Accept must also carry a readable MS-CHAP2-Success, and one
+that does not is denied with `no MS-CHAP2-Success in Access-Accept`. RFC 2759
+completes the method with a 20-octet Authenticator Response the client checks,
+so an Accept without one authorizes a session neither end can finish. The
+attribute is not that value: RFC 2548 Section 2.3.3 defines it as an Ident
+octet followed by the string `S=` and the response as 40 hexadecimal digits, so
+ze strips the Ident and decodes the digits rather than passing the attribute
+through.
+<!-- source: internal/component/l2tp/plugins/authradius/handler.go -- buildAuthAttrs, doRADIUS, extractMSCHAP2Success, decodeMSCHAP2Success -->
 
 Every Accounting-Request carries Acct-Status-Type, Acct-Session-Id, Service-Type
 (Framed), Framed-Protocol (PPP), NAS-Port-Type (Virtual), NAS-Port and

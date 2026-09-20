@@ -196,6 +196,12 @@ func (t *L2TPTunnel) handleSCCRQ(now time.Time, defaults TunnelDefaults, sccrq *
 		t.logger.Warn("l2tp: SCCRQ delivered without pre-parsed info; refusing")
 		return nil
 	}
+	// The Protocol Version is judged by parseSCCRQ, which runs before the
+	// reactor allocates a tunnel (errSCCRQProtocolVersionUnsupported,
+	// errors.go). Nothing reaching this function can carry a version ze does
+	// not speak, so no second test is written here: a guard that cannot fire
+	// reads as a live check and is the shape ai/rules/no-layering.md refuses.
+	//
 	t.peerHostName = sccrq.HostName
 	t.peerFraming = sccrq.FramingCapabilities
 	t.peerBearer = sccrq.BearerCapabilities
@@ -525,6 +531,14 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 	if !protocolVersionSeen {
 		return sccrqInfo{}, errSCCRQNoProtocolVersion
 	}
+	// Present and readable is not the same as acceptable. RFC 2661 Section
+	// 4.4.3 fixes the value at version 1 revision 0, and Section 4.4.2 gives
+	// any other value its own Result Code rather than the general one, so the
+	// version is judged here beside the AVPs that must be present and never
+	// after a tunnel exists.
+	if info.ProtocolVersion != protocolVersionSupported {
+		return sccrqInfo{}, errSCCRQProtocolVersionUnsupported
+	}
 	if !hostNameSeen {
 		return sccrqInfo{}, errSCCRQNoHostName
 	}
@@ -658,13 +672,19 @@ func parseSCCCN(payload []byte) (scccnInfo, error) {
 // per RFC 2661 S4.4.3. Shared across all outbound control messages.
 var protocolVersionValue = [2]byte{0x01, 0x00}
 
+// protocolVersionSupported is protocolVersionValue read as the 2-octet
+// unsigned integer parseSCCRQ produces, so the version ze writes and the
+// version ze accepts are one declaration.
+var protocolVersionSupported = binary.BigEndian.Uint16(protocolVersionValue[:])
+
 // StopCCN Result Codes (RFC 2661 S4.4.2). The name of each constant is
 // NOT the RFC's wording; the comment is. Read the value, not the name.
 const (
-	resultGeneralError   uint16 = 1 // "General request to clear control connection"
-	resultProtocolError  uint16 = 2 // "General error--Error Code indicates the problem"
-	resultNotAuthorized  uint16 = 4 // "Requester is not authorized to establish a control connection"
-	resultAdministrative uint16 = 6 // "Administrative shutdown"
+	resultGeneralError       uint16 = 1 // "General request to clear control connection"
+	resultProtocolError      uint16 = 2 // "General error--Error Code indicates the problem"
+	resultNotAuthorized      uint16 = 4 // "Requester is not authorized to establish a control connection"
+	resultVersionUnsupported uint16 = 5 // "The protocol version of the requester is not supported"
+	resultAdministrative     uint16 = 6 // "Administrative shutdown"
 )
 
 // General Error Codes carried in the Result Code AVP's optional second

@@ -25,6 +25,17 @@ package, which imports both pppoe for the wire format and ppp for the state
 machine and the kernel setup. Registration is an `init()` plus a blank import in
 the hub.
 
+**One negotiator answers a peer, whichever role ze is in.** `negotiateLCP`
+calls `ppp.NegotiatePeerOptions`, the same function the LNS side calls, rather
+than acknowledging every Configure-Request it can parse. That is a conformance
+obligation and not a tidiness one: RFC 1661 Section 5.3 requires a
+Configure-Nak when "every instance of the received Configuration Options is
+recognizable, but some values are not acceptable", and Section 6.4 says a
+Magic-Number of zero "MUST always be Nak'd, if it is not Rejected outright".
+Two negotiators meant ze Nak'd that peer as an LNS and Acked it as a client.
+Section 5.4 decides which answer wins when both apply: a reply is a
+Configure-Reject or a Configure-Nak, never both.
+
 **Client-mode PPP drives the FSM directly, it does not extend the PPP driver.**
 The existing driver is server oriented: it sends the authentication challenge,
 assigns addresses from a pool, and uses external authentication and address

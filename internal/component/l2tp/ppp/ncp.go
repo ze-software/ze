@@ -350,18 +350,39 @@ const (
 	ncpRequestDiscard
 )
 
+// ncpReplyVerdict is what a received Configure-Nak or Configure-Reject earned.
+//
+// A bool carries two of the three answers and no more, which is how a parse
+// failure came to be reported as a peer rejection of a mandatory option: the
+// same true meant "the peer refused something ze must have" and "ze could not
+// read the packet", and the second tore the session down under the first
+// one's error message.
+type ncpReplyVerdict uint8
+
+const (
+	// ncpReplyAbsorbed: the packet is valid, so the FSM receives RCN.
+	ncpReplyAbsorbed ncpReplyVerdict = iota
+	// ncpReplyDiscard: the packet is invalid. RFC 1661 Section 4.3 says of
+	// the RCN event: "An out of sequence or otherwise invalid packet is
+	// silently discarded." No reply, no state change, no teardown.
+	ncpReplyDiscard
+	// ncpReplyFatal: the packet is valid and rejects an option the family
+	// cannot run without, so the session ends.
+	ncpReplyFatal
+)
+
 // handleNCPPacket is the family-generic FSM driver. known and the three
 // callbacks encode the per-family option semantics (which option Types the
 // family recognizes, which Reqs are acceptable, which Nak suggestions to
 // absorb, which Rejects are fatal).
-// absorbReject returns fatal=true to tear the session down (spec AC-16).
+// absorbReject returns ncpReplyFatal to tear the session down (spec AC-16).
 func (s *pppSession) handleNCPPacket(
 	family AddressFamily,
 	pkt LCPPacket,
 	known func(uint8) bool,
 	evalRequest func(LCPPacket) ncpRequestVerdict,
-	absorbNak func(LCPPacket),
-	absorbReject func(LCPPacket) bool,
+	absorbNak func(LCPPacket) ncpReplyVerdict,
+	absorbReject func(LCPPacket) ncpReplyVerdict,
 ) bool {
 	cur := s.ncpState(family)
 
@@ -416,14 +437,36 @@ func (s *pppSession) handleNCPPacket(
 		}
 	}
 
-	if pkt.Code == LCPConfigureNak {
-		absorbNak(pkt)
-	}
-	if pkt.Code == LCPConfigureReject {
-		if absorbReject(pkt) {
+	// RFC 1661 Section 5.3 says of a received Configure-Nak, and Section 5.4
+	// of a received Configure-Reject: "Invalid packets are silently
+	// discarded." RFC 1661 Section 4.3 says the same of the event both raise:
+	// "An out of sequence or otherwise invalid packet is silently discarded."
+	//
+	// So a Nak or a Reject whose option list does not parse is dropped here,
+	// before codeToEvent sees it. Until this branch existed the Reject half
+	// reported the parse failure as a peer rejection of a mandatory option and
+	// tore the session down, and the Nak half applied nothing but still fed
+	// the FSM RCN, which restarts the negotiation from a packet the RFC says
+	// never happened.
+	if pkt.Code == LCPConfigureNak || pkt.Code == LCPConfigureReject {
+		absorb := absorbNak
+		if pkt.Code == LCPConfigureReject {
+			absorb = absorbReject
+		}
+		switch absorb(pkt) {
+		case ncpReplyDiscard:
+			s.logger.Debug("ppp: NCP reply silently discarded, its options do not parse",
+				"family", family.String(),
+				"state", cur.String(),
+				"code", LCPCodeName(pkt.Code),
+				"id", pkt.Identifier,
+				"len", len(pkt.Data))
+			return false
+		case ncpReplyFatal:
 			var tb textbuf.Buffer
 			s.fail(tb.Str(family.String()).Str(": peer Configure-Reject of mandatory option").String())
 			return true
+		case ncpReplyAbsorbed:
 		}
 	}
 
@@ -503,10 +546,10 @@ func (s *pppSession) evalIPCPRequest(pkt LCPPacket) ncpRequestVerdict {
 
 // absorbIPCPNak applies peer's Nak suggestions to per-session state so
 // the next CONFREQ reflects them.
-func (s *pppSession) absorbIPCPNak(pkt LCPPacket) {
+func (s *pppSession) absorbIPCPNak(pkt LCPPacket) ncpReplyVerdict {
 	opts, err := ParseIPCPOptions(pkt.Data)
 	if err != nil {
-		return
+		return ncpReplyDiscard
 	}
 	if opts.HasIPAddress {
 		s.localIPv4 = opts.IPAddress
@@ -517,18 +560,26 @@ func (s *pppSession) absorbIPCPNak(pkt LCPPacket) {
 	if opts.HasSecondary {
 		s.dnsSecondary = opts.SecondaryDNS
 	}
+	return ncpReplyAbsorbed
 }
 
-// absorbIPCPReject returns fatal=true if the peer rejected IP-Address
+// absorbIPCPReject returns ncpReplyFatal if the peer rejected IP-Address
 // (mandatory per AC-16). DNS rejects are absorbed by clearing the
 // option from future CONFREQs.
-func (s *pppSession) absorbIPCPReject(pkt LCPPacket) bool {
+//
+// A Reject whose options do not parse is ncpReplyDiscard, never fatal. RFC
+// 1661 Section 5.4: "the Configuration Options in a Configure-Reject MUST be a
+// proper subset of those in the last transmitted Configure-Request. Invalid
+// packets are silently discarded." An option list ze cannot read is not a
+// subset of the one ze sent, so the packet is invalid, and a packet the RFC
+// discards cannot also be the peer refusing IP-Address.
+func (s *pppSession) absorbIPCPReject(pkt LCPPacket) ncpReplyVerdict {
 	opts, err := ParseIPCPOptions(pkt.Data)
 	if err != nil {
-		return true
+		return ncpReplyDiscard
 	}
 	if opts.HasIPAddress {
-		return true
+		return ncpReplyFatal
 	}
 	if opts.HasPrimary {
 		s.dnsPrimary = netip.Addr{}
@@ -536,7 +587,7 @@ func (s *pppSession) absorbIPCPReject(pkt LCPPacket) bool {
 	if opts.HasSecondary {
 		s.dnsSecondary = netip.Addr{}
 	}
-	return false
+	return ncpReplyAbsorbed
 }
 
 // evalIPv6CPRequest judges the peer's IPv6CP Configure-Request against
@@ -623,24 +674,29 @@ func (s *pppSession) evalIPv6CPRequest(pkt LCPPacket) ncpRequestVerdict {
 }
 
 // absorbIPv6CPNak applies peer's Nak-suggested Interface-Identifier.
-func (s *pppSession) absorbIPv6CPNak(pkt LCPPacket) {
+func (s *pppSession) absorbIPv6CPNak(pkt LCPPacket) ncpReplyVerdict {
 	opts, err := parseIPv6CPOptions(pkt.Data)
 	if err != nil {
-		return
+		return ncpReplyDiscard
 	}
 	if opts.HasInterfaceID && isValidIPv6CPInterfaceID(opts.InterfaceID) {
 		s.localInterfaceID = opts.InterfaceID
 	}
+	return ncpReplyAbsorbed
 }
 
 // absorbIPv6CPReject: Interface-Identifier is mandatory; peer rejecting
-// it is fatal.
-func (s *pppSession) absorbIPv6CPReject(pkt LCPPacket) bool {
+// it is fatal. A Reject ze cannot parse is discarded, for the reason
+// absorbIPCPReject states.
+func (s *pppSession) absorbIPv6CPReject(pkt LCPPacket) ncpReplyVerdict {
 	opts, err := parseIPv6CPOptions(pkt.Data)
 	if err != nil {
-		return true
+		return ncpReplyDiscard
 	}
-	return opts.HasInterfaceID
+	if opts.HasInterfaceID {
+		return ncpReplyFatal
+	}
+	return ncpReplyAbsorbed
 }
 
 // performNCPAction translates one FSM action into wire I/O on the

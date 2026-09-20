@@ -486,8 +486,37 @@ func negotiatePeerOption(opt LCPOption, policy LCPNegPolicy) (out negOutcome, su
 // The caller decides which reply to actually emit; this function does
 // not. Each returned LCPOption's Data points into freshly-allocated
 // memory (NAK suggestions) or into the input slice (ACK echoes).
+//
+// One Type earns at most one entry across the three lists, whatever the
+// request repeated. RFC 1661 Section 6: "Some Configuration Options MAY be
+// listed more than once. The effect of this is Configuration Option specific,
+// and is specified by each such Configuration Option description. (None of
+// the Configuration Options in this specification can be listed more than
+// once.)" Section 5.3 then asks for one modified instance of each:
+// "Each Configuration Option which is allowed only a single instance MUST be
+// modified to a value acceptable to the Configure-Nak sender."
+//
+// The first instance of a Type is the one the reply answers, because Section
+// 5.3 also says the options "MUST NOT be reordered" and the first is where
+// the request put it. A later instance is a repetition of an option that
+// cannot be repeated, and repeating it back is neither the one modified
+// instance Section 5.3 asks for nor a packet a conforming peer can read.
+//
+// The size is the other half. A Magic-Number received at Length 2 is answered
+// with the six octets Section 6.4 gives the option, so 700 of them inside one
+// 1406-octet frame asked for a 4200-octet Configure-Nak that WriteLCPOptions
+// then refused to write: the peer sized ze's reply, and the answer was no
+// reply at all.
 func NegotiatePeerOptions(opts []LCPOption, policy LCPNegPolicy) (acks, naks, rejects []LCPOption) {
+	// listed is a bitmap over the 256 option Types, so the duplicate check
+	// costs no allocation and no scan of the three lists.
+	var listed [4]uint64
 	for _, opt := range opts {
+		word, bit := opt.Type/64, uint64(1)<<(opt.Type%64)
+		if listed[word]&bit != 0 {
+			continue
+		}
+		listed[word] |= bit
 		out, data := negotiatePeerOption(opt, policy)
 		entry := LCPOption{Type: opt.Type, Data: data}
 		switch out {

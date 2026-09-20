@@ -591,18 +591,22 @@ func (r *l2tpReactor) sendUnassociatedStopCCN(to netip.AddrPort, peerNs uint16, 
 	buf := GetBuf()
 	defer PutBuf(buf)
 	b := *buf
-	// Result Code 2 says the Error Code names the problem, and the rejection
-	// carries which code that is: RFC 2661 Section 4.4.2 defines 8 for an
-	// unknown AVP with the M-bit set and 3 for "One of the field values was
-	// out of range or reserved field was non-zero". That list defines no code
-	// for an absent AVP, and 3 is the code its own sentence in Section 7.1
-	// pairs with one, so every rejection but the vendor-AVP one takes 3. The
+	// The rejection carries both codes, because RFC 2661 Section 4.4.2 does not
+	// give every refusal the same pair. Result Code 2 says the Error Code names
+	// the problem, and the Error Code is then 8 for an unknown AVP with the
+	// M-bit set or 3 for "One of the field values was out of range or reserved
+	// field was non-zero". That list defines no code for an ABSENT AVP, and 3 is
+	// the code its own sentence in Section 7.1 pairs with one, so every
+	// rejection but the vendor-AVP one takes 3. An unsupported Protocol Version
+	// is the exception to the whole shape: Section 4.4.2 reserves Result Code 5
+	// for it, and there the Error Code carries the highest version ze supports
+	// rather than a fault, which is why neither value is fixed here. The
 	// Error Message field carries the AVP's name either way: "an arbitrary
 	// string providing further (human readable) text associated with the
 	// condition". The details are fixed strings under 90 octets (errors.go),
 	// so the body fits the 1500-octet pooled buffer.
 	n := writeStopCCNBody(b[ControlHeaderLen:], tidNoTunnel, ResultCodeValue{
-		Result:         resultProtocolError,
+		Result:         rejection.Result,
 		ErrorPresent:   true,
 		Error:          rejection.ErrorCode,
 		Message:        rejection.Detail,
@@ -627,7 +631,7 @@ func (r *l2tpReactor) sendUnassociatedStopCCN(to netip.AddrPort, peerNs uint16, 
 	}
 	r.logger.Info(rejection.Log,
 		"to", to.String(), "reason", rejection.Detail,
-		"result-code", resultProtocolError, "error-code", rejection.ErrorCode)
+		"result-code", rejection.Result, "error-code", rejection.ErrorCode)
 }
 
 // handleTick processes a tick request from the timer goroutine. It runs

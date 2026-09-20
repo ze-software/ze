@@ -252,22 +252,108 @@ func TestLCPNakOrRejectSendsNothingWithoutAnEntry(t *testing.T) {
 	}
 }
 
-// VALIDATES: a Configure-Request whose reply would not fit a PPP frame draws
+// VALIDATES: an option list whose octets do not fit the buffer is not written
 //
-//	no reply at all, and leaves ze running with its automaton usable.
+//	as the prefix of itself, and a Configure-Request repeating one option is
+//	answered with one entry for it rather than one per instance.
 //
 // PREVENTS: the daemon panicking on a packet any unauthenticated peer can
 // send. A Magic-Number received at Length 2 is answered by the six octets RFC
-// 1661 Section 6.4 gives the option, so a frame filled with them asks for a
+// 1661 Section 6.4 gives the option, so a frame filled with them asked for a
 // Configure-Nak three times the size of the request. WriteLCPOptions wrote
 // every one of those octets into a MaxFrameLen buffer with no bound, and the
 // index past the end of it took the session goroutine down.
+//
+// NegotiatePeerOptions now names each option Type once, so that request can no
+// longer build an oversized reply. The bound is still asserted directly:
+// WriteLCPOptions serves the PPPoE client and LCPNakOrReject as well, and a
+// writer with no bound is one caller away from the panic again.
 func TestLCPReplyLargerThanAFrameIsNotSent(t *testing.T) {
+	// 200 distinct option Types, each carrying eight octets of Data, is 2000
+	// octets of options. No Configure-Request can ask for this today; the
+	// bound is what keeps that true for the next caller.
+	const distinctTypes = 200
+	opts := make([]LCPOption, 0, distinctTypes)
+	for i := range distinctTypes {
+		opts = append(opts, LCPOption{Type: uint8(i + 1), Data: make([]byte, 8)})
+	}
+
+	buf := make([]byte, MaxFrameLen)
+	written, fits := WriteLCPOptions(buf, 0, opts)
+	if fits {
+		t.Fatalf("WriteLCPOptions reported %d octets of a %d-octet list fit a %d-octet buffer", written, distinctTypes*10, MaxFrameLen)
+	}
+	if written > MaxFrameLen {
+		t.Fatalf("WriteLCPOptions wrote %d octets into a %d-octet buffer", written, MaxFrameLen)
+	}
+}
+
+// VALIDATES: the same bound, reached the way a peer reaches it. A
+//
+//	Configure-Request carrying many DISTINCT option Types still asks for a
+//	reply larger than a frame, so ze sends nothing rather than a prefix, and
+//	its automaton stays usable afterwards.
+//
+// PREVENTS: the bound surviving only as a helper test. Naming each Type once
+// (NegotiatePeerOptions) stopped a REPEATED option from building an oversized
+// reply, and that is the whole of what it stopped: distinct Types are not
+// deduplicated and cannot be, because RFC 1661 Section 5.4 requires every
+// unrecognizable option to appear in the Configure-Reject. So the entry point
+// still reaches the writer's bound and is still the place to assert it.
+func TestLCPReplyLargerThanAFrameIsNotSentFromTheWire(t *testing.T) {
+	s, rec, _ := newRFC1661Session(LCPStateReqSent)
+
+	// 200 option Types ze does not recognize, each carrying eight octets, is
+	// 2000 octets of Configure-Reject entries for a 1406-octet frame. Types
+	// from 0xC0 up are outside the set RFC 1661 Section 6 defines.
+	const distinctTypes = 200
+	request := make([]byte, 0, distinctTypes*10)
+	for i := range distinctTypes {
+		request = append(request, uint8(0xC0+i%0x40), 10)
+		request = append(request, make([]byte, 8)...)
+	}
+
+	if term := s.handleFrame(lcpReqFrame(0xE1, request)); term {
+		t.Fatal("session terminated on a Configure-Request whose reply does not fit a frame")
+	}
+	if _, ok := findCode(t, rec, LCPConfigureReject); ok {
+		t.Fatal("a Configure-Reject was sent for a reply that cannot fit a frame")
+	}
+
+	// The automaton is where it was: a well-formed acceptable request is
+	// still acknowledged.
+	if term := s.handleFrame(lcpReqFrame(0xE2, optStream(mruOption(MaxFrameLen)))); term {
+		t.Fatal("session terminated on the well-formed request that followed")
+	}
+	ack, ok := findCode(t, rec, LCPConfigureAck)
+	if !ok {
+		t.Fatalf("no Configure-Ack for the well-formed request that followed; frames=%d", rec.count())
+	}
+	if ack.Identifier != 0xE2 {
+		t.Errorf("Configure-Ack Identifier = 0x%02x, want 0xE2", ack.Identifier)
+	}
+}
+
+// VALIDATES: a Configure-Request repeating one option draws a reply naming
+//
+//	that option once, and leaves ze running with its automaton usable.
+//
+// PREVENTS: the reply the peer sizes. 700 Magic-Number options at Length 2 fit
+// a 1406-octet frame and each earns a six-octet Nak entry, so the answer ze
+// owed was 4200 octets and the answer ze sent was nothing at all.
+//
+// RFC requirement: RFC1661-5.3-3 positive -- RFC 1661 Section 5.3: "Each
+// Configuration Option which is allowed only a single instance MUST be
+// modified to a value acceptable to the Configure-Nak sender." Magic-Number is
+// one of those, by RFC 1661 Section 6: "(None of the Configuration Options in
+// this specification can be listed more than once.)" So the Configure-Nak
+// NegotiatePeerOptions (lcp_options.go) builds carries one Magic-Number entry
+// whatever the request repeated, and it carries a value ze accepts.
+func TestRFC1661RepeatedOptionDrawsOneNakEntry(t *testing.T) {
 	s, rec, _ := newRFC1661Session(LCPStateReqSent)
 
 	// 700 Magic-Number options at Length 2, 1400 octets, inside a frame. Each
-	// one is well formed as a header and invalid for its Type, so each earns
-	// a six-octet Nak entry.
+	// one is well formed as a header and invalid for its Type.
 	const magicOptions = 700
 	request := make([]byte, 0, magicOptions*2)
 	for range magicOptions {
@@ -275,39 +361,25 @@ func TestLCPReplyLargerThanAFrameIsNotSent(t *testing.T) {
 	}
 
 	if term := s.handleFrame(lcpReqFrame(0xD1, request)); term {
-		t.Fatal("session terminated on a Configure-Request whose reply does not fit a frame")
+		t.Fatal("session terminated on a Configure-Request repeating one option")
 	}
 
-	// Ze answered nothing. RFC 1661 Section 5.3: "The Options field is
-	// filled with only the unacceptable Configuration Options from the
-	// Configure-Request." A Configure-Nak carrying the prefix of them that
-	// fits is a packet that section does not describe, so the reply ze owes
-	// and cannot send is no reply at all, and sendConfigureNakOrReject
-	// returns before it writes a frame.
-	//
-	// The parse below is the counterfactual: if a frame ever does carry this
-	// Identifier, it is a whole option list, because the prefix that fit
-	// would not parse.
-	for _, frame := range rec.all() {
-		proto, payload, _, err := ParseFrame(frame)
-		if err != nil {
-			t.Fatalf("ParseFrame(% x): %v", frame, err)
-		}
-		if proto != ProtoLCP {
-			continue
-		}
-		pkt, err := ParseLCPPacket(payload)
-		if err != nil {
-			t.Fatalf("ParseLCPPacket(% x): %v", payload, err)
-		}
-		if pkt.Identifier != 0xD1 {
-			continue
-		}
-		t.Errorf("ze answered the oversized request with %s carrying %d octets of options; RFC 1661 Section 5.3 has no reply that carries some of the unacceptable options",
-			LCPCodeName(pkt.Code), len(pkt.Data))
-		if _, err := ParseLCPOptions(pkt.Data); err != nil {
-			t.Errorf("that reply's option list does not parse: % x: %v", pkt.Data, err)
-		}
+	nak, ok := findCode(t, rec, LCPConfigureNak)
+	if !ok {
+		t.Fatalf("no Configure-Nak for a request of %d invalid Magic-Number options; frames=%d", magicOptions, rec.count())
+	}
+	opts, err := ParseLCPOptions(nak.Data)
+	if err != nil {
+		t.Fatalf("Configure-Nak Data % x does not parse: %v", nak.Data, err)
+	}
+	if len(opts) != 1 {
+		t.Fatalf("Configure-Nak carries %d options for %d repetitions of one Type, want 1", len(opts), magicOptions)
+	}
+	if opts[0].Type != LCPOptMagic {
+		t.Fatalf("Configure-Nak carries option Type %d, want Magic-Number %d", opts[0].Type, LCPOptMagic)
+	}
+	if len(opts[0].Data) != 4 {
+		t.Fatalf("Nak'd Magic-Number carries %d octets, want the 4 RFC 1661 Section 6.4 gives it", len(opts[0].Data))
 	}
 
 	// The automaton is where it was: a well-formed acceptable request is

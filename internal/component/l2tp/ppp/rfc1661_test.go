@@ -1031,17 +1031,26 @@ func TestRFC1661RejectedValueStaysUnacceptable(t *testing.T) {
 //	them.
 //
 // RFC requirement: RFC1661-5.3-6 positive -- NegotiatePeerOptions
-// (lcp_options.go) appends one entry per received option in receive order, so
-// two Nak-worthy MRU options come back in the order they arrived.
+// (lcp_options.go) appends one entry per received option Type in receive
+// order, so an MRU and a Magic-Number that both earn a Nak come back in the
+// order they arrived.
+//
+// The two options carry different Types on purpose. RFC 1661 Section 6:
+// "(None of the Configuration Options in this specification can be listed
+// more than once.)" A request repeating one Type is not a request this
+// section describes, so the order of two entries for one Type is not an order
+// any conforming exchange produces.
 func TestRFC1661NakPreservesRequestOrder(t *testing.T) {
 	policy := LCPNegPolicy{MaxMRU: 1500}
-	_, naks, _ := NegotiatePeerOptions([]LCPOption{mruOption(2000), mruOption(32)}, policy)
+	_, naks, _ := NegotiatePeerOptions([]LCPOption{mruOption(2000), magicOption(0)}, policy)
 	if len(naks) != 2 {
 		t.Fatalf("naks = %d, want 2", len(naks))
 	}
-	if binary.BigEndian.Uint16(naks[0].Data) != 1500 || binary.BigEndian.Uint16(naks[1].Data) != 64 {
-		t.Fatalf("nak values = %d,%d, want 1500,64 in that order",
-			binary.BigEndian.Uint16(naks[0].Data), binary.BigEndian.Uint16(naks[1].Data))
+	if naks[0].Type != LCPOptMRU || naks[1].Type != LCPOptMagic {
+		t.Fatalf("nak types = %d,%d, want MRU then Magic-Number in that order", naks[0].Type, naks[1].Type)
+	}
+	if binary.BigEndian.Uint16(naks[0].Data) != 1500 {
+		t.Fatalf("nak MRU value = %d, want 1500", binary.BigEndian.Uint16(naks[0].Data))
 	}
 }
 
@@ -1049,17 +1058,20 @@ func TestRFC1661NakPreservesRequestOrder(t *testing.T) {
 //
 //	not emitted in a fixed order that only coincidentally matched.
 //
-// RFC requirement: RFC1661-5.3-6 negative -- with the two MRU options swapped,
-// NegotiatePeerOptions (lcp_options.go) produces the swapped Nak list.
+// RFC requirement: RFC1661-5.3-6 negative -- with the two options swapped,
+// NegotiatePeerOptions (lcp_options.go) produces the swapped Nak list, so the
+// order above is the request's and not a fixed order of ze's own.
 func TestRFC1661NakOrderFollowsRequestNotAFixedOrder(t *testing.T) {
 	policy := LCPNegPolicy{MaxMRU: 1500}
-	_, naks, _ := NegotiatePeerOptions([]LCPOption{mruOption(32), mruOption(2000)}, policy)
+	_, naks, _ := NegotiatePeerOptions([]LCPOption{magicOption(0), mruOption(2000)}, policy)
 	if len(naks) != 2 {
 		t.Fatalf("naks = %d, want 2", len(naks))
 	}
-	if binary.BigEndian.Uint16(naks[0].Data) != 64 || binary.BigEndian.Uint16(naks[1].Data) != 1500 {
-		t.Fatalf("nak values = %d,%d, want 64,1500 in that order",
-			binary.BigEndian.Uint16(naks[0].Data), binary.BigEndian.Uint16(naks[1].Data))
+	if naks[0].Type != LCPOptMagic || naks[1].Type != LCPOptMRU {
+		t.Fatalf("nak types = %d,%d, want Magic-Number then MRU in that order", naks[0].Type, naks[1].Type)
+	}
+	if binary.BigEndian.Uint16(naks[1].Data) != 1500 {
+		t.Fatalf("nak MRU value = %d, want 1500", binary.BigEndian.Uint16(naks[1].Data))
 	}
 }
 

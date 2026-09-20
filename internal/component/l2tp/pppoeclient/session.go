@@ -213,6 +213,36 @@ func negotiateLCP(w io.Writer, frames <-chan readFrame, buf []byte, cfg sessionC
 					sendLCPOptionReply(w, buf, code, pkt.Identifier, opts, logger)
 					continue
 				}
+				// The options are contained in the packet and each
+				// one's own Length is valid, so the remaining question
+				// is whether their VALUES are acceptable. RFC 1661
+				// Section 5.3: "If every instance of the received
+				// Configuration Options is recognizable, but some
+				// values are not acceptable, then the implementation
+				// MUST transmit a Configure-Nak." Section 5.4 does the
+				// same for an option that is "not recognizable or
+				// not acceptable for negotiation", and takes
+				// precedence: a reply is a Configure-Reject or a
+				// Configure-Nak, never both.
+				//
+				// The client runs the SAME negotiator the LNS side runs
+				// (ppp.NegotiatePeerOptions), so one peer gets one
+				// answer from ze whichever role ze is in. Until this
+				// branch existed the client Acked every parseable
+				// Configure-Request unread, which acknowledged a
+				// Magic-Number of zero that RFC 1661 Section 6.4 says
+				// "MUST always be Nak'd, if it is not Rejected
+				// outright", and the LNS side Nak'd it.
+				_, naks, rejects := ppp.NegotiatePeerOptions(walk.Options, clientLCPPolicy(cfg, magic))
+				if len(rejects) > 0 {
+					sendLCPOptionReply(w, buf, ppp.LCPConfigureReject, pkt.Identifier, rejects, logger)
+					continue
+				}
+				if len(naks) > 0 {
+					sendLCPOptionReply(w, buf, ppp.LCPConfigureNak, pkt.Identifier, naks, logger)
+					continue
+				}
+
 				authProto, authData, mru := extractServerOptions(walk.Options)
 				if mru > 0 {
 					result.peerMRU = mru

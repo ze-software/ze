@@ -127,13 +127,21 @@ func TestRFC2865SubscriberAccessRequestCarriesCredential(t *testing.T) {
 
 	// RFC requirement: RFC2865-4.1-3 negative -- a peer that offered no
 	// credential (AuthMethodNone) yields no User-Password, no CHAP-Password and
-	// no State, so no Access-Request is sent and the session is denied.
+	// no State, so no Access-Request is sent.
+	//
+	// The session is admitted rather than denied, and that is a policy answer
+	// and not this requirement's. The operator configured no authentication,
+	// so there is no question left for a server to answer; what Section 4.1
+	// governs is the packet, and the packet is not sent. Denying here refused
+	// every session on a RADIUS deployment configured for accounting alone,
+	// because activateRadiusConfig (register.go) claims the single auth slot
+	// for that deployment too.
 	a, srv, resp = setupCapturingAuth(t, key)
-	a.handle(ppp.EventAuthRequest{
+	noAuth := a.handle(ppp.EventAuthRequest{
 		TunnelID: 1, SessionID: 2, Method: ppp.AuthMethodNone, Username: "alice",
 	}, resp.respond)
-	if call := resp.waitOne(t); call.accept {
-		t.Fatal("a request with no credential MUST NOT be accepted")
+	if noAuth.Handled {
+		t.Fatal("a request with no credential was sent to the server; RFC 2865 Section 4.1 describes no such Access-Request")
 	}
 	assertNoRequest(t, srv, "AuthMethodNone")
 
