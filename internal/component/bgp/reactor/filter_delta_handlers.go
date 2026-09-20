@@ -4,7 +4,7 @@
 // RFC: rfc/short/rfc4760.md -- MP_REACH_NLRI value layout (Section 3)
 // RFC: rfc/short/rfc7606.md -- the attribute-discard action a marker records (Section 7.7)
 // RFC: rfc/drafts/draft-mangin-idr-attr-tombstone-00.txt -- ATTR_TOMBSTONE flags (Section 4.2) and the rebuild marker (Section 5.1)
-// Related: filter_delta.go -- textDeltaToModOps produces AttrModSet ops consumed by these handlers
+// Related: filter_delta.go -- textDeltaToModOps produces the AttrModSet and AttrModSuppress ops these handlers consume
 // Related: forward_build.go -- buildModifiedPayload dispatches to registered handlers
 
 package reactor

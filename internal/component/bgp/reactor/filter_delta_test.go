@@ -124,7 +124,8 @@ func TestTextDeltaToModOps(t *testing.T) {
 		modified   string
 		wantOps    int
 		wantCode   attribute.AttributeCode
-		wantNilBuf bool // true for removal ops (Buf is nil)
+		wantNilBuf bool  // true for removal ops (Buf is nil)
+		wantAction uint8 // zero value is filterapi.AttrModSet, which is what a change or an addition produces
 	}{
 		{
 			name:     "no change produces no ops",
@@ -179,12 +180,16 @@ func TestTextDeltaToModOps(t *testing.T) {
 			wantOps:  0,
 		},
 		{
-			name:       "attribute removed produces op",
+			name:       "attribute removed produces a suppression",
 			original:   "origin igp community 65000:100",
 			modified:   "origin igp",
 			wantOps:    1,
 			wantCode:   attribute.AttrCommunity,
 			wantNilBuf: true,
+			// A Set with no bytes would reach the wire as a three-byte header of
+			// length 0, because ATOMIC_AGGREGATE makes an empty Set a legal ask and
+			// genericAttrSetHandler cannot read one as a removal.
+			wantAction: filterapi.AttrModSuppress,
 		},
 		{
 			name:     "empty delta",
@@ -202,7 +207,7 @@ func TestTextDeltaToModOps(t *testing.T) {
 			if tt.wantOps == 1 {
 				ops := mods.Ops()
 				assert.Equal(t, byte(tt.wantCode), ops[0].Code)
-				assert.Equal(t, filterapi.AttrModSet, ops[0].Action)
+				assert.Equal(t, tt.wantAction, ops[0].Action)
 				if tt.wantNilBuf {
 					assert.Nil(t, ops[0].Buf, "removal op should have nil Buf")
 				} else {
@@ -1244,7 +1249,7 @@ func TestFilterDeltaParseOnceEquivalence(t *testing.T) {
 			name:     "remove community",
 			original: "origin igp community 65000:1",
 			modified: "origin igp",
-			want:     []string{"8 0 "},
+			want:     []string{"8 4 "}, // action 4 is AttrModSuppress: a removal, not a Set of no bytes
 		},
 		{
 			name:     "nlri-only change emits no attr ops",
@@ -1306,7 +1311,7 @@ func TestFilterDeltaParseOnceEquivalence(t *testing.T) {
 			asn4:     true,
 			peerAS:   65001,
 			localAS:  64999,
-			want:     []string{"1 0 01", "2 0 02010000fbf001010000fbf1", "2 3 02020000fde70000fde7", "8 0 "},
+			want:     []string{"1 0 01", "2 0 02010000fbf001010000fbf1", "2 3 02020000fde70000fde7", "8 4 "},
 		},
 	}
 
@@ -2135,4 +2140,42 @@ func TestPrependRecordsNothingWithoutAnAttributeSection(t *testing.T) {
 
 	assert.Equal(t, 0, mods.Len(),
 		"an unreadable attribute section records neither an AS_PATH nor an AS4_PATH operation")
+}
+
+// TestRemovedAttributeLeavesNoZeroLengthAttribute drives a policy filter's
+// removal of MULTI_EXIT_DISC all the way to the wire, and asserts the attribute
+// is GONE rather than present with no value.
+//
+// VALIDATES: a filter that drops an attribute line removes the attribute.
+// PREVENTS: the removal being spelled as a Set with no bytes. The handler cannot
+// read that as a removal, because ATOMIC_AGGREGATE makes an empty Set a legal
+// ask (RFC 4271 Section 4.3f, "a well-known discretionary attribute of length
+// 0"), so it emits a three-byte header of length 0 instead. RFC 4271 Section
+// 4.3d: "MULTI_EXIT_DISC (Type Code 4): This is an optional non-transitive
+// attribute that is a four-octet unsigned integer." A conformant receiver
+// answers the zero-length form with RFC 7606.
+func TestRemovedAttributeLeavesNoZeroLengthAttribute(t *testing.T) {
+	medValue := make([]byte, 4)
+	binary.BigEndian.PutUint32(medValue, 50)
+	attrs := append(makeAttr(0x40, byte(attribute.AttrOrigin), []byte{0x00}),
+		makeAttr(0x80, byte(attribute.AttrMED), medValue)...)
+	payload := buildModTestPayload(attrs, []byte{24, 10, 0, 0})
+
+	var mods filterapi.ModAccumulator
+	textDeltaToModOps(newTestScratch(t),
+		parseFilterAttrs("origin igp med 50"),
+		parseFilterAttrs("origin igp"), &mods)
+	require.Equal(t, 1, mods.Len(), "dropping the med line records one operation")
+
+	handlers := map[uint8]filterapi.AttrModHandler{
+		byte(attribute.AttrMED): genericAttrSetHandler(0x80, byte(attribute.AttrMED)),
+	}
+	result, _, fail := buildModifiedPayload(payload, &mods, handlers, nil, nil)
+	require.Equal(t, modifyFailureNone, fail, "the rebuild must not fail")
+	require.NotNil(t, result, "the rebuild must produce a body")
+
+	assert.NotContains(t, attrCodesOf(t, result), byte(attribute.AttrMED),
+		"the removed MULTI_EXIT_DISC is still on the wire, which means it was emitted with a zero-length value")
+	assert.Contains(t, attrCodesOf(t, result), byte(attribute.AttrOrigin),
+		"the untouched ORIGIN must survive the rebuild")
 }

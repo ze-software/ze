@@ -254,12 +254,22 @@ func textDeltaToModOps(scratch *valueScratch, origAttrs, modAttrs *filterAttrs, 
 		}
 
 		// Removed attributes: present in original, absent in modified.
+		//
+		// AttrModSuppress, never a Set with no bytes. An empty Set is a legal
+		// thing to ask for here: ATOMIC_AGGREGATE is "a well-known discretionary
+		// attribute of length 0" (RFC 4271 Section 4.3f), and it is one of the
+		// codes genericAttrSetHandler serves. So the handler cannot read an empty
+		// value as a removal, and it does not: it calls p.Op then p.Emit, and
+		// AttrPlan.emit decides the header class from the final length with no
+		// zero case, which puts a three-byte header of length 0 on the wire.
+		// For MULTI_EXIT_DISC that is an attribute RFC 4271 Section 5.1.4 gives
+		// four octets, and a conformant receiver answers with RFC 7606.
 		if origPresent {
 			code, ok := attrNameToCode[name]
 			if !ok {
 				continue
 			}
-			mods.Op(byte(code), filterapi.AttrModSet, nil)
+			mods.Op(byte(code), filterapi.AttrModSuppress, nil)
 		}
 	}
 }
