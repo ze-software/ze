@@ -6,7 +6,7 @@
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry",
       "unit-sha": "0961b72e389886b0",
-      "claim-sha": "c27760b99aa2b6d0",
+      "claim-sha": "e53359c07bab6278",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
       "producer-sha": "36d383b432a0939a",

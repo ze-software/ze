@@ -124,8 +124,10 @@ func TestRFC4724GRCapabilityListsTheFamiliesOfTheSession(t *testing.T) {
 // parseGRCapValue (internal/component/bgp/plugins/gr/gr_capability.go) emits
 // the ipv6 tuple alone, and the Flags octet of that tuple is 0x00 rather than
 // 0x80. The test asserts the exact payload "0078" + "00020100", so an ipv4
-// tuple Ze does not carry and a Forwarding State bit Ze cannot support both
-// fail it.
+// tuple Ze does not carry, and a Forwarding State bit claimed where no restart
+// has happened, both fail it. The bit is set later and elsewhere, by
+// restartFlagsFor (internal/component/bgp/reactor/peer_gr_flags.go), and only
+// inside the restart window; this payload is what a cold start sends.
 func TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry(t *testing.T) {
 	payload := grPayloadForConfig(t, grConfig([]string{"ipv6/unicast"}, ""))
 

@@ -156,8 +156,10 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor) (registry.
 	// Chaos injection from hub-stored config.
 	injectChaos(r, coord)
 
-	// GR marker from storage (RFC 4724 Section 4.1).
-	readGRMarker(r, store)
+	// GR marker from storage (RFC 4724 Section 4.1). The tree goes with it:
+	// the marker says Ze restarted, and the configuration says whether the
+	// forwarding plane kept Ze's routes while it was down.
+	readGRMarker(r, store, result.Tree.ToPluginMap())
 
 	if cb := bs.HealthPeerCallback; cb != nil {
 		r.AddPeerLifecycleCallback(cb)

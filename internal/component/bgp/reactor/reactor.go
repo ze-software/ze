@@ -189,6 +189,15 @@ type Config struct {
 	// RFC 4724 Section 4.1: Restarting Speaker sets R-bit in OPEN.
 	RestartUntil time.Time
 
+	// ForwardingPreserved reports whether ze's routes stayed in the
+	// forwarding plane across the restart RestartUntil describes. It decides
+	// the per-family Forwarding State bit of the GR capability, and it is
+	// read only while that deadline is in the future, because the bit speaks
+	// about "the previous BGP restart" and a cold start had none.
+	// RFC 4724 Section 4.1: the bit "can be set only if the forwarding state
+	// has indeed been preserved for that address family during the restart".
+	ForwardingPreserved bool
+
 	// Standalone selects self-hosting mode: the reactor creates and owns its own
 	// plugin server, runs its own signal handler, and starts peers inline. Used by
 	// the ze-chaos in-process simulation and the integration harness.
@@ -875,6 +884,14 @@ func (r *Reactor) SetConfigPath(path string) {
 // MUST be called before StartWithContext -- not safe for concurrent use.
 func (r *Reactor) SetRestartUntil(t time.Time) {
 	r.config.RestartUntil = t
+}
+
+// SetForwardingPreserved records whether ze's routes survived in the
+// forwarding plane across the restart, which sets the per-family Forwarding
+// State bit of the GR capability (RFC 4724 Section 4.1).
+// MUST be called before StartWithContext -- not safe for concurrent use.
+func (r *Reactor) SetForwardingPreserved(preserved bool) {
+	r.config.ForwardingPreserved = preserved
 }
 
 // ExecuteCommand dispatches a text command through the API server's dispatcher.

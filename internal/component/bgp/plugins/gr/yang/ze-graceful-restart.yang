@@ -27,9 +27,11 @@ module ze-graceful-restart {
                 code 64, to this peer. Ze names every address family the peer carries in that capability, unless the
                 family container below narrows the set, so the peer
                 retains Ze's routes for those families while the session is down (RFC 4724 Section 4.2). The
-                Forwarding State bit of each family stays clear, because Ze does not claim that a restart preserved
-                its forwarding state, so the peer removes the stale routes when the session comes back. A container
-                on the peer replaces the container on the group rather than adding to it.";
+                families are the ones the session negotiates, so they include what the peer inherits from its
+                group and exclude any family entry written 'mode disable'. The Forwarding State bit of each
+                family is set at connection time rather than here: it says the routes were still being forwarded
+                while Ze was down, which is true when Ze restarted and the forwarding plane kept them. A
+                container on the peer replaces the container on the group rather than adding to it.";
             ze:help "Graceful Restart capability configuration.";
 
             leaf restart-time {

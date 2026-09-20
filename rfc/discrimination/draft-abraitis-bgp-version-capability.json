@@ -192,22 +192,22 @@
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1",
       "polarity": "negative",
       "unit": "internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityDecidesNothing",
-      "unit-sha": "54f2c84e15b99fda",
+      "unit-sha": "0a5f25d653c41c32",
       "claim-sha": "9c92badce562e940",
       "route": "revert",
       "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-      "producer-sha": "07a54848b1cdfefe",
+      "producer-sha": "435cb0c5ff9c51ce",
       "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-4-1",
       "polarity": "positive",
       "unit": "internal/core/bgp/capability/rfc_draft_abraitis_softver_test.go::TestSoftwareVersionCapabilityIsRecordedForDisplay",
-      "unit-sha": "dfd3dd6d922f4470",
+      "unit-sha": "cfb76742e83a6b6d",
       "claim-sha": "6bbfaf8b2937b399",
       "route": "revert",
       "producer": "internal/core/bgp/capability/negotiated.go::Negotiate",
-      "producer-sha": "07a54848b1cdfefe",
+      "producer-sha": "435cb0c5ff9c51ce",
       "break": "body of Negotiate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

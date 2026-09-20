@@ -135,21 +135,29 @@ func RunGRPlugin(conn net.Conn) int {
 
 	gp.wireStateCallbacks()
 
+	// The same refusal at the two points a configuration arrives, because
+	// only one of them is in front of the operator.
+	//
+	// config-verify runs inside the commit transaction, so a refusal here is
+	// reported at the prompt and the commit does not land. Stage 2 runs at
+	// startup, where a refusal is fatal (FatalOnConfigError, register.go).
+	// Without the verify handler the SDK answers OK for the whole
+	// transaction (Plugin.OnConfigVerify, pkg/plugin/sdk/sdk_callbacks.go):
+	// the operator would commit a graceful-restart family the session does
+	// not carry onto a forwarding router, see it succeed, and meet the
+	// refusal as a daemon that will not start at the next boot.
+	p.OnConfigVerify(refuseUncarriedGRSections)
+
 	// OnConfigure callback: parse bgp config, extract per-peer restart-time
 	// and long-lived-stale-time, then set capabilities for Stage 3.
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		if err := refuseUncarriedGRSections(sections); err != nil {
+			return err
+		}
 		var caps []sdk.CapabilityDecl
 		for _, section := range sections {
 			if section.Root != configRootBGP {
 				continue
-			}
-			// The refusal runs before the build, and it stops Stage 2. The
-			// daemon then stops this plugin and runs without Graceful Restart
-			// rather than advertising a capability the configuration
-			// contradicts (deliverConfigRPC,
-			// internal/component/plugin/server/startup.go).
-			if err := refuseUncarriedGRFamilies(section.Data); err != nil {
-				return err
 			}
 			caps = append(caps, extractGRCapabilities(section.Data)...)
 			// RFC 9494: LLGR capability (code 71) declared alongside GR (code 64)

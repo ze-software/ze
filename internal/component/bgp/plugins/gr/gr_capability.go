@@ -7,8 +7,10 @@
 // This file builds the RFC 4724 Graceful Restart capability (code 64) that Ze
 // puts in every OPEN for a peer configured with a "graceful-restart" container.
 // The reactor takes the payload verbatim (Peer.getPluginCapabilities,
-// internal/component/bgp/reactor/peer.go), with one edit: grmarker.SetRBit sets
-// the Restart State bit while the restart marker is live.
+// internal/component/bgp/reactor/peer.go), with one edit: restartFlagsFor
+// (internal/component/bgp/reactor/peer_gr_flags.go) sets the Restart State
+// bit while the restart marker is live, and the per-family Forwarding State
+// bit when the forwarding plane kept Ze's routes across that restart.
 
 package gr
 
@@ -47,17 +49,19 @@ const grFamilyTupleLen = 4
 // address family>".
 const grFamilyMax = 63
 
-// grForwardStateClear is the "Flags for Address Family" octet Ze sends: every
-// bit zero, so the Forwarding State bit is clear and no reserved bit is set.
+// grForwardStateClear is the "Flags for Address Family" octet this file
+// writes: every bit zero, which is the whole octet a cold start sends.
 //
 // RFC 4724 Section 4.1: "Unless allowed via configuration, the "Forwarding
 // State" bit for an address family in the capability can be set only if the
 // forwarding state has indeed been preserved for that address family during
 // the restart." parseGRCapValue runs when the configuration is loaded, which
-// is before any restart is known, so it cannot make that claim. The Restart
-// State bit takes the same route out of this function: grmarker.SetRBit reads
-// the restart marker and sets it on the way to the OPEN
-// (Peer.getPluginCapabilities, internal/component/bgp/reactor/peer.go).
+// is before any restart is known, so it cannot make that claim HERE. It is
+// made later, by the same route the Restart State bit takes: restartFlagsFor
+// (internal/component/bgp/reactor/peer_gr_flags.go) sets both on the way to
+// the OPEN, from the restart marker and from the forwarding plane's own
+// answer. Leaving this octet clear is therefore the starting point rather
+// than the final word, and a cold start never reaches that edit.
 //
 // RFC 4724 Section 3 covers the rest of the octet: "The remaining bits are
 // reserved and MUST be set to zero by the sender and ignored by the receiver".
@@ -194,6 +198,22 @@ func grAdvertisedFamilies(grData map[string]any, sessionFamilies []string) []str
 	return configvalue.LeafList(famData[grFamilyNameLeaf])
 }
 
+// refuseUncarriedGRSections runs the graceful-restart family check over every
+// bgp section of one delivery. It is the whole of what this plugin refuses,
+// and both config-verify and Stage 2 call it so that the two answer alike
+// (RunGRPlugin, gr.go).
+func refuseUncarriedGRSections(sections []sdk.ConfigSection) error {
+	for _, section := range sections {
+		if section.Root != configRootBGP {
+			continue
+		}
+		if err := refuseUncarriedGRFamilies(section.Data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // refuseUncarriedGRFamilies returns the first "graceful-restart family" in the
 // document that names an address family the peer does not carry.
 //
@@ -225,14 +245,31 @@ func refuseUncarriedGRFamilies(jsonStr string) error {
 			return
 		}
 		sessionFamilies := collectPeerFamilies(peerMap, groupMap)
-		for _, capMap := range []map[string]any{configjson.GetCapability(peerMap), configjson.GetCapability(groupMap)} {
-			if err := refusePeerGRFamilies(capMap, peerAddr, sessionFamilies); err != nil {
-				refusal = err
-				return
-			}
+		if err := refusePeerGRFamilies(grCapabilityFor(peerMap, groupMap), peerAddr, sessionFamilies); err != nil {
+			refusal = err
 		}
 	})
 	return refusal
+}
+
+// grCapabilityFor answers which "graceful-restart" container governs one
+// peer: its own when it writes one, and its group's otherwise.
+//
+// A container on the peer REPLACES the container on the group rather than
+// adding to it (ze-graceful-restart.yang), so exactly one of the two decides
+// what the peer advertises. This function is the only statement of that
+// precedence, and both the guard and the builder take it from here. They read
+// it separately until 2026-09-20, and the guard read BOTH containers: a group
+// list a peer overrode was refused on that peer's behalf although no OPEN
+// would ever carry it, and FatalOnConfigError made the refusal stop ze.
+func grCapabilityFor(peerMap, groupMap map[string]any) map[string]any {
+	if capMap := configjson.GetCapability(peerMap); capMap["graceful-restart"] != nil {
+		return capMap
+	}
+	if groupMap == nil {
+		return nil
+	}
+	return configjson.GetCapability(groupMap)
 }
 
 // refusePeerGRFamilies checks the "graceful-restart family" container of one
@@ -289,20 +326,11 @@ func extractGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 		// lists come from one reading of the configuration.
 		families := collectPeerFamilies(peerMap, groupMap)
 
-		// Check per-peer graceful-restart capability first.
-		peerCapValue := parseGRCapValue(configjson.GetCapability(peerMap), peerAddr, families)
-
-		// Check group-level graceful-restart capability (fallback).
-		var groupCapValue string
-		if groupMap != nil {
-			groupCapValue = parseGRCapValue(configjson.GetCapability(groupMap), peerAddr, families)
-		}
-
-		// Per-peer wins over group.
-		capValue := groupCapValue
-		if peerCapValue != "" {
-			capValue = peerCapValue
-		}
+		// The peer's own container, or its group's. grCapabilityFor states
+		// that precedence once, and refuseUncarriedGRFamilies reads the same
+		// answer, so the guard can never refuse a container this walk would
+		// not have advertised.
+		capValue := parseGRCapValue(grCapabilityFor(peerMap, groupMap), peerAddr, families)
 		if capValue == "" {
 			return
 		}

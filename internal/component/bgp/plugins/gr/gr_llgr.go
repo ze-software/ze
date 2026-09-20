@@ -10,10 +10,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
-	"github.com/ze-software/ze/internal/core/configvalue"
+	"github.com/ze-software/ze/internal/core/bgp/capability"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -219,47 +220,116 @@ func extractLLGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
 	return caps
 }
 
-// collectPeerFamilies returns the address families configured for a peer.
-// Checks peer-level "family" config, then group-level fallback.
-// Returns ["ipv4/unicast"] as default if no families configured.
+// familyIgnoreMismatch is the sibling key of the session family list that is
+// not an address family. parseFamiliesFromTree
+// (internal/component/bgp/reactor/config.go) skips it by name, and so does
+// this walk: a family named after it does not exist.
+const familyIgnoreMismatch = "ignore-mismatch"
+
+// familyModeDisable is the "mode" value that takes a family out of the
+// session. ze-bgp-conf.yang says of it: "disable does not advertise it".
+const familyModeDisable = "disable"
+
+// collectPeerFamilies returns the address families the peer's SESSION carries,
+// which is the set the reactor negotiates for it.
+//
+// It answers the same question as parseFamiliesFromTree
+// (internal/component/bgp/reactor/config.go) and MUST answer it the same way,
+// because a family named in a Graceful Restart capability but absent from the
+// session promises a peer that Ze preserves routes the session cannot carry
+// (RFC 4724 Section 3). Two readers of one list is already one too many; they
+// disagreeing is the defect this shape exists to prevent.
+//
+// So two rules come from that reader rather than from this package. A group's
+// families are MERGED into the peer's rather than replaced by them, because
+// deepMergeAt (internal/component/bgp/config/resolve.go) merges the resolved
+// tree key by key and the reactor negotiates every key of the result. And an
+// entry whose mode is "disable" is dropped, because the reactor skips it and
+// the session therefore never negotiates that family.
+//
+// The mode is read from the peer's entry first and from the group's only when
+// the peer's states none, which is what the deep merge produces for that leaf.
+//
+// A peer that configures no family at all carries the implicit family, and
+// that name comes from capability.FamilyImplicit rather than from a literal
+// here: Negotiate substitutes exactly that family for a side advertising no
+// Multiprotocol capability, so a second spelling of it would be a second
+// declaration of one fact.
 func collectPeerFamilies(peerMap, groupMap map[string]any) []string {
-	if families := extractFamilies(peerMap); len(families) > 0 {
-		return families
+	peerEntries := sessionFamilyEntries(peerMap)
+	groupEntries := sessionFamilyEntries(groupMap)
+
+	named := make(map[string]struct{}, len(peerEntries)+len(groupEntries))
+	for key := range groupEntries {
+		named[key] = struct{}{}
 	}
-	if groupMap != nil {
-		if families := extractFamilies(groupMap); len(families) > 0 {
-			return families
+	for key := range peerEntries {
+		named[key] = struct{}{}
+	}
+
+	families := make([]string, 0, len(named))
+	for key := range named {
+		if key == familyIgnoreMismatch {
+			continue
 		}
+		mode := familyEntryMode(peerEntries[key])
+		if mode == "" {
+			mode = familyEntryMode(groupEntries[key])
+		}
+		if mode == familyModeDisable {
+			continue
+		}
+		families = append(families, key)
 	}
-	return []string{"ipv4/unicast"}
+	if len(families) == 0 {
+		return []string{capability.FamilyImplicit.String()}
+	}
+	// Sorted so one configuration always produces one tuple order, in both
+	// the code-64 and the code-71 capability.
+	slices.Sort(families)
+	return families
 }
 
-// extractFamilies extracts the address family names from a peer or group
-// config map.
+// sessionFamilyEntries returns the raw session family list of a peer or group
+// config map, keyed by family name.
 //
 // The list sits under "session", beside "capability"
 // (/bgp/peer/session/family, ze-bgp-conf.yang), which is the same level
-// configjson.GetCapability reads from.
+// configjson.GetCapability reads from. "family" is a YANG list keyed by
+// "name", and a list is lowered to a map from key to entry body
+// ((*Tree).toMap, internal/component/config/tree.go), so the names are the
+// keys.
 //
-// "family" is a YANG list keyed by "name", and a list is lowered to a map from
-// key to entry body ((*Tree).toMap, internal/component/config/tree.go). So the
-// names are the keys, and configvalue.ListEntries is the reader a lowered list
-// owes (ai/rules/config.md). ListEntries sorts by key, which fixes the tuple
-// order of both capabilities for one configuration.
-func extractFamilies(m map[string]any) []string {
+// The map is returned rather than a name slice because the entry BODY carries
+// the "mode" leaf that decides whether the session has the family at all, and
+// configvalue.ListEntries cannot be used here: it drops an entry whose body is
+// not a map, and `ipv4/unicast disable;` is written exactly that way.
+func sessionFamilyEntries(m map[string]any) map[string]any {
 	session, ok := m["session"].(map[string]any)
 	if !ok {
 		return nil
 	}
-	entries := configvalue.ListEntries(session["family"])
-	if len(entries) == 0 {
+	entries, ok := session["family"].(map[string]any)
+	if !ok {
 		return nil
 	}
-	families := make([]string, 0, len(entries))
-	for _, entry := range entries {
-		families = append(families, entry.Key)
+	return entries
+}
+
+// familyEntryMode reads the "mode" of one session family entry, which the
+// operator can write as the entry's own value or as a leaf inside its body.
+// An entry that states no mode answers "", which is not the same as "enable":
+// the caller needs the difference to let a peer's silence fall through to its
+// group.
+func familyEntryMode(entry any) string {
+	switch v := entry.(type) {
+	case string:
+		return v
+	case map[string]any:
+		mode, _ := v["mode"].(string)
+		return mode
 	}
-	return families
+	return ""
 }
 
 // decodeLLGRMode handles "decode capability 71 <hex>" in decode mode.

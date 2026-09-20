@@ -43,8 +43,6 @@ bgp {
 |------|------|---------|-------------|
 | `graceful-restart / restart-time` | uint16 | 120 | Seconds to hold stale routes during restart (0-4095) |
 | `graceful-restart / family / name` | leaf-list | -- | Address families the capability names. The container carries presence: absent, Ze names every family the peer carries; present and empty, Ze names none; present and filled, Ze names those |
-| `graceful-restart / mode` | enum | -- | `require`: reject peers without GR capability |
-| `graceful-restart / disable` | presence | -- | Disable GR for this peer |
 <!-- source: internal/component/bgp/plugins/gr/yang/ -- ze-graceful-restart YANG schema -->
 
 ## How It Works
@@ -78,26 +76,50 @@ family at all, which RFC 4724 Section 3 reads as a speaker that runs the
 Receiving Speaker procedures and preserves nothing of its own. Writing no
 container is the default, and the default names every family the peer carries.
 
-A `name` the peer's own `family` list does not carry is refused when the
-configuration is delivered, because RFC 4724 Section 3 scopes a tuple to routes
-"advertised with the same AFI and SAFI" and the session carries none of them.
-Ze names the family in the error, and the GR plugin does not start.
+A `name` the peer's own `family` list does not carry is refused, because RFC
+4724 Section 3 scopes a tuple to routes "advertised with the same AFI and SAFI"
+and the session carries none of them. Ze names the family in the error. The
+refusal runs at `config commit`, so the commit fails and the running router is
+untouched; a configuration that reaches startup carrying one stops the daemon
+rather than leaving it running without Graceful Restart.
+
+The families the peer carries include the ones it inherits from its group, and
+exclude any entry written `mode disable`. Both are what the session really
+negotiates.
 
 Narrowing code 64 is how an operator asks for LLGR with no conventional GR
 phase. RFC 9494 Section 4.1: "the conventional GR phase can be skipped by
 omitting all AFIs/SAFIs from the GR Capability, advertising a Restart Time of
 zero, or both". So the container never touches the code-71 list.
 
-The Forwarding State bit of each tuple is 0. Ze advertises that it supports
-Graceful Restart for the family, and it does not claim that a restart preserved
-its forwarding state for that family. A peer therefore retains Ze's routes while
-the session is down (RFC 4724 Section 4.2) and removes the remaining stale ones
-when the session comes back.
+### The Two Bits Ze Sets at Connection Time
 
-The Restart State bit is also 0 here. `ze signal restart` writes the restart
-marker, and the reactor sets that bit while the marker is live.
+The payload above is built when the configuration is loaded, so it carries what
+the operator configured and nothing about a restart. Two bits say what happened
+to Ze, and both are written on the way to the OPEN.
+
+The Restart State bit says Ze has restarted. `ze signal restart` writes the
+restart marker, and the reactor sets the bit while that marker is live. Outside
+the window a new connection gets 0, which is a cold start.
+
+The Forwarding State bit of an address family says the routes of that family
+were still being forwarded while Ze was down. Ze sets it inside the same window,
+and only when the forwarding plane kept its routes. The kernel FIB does keep
+them by default: `fib { kernel { } }` leaves every route it installed in place
+as Ze stops, marks them on the way back up and removes only the ones that do not
+return (`flush-on-stop`, `sweep-delay`). Writing `flush-on-stop true`, or
+configuring no FIB at all, means nothing was preserved and the bit stays 0.
+
+The bit decides what the peer does the moment Ze comes back. RFC 4724 Section
+4.2: if it "is not set in the newly received Graceful Restart Capability ...
+then the Receiving Speaker MUST immediately remove all the stale routes from the
+peer that it is retaining for that address family". So a peer holds Ze's routes
+while the session is down either way, and a clear bit makes it drop them at
+re-establishment rather than waiting for Ze to re-advertise.
 <!-- source: internal/component/bgp/plugins/gr/gr_capability.go -- parseGRCapValue, extractGRCapabilities -->
-<!-- source: internal/component/bgp/grmarker/grmarker.go -- SetRBit -->
+<!-- source: internal/component/bgp/reactor/peer_gr_flags.go -- restartFlagsFor -->
+<!-- source: internal/component/bgp/grmarker/grmarker.go -- SetRBit, SetFBit -->
+<!-- source: internal/plugins/fib/kernel/register.go -- preservesForwardingState -->
 
 ### Normal Session
 

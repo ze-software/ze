@@ -1,6 +1,7 @@
 package grmarker
 
 import (
+	"bytes"
 	"encoding/binary"
 	"testing"
 	"time"
@@ -527,5 +528,103 @@ func TestSetRBitTimeGatePattern(t *testing.T) {
 	restartUntil = time.Time{}
 	if !restartUntil.IsZero() {
 		t.Fatal("zero time should be zero")
+	}
+}
+
+// makeGRCapValueWithFamilies builds a code-64 value carrying a restart time
+// and one <AFI, SAFI, Flags> tuple per family, with every Flags octet clear:
+// the shape parseGRCapValue produces
+// (internal/component/bgp/plugins/gr/gr_capability.go).
+func makeGRCapValueWithFamilies(restartTime int, families ...[2]int) []byte {
+	value := []byte{byte(restartTime >> 8), byte(restartTime)}
+	for _, f := range families {
+		value = append(value, byte(f[0]>>8), byte(f[0]), byte(f[1]), 0x00)
+	}
+	return value
+}
+
+// VALIDATES: SetFBit sets the Forwarding State bit on EVERY address-family
+// tuple of a code-64 capability, and changes nothing else in the value.
+// PREVENTS: Ze telling a peer it preserved no forwarding state after a restart
+// that preserved it, which RFC 4724 Section 4.2 answers by having the peer
+// "immediately remove all the stale routes" for that family.
+func TestSetFBitOnEveryFamilyTuple(t *testing.T) {
+	// restart-time 300, ipv4/unicast and ipv6/unicast.
+	caps := []plugin.InjectedCapability{
+		{Code: grCapCode, Value: makeGRCapValueWithFamilies(300, [2]int{1, 1}, [2]int{2, 1}), Plugin: "gr"},
+	}
+
+	result := SetFBit(caps)
+
+	want := []byte{0x01, 0x2c, 0x00, 0x01, 0x01, 0x80, 0x00, 0x02, 0x01, 0x80}
+	if !bytes.Equal(result[0].Value, want) {
+		t.Errorf("SetFBit value = % x, want % x", result[0].Value, want)
+	}
+}
+
+// VALIDATES: the Restart Flags and Restart Time pair is untouched, so SetFBit
+// and SetRBit compose in either order.
+// PREVENTS: the F bit walk writing over byte 0, which carries the R bit.
+func TestSetFBitLeavesRestartFlagsAlone(t *testing.T) {
+	caps := []plugin.InjectedCapability{
+		{Code: grCapCode, Value: makeGRCapValueWithFamilies(120, [2]int{1, 1})},
+	}
+
+	both := SetFBit(SetRBit(caps))
+	reversed := SetRBit(SetFBit(caps))
+
+	if !bytes.Equal(both[0].Value, reversed[0].Value) {
+		t.Fatalf("order changed the value: % x vs % x", both[0].Value, reversed[0].Value)
+	}
+	if both[0].Value[0]&rBitMask == 0 {
+		t.Errorf("R bit lost: byte 0 = 0x%02x", both[0].Value[0])
+	}
+	if rt := (int(both[0].Value[0])&0x0F)<<8 | int(both[0].Value[1]); rt != 120 {
+		t.Errorf("restart-time = %d, want 120", rt)
+	}
+	if both[0].Value[5]&fBitMask == 0 {
+		t.Errorf("F bit not set: flags = 0x%02x", both[0].Value[5])
+	}
+}
+
+// VALIDATES: a capability that names no family is returned unchanged.
+// PREVENTS: writing past the Restart Time pair on the empty-container form,
+// which RFC 4724 Section 3 reads as a speaker that preserves nothing.
+func TestSetFBitNoFamilyTuple(t *testing.T) {
+	caps := []plugin.InjectedCapability{
+		{Code: grCapCode, Value: []byte{0x00, 0x78}},
+	}
+
+	result := SetFBit(caps)
+
+	if !bytes.Equal(result[0].Value, []byte{0x00, 0x78}) {
+		t.Errorf("SetFBit value = % x, want 00 78", result[0].Value)
+	}
+}
+
+// VALIDATES: non-code-64 capabilities are returned byte for byte.
+// PREVENTS: the F bit reaching a capability whose octets mean something else.
+func TestSetFBitLeavesOtherCapabilitiesAlone(t *testing.T) {
+	multiprotocol := []byte{0x00, 0x01, 0x00, 0x01}
+	caps := []plugin.InjectedCapability{{Code: 1, Value: multiprotocol}}
+
+	result := SetFBit(caps)
+
+	if !bytes.Equal(result[0].Value, multiprotocol) {
+		t.Errorf("SetFBit changed code 1: % x", result[0].Value)
+	}
+}
+
+// VALIDATES: the caller's slices are never written through.
+// PREVENTS: one peer's OPEN editing the payload every other peer shares, which
+// the capability injector hands out by reference.
+func TestSetFBitOriginalUnmodified(t *testing.T) {
+	original := makeGRCapValueWithFamilies(120, [2]int{1, 1})
+	caps := []plugin.InjectedCapability{{Code: grCapCode, Value: original}}
+
+	SetFBit(caps)
+
+	if original[5] != 0x00 {
+		t.Errorf("original flags octet modified: 0x%02x", original[5])
 	}
 }

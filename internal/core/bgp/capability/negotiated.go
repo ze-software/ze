@@ -306,10 +306,10 @@ func Negotiate(local, remote []Capability, identity PeerIdentity) *Negotiated {
 	// ipv6/unicast against a silent side still intersects to nothing, which is the
 	// correct answer because the two have no family in common.
 	if len(localFamilies) == 0 {
-		localFamilies[Family{AFI: AFIIPv4, SAFI: SAFIUnicast}] = true
+		localFamilies[FamilyImplicit] = true
 	}
 	if len(remoteFamilies) == 0 {
-		remoteFamilies[Family{AFI: AFIIPv4, SAFI: SAFIUnicast}] = true
+		remoteFamilies[FamilyImplicit] = true
 	}
 
 	// RFC 4760 Section 8: Multiprotocol capability negotiation

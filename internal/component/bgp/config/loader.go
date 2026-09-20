@@ -186,13 +186,26 @@ func injectChaos(r *reactor.Reactor, coord registry.CoordinatorAccessor) {
 
 // readGRMarker reads and removes the Graceful Restart marker from storage.
 // RFC 4724 Section 4.1: reactor uses the expiry to set R bit in OPEN capabilities.
-func readGRMarker(r *reactor.Reactor, store storage.Storage) {
+//
+// tree is the configuration this start is running, and it answers the second
+// half of the Restarting Speaker's signal: whether the forwarding plane kept
+// Ze's routes while Ze was down, which is the per-family Forwarding State bit.
+// The question goes to the registry rather than to a named forwarding plugin,
+// so the engine states no plugin's name (registry.ForwardingStatePreserved).
+//
+// Both answers are recorded together because the bits mean nothing apart. The
+// Forwarding State bit reports on "the previous BGP restart", so a start with
+// no marker has nothing to report and the reactor never reads it.
+func readGRMarker(r *reactor.Reactor, store storage.Storage, tree map[string]any) {
 	if store == nil {
 		return
 	}
 	if expiry, ok := grmarker.Read(store); ok {
+		preserved := registry.ForwardingStatePreserved(tree)
 		r.SetRestartUntil(expiry)
-		slogutil.Logger("bgp.gr").Info("GR restart marker found", "expires", expiry)
+		r.SetForwardingPreserved(preserved)
+		slogutil.Logger("bgp.gr").Info("GR restart marker found",
+			"expires", expiry, "forwarding-preserved", preserved)
 	}
 	if err := grmarker.Remove(store); err != nil {
 		slogutil.Logger("bgp.gr").Warn("failed to remove GR marker", "error", err)

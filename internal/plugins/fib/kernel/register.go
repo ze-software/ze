@@ -95,6 +95,44 @@ func parseFIBConfig(sections []sdk.ConfigSection) (fibConfig, error) {
 	return cfg, nil
 }
 
+// preservesForwardingState answers whether the routes this plugin installs are
+// still in the kernel after ze stops, which is what RFC 4724's Forwarding
+// State bit reports to a peer (registry.ForwardingStatePreserved,
+// internal/component/plugin/registry/registry.go).
+//
+// Two facts decide it and both are configuration. The operator must have
+// written a `fib { kernel { } }` block, because a plugin that was never
+// configured installs no route to preserve. And flush-on-stop must be off,
+// because the plugin removes every route it installed as it stops when that
+// leaf is true (f.run, fibkernel.go). The default keeps them, and
+// ze-fib-conf.yang says so: "The default false keeps those routes in the
+// kernel after shutdown, which supports graceful restart."
+//
+// What happens on the way back up is the other half, and it is why the
+// default is the honest answer rather than an optimistic one: startupSweep
+// (fibkernel.go) marks the surviving ze routes rather than deleting them, and
+// sweepStale removes only the ones sysrib does not refresh inside the sweep
+// window. So the forwarding state is continuous across the restart.
+//
+// A malformed leaf answers false. parseFIBConfig REFUSES such a section, so
+// the daemon never reaches a state where this prediction matters, and false
+// is the answer that claims nothing.
+func preservesForwardingState(tree map[string]any) bool {
+	section := configvalue.Section(configRoot, tree)
+	if section == nil {
+		return false
+	}
+	raw, present := section["flush-on-stop"]
+	if !present {
+		return true
+	}
+	flush, ok := configvalue.Bool(raw)
+	if !ok {
+		return false
+	}
+	return !flush
+}
+
 func init() {
 	// This plugin raises the fib-* warning codes (fibkernel.go); the FIB
 	// programming layer owns its health row.
@@ -114,11 +152,12 @@ func init() {
 		// `interface { backend }` gives the Linux kernel. A route producer
 		// that declares NeedsDataPlane is answered with this plugin when the
 		// operator wrote no `fib { ... }` block of their own.
-		ProgramsFIB:             true,
-		DataPlane:               "netlink",
-		InProcessConfigVerifier: verifyFIBConfig,
-		RunEngine:               runFIBKernelPlugin,
-		Commands:                commandDecls(),
+		ProgramsFIB:              true,
+		DataPlane:                "netlink",
+		PreservesForwardingState: preservesForwardingState,
+		InProcessConfigVerifier:  verifyFIBConfig,
+		RunEngine:                runFIBKernelPlugin,
+		Commands:                 commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
 			setLogger(slogutil.Logger(loggerName))
 		},

@@ -177,6 +177,16 @@ const (
 // RFC 4760 Section 8: The <AFI, SAFI> tuple identifies the address family.
 type Family = family.Family
 
+// FamilyImplicit is the address family a session carries when a speaker
+// advertises no Multiprotocol capability at all.
+//
+// RFC 4271 Section 4.3 carries Withdrawn Routes and NLRI in the UPDATE
+// itself, so IPv4 unicast needs no capability to be exchanged. Negotiate
+// substitutes this family for a side that advertised none, and every other
+// reader of "what does an unconfigured session carry" MUST take it from here
+// rather than spell the name again.
+var FamilyImplicit = Family{AFI: family.AFIIPv4, SAFI: family.SAFIUnicast}
+
 // Parse parses capability TLVs from optional parameters.
 //
 // RFC 5492 Section 4: The Capabilities Optional Parameter contains one or more

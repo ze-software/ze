@@ -270,6 +270,25 @@ type Registration struct {
 	// internal/component/plugin/server/startup.go).
 	FatalOnConfigError bool
 
+	// PreservesForwardingState answers whether the routes this plugin installs
+	// stay in the forwarding plane after ze stops. It is handed the whole
+	// lowered configuration and reads its OWN config root out of it, because
+	// a root is a path such as "fib/kernel" and the plugin already owns the
+	// reader for that shape. A configuration naming no such root answers
+	// false: a plugin that installs nothing has nothing to preserve.
+	//
+	// It exists so that RFC 4724's Forwarding State bit can be answered
+	// without the BGP engine naming a forwarding plugin. The engine asks
+	// ForwardingStatePreserved and the plugin that owns the fact replies
+	// (Peer.getPluginCapabilities, internal/component/bgp/reactor/peer.go).
+	//
+	// The answer is a PREDICTION about the stop that has not happened yet, and
+	// configuration is the only thing that can carry it: RFC 4724 Section 4.2
+	// says "The presence and the setting of the 'Forwarding State' bit for an
+	// address family depend upon the actual forwarding state and
+	// configuration."
+	PreservesForwardingState func(tree map[string]any) bool
+
 	// InProcessConfigRouteParser parses an update block's NLRI content tokens
 	// plus its pre-parsed attribute{} block into a PluginRoute. Replaces
 	// hardcoded family switch cases in the central config dispatcher. The plugin
@@ -964,6 +983,34 @@ func CollectRPCHandlers() map[string]func(json.RawMessage) (any, error) {
 	// Handlers from AddRPCHandlers (e.g., bgp/server/codec.go).
 	maps.Copy(handlers, rpcHandlers)
 	return handlers
+}
+
+// ForwardingStatePreserved reports whether any registered plugin keeps the
+// routes it installed in the forwarding plane after ze stops, under the given
+// configuration tree.
+//
+// tree is the whole lowered configuration, and each plugin reads its own
+// config root out of it. The answer is the OR across plugins, because one
+// forwarding plane that retains the routes is enough for them to be there
+// when ze comes back.
+//
+// A tree that no plugin answers for returns false, which is the fail-closed
+// answer: with nothing installing routes into a plane that outlives ze, no
+// forwarding state is preserved, and RFC 4724 Section 4.1 allows the
+// Forwarding State bit only where it "has indeed been preserved".
+func ForwardingStatePreserved(tree map[string]any) bool {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	for _, reg := range plugins {
+		if reg.PreservesForwardingState == nil {
+			continue
+		}
+		if reg.PreservesForwardingState(tree) {
+			return true
+		}
+	}
+	return false
 }
 
 // IsFatalOnConfigError returns true if the named plugin has FatalOnConfigError set.

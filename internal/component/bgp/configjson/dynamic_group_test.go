@@ -32,7 +32,7 @@ type callerDisposition struct {
 var forEachPeerCallers = map[string]callerDisposition{
 	"internal/component/bgp/plugins/role/config.go":                       {keyedBy: "CapabilitySelector"},
 	"internal/component/bgp/plugins/softver/softver.go":                   {keyedBy: "CapabilitySelector"},
-	"internal/component/bgp/plugins/gr/gr.go":                             {keyedBy: "CapabilitySelector"},
+	"internal/component/bgp/plugins/gr/gr_capability.go":                  {keyedBy: "CapabilitySelector"},
 	"internal/component/bgp/plugins/gr/gr_llgr.go":                        {keyedBy: "CapabilitySelector"},
 	"internal/component/bgp/plugins/llnh/llnh.go":                         {keyedBy: "CapabilitySelector"},
 	"internal/component/bgp/plugins/hostname/hostname.go":                 {keyedBy: "CapabilitySelector"},

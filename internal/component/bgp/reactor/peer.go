@@ -25,7 +25,6 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
-	"github.com/ze-software/ze/internal/component/bgp/grmarker"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -1089,11 +1088,8 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 		return nil
 	}
 
-	// RFC 4724 Section 4.1: Set R=1 on GR capabilities while within restart window.
-	// After the deadline, new connections get R=0 (cold start behavior).
-	if !r.config.RestartUntil.IsZero() && p.clock.Now().Before(r.config.RestartUntil) {
-		injected = grmarker.SetRBit(injected)
-	}
+	inRestartWindow := !r.config.RestartUntil.IsZero() && p.clock.Now().Before(r.config.RestartUntil)
+	injected = restartFlagsFor(injected, inRestartWindow, r.config.ForwardingPreserved)
 
 	caps := make([]capability.Capability, len(injected))
 	for i, ic := range injected {

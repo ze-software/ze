@@ -60,6 +60,22 @@ var scenarioExtras = map[string][]operation{
 	},
 	scenarioGracefulRestartFRR: {
 		{kind: opRequireContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"gracefulRestart", frrCapabilityNegotiated}},
+		// The needle above passes for a code-64 capability carrying no
+		// <AFI, SAFI> tuple at all, which is what ze sent until 2026-09-20:
+		// FRR reports the capability as negotiated either way, so it cannot
+		// tell the two apart.
+		//
+		// endOfRibRecv can. FRR fills gracefulRestartInfo.endOfRibRecv only
+		// for the families a peer NAMED in its Graceful Restart capability
+		// (the same fact check_rfc.go relies on, assertion 4 of the
+		// End-of-RIB scenario). So this needle is the one that observes the
+		// tuple: ze names ipv4/unicast, FRR reads it, and FRR therefore
+		// tracks End-of-RIB for that family. A capability with no tuple
+		// leaves gracefulRestartInfo empty and fails here.
+		//
+		// It waits because the marker is the last frame of the initial
+		// update.
+		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowZeNeighborJSON}, contains: []string{"endOfRibRecv"}, timeout: 60 * time.Second},
 	},
 	scenarioMEDIBGPPostSelectionRemovalGoBGP: {
 		{kind: opWaitLogContains, peer: "ze", contains: []string{"RAW-MED-DROP: removed MULTI_EXIT_DISC"}, timeout: 120 * time.Second},
