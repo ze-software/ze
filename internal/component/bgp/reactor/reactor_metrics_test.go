@@ -90,7 +90,33 @@ func (v *spyCounterVec) With(labels ...string) metrics.Counter {
 	return c
 }
 
-func (v *spyCounterVec) Delete(...string) bool { return true }
+// Delete removes the series the labels name, and answers whether one was
+// there. It used to discard its labels and answer true, which made every
+// cleanup look successful: a caller that deleted the wrong label value, or
+// none at all, produced exactly the same spy state as a correct one. A metric
+// leak is invisible to a spy that cannot forget.
+func (v *spyCounterVec) Delete(labels ...string) bool {
+	key := strings.Join(labels, ",")
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if _, ok := v.counters[key]; !ok {
+		return false
+	}
+	delete(v.counters, key)
+	return true
+}
+
+// labelSets answers every series the vec currently holds, as the label slices
+// they were created with.
+func (v *spyCounterVec) labelSets() [][]string {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	sets := make([][]string, 0, len(v.counters))
+	for key := range v.counters {
+		sets = append(sets, strings.Split(key, ","))
+	}
+	return sets
+}
 
 func (v *spyCounterVec) get(labels ...string) *spyCounter {
 	key := strings.Join(labels, ",")

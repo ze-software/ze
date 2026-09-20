@@ -9,6 +9,7 @@
 package tacacs
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/binary"
 	"errors"
@@ -20,6 +21,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/bufpool"
+	"github.com/ze-software/ze/internal/core/network"
 )
 
 // TACACS+ pool sizing. A TACACS+ packet is at most 12 (header) + 65535
@@ -512,12 +514,17 @@ func (c *TacacsClient) closeAndEvict(address string, conn net.Conn) {
 }
 
 // dial creates a TCP connection to the server with the configured timeout.
+// The source address goes through network.RealDialer.SetSourceAddress, the one
+// validator every service shares: it refuses an address it cannot parse instead
+// of binding the wildcard, so a mistyped source-address can never leave by
+// whichever address the route picks. Build refuses the same address at config
+// load, so this error is reachable only from a client built by hand.
 func (c *TacacsClient) dial(address string) (net.Conn, error) {
-	dialer := &net.Dialer{Timeout: c.config.Timeout}
-	if c.config.SourceAddress != "" {
-		dialer.LocalAddr = &net.TCPAddr{IP: net.ParseIP(c.config.SourceAddress)}
+	dialer := &network.RealDialer{Timeout: c.config.Timeout}
+	if err := dialer.SetSourceAddress(c.config.SourceAddress); err != nil {
+		return nil, err
 	}
-	return dialer.Dial("tcp", address)
+	return dialer.DialContext(context.Background(), "tcp", address)
 }
 
 // randomSessionID generates a cryptographically random 4-byte session ID.

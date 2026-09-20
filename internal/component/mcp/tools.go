@@ -122,6 +122,33 @@ type action struct {
 	takesSelector bool             // dispatcher consumes an inline peer selector for `full`
 }
 
+// newAction builds the group action for one command under one prefix.
+//
+// It is the ONE place an action is built, and every arm of groupCommands goes
+// through it, so a field added to `action` reaches every group instead of two
+// of the three. takesSelector was added to two arms and missed in the third,
+// and the tool built by that arm then advertised no `peer` argument for a
+// command whose dispatcher reads an inline selector.
+//
+// A command that IS its own prefix leaves the action name empty, which
+// buildToolDef reads as "this tool is that one command".
+func newAction(cmd CommandInfo, prefix string) action {
+	name := strings.TrimPrefix(cmd.Name, prefix+" ")
+	if name == cmd.Name {
+		name = ""
+	}
+	return action{
+		name:          name,
+		shortHelp:     cmd.ShortHelp,
+		description:   cmd.Description,
+		full:          cmd.Name,
+		params:        cmd.Params,
+		taskSupport:   cmd.TaskSupport,
+		uiResource:    cmd.UIResource,
+		takesSelector: cmd.TakesSelector,
+	}
+}
+
 // groupCommands groups commands by their natural prefix.
 // Commands like "show bgp rib status", "show bgp rib best" group under "show bgp".
 // Commands like "show config dump", "show config diff" group under "show config".
@@ -130,36 +157,22 @@ type action struct {
 // where removing the prefix leaves a non-empty suffix (the action).
 // Single commands with no siblings become their own group with no action param.
 func groupCommands(commands []CommandInfo) []toolGroup {
-	type entry struct {
-		full          string
-		shortHelp     string
-		description   string
-		params        []ParamInfo
-		taskSupport   TaskSupportLevel
-		uiResource    *UIResourceInfo
-		takesSelector bool
-	}
-
-	// Index commands by first-token and first-two-tokens.
-	byOne := make(map[string][]entry)
-	byTwo := make(map[string][]entry)
+	// Index commands by first-token and first-two-tokens. The index holds the
+	// CommandInfo itself, so no second copy of its fields can drift from it.
+	byOne := make(map[string][]CommandInfo)
+	byTwo := make(map[string][]CommandInfo)
 
 	for _, cmd := range commands {
 		tokens := strings.Fields(cmd.Name)
 		if len(tokens) == 0 {
 			continue
 		}
-		e := entry{
-			full: cmd.Name, shortHelp: cmd.ShortHelp, description: cmd.Description,
-			params: cmd.Params, taskSupport: cmd.TaskSupport, uiResource: cmd.UIResource,
-			takesSelector: cmd.TakesSelector,
-		}
 		one := tokens[0]
-		byOne[one] = append(byOne[one], e)
+		byOne[one] = append(byOne[one], cmd)
 		if len(tokens) >= 2 {
 			var tb textbuf.Buffer
 			two := tb.Str(tokens[0]).Byte(' ').Str(tokens[1]).String()
-			byTwo[two] = append(byTwo[two], e)
+			byTwo[two] = append(byTwo[two], cmd)
 		}
 	}
 
@@ -170,8 +183,8 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 	// E.g. "show" has "show config", "show schema", "show env" -> depth-2 groups.
 	for one, entries := range byOne {
 		subgroups := make(map[string]bool)
-		for _, e := range entries {
-			tokens := strings.Fields(e.full)
+		for _, cmd := range entries {
+			tokens := strings.Fields(cmd.Name)
 			if len(tokens) >= 3 {
 				subgroups[tokens[0]+" "+tokens[1]] = true
 			}
@@ -185,22 +198,9 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 				continue
 			}
 			g := toolGroup{prefix: two}
-			for _, e := range twoEntries {
-				suffix := strings.TrimPrefix(e.full, two+" ")
-				if suffix == e.full {
-					suffix = ""
-				}
-				g.actions = append(g.actions, action{
-					name:          suffix,
-					shortHelp:     e.shortHelp,
-					description:   e.description,
-					full:          e.full,
-					params:        e.params,
-					taskSupport:   e.taskSupport,
-					uiResource:    e.uiResource,
-					takesSelector: e.takesSelector,
-				})
-				used[e.full] = true
+			for _, cmd := range twoEntries {
+				g.actions = append(g.actions, newAction(cmd, two))
+				used[cmd.Name] = true
 			}
 			sortActions(g.actions)
 			g.taskSupport = groupTaskSupport(g.actions)
@@ -208,21 +208,17 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 			groups = append(groups, g)
 		}
 		// Depth-1 commands under this prefix not in any depth-2 group.
-		for _, e := range entries {
-			if used[e.full] {
+		for _, cmd := range entries {
+			if used[cmd.Name] {
 				continue
 			}
-			tokens := strings.Fields(e.full)
+			tokens := strings.Fields(cmd.Name)
 			if len(tokens) == 2 {
-				g := toolGroup{prefix: e.full}
-				g.actions = append(g.actions, action{
-					name: "", shortHelp: e.shortHelp, description: e.description, full: e.full,
-					params: e.params, taskSupport: e.taskSupport, uiResource: e.uiResource,
-					takesSelector: e.takesSelector,
-				})
-				g.taskSupport = e.taskSupport
-				g.uiResource = e.uiResource
-				used[e.full] = true
+				g := toolGroup{prefix: cmd.Name}
+				g.actions = append(g.actions, newAction(cmd, cmd.Name))
+				g.taskSupport = groupTaskSupport(g.actions)
+				g.uiResource = groupUIResource(g.actions)
+				used[cmd.Name] = true
 				groups = append(groups, g)
 			}
 		}
@@ -230,10 +226,10 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 
 	// Second pass: depth-1 groups for remaining commands.
 	for one, entries := range byOne {
-		var remaining []entry
-		for _, e := range entries {
-			if !used[e.full] {
-				remaining = append(remaining, e)
+		var remaining []CommandInfo
+		for _, cmd := range entries {
+			if !used[cmd.Name] {
+				remaining = append(remaining, cmd)
 			}
 		}
 		if len(remaining) == 0 {
@@ -241,21 +237,9 @@ func groupCommands(commands []CommandInfo) []toolGroup {
 		}
 
 		g := toolGroup{prefix: one}
-		for _, e := range remaining {
-			suffix := strings.TrimPrefix(e.full, one+" ")
-			if suffix == e.full {
-				suffix = ""
-			}
-			g.actions = append(g.actions, action{
-				name:        suffix,
-				shortHelp:   e.shortHelp,
-				description: e.description,
-				full:        e.full,
-				params:      e.params,
-				taskSupport: e.taskSupport,
-				uiResource:  e.uiResource,
-			})
-			used[e.full] = true
+		for _, cmd := range remaining {
+			g.actions = append(g.actions, newAction(cmd, one))
+			used[cmd.Name] = true
 		}
 		sortActions(g.actions)
 		g.taskSupport = groupTaskSupport(g.actions)

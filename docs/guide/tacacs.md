@@ -43,7 +43,7 @@ system {
 | `tacacs.server <ip>.port` | uint16 | 49 | TCP |
 | `tacacs.server <ip>.key` | string (`ze:sensitive`) | required | Shared secret. A server with none disables the whole AAA bundle. See below: what that costs depends on when the bundle is built |
 | `tacacs.timeout` | uint16 (1-300) | 5 | Per-server connection timeout in seconds |
-| `tacacs.source-address` | ip-address | none | Local source IP for outbound TACACS+ TCP |
+| `tacacs.source-address` | ip-address | none | Local source IP for outbound TACACS+ TCP. An address that does not parse is refused at load with the address named, the same way a keyless server is, rather than binding the wildcard |
 | `tacacs.authorization` | boolean | false | Enable per-command TACACS+ authorization |
 | `tacacs.strict-fallback` | boolean | false | Deny authorization when TACACS+ is unavailable instead of falling back to local RBAC |
 | `tacacs.accounting` | boolean | false | Enable START/STOP accounting records |

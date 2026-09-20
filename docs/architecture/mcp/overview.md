@@ -396,6 +396,13 @@ Schema from each command's YANG RPC metadata, and emits an MCP tool named
 a raw dispatch escape hatch, and `ze_reference` returns the machine-readable
 daemon reference.
 
+Every group is built through one action constructor (`newAction`), so a field
+the group carries reaches each of the three grouping arms. One of those fields
+decides the `peer` argument: a tool advertises `peer` only when a command in its
+group declares that the dispatcher reads an inline selector for it. The flag
+comes from the command registration, never from the spelling of the command
+name.
+
 Tools are derived at every `tools/list` call, so newly registered commands <!-- doc-links: ignore (JSON-RPC method name, not a path) -->
 become available without any MCP code changes (rule: `derive-not-hardcode`).
 

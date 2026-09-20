@@ -885,6 +885,57 @@ func TestHandcraftedSkipPreventsDuplicates(t *testing.T) {
 // Streamable's initialize-time auth failure by
 // TestStreamableBearerAuthFailureAuditRecord in streamable_test.go.
 
+// TestSecondPassGroupAdvertisesPeer proves that a group built by the second
+// pass of groupCommands carries takesSelector through to the tool schema.
+//
+// Method: two commands share the prefix `clear bgp`, which is ONE subgroup, so
+// the first pass declines the whole `clear` root and the second pass builds the
+// depth-1 group. The dispatcher reads an inline selector for `clear bgp peer`,
+// so the tool MUST offer `peer`. Both polarities run, because a tool that
+// offers the argument unconditionally is the older defect this replaced.
+func TestSecondPassGroupAdvertisesPeer(t *testing.T) {
+	peerProperty := func(t *testing.T, takesSelector bool) bool {
+		t.Helper()
+		s := &Streamable{cfg: StreamableConfig{
+			Commands: func() []CommandInfo {
+				return []CommandInfo{
+					{Name: "clear bgp peer", ShortHelp: "Reset a peer", TakesSelector: takesSelector},
+					{Name: "clear bgp session", ShortHelp: "Reset a session"},
+				}
+			},
+		}}
+
+		var clearTool map[string]any
+		for _, tool := range s.allTools(clientCapabilities{}) {
+			if tool["name"] == "ze_clear" {
+				clearTool = tool
+			}
+		}
+		if clearTool == nil {
+			t.Fatal("ze_clear tool not found")
+		}
+		schemaRaw, ok := clearTool["inputSchema"].(json.RawMessage)
+		if !ok {
+			t.Fatal("ze_clear inputSchema not json.RawMessage")
+		}
+		var schema struct {
+			Properties map[string]json.RawMessage `json:"properties"`
+		}
+		if err := json.Unmarshal(schemaRaw, &schema); err != nil {
+			t.Fatalf("unmarshal ze_clear schema: %v", err)
+		}
+		_, offered := schema.Properties["peer"]
+		return offered
+	}
+
+	if !peerProperty(t, true) {
+		t.Error("ze_clear offers no 'peer' property, so a model cannot address the peer that 'clear bgp peer' takes a selector for")
+	}
+	if peerProperty(t, false) {
+		t.Error("ze_clear offers a 'peer' property but no command in the group takes a selector")
+	}
+}
+
 func TestTypedParamsInToolSchema(t *testing.T) {
 	// Verify YANG RPC params flow through to tool JSON schema as typed properties.
 	s := &Streamable{cfg: StreamableConfig{

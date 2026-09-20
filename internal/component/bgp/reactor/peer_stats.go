@@ -10,9 +10,26 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// msgTypeUpdate is the Prometheus label value for UPDATE messages, used as the
-// `type` label of ze_peer_messages_received_total and _sent_total.
-const msgTypeUpdate = "update"
+// Message-type label values, the `type` label of
+// ze_peer_messages_received_total and _sent_total. msgTypeNames must list
+// exactly this set, because the metric cleanup for a removed peer deletes by
+// label value: a value the emitters stamp and the cleanup does not name is a
+// series that outlives the peer it belongs to.
+//
+// Only msgTypeUpdate had a constant until 2026-09-20, and the cleanup restated
+// the other five as its own literals. One of them had drifted: the emitters
+// write `refresh` for a ROUTE-REFRESH and the cleanup deleted `route_refresh`,
+// a series nothing ever created, so a removed peer kept its two refresh
+// counters forever under a `peer` label an operator can recreate with
+// different config.
+const (
+	msgTypeUpdate       = "update"
+	msgTypeKeepalive    = "keepalive"
+	msgTypeEOR          = "eor"
+	msgTypeOpen         = "open"
+	msgTypeNotification = "notification"
+	msgTypeRefresh      = "refresh"
+)
 
 // Notification error-code names, as notificationCodeLabel renders RFC 4271
 // Section 4.5 error codes for the ze_peer_notifications_*_total `code` label.
@@ -173,7 +190,7 @@ func (p *Peer) incrUpdatesSent() {
 func (p *Peer) incrKeepalivesReceived() {
 	p.counters.keepalivesReceived.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "keepalive").Inc()
+		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), msgTypeKeepalive).Inc()
 	}
 }
 
@@ -182,7 +199,7 @@ func (p *Peer) incrKeepalivesReceived() {
 func (p *Peer) incrKeepalivesSent() {
 	p.counters.keepalivesSent.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "keepalive").Inc()
+		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), msgTypeKeepalive).Inc()
 	}
 }
 
@@ -191,7 +208,7 @@ func (p *Peer) incrKeepalivesSent() {
 func (p *Peer) incrEORReceived() {
 	p.counters.eorReceived.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "eor").Inc()
+		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), msgTypeEOR).Inc()
 	}
 }
 
@@ -214,7 +231,7 @@ func (p *Peer) incrEORReceived() {
 func (p *Peer) incrEORSent() {
 	p.counters.eorSent.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "eor").Inc()
+		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), msgTypeEOR).Inc()
 	}
 }
 
@@ -244,7 +261,7 @@ func notificationCodeLabel(code uint8) string {
 func (p *Peer) incrOpensReceived() {
 	p.counters.opensReceived.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "open").Inc()
+		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), msgTypeOpen).Inc()
 	}
 }
 
@@ -252,7 +269,7 @@ func (p *Peer) incrOpensReceived() {
 func (p *Peer) incrOpensSent() {
 	p.counters.opensSent.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "open").Inc()
+		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), msgTypeOpen).Inc()
 	}
 }
 
@@ -278,7 +295,7 @@ func (p *Peer) incrNotificationSent(code, subcode uint8) {
 			notificationCodeLabel(code),
 			textbuf.StringUint8(subcode),
 		).Inc()
-		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "notification").Inc()
+		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), msgTypeNotification).Inc()
 	}
 }
 
@@ -297,7 +314,7 @@ func (p *Peer) incrNotificationReceived(code, subcode uint8) {
 			notificationCodeLabel(code),
 			textbuf.StringUint8(subcode),
 		).Inc()
-		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "notification").Inc()
+		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), msgTypeNotification).Inc()
 	}
 }
 
@@ -305,7 +322,7 @@ func (p *Peer) incrNotificationReceived(code, subcode uint8) {
 func (p *Peer) incrRefreshReceived() {
 	p.counters.refreshReceived.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), "refresh").Inc()
+		p.reactor.rmetrics.peerMsgRecv.With(p.peerAddrLabel(), msgTypeRefresh).Inc()
 	}
 }
 
@@ -313,7 +330,7 @@ func (p *Peer) incrRefreshReceived() {
 func (p *Peer) incrRefreshSent() {
 	p.counters.refreshSent.Add(1)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
-		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), "refresh").Inc()
+		p.reactor.rmetrics.peerMsgSent.With(p.peerAddrLabel(), msgTypeRefresh).Inc()
 	}
 }
 
@@ -379,6 +396,15 @@ func (p *Peer) ClearStats() {
 var peerStateNames = []string{
 	peerStateNameStopped, peerStateNameConnecting, peerStateNameActive,
 	peerStateNameEstablished, peerStateNameIdleHold, peerStateNameUnknown,
+}
+
+// msgTypeNames lists every message-type label value the emitters stamp on
+// ze_peer_messages_received_total and _sent_total. Used for metric cleanup
+// when a peer is removed, which is the only reader that has to know the whole
+// set rather than one member of it.
+var msgTypeNames = []string{
+	msgTypeUpdate, msgTypeKeepalive, msgTypeEOR,
+	msgTypeOpen, msgTypeNotification, msgTypeRefresh,
 }
 
 // notifCodeNames lists all notification code label values produced by

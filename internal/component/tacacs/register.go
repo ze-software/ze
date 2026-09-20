@@ -12,6 +12,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/network"
 )
 
 // backendName is this AAA backend's identifier, and the AuthResult.Source every
@@ -50,6 +51,15 @@ func (tacacsBackend) Build(params aaa.BuildParams) (aaa.Contribution, error) {
 		if len(srv.Key) == 0 {
 			return aaa.Contribution{}, fmt.Errorf("tacacs server %s: %w", srv.Address, ErrNoSharedSecret)
 		}
+	}
+
+	// A source-address the operator mistyped stops the load, with the address
+	// named. network.RealDialer.SetSourceAddress is the validator, and dial
+	// calls the same one when it builds the connection. Without this refusal
+	// the daemon starts and every login fails behind a per-server warning that
+	// reads as an unreachable server rather than as a typo.
+	if err := (&network.RealDialer{}).SetSourceAddress(cfg.SourceAddress); err != nil {
+		return aaa.Contribution{}, fmt.Errorf("tacacs: %w", err)
 	}
 
 	client := NewTacacsClient(TacacsClientConfig{

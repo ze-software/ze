@@ -329,7 +329,7 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 		r.rmetrics.connectRetryCounter.Delete(label)
 
 		// Message counters have peer + type labels.
-		for _, msgType := range []string{"update", "keepalive", "eor", "notification", "open", "route_refresh"} {
+		for _, msgType := range msgTypeNames {
 			r.rmetrics.peerMsgRecv.Delete(label, msgType)
 			r.rmetrics.peerMsgSent.Delete(label, msgType)
 		}
