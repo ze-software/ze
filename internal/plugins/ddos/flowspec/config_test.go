@@ -13,7 +13,7 @@ func TestParseConfig_StringValuedDelivery(t *testing.T) {
 		`"probe-rate":"2000000","announce-rate-limit":"5",` +
 		`"max-mitigation-duration":"1800","backoff-cap":"7200",` +
 		`"confidence-min":"75","blackhole-fallback":"true"}}}`
-	cfg, err := ParseConfig(data)
+	cfg, _, err := ParseConfig(data)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -51,7 +51,7 @@ func TestParseBlackholeFallback(t *testing.T) {
 		`{"ddos":{"flowspec":{"blackhole-fallback":true}}}`,
 		`{"ddos":{"flowspec":{"blackhole-fallback":"true"}}}`,
 	} {
-		cfg, err := ParseConfig(data)
+		cfg, _, err := ParseConfig(data)
 		if err != nil {
 			t.Fatalf("ParseConfig(%s): %v", data, err)
 		}
@@ -94,7 +94,7 @@ func TestConfigRateLimitRequiresBytes(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			cfg, err := ParseConfig(tc.data)
+			cfg, _, err := ParseConfig(tc.data)
 			if err != nil {
 				t.Fatalf("ParseConfig: %v", err)
 			}

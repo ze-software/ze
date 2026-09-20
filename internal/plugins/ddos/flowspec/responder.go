@@ -118,6 +118,11 @@ type responder struct {
 	target ddosevent.VectorTuple
 	match  flowspecMatch
 	probe  *probe
+	// retired says this responder is out of service: a config apply replaced it,
+	// so it is no longer in activeResponder and no longer subscribed. It must
+	// announce nothing from here, because the responder that replaced it owns
+	// whatever rule is on the wire. Guarded by mu, written by retire.
+	retired bool
 	// limiter enforces announce-rate-limit. Guarded by mu, which announce holds.
 	limiter announceLimiter
 	// announcedAt is when the live announce went out, and now is the clock that
@@ -182,6 +187,23 @@ func newAnnounceLimiter(limit int) announceLimiter {
 	return announceLimiter{limit: limit, recent: make([]time.Time, 0, limit)}
 }
 
+// adopt carries the announce times prev still holds inside the window into this
+// limiter, so a config apply hands the operator the budget that was already
+// spent rather than a fresh one.
+//
+// Without it, announce-rate-limit is a limit an operator walks around by
+// committing: every apply builds a new responder, and a new responder with an
+// empty window can announce the full budget again immediately. What the limit
+// protects is the upstream peer's session, and a peer does not care which
+// responder generated the churn.
+//
+// The LIMIT itself is not carried: the new config's announce-rate-limit governs
+// from here, exactly as its max-mitigation-duration does. Only the record of
+// what has already gone out crosses.
+func (l *announceLimiter) adopt(prev announceLimiter) {
+	l.recent = append(l.recent[:0], prev.recent...)
+}
+
 // allow reports whether an announce at now is inside the limit, and records it
 // when it is. A refusal consumes no budget, so the next announce after the
 // window rolls goes out.
@@ -229,6 +251,121 @@ func (r *responder) setAnnouncement(active bool, target ddosevent.VectorTuple, p
 		target:  target,
 		probing: active && p != nil,
 	})
+}
+
+// adoptAnnouncement carries a live upstream announcement from the responder a
+// config apply replaces into the one that replaces it, and leaves prev claiming
+// nothing.
+//
+// Without the carry a config apply orphans the announcement. The FlowSpec NLRI
+// lives in the BGP engine's RIB and in every peer's, neither of which belongs to
+// this plugin, so the rule outlives the responder that announced it. A fresh
+// idle responder believes there is no announcement, and every removal path
+// returns on !active: enforceMaxDuration, probeTick and onCleared alike. The
+// peer would then hold a discard rule for the victim for the life of the daemon
+// while `show ddos flowspec` reported nothing announced.
+//
+// What crosses, and why each one:
+//
+//   - active, target and match ARE the rule. match is what withdraw renders into
+//     the MP_UNREACH, so a responder that carried active without it would send a
+//     withdraw for a prefix nobody announced.
+//   - announcedAt and now cross together. An instant is only meaningful against
+//     the clock that produced it, and the rule is the same rule, so its age is
+//     the same age. Resetting it would let a box under attack renew its own cap
+//     on every unrelated commit. The new cfg governs from here, so a commit that
+//     shortens max-mitigation-duration applies the shorter cap at once.
+//   - the probe crosses as the running state machine, not as a fresh one built
+//     from the new config. It is mid hold-down or mid probe window for THIS
+//     announcement, and restarting it would push the withdrawal out by a whole
+//     hold-down on every commit -- the same self-renewal the cap clock avoids.
+//     Its timings are the ones the announcement was made under; the new config
+//     builds the probe for the next announcement.
+//
+// The new cfg's action and rate-limit-bytes do NOT reach the rule already on the
+// wire: nothing re-announces, so the announcement keeps the action it was made
+// with until a withdrawal ends it.
+//
+// One rule then has one owner at every instant, and that holds in BOTH
+// directions only because replaceResponder retires prev in the same critical
+// section: this function stops prev WITHDRAWING the rule, and prev.retired stops
+// it announcing another one over the top.
+//
+// Caller MUST call this before the new responder is published, on a responder
+// that has announced nothing of its own, and MUST hold prev.mu from before this
+// call until after the publish. The cap worker reads activeResponder, so a tick
+// that loaded the old pointer before the swap runs on prev after it, and an
+// AttackOngoing dispatched before unsubscribe does the same; the lock holds both
+// off until prev has stopped owning the rule, after which both find !active and
+// return. replaceResponder (register.go) is the one caller. prev MAY be nil,
+// which is the first configure.
+func (r *responder) adoptAnnouncement(prev *responder) {
+	if prev == nil {
+		return
+	}
+
+	// The budget crosses whether or not a rule is live: it records announcements
+	// that already went to the peers, and a commit is not a reason to forget one.
+	r.limiter.adopt(prev.limiter)
+
+	if !prev.active {
+		return
+	}
+
+	r.mu.Lock()
+	// announcedAt and now are written directly because setAnnouncement does not
+	// own them; it owns active, target and probe, and it stays their only writer.
+	r.announcedAt = prev.announcedAt
+	r.now = prev.now
+	r.match = prev.match
+	r.setAnnouncement(true, prev.target, prev.probe)
+	r.mu.Unlock()
+
+	// Ownership has moved, so prev stops claiming the rule. Every one of its
+	// removal paths returns on !active, which is what keeps a late cap tick or a
+	// late probe tick from withdrawing a rule r has just published as live. The
+	// target is kept so a post-handover log line still names what was announced.
+	prev.setAnnouncement(false, prev.target, nil)
+}
+
+// withdrawReason is the whole log line a config-driven withdrawal writes. It is
+// a constant rather than a phrase assembled at the call site, so each outcome
+// has one stable string an operator can grep back to the commit that caused it
+// (ai/rules/cli.md).
+type withdrawReason string
+
+const (
+	withdrawSectionRemoved withdrawReason = "ddos-flowspec: the ddos flowspec section was removed, withdrawing the announcement"
+	withdrawNotEnforcing   withdrawReason = "ddos-flowspec: response-level left enforce, withdrawing the announcement"
+)
+
+// withdrawForConfig withdraws the live announcement because the operator's new
+// config says the box must stop announcing. A no-op when nothing is announced.
+// Caller holds r.mu, as replaceResponder does.
+//
+// It is the removal path for a config apply, beside enforceMaxDuration for the
+// cap and probeTick for the attack ending. replaceResponder (register.go) is its
+// one caller, and it calls it on the OUTGOING responder because the incoming one
+// has announced nothing and its own removal paths return on !active.
+func (r *responder) withdrawForConfig(reason withdrawReason) {
+	if !r.active {
+		return
+	}
+	logger().Info(string(reason), "target", r.target.DstPrefix)
+	r.withdraw()
+}
+
+// retire takes this responder out of service, so it can neither announce a rule
+// nor claim one, whatever reaches it afterwards. Caller holds r.mu.
+//
+// It is called once for each responder, at the moment the plugin stops being
+// able to reach it: from replaceResponder (register.go), for the responder a
+// config apply replaces. Ordering against a handler already in flight is settled
+// by mu either way. A handler that wins the lock announces a rule this call's
+// caller then withdraws; a handler that loses it finds retired and announces
+// nothing.
+func (r *responder) retire() {
+	r.retired = true
 }
 
 // blackholeAction is the flowspec traffic action for the critical-severity
@@ -327,6 +464,18 @@ func (r *responder) onCharacterized(e *ddosevent.AttackCharacterized) {
 // characterized path both arrive through it, and a limit either path could walk
 // around is not a limit.
 func (r *responder) announce(target ddosevent.VectorTuple, action, reason string) {
+	// A retired responder announces nothing. It reads its OWN cfg, which a config
+	// apply has already replaced, and the responder that replaced it owns
+	// whatever rule is on the wire. An event dispatched before the apply
+	// unsubscribed is exactly the holder this guard exists for: it wins prev.mu
+	// after the handover, and without this it would put a second FlowSpec NLRI on
+	// the wire that nothing left in the plugin can withdraw (the retired field,
+	// above).
+	if r.retired {
+		logger().Info("ddos-flowspec: this responder was retired by a config apply, not announcing",
+			"target", target.DstPrefix, "reason", reason)
+		return
+	}
 	// A FlowSpec rule IS its destination prefix, so there is no rule to write for
 	// an attack whose victim was never resolved. The detector emits exactly that
 	// when no traffic source can name a victim (characterizeAndEmit leaves the

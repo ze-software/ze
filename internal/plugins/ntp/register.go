@@ -1,6 +1,7 @@
 package ntp
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"os"
@@ -101,6 +102,72 @@ func verifyNTPConfig(sections []sdk.ConfigSection) error {
 }
 
 // runNTPPlugin is the engine-mode entry point for the NTP plugin.
+// errApplyWithoutVerify rejects a config-apply that arrives without the
+// config-verify that stages its candidate. Returning nil accepted the
+// transaction while silently keeping the RUNNING worker, so the daemon would
+// report a successful reload over config it never installed.
+var errApplyWithoutVerify = errors.New("ntp config apply: no verified config staged (config-apply arrived without config-verify); refusing to report success over the previous config")
+
+// pendingNTPConfig is what OnConfigVerify stages for OnConfigApply.
+//
+// staged and cfg answer two different questions, and one pointer cannot answer
+// both. staged says a verify ran for this transaction. cfg says what that
+// verify found, and the ntp block being absent is a real answer: parseNTPConfig
+// returns defaultConfig, whose Enabled is false, and startWorker stops the sync
+// worker for it. Folding the two made nil mean both "nothing staged" and
+// "nothing to do", so an apply arriving out of protocol left the worker running
+// and reported success (ai/rules/principles.md -- a value that is silently
+// wrong must not be reachable).
+//
+// NOT safe for concurrent use, and it does not need to be: the plugin SDK
+// drives verify, apply and rollback for one transaction on one goroutine.
+type pendingNTPConfig struct {
+	cfg    ntpConfig
+	staged bool
+}
+
+// stage records the candidate a config-verify accepted.
+func (p *pendingNTPConfig) stage(cfg ntpConfig) {
+	p.cfg = cfg
+	p.staged = true
+}
+
+// take returns the staged candidate and unstages it, so a second apply behind
+// one verify gets staged false and the caller's fail-closed branch.
+func (p *pendingNTPConfig) take() (cfg ntpConfig, staged bool) {
+	cfg, staged = p.cfg, p.staged
+	p.clear()
+	return cfg, staged
+}
+
+// clear unstages the candidate without applying it. The rollback path calls it:
+// a transaction that verified here and then failed elsewhere never reaches this
+// plugin's apply, and a candidate left staged is applied by the NEXT
+// transaction that reaches an apply without a verify, restarting the sync
+// worker on config the operator's commit never installed.
+func (p *pendingNTPConfig) clear() {
+	p.cfg = ntpConfig{}
+	p.staged = false
+}
+
+// applyStagedConfig is the body of the plugin's OnConfigApply handler: it takes
+// the candidate a config-verify staged and hands it to start.
+//
+// start is startWorker in production. It is a parameter so the verify-to-apply
+// seam can be proven without a network, a clock write or an event bus.
+func applyStagedConfig(pending *pendingNTPConfig, start func(ntpConfig)) error {
+	cfg, staged := pending.take()
+	if !staged {
+		// Fail closed. The reload transaction drives verify and apply over the
+		// SAME participant set -- runTxCoordinator builds both from `affected`
+		// (internal/component/plugin/server/reload_tx.go) -- so reaching apply
+		// with nothing staged is a protocol violation, not a normal state.
+		return errApplyWithoutVerify
+	}
+	start(cfg)
+	return nil
+}
+
 func runNTPPlugin(conn net.Conn) int {
 	log := loggerPtr.Load()
 	log.Debug("ntp plugin starting")
@@ -138,8 +205,8 @@ func runNTPPlugin(conn net.Conn) int {
 		}
 	}
 
-	// pendingCfg holds config between verify and apply phases.
-	var pendingCfg *ntpConfig
+	// pending holds the candidate between the verify and the apply phase.
+	var pending pendingNTPConfig
 
 	p.OnConfigure(func(sections []sdk.ConfigSection) error {
 		for _, s := range sections {
@@ -165,19 +232,22 @@ func runNTPPlugin(conn net.Conn) int {
 			if err != nil {
 				return fmt.Errorf("ntp: %w", err)
 			}
-			pendingCfg = &cfg
+			pending.stage(cfg)
 			return nil
 		}
 		return nil
 	})
 
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
-		cfg := pendingCfg
-		pendingCfg = nil
-		if cfg == nil {
-			return nil
-		}
-		startWorker(*cfg)
+		return applyStagedConfig(&pending, startWorker)
+	})
+
+	// A rollback ends the transaction, so the candidate this plugin verified is
+	// unstaged rather than left for an apply that will never ask for it
+	// (pendingNTPConfig.clear). The plugin had no rollback handler at all, so a
+	// verified candidate from a transaction that failed elsewhere stayed armed.
+	p.OnConfigRollback(func(_ string) error {
+		pending.clear()
 		return nil
 	})
 

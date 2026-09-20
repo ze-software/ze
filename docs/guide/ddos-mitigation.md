@@ -510,6 +510,20 @@ its own leak-probe cycle. Each probe lets a bounded trickle of traffic through
 (`probe-rate` bps) to test whether the flood is still arriving. This is the only
 passive signal available until an inbound flow collector exists.
 
+**What a commit does to a live FlowSpec announcement.** The plugin builds a new
+responder for the new config, and what happens to the announcement depends on
+what the commit says. The NLRI lives in the BGP engine's RIB and in every peer's,
+neither of which belongs to this plugin, so an announcement the plugin forgets is
+one no operator can lift.
+
+| The commit | The live announcement |
+|------------|-----------------------|
+| Any `ddos flowspec` leaf, `response-level` still `enforce` | KEPT, with its cap and its running leak-probe. The new responder is handed the rule, the victim it covers, the instant it went out and the probe's position in its cycle, so the cap keeps counting from the FIRST announce and the probe still decides the withdrawal. The new config governs from the commit, so a `commit` that shortens `max-mitigation-duration` applies the shorter cap to the rule already announced. `announce-rate-limit` keeps the budget already spent, so committing is not a way to announce past the limit |
+| `response-level alert` | WITHDRAWN at once. `alert` is detect-and-report, and lifting an upstream discard is what an operator commits it for. The log line is `response-level left enforce, withdrawing the announcement` |
+| The `ddos flowspec` block deleted | WITHDRAWN at once. The plugin is stopped as soon as the reload lands, so an announcement carried past this point would sit in every peer's RIB with no responder and no cap worker left to withdraw it. The log line is `the ddos flowspec section was removed, withdrawing the announcement` |
+| `action` or `rate-limit-bytes` changed | The rule already on the wire keeps the action it was announced with. Nothing re-announces, so the new values govern the NEXT announcement |
+<!-- source: internal/plugins/ddos/flowspec/register.go -- replaceResponder; internal/plugins/ddos/flowspec/responder.go -- adoptAnnouncement, withdrawForConfig, enforceMaxDuration -->
+
 ### VPP dataplane
 
 Detection works on both the Linux netlink dataplane and the VPP DPDK dataplane.
