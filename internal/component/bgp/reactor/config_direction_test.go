@@ -1,3 +1,16 @@
+// The guard reads configs through ze's own config parser, and everything it
+// judges is compiled out of a build without ze_bgp: the four plugins it pins,
+// the YANG each one declares, and the `internal/component/plugin/all` file that
+// registers them (all_ze_bgp.go carries this same tag). A build without the tag
+// leaves the parser unable to accept `bgp rpki`, `capability graceful-restart`,
+// `session rs-client` or a `policy` filter, so every config that names a pinned
+// plugin is refused and the guard falls back to the text scan for the whole
+// tree. Measured 2026-09-20 over this walk: 113 documents parsed with the tag
+// and 22 without it, and 195 attach blocks were reached through a parsed tree
+// with it against 41 without.
+//
+//go:build ze_bgp
+
 // The guard lives in an EXTERNAL test package so it can import the composition
 // root. `internal/component/plugin/all` imports this package's plugins, so an
 // in-package test importing it would be a cycle; `reactor_test` compiles after
@@ -54,11 +67,21 @@ var noSentUpdates = map[string]string{
 // as a wrong filter today and becomes a daemon that stops once delivery honors
 // the config.
 //
-// The last three assertions guard the guard's own reader rather than the tree.
+// The last four assertions guard the guard's own reader rather than the tree.
 // A walk that finds nothing passes every "no violation" check, so the counters
 // say HOW the tree was read: dropping the composition-root import, or a schema
 // change that makes every document fail to parse, would leave the text scan as
 // the only reader and every violation check still green.
+//
+// A counter is only honest over a population it can judge, and the refusal
+// counter was not. It counted every text the walk offered the parser, and the
+// walk offered it a whole markdown PAGE and a whole run of `.ci` directive
+// lines, neither of which is a config document in any spelling. So `refused`
+// grew with the number of documentation pages and functional tests in the
+// repository and shrank with nothing, and the assertion below compared the
+// shape of the corpus against the health of the parser. Measured 2026-09-20 at
+// the commit that fixed it: 112 refusals, of which 21 were pages and 91 were
+// directive runs. parseCounts now carries only whole config documents.
 //
 // a second test held those three assertions and ran a SECOND full
 // walk to reach them. No assertion is dropped -- the three moved here, and what
@@ -69,10 +92,11 @@ func TestNoConfigFeedsSentUpdatesToAReceivedOnlyPlugin(t *testing.T) {
 	files, checked, parsed := walkTreeConfigs(t)
 
 	require.NotZero(t, files, "no config could grant a received-only plugin anything; the walk is looking in the wrong place")
-	require.Greater(t, parsed.documents, parsed.refused,
-		"more texts are being refused than read; a surface that used to parse stopped parsing, or the walk is offering the parser texts that are not documents")
 	require.NotZero(t, checked.tree+checked.text, "no attach block named one of the received-only plugins; the resolver is broken")
 	require.NotZero(t, parsed.documents, "no document in the tree parsed; the schema is not loaded in this binary")
+	require.Greater(t, parsed.documents, len(parsed.refused),
+		"more config documents are refused than parsed, so a surface that used to parse stopped parsing:\n%s",
+		strings.Join(parsed.refused, "\n"))
 	require.NotZero(t, checked.tree, "no attach block naming a pinned plugin was reached through a parsed tree")
 	require.Greater(t, checked.tree, checked.text,
 		"the text scan is now finding more pinned blocks than the parser; a surface that used to parse stopped parsing")
@@ -85,9 +109,19 @@ type counts struct {
 	text int // the same, found by the text scan of a document the parser refused
 }
 
+// parseCounts records how the population of CONFIG DOCUMENTS split between the
+// parser and the text scan. Only a text that is meant to be a whole config
+// document is counted here: a `.conf` file, a `.ci` embedded config block, and
+// a documentation page's fenced config block. A page, a `.ci` script and a set
+// of `.ci` directive lines are each read by the text scan without being
+// counted, because the parser refuses them by construction and a refusal that
+// no parser change could turn into an acceptance says nothing about the parser.
+//
+// refused names each refused text rather than counting it, so the assertion
+// that reads these numbers can say WHICH surface stopped parsing.
 type parseCounts struct {
-	documents int // texts ParseTreeForValidation accepted
-	refused   int // texts it refused, which the text scan then read
+	documents int      // documents ParseTreeForValidation accepted
+	refused   []string // the documents it refused, named, which the text scan then read
 }
 
 // walkTreeConfigs runs the guard over every config-bearing file in the tree and
@@ -128,10 +162,13 @@ func walkTreeConfigs(t *testing.T) (files int, checked counts, parsed parseCount
 			files++
 
 			var violations []string
-			if filepath.Ext(path) == ".ci" {
-				violations = scanCITest(text, &checked, &parsed)
-			} else {
-				violations = scanOneDocument(text, wholeFile(), &checked, &parsed)
+			switch filepath.Ext(path) {
+			case ".ci":
+				violations = scanCITest(path, text, &checked, &parsed)
+			case ".md":
+				violations = scanMarkdown(path, text, &checked, &parsed)
+			default:
+				violations = scanOneDocument(text, wholeFile(path), &checked, &parsed)
 			}
 			require.Emptyf(t, violations, "%s grants a received-only plugin the UPDATEs ze sends:\n%s",
 				path, strings.Join(violations, "\n"))
@@ -171,20 +208,23 @@ type where struct {
 	// block names the embedded document this text came from, and is empty for
 	// a file. It prefixes both answers.
 	block string
+	// source names the text for the parse counters, and is never empty. It is
+	// the file path for a file and the block name for an embedded document.
+	source string
 	// line names one line. A `.ci` directive line has no line number in the
 	// file, so its locator names the line itself instead of numbering it.
 	line func(n int) string
 }
 
 // wholeFile is the locator for a text that IS the file.
-func wholeFile() where {
-	return where{line: func(n int) string { return fmt.Sprintf("line %d", n) }}
+func wholeFile(path string) where {
+	return where{source: path, line: func(n int) string { return fmt.Sprintf("line %d", n) }}
 }
 
-// inBlock is the locator for a document embedded in a `.ci`, whose line numbers
-// are its own and not the file's.
+// inBlock is the locator for a document embedded in a `.ci` or in a
+// documentation page, whose line numbers are its own and not the file's.
 func inBlock(name string) where {
-	return where{block: name, line: func(n int) string { return fmt.Sprintf("line %d", n) }}
+	return where{block: name, source: name, line: func(n int) string { return fmt.Sprintf("line %d", n) }}
 }
 
 // at names a config path inside this document.
@@ -222,13 +262,24 @@ func (w where) atLine(n int) string {
 // excludes them from parser coverage by name). What it can and cannot see is
 // pinned by TestReceivedOnlyGuardTextScanLimits, not claimed here.
 func scanOneDocument(text string, loc where, checked *counts, parsed *parseCounts) []string {
-	if tree, err := config.ParseTreeForValidation(text); err == nil && tree != nil {
+	tree, err := config.ParseTreeForValidation(text)
+	if err == nil && tree != nil {
 		parsed.documents++
 		violations, n := scanParsedTree(tree.ToMap(), loc)
 		checked.tree += n
 		return violations
 	}
-	parsed.refused++
+	parsed.refused = append(parsed.refused, fmt.Sprintf("%s: %v", loc.source, err))
+	return scanOnlyAsText(text, loc, checked)
+}
+
+// scanOnlyAsText reads a text the parser was never offered, so it moves no
+// parse counter. It is what a documentation page's prose, a `.ci`'s directive
+// lines and a fenced block that is not a config document get: none of the three
+// is a config document, so a parser that refuses one is working correctly, and
+// counting that refusal would make parseCounts.refused measure how much prose
+// the repository holds instead of how much of the parser still works.
+func scanOnlyAsText(text string, loc where, checked *counts) []string {
 	violations, n := scanText(text, loc)
 	checked.text += n
 	return violations
@@ -244,12 +295,13 @@ func scanOneDocument(text string, loc where, checked *counts, parsed *parseCount
 //
 // A block's line numbers are not the file's, so a violation the text scan finds
 // inside one names the block it came from.
-func scanCITest(text string, checked *counts, parsed *parseCounts) []string {
+func scanCITest(path, text string, checked *counts, parsed *parseCounts) []string {
 	fs, err := tmpfs.Parse(strings.NewReader(text))
 	if err != nil {
 		// A `.ci` this format's own reader refuses is read as flat text, which
-		// keeps the file judged rather than skipped.
-		return scanOneDocument(text, wholeFile(), checked, parsed)
+		// keeps the file judged rather than skipped. A script is not a config
+		// document, so the parser is not offered it.
+		return scanOnlyAsText(text, wholeFile(path), checked)
 	}
 
 	var violations []string
@@ -267,20 +319,23 @@ func scanCITest(text string, checked *counts, parsed *parseCounts) []string {
 
 	// The directive lines carry the CLI `set` form and the `exec=` lines. They
 	// are named by their own text, because their position among the directives
-	// is not their position in the file.
+	// is not their position in the file. A run of directives is not a config
+	// document in any spelling, so it goes straight to the text scan: offering
+	// it to the parser earned one refusal for each attach-bearing `.ci` in the
+	// repository, which is a property of the test corpus and not of the parser.
 	other := fs.OtherLines
 	texts := make([]string, len(other))
 	for i, line := range other {
 		texts[i] = line.Text
 	}
 	if grants := strings.Join(texts, "\n"); strings.Contains(grants, "attach") {
-		directives := where{block: "directive", line: func(n int) string {
+		directives := where{block: "directive", source: path + " directives", line: func(n int) string {
 			if n >= 1 && n <= len(other) {
 				return strconv.Quote(strings.TrimSpace(other[n-1].Text))
 			}
 			return fmt.Sprintf("%d", n)
 		}}
-		violations = append(violations, scanOneDocument(grants, directives, checked, parsed)...)
+		violations = append(violations, scanOnlyAsText(grants, directives, checked)...)
 	}
 	return violations
 }
@@ -308,6 +363,147 @@ func scanCIBlock(body, name string, checked *counts, parsed *parseCounts) []stri
 // adds later and this list does not carry costs its blocks the parser and
 // leaves them on the text scan below, which reads them but reads them by shape.
 var ciVariables = strings.NewReplacer("$PORT2", "1791", "$PORT", "1790")
+
+// scanMarkdown judges one documentation page, one fenced block at a time.
+//
+// A page is not a config document, so offering the whole file to the parser
+// refuses it for every page in the repository, whatever the parser does. A
+// page's configs live in its FENCED BLOCKS, and each one is a document on its
+// own, the way each `.ci` embedded block is. So each fenced block that is a
+// config document is offered to the parser, which is a STRONGER reader than the
+// text scan every page used to get: a grant written in a fenced block on a
+// guide page is now read through the same tree the daemon builds.
+//
+// The prose between the fences still gets the text scan, so a grant written in
+// a table cell or in a sentence is judged exactly as it was before. A block's
+// lines are blanked out of that prose rather than removed, so a violation the
+// text scan reports there still carries the page's own line number.
+func scanMarkdown(path, text string, checked *counts, parsed *parseCounts) []string {
+	lines := strings.Split(text, "\n")
+	prose := make([]string, len(lines))
+
+	var violations []string
+	for i := 0; i < len(lines); i++ {
+		open := mdFence.FindStringSubmatch(lines[i])
+		if open == nil {
+			prose[i] = lines[i]
+			continue
+		}
+		body, end := mdFenced(lines, i, len(open[1]))
+		violations = append(violations, scanMarkdownBlock(body, open[2],
+			fmt.Sprintf("%s fenced block at line %d", path, i+2), checked, parsed)...)
+		i = end
+	}
+
+	return append(violations, scanOnlyAsText(strings.Join(prose, "\n"), wholeFile(path), checked)...)
+}
+
+// mdFence matches the line that opens or closes a fenced code block, and
+// captures the backtick run and the info string. CommonMark allows three or
+// more backticks and up to three spaces of indent, and the fence that closes a
+// block is at least as long as the one that opened it and carries no info
+// string, which is what lets a ```markdown block hold a fence of its own.
+var mdFence = regexp.MustCompile("^ {0,3}(`{3,})(.*)$")
+
+// mdFenced returns the body of the block opened on line `at` by a run of
+// `ticks` backticks, and the index of the line that closed it. A block nobody
+// closed runs to the end of the page.
+func mdFenced(lines []string, at, ticks int) (body string, end int) {
+	for end = at + 1; end < len(lines); end++ {
+		closing := mdFence.FindStringSubmatch(lines[end])
+		if len(closing) == 0 {
+			continue
+		}
+		if len(closing[1]) < ticks {
+			continue
+		}
+		if strings.TrimSpace(closing[2]) == "" {
+			break
+		}
+	}
+	return strings.Join(lines[at+1:end], "\n"), end
+}
+
+// scanMarkdownBlock judges one fenced block. A block with no `attach` in it can
+// carry no grant, in any spelling, so it is neither parsed nor scanned -- the
+// same reasoning scanCIBlock uses for a `.ci` block.
+func scanMarkdownBlock(body, info, name string, checked *counts, parsed *parseCounts) []string {
+	if !strings.Contains(body, "attach") {
+		return nil
+	}
+	if !isConfigBlock(body, info) {
+		return scanOnlyAsText(body, inBlock(name), checked)
+	}
+	return scanOneDocument(body, inBlock(name), checked, parsed)
+}
+
+// configInfo names the fence info strings a ze config is written under. An info
+// string is the author naming the block's language, so `go`, `json`, `bash` and
+// `python` each say the block is not a config and are refused here. Ze config
+// has no highlighter, so its blocks are written bare, and `text` is the other
+// spelling of bare that the guides use (docs/guide/bgp-peering.md).
+var configInfo = map[string]bool{"": true, "text": true, "conf": true, "config": true, "ze": true}
+
+// mdPlaceholder matches a documentation placeholder such as `<ip>`, `<asn>` or
+// `<plugin-name>`.
+var mdPlaceholder = regexp.MustCompile(`<[^<>\n]+>`)
+
+// isConfigBlock answers whether a fenced block is a ze config DOCUMENT, which
+// decides whether the parser is offered it and therefore whether a refusal is
+// counted.
+//
+// The question the rule has to answer is not "is this text valid config" --
+// that is the parser's job and the counters exist to measure it. It is "could a
+// working parser ever accept this text". A block that fails that question is
+// refused for a reason no parser change can alter, so counting its refusal
+// would make parseCounts.refused measure the shape of the documentation corpus,
+// which is the defect these counters were written to catch and were themselves
+// an instance of. A block that PASSES it and is still refused is a real
+// refusal, and it is counted, because that is the signal the counter carries.
+//
+// Three tests answer it, each from the block's own text:
+//
+//   - The info string does not name another language (configInfo above).
+//   - The block is brace-delimited and its braces balance. Ze config is a block
+//     language, so a text holding `attach` with no `{` is a sentence, a log
+//     line or a CLI listing, and one whose braces do not close is a fragment
+//     that was cut for illustration rather than a document.
+//   - The block carries no `...` and no `<placeholder>`. Neither is a token in
+//     any ze config spelling, so the parser refuses such a block today and
+//     would refuse it after any change to the parser. These are the syntax
+//     SKELETONS the reference pages are written from, such as
+//     docs/architecture/config/syntax.md.
+//
+// A block that fails any of the three is still read by the text scan, so no
+// violation check is lost: the block is judged, it is just not counted.
+func isConfigBlock(body, info string) bool {
+	if !configInfo[strings.ToLower(strings.TrimSpace(info))] {
+		return false
+	}
+	// Comments go first, so a `...` an author wrote to a human beside a real
+	// statement does not make the statement a skeleton. This drops a `#` inside
+	// a quoted string too, which costs that block the parser and keeps it on
+	// the text scan.
+	code := stripComments(body)
+	if !strings.Contains(code, "{") || braceDelta(code) != 0 {
+		return false
+	}
+	if strings.Contains(code, "...") {
+		return false
+	}
+	return !mdPlaceholder.MatchString(code)
+}
+
+// stripComments removes the `#` comments of a config text.
+func stripComments(text string) string {
+	lines := strings.Split(text, "\n")
+	for i, line := range lines {
+		if code, _, found := strings.Cut(line, "#"); found {
+			lines[i] = code
+		}
+	}
+	return strings.Join(lines, "\n")
+}
 
 // scanParsedTree walks the tree ze built and records every receive token that
 // grants a pinned plugin the sent direction.
@@ -1078,7 +1274,7 @@ func TestReceivedOnlyGuardTextScanLimits(t *testing.T) {
 func shapeScan(text string) (violations []string, checked int, parsed bool) {
 	var c counts
 	var p parseCounts
-	violations = scanOneDocument(text, wholeFile(), &c, &p)
+	violations = scanOneDocument(text, wholeFile("shape under test"), &c, &p)
 	return violations, c.tree + c.text, p.documents > 0
 }
 
