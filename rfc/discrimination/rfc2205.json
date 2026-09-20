@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc2205",
+  "records": [
+    {
+      "rid": "RFC2205-3.1.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects",
+      "unit-sha": "8d5c5a3c6534e83e",
+      "claim-sha": "b1e112d10ee24bf5",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/mandatory.go::checkMandatoryObjects",
+      "producer-sha": "63da21b48498708e",
+      "break": "body of checkMandatoryObjects replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3.1.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/mandatory_test.go::TestDecodeMandatoryObjects",
+      "unit-sha": "8d5c5a3c6534e83e",
+      "claim-sha": "9be4e32f963088fc",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/mandatory.go::checkMandatoryObjects",
+      "producer-sha": "63da21b48498708e",
+      "break": "body of checkMandatoryObjects replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3.1.3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithTimeValuesAccepted",
+      "unit-sha": "dd19448bdc089542",
+      "claim-sha": "77bca7252d90efd2",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/engine.go::handlePathEgress",
+      "producer-sha": "45696e992633e28e",
+      "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3.1.3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/mandatory_test.go::TestEnginePathWithoutTimeValuesDropped",
+      "unit-sha": "cbf236a5c155d101",
+      "claim-sha": "2caeada0f9cebe81",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/mandatory.go::checkMandatoryObjects",
+      "producer-sha": "63da21b48498708e",
+      "break": "body of checkMandatoryObjects replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

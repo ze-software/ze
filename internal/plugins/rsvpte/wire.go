@@ -174,6 +174,7 @@ var (
 	errShortERO     = errors.New("rsvp: ERO subobject too short")
 	errShortRRO     = errors.New("rsvp: RRO subobject too short")
 	errBadBandwidth = errors.New("rsvp: negative bandwidth")
+	errObjectAbsent = errors.New("rsvp: mandatory object absent")
 )
 
 // Header is the RSVP common header (RFC 2205 Section 3.1).
@@ -911,6 +912,10 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 		}
 
 		off += int(objHdr.Length)
+	}
+
+	if err := checkMandatoryObjects(msg); err != nil {
+		return msg, err
 	}
 	return msg, nil
 }

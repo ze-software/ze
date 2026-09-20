@@ -59,6 +59,29 @@ carrying such an object is dropped with a log line and no error message.
 <!-- source: internal/plugins/rsvpte/wire.go -- classifyUnknownClass, classKnownUnprocessed -->
 <!-- source: internal/plugins/rsvpte/engine.go -- rejectUnknownObject -->
 
+## Decision: a message that omits a mandatory object is dropped
+
+RFC 2205 Section 3.1 writes each message type as a BNF where a square bracket
+marks an optional object. Everything unbracketed is mandatory: SESSION, RSVP_HOP
+and TIME_VALUES in a Path, those three plus STYLE in a Resv, SESSION and RSVP_HOP
+in a PathTear, SESSION and ERROR_SPEC in a PathErr. `DecodeMessage` refuses a
+message that omits one, and the sender descriptor is bracketed everywhere, so
+SENDER_TEMPLATE is never required there.
+
+No error message answers it. RFC 2205 Appendix B: "each node is required to
+verify the correct construction of each RSVP message it receives", and a
+malformed message "is not generally reported to end systems in an ERROR_SPEC
+object; instead, the error is simply logged locally". Appendix B defines no error
+code for an absent mandatory object, so there is nothing a PathErr could carry.
+`handlePacket` logs the decode failure and drops the packet.
+
+TIME_VALUES is what makes this load-bearing. It is the only object that states
+the period the sender refreshes at, so a PATH accepted without one took the
+30-second default while its sender refreshed every 300 seconds, and ze expired
+the state between two of that sender's refreshes.
+
+<!-- source: internal/plugins/rsvpte/mandatory.go -- checkMandatoryObjects -->
+
 ## Decision: link failure comes from the interface component
 
 Ze has no IGP, so the interface component's netlink down event is the available
@@ -134,9 +157,11 @@ alive would delete a live reservation on the next cleanup tick. A transit node
 relays the received period downstream for the same reason: it relays a PATH only
 when one arrives, so the downstream cadence is the sender's.
 
-A PATH without TIME_VALUES falls back to the 30-second default RFC 2205 Section
-3.7 suggests, and an advertised period above 65535 seconds is clamped to that
-ceiling, which is the `refresh-period` YANG range.
+A PATH or a RESV without TIME_VALUES is malformed and ze drops it, so no message
+reaching this point is missing the object (see "a message that omits a mandatory
+object is dropped" above). An advertised period of zero falls back to the
+30-second default RFC 2205 Section 3.7 suggests, and a period above 65535 seconds
+is clamped to that ceiling, which is the `refresh-period` YANG range.
 
 <!-- source: internal/plugins/rsvpte/engine.go -- receivedRefreshPeriod -->
 <!-- source: internal/plugins/rsvpte/register.go -- maxRefreshPeriod -->

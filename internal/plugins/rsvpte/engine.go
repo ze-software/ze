@@ -227,10 +227,13 @@ func (e *engine) reserve(src netip.Addr, msg *ParsedMessage) (string, bool) {
 // refresh-period commit that shortened the lifetime of state a neighbor keeps alive
 // would delete a live reservation on the next cleanup tick.
 //
-// TIME_VALUES is mandatory in a PATH (RFC 2205 Section 3.1.3), so a message without
-// one falls back to the suggested default of 30 seconds rather than to the local
-// period. The value is clamped to maxRefreshPeriod so a neighbor cannot advertise a
-// period that keeps ze's state alive for years.
+// TIME_VALUES is mandatory in a PATH (RFC 2205 Section 3.1.3) and in a RESV
+// (Section 3.1.4), and checkMandatoryObjects refuses a message that omits one, so
+// every message reaching here carries the object. What is left is an advertised
+// refresh period of zero, which no lifetime can be computed from: that falls back
+// to the 30-second default RFC 2205 Section 3.7 suggests. The value is clamped to
+// maxRefreshPeriod so a neighbor cannot advertise a period that keeps ze's state
+// alive for years.
 func receivedRefreshPeriod(msg *ParsedMessage) time.Duration {
 	if !msg.HasTimeValues || msg.TimeValues.RefreshPeriod == 0 {
 		return DefaultRefreshPeriod

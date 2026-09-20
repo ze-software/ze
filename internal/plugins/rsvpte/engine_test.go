@@ -372,11 +372,14 @@ func TestEngineResvWithoutLabelRejected(t *testing.T) {
 	lsp.Role = RoleIngress
 	lsp.setState(LSPStatePathSent)
 
-	// A RESV with SESSION + STYLE + SENDER_TEMPLATE but deliberately NO LABEL object.
+	// A RESV carrying every object RFC 2205 Section 3.1.4 makes mandatory, so the
+	// only thing wrong with it is the deliberately absent LABEL.
 	session := sessionIPv4{TunnelEndpoint: key.TunnelEndpoint, TunnelID: key.TunnelID, ExtTunnelID: key.ExtTunnelID}
 	filter := senderTemplateIPv4{SenderAddr: key.SenderAddr, LSPID: key.LSPID}
 	raw := encodeMessage(MsgTypeResv, defaultIPTTL, []objEncoder{
 		func(b []byte) int { return encodeSessionIPv4(b, session) },
+		func(b []byte) int { return encodeRSVPHop(b, rsvpHop{NextHop: netip.MustParseAddr("10.0.0.9")}) },
+		func(b []byte) int { return encodeTimeValues(b, timeValues{RefreshPeriod: 30000}) },
 		func(b []byte) int { return encodeStyle(b, StyleSharedExplicit) },
 		func(b []byte) int { return encodeSenderTemplate(b, filter) },
 	})
