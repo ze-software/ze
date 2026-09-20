@@ -106,6 +106,13 @@ default page, rather than one flat switch in the workbench handler.
   containers, not lists, and returns an empty string for a missing container.
   That is correct for optional config and it means a typo in a path produces
   empty values rather than an error.
+- The L2TP configuration form takes the description of every field from the
+  YANG node that declares it, through `schemaDescription` and the loaded
+  schema. The page holds the name, the label and the field type of a leaf, and
+  no description text of its own, so the web form and `ze config` give the
+  operator one account of a leaf. A page rendered with no schema shows no
+  description rather than an invented one. The other service forms still write
+  their descriptions as literals.
 - One file per navigation section, not one file per page. These pages are small
   forms and tables with no complex logic.
 - Sensitive fields (shared secrets, tokens, TLS keys) use the password field

@@ -263,7 +263,7 @@ func TestRenderServicePageContent_Unknown(t *testing.T) {
 
 func TestRenderL2TPPageContent_Dispatch(t *testing.T) {
 	// Only test paths that do not require a renderer (unknown falls through).
-	_, ok := renderL2TPPageContent(nil, []string{"unknown"}, nil)
+	_, ok := renderL2TPPageContent(nil, []string{"unknown"}, nil, nil)
 	assert.False(t, ok)
 }
 

@@ -91,6 +91,15 @@ const (
 // loads htmx any more (internal/le/webassets/webassets.go, page_assets.go).
 const portPageAssets = "the page renders no htmx attribute, so its head loads no htmx"
 
+// The L2TP configuration form hand-wrote the description of each of its nine
+// fields beside the YANG leaf that declares the same fact, and the two had
+// diverged: the page paraphrased hello-retries in one line where
+// ze-l2tp-conf.yang explains the ZLB ACK, the 31s retransmit exhaustion and the
+// default. buildL2TPConfigFormData (page_l2tp.go) reads the schema now, so the
+// form shows the declared text and the literals are gone
+// (plan/journal/helper-bypassed-by-an-open-coded-copy.md).
+const portFormDescriptionFromSchema = "each form field shows the description its YANG node declares, where the page wrote its own"
+
 var webPortTemplates = map[string]string{
 	"terminal.html":            portDeadNeverParsed,
 	"notification_banner.html": portDeadNeverParsed,
@@ -243,7 +252,7 @@ var webPortHandlers = map[string]string{
 	"nav-show-ip-routes.txt":            portEmptyRowColspan + ", " + portErrorToggle,
 	"nav-show-l2tp-health.txt":          portEmptyRowColspan + ", " + portErrorToggle,
 	"nav-show-l2tp-sessions.txt":        portEmptyRowColspan + ", " + portErrorToggle,
-	"nav-show-l2tp.txt":                 portErrorToggle,
+	"nav-show-l2tp.txt":                 portErrorToggle + ", " + portFormDescriptionFromSchema,
 	"nav-show-lg.txt":                   portErrorToggle,
 	"nav-show-logs-errors.txt":          portErrorToggle,
 	"nav-show-logs-live.txt":            portErrorToggle,

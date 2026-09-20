@@ -17,7 +17,7 @@ import (
 // importing internal/component/l2tp (which would pin the whole subtree into
 // the binary). The /l2tp session routes are absent too: register_l2tp.go
 // carries the same tag, so nothing registers them.
-func renderL2TPPageContent(renderer *Renderer, _ []string, _ *config.Tree) (template.HTML, bool) {
+func renderL2TPPageContent(renderer *Renderer, _ []string, _ *config.Tree, _ *config.Schema) (template.HTML, bool) {
 	return renderer.renderComponent("feature_disabled",
 		featureDisabled("L2TP/PPPoE (BNG) is not included in this build (ze_l2tp off).")), true
 }

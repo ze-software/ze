@@ -96,85 +96,98 @@ func handleL2TPSessionsPage(renderer *Renderer) template.HTML {
 
 // --- L2TP > Configuration ---
 
+// l2tpConfigLeaves names the leaves the L2TP configuration form edits, in the
+// order the form renders them. A row carries no description text: the account
+// of a leaf is the one ze-l2tp-conf.yang declares, and the form reads it off
+// the loaded schema, so the web page and `ze config` never give an operator two
+// accounts of one leaf (ai/rules/principles.md).
+var l2tpConfigLeaves = []struct {
+	path  string
+	name  string
+	label string
+	kind  string
+}{
+	{path: "l2tp/enabled", name: wbFormEnabledField, label: labelEnabled, kind: wbFormToggleType},
+	{path: "l2tp/max-tunnels", name: "max-tunnels", label: "Max Tunnels", kind: wbFormNumberType},
+	{path: "l2tp/max-sessions", name: "max-sessions", label: "Max Sessions Per Tunnel", kind: wbFormNumberType},
+	{path: "l2tp/shared-secret", name: "shared-secret", label: "Shared Secret", kind: wbFormPasswordType},
+	{path: "l2tp/hello-interval", name: "hello-interval", label: "Hello Interval (seconds)", kind: wbFormNumberType},
+	{path: "l2tp/hello-retries", name: "hello-retries", label: "Hello Retries (dead-peer threshold)", kind: wbFormNumberType},
+	{path: "l2tp/cqm-enabled", name: "cqm-enabled", label: "CQM Enabled", kind: wbFormToggleType},
+	{path: "l2tp/max-logins", name: "max-logins", label: "Max Logins", kind: wbFormNumberType},
+}
+
+// The listener list the last form field edits. It is a list rather than a leaf,
+// so it declares its own description and the form reads that one.
+const (
+	l2tpServerContainerPath = "environment/l2tp"
+	l2tpServerListName      = "server"
+	l2tpServerListPath      = l2tpServerContainerPath + "/" + l2tpServerListName
+)
+
 // buildL2TPConfigFormData constructs a WorkbenchFormData for the L2TP config.
 // Fields match l2tp{} and environment/l2tp in ze-l2tp-conf.yang. The
 // shared-secret field uses password type for masking.
-func buildL2TPConfigFormData(tree *config.Tree) WorkbenchFormData {
+func buildL2TPConfigFormData(tree *config.Tree, schema *config.Schema) WorkbenchFormData {
+	fields := make([]WorkbenchFormField, 0, len(l2tpConfigLeaves)+1)
+	for _, leaf := range l2tpConfigLeaves {
+		fields = append(fields, WorkbenchFormField{
+			Name:        leaf.name,
+			Label:       leaf.label,
+			Type:        leaf.kind,
+			Value:       getConfigValue(tree, leaf.path),
+			Description: schemaDescription(schema, leaf.path),
+		})
+	}
+
+	fields = append(fields, WorkbenchFormField{
+		Name:        wbFormServersField,
+		Label:       labelListenEndpoints,
+		Type:        wbFormListType,
+		Items:       getConfigListItems(tree, l2tpServerContainerPath, l2tpServerListName),
+		Description: schemaDescription(schema, l2tpServerListPath),
+	})
+
 	return WorkbenchFormData{
-		Title: "L2TP Configuration",
-		Fields: []WorkbenchFormField{
-			{
-				Name:        wbFormEnabledField,
-				Label:       labelEnabled,
-				Type:        wbFormToggleType,
-				Value:       getConfigValue(tree, "l2tp/enabled"),
-				Description: "Enable L2TP subsystem",
-			},
-			{
-				Name:        "max-tunnels",
-				Label:       "Max Tunnels",
-				Type:        wbFormNumberType,
-				Value:       getConfigValue(tree, "l2tp/max-tunnels"),
-				Description: "Maximum concurrent L2TP tunnels (0 = unlimited)",
-			},
-			{
-				Name:        "max-sessions",
-				Label:       "Max Sessions Per Tunnel",
-				Type:        wbFormNumberType,
-				Value:       getConfigValue(tree, "l2tp/max-sessions"),
-				Description: "Maximum concurrent sessions per tunnel (0 = unlimited)",
-			},
-			{
-				Name:        "shared-secret",
-				Label:       "Shared Secret",
-				Type:        wbFormPasswordType,
-				Value:       getConfigValue(tree, "l2tp/shared-secret"),
-				Description: "CHAP-MD5 shared secret (sensitive)",
-			},
-			{
-				Name:        "hello-interval",
-				Label:       "Hello Interval (seconds)",
-				Type:        wbFormNumberType,
-				Value:       getConfigValue(tree, "l2tp/hello-interval"),
-				Description: "Seconds of peer silence before sending HELLO (1-3600)",
-			},
-			{
-				Name:        "hello-retries",
-				Label:       "Hello Retries (dead-peer threshold)",
-				Type:        wbFormNumberType,
-				Value:       getConfigValue(tree, "l2tp/hello-retries"),
-				Description: "Unanswered HELLO intervals before a peer is declared dead (0 disables; detection = retries x interval)",
-			},
-			{
-				Name:        "cqm-enabled",
-				Label:       "CQM Enabled",
-				Type:        wbFormToggleType,
-				Value:       getConfigValue(tree, "l2tp/cqm-enabled"),
-				Description: "Enable Customer Quality Monitor observer",
-			},
-			{
-				Name:        "max-logins",
-				Label:       "Max Logins",
-				Type:        wbFormNumberType,
-				Value:       getConfigValue(tree, "l2tp/max-logins"),
-				Description: "Maximum concurrent PPP logins tracked by CQM (1-1000000)",
-			},
-			{
-				Name:        wbFormServersField,
-				Label:       labelListenEndpoints,
-				Type:        wbFormListType,
-				Items:       getConfigListItems(tree, "environment/l2tp", "server"),
-				Description: "L2TP server listen endpoints (UDP)",
-			},
-		},
+		Title:      "L2TP Configuration",
+		Fields:     fields,
 		SaveURL:    "/config/form/l2tp/",
 		DiscardURL: "/show/l2tp/",
 	}
 }
 
+// schemaDescription answers the description the YANG schema declares for the
+// node at a slash-separated config path.
+//
+// It answers "" when no schema is loaded and when the path names no node. A
+// form hint the schema did not write is a second account of the leaf, which is
+// the thing this derivation exists to remove, so an unread schema leaves the
+// field with no hint rather than with an invented one (ai/rules/principles.md).
+func schemaDescription(schema *config.Schema, path string) string {
+	if schema == nil {
+		return ""
+	}
+
+	node, err := walkSchema(schema, splitConfigPath(path))
+	if err != nil {
+		return ""
+	}
+
+	switch n := node.(type) {
+	case *config.LeafNode:
+		return n.Description
+	case *config.ListNode:
+		return n.Description
+	case *config.ContainerNode:
+		return n.Description
+	}
+
+	return ""
+}
+
 // handleL2TPConfigPage renders the L2TP Configuration form for the workbench.
-func handleL2TPConfigPage(renderer *Renderer, viewTree *config.Tree) template.HTML {
-	formData := buildL2TPConfigFormData(viewTree)
+func handleL2TPConfigPage(renderer *Renderer, viewTree *config.Tree, schema *config.Schema) template.HTML {
+	formData := buildL2TPConfigFormData(viewTree, schema)
 	return renderer.renderComponent("workbench_form", workbenchForm(formData))
 }
 
@@ -243,10 +256,10 @@ func handleL2TPHealthPage(renderer *Renderer) template.HTML {
 // renderL2TPPageContent dispatches L2TP sub-pages. The path slice has the
 // leading "l2tp" segment already stripped. Returns (content, true) if a page
 // handler matched, or ("", false) to fall through to generic YANG.
-func renderL2TPPageContent(renderer *Renderer, path []string, viewTree *config.Tree) (template.HTML, bool) {
+func renderL2TPPageContent(renderer *Renderer, path []string, viewTree *config.Tree, schema *config.Schema) (template.HTML, bool) {
 	if len(path) == 0 || (len(path) == 1 && path[0] == "") {
 		// /show/l2tp/ defaults to configuration.
-		return handleL2TPConfigPage(renderer, viewTree), true
+		return handleL2TPConfigPage(renderer, viewTree, schema), true
 	}
 
 	switch path[0] {
