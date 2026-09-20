@@ -319,7 +319,13 @@ flowchart TB
   resolves next-hops, inserts `locrib.Path` values into the shared Loc-RIB, and
   lets sysrib/fibkernel own kernel FIB programming. SPF deltas use
   `redistevents` only for redistribution. Imported routes take the reverse
-  redistribution path and originate Type 5 or Type 7 LSAs.
+  redistribution path and originate Type 5 or Type 7 LSAs. The LS Type comes
+  from the address family rather than from the redistribution rule, because
+  OSPFv3 numbers the same two LSAs differently: `0x4005` and `0x2007` against
+  OSPFv2's `0x0005` and `0x0007` (RFC 5340 Section 4.4.3.6, Appendix A.4.2.1).
+  A value written for the wrong family is not refused anywhere, because
+  Appendix A.4.2.1 reads `0x0005` as a legal link-local-scope LSA of an
+  unrecognized type, so the flood reaches the first hop and stops.
 <!-- source: internal/plugins/ospf/register.go -- registerOSPF and runOSPFEngine -->
 <!-- source: internal/plugins/ospf/config.go -- parseOSPFConfig and validateConfig -->
 <!-- source: internal/plugins/ospf/iface/iface.go -- Interface, ReceiveHello, runElectionLocked -->

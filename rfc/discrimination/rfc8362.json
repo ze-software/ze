@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc8362",
+  "records": [
+    {
+      "rid": "RFC8362-2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc8362_test.go::TestRFC8362BaseLSAsKeepUBitClearOnTheWire",
+      "unit-sha": "521623f5f3394b8b",
+      "claim-sha": "89e534f02d14ea5f",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/origination_v6.go::v6OriginHeader",
+      "producer-sha": "367294e33f1af68d",
+      "break": "body of v6OriginHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8362-2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc8362_test.go::TestRFC8362ExtendedLSAsSetUBitOnTheWire",
+      "unit-sha": "6c07362cb5f9bf3a",
+      "claim-sha": "8b6056b9ca840d88",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/origination_v6.go::v6OriginHeader",
+      "producer-sha": "367294e33f1af68d",
+      "break": "body of v6OriginHeader replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

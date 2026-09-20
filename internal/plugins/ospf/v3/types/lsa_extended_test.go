@@ -1,26 +1,35 @@
 // VALIDATES: spec-ospf-ext-5 AC-18/AC-23, R-11 -- the RFC 8362 Extended-LSA type
-// constants have the correct scope-encoded values, are recognized by Known() so the
-// shared LSDB stores and floods them by scope, and the base RFC 5340 types stay Known.
-// PREVENTS: wrong Extended-LSA type codes; a new type silently dropped by the LSDB;
-// an additive change regressing base-type recognition.
+// constants carry the RFC 8362 Section 2 values, U-bit and scope bits included, are
+// recognized by Known() so the shared LSDB stores and floods them by scope, and the base
+// RFC 5340 types stay Known.
+// PREVENTS: wrong Extended-LSA type codes; an Extended LSA originated with the U-bit clear,
+// which RFC 5340 Appendix A.4.2.1 confines to the originating link; a new type silently
+// dropped by the LSDB; an additive change regressing base-type recognition.
 package types
 
 import "testing"
 
 func TestExtendedLSATypeConstants(t *testing.T) {
-	// RFC 8362 Extended-LSA function codes, scope-encoded (spec-ospf-ext-5 AC-23).
+	// The LS Type table of RFC 8362 Section 2, which sets the U-bit on every row:
+	// "For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs
+	// will be flooded by OSPFv3 routers that do not understand them."
 	cases := []struct {
 		name string
 		got  LSType
 		want LSType
 	}{
-		{"E-Router", LSTypeERouter, 0x2021},
-		{"E-Network", LSTypeENetwork, 0x2022},
-		{"E-Inter-Area-Prefix", LSTypeEInterAreaPrefix, 0x2023},
-		{"E-AS-External", LSTypeEASExternal, 0x4025},
-		{"E-Type-7", LSTypeEType7, 0x2027},
-		{"E-Link", LSTypeELink, 0x0028},
-		{"E-Intra-Area-Prefix", LSTypeEIntraAreaPrefix, 0x2029},
+		{"E-Router", LSTypeERouter, 0xA021},
+		{"E-Network", LSTypeENetwork, 0xA022},
+		{"E-Inter-Area-Prefix", LSTypeEInterAreaPrefix, 0xA023},
+		{"E-AS-External", LSTypeEASExternal, 0xC025},
+		{"E-Type-7", LSTypeEType7, 0xA027},
+		{"E-Link", LSTypeELink, 0x8028},
+		{"E-Intra-Area-Prefix", LSTypeEIntraAreaPrefix, 0xA029},
+	}
+	for _, c := range cases {
+		if c.got&lsTypeUBit == 0 {
+			t.Errorf("%s = 0x%04X has the U-bit clear; RFC 8362 Section 2 requires it set", c.name, uint16(c.got))
+		}
 	}
 	for _, c := range cases {
 		if c.got != c.want {

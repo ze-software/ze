@@ -141,7 +141,7 @@ Received external LSAs are resolved by the external SPF stage, which runs after 
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternal, ComputeExternalWith, betterExternal -->
 <!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6ExternalReader -->
 
-`default-information originate` advertises a Type 5 default (`0.0.0.0/0`). With `always` it originates unconditionally; otherwise it originates only while a non-OSPF default route exists in the Loc-RIB (OSPF's own default does not satisfy the condition). The engine re-evaluates the condition at config-apply and live on Loc-RIB default-route changes, withdrawing the Type 5 when the condition lapses.
+`default-information originate` advertises a default route: `0.0.0.0/0` as an OSPFv2 Type 5 AS-External-LSA, and `::/0` as an OSPFv3 AS-External-LSA, whose LS Type is `0x4005` rather than `0x0005` (RFC 5340 Section 4.4.3.6). The two numbers are not interchangeable and the wrong one fails quietly: RFC 5340 Appendix A.4.2.1 reads `0x0005` as U=0 with S2S1=00, which is link-local scope, so a v2-numbered default floods to the directly attached routers and no further. With `always` it originates unconditionally; otherwise it originates only while a non-OSPF default route exists in the Loc-RIB (OSPF's own default does not satisfy the condition). The engine re-evaluates the condition at config-apply and live on Loc-RIB default-route changes, withdrawing the LSA when the condition lapses.
 <!-- source: internal/plugins/ospf/default.go -- applyDefaultInformation, hasNonOSPFDefault, watchDefaultRoute -->
 
 ## Stub and NSSA areas

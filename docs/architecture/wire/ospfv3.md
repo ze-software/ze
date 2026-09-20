@@ -142,9 +142,9 @@ Block (SRLB) and SRMS-Preference TLVs reuse the RFC 8665 encodings unchanged
 
 | Element | Carrier LSA | Parent TLV | Sub-TLV (RFC 8666 type) |
 |---------|-------------|------------|--------------------------|
-| Prefix-SID (node loopback) | E-Intra-Area-Prefix-LSA `0x2029` | Intra-Area-Prefix TLV (RFC 8362 type 6) | Prefix-SID (4) |
-| Inter-area Prefix-SID (ABR) | E-Inter-Area-Prefix-LSA `0x2023` | Extended Prefix Range TLV (9) | Prefix-SID (4) |
-| Adj-SID / LAN-Adj-SID | E-Router-LSA `0x2021` | Router-Link TLV (RFC 8362 type 1) | Adj-SID (5) / LAN-Adj-SID (6) |
+| Prefix-SID (node loopback) | E-Intra-Area-Prefix-LSA `0xA029` | Intra-Area-Prefix TLV (RFC 8362 type 6) | Prefix-SID (4) |
+| Inter-area Prefix-SID (ABR) | E-Inter-Area-Prefix-LSA `0xA023` | Extended Prefix Range TLV (9) | Prefix-SID (4) |
+| Adj-SID / LAN-Adj-SID | E-Router-LSA `0xA021` | Router-Link TLV (RFC 8362 type 1) | Adj-SID (5) / LAN-Adj-SID (6) |
 
 The SID/Index/Label width is inferred from the V/L flag pair (4-octet index for
 V=0/L=0, 3-octet local label for V=1/L=1); every other combination is ignored. The

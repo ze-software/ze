@@ -22,6 +22,14 @@ var errEngineNotReady = errors.New("ospf: engine not ready for external originat
 // metric-type / route-tag from the `ospf` container's `redistribute` config (or the
 // code defaults), then re-originates the Router-LSA (E-bit) and re-floods.
 func (e *engine) InjectExternal(prefix netip.Prefix, source string, routeTag uint32) error {
+	// The default route shares its one AS-External-LSA with `default-information originate`
+	// in BOTH address families, so it goes through the serialized default-route coordinator
+	// BEFORE the family split: a withdraw from one intent must never drop a default the
+	// other still wants, and the coordinator picks the LS Type the family needs (0x0005 for
+	// OSPFv2, 0x4005 for OSPFv3, RFC 5340 Section 4.4.3.6).
+	if prefix.IsValid() && prefix.Bits() == 0 {
+		return e.injectDefaultExternal(prefix, source, routeTag)
+	}
 	if e.dispatch != nil && e.dispatch.codec.IsV6() {
 		return e.v6InjectExternal(prefix, source, routeTag)
 	}
@@ -37,13 +45,6 @@ func (e *engine) InjectExternal(prefix netip.Prefix, source string, routeTag uin
 	}
 	type2, metric, tag := externalParams(cfg, source, routeTag)
 	prefix = prefix.Masked()
-	// 0.0.0.0/0 shares its Type 5 LSA key with `default-information originate`; route it
-	// through the serialized default-route coordinator so a withdraw from one intent
-	// never drops a default the other still wants.
-	if prefix.Bits() == 0 {
-		e.injectRedistDefault(cfg.RouterID, type2, metric, tag)
-		return nil
-	}
 	network := prefix.Addr().As4()
 	mask := maskBytes(prefix.Bits())
 	nssas, canType5 := e.externalScope()
@@ -154,6 +155,11 @@ func (e *engine) nssaIPv4Address(name string) [4]byte {
 // Type 5 for prefix and re-originate the Router-LSA (clearing the E-bit when the
 // last external is gone, AC-6).
 func (e *engine) WithdrawExternal(prefix netip.Prefix) (bool, error) {
+	// The default route is coordinated before the family split, for the reason InjectExternal
+	// states: both intents share the one AS-External default LSA in either address family.
+	if prefix.IsValid() && prefix.Bits() == 0 {
+		return e.withdrawDefaultExternal(prefix)
+	}
 	if e.dispatch != nil && e.dispatch.codec.IsV6() {
 		return e.v6WithdrawExternal(prefix)
 	}
@@ -165,11 +171,6 @@ func (e *engine) WithdrawExternal(prefix netip.Prefix) (bool, error) {
 		return false, nil
 	}
 	prefix = prefix.Masked()
-	// 0.0.0.0/0 is shared with `default-information originate`: purge only when
-	// default-information does not also originate the default (serialized coordinator).
-	if prefix.Bits() == 0 {
-		return e.withdrawRedistDefault(cfg.RouterID), nil
-	}
 	network := prefix.Addr().As4()
 	// Drop the redistribute claim so the NSSA translator may again own this network if a
 	// peer's Type 7 still describes it.

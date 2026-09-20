@@ -25,6 +25,21 @@ computation, bidirectional redistribution, and `default-information originate`.
   Loc-RIB change watcher. OSPF runs in-process and shares the `locrib.Default()`
   singleton, so the engine reads the RIB directly.
   <!-- source: internal/plugins/ospf/default.go -- applyDefaultInformation -->
+- **Every default-route decision asks the address family first.** One function
+  answers which prefix this engine advertises and which Loc-RIB table its
+  condition reads: 0.0.0.0/0 in IPv4 unicast for OSPFv2, ::/0 in IPv6 unicast for
+  OSPFv3. Origination then picks the LS Type the family needs, the OSPFv2 Type 5
+  or the OSPFv3 0x4005 AS-External-LSA (RFC 5340 Section 4.4.3.6). RFC 5340
+  Appendix A.4.2.1 reads the OSPFv2 value 0x0005 as U=0 with S2S1=00, link-local
+  flooding scope, so an OSPFv3 engine originating the OSPFv2 type puts a default
+  on the wire that reaches no router past the first hop.
+  <!-- source: internal/plugins/ospf/default.go -- defaultRoute, originateDefaultExternal -->
+- **The OSPFv3 default takes its Link State ID from the redistribution table.**
+  RFC 5340 Section 4.4.3.6 strips the OSPFv3 external Link State ID of all
+  addressing semantics, so nothing in ::/0 derives it. Allocating it from the one
+  `redistV6` table is what makes the two intents reach the same LSA, and it also
+  keeps the default inside the keep-set the redistribution withdrawal builds.
+  <!-- source: internal/plugins/ospf/default.go -- v6OriginateDefaultExternal -->
 
 ## Traps
 
@@ -39,9 +54,12 @@ computation, bidirectional redistribution, and `default-information originate`.
   lock.
 - **Two independent intents that share one LSA key need a coordinated lifecycle,
   not a self-ownership flag.** `default-information originate` and a
-  redistributed `0.0.0.0/0` share one Type 5 key. Both intents are tracked, and
-  the key is purged only when neither wants it. All default-route mutations are
-  serialized under one mutex.
+  redistributed default share one AS-External key, in either address family:
+  0.0.0.0/0 keyed Type 5 for OSPFv2, ::/0 keyed 0x4005 for OSPFv3. Both intents
+  are tracked, and the key is purged only when neither wants it. All
+  default-route mutations are serialized under one mutex, and the redistribution
+  entry points hand the default to that coordinator BEFORE the address-family
+  split, so neither family gets the coordination and the other the race.
 - **A method called from two goroutines that reads, decides and writes shared
   state is serialized end to end.** Per-field locking left a window in which a
   stale watcher run re-originated a default that a concurrent config disable had

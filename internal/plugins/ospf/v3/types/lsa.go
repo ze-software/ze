@@ -50,16 +50,22 @@ const (
 // RFC 8362 Extended-LSA types (spec-ospf-ext-5): the SR-relevant subset the OSPFv3
 // Segment Routing extension (RFC 8666) rides on. Scope falls out of the high two bits
 // exactly as for the base types, so the shared LSDB stores and floods them by scope
-// with no new store. The U-bit is 0: an Extended LSA a router does not understand is
-// flooded only within its scope, per RFC 8362 §3.
+// with no new store.
+//
+// RFC 8362 Section 2: "For backward compatibility, the U-bit MUST be set in the LS Type
+// so that the LSAs will be flooded by OSPFv3 routers that do not understand them."
+// RFC 5340 Section A.4.2.1: with the U-bit clear a receiver must "Treat the LSA as if it
+// had link-local flooding scope", so a cleared U-bit strands every Extended LSA, and the
+// RFC 8666 Prefix-SIDs it carries, at the first router that does not implement RFC 8362.
+// The function code is the base type's code plus 0x20 (RFC 8362 Section 2).
 const (
-	LSTypeERouter          LSType = 0x2021 // E-Router-LSA (area)
-	LSTypeENetwork         LSType = 0x2022 // E-Network-LSA (area)
-	LSTypeEInterAreaPrefix LSType = 0x2023 // E-Inter-Area-Prefix-LSA (area)
-	LSTypeEASExternal      LSType = 0x4025 // E-AS-External-LSA (AS)
-	LSTypeEType7           LSType = 0x2027 // E-Type-7-LSA (NSSA area)
-	LSTypeELink            LSType = 0x0028 // E-Link-LSA (link-local)
-	LSTypeEIntraAreaPrefix LSType = 0x2029 // E-Intra-Area-Prefix-LSA (area)
+	LSTypeERouter          LSType = lsTypeUBit | scopeBitsArea | 0x0021      // 0xA021 E-Router-LSA
+	LSTypeENetwork         LSType = lsTypeUBit | scopeBitsArea | 0x0022      // 0xA022 E-Network-LSA
+	LSTypeEInterAreaPrefix LSType = lsTypeUBit | scopeBitsArea | 0x0023      // 0xA023 E-Inter-Area-Prefix-LSA
+	LSTypeEASExternal      LSType = lsTypeUBit | scopeBitsAS | 0x0025        // 0xC025 E-AS-External-LSA
+	LSTypeEType7           LSType = lsTypeUBit | scopeBitsArea | 0x0027      // 0xA027 E-Type-7-LSA (NSSA area)
+	LSTypeELink            LSType = lsTypeUBit | scopeBitsLinkLocal | 0x0028 // 0x8028 E-Link-LSA
+	LSTypeEIntraAreaPrefix LSType = lsTypeUBit | scopeBitsArea | 0x0029      // 0xA029 E-Intra-Area-Prefix-LSA
 )
 
 // RIFunctionCode is the RFC 7770 §2.2 / §5.2 OSPFv3 LSA function code for the Router
