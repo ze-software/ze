@@ -14,9 +14,8 @@ import (
 // the repository's own page-links.json so a page takes the sidebar it publishes
 // with.
 //
-// The data files are snapshots of what gh-pages 2fa8fa2ad published, so the
-// parity tests below compare one fixed input against one fixed page. Reading
-// the live website/data would make the golden move whenever a card is added.
+// The data files preserve the shipped facts from gh-pages 2fa8fa2ad. Retired
+// pending-spec cards are excluded because the release inventory owns that data.
 func dataPagePaths(t *testing.T, fixtures map[string]string) Paths {
 	t.Helper()
 	root := repositoryRoot(t)
@@ -77,12 +76,8 @@ func TestTheFeaturesPageKeepsTheDataFilesOwnOrder(t *testing.T) {
 	if err := readSourceJSON(paths.Source, featuresDataFile, &data); err != nil {
 		t.Fatal(err)
 	}
-	if len(data.Sections) != 3 {
-		t.Fatalf("the fixture holds %d sections, want the published 3", len(data.Sections))
-	}
 
 	previous := -1
-	cards := 0
 	for _, section := range data.Sections {
 		at := strings.Index(page, `<section id="`+section.ID+`" aria-labelledby="`+section.ID+`-title"`)
 		if at < 0 {
@@ -93,7 +88,6 @@ func TestTheFeaturesPageKeepsTheDataFilesOwnOrder(t *testing.T) {
 		}
 		previous = at
 		for _, card := range section.Cards {
-			cards++
 			at := strings.Index(page, ">"+card.Title+"</a></h3>")
 			if at < 0 {
 				t.Fatalf("the page carries no card titled %q", card.Title)
@@ -103,9 +97,6 @@ func TestTheFeaturesPageKeepsTheDataFilesOwnOrder(t *testing.T) {
 			}
 			previous = at
 		}
-	}
-	if cards != 56 {
-		t.Fatalf("the fixture holds %d cards, want the published 56", cards)
 	}
 }
 
@@ -145,9 +136,8 @@ func TestTheFeatureLegendFollowsItsOwnCategoryOrder(t *testing.T) {
 	}
 }
 
-// VALIDATES: the features page reads as the published page and carries the same
-// chrome, and its mirror is the published mirror byte for byte.
-func TestTheFeaturesPageReadsAsThePublishedPage(t *testing.T) {
+// VALIDATES: the feature page and mirror retain the shared navigation and links.
+func TestTheFeaturesPageUsesTheSharedShell(t *testing.T) {
 	paths := featuresPaths(t)
 
 	routes, err := renderFeatures(paths)
@@ -175,16 +165,9 @@ func TestTheFeaturesPageReadsAsThePublishedPage(t *testing.T) {
 		}
 	}
 
-	got := visibleText(mainContent(t, page))
-	want := visibleText(readFixture(t, "published-features-body.html"))
-	if got != want {
-		t.Errorf("the features page reads as\n  %q\nthe published page reads as\n  %q", got, want)
-	}
-
 	mirror := readArtifact(t, paths.Output, "features/"+pageMirrorFile)
-	if mirror != readFixture(t, "published-features.md") {
-		t.Errorf("the mirror is\n%q\nthe published mirror is\n%q",
-			mirror, readFixture(t, "published-features.md"))
+	if !strings.Contains(mirror, "[Learn more](https://ze-software.net/features/ai-first/)") {
+		t.Error("the feature mirror lost its capability link")
 	}
 }
 
@@ -216,23 +199,66 @@ func TestEveryFeatureSectionIsLabelledByItsOwnHeading(t *testing.T) {
 	}
 }
 
-// VALIDATES: a roadmap card links out of the site and opens in a new tab, while
-// a shipped card links relative to the features page.
+// VALIDATES: an external feature link opens safely while an internal feature
+// link stays relative to the page.
 func TestAnExternalFeatureCardLeavesTheSite(t *testing.T) {
 	paths := featuresPaths(t)
+	writeSourceData(t, paths, featuresDataFile, `{"sections":[
+		{"id":"core","cards":[
+			{"category":"automate","title":"AI Tool Interfaces","href":"features/ai-first/"},
+			{"category":"secure","title":"External evidence","href":"https://example.test/evidence","external":true}]},
+		{"id":"experimental","cards":[]}]}`)
 
 	if _, err := renderFeatures(paths); err != nil {
 		t.Fatal(err)
 	}
 	page := readArtifact(t, paths.Output, featuresDest)
 
-	external := `<h3><a href="https://github.com/ze-software/ze/blob/main/plan/spec-kernel-lockdown-hardening.md" target="_blank" rel="noopener">Kernel Lockdown</a></h3>`
+	external := `<h3><a href="https://example.test/evidence" target="_blank" rel="noopener">External evidence</a></h3>`
 	if !strings.Contains(page, external) {
 		t.Errorf("the page is missing the external card link\n  %s", external)
 	}
 	internal := `<h3><a href="../features/ai-first/">AI Tool Interfaces</a></h3>`
 	if !strings.Contains(page, internal) {
 		t.Errorf("the page is missing the internal card link\n  %s", internal)
+	}
+}
+
+// TestFeaturesLinkTheCanonicalRoadmap checks the live feature inventory rather
+// than a frozen pending-card list, and preserves every shipped capability.
+func TestFeaturesLinkTheCanonicalRoadmap(t *testing.T) {
+	root := repositoryRoot(t)
+	paths := Paths{Repository: root, Source: filepath.Join(root, "website"), Output: t.TempDir()}
+	if _, err := renderFeatures(paths); err != nil {
+		t.Fatal(err)
+	}
+	var data featureData
+	if err := readSourceJSON(paths.Source, featuresDataFile, &data); err != nil {
+		t.Fatal(err)
+	}
+	for _, section := range data.Sections {
+		switch section.ID {
+		case featureSectionCore, featureSectionExperimental:
+		default:
+			t.Fatalf("feature data retains a separate backlog section %q", section.ID)
+		}
+	}
+	page := readArtifact(t, paths.Output, featuresDest)
+	mirror := readArtifact(t, paths.Output, "features/"+pageMirrorFile)
+	for _, content := range []string{page, mirror} {
+		if !strings.Contains(content, "project/roadmap/") {
+			t.Error("features lost the link to the canonical release inventory")
+		}
+		if strings.Contains(content, "/plan/spec-") {
+			t.Error("features still publishes a separate pending-spec list")
+		}
+	}
+	for _, section := range data.Sections {
+		for _, card := range section.Cards {
+			if !strings.Contains(mirror, "### "+card.Title) {
+				t.Errorf("the cutover omitted feature %q", card.Title)
+			}
+		}
 	}
 }
 

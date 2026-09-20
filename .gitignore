@@ -17,6 +17,9 @@ tmp/*
 # go test -c / benchmark binaries
 *.test
 
+# Derived committed-tree release inventory.
+/plan/roadmap.md
+
 # Build outputs (kernel, initrd, pxe, ipxe)
 build/
 

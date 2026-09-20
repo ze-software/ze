@@ -362,6 +362,7 @@ disagree, the manifest is right and the row is stale.
 | `./le spec citation` | `internal/le/spec/citation.Answer` | a plan/spec-*.md citing a sibling spec absent on disk fails, unless the target is grandfathered in plan/.citation-baseline; a path:line citation whose backtick-quoted token drifted off that line warns |
 | `./le spec session` | `internal/le/spec/session.Answer` | spec ownership, per-spec state paths, transcript model facts, and independent review artifacts |
 | `./le spec status` | `internal/le/spec/status.Answer` | the spec inventory: status, bucket and stale-skeleton flag for every plan/spec-*.md |
+| `./le spec roadmap` | `internal/le/spec/roadmap.Answer` | release roadmap and release progress: committed inventory preview, derived plan index, and pinned endpoint evidence for weekly news |
 | `./le staticcheck-feature-matrix` | `internal/le/staticcheckfeaturematrix.Answer` | the tree type-checks in every feature-tag combination Ze can be built in, so a package the default build compiles out is judged too |
 | `./le ste` | `internal/le/ste.Answer` | the repository's writing, against ASD-STE100 Simplified Technical English: review every surface, and gate each changed file against its own HEAD version |
 | `./le stress-repro` | `internal/le/stressrepro.Answer` | reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure |

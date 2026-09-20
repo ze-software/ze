@@ -449,7 +449,7 @@ func renderComponent(tag, inner string, classes []string) string {
 			return ""
 		}
 		return "- " + mirrorLabelValue.ReplaceAllStringFunc(text, labelValueColon) + "\n"
-	case hasAnyClass(classes, "chip", "tag", "card-label", "roadmap-chip"):
+	case hasAnyClass(classes, "chip", "tag", "card-label"):
 		if text == "" {
 			return ""
 		}

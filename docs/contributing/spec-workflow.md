@@ -42,6 +42,36 @@ validates it on every write.
 `./le spec status` prints the whole inventory, and `./le spec status | json`
 gives the machine-readable form.
 
+## Committed release roadmap
+
+`./le spec roadmap list [revision <ref>]` reads a committed Git tree. The default
+is `HEAD`, resolved once to a full commit ID. JSON, YAML, and table pipes expose
+the same typed snapshot, including its input digest and diagnostics.
+`./le spec status` continues to describe the filesystem inventory.
+<!-- source: internal/le/spec/roadmap/roadmap.go -- Collect -->
+
+`./le spec roadmap update [revision <ref>]` writes the derived, untracked
+`plan/roadmap.md` with relative source links. Historical updates are labeled.
+The derived-artifact freshness check compares the recorded revision with `HEAD`;
+a commit therefore requires regeneration. Pending edits appear only after commit.
+<!-- source: internal/le/spec/roadmap/register.go -- Update, indexCurrent -->
+
+The inventory is a preview pending owner classification. Both required buckets
+include every spec, whatever its lifecycle state, and root specs remain optional.
+Missing metadata stays visible with diagnostics; duplicate stems and unreadable
+trees fail. Counts measure spec work items and do not establish release readiness.
+The website consumes this same collector without reading the generated index.
+<!-- source: internal/le/spec/roadmap/roadmap.go -- Collect, Snapshot -->
+
+`./le spec roadmap compare from <ref> to <ref>` returns both pinned snapshots
+and their added, removed, moved, and status-changed items. A move can also change
+status. Removed links point into the earlier commit. This endpoint comparison
+cannot see items added and removed entirely within the interval, and a removal
+alone cannot establish delivered behavior. Weekly drafts retain the full revision
+IDs as `release-from` and `release-to` before approval; source verification remains
+necessary for delivery claims.
+<!-- source: internal/le/spec/roadmap/compare.go -- Compare -->
+
 ## Spec sets
 
 A related set of specs shares a prefix and a number.

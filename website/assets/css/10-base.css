@@ -1718,92 +1718,6 @@ section[aria-labelledby="blog-teaser-title"] {
     background: var(--grape-tint);
 }
 
-
-.roadmap-forward-note {
-    margin: 1.1rem 0 1rem;
-}
-
-.md-content > .roadmap-forward-note,
-.md-content > .roadmap-step-list {
-    max-width: none;
-}
-
-.md-content .roadmap-forward-note p {
-    max-width: 45rem;
-    margin: 0;
-    color: var(--muted);
-    font-weight: 700;
-    line-height: 1.5;
-}
-
-.roadmap-step-list {
-    display: grid;
-    gap: 0.45rem;
-    margin-top: 1.5rem;
-}
-
-.roadmap-step {
-    position: relative;
-    padding: 0.95rem 1rem;
-    border: 1px solid transparent;
-    border-radius: 0.85rem;
-    background: rgba(255, 254, 254, 0.42);
-    transition: background 160ms ease, border-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
-}
-
-.roadmap-step:hover {
-    border-color: var(--line);
-    background: rgba(255, 254, 254, 0.72);
-    box-shadow: var(--clay);
-    transform: translateY(-1px);
-}
-
-.roadmap-step-muted {
-    background: rgba(255, 254, 254, 0.28);
-}
-
-.md-content .roadmap-step h2 {
-    margin: 0;
-    color: var(--text);
-    font-size: 1.12rem;
-    font-weight: 800;
-    line-height: 1.2;
-    letter-spacing: -0.01em;
-}
-
-.md-content .roadmap-step p {
-    max-width: none;
-    margin: 0.3rem 0 0.65rem;
-    color: var(--text);
-    line-height: 1.55;
-}
-
-.roadmap-chip-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-}
-
-.roadmap-chip {
-    display: inline-flex;
-    align-items: center;
-    border: 1px solid currentColor;
-    border-radius: 999px;
-    padding: 0.08rem 0.45rem;
-    font-size: 0.72rem;
-    font-weight: 700;
-    line-height: 1.4;
-    background: rgba(255, 255, 255, 0.7);
-}
-
-.roadmap-chip[data-tone="operate"] { color: var(--sky-deep); background: var(--sky-tint); }
-.roadmap-chip[data-tone="routing"] { color: var(--lemon-deep); background: var(--lemon-tint); }
-.roadmap-chip[data-tone="services"] { color: var(--gold-deep); background: var(--gold-tint); }
-.roadmap-chip[data-tone="automate"] { color: var(--grape-deep); background: var(--grape-tint); }
-.roadmap-chip[data-tone="observe"] { color: var(--mint-deep); background: var(--mint-tint); }
-.roadmap-chip[data-tone="secure"] { color: var(--pink-deep); background: var(--pink-tint); }
-.roadmap-chip[data-tone="platform"] { color: var(--teal-deep); background: var(--teal-tint); }
-.roadmap-chip[data-tone="meta"] { color: var(--muted); background: var(--bg-soft); }
 @media (max-width: 620px) {
     .journey-eyebrow {
         position: relative;
@@ -2384,9 +2298,7 @@ section[aria-labelledby="blog-teaser-title"] {
 
 /*
  * Maturity tiers. Shipped cards are solid clay. Experimental cards keep
- * their tint but wear a dashed border and a status chip. Aspiration
- * cards are blueprints -- dashed outline, no tint, no clay -- for
- * features that exist only as pending specs in the main repo's plan/.
+ * their tint but wear a dashed border and a status chip.
  */
 .card .status {
     display: inline-flex;
@@ -2412,33 +2324,6 @@ section[aria-labelledby="blog-teaser-title"] {
 
 .card.experimental:hover {
     border-color: var(--acc);
-}
-
-.card.aspiration {
-    border: 2px dashed var(--acc);
-    background: rgba(255, 255, 255, 0.4);
-    box-shadow: none;
-}
-
-.card.aspiration:hover {
-    transform: translateY(-2px);
-    border-color: var(--acc);
-    box-shadow: 0 0.6rem 1.4rem -0.8rem var(--acc-glow);
-}
-
-.card.aspiration .cat {
-    border: 2px dashed var(--acc);
-    background: transparent;
-    color: var(--acc-deep);
-    box-shadow: none;
-}
-
-.card.aspiration .chip {
-    background: rgba(255, 255, 255, 0.5);
-}
-
-.card.aspiration li::marker {
-    content: "\25E6  ";
 }
 
 .card p {
@@ -3459,6 +3344,7 @@ footer {
 .md-content li {
     color: var(--muted);
     line-height: 1.75;
+    overflow-wrap: anywhere;
 }
 
 .md-content ul,
@@ -6578,12 +6464,6 @@ body.search-open {
 .card.feature-card.experimental {
     border-style: dotted;
     border-color: var(--acc);
-}
-
-.card.feature-card.aspiration {
-    border: 2px dashed var(--acc);
-    background: var(--glass-surface);
-    box-shadow: none;
 }
 
 .card.feature-card .status {

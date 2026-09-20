@@ -100,6 +100,24 @@ nothing in that file says where the number came from.
 7. Make the check judge a commit, and compare what a reader sees rather than
    what the tool counted.
 
+## Release inventory
+
+The release roadmap derives directly from an immutable Git tree. On every full
+or partial site build, `renderRoadmap` calls the shared spec collector once at
+committed `HEAD`. That snapshot supplies the page, its Markdown mirror, and
+`data/release-roadmap.json`. The JSON carries its own input digest and full
+revision, because the site's website-only source digest does not cover `plan/`.
+<!-- source: internal/le/site/roadmap.go -- renderRoadmap -->
+<!-- source: internal/le/spec/roadmap/roadmap.go -- Collect -->
+
+Uncommitted edits and untracked specs cannot enter that inventory. Missing
+history or an unreadable plan tree stops the build. The output remains an
+inventory preview pending owner classification, and counts include each
+recorded spec regardless of lifecycle state. A deletion alone supplies no
+evidence of delivery. This separate provenance boundary leaves `repo-facts.json`
+and its existing update/check gate unchanged.
+<!-- source: internal/le/spec/roadmap/roadmap.go -- Collect -->
+
 ## Related
 
 - `plan/journal/concurrent-session-corruption.md` -- the class, and its count

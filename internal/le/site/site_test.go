@@ -235,6 +235,7 @@ func TestBuildStagesADeployableArtifact(t *testing.T) {
 			t.Fatalf("git %v: %v: %s", arguments, err, output)
 		}
 	}
+	commitSiteFixture(t, root)
 	output := filepath.Join(parent, "artifact")
 	report, err := Build(BuildOptions{Repository: root, Output: output})
 	if err != nil {

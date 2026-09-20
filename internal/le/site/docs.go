@@ -168,20 +168,20 @@ func newDocsRenderer(paths Paths) (*docsRenderer, error) {
 	return &docsRenderer{paths: paths, links: links, manifest: manifest, tokens: tokens, demos: newDemoCatalog(paths)}, nil
 }
 
-// render publishes one page: its HTML, its Markdown mirror, and the images it
-// references from beside its source.
-//
-// The passes run in the order the retired renderer ran them, and the order is
-// load-bearing twice. The mirror is converted back from the body BEFORE the
-// terminal demos expand, so a demo reaches the mirror as Markdown rather than
-// as the player's markup. The contents list is spliced LAST, so it lands after
-// the hero the journey pass wrote rather than inside it.
+// render reads a page's source before publishing through the shared renderer.
 func (renderer *docsRenderer) render(page sitePage) error {
-	sourcePath := filepath.Join(renderer.paths.Repository, filepath.FromSlash(page.Source))
 	source, err := docsSourceText(renderer.paths.Repository, page.Source)
 	if err != nil {
 		return err
 	}
+	return renderer.renderSource(page, source)
+}
+
+// renderSource publishes authored or generated Markdown with the same shell,
+// link passes, table controls, and mirror. A generated caller supplies the bytes
+// from its own snapshot rather than materializing a second source on disk.
+func (renderer *docsRenderer) renderSource(page sitePage, source []byte) error {
+	sourcePath := filepath.Join(renderer.paths.Repository, filepath.FromSlash(page.Source))
 	metadata, body, err := parseFrontMatter(source)
 	if err != nil {
 		return err

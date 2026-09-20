@@ -1076,7 +1076,6 @@
     :root[data-theme="dark"] .audience-card,
     :root[data-theme="dark"] .faq-card,
     :root[data-theme="dark"] .timeline-content,
-    :root[data-theme="dark"] .roadmap-item,
     :root[data-theme="dark"] .milestone-card {
         border-color: var(--glass-border);
         background-color: var(--panel);
@@ -1099,8 +1098,7 @@
 
     :root[data-theme="dark"] .card code,
     :root[data-theme="dark"] .chip:not(.mode),
-    :root[data-theme="dark"] .legend-count,
-    :root[data-theme="dark"] .roadmap-chip {
+    :root[data-theme="dark"] .legend-count {
         background-color: var(--glass-surface);
     }
 

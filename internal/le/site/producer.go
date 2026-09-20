@@ -127,6 +127,7 @@ var namedArtifacts = []string{
 	pluginFile,
 	rfcComplianceSnapshot,
 	rfcLedgerFile,
+	roadmapDataFile,
 	robotsFile,
 	searchIndexFile,
 	sitemapFile,

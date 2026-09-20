@@ -31,6 +31,29 @@ directory and checks there rather than writing over the published tree.
 
 See `website/AI.md` for the full reference: structure, tools, and how to add a talk.
 
+## Release roadmap
+
+`/project/roadmap/` is generated from committed `HEAD` on every full or partial
+build. The `roadmap` producer calls the shared spec collector once and renders
+its Markdown through the docs renderer. The page, `index.md`, and
+`data/release-roadmap.json` describe that same snapshot. The JSON records the
+schema version, full revision, and digest of the plan inputs.
+<!-- source: internal/le/site/roadmap.go -- renderRoadmap -->
+
+The output is an inventory preview pending owner classification. It includes
+both required buckets and the root nice-to-have bucket, including unknown
+metadata and parked states. Counts measure release work items and do not prove
+readiness or delivery. Pending edits appear after commit and regeneration.
+The feature page links this inventory rather than maintaining pending cards.
+<!-- source: internal/le/spec/roadmap/roadmap.go -- Collect -->
+<!-- source: internal/le/site/datapages.go -- featuresBody, featuresMirror -->
+
+The build does not read a local `plan/roadmap.md`. Source links name the selected
+commit, and an unreadable or missing `plan/` stops the build. Verify privately
+with `./le site build output <session-scratch-directory>`, then inspect the
+roadmap with JavaScript disabled and a narrow viewport.
+<!-- source: internal/le/site/roadmap.go -- renderRoadmap -->
+
 
 ## Plugin catalog
 

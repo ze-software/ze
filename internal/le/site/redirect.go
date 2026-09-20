@@ -125,7 +125,7 @@ var movedRoutes = []legacyRoute{
 	{From: "milestones", To: "project/milestones"},
 	{From: "presentations/linx-2026-06", To: "talks/linx-2026-06"},
 	{From: "presentations/netmcr-2026-04", To: "talks/netmcr-2026-04"},
-	{From: "roadmap", To: "project/roadmap"},
+	{From: roadmapName, To: "project/roadmap"},
 	{From: "why-ze", To: "project/why-ze"},
 }
 

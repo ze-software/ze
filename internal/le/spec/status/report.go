@@ -22,6 +22,8 @@ import (
 // Spec is one row of the inventory.
 type Spec struct {
 	Name        string `json:"name"`
+	Title       string `json:"title"`
+	Path        string `json:"path"`
 	Status      string `json:"status"`
 	Depends     string `json:"depends"`
 	Phase       string `json:"phase"`
@@ -99,17 +101,18 @@ func statusPhrases(counts map[string]int) []string {
 // categories splits the inventory three ways and counts the flagged skeletons.
 // Specs arrive sorted by status order, so each category stays ordered.
 func (in Inventory) categories() (backlog, ideas, other Inventory, stale int) {
-	for _, s := range in {
+	for i := range in {
+		s := &in[i]
 		switch s.Category {
 		case Backlog:
-			backlog = append(backlog, s)
+			backlog = append(backlog, *s)
 		case Idea:
-			ideas = append(ideas, s)
+			ideas = append(ideas, *s)
 			if s.Stale {
 				stale++
 			}
 		default:
-			other = append(other, s)
+			other = append(other, *s)
 		}
 	}
 	return backlog, ideas, other, stale
@@ -135,8 +138,8 @@ const (
 // the engine and reads the rows above.
 func (in Inventory) Text() string {
 	counts := map[string]int{}
-	for _, s := range in {
-		counts[s.Status]++
+	for i := range in {
+		counts[in[i].Status]++
 	}
 
 	var tb textbuf.Buffer
@@ -174,7 +177,8 @@ func categorySection(tb *textbuf.Buffer, title string, rows Inventory) {
 		dashes(colFlag), dashes(colBucket), dashes(colStatus), dashes(colUpdated),
 		dashes(colSpec), dashes(colPhase), dashes(colSet), dashes(colDepends),
 	)
-	for _, s := range rows {
+	for i := range rows {
+		s := &rows[i]
 		flag := ""
 		if s.Stale {
 			flag = "STALE"

@@ -97,7 +97,7 @@ func writeLLMSProductSnapshot(out *textbuf.Buffer, inputs *llmsInputs) {
 	out.Str("- License and repos: AGPLv3. Canonical repository: ").Str(repositoryURL).Str(". Discord: ").
 		Str(discordInvite).Str(".\n")
 	out.Str("- Current generated counts: ").Int(int64(facts.Features.CoreExperimental)).
-		Str(" shipped or experimental feature cards, ").Int(int64(facts.Features.Planned)).Str(" roadmap cards, ").
+		Str(" shipped or experimental feature cards, ").
 		Int(int64(facts.CLICommands)).Str(" CLI commands, ").Int(int64(facts.ConfigSections)).
 		Str(" config sections, ").Int(int64(len(inputs.Plugins))).Str(" plugin registrations, ").
 		Int(int64(facts.Dependencies)).Str(" direct Go dependencies, ").Int(int64(facts.Changes)).
@@ -106,6 +106,9 @@ func writeLLMSProductSnapshot(out *textbuf.Buffer, inputs *llmsInputs) {
 		Str(" fuzz targets, ").Str(facts.Tests.E2EDisplay).Str(" end-to-end transcript steps, ").
 		Int(int64(facts.Interop.Scenarios)).Str(" interop scenarios across ").Str(facts.Interop.TargetDisplay).
 		Str(" target implementations.\n")
+	out.Str("- Release inventory preview pending owner classification: [roadmap](").
+		Str(siteBase).Str("project/roadmap/index.md), [snapshot JSON](").
+		Str(siteBase).Str(roadmapDataFile).Str(").\n")
 	out.Str("- Generated date: ").Str(facts.GeneratedAt).Str(".\n\n")
 }
 

@@ -168,9 +168,8 @@ func metaField(rows []string, field string) string {
 	return ""
 }
 
-// statusOrder returns the sort key for a status (lower = sorted first). A
-// status named nowhere here sorts last, and it is still counted and printed.
-func statusOrder(status string) int {
+// StatusOrder returns the shared inventory sort key. Unrecognized states sort last.
+func StatusOrder(status string) int {
 	switch status {
 	case statusUnparsed:
 		// Sorted first: a spec the inventory cannot read is the one row a
@@ -239,6 +238,20 @@ func loadSpec(ctx context.Context, root, rel string, warn func(string)) (Spec, e
 	if err != nil {
 		return Spec{}, err
 	}
+	s, err := Parse(data, rel, warn)
+	if err != nil {
+		return Spec{}, err
+	}
+	s.GitModified = gitDate(ctx, root, rel)
+	if s.Updated == "" {
+		s.Updated = s.GitModified
+	}
+	return s, nil
+}
+
+// Parse reads metadata from source bytes without consulting the filesystem or clock.
+// Missing dates remain empty so historical callers cannot invent current dates.
+func Parse(data []byte, rel string, warn func(string)) (Spec, error) {
 	content := string(data)
 	base := path.Base(rel)
 	name := specpath.Stem(base)
@@ -253,22 +266,33 @@ func loadSpec(ctx context.Context, root, rel string, warn func(string)) (Spec, e
 
 	rows, found := metaRows(content)
 	s := Spec{
-		Name:        name,
-		Bucket:      bucket,
-		Status:      metaField(rows, "Status"),
-		Depends:     metaField(rows, "Depends"),
-		Phase:       metaField(rows, "Phase"),
-		Updated:     metaField(rows, "Updated"),
-		Set:         detectSet(base),
-		GitModified: gitDate(ctx, root, rel),
+		Name:    name,
+		Path:    rel,
+		Bucket:  bucket,
+		Status:  metaField(rows, "Status"),
+		Depends: metaField(rows, "Depends"),
+		Phase:   metaField(rows, "Phase"),
+		Updated: metaField(rows, "Updated"),
+		Set:     detectSet(base),
+	}
+	for line := range strings.SplitSeq(content, "\n") {
+		if strings.HasPrefix(line, "## ") {
+			break
+		}
+		if title, ok := strings.CutPrefix(line, "# Spec:"); ok {
+			s.Title = strings.TrimSpace(title)
+			break
+		}
 	}
 	// Fail closed: a spec with no metadata table at all is an authoring error,
 	// not a spec whose Status row is merely absent. Reporting both as "unknown"
 	// dresses a zero-information answer as data, so the two are kept distinct
 	// and the unreadable one names itself.
 	if !found {
-		var tb textbuf.Buffer
-		warn(tb.Str("spec-status: ").Str(rel).Str(" has no '| Field | Value |' metadata table").String())
+		if warn != nil {
+			var tb textbuf.Buffer
+			warn(tb.Str("spec-status: ").Str(rel).Str(" has no '| Field | Value |' metadata table").String())
+		}
 		s.Status = statusUnparsed
 	}
 	if s.Status == "" {
@@ -279,9 +303,6 @@ func loadSpec(ctx context.Context, root, rel string, warn func(string)) (Spec, e
 	}
 	if s.Phase == "" {
 		s.Phase = "-"
-	}
-	if s.Updated == "" {
-		s.Updated = s.GitModified
 	}
 	return s, nil
 }
@@ -365,7 +386,7 @@ func Collect(ctx context.Context, root string, now time.Time, warn func(string))
 		specs[i].Stale = specs[i].Category == Idea && skeletonStale(specs[i].Updated, now)
 	}
 	sort.SliceStable(specs, func(i, j int) bool {
-		oi, oj := statusOrder(specs[i].Status), statusOrder(specs[j].Status)
+		oi, oj := StatusOrder(specs[i].Status), StatusOrder(specs[j].Status)
 		if oi != oj {
 			return oi < oj
 		}

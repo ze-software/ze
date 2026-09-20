@@ -25,7 +25,7 @@ func llmsPaths(t *testing.T) Paths {
 			filepath.Join(paths.Output, filepath.FromSlash(name)))
 	}
 	writeArtifactFile(t, paths.Output, factsFile, `{"cli_commands":402,"config_sections":36,
-		"dependencies":42,"changes":37,"features":{"core_experimental":52,"planned":4},
+		"dependencies":42,"changes":37,"features":{"core_experimental":52},
 		"tests":{"unit_display":"23,700+","fuzz_display":"78","e2e_display":"1,700+"},
 		"interop":{"scenarios":130,"target_display":"9"},"generated_at":"2026-08-27"}`)
 	writeArtifactFile(t, paths.Output, pluginFile, `[{"name":"bfd",
@@ -96,7 +96,7 @@ func TestEachLLMSSectionCarriesItsOwnInput(t *testing.T) {
 	content := readArtifact(t, paths.Output, llmsFile)
 
 	for _, fact := range []struct{ section, evidence string }{
-		{"Product snapshot", "52 shipped or experimental feature cards, 4 roadmap cards, 402 CLI commands"},
+		{"Product snapshot", "52 shipped or experimental feature cards, 402 CLI commands"},
 		{"Quality and verification model", "`./le verify worktree` runs the whole native verification"},
 		{"Comparison positioning", "Ze is compared with VyOS and freeRtr"},
 		{"Feature inventory", "- AI Tool Interfaces [automate, current]: chips: MCP"},
@@ -122,7 +122,7 @@ func TestEachLLMSSectionCarriesItsOwnInput(t *testing.T) {
 func TestThePageMapTakesItsCountsFromTheFactsSnapshot(t *testing.T) {
 	paths := llmsPaths(t)
 	writeArtifactFile(t, paths.Output, factsFile, `{"cli_commands":7,"config_sections":36,
-		"dependencies":3,"changes":9,"features":{"core_experimental":5,"planned":4},
+		"dependencies":3,"changes":9,"features":{"core_experimental":5},
 		"tests":{"unit_display":"1","fuzz_display":"2","e2e_display":"3"},
 		"interop":{"scenarios":4,"target_display":"5"},"generated_at":"2026-08-27"}`)
 

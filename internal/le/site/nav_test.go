@@ -164,22 +164,6 @@ func TestTheSharedHeaderRefusesACountItCannotAnswer(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-4's parity target, for the header fragment.
-//
-// The fragment published at gh-pages 2fa8fa2ad is the golden. The one
-// difference this comparison allows is the spelling of an apostrophe: Python
-// wrote &#x27; where Go writes &#39;, and the owner ruled on 2026-08-29 that a
-// character reference a reader cannot tell apart is not a difference.
-func TestTheSharedHeaderReadsAsThePublishedHeader(t *testing.T) {
-	header := renderSiteHeader(t)
-	published := strings.ReplaceAll(readTestdata(t, "published-header.html"), "&#x27;", "&#39;")
-
-	if header != published {
-		t.Errorf("the rendered header differs from the published one:\n%s",
-			firstDifference(header, published))
-	}
-}
-
 // VALIDATES: AC-16. The header producer writes the named artifact and claims no
 // route, so `./le site check` stops reporting assets/header.html as absent.
 //

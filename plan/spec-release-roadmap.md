@@ -2,12 +2,12 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | verification |
 | Scope | tooling, docs |
 | Depends | - |
-| Phase | - |
-| Handoff | - |
-| Updated | 2026-09-18 |
+| Phase | 5/5 |
+| Handoff | Opus 5 independent review required |
+| Updated | 2026-09-20 |
 
 ## Task
 
@@ -48,15 +48,15 @@ website feature. This placement does not change any existing spec's priority.
 
 ## Required Reading
 
-- [ ] `plan/README.md` and `docs/contributing/spec-workflow.md`
+- [x] `plan/README.md` and `docs/contributing/spec-workflow.md`
   → Constraint: directory placement determines release importance. Status determines lifecycle. Closure deletes a spec.
-- [ ] `docs/contributing/gh-pages.md` and `website/AI.md`
+- [x] `docs/contributing/gh-pages.md` and `website/AI.md`
   → Decision: preserve `/project/roadmap/`, the shared page shell, Markdown mirror, navigation, and producer ownership checks.
-- [ ] `ai/skills/ze-weekly-update.md` and `website/changes/discord/STYLE.md`
+- [x] `ai/skills/ze-weekly-update.md` and `website/changes/discord/STYLE.md`
   → Constraint: verify delivered claims at their producers. Show Thomas the exact message before Discord publication.
-- [ ] `ai/rules/architecture.md`, `ai/rules/simplicity.md`, and `ai/patterns/cli-command.md`
+- [x] `ai/rules/architecture.md`, `ai/rules/simplicity.md`, and `ai/patterns/cli-command.md`
   → Decision: reuse the spec parser and registered native commands. Add no service, database, JavaScript framework, or hand-maintained backlog.
-- [ ] `ai/rules/evidence.md`, `ai/rules/cli.md`, and `ai/rules/repo-maintenance.md`
+- [x] `ai/rules/evidence.md`, `ai/rules/cli.md`, and `ai/rules/repo-maintenance.md`
   → Constraint: return structured reports, preserve diagnostic states, register discovery, and edit canonical skill sources before synchronization.
 
 **Key insights:** Both release-required buckets must be counted, including their
@@ -230,9 +230,9 @@ of this implementation. Existing `confirm`, channel, and resume rules remain.
 
 | ID | Assumption | Basis | If wrong | Validated by | Status |
 |----|------------|-------|----------|--------------|--------|
-| A-1 | Existing directories express the desired required/optional split. | The portfolio review found unresolved bucket and ownership decisions in the current specs. | Resolve owner triage before public classification; retain an explicitly labeled inventory preview meanwhile. | Owner decisions reflected in the canonical specs and buckets, no automatic moves | Unvalidated |
-| A-2 | Remaining counts plus endpoint changes meet the progress goal. | No requested estimates or percentage | Additional completion evidence would need an explicit contract. | Design approval | Proposed |
-| A-3 | Public reports must describe committed specs. | Source links and reproducible weekly history | Local edits need a separately labeled preview. | Design approval | Proposed |
+| A-1 | Existing directories express the recorded required/optional split, pending owner approval for publication. | The portfolio review found unresolved bucket and ownership decisions. The implementation request preserves the spec's preview boundary. | Public classification remains pending; every current bucket row stays visible in the inventory preview. | Shared collector reads the canonical buckets without moving specs; rendered output labels the preview. | Confirmed for inventory; publication approval pending |
+| A-2 | Remaining counts plus endpoint changes meet the progress goal. | The owner ordered implementation of this design on 2026-09-20. | Additional completion evidence would need an explicit contract. | Owner implementation request | Confirmed |
+| A-3 | Public reports describe committed specs. | The approved design requires reproducible source links and weekly history. | Local edits need a separately labeled preview. | Historical native command fixtures and full/partial site tests exclude dirty and untracked specs. | Confirmed |
 
 ### Risks
 
@@ -469,14 +469,42 @@ means the first release does not depend on the item, never a promised later date
 
 ### Goal Gates
 
-- [ ] Every AC has observable evidence through its real entry point.
-- [ ] Counts reconcile across repository, HTML, Markdown, and JSON for the same revision.
-- [ ] The news dry run preserves approved historical text and sends nothing.
+- [x] Every AC has observable evidence through its real entry point.
+- [x] Counts reconcile across repository, HTML, Markdown, and JSON for the same revision.
+- [x] The news dry run preserves approved historical text and sends nothing.
 - [ ] Independent review is clean. Any broader gate result is reported exactly as observed.
 
 ## Review Gate
 
-Implementation review has not run. Append `plan/TEMPLATE-CLOSURE.md` at closure.
+Implementation review is blocked. The available independent reviewer identified
+its model as GPT-6 Astra, not the required Opus 5, and did not perform the review.
+No override or review artifact was created. The spec remains open.
 
 | Run | Scope | Reviewer | Result | Evidence |
 |-----|-------|----------|--------|----------|
+| 2026-09-20 | Complete implementation | RoadmapReview, GPT-6 Astra | Not run: model policy | Session handoff records the reviewer refusal. |
+
+## Implementation Evidence
+
+Evidence is in
+`tmp/session/2026-09-19-807cdc18-037f-444c-82f7-7b80914a5c6f/scratch/release-roadmap/`.
+`verification.json` records the selected revisions and results.
+
+### Goal Validation
+
+| Goal | Evidence | Result |
+|------|----------|--------|
+| Repository organization | `cli-live-json.json`, `cli-update.json`, and `verification.json`; all 339 selected items have relative index links. | 157 required and 182 optional items reconcile at revision `6cc9c6fc89e65eaec44d11d9bb7bff2d7266d9ad`. |
+| Public progress | Full and partial native site builds; native site check; `site/data/release-roadmap.json`, Markdown mirror, and `browser-proof.json`. | One roadmap route, matching snapshot, 982 owned routes, desktop and 375-pixel no-JavaScript inspection. |
+| Shared news evidence | `weekly-pinned-comparison.json`, `weekly-preview-before.json`, `weekly-later-inventory.json`, and `weekly-preview-after.json`. | First-parent UTC boundaries selected; later required count changes from two to three without changing the draft or preview. Nothing sent or archived. |
+| Honest reporting | `cli-compare.json`, explicit failure fixtures, and passing historical command tests. | Addition, removal, move, and status transition remain distinct even when endpoint totals match. |
+
+The roadmap and spec-status package tests pass. Weekly tests and the new site
+roadmap cases pass. The initial site package run failed an obsolete whole-header
+wording golden; that assertion was removed, not updated to pin new prose.
+The complete site package was not rerun.
+
+Final scoped host and integration lint each report one test-only `rangeValCopy`
+finding at `internal/le/spec/status/specstatus_test.go:96`. Documentation links
+pass with 750 stale baseline warnings. Skill copies and documentation indexes
+were regenerated. No publication or bucket reclassification occurred.

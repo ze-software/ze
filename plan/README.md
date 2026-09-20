@@ -9,11 +9,11 @@ A spec's directory says what it costs the FIRST RELEASE to leave it undone. The
 test is a question about the shipped binary, never about how far along the work
 is: a `skeleton` in `immediate/` outranks an `in-progress` spec here.
 
-| Directory | The test it passes | Count on 2026-09-05 |
-|-----------|--------------------|---------------------|
-| `plan/immediate/` | An operator on the first release meets this as a bug or a missing answer | 77 |
-| `plan/pre-release/` | No operator meets it, but the release cannot go out until it is done | 27 |
-| `plan/` (this level) | The release goes out without it | 173 |
+| Directory | The test it passes |
+|-----------|--------------------|
+| `plan/immediate/` | An operator on the first release meets this as a bug or a missing answer |
+| `plan/pre-release/` | No operator meets it, but the release cannot go out until it is done |
+| `plan/` (this level) | The release goes out without it |
 
 `immediate/` is wire correctness, config fidelity, authentication, routing
 correctness, a crash, and a CLI surface that answers wrongly. `pre-release/` is
@@ -28,12 +28,36 @@ A spec moves between buckets when the owner re-reads the test above, and the mov
 is a relocation rather than a closure. `./le commit create` enforces that
 difference, so a triage sweep cannot bank a closure it did not earn.
 
+## Release inventory
+
+`./le spec roadmap update` generates the untracked `plan/roadmap.md` index from
+committed `HEAD`. `./le spec roadmap list | json` returns the same inventory,
+and `./le spec roadmap compare from <ref> to <ref>` reports endpoint changes.
+Use `revision <ref>` after `list` or `update` to select a historical snapshot.
+Pending edits appear after commit and regeneration.
+
+The report is an inventory preview pending owner classification. Bucket and
+ownership decisions must be resolved before public classification. The collector
+preserves every bucket assignment and counts blocked, deferred, skeleton, and
+malformed specs. Counts measure work items; they estimate neither effort nor
+release readiness. `verification` remains open.
+
+The endpoint comparison separates moves, status changes, additions, and removals.
+A removal needs source verification before it supports a delivered claim. Items
+added and removed entirely between endpoints do not appear in the comparison.
+
+Release preparation includes hardening, race and security fixes, and evidence
+from production traffic on real hardware. Configuration syntax must stabilize;
+changes need automatic migration or a clear error. Upgrade paths follow the first
+release. Optional specs can remain open when the release ships.
+
 ## Contents
 
 | File | Purpose |
 |------|---------|
 | `spec-<name>.md` | One spec per work item, status in its header table |
 | `immediate/`, `pre-release/` | The two buckets above, same spec format |
+| `roadmap.md` | Generated committed-tree inventory; regenerate with `./le spec roadmap update` |
 | `TEMPLATE.md` | Design-time spec format: everything that must exist BEFORE code |
 | `TEMPLATE-CLOSURE.md` | Closure sections, appended by `/ze-close` at step 1 |
 | `journal/` | One file per problem class, one row per occurrence (`plan/journal/README.md`) |

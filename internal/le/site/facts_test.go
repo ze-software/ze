@@ -41,8 +41,7 @@ func factsFixture(t *testing.T) Paths {
 	}`)
 	writeFixtureFile(t, filepath.Join(source, "data", "features.json"), `{"sections":[
 	  {"id":"core","cards":[{"category":"routing"},{"category":"operate"},{"category":"secure"}]},
-	  {"id":"experimental","cards":[{"category":"observe"}]},
-	  {"id":"roadmap","cards":[{"category":"platform"},{"category":"automate"}]}
+	  {"id":"experimental","cards":[{"category":"observe"}]}
 	]}`)
 	writeFixtureFile(t, filepath.Join(source, "blog", "posts", "one.md"), "# One\n")
 	writeFixtureFile(t, filepath.Join(source, "changes", "posts", "2026-08-17.md"), "# Week\n")
@@ -155,11 +154,8 @@ func deriveFixtureFacts(t *testing.T) siteFacts {
 // VALIDATES: the snapshot states every key the published contract names, so a
 // page reading one of them meets a number rather than an absent field.
 //
-// The contract is the file the site published at gh-pages 2fa8fa2ad, not the
-// retired script: that script never wrote the _sources entry naming
-// website/data/repo-facts.json, so the last publish ran a version of it nobody
-// committed. The VALUES are re-derived from the tree and are expected to differ
-// from the published ones; the SHAPE is what binds.
+// The shape follows the published snapshot, with pending-card counts retired
+// in favor of the committed release inventory. Values come from their producers.
 func TestTheFactsSnapshotStatesEveryKeyTheContractNames(t *testing.T) {
 	facts, err := deriveSiteFacts(factsFixture(t))
 	if err != nil {
@@ -181,14 +177,16 @@ func TestTheFactsSnapshotStatesEveryKeyTheContractNames(t *testing.T) {
 	if _, found := written["_sources"]; !found {
 		t.Error("the snapshot states no _sources, so no published number names its producer")
 	}
+	if _, found := factValue(written, "features.planned"); found {
+		t.Error("the snapshot still publishes a separate pending-card count")
+	}
 }
 
-// publishedFactKeys are the dotted keys of every number the published
-// data/site-facts.json carries, taken from gh-pages 2fa8fa2ad.
+// publishedFactKeys names the current published fact contract.
 func publishedFactKeys() []string {
 	return []string{
 		"blog_articles", "changes", "cli_commands", "config_sections", "dependencies",
-		"features.core_experimental", "features.planned",
+		"features.core_experimental",
 		"generated_at", "github_stars", "published_at",
 		"interop.scenario_dirs_raw", "interop.scenarios", "interop.scenarios_display",
 		"interop.target_display", "interop.targets",
@@ -218,7 +216,6 @@ func TestEveryNumberIsTheOneItsInputStates(t *testing.T) {
 		{"config sections", facts.ConfigSections, 2},
 		{"direct dependencies", facts.Dependencies, 2},
 		{"shipped and experimental features", facts.Features.CoreExperimental, 4},
-		{"roadmap features", facts.Features.Planned, 2},
 		{"interop scenarios", facts.Interop.Scenarios, 137},
 		{"interop scenario directories", facts.Interop.ScenarioDirsRaw, 138},
 		{"interop targets", facts.Interop.Targets, 9},
@@ -276,7 +273,7 @@ func TestAFactTheTreeCannotAnswerStopsTheBuild(t *testing.T) {
 		}, "states no requirement"},
 		{"a features file with no shipped section", func(t *testing.T, paths Paths) {
 			writeFixtureFile(t, filepath.Join(paths.Source, "data", "features.json"),
-				`{"sections":[{"id":"roadmap","cards":[{"category":"platform"}]}]}`)
+				`{"sections":[{"id":"core","cards":[]},{"id":"experimental","cards":[]}]}`)
 		}, "no shipped or experimental feature"},
 		{"a blog with no article", func(t *testing.T, paths Paths) {
 			if err := os.Remove(filepath.Join(paths.Source, "blog", "posts", "one.md")); err != nil {
@@ -345,8 +342,8 @@ func TestThisCheckoutCanAnswerEveryPublishedFact(t *testing.T) {
 	t.Logf("tests: unit=%d (%s) e2e=%d (%s) editor=%d (%s) fuzz=%d (%s)",
 		facts.Tests.Unit, facts.Tests.UnitDisplay, facts.Tests.E2E, facts.Tests.E2EDisplay,
 		facts.Tests.Editor, facts.Tests.EditorDisplay, facts.Tests.Fuzz, facts.Tests.FuzzDisplay)
-	t.Logf("other: features=%d/%d changes=%d blog=%d dependencies=%d interop=%d/%d",
-		facts.Features.CoreExperimental, facts.Features.Planned, facts.Changes,
+	t.Logf("other: features=%d changes=%d blog=%d dependencies=%d interop=%d/%d",
+		facts.Features.CoreExperimental, facts.Changes,
 		facts.BlogArticles, facts.Dependencies, facts.Interop.Scenarios, facts.Interop.Targets)
 
 	for _, check := range []struct {

@@ -119,11 +119,10 @@ const (
 	featureSectionExperimental = "experimental"
 )
 
-// featureStatusLabels name the two maturities a card can carry. A card with no
-// status is shipped, takes no badge, and counts as a feature.
+// featureStatusLabels names the experimental maturity. A card with no status
+// is shipped and takes no badge.
 var featureStatusLabels = map[string]string{
 	"experimental": "Experimental",
-	"aspiration":   "Spec'd",
 }
 
 // featureData is data/features.json: an ordered list of sections, each an
@@ -179,7 +178,7 @@ func (card *featureCard) validate(where string) error {
 	}
 	if card.Status != "" {
 		if _, known := featureStatusLabels[card.Status]; !known {
-			return fmt.Errorf("%s: feature card %q states status %q, which is neither experimental nor aspiration",
+			return fmt.Errorf("%s: feature card %q states unknown status %q",
 				where, card.Title, card.Status)
 		}
 	}
@@ -221,8 +220,7 @@ func (data featureData) section(id string) (featureSection, error) {
 	return featureSection{}, fmt.Errorf("data/%s declares no %q section", featuresDataFile, id)
 }
 
-// shippedCards answers the cards the page counts as features: the core and
-// experimental sections, and never the roadmap, whose cards are specs.
+// shippedCards answers the core and experimental feature cards.
 func (data featureData) shippedCards() ([]featureCard, error) {
 	core, err := data.section(featureSectionCore)
 	if err != nil {
@@ -267,7 +265,7 @@ func renderFeatures(paths Paths) ([]string, error) {
 
 	shell := pageShell{
 		Title:       "Features - Ze",
-		Description: "Every shipped feature and the planned roadmap, grouped by maturity and category.",
+		Description: "Shipped and experimental features, grouped by maturity and category.",
 		Root:        featuresRoot,
 		Path:        featuresDest,
 		Sidebar:     pageSidebar(featuresRoot, featuresDest, links),
@@ -290,14 +288,13 @@ func featuresBody(data featureData, shipped []featureCard) string {
 	var body textbuf.Buffer
 	body.Str("            <section aria-labelledby=\"features-title\">\n")
 	body.Str(pageHero("Every feature Ze ships.",
-		strconv.Itoa(len(shipped))+" shipped features plus the planned roadmap.",
+		strconv.Itoa(len(shipped))+" shipped or experimental feature cards.",
 		"Project", ` id="features-title"`, heroClasses)).Byte('\n')
 	body.Str("                <div class=\"section-note reveal\">\n")
 	body.Str("                    <p>Each card&#39;s color is its category: how the feature fits ").
-		Str("into the system. Solid cards are shipped; dashed cards are experimental; blueprint cards ").
-		Str("at the bottom are specs, not code. Everything shipped runs in both daemon and appliance ").
-		Str("modes unless a card says otherwise. Click a category to filter, click again to show ").
-		Str("everything.</p>\n")
+		Str("into the system. Solid cards are shipped and dashed cards are experimental. ").
+		Str("Everything shipped runs in both daemon and appliance modes unless a card says otherwise. ").
+		Str("Click a category to filter, click again to show everything.</p>\n")
 	body.Str("                </div>\n")
 	body.Str("                <div class=\"legend reveal\" role=\"group\" aria-label=\"Filter features by category\">\n")
 	for _, category := range legendCategories {
@@ -316,6 +313,11 @@ func featuresBody(data featureData, shipped []featureCard) string {
 		body.Str(featureSectionHTML(section))
 		body.Byte('\n')
 	}
+	body.Str("            <section id=\"roadmap\" aria-labelledby=\"roadmap-title\">\n").
+		Str("                <h2 id=\"roadmap-title\">Release roadmap</h2>\n").
+		Str("                <p>The <a href=\"../project/roadmap/\">release inventory</a> lists remaining ").
+		Str("release work items and nice-to-haves from committed specs. It is an inventory preview ").
+		Str("pending owner classification.</p>\n            </section>\n")
 	return body.String()
 }
 
@@ -392,7 +394,7 @@ func featureCardHTML(card *featureCard) string {
 func featuresMirror(data featureData, shipped int) string {
 	var mirror textbuf.Buffer
 	mirror.Str("# Every feature Ze ships.\n\n")
-	mirror.Int(int64(shipped)).Str(" shipped features plus the planned roadmap. ").
+	mirror.Int(int64(shipped)).Str(" shipped or experimental feature cards. ").
 		Str("Each card's category shows where the feature fits: operate, routing, services, automate, ").
 		Str("observe, secure, or platform. Everything shipped runs in both daemon and appliance modes ").
 		Str("unless a card says otherwise.\n\n")
@@ -424,6 +426,9 @@ func featuresMirror(data featureData, shipped int) string {
 			mirror.Str("\n[Learn more](").Str(card.mirrorHref()).Str(")\n\n")
 		}
 	}
+	mirror.Str("## Release roadmap\n\nThe [release inventory](").Str(siteBase).
+		Str("project/roadmap/) lists remaining release work items and nice-to-haves from committed specs. ").
+		Str("It is an inventory preview pending owner classification.\n\n")
 	return strings.TrimSpace(mirror.String()) + "\n"
 }
 

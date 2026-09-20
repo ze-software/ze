@@ -106,7 +106,7 @@
                 [
                     {"label_only": "Progress and history"},
                     {"href": "project/", "icon": "🧭", "title": "Project overview", "desc": "Progress, history, talks, and contribution paths", "feature": true},
-                    {"href": "project/roadmap/", "icon": "🗺️", "title": "Roadmap", "desc": "What works today and what remains before the first release"},
+                    {"href": "project/roadmap/", "icon": "\ud83d\uddfa\ufe0f", "title": "Roadmap", "desc": "Release work items and nice-to-haves, an inventory preview"},
                     {"href": "project/changes/", "icon": "🧾", "title": "Changes", "desc": "What shipped, week by week"},
                     {"href": "project/milestones/", "icon": "🏁", "title": "Milestones", "desc": "Landmark features, oldest to newest"},
                     {"href": "project/activity/", "icon": "📈", "title": "Activity", "desc": "A year of commits, at a glance"},

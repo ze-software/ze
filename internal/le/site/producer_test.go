@@ -68,6 +68,7 @@ func siteFixture(t *testing.T) (root, output string) {
 			t.Fatalf("git %v: %v: %s", arguments, err, out)
 		}
 	}
+	commitSiteFixture(t, root)
 	return root, filepath.Join(parent, "artifact")
 }
 
@@ -295,7 +296,7 @@ func TestCheckRefusesAMissingNamedArtifact(t *testing.T) {
 	// loop below removes every entry in turn.
 	for _, name := range []string{
 		llmsFile, llmsFullFile, sitemapFile, robotsFile, searchIndexFile,
-		blogFeedDest, changesFeedDest, changesLegacyFeedDest,
+		blogFeedDest, changesFeedDest, changesLegacyFeedDest, roadmapDataFile,
 	} {
 		if !slices.Contains(namedArtifacts, name) {
 			t.Errorf("%s is published and no check answers for it", name)

@@ -22,6 +22,8 @@ See also: `/ze-status` for current work context, `/ze-doc-update` for broader do
 - A fix gets one line. A new command, field, config leaf, counter, or default keeps its full spelling (`website/changes/discord/STYLE.md`, "How much detail").
 - No repository vocabulary and no raw wire bytes in the post (`website/changes/discord/STYLE.md`, "Hard rules").
 - Do not hand-edit generated site pages. Edit the source data or Markdown, then run the generator.
+- Release progress remains an inventory preview until Thomas resolves the recorded bucket and ownership decisions. Do not publish unresolved classifications.
+- Running this workflow for implementation verification authorizes only a dry run. It never authorizes a weekly post or Discord send.
 
 ## Required references
 
@@ -39,13 +41,63 @@ Website sources are in `website/`; the publishable artifact is generated into `.
 
 1. Find the newest archived Discord post in `website/changes/discord/` and the newest website post in `website/changes/posts/`.
 2. Determine the new `covers:` range from the previous post's end date unless Thomas gives a different range.
-3. Gather what shipped during the range:
+3. Collect the pinned release comparison below before drafting.
+4. Gather what shipped during the range:
    - inspect `git log` for the range,
    - read the touched source, docs, specs, or tests needed to understand user-visible behavior,
-   - include only behavior that actually landed,
-   - put design or planning work only under `Coming up`, phrased as work started, not shipped.
-4. Group the week by user-facing theme, not by commit. Fold small commits into one capability when they serve one story.
-5. **A commit message describes the moment it was written, not HEAD.** Before calling anything fixed, read the producer at HEAD. A number quoted in a commit body is usually the PRE-fix measurement, and a spec row can still read `NOT MET` after the fix landed. Say what is true now.
+   - verify the behavior at its producing function in the selected `release-to` tree,
+   - put design or planning work only under `Coming up`.
+5. Group the week by user-facing theme. Fold small commits into one capability when they serve one story.
+6. A commit message describes the moment it was written. A quoted number can describe a defect before its fix. Read the producer before claiming delivery, including for removed release work items.
+
+### Collect release progress
+
+Resolve the current branch tip once with `git rev-parse --verify 'HEAD^{commit}'`.
+Use that full ID for every history lookup in this draft. Pending filesystem
+edits enter the report only after a commit and a new comparison.
+
+1. Read the previous website source post's `release-to`. When present, use that
+   commit as `release-from`. The Discord archive preserves the posted body, but
+   does not copy these revision fields.
+2. Resolve `release-to` at 23:59:59 UTC on the final day of `covers:`.
+   Use the current branch's first-parent history from the pinned tip.
+   For an owner-authorized in-progress update, record the exact UTC cutoff in
+   the draft body and use it instead. Never invent a cutoff or use a future day.
+3. If no previous `release-to` exists, resolve `release-from` at 00:00:00 UTC
+   on the first day of `covers:` using that same history.
+4. To resolve each time boundary, read
+   `git log --first-parent --format='%H %cI' <pinned-tip>`.
+   Select the first entry in first-parent order whose committer timestamp is
+   at or before the boundary, after conversion to UTC. Record its full ID.
+   Do not use author dates, relative dates, or side-branch commits.
+5. Resolve a previous revision with `git rev-parse --verify '<release-to>^{commit}'`.
+   An invalid revision, missing boundary, or unreadable tree is an error.
+   If shallow history prevents resolution, stop and name the missing history
+   to fetch. Never substitute `HEAD`, the current filesystem, or zero counts.
+6. Run the shared report with the resolved full IDs:
+
+   ```sh
+   ./le spec roadmap compare from <release-from> to <release-to>
+   ```
+
+   Use the common `| json`, `| yaml`, or `| table` renderer when needed.
+   Use `./le spec roadmap list revision <release-to>` for the same end snapshot.
+   Read both endpoint inventories and their diagnostics. Do not scan specs to
+   build a separate news inventory.
+7. Read `immediate` and `pre-release` separately and together as the required
+   total, then read the root nice-to-have group. Include every declared state.
+   Skeleton, blocked, deferred, malformed, and `verification` items remain open.
+   Keep diagnostics visible and retain the inventory-preview qualification.
+8. Distinguish additions, removals, bucket moves, and status transitions.
+   Explain changes in required totals with those categories.
+   A move can also have a status transition. Neither fact establishes delivery.
+
+This is an endpoint comparison of the remaining queue. An item added and
+removed entirely between the endpoints is absent from the comparison.
+Continue commit and source research for delivered behavior within the interval.
+Counts measure release work items. They cannot establish effort, a completion
+percentage, release readiness, or a release date. An empty queue proves none
+of those claims.
 
 ### The RFC MUST programme is a standing item
 
@@ -81,11 +133,15 @@ read end to end. SHOULD waits behind all of it.
 covers: <YYYY-MM-DD> .. <YYYY-MM-DD>
 tags: <comma-separated allowed tags>
 ze-stat-snapshot: true
+release-from: <full resolved commit ID>
+release-to: <full resolved commit ID>
 ---
 ```
 
-Weekly RFC counts are historical at publication. Keep
-`ze-stat-snapshot: true` in front matter, never in a body HTML comment.
+Keep `ze-stat-snapshot: true` and both release revision IDs in front matter.
+Weekly counts are historical facts. Write their values into the saved body
+before approval. Never use live roadmap tokens or refresh historical prose
+during site generation, sending, resuming, or archive handling.
 
 3. Choose tags from `website/data/topics.json`. If the week needs a genuinely new topic, add it to `data/topics.json` with the right category. Do not force a near miss.
 4. Decide what the week is about before writing, and leave the rest out. A full week yields far more than fits, so `STYLE.md` ("How long") governs what survives: 3 sections is normal, 5 is the ceiling, and a section carrying one bullet is a sentence in the wrong shape.
@@ -95,6 +151,16 @@ Weekly RFC counts are historical at publication. Keep
    - themed sections with bold emoji headers,
    - bullets for multiple items,
    - `**🔭 Coming up**` only for planned or design work.
+   - a short release-progress paragraph with remaining release work items and
+     relevant scope changes,
+   - the public roadmap link: https://ze-software.net/project/roadmap/.
+   Translate selected items into user-facing capabilities. Keep spec filenames,
+   bucket names, and workflow terms out of the body. Planned capabilities stay
+   under `Coming up`. Explain that the queue comparison can miss items added
+   and removed between its endpoints. Until classification decisions are
+   resolved, label the draft paragraph as an inventory preview and withhold
+   publication. This paragraph and the standing RFC section share the existing
+   message budget.
 6. Dry-run the post and read the message count. Over 4, go back to step 4 and cut items. Do not compress the prose instead.
 7. Run a self-review against the hard gates. Grep for what a grep can find rather than re-reading:
    - no em dashes,
@@ -106,13 +172,14 @@ Weekly RFC counts are historical at publication. Keep
    - no hype,
    - fixes at one line, new surfaces named in full,
    - no sentence past about 30 words.
-8. Show Thomas the exact draft and wait for approval before posting.
+8. Show Thomas the exact dry-run messages and wait for approval before posting.
 
 If Thomas asks only for a draft, stop after the draft. Do not post, archive, or regenerate the site unless asked.
 
 ## Phase 3: Publish after approval
 
-After Thomas approves the exact text:
+After Thomas approves the exact dry-run messages, keep the source body and
+revision fields fixed. A changed body requires a new preview and approval.
 
 1. Run a dry run first:
 
@@ -120,7 +187,7 @@ After Thomas approves the exact text:
 le weekly source website/changes/posts/<covers-start>.md
 ```
 
-2. Check the chunk count and text. The tool splits at section boundaries for Discord's message limit.
+2. Compare the chunk count and exact text with the approved preview. Existing date stamping can change a header as time passes. If any text differs, obtain approval again. Never recollect release counts here.
 3. If Thomas wants a Discord preview, post to test only:
 
 ```sh
@@ -177,6 +244,7 @@ Report only grounded facts:
 - whether `ze-news` was posted,
 - which site files or data files changed,
 - the `./le site build` and `./le site check` results,
+- the pinned `release-from` and `release-to`, and any authorized UTC cutoff,
 - any intentionally skipped drift item, with the reason.
 
 Do not say the update is done unless the Discord post, archive, generated site, homepage card, feed, and native site checks are all accounted for.

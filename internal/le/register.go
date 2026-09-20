@@ -71,6 +71,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/site/wiki"
 	_ "github.com/ze-software/ze/internal/le/sourcerewrite"
 	_ "github.com/ze-software/ze/internal/le/spec/citation"
+	_ "github.com/ze-software/ze/internal/le/spec/roadmap"
 	_ "github.com/ze-software/ze/internal/le/spec/session"
 	_ "github.com/ze-software/ze/internal/le/spec/status"
 	_ "github.com/ze-software/ze/internal/le/staticcheckfeaturematrix"

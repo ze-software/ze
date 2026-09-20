@@ -318,12 +318,6 @@ var oneShotPages = []sitePage{
 		Journey: labelFAQ,
 	},
 	{
-		Source:  "website/roadmap/roadmap.md",
-		Dest:    "project/roadmap/index.html",
-		Desc:    "The work between now and a first release of Ze you can trust in production.",
-		Journey: "Release path",
-	},
-	{
 		Source: "website/license/license.md",
 		Dest:   "license/index.html",
 		Desc:   "Ze is free software under the GNU Affero General Public License v3.",

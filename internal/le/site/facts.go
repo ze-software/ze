@@ -102,11 +102,9 @@ type siteFacts struct {
 	Tests          factsTests        `json:"tests"`
 }
 
-// factsFeatures counts the feature cards website/data/features.json states: the
-// shipped and experimental ones, and the roadmap ones that are neither.
+// factsFeatures counts the shipped and experimental feature cards.
 type factsFeatures struct {
 	CoreExperimental int `json:"core_experimental"`
-	Planned          int `json:"planned"`
 }
 
 // factsInterop counts the peers ze is tested against and the scenarios it is
@@ -451,11 +449,10 @@ func factsFromSiteData(paths Paths, facts *siteFacts) error {
 		return err
 	}
 	for _, section := range features.Sections {
-		if section.ID == featureSectionCore || section.ID == featureSectionExperimental {
+		switch section.ID {
+		case featureSectionCore, featureSectionExperimental:
 			facts.Features.CoreExperimental += len(section.Cards)
-			continue
 		}
-		facts.Features.Planned += len(section.Cards)
 	}
 	if facts.Features.CoreExperimental == 0 {
 		return fmt.Errorf("data/%s states no shipped or experimental feature, so the published feature count would be zero", featuresDataFile)

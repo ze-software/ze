@@ -52,8 +52,8 @@ website/
   data/
     nav.json                              -- single source for the mega-menu; the header producer
                                               renders assets/header.html, which every page loads
-    features.json                         -- every card on features/index.html: section, category,
-                                              status, chips, bullets
+    features.json                         -- shipped and experimental feature cards:
+                                              section, category, status, chips, bullets
     milestones.json                       -- every node on milestones/index.html: date, title,
                                               category, blurb, and the blog week it links to
     topics.json                           -- controlled tag vocabulary for Changes chips
@@ -170,6 +170,16 @@ artifact boundary and can seed it from the current complete Pages checkout.
   from this tree: the star count reaches api.github.com and keeps the previously
   published number when it cannot, saying so in `_sources`, and the command and
   configuration counts come from the binary this build compiled.
+- **The release roadmap.** The `roadmap` producer collects committed `HEAD`
+  once through `internal/le/spec/roadmap.Collect` on every full or partial build.
+  Shared Markdown rendering publishes `/project/roadmap/` and its `index.md`;
+  `data/release-roadmap.json` carries the same inventory with schema version,
+  full revision, and its own input digest. The website source digest covers
+  only website inputs. The build never reads the generated `plan/roadmap.md`
+  or falls back to working-tree specs. Pending edits appear after commit and
+  regeneration. All output is an inventory preview pending owner classification.
+  Feature cards describe shipped or experimental capabilities and link to the
+  roadmap for remaining release work items.
 - **The RFC requirement ledger.** `data/rfc-requirements.json` is derived once
   per build by `publishRFCLedger` (`internal/le/site/rfcledger.go`), from one
   reading of the checkout through `rfc.Collect` and `rfc.NewRenderInput`, and
@@ -410,6 +420,32 @@ this before considering the update done.
    its category) rather than forcing a near-miss.
    Weekly RFC counts are historical at publication. Keep
    `ze-stat-snapshot: true` in front matter, never in a body HTML comment.
+
+   **Pin release evidence before drafting.** Resolve `HEAD` once to a full
+   commit ID and use its first-parent history for both reporting boundaries.
+   Use the prior post's `release-to` as the next start when available. Otherwise
+   resolve the commit at the start of `covers:` in UTC. Resolve the end at the
+   end of the final covered day on that same pinned history. A missing boundary
+   is an error. Obtain the missing history rather than substitute zero or HEAD.
+   An owner-authorized in-progress update states its cutoff explicitly.
+   Run `./le spec roadmap compare from <full-sha> to <full-sha>` and save both
+   full commit IDs as `release-from:` and `release-to:` scalar front matter.
+   Read both required subgroups and the nice-to-have group.
+
+   **Keep progress claims bounded.** The report compares endpoints, so it
+   cannot show items added and removed wholly between them. Explain additions,
+   removals, bucket moves, and status changes separately. Verify implementation
+   at its source before calling any removed item delivered. Use a short
+   release-progress paragraph and the [public roadmap](https://ze-software.net/project/roadmap/)
+   link, with the phrase `release work items`. Keep planned capabilities under
+   `Coming up` and workflow jargon out of the Discord body. Until owner
+   classification is resolved, describe the report as an inventory preview.
+
+   **Approve fixed prose.** Save the facts in this post's body before the
+   existing weekly dry run and show its exact messages for approval. Website
+   news and Discord consume that same body. Do not add live count tokens,
+   recollect on send, change transport, or send without the existing approval.
+   Preserve the RFC section, message budget, archive, and resume behavior.
 
 1. **Check Features for drift.** Did the week ship something with no card
    yet, or move a feature from Experimental to shipped? Add/move/edit its

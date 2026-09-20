@@ -184,6 +184,7 @@ func TestBuildStampsEveryPublishedPage(t *testing.T) {
 			t.Fatalf("git %v: %v: %s", arguments, err, output)
 		}
 	}
+	commitSiteFixture(t, root)
 	report, err := Build(BuildOptions{Repository: root, Output: filepath.Join(parent, "artifact")})
 	if err != nil {
 		t.Fatal(err)
