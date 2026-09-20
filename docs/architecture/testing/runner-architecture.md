@@ -55,6 +55,41 @@ scheduler in `runExaBGPSelected`.
 <!-- source: internal/test/cli/cmd_web.go -- zeTestWebTest scheduled via NewParallelRunner, per-test daemon + session -->
 <!-- source: internal/test/cli/cmd_exabgp.go -- runExaBGPSelected -->
 
+### How a suite's child processes end
+
+A suite starts a daemon and a peer, and each of those starts more: ze forks its
+plugins, the ExaBGP mock forks the bridge's scripts. So a stop aimed at the pid
+the runner holds reaps a fraction of the tree. Every fork therefore takes its
+attributes and its cancellation from one place, `plugin.KillGroupOnCancel`: the
+child heads a process group, and a canceled context signals that whole group.
+
+Three things end a process, and the suite owes all three:
+
+| Route | What it covers |
+|-------|----------------|
+| A `defer` beside the start | Every return from the case, including a panic and a branch added later |
+| Context cancellation | The per-case timeout, and the suite context when the operator interrupts the runner |
+| `Pdeathsig` on Linux | The runner dying outright, which no code in the runner can cover |
+
+An explicit stop inside a branch is an ORDERING barrier, not a lifetime: output
+must not be read while its writer runs, and an exit status does not exist until
+the process has one. A branch that reads it as the lifetime leaves the process
+running when it returns by another route.
+
+Cancellation is the route that failed silently. `exec.CommandContext` installs
+its own cancel, which kills the direct child alone, so every grandchild was
+reparented to init and the direct child stayed a zombie behind it: its pipes
+never reached EOF, so the runner's `Wait` never ran. Taking the fork from
+`plugin.KillGroupOnCancel` is what closes it.
+
+A runner with no signal handler is the gap that hides best. Go ends a process
+on an unhandled SIGINT where it stands, so no `defer` runs, and a child in a
+process group of its own never saw the Ctrl-C that stopped its parent.
+<!-- source: internal/test/cli/cmd_exabgp.go -- runOneExaBGPTest, cancelExaBGPOnSignal -->
+<!-- source: internal/test/cli/cmd_exabgp_process.go -- startExaProcess, stopExaProcess -->
+<!-- source: internal/component/plugin/sysproc.go -- KillGroupOnCancel, KillProcessGroup -->
+<!-- test: internal/test/cli/cmd_exabgp_process_test.go TestCanceledContextReapsTheWholeGroup, TestStopExaProcessReapsTheWholeGroup -->
+
 ### Shared reporting
 
 The scheduler and suite wrappers render through the same components:

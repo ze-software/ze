@@ -1,5 +1,6 @@
 // Design: docs/architecture/testing/ci-format.md — child processes of one predecessor case
 // Related: cmd_exabgp.go — the suite runner that starts and judges them
+// Related: internal/component/plugin/sysproc.go — KillGroupOnCancel, the fork and stop these processes share with every plugin ze forks
 
 package cli
 
@@ -15,6 +16,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // exaEvents is what the mock BGP server reports on its stdout while a case
@@ -57,7 +60,13 @@ func (b *lockedBuffer) String() string {
 func startExaProcess(ctx context.Context, name, program string, args, env []string, events *exaEvents) (*exaProcess, error) {
 	cmd := exec.CommandContext(ctx, program, args...) //nolint:gosec // program and args target repository-owned compatibility fixtures.
 	cmd.Env = env
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	// The child gets a process group of its own and a canceled context signals
+	// that whole group, which is the pair ze already states in one place for
+	// every plugin it forks. Taking it from there rather than writing the
+	// Setpgid here also takes the Linux Pdeathsig with it: a runner that dies
+	// outright takes its daemons with it on Linux, and that is the one skip no
+	// defer in this package can cover.
+	plugin.KillGroupOnCancel(cmd)
 
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -172,7 +181,7 @@ func stopExaProcess(p *exaProcess) {
 	case <-p.done:
 		return
 	case <-time.After(500 * time.Millisecond):
-		_ = syscall.Kill(-pid, syscall.SIGKILL)
+		_ = plugin.KillProcessGroup(pid)
 	}
 	<-p.done
 }

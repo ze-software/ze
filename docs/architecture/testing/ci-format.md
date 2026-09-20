@@ -999,6 +999,16 @@ Both used to print the bare `exit status N` of whichever process failed, which
 told a reader nothing about which of the two to open.
 <!-- source: internal/test/cli/cmd_exabgp.go -- exaBGPFailure -->
 
+Both processes are stopped by a `defer` beside the start that created them, so
+a case that returns by any route, a panic included, leaves neither running. The
+stops written inside the branch arms are ORDERING barriers rather than
+lifetimes: a process's output must not be read while it is still writing, and
+its exit status does not exist until it has one. How the suite's forks are
+created and canceled is in
+`docs/architecture/testing/runner-architecture.md`, "How a suite's child
+processes end".
+<!-- source: internal/test/cli/cmd_exabgp.go -- runOneExaBGPTest, the two defers -->
+
 ## Expectations
 
 ```

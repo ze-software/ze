@@ -11,12 +11,14 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/paths"
@@ -136,6 +138,22 @@ func zeTestExabgpMain(args []string) error {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	// A defer reaps a case's processes; nothing reaps them if this runner never
+	// returns. Go ends a process on an unhandled SIGINT where it stands, so no
+	// defer runs, and each case's daemon sits in a process group of its own
+	// where the Ctrl-C that stopped the runner never reached it. Canceling
+	// instead lets every case return through its timeout arm and run its
+	// defers. The bgp suite has done this since it was written
+	// (zeTestBgpMain); this one did not.
+	//
+	// Whether this is what left five daemons behind on 2026-09-20 was NOT
+	// established: neither an interrupted nor a terminated runner would
+	// reproduce it (plan/journal/parallel-copies-collide-on-a-deterministic-port.md).
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
+	go cancelExaBGPOnSignal(ctx, sigCh, cancel)
 
 	// Every path below spawns the compiled ExaBGP wrapper, which drives a ze
 	// daemon. The wrapper receives the DUT explicitly: it must not guess whether
@@ -504,6 +522,20 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 		return false, exabgpRunDetail{}
 	}
 
+	// The lifetime of both processes is owned here and nowhere else. Every
+	// stopExaProcess below is an ORDERING barrier rather than a stop: a buffer
+	// must not be read while its writer still runs, and an exit status does not
+	// exist until the process has one.
+	//
+	// The distinction is what this defer buys. The stops used to carry both
+	// jobs, spread over six branch arms, so a branch that returned without one
+	// left a ze daemon holding the loopback address and the next run met
+	// `address already in use` on a port no allocator handed out twice
+	// (plan/journal/parallel-copies-collide-on-a-deterministic-port.md). A
+	// panic left the same daemon. Neither can now: the only way out of this
+	// function runs both defers, client first.
+	defer stopExaProcess(server)
+
 	var detail exabgpRunDetail
 	port, err := waitExaBGPPort(testCtx, events.port, server)
 	if err != nil {
@@ -527,6 +559,7 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 		rec.Error = err
 		return false, detail
 	}
+	defer stopExaProcess(client)
 	go deliverExaBGPReloads(events.signal, client, configs)
 
 	serverDone := false
@@ -563,9 +596,7 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 		}
 	}
 
-	if client.Running() {
-		stopExaProcess(client)
-	}
+	stopExaProcess(client)
 	detail = collectExaBGPDetail(server, client, port)
 
 	rec.Duration = time.Since(rec.StartTime)
@@ -615,6 +646,20 @@ func waitExaBGPPort(ctx context.Context, portCh <-chan int, server *exaProcess) 
 		return 0, errExaBGPPortTimeout
 	case <-ctx.Done():
 		return 0, ctx.Err()
+	}
+}
+
+// cancelExaBGPOnSignal turns an operator's interrupt into a cancellation, so
+// the suite unwinds through the defers that reap each case's processes rather
+// than dying where it stands and orphaning them.
+//
+// It ends with the suite: the ctx arm is what keeps a completed run from
+// leaving a worker parked on a signal that will never come.
+func cancelExaBGPOnSignal(ctx context.Context, signals <-chan os.Signal, cancel context.CancelFunc) {
+	select {
+	case <-signals:
+		cancel()
+	case <-ctx.Done():
 	}
 }
 
