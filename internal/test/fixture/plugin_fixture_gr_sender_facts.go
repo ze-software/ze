@@ -167,8 +167,8 @@ func grPeerRestartTimeDrivesTimer(ctx context.Context, plugin *sdk.Plugin) error
 // Its Restart Time is 120, the SAME number ze is configured with, so the value
 // cannot tell a mirror from a resolution here. What can is the family tuple: the
 // gr-state row exists only if onSessionDown built a non-empty stale-family set
-// from the peer's code-64 value, and ze's own code 64 carries no tuples at all
-// (parseGRCapValue, internal/component/bgp/plugins/gr/gr.go).
+// from the peer's code-64 value (parseGRCapValue,
+// internal/component/bgp/plugins/gr/gr_capability.go).
 func grPeerFamiliesDriveMarkStale(ctx context.Context, plugin *sdk.Plugin) error {
 	row, err := awaitGRState(ctx, plugin, grSenderFactsPeer)
 	if err != nil {

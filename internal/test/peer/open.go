@@ -191,10 +191,9 @@ func newOpenIdentity(as, routerID uint32) openIdentity {
 // families ze-peer's own OPEN advertises.
 //
 // The default is ze-peer's OWN capability SET, which is a mirror of ze's by
-// design and is therefore what ze-peer itself asserts. It is not ze's code-64
-// family list: that one carries no families at all (parseGRCapValue,
-// internal/component/bgp/plugins/gr/gr.go), so inheriting it would leave every
-// receiving path guarded on an empty set.
+// design and is therefore what ze-peer itself asserts. Ze's own code-64 family
+// list now carries the peer's families too (parseGRCapValue,
+// internal/component/bgp/plugins/gr/gr_capability.go), so the two agree.
 func (id *openIdentity) resolveFamilies(advertised []family.Family) {
 	if len(id.gracefulRestart.Families) == 0 {
 		id.gracefulRestart.Families = advertised

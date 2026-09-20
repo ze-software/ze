@@ -604,11 +604,12 @@ func peerGR(t *testing.T, open []byte) *capability.GracefulRestart {
 	return nil
 }
 
-// zeGRTLV is ze's own Graceful Restart capability, which carries the Restart
-// Time and NO family tuples: parseGRCapValue
-// (internal/component/bgp/plugins/gr/gr.go) formats the 12-bit time and nothing
-// else. Mirroring it is what left onSessionDown returning at its empty-family
-// guard.
+// zeGRTLV is a Graceful Restart capability carrying the Restart Time and NO
+// family tuples, which is the shortest code-64 value a peer can send. These
+// tests read what ze-peer MIRRORS, so the input stays minimal on purpose. Ze's
+// own code-64 value is no longer this shape: parseGRCapValue
+// (internal/component/bgp/plugins/gr/gr_capability.go) appends one tuple for
+// each family the peer carries.
 //
 // The time is the 120 the YANG default gives `restart-time`, which is what most
 // of the suite's graceful-restart tests configure.
