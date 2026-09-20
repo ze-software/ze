@@ -29,7 +29,6 @@ import (
 
 	"net/netip"
 
-	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/plugins/gr/yang"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -143,6 +142,14 @@ func RunGRPlugin(conn net.Conn) int {
 		for _, section := range sections {
 			if section.Root != configRootBGP {
 				continue
+			}
+			// The refusal runs before the build, and it stops Stage 2. The
+			// daemon then stops this plugin and runs without Graceful Restart
+			// rather than advertising a capability the configuration
+			// contradicts (deliverConfigRPC,
+			// internal/component/plugin/server/startup.go).
+			if err := refuseUncarriedGRFamilies(section.Data); err != nil {
+				return err
 			}
 			caps = append(caps, extractGRCapabilities(section.Data)...)
 			// RFC 9494: LLGR capability (code 71) declared alongside GR (code 64)
@@ -651,84 +658,6 @@ func grResultToPeerCap(r *grResult) *grPeerCap {
 		})
 	}
 	return cap
-}
-
-// parseGRCapValue extracts a GR capability hex value from a capability map's
-// "graceful-restart" entry. Returns "" if no GR config is present.
-func parseGRCapValue(capMap map[string]any, peerAddr string) string {
-	if capMap == nil {
-		return ""
-	}
-	grData, ok := capMap["graceful-restart"].(map[string]any)
-	if !ok {
-		return ""
-	}
-
-	// Extract restart-time (default 120 per RFC 4724)
-	restartTime := uint16(120)
-	if rtVal, ok := grData["restart-time"]; ok {
-		switch v := rtVal.(type) {
-		case float64:
-			restartTime = uint16(v)
-		case string:
-			if parsed, err := strconv.ParseUint(v, 10, 16); err == nil {
-				restartTime = uint16(parsed)
-			}
-		}
-	}
-
-	// RFC 4724: restart-time is 12 bits (0-4095)
-	if restartTime > 4095 {
-		logger().Warn("restart-time exceeds 12-bit max, clamping", "peer", peerAddr, "value", restartTime)
-		restartTime = 4095
-	}
-
-	// RFC 4724 Section 3: Restart Flags (4 bits) + Restart Time (12 bits)
-	return fmt.Sprintf("%04x", restartTime&0x0FFF)
-}
-
-// extractGRCapabilities parses bgp config JSON and returns per-peer GR capabilities.
-// Handles both standalone peers (bgp.peer) and grouped peers (bgp.group.<name>.peer).
-// RFC 4724: Graceful Restart capability code is 64.
-func extractGRCapabilities(jsonStr string) []sdk.CapabilityDecl {
-	bgpSubtree, ok := configjson.ParseBGPSubtree(jsonStr)
-	if !ok {
-		logger().Warn("invalid JSON in bgp config")
-		return nil
-	}
-
-	const grCapCode = 64
-	var caps []sdk.CapabilityDecl
-
-	configjson.ForEachPeer(bgpSubtree, func(peerAddr string, peerMap, groupMap map[string]any, origin configjson.PeerOrigin) {
-		// Check per-peer graceful-restart capability first.
-		peerCapValue := parseGRCapValue(configjson.GetCapability(peerMap), peerAddr)
-
-		// Check group-level graceful-restart capability (fallback).
-		var groupCapValue string
-		if groupMap != nil {
-			groupCapValue = parseGRCapValue(configjson.GetCapability(groupMap), peerAddr)
-		}
-
-		// Per-peer wins over group.
-		capValue := groupCapValue
-		if peerCapValue != "" {
-			capValue = peerCapValue
-		}
-		if capValue == "" {
-			return
-		}
-
-		caps = append(caps, sdk.CapabilityDecl{
-			Code:     grCapCode,
-			Encoding: sdk.CapEncodingHex,
-			Payload:  capValue,
-			Peers:    []string{configjson.CapabilitySelector(peerAddr, origin)},
-		})
-		logger().Debug("gr capability", "peer", peerAddr)
-	})
-
-	return caps
 }
 
 // RunCLIDecode decodes hex capability data directly from CLI arguments.

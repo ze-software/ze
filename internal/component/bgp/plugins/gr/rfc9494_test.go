@@ -33,7 +33,7 @@ const configGROnly = `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"g
 // RFC requirement: RFC9494-3.1-1 positive -- LLGR (code 71) is derived from the same
 // "graceful-restart" capability container that produces GR (code 64): parseLLGRCapValue
 // (internal/component/bgp/plugins/gr/gr_llgr.go:124) reads grData from capMap["graceful-restart"]
-// and parseGRCapValue (internal/component/bgp/plugins/gr/gr.go:643) reads the same key, so a
+// and parseGRCapValue (internal/component/bgp/plugins/gr/gr_capability.go) reads the same key, so a
 // peer declared with code 71 is always also declared with code 64.
 func TestRFC9494_LLGRCapDeclaredWithGRCap(t *testing.T) {
 	t.Parallel()

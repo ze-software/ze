@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc4724",
+  "records": [
+    {
+      "rid": "RFC4724-4-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityClaimsNoFamilyItDoesNotCarry",
+      "unit-sha": "0961b72e389886b0",
+      "claim-sha": "c27760b99aa2b6d0",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
+      "producer-sha": "36d383b432a0939a",
+      "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4724-4-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/gr/gr_capability_test.go::TestRFC4724GRCapabilityListsTheFamiliesOfTheSession",
+      "unit-sha": "54c0ede9da31256b",
+      "claim-sha": "dd76ddb47c5d5a87",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/gr/gr_capability.go::parseGRCapValue",
+      "producer-sha": "36d383b432a0939a",
+      "break": "body of parseGRCapValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

@@ -70,7 +70,14 @@ func init() {
 		YANG:            gryang.ZeGracefulRestartYANG,
 		CapabilityCodes: []uint8{64, 71},
 		Dependencies:    []string{configRootBGP, "bgp-rib"},
-		RunEngine:       RunGRPlugin,
+		// A graceful-restart configuration this plugin REFUSES stops ze, and
+		// an operator who mistyped an address family is told so instead of
+		// getting a running router that silently carries no Graceful Restart.
+		// Only a refusal does this: a failure to DELIVER the configuration
+		// leaves ze running (configRefusalIsFatal,
+		// internal/component/plugin/server/startup.go).
+		FatalOnConfigError: true,
+		RunEngine:          RunGRPlugin,
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return RunDecodeMode(input, output)
 		},

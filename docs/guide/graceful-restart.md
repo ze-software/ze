@@ -42,11 +42,62 @@ bgp {
 | Path | Type | Default | Description |
 |------|------|---------|-------------|
 | `graceful-restart / restart-time` | uint16 | 120 | Seconds to hold stale routes during restart (0-4095) |
+| `graceful-restart / family / name` | leaf-list | -- | Address families the capability names. The container carries presence: absent, Ze names every family the peer carries; present and empty, Ze names none; present and filled, Ze names those |
 | `graceful-restart / mode` | enum | -- | `require`: reject peers without GR capability |
 | `graceful-restart / disable` | presence | -- | Disable GR for this peer |
 <!-- source: internal/component/bgp/plugins/gr/yang/ -- ze-graceful-restart YANG schema -->
 
 ## How It Works
+
+### What Ze Advertises
+
+The code-64 capability Ze sends carries the Restart Time, then one
+`<AFI, SAFI, Flags>` tuple for each address family the peer carries. A peer
+configured for `ipv4/unicast` and `ipv6/unicast` with the default restart time
+receives `0078 00010100 00020100`. The family list is the peer's own `family`
+configuration, so the code-64 and the code-71 (LLGR) capabilities list the same
+families. RFC 9494 Section 4.2 reads a family that code 64 omits as a Restart
+Time of zero.
+
+The `graceful-restart family` container narrows that list, and it governs code
+64 alone:
+
+```
+capability {
+    graceful-restart {
+        family {
+            name ipv6/unicast
+        }
+    }
+}
+```
+
+That peer receives `0078 00020100`, whatever else its `family` configuration
+carries. Writing the container with no `name` in it makes Ze name no address
+family at all, which RFC 4724 Section 3 reads as a speaker that runs the
+Receiving Speaker procedures and preserves nothing of its own. Writing no
+container is the default, and the default names every family the peer carries.
+
+A `name` the peer's own `family` list does not carry is refused when the
+configuration is delivered, because RFC 4724 Section 3 scopes a tuple to routes
+"advertised with the same AFI and SAFI" and the session carries none of them.
+Ze names the family in the error, and the GR plugin does not start.
+
+Narrowing code 64 is how an operator asks for LLGR with no conventional GR
+phase. RFC 9494 Section 4.1: "the conventional GR phase can be skipped by
+omitting all AFIs/SAFIs from the GR Capability, advertising a Restart Time of
+zero, or both". So the container never touches the code-71 list.
+
+The Forwarding State bit of each tuple is 0. Ze advertises that it supports
+Graceful Restart for the family, and it does not claim that a restart preserved
+its forwarding state for that family. A peer therefore retains Ze's routes while
+the session is down (RFC 4724 Section 4.2) and removes the remaining stale ones
+when the session comes back.
+
+The Restart State bit is also 0 here. `ze signal restart` writes the restart
+marker, and the reactor sets that bit while the marker is live.
+<!-- source: internal/component/bgp/plugins/gr/gr_capability.go -- parseGRCapValue, extractGRCapabilities -->
+<!-- source: internal/component/bgp/grmarker/grmarker.go -- SetRBit -->
 
 ### Normal Session
 

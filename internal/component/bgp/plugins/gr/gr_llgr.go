@@ -13,6 +13,7 @@ import (
 	"strconv"
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
+	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
@@ -233,25 +234,32 @@ func collectPeerFamilies(peerMap, groupMap map[string]any) []string {
 	return []string{"ipv4/unicast"}
 }
 
-// extractFamilies extracts family strings from a peer or group config map.
+// extractFamilies extracts the address family names from a peer or group
+// config map.
+//
+// The list sits under "session", beside "capability"
+// (/bgp/peer/session/family, ze-bgp-conf.yang), which is the same level
+// configjson.GetCapability reads from.
+//
+// "family" is a YANG list keyed by "name", and a list is lowered to a map from
+// key to entry body ((*Tree).toMap, internal/component/config/tree.go). So the
+// names are the keys, and configvalue.ListEntries is the reader a lowered list
+// owes (ai/rules/config.md). ListEntries sorts by key, which fixes the tuple
+// order of both capabilities for one configuration.
 func extractFamilies(m map[string]any) []string {
-	famRaw, ok := m["family"]
+	session, ok := m["session"].(map[string]any)
 	if !ok {
 		return nil
 	}
-	switch v := famRaw.(type) {
-	case []any:
-		var families []string
-		for _, f := range v {
-			if s, ok := f.(string); ok {
-				families = append(families, s)
-			}
-		}
-		return families
-	case string:
-		return []string{v}
+	entries := configvalue.ListEntries(session["family"])
+	if len(entries) == 0 {
+		return nil
 	}
-	return nil
+	families := make([]string, 0, len(entries))
+	for _, entry := range entries {
+		families = append(families, entry.Key)
+	}
+	return families
 }
 
 // decodeLLGRMode handles "decode capability 71 <hex>" in decode mode.

@@ -30,42 +30,42 @@ func TestExtractGRCapabilities_ParseBGPConfig(t *testing.T) {
 			name:        "valid_restart_time_120",
 			json:        `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"restart-time":120}}}}}}}`,
 			wantPeer:    "192.168.1.1",
-			wantPayload: "0078",
+			wantPayload: "007800010100",
 			wantParsed:  true,
 		},
 		{
 			name:        "valid_restart_time_zero",
 			json:        `{"bgp":{"peer":{"10.0.0.1":{"session":{"capability":{"graceful-restart":{"restart-time":0}}}}}}}`,
 			wantPeer:    "10.0.0.1",
-			wantPayload: "0000",
+			wantPayload: "000000010100",
 			wantParsed:  true,
 		},
 		{
 			name:        "valid_restart_time_max_4095",
 			json:        `{"bgp":{"peer":{"127.0.0.1":{"session":{"capability":{"graceful-restart":{"restart-time":4095}}}}}}}`,
 			wantPeer:    "127.0.0.1",
-			wantPayload: "0fff",
+			wantPayload: "0fff00010100",
 			wantParsed:  true,
 		},
 		{
 			name:        "clamped_above_max_4096",
 			json:        `{"bgp":{"peer":{"127.0.0.1":{"session":{"capability":{"graceful-restart":{"restart-time":4096}}}}}}}`,
 			wantPeer:    "127.0.0.1",
-			wantPayload: "0fff", // Clamped to max 12-bit value
+			wantPayload: "0fff00010100", // Clamped to max 12-bit value
 			wantParsed:  true,
 		},
 		{
 			name:        "clamped_above_max_65535",
 			json:        `{"bgp":{"peer":{"127.0.0.1":{"session":{"capability":{"graceful-restart":{"restart-time":65535}}}}}}}`,
 			wantPeer:    "127.0.0.1",
-			wantPayload: "0fff", // Clamped to max 12-bit value
+			wantPayload: "0fff00010100", // Clamped to max 12-bit value
 			wantParsed:  true,
 		},
 		{
 			name:        "default_restart_time_when_missing",
 			json:        `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{}}}}}}}`,
 			wantPeer:    "192.168.1.1",
-			wantPayload: "0078", // Default 120 per RFC 4724
+			wantPayload: "007800010100", // Default 120 per RFC 4724
 			wantParsed:  true,
 		},
 		{
@@ -125,21 +125,21 @@ func TestExtractGRCapabilities_CapabilityDecl(t *testing.T) {
 			name:        "single_peer_120",
 			json:        `{"bgp":{"peer":{"192.168.1.1":{"session":{"capability":{"graceful-restart":{"restart-time":120}}}}}}}`,
 			wantLen:     1,
-			wantPayload: "0078",
+			wantPayload: "007800010100",
 			wantPeer:    "192.168.1.1",
 		},
 		{
 			name:        "single_peer_max_4095",
 			json:        `{"bgp":{"peer":{"10.0.0.1":{"session":{"capability":{"graceful-restart":{"restart-time":4095}}}}}}}`,
 			wantLen:     1,
-			wantPayload: "0fff",
+			wantPayload: "0fff00010100",
 			wantPeer:    "10.0.0.1",
 		},
 		{
 			name:        "single_peer_zero",
 			json:        `{"bgp":{"peer":{"127.0.0.1":{"session":{"capability":{"graceful-restart":{"restart-time":0}}}}}}}`,
 			wantLen:     1,
-			wantPayload: "0000",
+			wantPayload: "000000010100",
 			wantPeer:    "127.0.0.1",
 		},
 		{
@@ -180,12 +180,12 @@ func TestExtractGRCapabilities_WireFormat(t *testing.T) {
 	}{
 		// RFC 4724: [Restart Flags:4 bits][Restart Time:12 bits] = 2 bytes
 		// Flags = 0, so just the restart time in lower 12 bits
-		{"zero", 0, "0000"},
-		{"one", 1, "0001"},
-		{"120_default", 120, "0078"},       // Common default
-		{"255_byte_boundary", 255, "00ff"}, // 0xFF
-		{"256_byte_boundary", 256, "0100"}, // 0x100
-		{"4095_max", 4095, "0fff"},         // Max 12-bit value
+		{"zero", 0, "000000010100"},
+		{"one", 1, "000100010100"},
+		{"120_default", 120, "007800010100"},       // Common default
+		{"255_byte_boundary", 255, "00ff00010100"}, // 0xFF
+		{"256_byte_boundary", 256, "010000010100"}, // 0x100
+		{"4095_max", 4095, "0fff00010100"},         // Max 12-bit value
 	}
 
 	for _, tt := range tests {
@@ -225,8 +225,8 @@ func TestExtractGRCapabilities_MultiplePeers(t *testing.T) {
 		peerPayload[cap.Peers[0]] = cap.Payload
 	}
 
-	assert.Equal(t, "0078", peerPayload["192.168.1.1"], "192.168.1.1 restart-time=120")
-	assert.Equal(t, "003c", peerPayload["10.0.0.1"], "10.0.0.1 restart-time=60")
+	assert.Equal(t, "007800010100", peerPayload["192.168.1.1"], "192.168.1.1 restart-time=120")
+	assert.Equal(t, "003c00010100", peerPayload["10.0.0.1"], "10.0.0.1 restart-time=60")
 }
 
 // TestExtractGRCapabilities_InvalidJSON verifies graceful handling of bad input.
@@ -461,11 +461,11 @@ func TestExtractGRCapabilities_GroupPeerOverride(t *testing.T) {
 	}
 
 	// 10.0.0.1 should use its own restart-time (300 = 0x012c).
-	assert.Equal(t, "012c", capByPeer["10.0.0.1"],
+	assert.Equal(t, "012c00010100", capByPeer["10.0.0.1"],
 		"per-peer restart-time 300 should override group 120")
 
 	// 10.0.0.2 should inherit group restart-time (120 = 0x0078).
-	assert.Equal(t, "0078", capByPeer["10.0.0.2"],
+	assert.Equal(t, "007800010100", capByPeer["10.0.0.2"],
 		"peer without GR config should inherit group restart-time 120")
 }
 

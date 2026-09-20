@@ -4,11 +4,16 @@ module ze-graceful-restart {
 
     import ze-bgp-conf { prefix bgp; }
     import ze-extensions { prefix ze; }
+    import ze-types { prefix zt; }
 
     description
         "Graceful Restart capability plugin for Ze (RFC 4724, code 64;
          RFC 9494, code 71). Configures per-peer restart-time for BGP
          graceful restart and long-lived-stale-time for LLGR.";
+
+    revision 2026-09-20 {
+        description "graceful-restart > family names the address families the code-64 capability carries.";
+    }
 
     revision 2025-01-31 {
         description "Initial revision.";
@@ -19,9 +24,12 @@ module ze-graceful-restart {
         container graceful-restart {
             presence "Graceful Restart capability enabled";
             description "The container carries presence, so writing it makes Ze send the Graceful Restart capability,
-                code 64, to this peer. Ze lists no address family in that capability, because Ze runs the Receiving
-                Speaker procedures of RFC 4724 and preserves no forwarding state of its own. A container on the peer
-                replaces the container on the group rather than adding to it.";
+                code 64, to this peer. Ze names every address family the peer carries in that capability, unless the
+                family container below narrows the set, so the peer
+                retains Ze's routes for those families while the session is down (RFC 4724 Section 4.2). The
+                Forwarding State bit of each family stays clear, because Ze does not claim that a restart preserved
+                its forwarding state, so the peer removes the stale routes when the session comes back. A container
+                on the peer replaces the container on the group rather than adding to it.";
             ze:help "Graceful Restart capability configuration.";
 
             leaf restart-time {
@@ -36,6 +44,32 @@ module ze-graceful-restart {
                     route of the peer when that timer expires, unless the peer also negotiated LLGR.";
                 ze:help "Restart Time in seconds (RFC 4724 Section 3).
                          Maximum value is 4095 (12-bit field).";
+            }
+
+            container family {
+                presence "The capability names exactly the listed address families";
+                description "The container carries presence, and the three states differ. No container is the
+                    default: the capability names every address family the peer carries. The container with one
+                    name or more: the capability names those families and no other. The container with no name:
+                    the capability names no family at all, which RFC 4724 Section 3 reads as a speaker that
+                    supports the Receiving Speaker procedures and preserves nothing of its own. The container
+                    governs the Graceful Restart capability, code 64, and never the Long-Lived Graceful Restart
+                    capability, code 71: RFC 9494 Section 4.1 says 'the conventional GR phase can be skipped by
+                    omitting all AFIs/SAFIs from the GR Capability', so a family in code 71 and not in code 64
+                    is how an operator asks for LLGR with no GR phase.";
+                ze:help "Address families Ze names in the Graceful Restart capability.";
+
+                leaf-list name {
+                    type zt:address-family;
+                    ze:validate "registered-address-family";
+                    description "RFC 4724 Section 4: 'The presence and the setting of the Forwarding State bit
+                        for an address family depend upon the actual forwarding state and configuration.' The
+                        value must name a family the peer's own family list carries. Ze refuses the
+                        configuration otherwise, because RFC 4724 Section 3 scopes a tuple to routes 'advertised
+                        with the same AFI and SAFI', and a session that carries no such route cannot keep the
+                        promise the tuple makes.";
+                    ze:help "Address family the capability names (e.g. ipv4/unicast).";
+                }
             }
 
             leaf long-lived-stale-time {
