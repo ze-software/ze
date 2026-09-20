@@ -2133,6 +2133,10 @@ parent's payload does not carry? An alias reshapes what was returned.
 `show bgp rpki roa 192.0.2.0/24` fails both and stays a subcommand.
 `show bgp rpki cache` fails the second one: it reports `preference`,
 `session-id`, `serial` and three intervals that the bare answer does not carry.
+`preference` is the cache the router connects to FIRST rather than a label:
+RFC 8210 Section 10 loads from the most preferred cache that answers, and the
+next one is contacted only when it does not, so the row says which cache the
+records in hand came from.
 
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, appendSummaryFields, appendCacheServers, summaryFieldNames, buildSummaryAliasExpansion -->
 

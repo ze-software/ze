@@ -60,7 +60,7 @@ func TestLiveRTRv2DowngradeToV1(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		session.Run()
+		newCacheGroup([]*RTRSession{session}, stopCh).Run()
 		close(done)
 	}()
 

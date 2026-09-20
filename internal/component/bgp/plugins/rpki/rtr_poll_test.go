@@ -12,8 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestRunPollsOnRefreshAfterSuccessRetryAfterFailure verifies which interval the Run loop
-// actually waits, driven end to end against a listener that speaks RTR.
+// TestRunPollsOnRefreshAfterSuccessRetryAfterFailure verifies which interval the cache
+// group waits between polls, driven end to end against a listener that speaks RTR.
 //
 // VALIDATES: RFC 8210 Section 6 -- the Refresh Interval times the next poll after an End of Data
 // completed the sync, the Retry Interval times it after the query failed. The cache in the first
@@ -47,7 +47,7 @@ func TestRunPollsOnRefreshAfterSuccessRetryAfterFailure(t *testing.T) {
 		stopCh := make(chan struct{})
 		s := newRTRSession("127.0.0.1", port, 100, "", newROACache(), newASPACache(), stopCh)
 		done := make(chan struct{})
-		go func() { defer close(done); s.Run() }()
+		go func() { defer close(done); newCacheGroup([]*RTRSession{s}, stopCh).Run() }()
 
 		first := waitAccept(t, accepts, "the session never opened its first connection")
 		second := waitAccept(t, accepts,
@@ -71,7 +71,7 @@ func TestRunPollsOnRefreshAfterSuccessRetryAfterFailure(t *testing.T) {
 		s.refreshInterval = time.Hour
 		s.retryInterval = 200 * time.Millisecond
 		done := make(chan struct{})
-		go func() { defer close(done); s.Run() }()
+		go func() { defer close(done); newCacheGroup([]*RTRSession{s}, stopCh).Run() }()
 
 		first := waitAccept(t, accepts, "the session never opened its first connection")
 		second := waitAccept(t, accepts,

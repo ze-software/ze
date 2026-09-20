@@ -163,7 +163,7 @@ func TestLiveRPKIValidation(t *testing.T) {
 	// Run session in background.
 	done := make(chan struct{})
 	go func() {
-		session.Run()
+		newCacheGroup([]*RTRSession{session}, stopCh).Run()
 		close(done)
 	}()
 
@@ -358,7 +358,7 @@ func TestLiveASPAValidation(t *testing.T) {
 
 	done := make(chan struct{})
 	go func() {
-		sess.Run()
+		newCacheGroup([]*RTRSession{sess}, stopCh).Run()
 		close(done)
 	}()
 

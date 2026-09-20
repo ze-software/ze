@@ -55,7 +55,7 @@ func TestStatusCommandEmpty(t *testing.T) {
 	assert.Equal(t, statusDone, status)
 
 	m := parseJSON(t, data)
-	assert.Equal(t, true, m["running"])
+	assert.Equal(t, false, m["running"], "no cache server is configured, so nothing validates")
 	assert.EqualValues(t, 0, m["vrp-count-ipv4"])
 	assert.EqualValues(t, 0, m["vrp-count-ipv6"])
 	assert.EqualValues(t, 0, m["sessions"])
@@ -193,7 +193,7 @@ func TestSummaryCommand(t *testing.T) {
 
 	m := parseJSON(t, data)
 	assert.EqualValues(t, 1, m["vrp-count"])
-	assert.Equal(t, true, m["validation-enabled"])
+	assert.Equal(t, false, m["validation-enabled"], "the session has never completed a sync, so there is no set to validate against")
 	assert.EqualValues(t, 1, m["sessions-total"])
 	assert.EqualValues(t, 0, m["sessions-established"])
 	assert.Equal(t, true, m["aspa-enabled"])

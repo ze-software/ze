@@ -132,6 +132,47 @@ func (c *aSPACache) ApplyDelta(dels []uint32, adds []ASPARecord) {
 	}
 }
 
+// Replace swaps the whole record set for recs in one lock acquisition and returns every
+// customer AS that was in the old set, the new set, or both. That is the set of customers
+// whose paths a caller MUST verify again.
+//
+// It is the ASPA half of what ROACache.Replace does for VRPs, and it exists for the same
+// reason: a full sync carries a cache server's whole set, so a record ze holds and the set
+// does not name is withdrawn rather than unchanged.
+func (c *aSPACache) Replace(recs []ASPARecord) []uint32 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	changed := make(map[uint32]struct{}, len(c.records)+len(recs))
+	for customerAS := range c.records {
+		changed[customerAS] = struct{}{}
+	}
+
+	c.records = make(map[uint32]map[uint32]struct{}, len(recs))
+	dropped := 0
+	for _, rec := range recs {
+		if len(c.records) >= maxASPARecords {
+			dropped++
+			continue
+		}
+		provSet := make(map[uint32]struct{}, len(rec.Providers))
+		for _, p := range rec.Providers {
+			provSet[p] = struct{}{}
+		}
+		c.records[rec.CustomerAS] = provSet
+		changed[rec.CustomerAS] = struct{}{}
+	}
+
+	// One line for the whole sync. A cache that overruns the limit overruns it for every
+	// record after the limit, and a line for each would be a million lines.
+	if dropped > 0 {
+		logger().Warn("aspa: cache full, records dropped from the full sync",
+			"dropped", dropped, "limit", maxASPARecords)
+	}
+
+	return slices.Collect(maps.Keys(changed))
+}
+
 // Clear removes all ASPA records.
 func (c *aSPACache) clear() {
 	c.mu.Lock()

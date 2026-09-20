@@ -188,6 +188,27 @@ func (c *ROACache) ApplyDelta(dels, adds []VRP) {
 	}
 }
 
+// Replace swaps the whole VRP set for vrps in one lock acquisition, so a reader sees either
+// the set ze held before or the set that arrived, and never a gap between the two.
+//
+// A Reset Query is answered with the cache server's whole set, so what ze held before it is
+// not a delta to reconcile: it is the set of a cache ze has stopped reading, or of a serial
+// that cache no longer honors. Merging the two leaves a VRP no cache server would serve and
+// nothing left that can withdraw it, which reads as a covering ROA and makes a hijacked
+// prefix Valid.
+func (c *ROACache) Replace(vrps []VRP) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.ipv4 = make(map[string][]vrpEntry, len(c.ipv4))
+	c.ipv6 = make(map[string][]vrpEntry, len(c.ipv6))
+	c.total = 0
+
+	for _, vrp := range vrps {
+		c.addLocked(vrp)
+	}
+}
+
 // addLocked inserts a VRP. Caller must hold write lock.
 func (c *ROACache) addLocked(vrp VRP) {
 	if vrp.Prefix.IP == nil {

@@ -8,12 +8,14 @@
 package rpki
 
 import (
+	"cmp"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
 	"net/netip"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -145,10 +147,17 @@ type rPKIPlugin struct {
 	perPeerActions atomic.Pointer[map[configjson.PeerConfigKey]peerActionSet]
 	mu             sync.RWMutex
 
-	// sessions holds active RTR sessions to cache servers.
+	// sessions holds the RTR sessions of the current config generation, most preferred
+	// first. startSessions is the only writer; a status snapshot reads it under mu.
 	sessions []*RTRSession
 
-	// sessionWg tracks RTR session goroutines for clean shutdown.
+	// groupStopCh stops the cache group that polls those sessions, and is nil while no
+	// generation is running. A config reload calls startSessions again, and two groups
+	// over one ROA cache would each replace the other's set at every poll, so
+	// stopSessions closes this channel and waits before the next generation starts.
+	groupStopCh chan struct{}
+
+	// sessionWg tracks the cache group goroutine for clean shutdown.
 	sessionWg sync.WaitGroup
 
 	// validateCh receives validation decisions for async dispatch.
@@ -297,7 +306,9 @@ func runRPKIPlugin(conn net.Conn) int {
 	workerWg.Go(rp.validationWorker)
 	defer func() {
 		close(rp.stopCh)
-		rp.sessionWg.Wait()
+		// The cache group runs on its own generation channel, which rp.stopCh does not
+		// reach, so the group is stopped and waited for by name.
+		rp.stopSessions()
 		workerWg.Wait()
 	}()
 
@@ -388,13 +399,46 @@ func runRPKIPlugin(conn net.Conn) int {
 	return 0
 }
 
-// startSessions creates and starts RTR sessions from parsed config.
-// Each cache server gets a long-lived goroutine running RTRSession.Run().
+// setSessionsActive records how many cache servers are feeding this router. The group loads
+// from one cache at a time, so the gauge is 1 or 0, and it answers the question an alert
+// asks: is a cache feeding me? How many are CONFIGURED is `sessions-total` on
+// `show bgp rpki summary`, which is a different question.
+func setSessionsActive(count int) {
+	m := rpkiMetricsPtr.Load()
+	if m == nil {
+		return
+	}
+	m.sessionsActive.Set(float64(count))
+}
+
+// stopSessions stops the cache group of the current config generation and waits for its
+// goroutine to return. Safe to call when no generation is running, and the caller MUST call
+// it before starting the next one and before the plugin exits.
+func (rp *rPKIPlugin) stopSessions() {
+	rp.mu.Lock()
+	stopCh := rp.groupStopCh
+	rp.groupStopCh = nil
+	rp.sessions = nil
+	rp.mu.Unlock()
+
+	if stopCh == nil {
+		return
+	}
+
+	close(stopCh)
+	rp.sessionWg.Wait()
+}
+
+// startSessions creates the RTR sessions of one config generation and starts the single
+// goroutine that polls them in preference order.
+//
 // Sets active=true only when servers exist, so handleEvent/handleStructuredUpdate
 // skip per-prefix work when unconfigured. active stays a statement about the CONFIG:
 // whether any of those servers ever delivers data is RTRSession.synced (syncedSessions).
 func (rp *rPKIPlugin) startSessions(cfg *rpkiConfig) {
+	rp.stopSessions()
 	rp.active.Store(false)
+	setSessionsActive(0)
 	if cfg == nil || len(cfg.CacheServers) == 0 {
 		logger().Info("rpki: no cache servers configured")
 		return
@@ -411,21 +455,35 @@ func (rp *rPKIPlugin) startSessions(cfg *rpkiConfig) {
 	peerActions := cfg.PeerActions
 	rp.perPeerActions.Store(&peerActions)
 
-	rp.mu.Lock()
-	defer rp.mu.Unlock()
+	// RFC 8210 Section 10: "The client router attempts to establish a session with each
+	// potential serving cache in preference order", where "Preference: An unsigned integer
+	// denoting the router's preference to connect to that cache; the lower the value, the
+	// more preferred." The sort is STABLE because the same section calls it "a non-unique
+	// preference value", so servers sharing one keep the order the operator wrote.
+	slices.SortStableFunc(cfg.CacheServers, func(a, b cacheServerConfig) int {
+		return cmp.Compare(a.Preference, b.Preference)
+	})
 
+	stopCh := make(chan struct{})
+	sessions := make([]*RTRSession, 0, len(cfg.CacheServers))
 	for _, cs := range cfg.CacheServers {
-		session := newRTRSession(cs.Address, cs.Port, cs.Preference, cs.SourceAddress, rp.cache, rp.aspaCache, rp.stopCh)
+		session := newRTRSession(cs.Address, cs.Port, cs.Preference, cs.SourceAddress, rp.cache, rp.aspaCache, stopCh)
 		session.onASPAChange = rp.handleASPAChange
 		session.onROAChange = rp.handleROAChange
-		rp.sessions = append(rp.sessions, session)
-		rp.sessionWg.Go(session.Run)
-		logger().Info("rpki: started RTR session", "address", cs.Address, "port", cs.Port)
+		sessions = append(sessions, session)
+		logger().Info("rpki: configured RTR cache server",
+			"address", cs.Address, "port", cs.Port, "preference", cs.Preference)
 	}
 
-	if m := rpkiMetricsPtr.Load(); m != nil {
-		m.sessionsActive.Set(float64(len(rp.sessions)))
-	}
+	rp.mu.Lock()
+	rp.sessions = sessions
+	rp.groupStopCh = stopCh
+	rp.mu.Unlock()
+
+	// One goroutine for the whole list. Ze loads from one cache at a time, so a poller for
+	// each server would put every server's records in the one VRP set, which is the union
+	// the preference leaf exists to replace.
+	rp.sessionWg.Go(newCacheGroup(sessions, stopCh).Run)
 }
 
 // handleStructuredUpdate processes a structured UPDATE event from DirectBridge.
@@ -1172,6 +1230,21 @@ func (rp *rPKIPlugin) snapshots() []SessionSnapshot {
 // This is the question rp.active does not answer: active says a cache server is configured,
 // and stays true for a server whose data never arrives or arrives unreadable. Without this
 // count an operator cannot tell "the VRP set covers nothing" from "ze has no VRP set".
+// validationEnabled answers the question an operator brings to the summary: is a route
+// reaching an RPKI verdict right now?
+//
+// It is true once a configured cache server has completed one sync, which is the point at
+// which the VRP set is an answer rather than the absence of one. Before it, every prefix
+// reads NotFound for want of data, so a daemon whose cache server is unreachable would be
+// reporting the opposite of what it does. A cache that synced and then dropped keeps it
+// true, because RFC 8210 Section 10 has the router hold the data it loaded across the loss
+// and every route is still validated against that set.
+//
+// It was written as the literal true until 2026-09-20.
+func validationEnabled(snaps []SessionSnapshot) bool {
+	return syncedSessions(snaps) > 0
+}
+
 func syncedSessions(snaps []SessionSnapshot) int {
 	synced := 0
 	for _, snap := range snaps {
@@ -1192,7 +1265,13 @@ func (rp *rPKIPlugin) statusCommand() (string, any, error) {
 
 	b := textbuf.Get()
 	defer b.Release()
-	b.Str(`{"running":true,"vrp-count-ipv4":`).Int(int64(v4))
+	// "running" is read from active, the same flag the per-prefix work and the adj-rib-in
+	// validation gate are held behind, so it answers what it says: the RPKI machinery is
+	// in play because the config names a cache server. It was written as the literal true
+	// until 2026-09-20, which answered "the plugin is loaded", a thing the operator knows
+	// because they typed the command.
+	b.Str(`{"running":`).Bool(rp.active.Load())
+	b.Str(`,"vrp-count-ipv4":`).Int(int64(v4))
 	b.Str(`,"vrp-count-ipv6":`).Int(int64(v6))
 	b.Str(`,"sessions":`).Int(int64(len(snaps)))
 	b.Str(`,"sessions-synced":`).Int(int64(synced))
@@ -1325,8 +1404,9 @@ func (rp *rPKIPlugin) roaLookupCommand(prefix string) (string, any, error) {
 // Four of the seven are computed. vrp-count is the sum of the two family
 // counts, sessions-established counts the sessions in one state,
 // sessions-total spells what `show bgp rpki status` calls sessions, and
-// validation-enabled is a constant. A pipe operator can do none of those, which
-// is why the command computes them and the alias only selects them.
+// validation-enabled reads whether any cache server has delivered a set to
+// validate against. A pipe operator can do none of those, which is why the
+// command computes them and the alias only selects them.
 var summaryFieldNames = []string{
 	"vrp-count",
 	"validation-enabled",
@@ -1368,7 +1448,7 @@ func (rp *rPKIPlugin) appendSummaryFields(b *textbuf.Buffer, snaps []SessionSnap
 	}
 
 	b.Str(`"vrp-count":`).Int(int64(v4 + v6))
-	b.Str(`,"validation-enabled":true`)
+	b.Str(`,"validation-enabled":`).Bool(validationEnabled(snaps))
 	b.Str(`,"sessions-total":`).Int(int64(len(snaps)))
 	b.Str(`,"sessions-established":`).Int(int64(established))
 	b.Str(`,"sessions-synced":`).Int(int64(syncedSessions(snaps)))

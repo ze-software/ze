@@ -69,7 +69,7 @@ func TestOverviewCarriesAggregatesBesideCacheRows(t *testing.T) {
 
 	m := parseJSON(t, data)
 	assert.EqualValues(t, 2, m["vrp-count"], "vrp-count is the SUM of the two family counts")
-	assert.Equal(t, true, m["validation-enabled"])
+	assert.Equal(t, false, m["validation-enabled"], "neither session has synced, which sessions-synced below states again")
 	assert.EqualValues(t, 2, m["sessions-total"])
 	assert.EqualValues(t, 0, m["sessions-established"])
 	assert.EqualValues(t, 0, m["sessions-synced"])

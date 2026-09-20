@@ -1,3 +1,5 @@
+// RFC: rfc/short/rfc8210.md — Section 10, the router polls its caches in preference order
+// RFC: rfc/short/rfc8210.md — Section 6, the Refresh, Retry and Expire Intervals time the poll
 // Design: docs/architecture/plugin/rib-storage-design.md — RTR session lifecycle
 // Overview: rpki.go — plugin entry point managing sessions
 // Related: rtr_pdu.go — PDU wire format used by session
@@ -28,6 +30,17 @@ const (
 	sessionEstablish = "establish"
 )
 
+// Timer defaults, used until an End of Data PDU carries the cache's own values.
+//
+// RFC 8210 Section 6 gives each interval a default and a range, and states the default the
+// router uses before a cache has spoken: "Refresh Interval ... Default: 3600 seconds",
+// "Retry Interval ... Default: 600 seconds", "Expire Interval ... Default: 7200 seconds".
+const (
+	rtrIntervalRefreshDefault = 3600 * time.Second
+	rtrIntervalRetryDefault   = 600 * time.Second
+	rtrIntervalExpireDefault  = 7200 * time.Second
+)
+
 // RTRSession manages a single RTR connection to a cache server.
 type RTRSession struct {
 	address       string
@@ -45,6 +58,13 @@ type RTRSession struct {
 	// state cannot answer that question: it returns to "idle" between polls, and
 	// "establish" only says a Cache Response arrived.
 	synced bool
+
+	// fullSync is true while the query in flight is a Reset Query whose answer is the
+	// cache's whole set, so its End of Data REPLACES the cached set instead of merging
+	// into it. Set by startFullSync when the group switches cache, and by a Cache Reset
+	// PDU, which says the cache cannot serve the delta this session asked for. Cleared
+	// by the End of Data that consumed it.
+	fullSync bool
 
 	// Timing parameters from End of Data.
 	refreshInterval time.Duration
@@ -82,37 +102,141 @@ func newRTRSession(address string, port uint16, pref uint8, sourceAddress string
 		sourceAddress:   sourceAddress,
 		state:           sessionIdle,
 		version:         rtrVersionMax,
-		refreshInterval: 3600 * time.Second,
-		retryInterval:   600 * time.Second,
-		expireInterval:  7200 * time.Second,
+		refreshInterval: rtrIntervalRefreshDefault,
+		retryInterval:   rtrIntervalRetryDefault,
+		expireInterval:  rtrIntervalExpireDefault,
 		cache:           cache,
 		aspaCache:       aspaCache,
 		stopCh:          stopCh,
 	}
 }
 
-// Run is the long-lived goroutine for this RTR session.
-// It connects, queries, receives VRPs, and reconnects on failure.
-// On version mismatch (error code 4), downgrades and retries immediately.
-func (s *RTRSession) Run() {
-	for !s.stopped() {
-		err := s.connectAndSync()
-		if err != nil {
-			if errors.Is(err, errRtrVersionDowngrade) {
-				s.close()
-				continue
-			}
-			logger().Warn("rtr: session error, will retry",
-				"address", s.address, "error", err)
-		}
-		s.close()
+// cacheGroup polls the configured RTR cache servers in preference order and loads data from
+// one of them at a time.
+//
+// RFC 8210 Section 10: "The client router attempts to establish a session with each potential
+// serving cache in preference order and then starts to load data from the most preferred cache
+// to which it can connect and authenticate." The same section defines the leaf an operator
+// sets: "Preference: An unsigned integer denoting the router's preference to connect to that
+// cache; the lower the value, the more preferred."
+//
+// It owns one goroutine. The caller creates the group, starts Run in that goroutine, and stops
+// it by closing the stop channel the sessions carry; the caller MUST wait for Run to return
+// before it reads the sessions for anything but a Snapshot.
+type cacheGroup struct {
+	// sessions holds the configured cache servers, most preferred first. newCacheGroup's
+	// one caller establishes that order.
+	sessions []*RTRSession
 
-		// Wait before the next poll, or exit on stop signal.
+	// holder is the session whose data the ROA and ASPA caches carry, nil until the first
+	// sync completes. A round won by any other session replaces that data rather than
+	// merging into it: RFC 8210 Section 10 says caches "simply cannot be rigorously
+	// synchronous", so one cache's serial says nothing about another cache's set.
+	holder *RTRSession
+
+	stopCh <-chan struct{}
+}
+
+// newCacheGroup creates the group over sessions, which MUST be ordered most preferred first.
+func newCacheGroup(sessions []*RTRSession, stopCh <-chan struct{}) *cacheGroup {
+	return &cacheGroup{sessions: sessions, stopCh: stopCh}
+}
+
+// Run polls the caches until the stop channel closes.
+//
+// The loop has no other bound, and that is the decision: a router polls its caches for as long
+// as it runs. Each round restarts at the head of the preference order, which is how a recovered
+// cache takes the load back, which is the same section's "When a more-preferred cache becomes
+// available, if resources allow, it would be prudent for the client to start fetching from
+// that cache".
+func (g *cacheGroup) Run() {
+	if len(g.sessions) == 0 {
+		return
+	}
+
+	for !stopped(g.stopCh) {
+		delay := g.poll()
+
 		select {
-		case <-s.stopCh:
+		case <-g.stopCh:
 			return
-		case <-time.After(s.pollDelay(err == nil)):
+		case <-time.After(delay):
 		}
+	}
+}
+
+// poll runs one round over the caches and returns how long to wait before the next one.
+//
+// The first cache that completes a sync ends the round and its Refresh Interval times the next
+// one. When no cache answers, the Retry Interval of the last one tried does, which is RFC 8210
+// Section 6 read over a list rather than over a single server.
+func (g *cacheGroup) poll() time.Duration {
+	delay := rtrIntervalRetryDefault
+	for _, s := range g.sessions {
+		if s.stopped() {
+			return delay
+		}
+
+		if s != g.holder {
+			s.startFullSync()
+		}
+
+		err := s.syncOnce()
+		if err == nil {
+			g.holder = s
+			setSessionsActive(1)
+			return s.pollDelay(true)
+		}
+
+		logger().Warn("rtr: cache did not answer, trying the next one in preference order",
+			"address", s.address, "preference", s.preference, "error", err)
+		delay = s.pollDelay(false)
+	}
+
+	setSessionsActive(0)
+	return delay
+}
+
+// syncOnce runs one connect-query-sync cycle against this cache and closes the connection
+// behind it.
+//
+// A version downgrade is not a failure of the cache, so it costs the cache no turn in the
+// preference order: RFC 8210 Section 7 has the router retry at the lower version. The retry
+// count is bounded by the version range, because connectAndSync asks for a downgrade only
+// while the session version is above rtrVersionMin and lowers it each time.
+func (s *RTRSession) syncOnce() error {
+	err := errRtrVersionDowngrade
+	for range rtrVersionMax - rtrVersionMin + 1 {
+		err = s.connectAndSync()
+		s.close()
+		if !errors.Is(err, errRtrVersionDowngrade) {
+			return err
+		}
+	}
+	return err
+}
+
+// startFullSync makes this session's next query a Reset Query and has its End of Data replace
+// the cached set instead of merging into it.
+//
+// RFC 8210 Section 10: "If the client decides to switch to a new cache, it SHOULD retain the
+// data from the previous cache until it has a full set of data from one or more other caches."
+// The replacement happens inside the End of Data handler, under one lock, so the previous
+// cache's data stays live for every validation until the new full set is there to take over.
+func (s *RTRSession) startFullSync() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.serial = 0
+	s.fullSync = true
+}
+
+// stopped reports whether the stop channel has been closed.
+func stopped(stopCh <-chan struct{}) bool {
+	select {
+	case <-stopCh:
+		return true
+	default:
+		return false
 	}
 }
 
@@ -139,14 +263,9 @@ func (s *RTRSession) pollDelay(synced bool) time.Duration {
 	return s.retryInterval
 }
 
-// stopped returns true if the stop channel has been closed.
+// stopped reports whether this session's stop channel has been closed.
 func (s *RTRSession) stopped() bool {
-	select {
-	case <-s.stopCh:
-		return true
-	default: //nolint:gosimple // non-blocking channel check
-		return false
-	}
+	return stopped(s.stopCh)
 }
 
 // connectAndSync establishes TCP connection and runs the RTR protocol.
@@ -333,20 +452,34 @@ func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 		if params.ExpireInterval > 0 {
 			s.expireInterval = time.Duration(params.ExpireInterval) * time.Second
 		}
-		// Apply accumulated VRPs to cache atomically.
+		// Apply the accumulated VRPs. A Reset Query is answered with the cache's whole
+		// set, so its End of Data REPLACES what ze holds; a Serial Query is answered with
+		// a delta against the set ze already has. Both run under the lock this branch
+		// holds, so no validation reads a half-applied set.
+		fullSync := s.fullSync
+		s.fullSync = false
 		announced := len(s.pendingVRPs)
 		withdrawn := len(s.pendingDels)
-		s.cache.ApplyDelta(s.pendingDels, s.pendingVRPs)
+		if fullSync {
+			s.cache.Replace(s.pendingVRPs)
+		} else {
+			s.cache.ApplyDelta(s.pendingDels, s.pendingVRPs)
+		}
 		s.pendingVRPs = nil
 		s.pendingDels = nil
 
-		// Apply accumulated ASPA records.
+		// Apply the accumulated ASPA records, the same two ways.
 		aspaAnnounced := len(s.pendingASPAs)
 		aspaWithdrawn := len(s.pendingASPADels)
 		var aspaChanged []uint32
-		if s.aspaCache != nil && (aspaAnnounced > 0 || aspaWithdrawn > 0) {
-			aspaChanged = s.aspaCache.changedCustomers(s.pendingASPADels, s.pendingASPAs)
-			s.aspaCache.ApplyDelta(s.pendingASPADels, s.pendingASPAs)
+		if s.aspaCache != nil {
+			switch {
+			case fullSync:
+				aspaChanged = s.aspaCache.Replace(s.pendingASPAs)
+			case aspaAnnounced > 0 || aspaWithdrawn > 0:
+				aspaChanged = s.aspaCache.changedCustomers(s.pendingASPADels, s.pendingASPAs)
+				s.aspaCache.ApplyDelta(s.pendingASPADels, s.pendingASPAs)
+			}
 		}
 		s.pendingASPAs = nil
 		s.pendingASPADels = nil
@@ -358,8 +491,10 @@ func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 		}
 
 		// Notify ROA change callback (RFC 6811 Section 4: re-validate installed routes when the
-		// VRP set changes). Any announce or withdraw can flip a covering prefix's state.
-		if (announced > 0 || withdrawn > 0) && s.onROAChange != nil {
+		// VRP set changes). Any announce or withdraw can flip a covering prefix's state, and a
+		// full sync swapped the whole set, so it can flip one even when this cache sent no
+		// prefix at all.
+		if (fullSync || announced > 0 || withdrawn > 0) && s.onROAChange != nil {
 			s.onROAChange()
 		}
 
@@ -379,9 +514,13 @@ func (s *RTRSession) handlePDU(hdr rTRHeader, buf []byte) (bool, error) {
 		return true, nil
 
 	case pduCacheReset:
-		// Cache cannot serve incremental, need full reset.
+		// The cache cannot serve the delta this session asked for, so the next query is a
+		// Reset Query and its answer is the whole set. It replaces what ze holds rather
+		// than merging into it: the records this session withdrew while ze was away would
+		// otherwise stay valid forever, with nothing left to withdraw them.
 		s.mu.Lock()
 		s.serial = 0
+		s.fullSync = true
 		s.mu.Unlock()
 		return true, errRtrCacheResetReceivedWillDo
 
