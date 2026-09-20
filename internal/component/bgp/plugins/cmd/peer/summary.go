@@ -84,6 +84,16 @@ func registerPeerRowShapes() {
 // field. Returns "" when the peer has never sent or received one, so a healthy
 // peer reports no error rather than a fabricated "none".
 //
+// A reason ze built and could not write carries the " (not sent)" qualifier.
+// RFC 9384 Section 4: "When there is a total loss of connectivity between two
+// BGP speakers, it may not have been possible for the Cease NOTIFICATION
+// message to have been sent.  Even so, BGP speakers SHOULD provide this reason
+// as part of their operational state." The qualifier is in the STRING because
+// this field is also birdwatcher's `last_error`
+// (internal/component/lg/handler_api.go), whose schema holds one string and no
+// room for a second key. A caller that wants the distinction structured reads
+// last-notification.direction on `show bgp peer <address>`.
+//
 // RFC 4271 Section 4.5: "Error code / Error subcode". The rendering goes through
 // message.Notification, whose NotifyErrorCode.String() maps unknown codes to
 // "Unknown(N)" and unknown subcodes to "Subcode(N)" instead of echoing them, and
@@ -91,12 +101,15 @@ func registerPeerRowShapes() {
 // bounding is load-bearing: last-error reaches the PUBLIC looking glass
 // (lg/server.go query path), and code/subcode originate from a remote peer.
 func lastErrorString(p *plugin.PeerInfo) string {
-	if p.LastNotifTime.IsZero() {
+	if p.LastNotifDirection == plugin.NotifNone {
 		return ""
 	}
 	n := message.Notification{
 		ErrorCode:    message.NotifyErrorCode(p.LastNotifCode),
 		ErrorSubcode: p.LastNotifSubcode,
+	}
+	if p.LastNotifDirection == plugin.NotifSendFailed {
+		return n.String() + " (not sent)"
 	}
 	return n.String()
 }

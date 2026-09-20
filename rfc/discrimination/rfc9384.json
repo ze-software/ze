@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc9384",
+  "records": [
+    {
+      "rid": "RFC9384-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go::TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell",
+      "unit-sha": "af4b264607e2edde",
+      "claim-sha": "e9f3123dc28ceaed",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/cmd/peer/summary.go::lastErrorString",
+      "producer-sha": "254260e1b095822c",
+      "break": "body of lastErrorString replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9384-4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go::TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell",
+      "unit-sha": "af4b264607e2edde",
+      "claim-sha": "e94e679bc028cbe2",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/cmd/peer/summary.go::lastErrorString",
+      "producer-sha": "254260e1b095822c",
+      "break": "body of lastErrorString replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9384-4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/peer_last_error_test.go::TestNotificationDeliveredIsNotRecordedAsUnsent",
+      "unit-sha": "284cc8dbdf694519",
+      "claim-sha": "75b2232569f03e7c",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_stats.go::incrNotificationSent",
+      "producer-sha": "9dbe622b839e476c",
+      "break": "body of incrNotificationSent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9384-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/peer_last_error_test.go::TestNotificationRefusedBySocketStillRecordsTheReason",
+      "unit-sha": "045cab675fc49149",
+      "claim-sha": "1aef9a55ae4dbf91",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_stats.go::recordNotificationUnsent",
+      "producer-sha": "73e88e25ee5b8b3f",
+      "break": "body of recordNotificationUnsent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

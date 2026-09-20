@@ -456,10 +456,10 @@ func TestBgpSummaryEmitsStateChangedAndLastError(t *testing.T) {
 				Uptime:          5 * time.Minute,
 				LastStateChange: changed,
 				// Cease / Administrative Shutdown (RFC 4271 4.5, RFC 9003).
-				LastNotifCode:    6,
-				LastNotifSubcode: 2,
-				LastNotifRecv:    true,
-				LastNotifTime:    changed,
+				LastNotifCode:      6,
+				LastNotifSubcode:   2,
+				LastNotifDirection: plugin.NotifReceived,
+				LastNotifTime:      changed,
 			},
 		},
 		stats: plugin.ReactorStats{PeerCount: 1, RouterID: 0x0a000001, LocalAS: 65000},
@@ -530,12 +530,18 @@ func TestLastErrorFormat(t *testing.T) {
 	}{
 		{
 			name: "cease admin shutdown",
-			info: plugin.PeerInfo{LastNotifCode: 6, LastNotifSubcode: 2, LastNotifTime: stamp},
+			info: plugin.PeerInfo{
+				LastNotifCode: 6, LastNotifSubcode: 2,
+				LastNotifDirection: plugin.NotifSent, LastNotifTime: stamp,
+			},
 			want: "Cease/Administrative Shutdown",
 		},
 		{
 			name: "hold timer expired",
-			info: plugin.PeerInfo{LastNotifCode: 4, LastNotifSubcode: 0, LastNotifTime: stamp},
+			info: plugin.PeerInfo{
+				LastNotifCode: 4, LastNotifSubcode: 0,
+				LastNotifDirection: plugin.NotifReceived, LastNotifTime: stamp,
+			},
 			want: "Hold Timer Expired/Unspecific",
 		},
 		{
@@ -548,7 +554,10 @@ func TestLastErrorFormat(t *testing.T) {
 			// peer bytes: NotifyErrorCode.String() -> "Unknown(250)" and the
 			// subcode default -> "Subcode(99)".
 			name: "unknown code and subcode are bounded, not echoed",
-			info: plugin.PeerInfo{LastNotifCode: 250, LastNotifSubcode: 99, LastNotifTime: stamp},
+			info: plugin.PeerInfo{
+				LastNotifCode: 250, LastNotifSubcode: 99,
+				LastNotifDirection: plugin.NotifReceived, LastNotifTime: stamp,
+			},
 			want: "Unknown(250)/Subcode(99)",
 		},
 	}

@@ -118,13 +118,6 @@ func messageCounters(opens, updates, notifications, keepalives, refresh, eor uin
 	}
 }
 
-func notifDirection(recv bool) string {
-	if recv {
-		return "received"
-	}
-	return "sent"
-}
-
 func init() {
 	registerColumns()
 	registerShapes()
@@ -600,11 +593,15 @@ func handleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plug
 			row["negotiated-hold-time"] = int(p.NegotiatedHoldTime.Seconds())
 			row["negotiated-keepalive-time"] = int(p.NegotiatedKeepaliveTime.Seconds())
 		}
-		if !p.LastNotifTime.IsZero() {
+		// direction is "received", "sent" or "send-failed". The last one is
+		// the reason ze built for a peer the socket would no longer carry,
+		// which RFC 9384 Section 4 asks for in operational state, and it is
+		// the structured form of the " (not sent)" qualifier on last-error.
+		if p.LastNotifDirection != plugin.NotifNone {
 			row["last-notification"] = map[string]any{
 				"code":      p.LastNotifCode,
 				"subcode":   p.LastNotifSubcode,
-				"direction": notifDirection(p.LastNotifRecv),
+				"direction": p.LastNotifDirection.String(),
 				"time":      p.LastNotifTime.UTC().Format(time.RFC3339),
 			}
 		}

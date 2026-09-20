@@ -428,6 +428,7 @@ func fullyPopulatedPeer() plugin.PeerInfo {
 		LastNotifTime:           time.Now().UTC().Add(-time.Hour),
 		LastNotifCode:           6,
 		LastNotifSubcode:        2,
+		LastNotifDirection:      plugin.NotifSent,
 	}
 }
 

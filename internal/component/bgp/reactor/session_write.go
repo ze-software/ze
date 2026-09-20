@@ -61,7 +61,9 @@ func notifySubcodeValue(code message.NotifyErrorCode, subcode uint8) any {
 }
 
 // sendNotification sends a NOTIFICATION message.
-// Increments the notification counter only after a successful write.
+// Increments the notification counter only after a successful write; the
+// onNotifSent hook fires either way, because a refused write is still the
+// reason this session ended.
 func (s *Session) sendNotification(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte) error {
 	return s.sendNotificationWithin(conn, code, subcode, data, s.controlWriteDeadline())
 }
@@ -75,7 +77,8 @@ func (s *Session) sendNotificationWithin(conn net.Conn, code message.NotifyError
 		Data:         data,
 	}
 	err := s.writeMessageWithin(conn, notif, deadline)
-	if err == nil {
+	delivered := err == nil
+	if delivered {
 		// A NOTIFICATION is the only wire signal that ZE, rather than the peer or the
 		// network, ended this session -- and it produced a counter, a Prometheus label and
 		// a report-bus entry, but no log line at all. An operator tailing stderr saw the
@@ -94,9 +97,18 @@ func (s *Session) sendNotificationWithin(conn net.Conn, code message.NotifyError
 			"code", code,
 			"subcode", notifySubcodeValue(code, subcode),
 		)
-		if s.onNotifSent != nil {
-			s.onNotifSent(uint8(code), subcode)
-		}
+	}
+	// RFC 9384 Section 4: "When there is a total loss of connectivity between
+	// two BGP speakers, it may not have been possible for the Cease
+	// NOTIFICATION message to have been sent.  Even so, BGP speakers SHOULD
+	// provide this reason as part of their operational state."
+	//
+	// So the hook fires on a refused write as well, carrying delivered=false.
+	// The peer records the reason under plugin.NotifSendFailed, counts no
+	// message and raises no notification-sent report: the operator gets the
+	// reason AND can tell it from a reason the peer was told.
+	if s.onNotifSent != nil {
+		s.onNotifSent(uint8(code), subcode, delivered)
 	}
 	return err
 }

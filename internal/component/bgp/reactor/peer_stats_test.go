@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/core/report"
+
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // newPeerWithMetrics creates a Peer wired to a spy metrics registry.
@@ -385,7 +387,7 @@ func TestPeerStatsLastNotification(t *testing.T) {
 	stats := peer.Stats()
 	assert.Equal(t, uint8(6), stats.LastNotifCode)
 	assert.Equal(t, uint8(2), stats.LastNotifSubcode)
-	assert.False(t, stats.LastNotifRecv)
+	assert.Equal(t, plugin.NotifSent, stats.LastNotifDirection)
 	assert.False(t, stats.LastNotifTime.IsZero())
 	assert.Equal(t, uint32(1), stats.NotificationsSent)
 
@@ -393,7 +395,7 @@ func TestPeerStatsLastNotification(t *testing.T) {
 	stats = peer.Stats()
 	assert.Equal(t, uint8(3), stats.LastNotifCode)
 	assert.Equal(t, uint8(1), stats.LastNotifSubcode)
-	assert.True(t, stats.LastNotifRecv)
+	assert.Equal(t, plugin.NotifReceived, stats.LastNotifDirection)
 	assert.Equal(t, uint32(1), stats.NotificationsReceived)
 }
 

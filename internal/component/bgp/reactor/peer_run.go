@@ -236,17 +236,7 @@ func (p *Peer) runOnce() error {
 	// session so each session lands in a file whose header names the peer, the
 	// start time, and whether the coalesced read path was active.
 	capture := p.startCapture(session)
-	session.onNotifSent = p.incrNotificationSent
-	session.onNotifRecv = p.incrNotificationReceived
-	session.onOpenSent = p.incrOpensSent
-	session.onOpenRecv = p.incrOpensReceived
-	session.onRefreshRecv = p.incrRefreshReceived
-	session.onRead = p.touchLastRead
-	session.onWrite = p.touchLastWrite
-	session.onNegotiated = func(holdSec, keepaliveSec uint32) {
-		p.negotiatedHoldTime.Store(holdSec)
-		p.negotiatedKeepaliveTime.Store(keepaliveSec)
-	}
+	p.attachStatsCallbacks(session)
 	session.SetSourceID(p.sourceID)
 	session.SetPluginCapabilityGetter(p.getPluginCapabilities)
 	session.setConfigCapabilityGetter(p.configuredCapabilities)

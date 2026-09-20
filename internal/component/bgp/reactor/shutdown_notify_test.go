@@ -281,15 +281,16 @@ func TestReactorStopStaysInBudgetWithUnreadablePeer(t *testing.T) {
 // it is deterministic where an assertion about what the PEER reads is not.
 //
 // The reactor context is read from inside the send, on the goroutine doing it,
-// through the onNotifSent hook that fires at the end of a successful
-// NOTIFICATION write (session_write.go). Program order fixes the answer,
-// nothing schedules it:
+// through the onNotifSent hook that fires at the end of a NOTIFICATION write
+// (session_write.go). The hook fires on a refused write too, carrying
+// delivered=false, so this test reads the delivered calls alone. Program order
+// fixes the answer, nothing schedules it:
 //
 //   - send before cancel: r.ctx is live when the octets go out, so the hook
 //     records a nil error. That is the pass.
 //   - send after cancel: either the session's own cancel goroutine has already
-//     closed the socket, the write fails and the hook never fires, or the
-//     write wins and the hook records context.Canceled. Both are red.
+//     closed the socket and the write fails, so no delivered call arrives, or
+//     the write wins and the hook records context.Canceled. Both are red.
 //
 // The far-end assertion cannot separate those, because bytes already on the
 // pipe stay readable after the cancel. See the note on
@@ -305,7 +306,10 @@ func TestReactorStopNotifiesWhileItsContextIsStillLive(t *testing.T) {
 	session, client := shutdownTestSession(t, fsm.StateEstablished)
 
 	sent := make(chan error, 1)
-	session.onNotifSent = func(code, subcode uint8) {
+	session.onNotifSent = func(code, subcode uint8, delivered bool) {
+		if !delivered {
+			return
+		}
 		if message.NotifyErrorCode(code) != message.NotifyCease ||
 			subcode != message.NotifyCeaseAdminShutdown {
 			return

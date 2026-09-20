@@ -457,9 +457,13 @@ type Session struct {
 	// addrLabel caches settings.Address.String() to avoid per-message allocations.
 	addrLabel string
 
-	// onNotifSent is called when a NOTIFICATION is sent to the peer.
-	// Set by Peer in runOnce() for Prometheus notification counter.
-	onNotifSent func(code, subcode uint8)
+	// onNotifSent is called after every NOTIFICATION write attempt, with
+	// delivered saying whether the write returned no error. A refused write
+	// still ends the session, and RFC 9384 Section 4 asks for that reason in
+	// operational state, so the hook fires for it too.
+	// Set by Peer in runOnce() for the Prometheus notification counter and
+	// the last-error record.
+	onNotifSent func(code, subcode uint8, delivered bool)
 
 	// onNotifRecv is called when a NOTIFICATION is received from the peer.
 	// Set by Peer in runOnce() for Prometheus notification counter.

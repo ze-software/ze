@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+
+	"github.com/ze-software/ze/internal/component/plugin"
 )
 
 // Message-type label values, the `type` label of
@@ -79,10 +81,13 @@ type PeerStats struct {
 	ConnectRetryCounter uint32
 
 	// Last notification details (survive ClearStats).
-	LastNotifCode    uint8
-	LastNotifSubcode uint8
-	LastNotifRecv    bool
-	LastNotifTime    time.Time
+	// LastNotifDirection carries whether the record exists at all, so
+	// plugin.NotifNone is the "this peer never had one" answer and
+	// LastNotifTime is not read for that question.
+	LastNotifCode      uint8
+	LastNotifSubcode   uint8
+	LastNotifDirection plugin.NotifDirection
+	LastNotifTime      time.Time
 
 	// Activity timestamps.
 	LastReadTime  time.Time
@@ -113,10 +118,10 @@ type peerCounters struct {
 	connectionsDropped     atomic.Uint32
 
 	// Last notification details (not reset by ClearStats).
-	lastNotifCode    atomic.Uint32 // uint8 stored in uint32
-	lastNotifSubcode atomic.Uint32
-	lastNotifRecv    atomic.Bool
-	lastNotifTime    atomic.Int64 // UnixNano
+	lastNotifCode      atomic.Uint32 // uint8 stored in uint32
+	lastNotifSubcode   atomic.Uint32
+	lastNotifDirection atomic.Uint32 // plugin.NotifDirection stored in uint32
+	lastNotifTime      atomic.Int64  // UnixNano
 
 	// Activity timestamps.
 	lastReadTime  atomic.Int64 // UnixNano
@@ -143,7 +148,7 @@ func (p *Peer) Stats() PeerStats {
 		ConnectRetryCounter:    p.connectRetryCounter.Load(),
 		LastNotifCode:          uint8(p.counters.lastNotifCode.Load()),
 		LastNotifSubcode:       uint8(p.counters.lastNotifSubcode.Load()),
-		LastNotifRecv:          p.counters.lastNotifRecv.Load(),
+		LastNotifDirection:     plugin.NotifDirection(p.counters.lastNotifDirection.Load()),
 	}
 	if ns := p.counters.lastNotifTime.Load(); ns != 0 {
 		stats.LastNotifTime = time.Unix(0, ns)
@@ -273,12 +278,62 @@ func (p *Peer) incrOpensSent() {
 	}
 }
 
-func (p *Peer) recordNotification(code, subcode uint8, recv bool) {
+// recordNotification stores the reason this session ended. It writes the
+// record alone: notificationExchanged says a NOTIFICATION crossed the wire,
+// which a record with direction plugin.NotifSendFailed did not, so the two
+// callers that mean "exchanged" set that flag themselves.
+// attachStatsCallbacks wires the session hooks that feed this peer's counters,
+// its last-error record and its negotiated timers. runOnce calls it for every
+// connection attempt, and it is the one place that says which peer method each
+// hook reaches.
+func (p *Peer) attachStatsCallbacks(session *Session) {
+	session.onNotifSent = p.recordNotificationSend
+	session.onNotifRecv = p.incrNotificationReceived
+	session.onOpenSent = p.incrOpensSent
+	session.onOpenRecv = p.incrOpensReceived
+	session.onRefreshRecv = p.incrRefreshReceived
+	session.onRead = p.touchLastRead
+	session.onWrite = p.touchLastWrite
+	session.onNegotiated = func(holdSec, keepaliveSec uint32) {
+		p.negotiatedHoldTime.Store(holdSec)
+		p.negotiatedKeepaliveTime.Store(keepaliveSec)
+	}
+}
+
+func (p *Peer) recordNotification(code, subcode uint8, direction plugin.NotifDirection) {
 	p.counters.lastNotifCode.Store(uint32(code))
 	p.counters.lastNotifSubcode.Store(uint32(subcode))
-	p.counters.lastNotifRecv.Store(recv)
+	p.counters.lastNotifDirection.Store(uint32(direction))
 	p.counters.lastNotifTime.Store(p.clock.Now().UnixNano())
-	p.notificationExchanged.Store(true)
+}
+
+// recordNotificationSend is the session's onNotifSent hook. The session calls
+// it after every NOTIFICATION write, delivered or not, and the two outcomes
+// are different states rather than one state and a silence.
+//
+// RFC 9384 Section 4: "When there is a total loss of connectivity between two
+// BGP speakers, it may not have been possible for the Cease NOTIFICATION
+// message to have been sent.  Even so, BGP speakers SHOULD provide this reason
+// as part of their operational state."
+func (p *Peer) recordNotificationSend(code, subcode uint8, delivered bool) {
+	if delivered {
+		p.incrNotificationSent(code, subcode)
+		return
+	}
+	p.recordNotificationUnsent(code, subcode)
+}
+
+// recordNotificationUnsent records a NOTIFICATION ze built and could not put
+// on the wire, so `show bgp peer` answers WHY the session ended instead of
+// answering what a healthy peer answers.
+//
+// It counts no message: notificationsSent counts octets that left, the
+// notification-sent report says ze told the peer, and neither happened. It
+// leaves notificationExchanged false, so the FSM Established->Idle handler
+// still raises session-dropped -- the wire really did go away, and that event
+// is the one an operator watches for it.
+func (p *Peer) recordNotificationUnsent(code, subcode uint8) {
+	p.recordNotification(code, subcode, plugin.NotifSendFailed)
 }
 
 // incrNotificationSent increments the sent NOTIFICATION counter with code/subcode
@@ -287,7 +342,8 @@ func (p *Peer) recordNotification(code, subcode uint8, recv bool) {
 // in peer_run.go can suppress the duplicate session-dropped error.
 func (p *Peer) incrNotificationSent(code, subcode uint8) {
 	p.counters.notificationsSent.Add(1)
-	p.recordNotification(code, subcode, false)
+	p.recordNotification(code, subcode, plugin.NotifSent)
+	p.notificationExchanged.Store(true)
 	raiseNotificationError("sent", p.peerAddrLabel(), code, subcode)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.notifSent.With(
@@ -306,7 +362,8 @@ func (p *Peer) incrNotificationSent(code, subcode uint8) {
 // error.
 func (p *Peer) incrNotificationReceived(code, subcode uint8) {
 	p.counters.notificationsReceived.Add(1)
-	p.recordNotification(code, subcode, true)
+	p.recordNotification(code, subcode, plugin.NotifReceived)
+	p.notificationExchanged.Store(true)
 	raiseNotificationError("received", p.peerAddrLabel(), code, subcode)
 	if p.reactor != nil && p.reactor.rmetrics != nil {
 		p.reactor.rmetrics.notifRecv.With(

@@ -180,7 +180,7 @@ func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 			ConnectRetryCounter:    stats.ConnectRetryCounter,
 			LastNotifCode:          stats.LastNotifCode,
 			LastNotifSubcode:       stats.LastNotifSubcode,
-			LastNotifRecv:          stats.LastNotifRecv,
+			LastNotifDirection:     stats.LastNotifDirection,
 			LastNotifTime:          stats.LastNotifTime,
 			LastReadTime:           stats.LastReadTime,
 			LastWriteTime:          stats.LastWriteTime,

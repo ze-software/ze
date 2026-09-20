@@ -55,6 +55,44 @@ func (s PeerState) String() string {
 	return textbuf.StrIntStr("unknown(", int64(s), ")")
 }
 
+// NotifDirection says how the last NOTIFICATION reached, or failed to reach,
+// the peer. RFC 9384 Section 4: "When there is a total loss of connectivity
+// between two BGP speakers, it may not have been possible for the Cease
+// NOTIFICATION message to have been sent.  Even so, BGP speakers SHOULD
+// provide this reason as part of their operational state." So "ze built the
+// reason and the socket refused it" is a state of its own, and an operator
+// reading last-error can tell it from "ze told the peer".
+type NotifDirection uint8
+
+const (
+	// NotifNone means this peer has neither received a NOTIFICATION nor had
+	// one built for it. It is the zero value, so a record nobody wrote never
+	// reads as a real one.
+	NotifNone NotifDirection = iota
+	// NotifReceived means the peer sent the NOTIFICATION to ze.
+	NotifReceived
+	// NotifSent means ze wrote the NOTIFICATION to the socket and the write
+	// returned no error, so the peer was told.
+	NotifSent
+	// NotifSendFailed means ze built the NOTIFICATION and the write failed.
+	// The reason still ended the session; the peer was never told it.
+	NotifSendFailed
+)
+
+func (d NotifDirection) String() string {
+	switch d {
+	case NotifNone:
+		return "none"
+	case NotifReceived:
+		return "received"
+	case NotifSent:
+		return "sent"
+	case NotifSendFailed:
+		return "send-failed"
+	}
+	return textbuf.StrIntStr("unknown(", int64(d), ")")
+}
+
 // PeerInfo is a snapshot of BGP peer state for API output.
 //
 // AddrStr and LocalAddrStr return the cached address strings with fallback.
@@ -142,10 +180,13 @@ type PeerInfo struct {
 	ConnectRetryCounter uint32
 
 	// Last notification details (lifetime, survives session reset).
-	LastNotifCode    uint8
-	LastNotifSubcode uint8
-	LastNotifRecv    bool
-	LastNotifTime    time.Time
+	// LastNotifDirection is the record's presence flag as well as its
+	// direction: NotifNone means there is no record, so LastNotifTime is not
+	// read for that question.
+	LastNotifCode      uint8
+	LastNotifSubcode   uint8
+	LastNotifDirection NotifDirection
+	LastNotifTime      time.Time
 
 	// LastStateChange is the time of the peer's most recent FSM transition.
 	// Zero means the peer has never transitioned. Unlike Uptime (derived from
