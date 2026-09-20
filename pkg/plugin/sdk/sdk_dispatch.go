@@ -335,6 +335,12 @@ func (p *Plugin) handleConfigure(params json.RawMessage) error {
 	fn := p.onConfigure
 	p.mu.Unlock()
 
+	// An error out of here is this plugin REFUSING the configuration it was
+	// sent, and serveOne turns it into the Stage 2 error RESPONSE the engine
+	// recognizes as a refusal. A plugin whose registration asked for it stops
+	// ze on one; a failure to DELIVER the configuration never does, because it
+	// produces no response at all (isConfigRefusal,
+	// internal/component/plugin/server/startup.go).
 	if fn != nil {
 		return fn(input.Sections)
 	}

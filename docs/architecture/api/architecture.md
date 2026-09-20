@@ -368,7 +368,7 @@ internal/component/plugin/registry/registry.go
 **Why the blank import lives in `cmd/ze/main.go`:** Placing it deeper (e.g., in `internal/component/plugin/`) would create import cycles, because some plugins depend on packages like `format` that themselves depend on `plugin`.
 
 **Registry is a leaf package:** `registry/` has zero dependencies on plugin implementations. Plugins import the registry to register; consumers import the registry to query. This one-directional flow prevents cycles.
-<!-- source: internal/component/plugin/registry/registry.go -- Registration, Lookup, All -->
+<!-- source: internal/component/plugin/registry/registry.go -- Registration, FatalOnConfigError, Lookup, All -->
 
 **Code generation keeps `all.go` in sync:** `internal/le/plugin/imports.Write` (invoked via `./le repository generate`) walks plugin implementation roots such as `internal/component/bgp/plugins/`, `internal/component/`, and `internal/plugins/` for `register.go` files that import the plugin registry, and separately discovers infrastructure `schema/register.go` files that import `config/yang`. It writes the sorted blank-import list to `all.go`.
 
@@ -380,7 +380,7 @@ internal/component/plugin/registry/registry.go
 
 No other wiring is needed. The engine discovers it through registry queries, the CLI dispatches via `CLIHandler`, YANG schemas are picked up automatically, and dependency resolution handles startup ordering.
 
-**Registration struct fields:** Each plugin provides its name, handlers (`RunEngine`, `CLIHandler`), and optional metadata: address families, capability codes, dependencies, YANG schema, event types, declared commands, and in-process codec functions. See `registry/registry.go` for the full `Registration` type, and `docs/architecture/plugin/plugin-system.md` for the field-by-field table.
+**Registration struct fields:** Each plugin provides its name, handlers (`RunEngine`, `CLIHandler`), and optional metadata: address families, capability codes, dependencies, YANG schema, event types, declared commands, and in-process codec functions. One field decides what a rejected configuration does to startup: `FatalOnConfigError` makes a plugin's REFUSAL of its own config stop ze, rather than stopping that plugin and letting the daemon run without it. It is keyed on the plugin answering with an error RESPONSE, so a transport failure delivering Stage 2 never counts: a dead pipe is not a statement about the configuration, and refusing to start over one would be a new outage in place of a missing feature. See `registry/registry.go` for the full `Registration` type, and `docs/architecture/plugin/plugin-system.md` for the field-by-field table.
 
 `InProcessNLRIDecoder` is `func(family, hex string, addPath bool) (any, error)`, and `DecodeNLRIByFamily` passes the same three arguments on. RFC 7911 Section 3 puts a 4-octet Path Identifier ahead of each NLRI once ADD-PATH is negotiated for the family. The hex octets do not say whether that field is there, so the negotiation result travels beside them. A decoder that does not get the flag reads the Path Identifier as prefix bytes. The RPC carries the same fact in `rpc.DecodeNLRIInput.AddPath`, under the JSON key `add-path`, for a plugin that runs out of process.
 <!-- source: internal/component/plugin/registry/registry.go -- Registration, DecodeNLRIByFamily -->

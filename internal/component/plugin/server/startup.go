@@ -627,8 +627,9 @@ func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) 
 
 // DeliverConfig delivers the real config sections for the plugin's requested
 // roots. A send failure is fatal to this plugin's startup (barrier signaled,
-// process stopped, startupErr set for fatal-on-config plugins) and aborts the
-// driver; see deliverConfigRPC.
+// process stopped) and aborts the driver. It stops ze itself only when the
+// plugin REFUSED the configuration and its registration asked for that; see
+// deliverConfigRPC and configRefusalIsFatal.
 func (e *engineStartupSink) deliverConfig(ctx context.Context) error {
 	return e.s.deliverConfigRPC(ctx, e.proc)
 }
@@ -793,12 +794,53 @@ func (s *Server) deliverConfigRPC(ctx context.Context, proc *process.Process) er
 			coord.PluginFailed(proc.Index(), tb.Str("configure failed: ").Err(err).String())
 		}
 		proc.Stop()
-		if registry.IsFatalOnConfigError(proc.Name()) {
+		if configRefusalIsFatal(proc.Name(), err) {
 			s.startupErr = fmt.Errorf("%s: %w", proc.Name(), err)
 		}
 		return err
 	}
 	return nil
+}
+
+// isConfigRefusal reports whether err is the plugin REFUSING the configuration
+// it was sent, rather than a failure to DELIVER that configuration.
+//
+// Two different things come back from SendConfigure and only one of them is a
+// statement about the configuration. The plugin's Stage 2 handler returning an
+// error is a refusal: the plugin read the configuration and declined it
+// (handleConfigure, pkg/plugin/sdk/sdk_dispatch.go). A closed connection, a
+// timeout or a canceled context is not a statement about the configuration at
+// all, and stopping ze because an RPC died is the wrong answer to a dead RPC.
+//
+// The refusal is recognized POSITIVELY, by the type the plugin's error
+// RESPONSE parses into. Only parseRPCError builds an *rpc.RPCCallError, and it
+// builds one only from a response line the plugin wrote
+// (interpretResponse, pkg/plugin/rpc/mux.go), so no transport failure can wear
+// that type and no error this function has not met before is read as a
+// refusal.
+//
+// The alternative shape was a `config-refused` code stamped on the wire by the
+// SDK and matched here. It was rejected for two reasons. It fails OPEN: a
+// plugin written against the protocol rather than the Go SDK -- Python, Rust --
+// answers with a plain error response, which would stop being a refusal and
+// would let ze start on a configuration that plugin rejected. And at Stage 2
+// the transport is always the pipe, because the DirectBridge is switched in
+// only after Stage 5 (postReady, this file), so no second transport needs a
+// code to carry the distinction the response type already carries.
+func isConfigRefusal(err error) bool {
+	var callErr *rpc.RPCCallError
+	return errors.As(err, &callErr)
+}
+
+// configRefusalIsFatal reports whether a Stage 2 failure stops ze. Only a
+// refusal can, and only for a plugin whose registration asked for it: a bad
+// configuration must not produce a running router silently missing the feature
+// that plugin owns.
+func configRefusalIsFatal(pluginName string, err error) bool {
+	if !isConfigRefusal(err) {
+		return false
+	}
+	return registry.IsFatalOnConfigError(pluginName)
 }
 
 // deliverRegistryRPC sends the command registry to a plugin via RPC (Stage 4).

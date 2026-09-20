@@ -138,6 +138,22 @@ Tier-Ordered Startup below).
 | 5. Ready | Plugin to Engine | `ze-plugin-engine:ready` | `ReadyInput` |
 | Post | Engine to Plugin | `ze-plugin-callback:post-startup` | (empty) |
 
+**A Stage 2 error response is a REFUSAL, and a dead transport is not.** A
+plugin that cannot take the configuration it was sent answers `#<id> error`
+with the reason. The engine reads that response, stops the plugin, and stops ze
+itself when the plugin's registration carries `FatalOnConfigError`: a mistyped
+address family gets an operator a refusal with the reason, not a running router
+silently missing the feature that plugin owns.
+
+A failure to DELIVER the configuration produces no response at all. A closed
+connection, a timeout and a canceled context each fail the configure call
+without the plugin having said anything, so none of them is a refusal and none
+of them stops ze, whatever the registration asks for. The engine tells the two
+apart by what comes back: a refusal parses into an `*rpc.RPCCallError`, which
+only a response line can produce.
+<!-- source: internal/component/plugin/server/startup.go -- isConfigRefusal, configRefusalIsFatal -->
+<!-- source: pkg/plugin/sdk/sdk_dispatch.go -- serveOne, handleConfigure -->
+
 **Stage 3 names no wire shape.** `DeclareCapabilitiesInput` carries the BGP
 capabilities the plugin injects into OPEN and nothing else. A command answer has
 one encoding on every connection, so a plugin READS the record answer form of

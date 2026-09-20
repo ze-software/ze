@@ -59,7 +59,7 @@ Optional metadata:
 | `Commands` | `[]rpc.CommandDecl` | The commands the plugin serves, and what each answer holds. It is the SAME slice the runner sends at Stage 1, taken from the plugin's one `commandDecls()` function, so a reader that links the composition root sees a declaration with no engine started. `./le plugin declarations check` holds the two readings together, in both directions and field by field |
 | `FilterTypes` | `[]string` | YANG filter list names this plugin owns, such as `prefix-list`. Names are globally unique; a duplicate aborts startup |
 | `DoctorChecks` | `[]DoctorCheckDef` | Doctor readiness checks. `Component` is set from `Name` |
-| `FatalOnConfigError` | `bool` | A configure-callback failure exits `ze` instead of running without the plugin |
+| `FatalOnConfigError` | `bool` | The plugin REFUSING its configuration exits `ze` instead of running without the plugin. A failure to DELIVER the configuration -- a closed connection, a timeout, a canceled context -- is not a refusal and never exits `ze` (`isConfigRefusal`, `internal/component/plugin/server/startup.go`) |
 | `Features` | `string` | Space-separated CLI feature flags, such as `nlri yang capa` |
 | `SupportsNLRI` | `bool` | The plugin decodes NLRI from the CLI |
 | `SupportsCapa` | `bool` | The plugin decodes capabilities from the CLI |

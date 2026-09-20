@@ -258,10 +258,16 @@ type Registration struct {
 	// (decode-nlri, encode-nlri, etc.) without the server importing bgp packages.
 	RPCHandlers map[string]func(json.RawMessage) (any, error)
 
-	// FatalOnConfigError makes a config-path plugin's startup failure fatal to ze.
-	// When true and the plugin's configure callback fails, ze exits instead of
-	// continuing without the plugin. Set by BGP because an invalid BGP config
-	// should not silently produce a running ze with no BGP.
+	// FatalOnConfigError makes a config-path plugin's REFUSAL of its
+	// configuration fatal to ze. When true and the plugin's configure callback
+	// returns an error, ze exits instead of continuing without the plugin. Set
+	// by BGP because an invalid BGP config should not silently produce a
+	// running ze with no BGP.
+	//
+	// A failure to DELIVER the configuration is not a refusal and never stops
+	// ze, whatever this says: a closed connection or a timeout is not a
+	// statement about the configuration (configRefusalIsFatal,
+	// internal/component/plugin/server/startup.go).
 	FatalOnConfigError bool
 
 	// InProcessConfigRouteParser parses an update block's NLRI content tokens

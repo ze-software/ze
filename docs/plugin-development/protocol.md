@@ -301,6 +301,22 @@ Each `ConfigSection` has:
 #1 ok
 ```
 
+**Refusing the configuration.** Answer with `#1 error` and the reason when you
+cannot take what you were sent. That answer is a refusal: ze stops your plugin,
+and ze itself stops when your registration carries `FatalOnConfigError`, so an
+operator who mistyped a value is told rather than left with a router silently
+missing your feature. Return an error from your `OnConfigure` handler and the
+Go SDK writes that response for you.
+
+```
+#1 ze-plugin-callback:configure {"sections":[...]}
+#1 error {"code":"error","message":"address family \"ipv6-unicat\" is not a family"}
+```
+
+Never answer `ok` for a configuration you rejected, and never just close the
+connection: a lost connection is a transport failure, which says nothing about
+the configuration and so never stops ze.
+
 ### Stage 3: Capabilities (Plugin to Engine)
 
 Plugin sends `ze-plugin-engine:declare-capabilities` with a `DeclareCapabilitiesInput`:
