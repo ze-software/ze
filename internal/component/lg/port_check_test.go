@@ -69,6 +69,15 @@ const (
 // (docs/architecture/api/birdwatcher-compat.md Section 7.2).
 const lgPortCountsReadable = "routes_counts_available answers on a readable count, not a present key"
 
+// The one below is a defect the port left standing and 2026-09-20 repaired.
+// handleAPIStatus dispatched `bgp status`, which no command tree has ever
+// declared, so the dispatch failed on every request and the endpoint answered
+// 200 over it. The captured bytes held an empty last_reconfig and a version
+// mockDispatch had invented for that command. Four declared commands answer it
+// now, and a failed dispatch is a refusal
+// (plan/journal/zero-value-as-valid-answer.md, 2026-09-17).
+const lgPortStatusCommands = "the status endpoint reads four commands the daemon serves, in place of one it does not"
+
 var lgPortTemplates = map[string]string{
 	"layout--peers.html":  lgPortGraphScript + ", " + lgPortSSEAsset,
 	"layout--search.html": lgPortGraphScript + ", " + lgPortPageAssets,
@@ -84,6 +93,7 @@ var lgPortTemplates = map[string]string{
 
 var lgPortHandlers = map[string]string{
 	"api-protocols-bgp.txt": lgPortCountsReadable,
+	"api-status.txt":        lgPortStatusCommands,
 
 	"ui-search-empty.txt":   lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,
 	"ui-search-invalid.txt": lgPortSearchBanner + ", " + lgPortGraphScript + ", " + lgPortPageAssets,

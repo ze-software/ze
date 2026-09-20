@@ -72,6 +72,31 @@ and MUST NOT silently clamp: a client must never believe it received a full page
 when it did not.
 <!-- source: internal/component/lg/handler_api.go -- parsePagination -->
 
+### 3.1 A command the engine refuses
+
+`status` reads four commands, because no single command holds the whole
+identity: `show bgp` answers the router id, `show version` the release,
+`show uptime` the start time, and `show reload-status` the last configuration
+change. Every one of them MUST answer. The server MUST NOT build a status
+object from a command that failed.
+
+The server MUST answer `502 Bad Gateway` when the engine returns an error, and
+`503 Service Unavailable` when the engine returns nothing the server can parse.
+The body MUST be a JSON object carrying `error`, and that message MUST name the
+command that failed.
+
+Before 2026-09-20 the endpoint asked for `bgp status`, which the daemon does not
+serve. The dispatch failed on every request, and the endpoint answered 200 with
+an empty `router_id` and an empty `version`. A client cannot tell that answer
+from a router that has no identity, which is why the requirement above is a
+refusal rather than an empty field.
+
+The other endpoints do not hold this requirement yet. `protocols/bgp`,
+`protocols/short`, `protocols/bmp`, `routes/table/{family}` and
+`routes/count/protocol/{name}` still answer 200 over an engine error, each one
+rendering whatever its transform builds from an answer that is not one.
+<!-- source: internal/component/lg/handler_api.go -- engineAnswer -->
+
 ## 4. Response envelope
 
 Every response MUST be a JSON object carrying an `api` member and exactly one
@@ -113,7 +138,7 @@ name, whose values are protocol objects.
 | `neighbor_address` | string | MUST be present |
 | `neighbor_as` | number | MUST be present. The `bgp { as-notation }` leaf does NOT reach it. The value is the AS number itself, read whatever notation wrote the peer row. A row carrying no readable AS number writes 0 and logs at WARN, because the field is mandatory (`setNeighborAS`, `internal/component/lg/handler_api.go`) |
 | `description` | string | MUST be present, MAY be empty |
-| `last_error` | string | MUST be present, and MUST be empty when there is no error |
+| `last_error` | string | MUST be present, and MUST be empty when there is no error. The value names the NOTIFICATION code and subcode that ended the session, for example "Cease/BFD Down". A reason ze built and could not write carries the " (not sent)" qualifier: RFC 9384 Section 4 asks for the reason in operational state even where the Cease could not be sent, and this schema holds one string, so the qualifier goes in it. `show bgp peer <address>` carries the same fact structured, as `last-notification.direction` |
 | `table` | string | MUST be `master` for a BGP session and `bmp` for a BMP-monitored peer |
 | `uptime` | number | Seconds. MUST be present |
 | `routes_received` | number | See Section 7 |

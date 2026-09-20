@@ -118,7 +118,7 @@ The looking glass exposes a birdwatcher-compatible JSON API for integration with
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/looking-glass/status` | Router ID, version, uptime. |
+| `GET /api/looking-glass/status` | Router ID, version, start time, and when the last config reload finished. It answers 502 when one of the four commands behind it fails, and never a status object with an empty router ID. |
 | `GET /api/looking-glass/protocols/bgp` | Peer list with state and route counts. |
 | `GET /api/looking-glass/routes/protocol/{name}` | Routes from a named peer. |
 | `GET /api/looking-glass/routes/table/{family}` | Best routes by address family (URL-encode the `/` in family, e.g., `ipv4%2Funicast`). |

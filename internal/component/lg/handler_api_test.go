@@ -233,16 +233,9 @@ func TestUptimeSecondsFormats(t *testing.T) {
 }
 
 func TestTransformStatusFields(t *testing.T) {
-	// VALIDATES: birdwatcher status field mapping from ze JSON.
+	// VALIDATES: birdwatcher status field mapping from the four engine answers.
 	// PREVENTS: wrong field names or values in API response.
-	ze := map[string]any{
-		"router-id":          "1.2.3.4",
-		"version":            "26.03.30",
-		"start-time":         "2026-01-01T00:00:00Z",
-		"last-config-change": "2026-03-01T12:00:00Z",
-	}
-
-	bw := transformStatus(ze)
+	bw := transformStatus("1.2.3.4", "26.03.30", "2026-01-01T00:00:00Z", "2026-03-01T12:00:00Z")
 
 	status, ok := bw["status"].(map[string]any)
 	if !ok {

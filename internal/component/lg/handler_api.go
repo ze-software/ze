@@ -33,23 +33,100 @@ const (
 	fieldTable = "table"
 )
 
-// handleAPIStatus returns router status in birdwatcher format (GET /api/looking-glass/status).
-func (s *LGServer) handleAPIStatus(w http.ResponseWriter, _ *http.Request) {
-	result := s.query("bgp status")
+// The engine commands the status endpoint reads. Each one is a path the YANG
+// command tree declares, and TestStatusCommandsAreDeclared walks that tree and
+// fails when one of them stops being a command. The endpoint asked for
+// `bgp status` until 2026-09-20, which the daemon has never served: the
+// dispatch failed on every request and the endpoint answered 200 with an empty
+// router id and an empty version (plan/journal/zero-value-as-valid-answer.md,
+// 2026-09-17).
+const (
+	// cmdBGPOverview answers the router id, the local AS and the peer rows.
+	cmdBGPOverview = "show bgp"
+	// cmdShowVersion answers the running version and build date.
+	cmdShowVersion = "show version"
+	// cmdShowUptime answers the daemon start time.
+	cmdShowUptime = "show uptime"
+	// cmdShowReloadStatus answers when the last config reload finished.
+	cmdShowReloadStatus = "show reload-status"
+)
 
-	zeData := parseJSON(result)
-	if zeData == nil {
-		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable")
+// handleAPIStatus returns router status in birdwatcher format (GET /api/looking-glass/status).
+//
+// Four commands answer it, because no single command holds the whole identity:
+// `show bgp` carries the router id, `show version` the release, `show uptime`
+// the start time, and `show reload-status` the last configuration change.
+//
+// Every one of them must answer. The router id and the version ARE the
+// identity this endpoint publishes, so an answer that carries neither is a
+// refusal rather than a status object (ai/rules/principles.md).
+func (s *LGServer) handleAPIStatus(w http.ResponseWriter, _ *http.Request) {
+	overview, ok := s.engineAnswer(w, cmdBGPOverview)
+	if !ok {
+		return
+	}
+	release, ok := s.engineAnswer(w, cmdShowVersion)
+	if !ok {
+		return
+	}
+	started, ok := s.engineAnswer(w, cmdShowUptime)
+	if !ok {
+		return
+	}
+	reloaded, ok := s.engineAnswer(w, cmdShowReloadStatus)
+	if !ok {
 		return
 	}
 
-	bw := transformStatus(zeData)
-	writeJSON(w, bw)
+	routerID := getStr(overview, "router-id")
+	if routerID == "" {
+		writeJSONError(w, http.StatusBadGateway, cmdBGPOverview+": answer carries no router-id")
+		return
+	}
+
+	running := getStr(release, "version")
+	if running == "" {
+		writeJSONError(w, http.StatusBadGateway, cmdShowVersion+": answer carries no version")
+		return
+	}
+
+	// last_reconfig stays empty until the daemon processes its first reload,
+	// which is what `show reload-status` reports for a router nobody has
+	// reloaded. That empty is the engine's answer, not a missing one.
+	writeJSON(w, transformStatus(routerID, running,
+		getStr(started, "start-time"), getStr(reloaded, "last-reload-at")))
+}
+
+// engineAnswer dispatches one command and returns the answer it parsed.
+//
+// A failed dispatch is not an answer. query renders the failure as
+// {"error": ...} and parseJSON returns nil for a reply that is not JSON at all,
+// so a handler that reads only the keys it wants renders whatever the zero
+// value of each key looks like: an empty identity, with HTTP 200 over it. This
+// writes the refusal itself and reports false, naming the command that failed
+// so an operator reading the body knows which one (ai/rules/principles.md).
+//
+// The two codes name two different failures. 503 says the engine produced
+// nothing this server could parse. 502 says the engine answered, and its answer
+// was an error.
+func (s *LGServer) engineAnswer(w http.ResponseWriter, command string) (map[string]any, bool) {
+	ze := parseJSON(s.query(command))
+	if ze == nil {
+		writeJSONError(w, http.StatusServiceUnavailable, "engine unavailable: "+command)
+		return nil, false
+	}
+
+	if reason := engineError(ze); reason != "" {
+		writeJSONError(w, http.StatusBadGateway, command+": "+reason)
+		return nil, false
+	}
+
+	return ze, true
 }
 
 // handleAPIProtocols returns the peer list in birdwatcher format (GET /api/looking-glass/protocols/bgp).
 func (s *LGServer) handleAPIProtocols(w http.ResponseWriter, _ *http.Request) {
-	result := s.query("show bgp")
+	result := s.query(cmdBGPOverview)
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -63,7 +140,7 @@ func (s *LGServer) handleAPIProtocols(w http.ResponseWriter, _ *http.Request) {
 
 // handleAPIProtocolsShort returns short protocol status in birdwatcher format.
 func (s *LGServer) handleAPIProtocolsShort(w http.ResponseWriter, _ *http.Request) {
-	result := s.query("show bgp")
+	result := s.query(cmdBGPOverview)
 
 	zeData := parseJSON(result)
 	if zeData == nil {
@@ -517,18 +594,23 @@ func paginateRoutes(bw map[string]any, limit, offset int) {
 	}
 }
 
-// transformStatus converts Ze bgp status JSON to birdwatcher status format.
-func transformStatus(ze map[string]any) map[string]any {
-	result := apiEnvelope("status", map[string]any{
-		"router_id":      getStr(ze, "router-id"),
-		"current_server": time.Now().UTC().Format(time.RFC3339),
-		"server_time":    time.Now().UTC().Format(time.RFC3339),
-		"last_reboot":    getStr(ze, "start-time"),
-		"last_reconfig":  getStr(ze, "last-config-change"),
+// transformStatus builds the birdwatcher status object from the four facts
+// handleAPIStatus read, each one named for the command that answered it.
+//
+// The two clock reads are one read: current_server and server_time are the same
+// instant, and two calls to time.Now can straddle a second boundary and publish
+// two timestamps for one response.
+func transformStatus(routerID, release, startTime, lastReload string) map[string]any {
+	now := time.Now().UTC().Format(time.RFC3339)
+	return apiEnvelope("status", map[string]any{
+		"router_id":      routerID,
+		"current_server": now,
+		"server_time":    now,
+		"last_reboot":    startTime,
+		"last_reconfig":  lastReload,
 		"message":        "Ze BGP daemon",
-		"version":        getStr(ze, "version"),
+		"version":        release,
 	})
-	return result
 }
 
 // transformProtocols converts Ze peer summary to birdwatcher protocols format.

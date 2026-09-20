@@ -3,6 +3,7 @@ package lg
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net"
 	"net/http"
@@ -14,6 +15,12 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 )
 
+// errUnknownCommand is what the daemon's dispatcher answers for a command no
+// YANG module declares. mockDispatch returns it for every command outside the
+// table below, so a handler asking for a command that does not exist meets the
+// same failure here that it meets on a live router.
+var errUnknownCommand = errors.New("unknown command")
+
 // mockDispatch returns a dispatcher that returns fixed JSON for known commands.
 // Each fixed JSON payload rides the unified envelope as RawJSON, so the looking
 // glass renders identical bytes at its edge via CommandDispatcher.JSON.
@@ -21,10 +28,18 @@ func mockDispatch() CommandDispatcher {
 	return func(_ context.Context, _ plugin.CallerIdentity, cmd string) (*plugin.Response, error) {
 		var out string
 		switch {
-		case cmd == "bgp status":
-			out = `{"router-id":"1.2.3.4","version":"test","start-time":"2026-01-01T00:00:00Z"}`
-		case cmd == "show bgp":
-			out = `[{"name":"peer1","peer-address":"10.0.0.1","remote-as":"65001","state":"established","state-changed":"2026-01-15T10:00:00Z","routes-received":"100","routes-accepted":"95","routes-sent":"50","routes-filtered":"5"}]`
+		case cmd == cmdBGPOverview:
+			// handleBgpSummary answers the aggregates and the peer rows as
+			// siblings (bgp/plugins/cmd/peer/summary.go), so the fixture is
+			// that shape rather than the bare array it used to be.
+			out = `{"router-id":"1.2.3.4","local-as":"65000","uptime":"1h0m0s","peers-configured":1,"peers-established":1,` +
+				`"peers":[{"name":"peer1","peer-address":"10.0.0.1","remote-as":"65001","state":"established","state-changed":"2026-01-15T10:00:00Z","routes-received":"100","routes-accepted":"95","routes-sent":"50","routes-filtered":"5"}]}`
+		case cmd == cmdShowVersion:
+			out = `{"version":"ze test (built 2026-01-01)"}`
+		case cmd == cmdShowUptime:
+			out = `{"start-time":"2026-01-01T00:00:00Z","uptime":"1h0m0s"}`
+		case cmd == cmdShowReloadStatus:
+			out = `{"generation":1,"last-outcome":"applied","last-reload-at":"2026-03-01T12:00:00Z"}`
 		case strings.Contains(cmd, "show bgp rib") && strings.Contains(cmd, "count"):
 			out = `{"count":100}`
 		case strings.HasPrefix(cmd, "show bgp rib best"):
@@ -32,7 +47,12 @@ func mockDispatch() CommandDispatcher {
 		case strings.HasPrefix(cmd, "show bgp rib"), strings.Contains(cmd, "show bgp rib"):
 			out = `{"routes":[{"prefix":"10.0.0.0/24","next-hop":"10.0.0.1","origin":"igp","as-path":[65001,65002],"local-preference":100,"med":0,"peer-address":"10.0.0.1","community":["65000:100","65001:200"],"large-community":["65000:0:100"]}]}`
 		default:
-			out = `{"error":"unknown command"}`
+			// The daemon refuses a command it does not serve by returning an
+			// error, which is what the looking glass met on the live router
+			// while it asked for `bgp status`. Answering an error envelope
+			// here instead would have hidden that: query renders both to the
+			// same string, but only this one exercises the failure path.
+			return nil, errUnknownCommand
 		}
 		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(out)), nil
 	}

@@ -14,10 +14,10 @@ header: X-Ze-Version: <VERSION>
   "status": {
     "current_server": "<TIME>",
     "last_reboot": "2026-01-01T00:00:00Z",
-    "last_reconfig": "",
+    "last_reconfig": "2026-03-01T12:00:00Z",
     "message": "Ze BGP daemon",
     "router_id": "1.2.3.4",
     "server_time": "<TIME>",
-    "version": "test"
+    "version": "ze test (built 2026-01-01)"
   }
 }
