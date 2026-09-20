@@ -70,6 +70,36 @@ this router.
 <!-- source: internal/plugins/isis/lsdb/encode.go -- hostnameTLV -->
 <!-- source: internal/plugins/isis/show.go -- sanitizeHostname -->
 
+## Changing an interface parameter on a running router
+
+A commit reaches the circuit that is already up. Ze does not wait for a link
+flap, a `disable`, or a restart.
+
+Most parameters are written into the running circuit and cost no adjacency:
+`metric`, `priority`, `hello-interval`, `hold-multiplier`, the same four under
+`level-1` and `level-2`, and the per-level `auth-key-chain`. A new hello
+interval takes effect with one IIH sent at the moment of the commit, before the
+new period starts. That IIH carries the new holding time, so the neighbor re-arms
+its adjacency timer from the new value: raising `hello-interval` from 3 to 30
+seconds keeps the adjacency up, where a silent 30-second gap after a 9-second
+holding time would have dropped it.
+
+Three parameters decide what the circuit IS rather than what it advertises, and
+changing one closes the circuit and opens it again. That FLAPS every adjacency
+on the link, so plan it like a link outage:
+
+| Parameter | Why it cannot be changed in place |
+|-----------|-----------------------------------|
+| `circuit-type` | Broadcast and point-to-point are different Hello PDUs, and only broadcast holds DIS state |
+| `level` | The level set fixes which adjacencies the circuit forms and how many Hello timers it runs |
+| `address-family` | The family set fixes the IPv6 link-local address the Hello carries |
+
+Removing an interface from the config, or setting `enabled false` or
+`passive true` on it, closes its circuit. Adding one opens a circuit.
+
+<!-- source: internal/plugins/isis/server.go -- reconcile, circuitNeedsRebuild -->
+<!-- source: internal/plugins/isis/circuits.go -- applyCircuitParams -->
+
 ## Broadcast LANs: DIS election and pseudo-nodes
 
 On a broadcast (Ethernet, multi-access) circuit, IS-IS does not form a full mesh

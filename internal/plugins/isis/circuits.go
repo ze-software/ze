@@ -49,6 +49,13 @@ func (e *engine) launchCircuitGoroutine(ic InterfaceConfig) {
 	// run two hello+sweep goroutines for a single circuit. Defensive: a clean
 	// down already closed and cleared the channel via onCircuitDown.
 	stop := make(chan struct{})
+	// reload carries a committed parameter change into the running Hello sender.
+	// applyCircuitParams writes the new values into the circuit and then signals
+	// here, so the tickers restart at the new period instead of the circuit being
+	// rebuilt. Depth 1 with a non-blocking send: a second commit that lands before
+	// the loop wakes needs no second wake, because the loop reads the circuit's
+	// current schedules when it does wake.
+	reload := make(chan struct{}, 1)
 	e.circuitsMu.Lock()
 	if prev, ok := e.circuitStop[name]; ok {
 		close(prev)
@@ -56,6 +63,7 @@ func (e *engine) launchCircuitGoroutine(ic InterfaceConfig) {
 	e.circuits[c.IfIndex()] = c
 	e.circuitByName[name] = c
 	e.circuitStop[name] = stop
+	e.circuitReload[name] = reload
 	e.circuitsMu.Unlock()
 
 	// One Hello timer for each schedule the circuit publishes: a broadcast circuit
@@ -75,9 +83,10 @@ func (e *engine) launchCircuitGoroutine(ic InterfaceConfig) {
 		// channel never fires in a select.
 		first := time.NewTicker(schedules[0].Period)
 		defer first.Stop()
+		var second *time.Ticker
 		var secondC <-chan time.Time
 		if len(schedules) > 1 {
-			second := time.NewTicker(schedules[1].Period)
+			second = time.NewTicker(schedules[1].Period)
 			defer second.Stop()
 			secondC = second.C
 		}
@@ -98,6 +107,23 @@ func (e *engine) launchCircuitGoroutine(ic InterfaceConfig) {
 				// so the worker does not keep sending Hellos and sweeping an empty
 				// table on a gone circuit.
 				return
+			case <-reload:
+				// A commit changed this circuit's Hello timers. The level SET is not
+				// reachable from here (a level or circuit-type change rebuilds the
+				// circuit instead), so the schedules keep their count and their levels
+				// and only the periods move.
+				schedules = c.HelloSchedules()
+				first.Reset(schedules[0].Period)
+				if second != nil && len(schedules) > 1 {
+					second.Reset(schedules[1].Period)
+				}
+				// Send at once, before the new period starts. A neighbor holds the
+				// adjacency only for the holding time the last IIH told it (ISO/IEC
+				// 10589 clause 8.2), so a longer interval that waited for its first
+				// tick would expire an adjacency the old holding time was arming.
+				for _, s := range schedules {
+					sendHello(s.Level, "hello send after parameter change")
+				}
 			case <-first.C:
 				sendHello(schedules[0].Level, "hello send")
 			case <-secondC:
@@ -108,6 +134,45 @@ func (e *engine) launchCircuitGoroutine(ic InterfaceConfig) {
 			}
 		}
 	})
+}
+
+// applyCircuitParams writes a committed parameter change into the circuit that is
+// already running on ic.Name, so hello-interval, hold-multiplier and priority
+// take effect without the circuit being rebuilt. It is the in-place half of
+// reconcile; circuitNeedsRebuild names the parameters that cannot be applied this
+// way. A name with no live circuit (the transport never opened one) is a no-op.
+//
+// The engine reads the per-level metric and the per-level election priority from
+// e.running on every origination and every election, so those two need no write
+// here: reconcile stores the new InterfaceConfig before it calls this.
+func (e *engine) applyCircuitParams(ic InterfaceConfig) {
+	e.circuitsMu.RLock()
+	c := e.circuitByName[ic.Name]
+	reload := e.circuitReload[ic.Name]
+	e.circuitsMu.RUnlock()
+	if c == nil {
+		return
+	}
+
+	c.SetLevelTimers(levelHelloTimers(ic, adjacency.Level1), levelHelloTimers(ic, adjacency.Level2))
+	c.SetPriority(ic.Priority)
+	// A key chain configured after the circuit opened has no signer on it yet:
+	// installCircuitSigner returns early while the keystore holds no chain.
+	e.installCircuitSigner(c)
+	// Wake the Hello sender so the new period replaces the running ticker and an
+	// IIH carrying the new holding time goes out now. A full buffer already holds
+	// a wake the loop has not consumed, and that wake reads the current values.
+	if reload != nil {
+		select {
+		case reload <- struct{}{}:
+		default:
+		}
+	}
+	// The DIS election reads the new priority from e.running. Run it now rather
+	// than waiting for the periodic re-election, so the segment converges on the
+	// operator's value at commit time. Its "re-originate" answer is discarded
+	// because reconcile originates once after the whole diff is applied.
+	e.runElection(c)
 }
 
 // buildCircuit constructs an adjacency circuit for an opened interface, pulling
@@ -193,6 +258,7 @@ func (e *engine) onCircuitDown(ifindex int, name string) {
 		close(stop)
 		delete(e.circuitStop, name)
 	}
+	delete(e.circuitReload, name)
 	delete(e.circuits, ifindex)
 	delete(e.circuitByName, name)
 	e.circuitsMu.Unlock()

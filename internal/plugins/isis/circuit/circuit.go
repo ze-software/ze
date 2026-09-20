@@ -127,11 +127,16 @@ type Circuit struct {
 	ipv6LinkLocal  netip.Addr
 	kind           adjacency.CircuitKind
 	levels         []adjacency.Level
-	timersL1       LevelTimers
-	timersL2       LevelTimers
-	priority       uint8
 	localCircuitID uint8
 	lanID          types.SourceID
+
+	// Committed circuit parameters, guarded by mu. They are set at construction
+	// and replaced in place when a commit changes them on a running circuit
+	// (SetLevelTimers, SetPriority): rebuilding the circuit instead would tear
+	// down its adjacency table and flap every neighbor on the link.
+	timersL1 LevelTimers
+	timersL2 LevelTimers
+	priority uint8
 
 	sender Sender
 	now    func() time.Time
@@ -206,11 +211,47 @@ func (c *Circuit) Name() string { return c.name }
 // timers returns the Hello timers this circuit runs at level. Level-1 answers a
 // level the circuit does not know, which no caller reaches: HelloSchedules is
 // the only source of a level for the send path, and it lists formed levels only.
+// Safe for concurrent use: SetLevelTimers writes the same fields under mu.
 func (c *Circuit) timers(level adjacency.Level) LevelTimers {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	if level == adjacency.Level2 {
 		return c.timersL2
 	}
 	return c.timersL1
+}
+
+// SetLevelTimers replaces the Hello timers this circuit runs at each level, so a
+// committed hello-interval or hold-multiplier reaches the wire on a circuit that
+// is already up. The caller MUST restart the Hello sender at the new period and
+// send an IIH at once (launchCircuitGoroutine's reload arm): a neighbor holds the
+// adjacency only for the holding time the last IIH told it, so a longer period
+// that starts without a fresh IIH expires that neighbor
+// (ISO/IEC 10589 clause 8.2). Safe for concurrent use.
+func (c *Circuit) SetLevelTimers(level1, level2 LevelTimers) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.timersL1 = level1
+	c.timersL2 = level2
+}
+
+// SetPriority replaces the DIS election priority this circuit advertises in each
+// LAN IIH, so a committed priority reaches the segment without a rebuild. The
+// engine resolves the per-level override separately for its own election
+// (disPriority); this is the circuit-wide value the wire field carries. Safe for
+// concurrent use.
+func (c *Circuit) SetPriority(priority uint8) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.priority = priority
+}
+
+// helloPriority returns the priority the LAN IIH advertises. Safe for concurrent
+// use: SetPriority writes the field under mu.
+func (c *Circuit) helloPriority() uint8 {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.priority
 }
 
 // holdTime returns the holding time this circuit advertises in an IIH at level

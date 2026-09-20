@@ -22,6 +22,7 @@ import (
 	"log/slog"
 	"maps"
 	"net/netip"
+	"slices"
 	"sync"
 	"time"
 
@@ -161,6 +162,12 @@ type engine struct {
 	// Keyed by name so a reopen of the same interface (a fresh ifindex) reuses the
 	// slot and can never run two goroutines for one circuit.
 	circuitStop map[string]chan struct{}
+	// circuitReload holds the per-circuit parameter-change wake channel, keyed by
+	// interface name and created beside circuitStop. reconcile signals it when a
+	// commit changes a parameter the running circuit can absorb, so the hello+sweep
+	// loop restarts its tickers at the new period and sends an IIH at once
+	// (applyCircuitParams). Removed with the stop channel on circuit removal.
+	circuitReload map[string]chan struct{}
 
 	// Adjacency metrics (isis-5 owns these umbrella-canonical series). A gauge
 	// vector by (level, interface) for up adjacencies, and a per-level total.
@@ -315,6 +322,7 @@ func newEngine(t *transport.Transport) *engine {
 		circuits:      make(map[int]*circuit.Circuit),
 		circuitByName: make(map[string]*circuit.Circuit),
 		circuitStop:   make(map[string]chan struct{}),
+		circuitReload: make(map[string]chan struct{}),
 		adjUp:         metrics.NopRegistry{}.GaugeVec("", "", nil),
 		adjTotal:      metrics.NopRegistry{}.GaugeVec("", "", nil),
 		disPseudonode: make(map[disKey]types.SourceID),
@@ -572,18 +580,27 @@ type reconcileResult struct {
 	opened  []string
 	closed  []string
 	changed map[string]bool
+	// rebuilt lists the circuits whose change could only be applied by closing and
+	// reopening them (circuitNeedsRebuild). Each name is also marked changed.
+	rebuilt []string
 }
 
 // reconcile diffs newCfg against the running circuits and applies the minimal
-// set of changes: open added circuits, close removed ones, and mark in-place
-// parameter changes (metric/hello/etc.) without tearing the circuit down. This
-// is the journal-based incremental reload (AC-8, R-2), not restart-everything.
+// set of changes: open added circuits, close removed ones, write a changed
+// parameter into the circuit that is already up (applyCircuitParams), and close
+// and reopen only the circuit whose change cannot be written in place
+// (circuitNeedsRebuild). This is the journal-based incremental reload (AC-8,
+// R-2), not restart-everything, and the journal it returns says which circuit
+// took which of those four paths.
 func (e *engine) reconcile(newCfg Config) reconcileResult {
 	res := reconcileResult{changed: make(map[string]bool)}
 
-	e.mu.Lock()
-	e.cfg = newCfg
-	e.mu.Unlock()
+	// setConfig, not a bare store of e.cfg: it also rebuilds the authentication
+	// key store, re-roots SPF and records the node's own System ID on the flooder.
+	// A commit can change all three, the interface diff below covers none of them,
+	// and setKeyStore names this call as the reload path that makes a key-chain
+	// change hitless (isis-10, AC-4).
+	e.setConfig(newCfg)
 
 	desired := make(map[string]InterfaceConfig)
 	for _, ic := range newCfg.EnabledCircuits() {
@@ -613,15 +630,36 @@ func (e *engine) reconcile(newCfg Config) reconcileResult {
 				continue
 			}
 			res.opened = append(res.opened, name)
+		case circuitNeedsRebuild(have, want):
+			// The change cannot be written into the running circuit, so the circuit
+			// is closed and opened again. This flaps every adjacency on the link,
+			// which is why circuitNeedsRebuild keeps the set as small as it is.
+			e.closeCircuit(name)
+			if err := e.openCircuit(want); err != nil {
+				e.log.Warn("isis: reconcile rebuild failed", "interface", name, "err", err)
+				continue
+			}
+			res.changed[name] = true
+			res.rebuilt = append(res.rebuilt, name)
 		case !circuitParamsEqual(have, want):
-			// In-place parameter change: update the stored config; the live
-			// socket stays open (no flap). Runtime application of the new
-			// parameters (hello timer, metric in LSP) lands in isis-5/6.
+			// In-place parameter change: the live socket stays open (no flap) and
+			// the new values are written into the running circuit. The stored config
+			// is updated FIRST, because applyCircuitParams runs the DIS election and
+			// the election reads the priority back out of e.running.
 			e.mu.Lock()
 			e.running[name] = want
 			e.mu.Unlock()
+			e.applyCircuitParams(want)
 			res.changed[name] = true
 		}
+	}
+
+	// Re-originate when anything moved. The own LSP carries each circuit's metric
+	// and each adjacency, both read from e.running at origination time, so without
+	// this the operator's new metric waits for the next adjacency transition or the
+	// periodic refresh.
+	if len(res.opened) > 0 || len(res.closed) > 0 || len(res.changed) > 0 {
+		e.originate()
 	}
 	return res
 }
@@ -638,6 +676,7 @@ func (e *engine) closeCircuit(name string) {
 		close(stop)
 		delete(e.circuitStop, name)
 	}
+	delete(e.circuitReload, name)
 	e.circuitsMu.Unlock()
 	e.mu.Lock()
 	delete(e.running, name)
@@ -660,7 +699,31 @@ func circuitParamsEqual(a, b InterfaceConfig) bool {
 		// time (levelHelloTimers, circuits.go), and their metric, priority and
 		// auth-key-chain select what the circuit advertises and signs at one level.
 		a.Level1 == b.Level1 &&
-		a.Level2 == b.Level2
+		a.Level2 == b.Level2 &&
+		// The address families select what the circuit advertises: the IIH's TLV
+		// 232 and the IPv6 half of origination and SPF (advertisesIPv6). A circuit
+		// built without them keeps answering for the old set, so the diff has to
+		// see the change even though applying it needs a rebuild.
+		slices.Equal(a.AddressFamily, b.AddressFamily)
+}
+
+// circuitNeedsRebuild reports whether a parameter change can only be applied by
+// closing the circuit and opening it again. Three parameters decide what the
+// circuit IS rather than what it advertises, and all three are read once at
+// construction: the kind (broadcast or point-to-point) selects the IIH PDU type
+// and whether the circuit holds DIS state at all, the level set fixes the
+// adjacency levels and the Hello schedules, and the address families fix the
+// IPv6 link-local address the IIH carries. Everything else applyCircuitParams
+// writes into the running circuit, which is the case worth keeping cheap: a
+// rebuild tears down the adjacency table and flaps every neighbor on the link.
+func circuitNeedsRebuild(have, want InterfaceConfig) bool {
+	if have.CircuitType != want.CircuitType {
+		return true
+	}
+	if have.Level != want.Level {
+		return true
+	}
+	return !slices.Equal(have.AddressFamily, want.AddressFamily)
 }
 
 // shutdown stops all circuit goroutines, the receive loop, and the transport,

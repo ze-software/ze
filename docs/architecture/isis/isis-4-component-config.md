@@ -43,6 +43,32 @@ step and the **only** callback that fires on a reload; it adopts the pending
 config and calls the engine's reconcile, which journal-diffs interfaces so a
 metric-only change flaps no circuit.
 
+## Decision: a commit is written into the running circuit where it can be
+
+The reconcile splits a changed interface in two. `applyCircuitParams` writes the
+Hello timers and the DIS priority into the live `circuit.Circuit` and wakes the
+per-circuit hello worker, which restarts its tickers at the new period and sends
+an IIH at once. The immediate IIH is the protocol half of the change: a neighbor
+holds the adjacency only for the holding time the last IIH told it (ISO/IEC 10589
+clause 8.2), so a longer interval that waited for its first tick would expire the
+adjacency. The metric and the per-level election priority need no write, because
+origination and the DIS election read them out of `e.running` every time they
+run; the reconcile re-originates once at the end so a metric change does not wait
+for the next adjacency transition.
+
+`circuitNeedsRebuild` names the three parameters that decide what the circuit IS:
+the kind, the level set, and the address families. Each is read once by
+`buildCircuit`, so the reconcile closes the circuit and opens it again, which
+flaps every adjacency on the link. Keeping that set at three is the point of the
+split.
+
+The circuit is still built once from the NODE-level config (system ID, area
+addresses), and the reconcile diffs interfaces only, so a committed `net` or
+`system-id` change does not reach a running circuit.
+
+<!-- source: internal/plugins/isis/server.go -- reconcile, circuitNeedsRebuild, circuitParamsEqual -->
+<!-- source: internal/plugins/isis/circuits.go -- applyCircuitParams, launchCircuitGoroutine -->
+
 A config with no NET is treated as "not present" and leaves the engine idle,
 following the LDP precedent of a missing LSR ID. The required-field policy lives
 in `validateConfig`, not in the parser, so verify can stage a partial config the

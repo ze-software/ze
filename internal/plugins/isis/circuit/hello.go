@@ -188,7 +188,7 @@ func (c *Circuit) buildLANHello(level adjacency.Level, snpas []adjacency.SNPA, p
 		CircuitType: c.circuitTypeField(),
 		SystemID:    c.systemID,
 		HoldingTime: types.HoldingTime(c.holdTime(level)),
-		Priority:    c.priority,
+		Priority:    c.helloPriority(),
 		LANID:       c.lanID,
 		TLVs:        append(c.originationTLVs(), c.isNeighborsTLV(snpas)),
 	}
