@@ -215,4 +215,35 @@ type StateChange struct {
 	// SessionHandle.Subscribe and the review that reads a new subscriber
 	// against it.
 	Initial bool
+
+	// RemoteAdminDown reports that the NEIGHBOR's own session state was
+	// AdminDown when this change was published. It is the one thing State
+	// cannot say, and without it StateDown answers two opposite questions with
+	// one value: the forwarding path failed, and the neighbor administratively
+	// disabled its BFD session.
+	//
+	// RFC 5880 Section 6.8.6 folds the neighbor's AdminDown into the local
+	// Down state by design: "If received state is AdminDown / If
+	// bfd.SessionState is not Down / Set bfd.LocalDiag to 3 (Neighbor signaled
+	// session down) / Set bfd.SessionState to Down". Diag separates nothing
+	// either, because a neighbor signaling plain Down to an Up session sets
+	// that SAME diagnostic one branch later.
+	//
+	// RFC 5882 Section 4.2 then gives the two cases opposite answers: "If a
+	// BFD session transitions from Up state to AdminDown, or the session
+	// transitions from Up to Down because the remote system is indicating that
+	// the session is in state AdminDown, clients SHOULD NOT take any control
+	// protocol action." Its first arm is readable from State alone; its second
+	// arm is this field. For every other Up to Down transition Section 4.2.1
+	// asks for the opposite: "action SHOULD be taken in the control protocol
+	// to signal the lack of connectivity for the path over which BFD is
+	// running."
+	//
+	// False is the safe default, and deliberately so: a client that never
+	// reads the field acts on the path failure, which is what every client did
+	// before the field existed. packet.State could not be used here without
+	// inverting that, because packet.StateAdminDown is 0: an unset field would
+	// claim the neighbor had disabled its session and would suppress a real
+	// failure (ai/rules/principles.md).
+	RemoteAdminDown bool
 }

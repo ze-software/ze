@@ -93,13 +93,10 @@ func (l *Loop) handleInbound(in transport.Inbound) {
 		// source addressing information and the ingress interface.
 		// It keys the byKey index, so the first packet costs one
 		// O(1) lookup.
-		index := firstPacketKey{
-			peer:  in.From,
-			local: in.Local,
-			vrf:   in.VRF,
-			iface: in.Interface,
-			mode:  in.Mode,
-		}
+		// A link the packet names as a zone and the session names as an
+		// interface is one link, and firstPacketObserved reduces both forms to
+		// the iface field (engine.go, reconcileZone).
+		index := firstPacketObserved(in)
 		// A key field the session left UNSET does not participate in the match
 		// (engine.go, keyRelaxation). The walk is ordered most-specific first,
 		// so the exact key is tried before any relaxation and a session that

@@ -334,6 +334,35 @@ func (p *Peer) runBFDSubscriber(
 				p.bfd.since.Store(bfdChangeTime(change, p.clock.Now()).UnixNano())
 				continue
 			}
+			// RFC 5882 Section 4.2: "If a BFD session transitions from Up state
+			// to AdminDown, or the session transitions from Up to Down because
+			// the remote system is indicating that the session is in state
+			// AdminDown, clients SHOULD NOT take any control protocol action."
+			//
+			// The two cases are indistinguishable in the LOCAL state by design:
+			// RFC 5880 Section 6.8.6 folds a received AdminDown into a local
+			// Down with diag 3, and applyTransitionLocked sets that same diag
+			// when an Up session receives a plain Down. So the neighbor's own
+			// state is what separates a path failure from a neighbor who
+			// switched BFD off, and api.StateChange carries it.
+			//
+			// Section 3.2 makes the SHOULD conditional on the client having
+			// "independent means of liveness detection (typically, control
+			// protocols)", and BGP has one: its own hold timer still runs, so a
+			// path that really failed takes the session down on the hold time
+			// rather than not at all.
+			//
+			// The recording above is deliberately left to run. p.bfd.state and
+			// p.bfd.since are read by the OPEN rail, and bfdStrictHolds then
+			// sees Down, which is correct: the session genuinely is not Up.
+			// What this suppresses is the FSM event, which is the "control
+			// protocol action" the RFC names.
+			if change.State == api.StateDown && change.RemoteAdminDown {
+				peerLogger().Debug("bfd neighbor signaled AdminDown; no FSM event",
+					"peer", p.settings.Address,
+					"bfd-diag", change.Diag.String())
+				continue
+			}
 			event, mapped := bfdEventFor(change.State)
 			if !mapped {
 				peerLogger().Debug("bfd state change with no FSM event",

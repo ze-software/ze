@@ -208,7 +208,68 @@ func firstPacketIndex(k api.Key) firstPacketKey {
 		vrf:   k.VRF,
 		iface: k.Interface,
 		mode:  k.Mode,
+	}.reconcileZone()
+}
+
+// firstPacketObserved builds a firstPacketKey from a received packet. It is
+// the other half of firstPacketIndex, and it exists so both halves reach
+// reconcileZone: a key built here and a key built there describe one session
+// and must compare equal.
+func firstPacketObserved(in transport.Inbound) firstPacketKey {
+	return firstPacketKey{
+		peer:  in.From,
+		local: in.Local,
+		vrf:   in.VRF,
+		iface: in.Interface,
+		mode:  in.Mode,
+	}.reconcileZone()
+}
+
+// THE SECOND MATCHING RULE, and it is one sentence: a link named twice is held
+// in the key ONCE, in iface.
+//
+// This is the other half of the class the rule below owns. That one is about
+// UNSETNESS, a field one side left empty. This one is about two FORMS of one
+// value that do not compare equal, and no relaxation reaches it because peer
+// is the field a session can never leave unset.
+//
+// An IPv6 link-local address carries a zone, and RFC 4007 Section 6 says what
+// it names: "Because the same non-global address may be in use in more than
+// one zone of the same scope (e.g., the use of link-local address fe80::1 in
+// two separate physical links) and a node may have interfaces attached to
+// different zones of the same scope (e.g., a router normally has multiple
+// interfaces attached to different links), a node requires an internal means
+// to identify to which zone a non-global address belongs." The kernel reports
+// one on every link-local source, and net.(*UDPConn).ReadMsgUDPAddrPort turns
+// it into netip.Addr.WithZone, so in.From is fe80::1%eth0. A session's Peer is
+// parsed from a config leaf an operator writes without one, so the key holds
+// fe80::1. netip.Addr compares the zone, so the two are never the same key and
+// no packet carrying Your Discriminator zero can select a link-local session.
+//
+// The zone and iface are two spellings of ONE fact, so the key keeps the
+// field it already has. RFC 5881 Section 2 is why that loses nothing for a
+// single-hop session: "This application of BFD can be used by any pair of
+// systems communicating via IPv4 and/or IPv6 across a single IP hop that is
+// associated with an incoming interface." The link IS part of the identity,
+// iface is where this key states it, and two sessions to fe80::1 on two links
+// stay apart there rather than in the address.
+func (k firstPacketKey) reconcileZone() firstPacketKey {
+	if zone := k.peer.Zone(); zone != "" {
+		// Single-hop only. A multi-hop session is routed rather than put on a
+		// link: Canonical clears its interface and the transport stamps none
+		// on a multi-hop packet, so a zone moved into iface there would make
+		// every lookup miss instead of hit.
+		if k.mode == api.SingleHop && k.iface == "" {
+			k.iface = zone
+		}
+		k.peer = k.peer.WithZone("")
 	}
+	// The local address reaches the two sides by different routes as well --
+	// IP_PKTINFO for the packet, configuration for the session -- so it is
+	// reduced to one form too. Its zone is dropped rather than moved: it names
+	// the link the peer's zone and iface already name.
+	k.local = k.local.WithZone("")
+	return k
 }
 
 // THE MATCHING RULE, and it is one sentence: a key field the session left UNSET
@@ -633,11 +694,12 @@ func (l *Loop) subscribe(key api.Key) chan api.StateChange {
 		// transition can precede it: makeNotify cannot reach this channel
 		// until the append below, and it cannot run at all while l.mu is held.
 		ch <- api.StateChange{
-			Key:     key,
-			State:   entry.lastState,
-			Diag:    entry.lastDiag,
-			When:    when,
-			Initial: true,
+			Key:             key,
+			State:           entry.lastState,
+			Diag:            entry.lastDiag,
+			When:            when,
+			Initial:         true,
+			RemoteAdminDown: entry.machine.RemoteState() == packet.StateAdminDown,
 		}
 	}
 
@@ -664,11 +726,20 @@ func (l *Loop) makeNotify(key api.Key, entry *sessionEntry) func(packet.State, p
 			(*hook).OnStateChange(from, state, diag, key.Mode.String(), key.VRF)
 		}
 
+		// RFC 5880 Section 6.8.6: "Set bfd.RemoteState to the value of the
+		// State (Sta) field." Receive does that before it runs the transition
+		// table, so the machine already holds the state that CAUSED this
+		// change, and the local Down the neighbor's AdminDown produced is
+		// still separable from the Down a dead path produced
+		// (api.StateChange.RemoteAdminDown). The read is safe here for the
+		// same reason entry.lastState is: this callback runs on the express
+		// loop goroutine with l.mu held, which is the only writer.
 		change := api.StateChange{
-			Key:   key,
-			State: state,
-			Diag:  diag,
-			When:  now,
+			Key:             key,
+			State:           state,
+			Diag:            diag,
+			When:            now,
+			RemoteAdminDown: entry.machine.RemoteState() == packet.StateAdminDown,
 		}
 		l.subsMu.Lock()
 		subs := append([]chan api.StateChange(nil), l.subscribers[key]...)

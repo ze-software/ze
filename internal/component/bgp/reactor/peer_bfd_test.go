@@ -50,8 +50,28 @@ func (h *fakeBFDHandle) Enable() error {
 // short timeout so a buggy test does not deadlock the runner.
 func (h *fakeBFDHandle) emit(t *testing.T, state packet.State, diag packet.Diag) {
 	t.Helper()
+	h.emitChange(t, api.StateChange{Key: h.key, State: state, Diag: diag, When: time.Now()})
+}
+
+// emitRemoteAdminDown is the change the engine produces when the NEIGHBOR
+// disabled its own session: RFC 5880 Section 6.8.6 folds a received AdminDown
+// into a local Down with diag 3, so the local state and diag are the same ones
+// a real path failure produces and only RemoteAdminDown separates them.
+func (h *fakeBFDHandle) emitRemoteAdminDown(t *testing.T) {
+	t.Helper()
+	h.emitChange(t, api.StateChange{
+		Key:             h.key,
+		State:           api.StateDown,
+		Diag:            packet.DiagNeighborSignaledDown,
+		RemoteAdminDown: true,
+		When:            time.Now(),
+	})
+}
+
+func (h *fakeBFDHandle) emitChange(t *testing.T, change api.StateChange) {
+	t.Helper()
 	select {
-	case h.ch <- api.StateChange{Key: h.key, State: state, Diag: diag, When: time.Now()}:
+	case h.ch <- change:
 	case <-time.After(time.Second):
 		t.Fatal("timed out emitting StateChange")
 	}
@@ -397,4 +417,62 @@ func TestBFDClientReStampsTheEntryTimeOnlyOnAChange(t *testing.T) {
 	_, since := read()
 	t.Fatalf("after a flap the entry time is still %v (first Up was %v), so the interval would count time the session spent down",
 		since, firstUp)
+}
+
+// VALIDATES: a neighbor that administratively disables its BFD session leaves
+//
+//	an Established BGP session alone, while a real path failure still drops it.
+//
+// PREVENTS: the two being indistinguishable to the reactor. RFC 5880 Section
+// 6.8.6 folds a received AdminDown into a LOCAL Down carrying diag 3, and
+// applyTransitionLocked sets that same diag when an Up session receives a plain
+// Down, so state and diag together separate nothing. Until api.StateChange
+// carried the neighbor's own state, an operator disabling BFD at the far end
+// dropped the BGP session here.
+//
+// RFC 5882 Section 4.2: "If a BFD session transitions from Up state to
+// AdminDown, or the session transitions from Up to Down because the remote
+// system is indicating that the session is in state AdminDown, clients SHOULD
+// NOT take any control protocol action." The sibling test above covers the
+// first arm; this one covers the second. Section 3.2 makes the obligation
+// conditional on the client having "independent means of liveness detection",
+// and BGP has one: the hold timer still runs, so a path that really failed
+// takes the session down on the hold time rather than not at all.
+func TestBFDRemoteAdminDownDoesNotTeardown(t *testing.T) {
+	svc := &fakeBFDService{}
+	p, cleanup := newBFDTestPeer(t, &BFDSettings{Enabled: true}, svc)
+	defer cleanup()
+
+	session, messages := newEstablishedSessionForPeer(t, p)
+
+	p.startBFDClient()
+	defer p.stopBFDClient()
+
+	svc.handle.emitRemoteAdminDown(t)
+
+	select {
+	case msg := <-messages:
+		t.Fatalf("a neighbor-signaled AdminDown owes the peer no message, got % x", msg)
+	case <-time.After(300 * time.Millisecond):
+	}
+	if state := session.State(); state != fsm.StateEstablished {
+		t.Fatalf("session state = %s, want ESTABLISHED", state)
+	}
+
+	// The control: the SAME local state and diag, with the neighbor not
+	// AdminDown, is a path failure and still tears the session down. Without
+	// this the guard above could be suppressing every Down and pass.
+	svc.handle.emit(t, packet.StateDown, packet.DiagNeighborSignaledDown)
+
+	select {
+	case msg := <-messages:
+		if msg[18] != byte(msgtype.TypeNOTIFICATION) {
+			t.Fatalf("message type = %d, want NOTIFICATION", msg[18])
+		}
+		if msg[19] != byte(message.NotifyCease) || msg[20] != message.NotifyCeaseBFDDown {
+			t.Fatalf("code/subcode = %d/%d, want Cease/BFD Down", msg[19], msg[20])
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("a path failure carrying the same diag must still drop the session")
+	}
 }

@@ -270,6 +270,18 @@ func (m *Machine) Key() api.Key { return m.key }
 // State returns the current bfd.SessionState. Safe to call after Init.
 func (m *Machine) State() packet.State { return m.vars.SessionState }
 
+// RemoteState returns bfd.RemoteSessionState: the state the NEIGHBOR declared
+// in the last Control packet this session accepted. RFC 5880 Section 6.8.6:
+// "Set bfd.RemoteState to the value of the State (Sta) field."
+//
+// It is the only place the neighbor's AdminDown survives, because the same
+// section folds that case into the local Down state. Init sets it to
+// packet.StateDown per Section 6.8.1, so it answers before any packet arrives.
+// Safe to call after Init, from the goroutine that drives the machine.
+func (m *Machine) RemoteState() packet.State {
+	return m.vars.RemoteSessionState
+}
+
 // LocalDiscriminator returns the local discriminator chosen at Init.
 func (m *Machine) LocalDiscriminator() uint32 { return m.vars.LocalDiscr }
 

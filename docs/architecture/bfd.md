@@ -81,7 +81,29 @@ the session map (a tempting shortcut) is non-deterministic across Go's
 randomised map iteration order — two sessions sharing the same `(peer, mode)`
 but differing by interface/VRF would race for the first incoming packet.
 
-<!-- source: internal/component/bfd/engine/engine.go -- firstPacketKey, firstPacketIndex -->
+Two rules decide when two keys are one session, and both live beside the
+index. A key field the session left UNSET does not participate in the match,
+which is the walk over `keyRelaxations`. And a link named twice is held in the
+key ONCE, in the interface field, which is `reconcileZone`.
+
+The second rule exists because the two sides state the link differently. The
+kernel reports an IPv6 zone on every link-local source, so a received packet
+says `fe80::1%eth0`, while the session's peer comes from a config leaf an
+operator writes without one and says `fe80::1`. `netip.Addr` compares the zone,
+so a link-local session could never be selected by a packet carrying no
+discriminator. RFC 4007 §6 says the zone names the link, and RFC 5881 §2 puts a
+single-hop session on "a single IP hop that is associated with an incoming
+interface", so the interface field already holds that fact: the zone is reduced
+into it and dropped from the address. Two sessions to `fe80::1` on two links
+stay apart there, which is what the zone is for. A multi-hop key names no link
+at all, so a zone there is dropped rather than moved.
+
+`(*UDP).destination` holds the same reconciliation on the way out: a link-local
+peer is written to a `net.UDPAddr` carrying the session's interface as its
+zone, because an address alone does not say which link to send it on.
+
+<!-- source: internal/component/bfd/engine/engine.go -- firstPacketKey, firstPacketIndex, firstPacketObserved, reconcileZone -->
+<!-- source: internal/component/bfd/transport/udp.go -- destination, sendZone -->
 
 ### One session per neighbor, whatever asks for it
 
@@ -172,6 +194,33 @@ the append, so `makeNotify` cannot hold that channel yet and cannot run at all
 meanwhile.
 
 <!-- source: internal/component/bfd/engine/engine.go -- Loop, subscribe, makeNotify, trySendStateChange -->
+
+### What a state change tells a client
+
+`api.StateChange` carries the session key, the new state, the local
+diagnostic, the moment the engine stamped it, and two fields that answer
+questions the state itself cannot.
+
+| Field | The question it answers |
+|-------|-------------------------|
+| `Initial` | is this the state the session already held when I subscribed, or a transition into it? |
+| `RemoteAdminDown` | was the NEIGHBOR's own session state AdminDown at this change? |
+
+`RemoteAdminDown` exists because `StateDown` otherwise answers two opposite
+questions with one value. RFC 5880 §6.8.6 records a neighbor's AdminDown as a
+local Down with diagnostic "neighbor signaled session down", and a neighbor
+signaling plain Down to an Up session sets that same diagnostic, so state and
+diagnostic together separate nothing. RFC 5882 §4.2 then asks for opposite
+reactions: a client takes no control protocol action when the session goes Up
+to Down because the remote system indicates AdminDown, and §4.2.1 asks it to
+signal the lack of connectivity on every other Up to Down transition.
+
+The engine reads the answer from `bfd.RemoteSessionState`, which
+`session.Machine` maintains to run its own state machine. False is the safe
+default: a client that does not read the field acts on the path failure.
+
+<!-- source: internal/component/bfd/api/events.go -- StateChange -->
+<!-- source: internal/component/bfd/session/session.go -- RemoteState -->
 
 ### Timer arithmetic
 

@@ -46,9 +46,16 @@ func (*captureTransport) RX() <-chan transport.Inbound { return nil }
 // transport.Inbound with TTL 255 (so passesTTLGate accepts it). yd is the
 // Your Discriminator the packet carries.
 func inboundControl(from, local netip.Addr, iface string, yd uint32) transport.Inbound {
+	return inboundControlState(from, local, iface, yd, packet.StateDown)
+}
+
+// inboundControlState is inboundControl with the state the peer declares under
+// the caller's control. RFC 5882 Section 4.2 turns on that field, so a test
+// about it has to be able to set it.
+func inboundControlState(from, local netip.Addr, iface string, yd uint32, state packet.State) transport.Inbound {
 	c := packet.Control{
 		Version:               packet.Version,
-		State:                 packet.StateDown,
+		State:                 state,
 		DetectMult:            3,
 		Length:                packet.MandatoryLen,
 		MyDiscriminator:       peerMyDiscr,

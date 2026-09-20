@@ -240,9 +240,49 @@ func (u *UDP) Send(out Outbound) error {
 	if conn == nil {
 		return errUDPNotStarted
 	}
-	raddr := &net.UDPAddr{IP: out.To.AsSlice(), Port: int(u.Bind.Port())}
-	_, err := conn.WriteToUDP(out.Bytes, raddr)
+	_, err := conn.WriteToUDP(out.Bytes, u.destination(out))
 	return err
+}
+
+// destination builds the socket address one Outbound is written to: the peer
+// the session names, the port this transport binds, and, for a link-local
+// peer, the link the session runs on.
+//
+// RFC 4007 Section 6: "Because the same non-global address may be in use in
+// more than one zone of the same scope (e.g., the use of link-local address
+// fe80::1 in two separate physical links) and a node may have interfaces
+// attached to different zones of the same scope (e.g., a router normally has
+// multiple interfaces attached to different links), a node requires an
+// internal means to identify to which zone a non-global address belongs."
+// net.UDPAddr.Zone is that means, and out.To.AsSlice() cannot carry it: a
+// link-local destination sent with no zone leaves the kernel to pick a link or
+// to refuse the write.
+//
+// The session's own address is the first answer, and the interface is the
+// second. A session reaches here with an interface and a zoneless peer,
+// because RFC 5881 Section 2 puts a single-hop session on "a single IP hop
+// that is associated with an incoming interface" while the config leaf that
+// names the peer holds an address alone. Only a scoped destination gets a
+// zone: a global address is reachable by the routing table, and naming a link
+// for it would narrow a decision that is not this layer's to make.
+func (u *UDP) destination(out Outbound) *net.UDPAddr {
+	return &net.UDPAddr{
+		IP:   out.To.AsSlice(),
+		Port: int(u.Bind.Port()),
+		Zone: sendZone(out),
+	}
+}
+
+// sendZone answers the zone destination puts on the address, empty for every
+// address that is not scoped to one link.
+func sendZone(out Outbound) string {
+	if !out.To.IsLinkLocalUnicast() {
+		return ""
+	}
+	if zone := out.To.Zone(); zone != "" {
+		return zone
+	}
+	return out.Interface
 }
 
 // RX returns the inbound-packet channel. The channel is closed when Stop
