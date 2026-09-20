@@ -167,6 +167,16 @@ type RecvEntry struct {
 	SessionID   uint16
 	MessageType uint16
 	Payload     []byte
+
+	// Malformed reports a body that does not open with a well-formed Message
+	// Type AVP, which RFC 2661 Section 7.1 calls "a message that is missing a
+	// required AVP" and answers by clearing the control connection. It is a
+	// field rather than a reserved MessageType because zero is a value a ZLB
+	// legitimately carries: OnReceive classifies a zero-length body as
+	// ClassZLB and never builds a RecvEntry for one, so a delivered entry
+	// always has a body and this flag is the only thing that says the body
+	// could not be read. MessageType is meaningless while it is set.
+	Malformed bool
 }
 
 // ReceiveResult bundles the outputs of OnReceive. A single inbound
@@ -550,17 +560,36 @@ func (e *ReliableEngine) processNr(nr uint16) int {
 }
 
 // makeRecvEntry extracts the Message Type from the first AVP (RFC 2661
-// S4.4.1: "The Message Type AVP MUST be the first AVP in a message")
-// and returns a RecvEntry. The payload reference is NOT copied -- the
-// caller (phase 3) must process it before calling another engine method
-// that might reuse the buffer.
+// S4.4.1: "The Message Type AVP MUST be the first AVP in a message,
+// immediately following the control message header") and returns a
+// RecvEntry. The payload reference is NOT copied -- the caller (phase 3)
+// must process it before calling another engine method that might reuse
+// the buffer.
+//
+// A body that does not open with a well-formed Message Type AVP sets
+// Malformed and leaves MessageType at zero, which is what the dispatcher
+// reads. Reading the two octets at AVPHeaderLen unconditionally, as this
+// did until 2026-09-20, routed such a message on whatever the first AVP
+// happened to hold and dropped a body under 8 octets on message type 0.
 func (e *ReliableEngine) makeRecvEntry(ns, sessionID uint16, payload []byte) RecvEntry {
 	entry := RecvEntry{Ns: ns, SessionID: sessionID, Payload: payload}
-	// Message Type AVP: first AVP, value is a uint16 after the 6-byte
-	// AVP header (flags+length, vendor-id=0, attr-type=0).
-	if len(payload) >= AVPHeaderLen+2 {
-		entry.MessageType = binary.BigEndian.Uint16(payload[AVPHeaderLen:])
+	iter := NewAVPIterator(payload)
+	vendorID, attrType, _, value, ok := iter.Next()
+	if !ok {
+		entry.Malformed = true
+		return entry
 	}
+	if vendorID != 0 || attrType != AVPMessageType {
+		entry.Malformed = true
+		return entry
+	}
+	// RFC 2661 S4.4.1: "The Message Type is a 2 octet unsigned integer" and
+	// "The Length of this AVP is 8", so any other value length is malformed.
+	if len(value) != 2 {
+		entry.Malformed = true
+		return entry
+	}
+	entry.MessageType = binary.BigEndian.Uint16(value)
 	return entry
 }
 

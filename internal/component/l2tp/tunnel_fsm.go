@@ -105,6 +105,30 @@ func (t *L2TPTunnel) Process(hdr MessageHeader, payload []byte, now time.Time, d
 // are logged and dropped for phase 5 to wire. Returns the outbound
 // datagrams produced by the handler.
 func (t *L2TPTunnel) handleMessage(entry RecvEntry, now time.Time, defaults TunnelDefaults, sccrq *sccrqInfo) []sendRequest {
+	if entry.Malformed {
+		// RFC 2661 Section 7.1: "Examples of a malformed control message
+		// include one that has an invalid value in its header, contains an
+		// AVP that is formatted incorrectly or whose value is out of range,
+		// or a message that is missing a required AVP", and "Receipt of an
+		// invalid or unrecoverable malformed control message should be
+		// logged appropriately and the control connection cleared to ensure
+		// recovery to a known state."
+		//
+		// The clearing is a StopCCN, as it is everywhere else in this FSM.
+		// Result Code 2 delegates the detail to the Error Code, and 3 is the
+		// code whose sentence covers a header ze cannot read: "One of the
+		// field values was out of range or reserved field was non-zero"
+		// (Section 4.4.2).
+		t.logger.Warn("l2tp: malformed control message; clearing the control connection",
+			"reason", detailNoMessageType, "ns", entry.Ns, "session-id", entry.SessionID)
+		return t.teardownStopCCN(now, ResultCodeValue{
+			Result:         resultProtocolError,
+			ErrorPresent:   true,
+			Error:          errorValueOutOfRange,
+			Message:        detailNoMessageType,
+			MessagePresent: true,
+		}, l2tpevents.TerminateCauseNASError)
+	}
 	msgType := MessageType(entry.MessageType)
 	if msgType == MsgSCCRQ {
 		return t.handleSCCRQ(now, defaults, sccrq)
@@ -184,7 +208,7 @@ func (t *L2TPTunnel) handleSCCRQ(now time.Time, defaults TunnelDefaults, sccrq *
 	if sccrq.ChallengePresent {
 		if defaults.SharedSecret == "" {
 			t.logger.Warn("l2tp: SCCRQ Challenge AVP present but shared-secret is unset; sending StopCCN RC=4")
-			return t.teardownStopCCN(now, resultNotAuthorized, l2tpevents.TerminateCauseNASError)
+			return t.teardownStopCCN(now, ResultCodeValue{Result: resultNotAuthorized}, l2tpevents.TerminateCauseNASError)
 		}
 		resp := ChallengeResponse(ChapIDSCCRP, []byte(defaults.SharedSecret), sccrq.ChallengeValue)
 		peerResponse = resp[:]
@@ -196,7 +220,7 @@ func (t *L2TPTunnel) handleSCCRQ(now time.Time, defaults TunnelDefaults, sccrq *
 		ours := make([]byte, 16)
 		if _, err := rand.Read(ours); err != nil {
 			t.logger.Warn("l2tp: unable to read random Challenge; sending StopCCN RC=4", "error", err.Error())
-			return t.teardownStopCCN(now, resultNotAuthorized, l2tpevents.TerminateCauseNASError)
+			return t.teardownStopCCN(now, ResultCodeValue{Result: resultNotAuthorized}, l2tpevents.TerminateCauseNASError)
 		}
 		t.ourChallenge = ours
 	}
@@ -237,16 +261,16 @@ func (t *L2TPTunnel) handleSCCCN(now time.Time, defaults TunnelDefaults, payload
 	scccn, err := parseSCCCN(payload)
 	if err != nil {
 		t.logger.Warn("l2tp: malformed SCCCN; sending StopCCN RC=4", "error", err.Error())
-		return t.teardownStopCCN(now, resultNotAuthorized, l2tpevents.TerminateCauseNASError)
+		return t.teardownStopCCN(now, ResultCodeValue{Result: resultNotAuthorized}, l2tpevents.TerminateCauseNASError)
 	}
 	if t.ourChallenge != nil {
 		if !scccn.ChallengeResponsePresent {
 			t.logger.Warn("l2tp: SCCCN missing Challenge Response; sending StopCCN RC=4")
-			return t.teardownStopCCN(now, resultNotAuthorized, l2tpevents.TerminateCauseNASError)
+			return t.teardownStopCCN(now, ResultCodeValue{Result: resultNotAuthorized}, l2tpevents.TerminateCauseNASError)
 		}
 		if !VerifyChallengeResponse(ChapIDSCCCN, []byte(defaults.SharedSecret), t.ourChallenge, scccn.ChallengeResponseValue) {
 			t.logger.Warn("l2tp: SCCCN Challenge Response did not verify; sending StopCCN RC=4")
-			return t.teardownStopCCN(now, resultNotAuthorized, l2tpevents.TerminateCauseNASError)
+			return t.teardownStopCCN(now, ResultCodeValue{Result: resultNotAuthorized}, l2tpevents.TerminateCauseNASError)
 		}
 	}
 	t.transition(L2TPTunnelEstablished, "SCCCN received")
@@ -276,7 +300,8 @@ func (t *L2TPTunnel) handleSCCCN(now time.Time, defaults TunnelDefaults, payload
 // every session the tunnel carried, and each caller names the one true of it:
 // an operator clear names Admin Reset, the keepalive and retransmit timeouts
 // name Lost Carrier, and a message ze refused names NAS Error.
-func (t *L2TPTunnel) teardownStopCCN(now time.Time, resultCode uint16, cause l2tpevents.TerminateCause) []sendRequest {
+func (t *L2TPTunnel) teardownStopCCN(now time.Time, rc ResultCodeValue, cause l2tpevents.TerminateCause) []sendRequest {
+	resultCode := rc.Result
 	// Clear all sessions before closing the tunnel. Same as handleStopCCN
 	// (peer-initiated) per RFC 2661 S6.4. Phase 5: this also queues
 	// kernel teardown events and one session-down per session.
@@ -287,7 +312,7 @@ func (t *L2TPTunnel) teardownStopCCN(now time.Time, resultCode uint16, cause l2t
 
 	bodyBuf := GetBuf()
 	defer PutBuf(bodyBuf)
-	n := writeStopCCNBody(*bodyBuf, t.localTID, ResultCodeValue{Result: resultCode})
+	n := writeStopCCNBody(*bodyBuf, t.localTID, rc)
 
 	wire, err := t.engine.Enqueue(0, (*bodyBuf)[:n], now, true)
 	if err != nil {
@@ -360,7 +385,7 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 		}
 		if flags&FlagReserved != 0 {
 			if flags&FlagMandatory != 0 {
-				return sccrqInfo{}, fmt.Errorf("l2tp: mandatory AVP type %d with reserved bits set", attrType)
+				return sccrqInfo{}, errSCCRQMandatoryReservedBits
 			}
 			continue
 		}
@@ -371,7 +396,11 @@ func parseSCCRQ(payload []byte) (sccrqInfo, error) {
 		}
 		if vendorID != 0 {
 			if flags&FlagMandatory != 0 {
-				return sccrqInfo{}, fmt.Errorf("l2tp: mandatory vendor %d AVP not recognized", vendorID)
+				// RFC 2661 Section 4.2: "Receipt of an unknown AVP that has
+				// the M-bit set is catastrophic to the session or tunnel it
+				// is associated with." Section 7.2.1 makes the answer a
+				// StopCCN, and Section 4.4.2 Error Code 8 names this cause.
+				return sccrqInfo{}, errSCCRQUnknownMandatoryVendorAVP
 			}
 			continue
 		}
@@ -641,7 +670,10 @@ const (
 // General Error Codes carried in the Result Code AVP's optional second
 // field (RFC 2661 S4.4.2). Meaningful only beside resultProtocolError,
 // which is the Result Code that delegates the detail to this field.
-const errorValueOutOfRange uint16 = 3 // "One of the field values was out of range or reserved field was non-zero"
+const (
+	errorValueOutOfRange     uint16 = 3 // "One of the field values was out of range or reserved field was non-zero"
+	errorUnknownMandatoryAVP uint16 = 8 // "Session or tunnel was shutdown due to receipt of an unknown AVP with the M-bit set"
+)
 
 // handleStopCCN processes a peer-sent StopCCN on any tunnel state.
 // The tunnel transitions to closed and the engine begins its retention

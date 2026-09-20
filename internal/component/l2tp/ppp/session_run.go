@@ -1,4 +1,5 @@
 // Design: docs/research/l2tpv2-ze-integration.md -- per-session goroutine main loop
+// RFC: rfc/short/rfc1661.md -- RFC 1661 Sections 4.1, 4.3, 4.4, 4.6, 5.7
 // Related: session.go -- pppSession struct
 // Related: manager.go -- Driver that spawns these goroutines
 // Related: ppp_fsm.go -- pure FSM transition function
@@ -30,6 +31,26 @@ const (
 	defaultNegoTimeout   = 30 * time.Second
 	defaultAuthTimeout   = 30 * time.Second
 	magicDrawMaxAttempts = 8
+
+	// RFC 1661 Section 4.6, Restart Timer: "The Restart timer MUST be
+	// configurable, but SHOULD default to three (3) seconds." Ze takes the
+	// recommended default.
+	defaultRestartTimer = 3 * time.Second
+
+	// RFC 1661 Section 4.6, Max-Terminate: "Max-Terminate indicates the
+	// number of Terminate-Request packets sent without receiving a
+	// Terminate-Ack before assuming that the peer is unable to respond.
+	// Max-Terminate MUST be configurable, but SHOULD default to two (2)
+	// transmissions." Ze takes the recommended default.
+	defaultMaxTerminate = 2
+
+	// RFC 1661 Section 4.6, Max-Configure: "Max-Configure indicates the
+	// number of Configure-Request packets sent without receiving a valid
+	// Configure-Ack, Configure-Nak or Configure-Reject before assuming that
+	// the peer is unable to respond. Max-Configure MUST be configurable, but
+	// SHOULD default to ten (10) transmissions." Ze takes the recommended
+	// default.
+	defaultMaxConfigure = 10
 
 	// minIPMTU is the IPv4 minimum MTU per RFC 1122 §3.3.2. PPP's
 	// MRU floor (RFC 1661 §6.1) is 64 -- which would yield a kernel
@@ -145,6 +166,20 @@ func (s *pppSession) run(start *StartSession) {
 	)
 	isProxy := perr == nil
 
+	// RFC 1661 Section 4.6: the Restart timer times transmissions of
+	// Configure-Request and Terminate-Request, and "Expiration of the
+	// Restart timer causes a Timeout event". It is armed by the scr, str
+	// and zrc actions (performAction) and stopped whenever the automaton
+	// leaves a state that runs one, so it is created stopped and lives on
+	// the session rather than in this frame. It is created before the
+	// synthetic Open below, whose scr is the first transmission the timer
+	// has to guard. The proxy path starts Opened, which runs no Restart
+	// timer, and a later Terminate-Request from the peer arms it through
+	// zrc like any other session.
+	s.restartTimer = time.NewTimer(defaultRestartTimer)
+	s.restartTimer.Stop()
+	defer s.restartTimer.Stop()
+
 	if isProxy {
 		// proxy.AuthProto is zero when no Auth-Protocol option was
 		// carried in the LAC's Last-Sent CONFREQ; authMethodFromAuthProto
@@ -184,16 +219,13 @@ func (s *pppSession) run(start *StartSession) {
 		s.state = trUp.NewState
 		s.mu.Unlock()
 
-		// Synthetic Open: Closed -> ReqSent with [IRC, SCR].
+		// Synthetic Open: Closed -> ReqSent with [IRC, SCR]. It runs through
+		// applyTransition so the Restart counter and the Restart timer are
+		// loaded and armed here exactly as they are for a peer-driven event.
 		trOpen := LCPDoTransition(LCPStateClosed, LCPEventOpen)
-		for _, act := range trOpen.Actions {
-			if !s.performAction(act, LCPPacket{}) {
-				return
-			}
+		if s.applyTransition(LCPStateClosed, trOpen, LCPPacket{}) {
+			return
 		}
-		s.mu.Lock()
-		s.state = trOpen.NewState
-		s.mu.Unlock()
 	}
 
 	// Negotiation timeout timer. Active until Opened is reached
@@ -203,20 +235,10 @@ func (s *pppSession) run(start *StartSession) {
 		negoTimer  *time.Timer
 		negoTimerC <-chan time.Time
 	)
-	// RFC 1661 Section 4.6: restart timer retransmits ConfReq while
-	// in ReqSent or AckSent. Fires every 3s until LCP reaches Opened,
-	// then is stopped alongside negoTimer.
-	var (
-		restartTicker  *time.Ticker
-		restartTickerC <-chan time.Time
-	)
 	if !isProxy {
 		negoTimer = time.NewTimer(defaultNegoTimeout)
 		defer negoTimer.Stop()
 		negoTimerC = negoTimer.C
-		restartTicker = time.NewTicker(3 * time.Second)
-		defer restartTicker.Stop()
-		restartTickerC = restartTicker.C
 	}
 
 	// Echo ticker. Enabled after Opened. In the proxy path we are
@@ -312,12 +334,15 @@ func (s *pppSession) run(start *StartSession) {
 			s.fail(tb.Str("LCP negotiation timeout after ").Str(defaultNegoTimeout.String()).String())
 			return
 
-		case <-restartTickerC:
-			s.mu.Lock()
-			st := s.state
-			s.mu.Unlock()
-			if st == LCPStateReqSent || st == LCPStateAckSent {
-				s.sendConfigureRequest()
+		case <-s.restartTimer.C:
+			// RFC 1661 Section 4.3, Timeout: "The TO+ event indicates that
+			// the Restart counter continues to be greater than zero, which
+			// triggers the corresponding Configure-Request or
+			// Terminate-Request packet to be retransmitted. The TO- event
+			// indicates that the Restart counter is not greater than zero,
+			// and no more packets need to be retransmitted."
+			if s.handleRestartTimeout() {
+				return
 			}
 
 		case <-echoTickerC:
@@ -383,10 +408,6 @@ func (s *pppSession) run(start *StartSession) {
 				if negoTimer != nil {
 					negoTimer.Stop()
 					negoTimerC = nil
-				}
-				if restartTicker != nil {
-					restartTicker.Stop()
-					restartTickerC = nil
 				}
 				echoTickerC = echoTicker.C
 				// Initial auth has completed (afterLCPOpen ran
@@ -697,7 +718,7 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 			return false
 		}
 		if s.disableIPCP {
-			return false
+			return s.rejectUnsupportedProtocol(proto, payload)
 		}
 		if perr != nil {
 			s.logger.Debug("ppp: malformed IPCP packet", "error", perr.Error())
@@ -709,9 +730,12 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 		// IPv6CP is dropped (config, or handler-declined IPv6 in
 		// runNCPPhase), the peer keeps retransmitting CONFREQ -- buffering
 		// those into earlyNCPFrames would grow unbounded since the NCP
-		// never starts to drain them. Drop them instead.
+		// never starts to drain them. Answer them instead: RFC 1661 Section
+		// 5.7 is what stops the retransmissions, where dropping them left a
+		// dual-stack peer retrying IPV6CP for its whole Configure-Request
+		// budget.
 		if s.disableIPv6CP {
-			return false
+			return s.rejectUnsupportedProtocol(proto, payload)
 		}
 		if s.ipv6cpState == LCPStateInitial {
 			buf := make([]byte, len(frame))
@@ -725,9 +749,132 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 		}
 		return s.handleIPv6CPPacket(pkt)
 	}
-	s.logger.Debug("ppp: non-control-plane protocol dropped",
-		"protocol", strconv.FormatUint(uint64(proto), 16))
+	return s.rejectUnsupportedProtocol(proto, payload)
+}
+
+// protocolHex renders a PPP Protocol field as the hexadecimal form every RFC
+// and every operator writes it in, "0x8057" rather than 32855.
+func protocolHex(proto uint16) string {
+	var raw [2]byte
+	binary.BigEndian.PutUint16(raw[:], proto)
+	var tb textbuf.Buffer
+	return tb.Str("0x").Hex(raw[:]).String()
+}
+
+// supportsProtocol reports whether ze implements the protocol on this
+// session. It is the question RFC 1661 Section 3.6 asks before it decides
+// between a silent discard and a Protocol-Reject: "While LCP is in the Opened
+// state, any protocol packet which is unsupported by the implementation MUST
+// be returned in a Protocol-Reject (described later). Only protocols which
+// are supported are silently discarded."
+//
+// An NCP the operator turned off takes its network-layer protocol with it: a
+// session that will never open IPv6CP does not support IPv6, so an IPv6
+// packet on it is unsupported rather than early.
+func (s *pppSession) supportsProtocol(proto uint16) bool {
+	switch proto {
+	case ProtoLCP, ProtoPAP, ProtoCHAP:
+		return true
+	case ProtoIPCP, ProtoIPv4:
+		return !s.disableIPCP
+	case ProtoIPv6CP, ProtoIPv6:
+		return !s.disableIPv6CP
+	}
 	return false
+}
+
+// rejectUnsupportedProtocol answers one frame whose Protocol field names a
+// protocol ze does not support, and reports whether the session must end.
+//
+// RFC 1661 Section 5.7: "Protocol-Reject packets can only be sent in the LCP
+// Opened state. Protocol-Reject packets received in any state other than the
+// LCP Opened state SHOULD be silently discarded." The send is gated on Opened
+// for the first sentence; a frame that arrives before LCP opens is dropped
+// without an answer.
+func (s *pppSession) rejectUnsupportedProtocol(proto uint16, info []byte) bool {
+	if s.supportsProtocol(proto) {
+		// RFC 1661 Section 3.6: "Any supported network-layer protocol packets
+		// received when the corresponding NCP is not in the Opened state MUST
+		// be silently discarded", and its Implementation Note draws the line
+		// this branch stands on: "Only protocols which are supported are
+		// silently discarded."
+		s.logger.Debug("ppp: supported protocol discarded, not configured yet",
+			"protocol", protocolHex(proto))
+		return false
+	}
+	cur := s.currentState()
+	if cur != LCPStateOpened {
+		s.logger.Debug("ppp: unsupported protocol dropped, LCP is not Opened",
+			"protocol", protocolHex(proto), "state", cur.String())
+		return false
+	}
+	s.logger.Info("ppp: unsupported protocol rejected", "protocol", protocolHex(proto))
+	return !s.sendProtocolReject(proto, info)
+}
+
+// sendProtocolReject transmits an LCP Protocol-Reject for a protocol ze does
+// not support, and returns false on a fatal write error.
+//
+// RFC 1661 Section 5.7: "Reception of a PPP packet with an unknown Protocol
+// field indicates that the peer is attempting to use a protocol which is
+// unsupported. This usually occurs when the peer attempts to configure a new
+// protocol. If the LCP automaton is in the Opened state, then this MUST be
+// reported back to the peer by transmitting a Protocol-Reject."
+//
+// Wire format (RFC 1661 Section 5.7), offsets from the start of the LCP
+// packet, which itself starts 2 octets into the frame:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|   Code = 8    |  Identifier   |            Length             |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|       Rejected-Protocol       |      Rejected-Information ...
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// Octet 0 Code, 1 Identifier, 2-3 Length, 4-5 Rejected-Protocol, 6 onward
+// Rejected-Information.
+//
+// "The Rejected-Protocol field is two octets, and contains the PPP Protocol
+// field of the packet which is being rejected." "The Rejected-Information
+// field contains a copy of the packet which is being rejected. It begins with
+// the Information field, and does not include any Data Link Layer headers nor
+// an FCS", which is what info carries: the frame after its Protocol field.
+func (s *pppSession) sendProtocolReject(proto uint16, info []byte) bool {
+	// RFC 1661 Section 5.7: "The Rejected-Information MUST be truncated to
+	// comply with the peer's established MRU." The MRU bounds the Information
+	// field of the frame ze sends, and MaxFrameLen bounds the pooled buffer
+	// it is built in, so the copy takes the smaller of the two, less the
+	// octets that precede it: the 2-octet Protocol field, the 4-octet LCP
+	// header and the 2-octet Rejected-Protocol.
+	s.mu.Lock()
+	mru := s.negotiatedMRU
+	s.mu.Unlock()
+	if mru == 0 {
+		// No MRU option was negotiated, so the PPP default stands
+		// (RFC 1661 Section 6.1).
+		mru = MaxFrameLen
+	}
+	limit := min(frameLen(int(mru)), MaxFrameLen)
+	room := max(limit-frameLen(lcpHeaderLen+2), 0)
+	if len(info) > room {
+		info = info[:room]
+	}
+
+	buf := getFrameBuf()
+	defer putFrameBuf(buf)
+	off := WriteFrame(buf, 0, ProtoLCP, nil)
+	// The Rejected-Protocol and the copy are written where WriteLCPPacket
+	// needs the Data field, so no scratch buffer is allocated. The copy that
+	// call then makes is onto itself and moves nothing.
+	data := buf[off+lcpHeaderLen:]
+	binary.BigEndian.PutUint16(data[:2], proto)
+	n := copy(data[2:], info)
+	// RFC 1661 Section 5.7: "The Identifier field MUST be changed for each
+	// Protocol-Reject sent."
+	s.protocolRejectID++
+	off += WriteLCPPacket(buf, off, LCPProtocolReject, s.protocolRejectID, data[:2+n])
+	return s.writeFrame(buf[:off])
 }
 
 // codeToEvent maps an LCP code to the FSM event for a "received"
@@ -912,21 +1059,72 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 		return false
 	}
 
-	for _, act := range tr.Actions {
-		if !s.performAction(act, pkt) {
-			return true
-		}
-	}
-
 	// ISSUE 3 fix: capture the peer's MRU from its accepted CR.
 	// The "negotiated MRU" for the send direction is what the PEER
 	// said it will receive (from its own CR). Update only on RCR+,
 	// because that is the moment ze accepts the peer's options.
+	//
+	// It runs before the transition rather than after it because the Opened
+	// branch inside applyTransition reads negotiatedMRU, and no FSM action
+	// does.
 	if ev == LCPEventRCRPlus && len(peerOpts) > 0 {
 		if v, ok := lookupMRUOption(peerOpts); ok {
 			s.mu.Lock()
 			s.negotiatedMRU = v
 			s.mu.Unlock()
+		}
+	}
+
+	return s.applyTransition(cur, tr, pkt)
+}
+
+// applyTransition runs one FSM transition's actions, commits the new state,
+// and reports whether the session must end. Every LCP event shares this tail:
+// a received packet through handleLCPPacket, and a Restart timer expiry
+// through handleRestartTimeout.
+//
+// pkt is the packet that raised the event, which the sca, scn, sta, scj and
+// ser actions echo fields from. A Timeout event has no packet and passes the
+// zero value, which those actions never see because RFC 1661 Section 4.1
+// pairs TO+ and TO- with scr, str and tlf alone.
+func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPacket) bool {
+	// RFC 1661 Section 4.4, Initialize-Restart-Count: "This action sets the
+	// Restart counter to the appropriate value (Max-Terminate or
+	// Max-Configure)." The Section 4.1 table pairs irc with either str or
+	// scr inside one transition, so the companion action is what names which
+	// of the two values the counter takes.
+	restartMax := defaultMaxConfigure
+	for _, act := range tr.Actions {
+		if act == LCPActSTR {
+			restartMax = defaultMaxTerminate
+		}
+	}
+
+	for _, act := range tr.Actions {
+		if act == LCPActIRC {
+			// RFC 1661 Section 4.4, Initialize-Restart-Count: "This action
+			// sets the Restart counter to the appropriate value
+			// (Max-Terminate or Max-Configure). The counter is decremented
+			// for each transmission, including the first." The decrement is
+			// in sendConfigureRequest and sendTerminateRequest, which are
+			// the transmissions.
+			s.restartCount = restartMax
+			continue
+		}
+		if act == LCPActZRC {
+			// RFC 1661 Section 4.4, Zero-Restart-Count: "This action sets
+			// the Restart counter to zero." It is one of the three actions
+			// Section 4.1 names as starting the Restart timer, so the next
+			// expiry raises TO- and carries the automaton out of Closing or
+			// Stopping: "This action enables the FSA to pause before
+			// proceeding to the desired final state, allowing traffic to be
+			// processed by the peer."
+			s.restartCount = 0
+			s.armRestartTimer()
+			continue
+		}
+		if !s.performAction(act, pkt) {
+			return true
 		}
 	}
 
@@ -959,12 +1157,22 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 		s.mu.Lock()
 		s.state = LCPStateOpened
 		s.mu.Unlock()
+		// Opened carries no TO event in the RFC 1661 Section 4.1 table, so
+		// the Restart timer stops here for the same reason it stops below.
+		s.stopRestartTimer()
 		return false
 	}
 
 	s.mu.Lock()
 	s.state = tr.NewState
 	s.mu.Unlock()
+
+	// RFC 1661 Section 4.1: "The Restart timer is stopped when transitioning
+	// from any state where the timer is running to a state where the timer is
+	// not running."
+	if !restartTimerRuns(tr.NewState) {
+		s.stopRestartTimer()
+	}
 
 	if tr.NewState == LCPStateClosed || tr.NewState == LCPStateStopped {
 		var tb textbuf.Buffer
@@ -1031,17 +1239,114 @@ func (s *pppSession) performAction(act LCPAction, current LCPPacket) bool {
 			return true
 		}
 		return s.sendEchoReply(current)
-	case LCPActIRC, LCPActZRC, LCPActTLU, LCPActTLD, LCPActTLS, LCPActTLF:
-		// IRC/ZRC: restart-counter management deferred to a 6a
-		// hardening pass (see plan/deferrals/, sharded per source).
-		// TLU/TLD/TLS/TLF: "notify upper layers" handled inline in
-		// handleLCPPacket via the state-transition check.
+	case LCPActIRC, LCPActZRC:
+		// The Restart counter actions touch no wire. applyTransition
+		// performs them, because the value irc loads depends on the
+		// companion action in the same transition and only the transition
+		// carries that.
+		return true
+	case LCPActTLU, LCPActTLD, LCPActTLS, LCPActTLF:
+		// "Notify upper layers" is handled inline in applyTransition via the
+		// state-transition check.
 		return true
 	}
 	return true
 }
 
+// armRestartTimer starts the Restart timer, so that the next expiry raises a
+// Timeout event. RFC 1661 Section 4.1: "Only the Send-Configure-Request,
+// Send-Terminate-Request and Zero-Restart-Count actions start or re-start the
+// Restart timer", so only those three call it.
+//
+// Runs on the session goroutine, which is also the goroutine that receives
+// from the timer channel, so a Stop that races an expiry cannot deliver a
+// stale tick: Go 1.23 and later make Stop and Reset drop an unreceived value.
+func (s *pppSession) armRestartTimer() {
+	if s.restartTimer == nil {
+		return
+	}
+	s.restartTimer.Stop()
+	s.restartTimer.Reset(defaultRestartTimer)
+}
+
+// spendRestartCount books one transmission of a Configure-Request or a
+// Terminate-Request against the Restart counter and restarts the Restart
+// timer to guard it.
+//
+// RFC 1661 Section 4.4, Initialize-Restart-Count: "The counter is decremented
+// for each transmission, including the first." Section 4.4, Send-Configure-
+// Request: "The Restart timer is started when the Configure-Request packet is
+// transmitted, to guard against packet loss."
+//
+// The counter floors at zero rather than going negative, because zero is what
+// the Timeout event reads to pick TO- and nothing else reads the value.
+func (s *pppSession) spendRestartCount() {
+	if s.restartCount > 0 {
+		s.restartCount--
+	}
+	s.armRestartTimer()
+}
+
+// stopRestartTimer stops the Restart timer, for the rule RFC 1661 Section 4.1
+// states: "The Restart timer is stopped when transitioning from any state
+// where the timer is running to a state where the timer is not running".
+func (s *pppSession) stopRestartTimer() {
+	if s.restartTimer == nil {
+		return
+	}
+	s.restartTimer.Stop()
+}
+
+// restartTimerRuns reports whether the Restart timer runs in this state.
+// RFC 1661 Section 4.1: "The states in which the Restart timer is running are
+// identifiable by the presence of TO events", which the table gives to
+// Closing, Stopping, Req-Sent, Ack-Rcvd and Ack-Sent.
+func restartTimerRuns(state LCPState) bool {
+	switch state {
+	case LCPStateClosing, LCPStateStopping, LCPStateReqSent, LCPStateAckRcvd, LCPStateAckSent:
+		return true
+	case LCPStateInitial, LCPStateStarting, LCPStateClosed, LCPStateStopped, LCPStateOpened:
+		return false
+	}
+	return false
+}
+
+// handleRestartTimeout raises the Timeout event the expired Restart timer
+// stands for, and reports whether the session must end.
+//
+// RFC 1661 Section 4.3, Timeout: "The TO+ event indicates that the Restart
+// counter continues to be greater than zero, which triggers the corresponding
+// Configure-Request or Terminate-Request packet to be retransmitted. The TO-
+// event indicates that the Restart counter is not greater than zero, and no
+// more packets need to be retransmitted."
+//
+// The counter is what tells the two apart, which is why zrc exists: a peer's
+// Terminate-Request puts Opened into Stopping with the counter at zero
+// (Section 4.1, "tld,zrc,sta/5"), so the first expiry after it is TO-, and
+// Stopping answers TO- with "tlf/3". The session then reaches Stopped, which
+// is where applyTransition reports it down.
+func (s *pppSession) handleRestartTimeout() bool {
+	cur := s.currentState()
+	ev := LCPEventTOMinus
+	if s.restartCount > 0 {
+		ev = LCPEventTOPlus
+	}
+	tr := LCPDoTransition(cur, ev)
+	if tr.NewState == cur && len(tr.Actions) == 0 {
+		// A state with no TO edge left the timer armed. Stop it rather than
+		// letting it fire again on a state that has no answer for it.
+		s.logger.Debug("ppp: Restart timer expired in a state with no Timeout edge",
+			"state", cur.String(), "restart-count", s.restartCount)
+		s.stopRestartTimer()
+		return false
+	}
+	s.logger.Debug("ppp: LCP Restart timer expired",
+		"state", cur.String(), "restart-count", s.restartCount)
+	return s.applyTransition(cur, tr, LCPPacket{})
+}
+
 func (s *pppSession) sendConfigureRequest() bool {
+	s.spendRestartCount()
 	authProto, authData := authMethodToLCPOptions(s.configuredAuthMethod)
 	opts := BuildLocalConfigRequest(LCPOptions{
 		MRU:       s.maxMRU,
@@ -1232,6 +1537,7 @@ func (s *pppSession) sendConfigureNakOrReject(req LCPPacket) bool {
 }
 
 func (s *pppSession) sendTerminateRequest() bool {
+	s.spendRestartCount()
 	buf := getFrameBuf()
 	defer putFrameBuf(buf)
 	off := WriteFrame(buf, 0, ProtoLCP, nil)

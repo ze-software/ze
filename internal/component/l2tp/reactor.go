@@ -591,18 +591,20 @@ func (r *l2tpReactor) sendUnassociatedStopCCN(to netip.AddrPort, peerNs uint16, 
 	buf := GetBuf()
 	defer PutBuf(buf)
 	b := *buf
-	// Result Code 2 says the Error Code names the problem; Error Code 3 is
-	// "One of the field values was out of range or reserved field was
-	// non-zero" (RFC 2661 Section 4.4.2). That list defines no code for an
-	// absent AVP, and 3 is the code its own sentence in Section 7.1 pairs
-	// with one, so the Error Message field carries the AVP's name: "an
-	// arbitrary string providing further (human readable) text associated
-	// with the condition". The details are fixed strings under 60 octets
-	// (errors.go), so the body fits the 1500-octet pooled buffer.
+	// Result Code 2 says the Error Code names the problem, and the rejection
+	// carries which code that is: RFC 2661 Section 4.4.2 defines 8 for an
+	// unknown AVP with the M-bit set and 3 for "One of the field values was
+	// out of range or reserved field was non-zero". That list defines no code
+	// for an absent AVP, and 3 is the code its own sentence in Section 7.1
+	// pairs with one, so every rejection but the vendor-AVP one takes 3. The
+	// Error Message field carries the AVP's name either way: "an arbitrary
+	// string providing further (human readable) text associated with the
+	// condition". The details are fixed strings under 90 octets (errors.go),
+	// so the body fits the 1500-octet pooled buffer.
 	n := writeStopCCNBody(b[ControlHeaderLen:], tidNoTunnel, ResultCodeValue{
 		Result:         resultProtocolError,
 		ErrorPresent:   true,
-		Error:          errorValueOutOfRange,
+		Error:          rejection.ErrorCode,
 		Message:        rejection.Detail,
 		MessagePresent: true,
 	})
@@ -625,7 +627,7 @@ func (r *l2tpReactor) sendUnassociatedStopCCN(to netip.AddrPort, peerNs uint16, 
 	}
 	r.logger.Info(rejection.Log,
 		"to", to.String(), "reason", rejection.Detail,
-		"result-code", resultProtocolError, "error-code", errorValueOutOfRange)
+		"result-code", resultProtocolError, "error-code", rejection.ErrorCode)
 }
 
 // handleTick processes a tick request from the timer goroutine. It runs
@@ -707,7 +709,7 @@ func (r *l2tpReactor) handleTick(tr tickReq) {
 			// port", is what ze already reports when LCP echo probes stop
 			// being answered one layer up.
 			outbound = append(outbound,
-				tunnel.teardownStopCCN(now, resultGeneralError, l2tpevents.TerminateCauseLostCarrier)...)
+				tunnel.teardownStopCCN(now, ResultCodeValue{Result: resultGeneralError}, l2tpevents.TerminateCauseLostCarrier)...)
 		}
 	} else {
 		// Queue retransmits produced by the engine.

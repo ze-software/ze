@@ -63,8 +63,9 @@ func dialedTunnel(t *testing.T, now time.Time) (*L2TPTunnel, TunnelDefaults) {
 // The fifth AVP of RFC 2661 Section 6.2, the Message Type, is not in the table:
 // the tunnel dispatcher routes a delivered control message by the value of its
 // FIRST AVP, so a body carrying no Message Type AVP never reaches parseSCCRP.
-// Ze drops it, which is a gap against the Section 7.1 SHOULD, recorded in
-// plan/journal/silent-fall-through.md.
+// Since 2026-09-20 ze clears the control connection for one instead of dropping
+// it, which is the RFC 2661 Section 7.1 answer; that path is covered by
+// TestMalformedControlMessageClearsTheControlConnection.
 //
 // VALIDATES: the refusal reaches the wire as a StopCCN, and the tunnel leaves
 // wait-ctl-reply for closed rather than established.

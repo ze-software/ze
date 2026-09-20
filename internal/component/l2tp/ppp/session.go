@@ -152,6 +152,21 @@ type pppSession struct {
 	echoOutstanding      uint8     // count of unanswered Echo-Request
 	lastEchoSentAt       time.Time // wall-clock of most recent Echo-Request; goroutine-owned
 
+	// LCP Restart counter and Restart timer (RFC 1661 Section 4.6),
+	// goroutine-owned: the session goroutine is the sole reader and writer,
+	// so no lock is taken. restartCount is the value the Timeout event
+	// branches on, TO+ while it is above zero and TO- once it reaches zero.
+	// The timer is armed by the three actions RFC 1661 Section 4.1 names:
+	// "Only the Send-Configure-Request, Send-Terminate-Request and
+	// Zero-Restart-Count actions start or re-start the Restart timer."
+	restartCount int
+	restartTimer *time.Timer
+
+	// protocolRejectID is the Identifier of the next Protocol-Reject.
+	// RFC 1661 Section 5.7: "The Identifier field MUST be changed for each
+	// Protocol-Reject sent." Goroutine-owned; wraps at 256.
+	protocolRejectID uint8
+
 	// NCP state, goroutine-owned after session spawn; no lock needed
 	// because every writer is the session goroutine. Snapshot under
 	// mu if SessionByID grows NCP-aware in a later phase.

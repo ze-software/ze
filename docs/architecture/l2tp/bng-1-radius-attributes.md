@@ -159,15 +159,15 @@ site names the cause that is TRUE of its own path.
 | A CDN carrying any other Result Code, and a CDN ze could not parse | NAS Error | 9 |
 | The PPP driver stopping a running session on purpose | NAS Request | 10 |
 
-**A peer's LCP Terminate-Request does not reach that row today.** RFC 1661
-puts Opened plus RTR into Stopping, with the restart counter zeroed, and ze's
-FSM table says exactly that. The restart counter and its timer are not
-implemented, so nothing moves the session on to Stopped, and the session ends
-later by the echo timer as Lost Carrier instead
-(`plan/journal/silent-fall-through.md`, 2026-09-04). The row above is the state
-that produces the cause, not the peer message that should produce the state.
+**A peer's LCP Terminate-Request reaches that row since 2026-09-20.** RFC 1661
+puts Opened plus RTR into Stopping with the Restart counter zeroed, and ze's
+FSM table says exactly that. The counter and its one-shot Restart timer now
+exist: `applyTransition` performs irc and zrc, and the timer's expiry raises
+TO-, which runs tlf and carries the session to Stopped, where it is reported
+down as User Request. The echo timer no longer decides a peer-driven teardown,
+so the cause it used to report, Lost Carrier, is gone from that path.
 
-<!-- source: internal/component/l2tp/ppp/session_run.go -- performAction, the LCPActIRC and LCPActZRC no-op -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- applyTransition, handleRestartTimeout, spendRestartCount -->
 
 **A path ze cannot attribute reports NAS Error, never a guess.** RFC 2866
 Section 5.10 defines eighteen causes; ze names the nine above and no others,

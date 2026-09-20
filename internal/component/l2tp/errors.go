@@ -56,6 +56,15 @@ var ErrHiddenLenMismatch = errors.New("l2tp: hidden AVP length mismatch")
 type sccrqRejection struct {
 	// Detail names the AVP that is wrong, for the peer.
 	Detail string
+	// ErrorCode is the General Error Code the StopCCN carries beside Result Code
+	// 2 (RFC 2661 Section 4.4.2). It is a field rather than one constant at
+	// the emitter because the code the RFC gives depends on WHY ze refused:
+	// Section 4.4.2 reserves code 8 for "Session or tunnel was shutdown due
+	// to receipt of an unknown AVP with the M-bit set", and a refusal that
+	// sent 3 for that would name the wrong fault on the wire. Every value is
+	// written out below; none is left to the zero value, which is "No general
+	// error" and would contradict the Result Code beside it.
+	ErrorCode uint16
 	// Log is the message of the Info line ze writes when it answers. It is a
 	// field rather than one sentence at the emitter because a zero Assigned
 	// Tunnel ID has been logged by name since ze first answered one, and that
@@ -82,17 +91,17 @@ const (
 // M-bit is clear "should be ignored ... and the message accepted", and an
 // ignored mandatory AVP is an absent one, which lands on the same rejection.
 var (
-	errSCCRQNoMessageType         = &sccrqRejection{Log: logMalformedSCCRQ, Detail: "SCCRQ missing Message Type AVP"}
-	errSCCRQMessageTypeNotFirst   = &sccrqRejection{Log: logMalformedSCCRQ, Detail: "SCCRQ Message Type AVP must be the first AVP"}
-	errSCCRQMessageTypeLength     = &sccrqRejection{Log: logMalformedSCCRQ, Detail: "SCCRQ Message Type AVP must be 2 octets"}
-	errSCCRQNoProtocolVersion     = &sccrqRejection{Log: logMalformedSCCRQ, Detail: "SCCRQ missing Protocol Version AVP"}
-	errSCCRQProtocolVersionLength = &sccrqRejection{Log: logMalformedSCCRQ, Detail: "SCCRQ Protocol Version AVP must be 2 octets"}
-	errSCCRQNoHostName            = &sccrqRejection{Log: logMalformedSCCRQ, Detail: "SCCRQ missing Host Name AVP"}
-	errSCCRQHostNameEmpty         = &sccrqRejection{Log: logMalformedSCCRQ, Detail: "SCCRQ Host Name AVP must carry at least one octet"}
-	errSCCRQNoFramingCapabilities = &sccrqRejection{Log: logMalformedSCCRQ, Detail: "SCCRQ missing Framing Capabilities AVP"}
-	errSCCRQFramingLength         = &sccrqRejection{Log: logMalformedSCCRQ, Detail: "SCCRQ Framing Capabilities AVP must be 4 octets"}
-	errSCCRQNoAssignedTunnelID    = &sccrqRejection{Log: logMalformedSCCRQ, Detail: "SCCRQ missing Assigned Tunnel ID AVP"}
-	errSCCRQAssignedTunnelIDLen   = &sccrqRejection{Log: logMalformedSCCRQ, Detail: "SCCRQ Assigned Tunnel ID AVP must be 2 octets"}
+	errSCCRQNoMessageType         = &sccrqRejection{ErrorCode: errorValueOutOfRange, Log: logMalformedSCCRQ, Detail: "SCCRQ missing Message Type AVP"}
+	errSCCRQMessageTypeNotFirst   = &sccrqRejection{ErrorCode: errorValueOutOfRange, Log: logMalformedSCCRQ, Detail: "SCCRQ Message Type AVP must be the first AVP"}
+	errSCCRQMessageTypeLength     = &sccrqRejection{ErrorCode: errorValueOutOfRange, Log: logMalformedSCCRQ, Detail: "SCCRQ Message Type AVP must be 2 octets"}
+	errSCCRQNoProtocolVersion     = &sccrqRejection{ErrorCode: errorValueOutOfRange, Log: logMalformedSCCRQ, Detail: "SCCRQ missing Protocol Version AVP"}
+	errSCCRQProtocolVersionLength = &sccrqRejection{ErrorCode: errorValueOutOfRange, Log: logMalformedSCCRQ, Detail: "SCCRQ Protocol Version AVP must be 2 octets"}
+	errSCCRQNoHostName            = &sccrqRejection{ErrorCode: errorValueOutOfRange, Log: logMalformedSCCRQ, Detail: "SCCRQ missing Host Name AVP"}
+	errSCCRQHostNameEmpty         = &sccrqRejection{ErrorCode: errorValueOutOfRange, Log: logMalformedSCCRQ, Detail: "SCCRQ Host Name AVP must carry at least one octet"}
+	errSCCRQNoFramingCapabilities = &sccrqRejection{ErrorCode: errorValueOutOfRange, Log: logMalformedSCCRQ, Detail: "SCCRQ missing Framing Capabilities AVP"}
+	errSCCRQFramingLength         = &sccrqRejection{ErrorCode: errorValueOutOfRange, Log: logMalformedSCCRQ, Detail: "SCCRQ Framing Capabilities AVP must be 4 octets"}
+	errSCCRQNoAssignedTunnelID    = &sccrqRejection{ErrorCode: errorValueOutOfRange, Log: logMalformedSCCRQ, Detail: "SCCRQ missing Assigned Tunnel ID AVP"}
+	errSCCRQAssignedTunnelIDLen   = &sccrqRejection{ErrorCode: errorValueOutOfRange, Log: logMalformedSCCRQ, Detail: "SCCRQ Assigned Tunnel ID AVP must be 2 octets"}
 )
 
 // errZeroAssignedTunnelID reports an Assigned Tunnel ID AVP that carries
@@ -103,4 +112,41 @@ var (
 //
 // It is one of the rejections above: a value out of range, which Section 7.1
 // names in the same sentence as an absent AVP.
-var errZeroAssignedTunnelID = &sccrqRejection{Log: logZeroTunnelIDSCCRQ, Detail: "SCCRQ Assigned Tunnel ID AVP must be non-zero"}
+var errZeroAssignedTunnelID = &sccrqRejection{ErrorCode: errorValueOutOfRange, Log: logZeroTunnelIDSCCRQ, Detail: "SCCRQ Assigned Tunnel ID AVP must be non-zero"}
+
+// detailNoMessageType is the Error Message a StopCCN carries when a control
+// message body does not open with a well-formed Message Type AVP. RFC 2661
+// Section 4.4.1: "The Message Type AVP MUST be the first AVP in a message,
+// immediately following the control message header." It is the Section 7.1
+// shape "a message that is missing a required AVP", and it covers both ways
+// the body can fail to carry one: a first AVP that is some other attribute,
+// and a body too short to hold the AVP at all.
+const detailNoMessageType = "control message does not begin with a well-formed Message Type AVP"
+
+// The two rejections an AVP earns for its HEADER rather than for its value,
+// and the only two that carry a General Error Code other than 3.
+//
+// RFC 2661 Section 4.2: "Receipt of an unknown AVP that has the M-bit set is
+// catastrophic to the session or tunnel it is associated with", and Section
+// 4.4.2 gives the code that says so: "8 - Session or tunnel was shutdown due
+// to receipt of an unknown AVP with the M-bit set (see section 4.2)."
+//
+// Until 2026-09-20 both returned a plain error, so the reactor logged the
+// datagram and dropped it: the peer saw nothing, retransmitted its SCCRQ, and
+// learned why only when it gave up.
+var (
+	errSCCRQUnknownMandatoryVendorAVP = &sccrqRejection{
+		ErrorCode: errorUnknownMandatoryAVP,
+		Log:       logMalformedSCCRQ,
+		Detail:    "SCCRQ carries a vendor-specific AVP with the M-bit set that ze does not recognize",
+	}
+	// A reserved bit that is not zero is "an invalid value in its header" in
+	// the words of Section 7.1, and Error Code 3 is the one whose sentence
+	// names it: "One of the field values was out of range or reserved field
+	// was non-zero".
+	errSCCRQMandatoryReservedBits = &sccrqRejection{
+		ErrorCode: errorValueOutOfRange,
+		Log:       logMalformedSCCRQ,
+		Detail:    "SCCRQ carries an AVP with the M-bit set whose reserved bits are not zero",
+	}
+)

@@ -177,8 +177,9 @@ func lcpFrame(proto uint16, code, id uint8, data []byte) []byte {
 
 // VALIDATES: a PPP frame whose Protocol field violates the RFC 1661 Section 2
 //
-//	parity rules is treated as carrying an unrecognized Protocol -- it is
-//	dropped without a reply and without touching the LCP automaton.
+//	parity rules is treated as carrying an unrecognized Protocol -- it reaches
+//	no LCP handler and moves no LCP state, and the Opened session answers it
+//	as an unsupported protocol rather than as the Echo-Request it looks like.
 //
 // PREVENTS: a dispatcher that masks or normalizes the Protocol field and so
 //
@@ -187,7 +188,9 @@ func lcpFrame(proto uint16, code, id uint8, data []byte) []byte {
 // RFC requirement: RFC1661-2-1 negative -- Protocol 0xC020 has the least
 // significant bit of its least significant octet equal to 0, so it is not a
 // legal PPP Protocol; handleFrame (session_run.go) recognizes only 0xC021,
-// 0x8021 and 0x8057 and drops everything else as unrecognized.
+// 0x8021 and 0x8057, so the body below is never read as an Echo-Request: the
+// one frame written back is a Protocol-Reject naming 0xC020, which is what
+// Section 5.7 requires of an unsupported protocol in the Opened state.
 func TestRFC1661NonCompliantProtocolTreatedUnrecognized(t *testing.T) {
 	s, rec, _ := newRFC1661Session(LCPStateOpened)
 	// A well-formed Echo-Request body carried under an illegal (even)
@@ -196,8 +199,16 @@ func TestRFC1661NonCompliantProtocolTreatedUnrecognized(t *testing.T) {
 	if term := s.handleFrame(lcpFrame(0xC020, LCPEchoRequest, 0x31, body)); term {
 		t.Fatal("handleFrame terminated the session on an unrecognized Protocol")
 	}
-	if n := rec.count(); n != 0 {
-		t.Fatalf("wrote %d frames in reply to an unrecognized Protocol, want 0", n)
+	if n := rec.count(); n != 1 {
+		t.Fatalf("wrote %d frames in reply to an unrecognized Protocol, want 1 Protocol-Reject", n)
+	}
+	got := decodeFrames(t, rec)[0]
+	if got.Pkt.Code != LCPProtocolReject {
+		t.Fatalf("answered LCP code %d, want Protocol-Reject %d (an even Protocol is not an Echo-Request)",
+			got.Pkt.Code, LCPProtocolReject)
+	}
+	if rp := rejectedProtocol(t, got.Pkt); rp != 0xC020 {
+		t.Fatalf("Rejected-Protocol = 0x%04x, want 0xC020", rp)
 	}
 	if got := s.currentState(); got != LCPStateOpened {
 		t.Fatalf("state = %s, want opened (automaton must not move)", got)
@@ -377,14 +388,24 @@ func TestRFC1661NCPStatesAreIndependent(t *testing.T) {
 
 // VALIDATES: a network-layer packet arriving on the control-plane channel while
 //
-//	its NCP has not Opened is silently discarded.
+//	its NCP has not Opened is silently discarded, and the discard is silent
+//	because the protocol is SUPPORTED: the session below enables both NCPs.
 //
 // RFC requirement: RFC1661-3.6-2 positive -- handleFrame (session_run.go)
-// dispatches only 0xC021 / 0x8021 / 0x8057; an IPv4 (0x0021) or IPv6 (0x0057)
-// packet falls through to the drop path with no reply and no state change.
+// dispatches only 0xC021 / 0x8021 / 0x8057, so an IPv4 (0x0021) or IPv6
+// (0x0057) packet reaches rejectUnsupportedProtocol, whose supportsProtocol
+// arm discards a protocol ze supports with no reply and no state change. That
+// is the line Section 3.6 draws: "Only protocols which are supported are
+// silently discarded", and the NCP being un-opened is what makes the packet
+// early rather than unsupported.
 func TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened(t *testing.T) {
 	for _, proto := range []uint16{ProtoIPv4, ProtoIPv6} {
 		s, rec, _ := newRFC1661Session(LCPStateOpened)
+		// The fixture disables both NCPs, which would make the two network
+		// layers UNSUPPORTED and earn a Protocol-Reject. This requirement is
+		// about a supported protocol arriving early, so enable them.
+		s.disableIPCP = false
+		s.disableIPv6CP = false
 		if s.ipcpState != LCPStateInitial || s.ipv6cpState != LCPStateInitial {
 			t.Fatal("fixture should start with both NCPs un-opened")
 		}

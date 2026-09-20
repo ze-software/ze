@@ -108,11 +108,18 @@ Capabilities AVP`. The reply goes out with Tunnel ID 0, because the peer
 supplied no tunnel id ze can address it by, and no tunnel entry is created for
 it.
 
+An SCCRQ carrying a vendor-specific AVP ze does not recognize with the M-bit
+set is answered on the same path, with Error Code 8 rather than 3: RFC 2661
+Section 4.4.2 gives that code to a "tunnel was shutdown due to receipt of an
+unknown AVP with the M-bit set", and Section 4.2 says the same AVP with the
+M-bit clear is ignored and the message accepted, which is what ze does. Each
+refusal states its own Error Code, so the code names the fault the peer has to
+correct.
+
 The reply is rate-bounded: one StopCCN per source-address slot per second, over
 a fixed 256-slot table. A spoofed SCCRQ flood therefore allocates nothing and
-draws at most 256 replies per second from the whole reactor. Every other
-malformed TunnelID=0 datagram keeps its silent drop, an unrecognized mandatory
-vendor AVP and a message type that is not SCCRQ among them.
+draws at most 256 replies per second from the whole reactor. A TunnelID=0
+datagram whose message type is not SCCRQ keeps its silent drop.
 <!-- source: internal/component/l2tp/reactor.go -- answerRefusedSCCRQ, sendUnassociatedStopCCN -->
 <!-- source: internal/component/l2tp/tunnel_fsm.go -- parseSCCRQ -->
 

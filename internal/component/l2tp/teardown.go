@@ -55,7 +55,7 @@ func (r *l2tpReactor) teardownTunnelByID(localTID uint16) error {
 		return fmt.Errorf("%w: local-tid=%d", ErrTunnelNotFound, localTID)
 	}
 	now := r.params.Clock()
-	outbound := t.teardownStopCCN(now, resultAdministrative, l2tpevents.TerminateCauseAdminReset)
+	outbound := t.teardownStopCCN(now, ResultCodeValue{Result: resultAdministrative}, l2tpevents.TerminateCauseAdminReset)
 	teardowns, downs := t.drainPendingTeardowns()
 	r.tunnelsMu.Unlock()
 

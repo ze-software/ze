@@ -87,7 +87,7 @@ func (t *L2TPTunnel) handleSCCRP(now time.Time, defaults TunnelDefaults, payload
 	sccrp, err := parseSCCRP(payload)
 	if err != nil {
 		t.logger.Warn("l2tp: malformed SCCRP; sending StopCCN RC=1", "error", err.Error())
-		return t.teardownStopCCN(now, resultGeneralError, l2tpevents.TerminateCauseNASError)
+		return t.teardownStopCCN(now, ResultCodeValue{Result: resultGeneralError}, l2tpevents.TerminateCauseNASError)
 	}
 
 	// Adopt the peer's assigned tunnel ID for every subsequent outbound
@@ -112,11 +112,11 @@ func (t *L2TPTunnel) handleSCCRP(now time.Time, defaults TunnelDefaults, payload
 	if t.ourChallenge != nil {
 		if !sccrp.ChallengeResponsePresent {
 			t.logger.Warn("l2tp: SCCRP missing Challenge Response; sending StopCCN RC=4")
-			return t.teardownStopCCN(now, resultNotAuthorized, l2tpevents.TerminateCauseNASError)
+			return t.teardownStopCCN(now, ResultCodeValue{Result: resultNotAuthorized}, l2tpevents.TerminateCauseNASError)
 		}
 		if !VerifyChallengeResponse(ChapIDSCCRP, []byte(secret), t.ourChallenge, sccrp.ChallengeResponseValue) {
 			t.logger.Warn("l2tp: SCCRP Challenge Response did not verify; sending StopCCN RC=4")
-			return t.teardownStopCCN(now, resultNotAuthorized, l2tpevents.TerminateCauseNASError)
+			return t.teardownStopCCN(now, ResultCodeValue{Result: resultNotAuthorized}, l2tpevents.TerminateCauseNASError)
 		}
 	}
 
@@ -125,7 +125,7 @@ func (t *L2TPTunnel) handleSCCRP(now time.Time, defaults TunnelDefaults, payload
 	if sccrp.ChallengePresent {
 		if secret == "" {
 			t.logger.Warn("l2tp: SCCRP Challenge AVP present but shared-secret is unset; sending StopCCN RC=4")
-			return t.teardownStopCCN(now, resultNotAuthorized, l2tpevents.TerminateCauseNASError)
+			return t.teardownStopCCN(now, ResultCodeValue{Result: resultNotAuthorized}, l2tpevents.TerminateCauseNASError)
 		}
 		resp := ChallengeResponse(ChapIDSCCCN, []byte(secret), sccrp.ChallengeValue)
 		ourResponse = resp[:]
