@@ -1,5 +1,6 @@
 // Design: docs/architecture/ike/ipsec-7-ikev2-engine.md -- config reconciliation
 // RFC: rfc/short/rfc7296.md -- Section 1.4 (Delete), Section 2.4 (state sync / re-init)
+// Related: apply.go -- ikeEngineState, the apply path that calls reconcilePeers
 package engine
 
 import (
@@ -407,8 +408,13 @@ func (ps *PeerSession) StopGraceful() {
 // The natt parameter is the port-4500 socket, or nil when its bind failed. Every SA
 // a started session creates is bound to both sockets, so RFC 7296 Section 2.23's
 // "MUST send all subsequent traffic from port 4500" has a socket to send from.
+//
+// It is given the new configuration alone. The PREVIOUS one is not a parameter, because
+// the running sessions ARE the previous configuration: each holds the peer block and the
+// two resolved groups it was started with, and peerConfigChanged asks those. A second
+// description of the same state is one the caller can get wrong.
 func reconcilePeers(
-	newCfg, _ *ipsec.IPsecConfig,
+	newCfg *ipsec.IPsecConfig,
 	active map[string]*PeerSession,
 	table *SATable,
 	tr, natt *transport.UDPTransport,
@@ -452,28 +458,7 @@ func reconcilePeers(
 	peersMu.RUnlock()
 
 	for _, r := range removing {
-		log.Info("ike: stopping peer", "peer", r.name)
-		r.ps.Stop()
-		child := r.ps.getChildSA()
-		if child != nil {
-			removeChildSA(child, dp, log)
-			emitChildDown(bus, r.name, child, log)
-			emitRouteRemove(bus, child.TSRemote, log)
-			r.ps.setChildSA(nil)
-		}
-		// getSA (mutex-guarded): a responder's ps.sa is written by the dispatch
-		// goroutine, which ps.Stop() does not join, so read it under the lock (Finding 3).
-		if sa := r.ps.getSA(); sa != nil {
-			table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
-			emitSADown(bus, sa, log)
-		}
-		// A parallel responder handshake in flight at reconcile time has its own SATable
-		// entry and possibly an installed Child SA in the second slot; free them too.
-		r.ps.cleanupPendingSA(table, dp, bus, log)
-		peersMu.Lock()
-		delete(active, r.name)
-		dataplaneChanged()
-		peersMu.Unlock()
+		stopPeerSession(r.name, r.ps, active, table, dp, bus, log)
 	}
 
 	// Start new or restarted peers.
@@ -502,6 +487,48 @@ func reconcilePeers(
 		peersMu.Unlock()
 		log.Info("ike: started peer", "peer", name, "connection-type", peer.ConnectionType)
 	}
+}
+
+// stopPeerSession tears one running session down and removes it from the active map: the
+// session goroutine stops, the Child SA leaves the dataplane, its down events go out, the
+// IKE SA leaves the SATable, and a parallel responder handshake's second slot is freed.
+//
+// The active map is the one operator `clear` also holds (activePeersMap, register.go), so
+// deleting the name here is what lets a later reconcile start a fresh session for it.
+//
+// Two callers reach it, and they differ only in which sessions they name: reconcilePeers
+// stops the peers a reload removed or changed, and ikeEngineState.stopAllPeers (apply.go)
+// stops all of them so their sockets can be rebound.
+func stopPeerSession(
+	name string,
+	ps *PeerSession,
+	active map[string]*PeerSession,
+	table *SATable,
+	dp dataplane.Dataplane,
+	bus ze.EventBus,
+	log *slog.Logger,
+) {
+	log.Info("ike: stopping peer", "peer", name)
+	ps.Stop()
+	if child := ps.getChildSA(); child != nil {
+		removeChildSA(child, dp, log)
+		emitChildDown(bus, name, child, log)
+		emitRouteRemove(bus, child.TSRemote, log)
+		ps.setChildSA(nil)
+	}
+	// getSA (mutex-guarded): a responder's ps.sa is written by the dispatch goroutine,
+	// which ps.Stop() does not join, so read it under the lock (Finding 3).
+	if sa := ps.getSA(); sa != nil {
+		table.Remove(sa.InitiatorSPI, sa.ResponderSPI)
+		emitSADown(bus, sa, log)
+	}
+	// A parallel responder handshake in flight at reconcile time has its own SATable
+	// entry and possibly an installed Child SA in the second slot; free them too.
+	ps.cleanupPendingSA(table, dp, bus, log)
+	peersMu.Lock()
+	delete(active, name)
+	dataplaneChanged()
+	peersMu.Unlock()
 }
 
 // peerConfigChanged reports whether a reload handed this running session a configuration

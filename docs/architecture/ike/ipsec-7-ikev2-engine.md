@@ -116,7 +116,12 @@ the same configuration and says what cannot bind.** `interface` supplies the
 local address of every peer that names none, so a failed interface read leaves
 those peers unbindable. `unbindablePeers` names that condition, and it is the
 ONLY thing the two deliveries answer differently: `applyPhase` is what carries
-the difference into `applyIPsecConfig`.
+the difference into `ikeEngineState.applyConfig`.
+
+The refusal runs FIRST, above every mutation the apply makes. A refused reload
+rolls the transaction back, so anything applied ahead of the refusal survives a
+commit the operator was told had failed. The cookie threshold and the operator's
+SPD entries were applied above the check until 2026-09-20 and did exactly that.
 
 A RELOAD returns the error, `OnConfigApply` propagates it, the transaction rolls
 back and the running tunnels are untouched. Without it the peers would carry an
@@ -139,6 +144,34 @@ narrowing case: a rekey that would need a narrower scope means the policy
 changed, and the SA "should have been already deleted after the policy change
 took effect".
 
+**A reload that moves the listen address rebinds both sockets, and it stops the
+peers before it closes them.** `ikeListeners` records the host the pair is bound
+to, because a bound socket cannot be re-addressed in place. When the host the
+configuration asks for is no longer the one recorded, `rebindListeners` stops
+every session, closes both sockets, opens a new pair, and lets the reconcile
+start every peer against it.
+
+The order is the whole of it. `PeerSession.ike` and `PeerSession.natt` are
+immutable after `startPeerSession`, so a session that survives a rebind holds a
+closed file descriptor and every message it sends is refused. The case that
+needs the sequence is the one `peerConfigChanged` cannot see: the operator edits
+`vpn ipsec interface`, every peer carries its own `local-address`, and the peer
+half of the configuration compares equal while the socket under it moves.
+`TestReloadRestartsAnUneditedPeerWhoseSocketMoved` holds it.
+
+Both sockets were created only while their pointer was nil until 2026-09-20, and
+nothing rebuilt them. A reload that moved the address half-applied: the peers
+restarted, because `peerConfigChanged` saw `LocalAddress` change, and the socket
+under them stayed bound to the address the daemon started with.
+
+The remote-access address pool is rebuilt on the same rule, comparing the whole
+`ipsec.VirtualIPPool` rather than its range alone, because the DNS servers and
+the search domain are pushed to a client too. Nothing reads that pool yet:
+`eap.Pool.Allocate` has no non-test caller, so ze negotiates no
+INTERNAL_IP4_ADDRESS and a client receives no address from it. What the rebuild
+changes today is that an edited range is validated and reported on the commit
+that makes it.
+
 **A reload reaches the engine through `OnConfigApply`, and an apply with nothing
 staged is refused.** The plugin protocol splits a reload into a verify phase and
 an apply phase, and the apply request carries diff sections rather than the
@@ -155,7 +188,8 @@ success, and applied nothing: `reconcilePeers` was reachable from startup and
 from operator `clear` alone.
 
 <!-- source: internal/component/ike/ipsec/types.go -- SiteToSitePeer.Equal, IKEGroup.Equal, ESPGroup.Equal, IPsecConfig.Changed -->
-<!-- source: internal/component/ike/engine/register.go -- applyIPsecConfig, applyPhase, ikeConfigStaging, unbindablePeers, peersNeedInterfaceAddress -->
+<!-- source: internal/component/ike/engine/apply.go -- ikeEngineState, applyConfig, rebindListeners, stopAllPeers, reloadPool -->
+<!-- source: internal/component/ike/engine/register.go -- applyPhase, ikeConfigStaging, unbindablePeers, peersNeedInterfaceAddress -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnConfigApply -->
 <!-- source: internal/component/ike/engine/rekey.go -- proposeChildTSPayloads -->
 

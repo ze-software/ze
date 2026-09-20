@@ -21,7 +21,6 @@ import (
 	"github.com/ze-software/ze/internal/component/ike/wire"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
-	"github.com/ze-software/ze/internal/core/eap"
 	"github.com/ze-software/ze/internal/core/ikeprobe"
 	"github.com/ze-software/ze/internal/core/ipsecinventory"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -382,15 +381,18 @@ func runEngine(conn net.Conn) int {
 	// The backend closes here too, and AFTER the removal: CloseBackend clears the
 	// active backend, so a removal ordered after it would have no dataplane to talk to
 	// and would silently release nothing.
-	// The operator's SPD entries the engine currently holds installed. It is read and
-	// written only from the configuration-apply path and the deferred release below,
-	// both of which run on runEngine's own goroutine, so it needs no lock.
-	//
-	// It is tracked rather than re-derived from the live configuration because the
-	// removal half needs the PREVIOUS selectors: the kernel identifies a policy by its
-	// selector alone, so an entry whose prefix was edited can only be removed with the
-	// prefix it was installed under (installSPDPolicies, spd_policy.go).
-	installedSPD := map[string]ipsec.SPDPolicy{}
+	// The running state this engine owns across every configuration it is given
+	// (ikeEngineState, apply.go). It is built before the deferred release below,
+	// because that release reads the SPD entries the apply path installed.
+	table := NewSATable()
+	activeTablePtr.Store(table)
+	state := &ikeEngineState{
+		table:        table,
+		peers:        make(map[string]*PeerSession),
+		log:          log,
+		installedSPD: map[string]ipsec.SPDPolicy{},
+	}
+	setActivePeers(state.peers)
 
 	defer func() {
 		removeIKEBypass(dataplane.Get(), log)
@@ -398,7 +400,7 @@ func runEngine(conn net.Conn) int {
 		// they are released on the same every-exit path and for the same reason: a
 		// DISCARD that outlives the process keeps dropping traffic for a daemon that
 		// is no longer running (removeSPDPolicies, spd_policy.go).
-		removeSPDPolicies(dataplane.Get(), installedSPD, log)
+		removeSPDPolicies(dataplane.Get(), state.installedSPD, log)
 		if err := dataplane.CloseBackend(); err != nil {
 			log.Warn("ike: dataplane close error", "error", err)
 		}
@@ -407,39 +409,26 @@ func runEngine(conn net.Conn) int {
 	p := sdk.NewWithConn("ike", conn)
 	defer closeSDK(p)
 
-	table := NewSATable()
-	activeTablePtr.Store(table)
-	var tr *transport.UDPTransport
-	var trNATT *transport.UDPTransport
-	var activeCfg *ipsec.IPsecConfig
-	var ipPool *eap.Pool
-	activePeers := make(map[string]*PeerSession)
-	setActivePeers(activePeers)
-
-	var ipsecMetrics *IPsecMetrics
 	if reg := registry.GetMetricsRegistry(); reg != nil {
-		ipsecMetrics = RegisterMetrics(reg)
+		state.metrics = RegisterMetrics(reg)
 	}
 
-	type reEstablishCtx struct {
-		cfg  *ipsec.IPsecConfig
-		tr   *transport.UDPTransport
-		natt *transport.UDPTransport
-	}
-	var reCtx atomic.Pointer[reEstablishCtx]
-
+	// Operator `clear` re-initiates against the configuration and the sockets the LAST
+	// apply published, which is why it reads reCtx rather than closing over a socket
+	// variable. It passes no previous configuration: every session it bounced is
+	// already out of the peers map, so the reconcile sees each name as absent and
+	// starts it fresh (TestTerminateAllSAsReinitiates).
 	reEstablish := func() {
-		rc := reCtx.Load()
+		rc := state.reCtx.Load()
 		if rc == nil || rc.cfg == nil {
 			return
 		}
-		eb := getEventBus()
-		reconcilePeers(rc.cfg, nil, activePeers, table, rc.tr, rc.natt, eb, log)
+		reconcilePeers(rc.cfg, state.peers, state.table, rc.tr, rc.natt, getEventBus(), log)
 	}
 	reEstablishFn.Store(&reEstablish)
 
 	metricsStop := make(chan struct{})
-	if ipsecMetrics != nil {
+	if state.metrics != nil {
 		go func() {
 			ticker := time.NewTicker(5 * time.Second)
 			defer ticker.Stop()
@@ -448,209 +437,14 @@ func runEngine(conn net.Conn) int {
 				case <-metricsStop:
 					return
 				case <-ticker.C:
-					ipsecMetrics.Update()
+					state.metrics.Update()
 				}
 			}
 		}()
 	}
 
-	// applyIPsecConfig is the ONE place a parsed configuration becomes running state,
-	// and both delivery paths reach it: OnConfigure carries the configuration the
-	// daemon starts with, and OnConfigApply carries every reload after that.
-	//
-	// It runs on the SDK's dispatch goroutine, which serves one callback at a time, so
-	// the transport pointers and activeCfg it assigns need no lock.
-	//
-	// It returns an error for ONE condition, and only on the reload phase: a
-	// configuration whose peers depend on `interface` for their local address, when that
-	// interface cannot supply one. See applyPhase and the branch below for why the two
-	// deliveries answer that condition differently.
-	// startupCfg carries the configuration OnConfigure parsed across to
-	// OnAllPluginsReady, which is where the daemon's first peers start. It is
-	// nil once those peers are running, and it stays nil for every reload.
-	var startupCfg *ipsec.IPsecConfig
-
-	applyIPsecConfig := func(cfg *ipsec.IPsecConfig, phase applyPhase) error {
-		// RFC 7296 Section 2.6. Published before any peer is reconciled, so an
-		// initiation that arrives during the reconcile is judged against the config
-		// being applied rather than the one being replaced.
-		setCookieThreshold(cfg.CookieThreshold)
-
-		// RFC 4301 Section 4.4.1 gives the SPD three dispositions, and the operator
-		// writes the two that no negotiation produces. They are reconciled BEFORE the
-		// peers for the reason the cookie threshold is published first: an entry that
-		// discards traffic must be in force before the tunnels that traffic could
-		// otherwise take are built. They also outrank a peer's entries by default, so
-		// installing them second would leave a window in which the lower-ranked entry
-		// is the only match (installSPDPolicies, spd_policy.go).
-		installSPDPolicies(dataplane.Get(), installedSPD, cfg.Policies, log)
-		installedSPD = cfg.Policies
-
-		if cfg.Interface != "" {
-			ifIP, ifErr := resolveInterfaceAddr(cfg.Interface)
-			switch {
-			case ifErr != nil, ifIP == "":
-				// The lookup failed, or the interface has no IPv4 address. Every peer
-				// that named no local-address of its own is now unbindable.
-				//
-				// A RELOAD refuses that, because of what it would otherwise do. The
-				// peers keep the empty LocalAddress the parser gave them,
-				// peerConfigChanged compares that against the address the running
-				// sessions resolved successfully at startup, and every one of them is
-				// stopped and restarted into a state that cannot bind. A transient
-				// interface read would take down every working tunnel on the box.
-				//
-				// STARTUP applies the configuration anyway and says so. There is no
-				// previous configuration to fall back to and no running tunnel to
-				// protect, so a refusal would start no peer, no IKE socket and no
-				// NAT-T socket at all, including for the peers that carry their own
-				// local-address and are unaffected. An interface that comes up after
-				// the daemon does is ordinary at boot.
-				switch unbindable := unbindablePeers(cfg, ifErr); {
-				case unbindable != nil && phase == applyReload:
-					return unbindable
-				case unbindable != nil:
-					log.Warn("ike: peers without local-address will fail", "error", unbindable)
-				case ifErr != nil:
-					log.Warn("ike: cannot read interface addresses", "interface", cfg.Interface, "error", ifErr)
-				default:
-					log.Warn("ike: no IPv4 address on interface", "interface", cfg.Interface)
-				}
-			default:
-				for name := range cfg.Peers {
-					peer := cfg.Peers[name]
-					if peer.LocalAddress == "" {
-						peer.LocalAddress = ifIP
-						cfg.Peers[name] = peer
-						log.Debug("ike: resolved local-address from interface", "peer", name, "interface", cfg.Interface, "address", ifIP)
-					}
-				}
-			}
-		}
-
-		// The listen host of BOTH sockets. It is computed once, outside the two
-		// blocks below, because the engine listens at ONE address and its two
-		// sockets must agree on which. They did not: the NAT-T socket took the
-		// wildcard whenever no interface was configured, so it claimed port 4500
-		// for the whole host while the IKE socket was bound to one address.
-		ifaceHost := ""
-		if cfg.Interface != "" {
-			ifaceHost, _ = resolveInterfaceAddr(cfg.Interface) //nolint:errcheck // the interface branch above already reported this failure
-		}
-		peerLocal := ""
-		for name := range cfg.Peers {
-			if la := cfg.Peers[name].LocalAddress; la != "" {
-				peerLocal = la
-				break
-			}
-		}
-		listenHost := ikeListenHost(ifaceHost, peerLocal)
-
-		if tr == nil && len(cfg.Peers) > 0 {
-			listenAddr := ikeAddr(listenHost)
-			var tErr error
-			tr, tErr = transport.NewUDPTransport(listenAddr, log)
-			if tErr != nil {
-				log.Warn("ike: failed to start UDP transport", "error", tErr)
-			} else {
-				go tr.Run()
-				go dispatchInbound(tr, table, log)
-			}
-		}
-
-		// RFC 3948: start NAT-T listener on port 4500 for UDP-encapsulated IKE and ESP.
-		if trNATT == nil && len(cfg.Peers) > 0 {
-			var nErr error
-			trNATT, nErr = transport.NewNATTTransport(nattAddr(listenHost), log)
-			if nErr != nil {
-				// Recorded, not only logged. Without the socket ze receives no
-				// UDP-encapsulated ESP at all, which is a stronger failure than the
-				// UDP_ENCAP one below, and the doctor check read an unset state as
-				// "no NAT-T listener was ever asked for" and said nothing. A guard
-				// that goes quiet on the worse failure fails open
-				// (ai/rules/evidence.md).
-				setUDPEncapFailure(nErr)
-				countUDPEncapFailure()
-				log.Warn("ike: failed to start NAT-T transport", "error", nErr)
-			} else {
-				// RFC 7296 Section 2.23 MUST: "all devices MUST be able to receive and
-				// process both UDP-encapsulated ESP and non-UDP-encapsulated ESP
-				// packets at any time."
-				//
-				// Ze holds port 4500. The kernel decapsulates ESP that arrives there
-				// only while this option is set. Without it, every encapsulated ESP
-				// datagram reaches dispatchNATTInbound, which reads an ESP SPI in place
-				// of the non-ESP marker and drops it. The installed XFRM state then
-				// matches nothing.
-				//
-				// It runs BEFORE trNATT.Run, so no datagram is read on an unprepared
-				// socket.
-				//
-				// The failure is reported rather than swallowed. It separates a working
-				// tunnel from one that carries no traffic. Doctor check ipsec-udp-encap
-				// reads the same state, so an operator sees it first
-				// (ai/rules/repo-maintenance.md).
-				if encErr := transport.EnableESPInUDP(trNATT.Conn()); encErr != nil {
-					setUDPEncapFailure(encErr)
-					log.Warn("ike: udp encapsulation not enabled on port 4500, encapsulated ESP will be dropped",
-						"port", transport.NATTPort, "syscall", "setsockopt UDP_ENCAP", "error", encErr)
-					countUDPEncapFailure()
-				} else {
-					setUDPEncapFailure(nil)
-				}
-				go trNATT.Run()
-				go dispatchNATTInbound(trNATT, table, log)
-			}
-		}
-
-		// Create virtual IP pool from remote-access config.
-		if cfg.RemoteAccess != nil && ipPool == nil {
-			ra := cfg.RemoteAccess
-			var poolErr error
-			ipPool, poolErr = eap.NewPool(ra.Pool.Range, ra.Pool.Range6, ra.Pool.DNS, ra.Pool.Domain)
-			if poolErr != nil {
-				log.Warn("ike: failed to create virtual IP pool", "error", poolErr)
-			} else {
-				log.Info("ike: virtual IP pool created", "range", ra.Pool.Range)
-			}
-		}
-
-		// Peer reconciliation is the only part of an apply that puts packets on
-		// the wire, and at STARTUP it is deferred to OnAllPluginsReady below.
-		// Phase 1 loads a config-path plugin such as this one before Phase 2
-		// spawns an `external` plugin, so initiating here means the first
-		// sa-up is emitted while no external process has subscribed yet: the
-		// event is routed correctly and delivered to nobody
-		// (plugin/server/subscribe.go getMatching returns an empty set). BGP
-		// already answers this by starting its reactor at configure and its
-		// peers from coord.OnPostStartup (bgp/plugin/register.go).
-		//
-		// A reload has no such window, so it reconciles here as it always did.
-		reCtx.Store(&reEstablishCtx{cfg: cfg, tr: tr, natt: trNATT})
-		if phase == applyStartup {
-			startupCfg = cfg
-		} else {
-			reconcilePeers(cfg, activeCfg, activePeers, table, tr, trNATT, getEventBus(), log)
-			activeCfg = cfg
-		}
-
-		if ipsecMetrics != nil {
-			ipsecMetrics.Update()
-		}
-
-		// RFC 7296 Section 2.16 discourages an EAP method that establishes no
-		// shared key, and eap-md5 is one. The line goes out HERE, once for each
-		// configuration this daemon adopts, rather than once for each handshake:
-		// it is a fact about what the operator wrote, so it is worth as many lines
-		// as there are configurations and no more.
-		warnKeylessEAPModes(cfg, log)
-
-		log.Info("ike engine configured", "peers", len(cfg.Peers))
-		return nil
-	}
-
 	staging := &ikeConfigStaging{apply: func(cfg *ipsec.IPsecConfig) error {
-		return applyIPsecConfig(cfg, applyReload)
+		return state.applyConfig(cfg, applyReload)
 	}}
 
 	// Reject a structurally valid but self-inconsistent config before it is
@@ -691,11 +485,11 @@ func runEngine(conn net.Conn) int {
 		if err != nil {
 			return fmt.Errorf("ike config: %w", err)
 		}
-		// applyStartup: the interface branch inside applyIPsecConfig states why the
+		// applyStartup: the interface branch inside applyConfig (apply.go) states why the
 		// two deliveries answer an unbindable peer set differently. It logs that
 		// condition and applies the configuration, so this phase returns an error only
 		// for a failure a running daemon could not have.
-		return applyIPsecConfig(cfg, applyStartup)
+		return state.applyConfig(cfg, applyStartup)
 	})
 
 	// The reload half. Without this handler the SDK answers config-apply OK and calls
@@ -720,18 +514,17 @@ func runEngine(conn net.Conn) int {
 	// the earliest moment an external plugin can hold a subscription, so it is
 	// the earliest moment the first sa-up has a reader.
 	//
-	// It runs on the same event loop as every other callback, so activeCfg, the
-	// transports and startupCfg need no lock, for the reason applyIPsecConfig
+	// It runs on the same event loop as every other callback, so the ikeEngineState
+	// members it reads need no lock, for the reason applyConfig (apply.go)
 	// states. Nothing here waits on peer activity, which is the one thing
 	// sendPostStartupToAll cannot be asked to do (plugin/server/poststartup.go).
 	p.OnAllPluginsReady(func() error {
-		if startupCfg == nil {
+		if state.startupCfg == nil {
 			return nil
 		}
-		cfg := startupCfg
-		startupCfg = nil
-		reconcilePeers(cfg, activeCfg, activePeers, table, tr, trNATT, getEventBus(), log)
-		activeCfg = cfg
+		cfg := state.startupCfg
+		state.startupCfg = nil
+		state.reconcile(cfg)
 		log.Info("ike peers started", "peers", len(cfg.Peers))
 		return nil
 	})
@@ -750,29 +543,19 @@ func runEngine(conn net.Conn) int {
 	reEstablishFn.Store(nil)
 	close(metricsStop)
 	peersMu.Lock()
-	shutdownPeers := make(map[string]*PeerSession, len(activePeers))
-	maps.Copy(shutdownPeers, activePeers)
+	shutdownPeers := make(map[string]*PeerSession, len(state.peers))
+	maps.Copy(shutdownPeers, state.peers)
 	peersMu.Unlock()
 	shutdownBus := getEventBus()
 	for name, ps := range shutdownPeers {
 		ps.Stop()
-		ps.cleanupPendingSA(table, dataplane.Get(), shutdownBus, log)
+		ps.cleanupPendingSA(state.table, dataplane.Get(), shutdownBus, log)
 		peersMu.Lock()
-		delete(activePeers, name)
+		delete(state.peers, name)
 		dataplaneChanged()
 		peersMu.Unlock()
 	}
-	if tr != nil {
-		if err := tr.Close(); err != nil {
-			log.Warn("ike: transport close error", "error", err)
-		}
-	}
-	if trNATT != nil {
-		if err := trNATT.Close(); err != nil {
-			log.Warn("ike: NAT-T transport close error", "error", err)
-		}
-	}
-	_ = ipPool
+	state.listeners.closeSockets(log)
 	// The IKE bypass and the backend are released by the deferred cleanup registered
 	// beside installIKEBypass, so this clean shutdown and every error exit release the
 	// same set. It runs after this line, which is after every peer has stopped, so
@@ -1119,11 +902,14 @@ func dispatchInbound(tr *transport.UDPTransport, table *SATable, log *slog.Logge
 	}
 }
 
-// resolveInterfaceAddr returns the first IPv4 address of the logical interface,
-// resolved through the shared iface resolver so the IKE bind/listen address
-// honors the os-name / mac-match selectors instead of assuming name == kernel
-// device.
-// resolveInterfaceAddr returns the first IPv4 address of an interface.
+// resolveInterfaceAddrFn is the lookup the apply path takes (applyConfig, apply.go), so a
+// test can move the address ze listens at without a second interface on the box
+// (apply_test.go). Production never replaces it.
+var resolveInterfaceAddrFn = resolveInterfaceAddr
+
+// resolveInterfaceAddr returns the first IPv4 address of the logical interface, resolved
+// through the shared iface resolver so the IKE bind and listen address honors the os-name
+// and mac-match selectors instead of assuming the name is the kernel device.
 //
 // The error distinguishes two failures that both yield an empty address. The
 // interface lookup itself can fail, and the interface can carry no IPv4 address.
