@@ -98,7 +98,15 @@ proposal is exchanged one time, when the session starts, so a change to this lea
 applies to the sessions that open after it and leaves an established session on
 the value it negotiated.
 
+RFC 5036 section 3.5.3 makes the KeepAlive Time a non-zero integer, so ze refuses
+a peer that proposes 0. It answers the Session Rejected/Bad KeepAlive Time
+Notification of section 3.9, logs `ldp: initialization rejected, peer proposed a
+KeepAlive Time of 0`, and closes the connection. A peer proposing a protocol
+version other than 1 is refused the same way, with the Bad Protocol Version
+Notification.
+
 <!-- source: internal/plugins/ldp/session.go -- NewSession, SendInit -->
+<!-- source: internal/plugins/ldp/session.go -- processMessages, rejectInit -->
 <!-- source: internal/plugins/ldp/register.go -- sessionConfigForAdj -->
 
 Inspect LDP state with `show ldp neighbor` (session state, transport address)

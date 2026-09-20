@@ -187,6 +187,87 @@ func DecodeTLV(buf []byte) (TLV, int, error) {
 	return t, total, nil
 }
 
+// RFC 5036 Section 3.9 status codes, in the 32-bit form the Status TLV carries:
+// the E-bit in the top bit, the F-bit below it, and the 30-bit Status Data in the
+// remainder. Section 3.4.6 defines the E-bit: "Fatal error bit.  If set (=1),
+// this is a fatal Error Notification." Section 3.9 requires it set for both codes
+// below, and it leaves the F-bit to the originating LSR, so ze clears it: neither
+// status describes an LSP a neighbor could forward the notification along.
+const (
+	statusFatalBit uint32 = 0x80000000
+
+	statusBadProtocolVersion              = statusFatalBit | 0x00000002
+	statusSessionRejectedBadKeepaliveTime = statusFatalBit | 0x00000018
+)
+
+// notificationMessage is an LDP Notification (RFC 5036 Section 3.5.1). Status is
+// the 32-bit Status Code of Section 3.9. ReferMessageID and ReferMessageType name
+// the peer message the status answers; Section 3.4.6 makes zero in either field
+// mean the status refers to no particular message or message type.
+type notificationMessage struct {
+	MessageID        uint32
+	Status           uint32
+	ReferMessageID   uint32
+	ReferMessageType uint16
+}
+
+// encodeNotification writes a Notification message body to buf, after the PDU
+// header. Returns bytes written. The caller owns buf and MUST leave at least 22
+// octets: 8 for the message header and 14 for the one Status TLV.
+//
+// RFC 5036 Section 3.5.1, Notification message:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|0|   Notification (0x0001)     |      Message Length           |   off 0
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                     Message ID                                |   off 4
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                     Status (TLV)                              |   off 8
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// RFC 5036 Section 3.4.6, Status TLV, at off 8:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|U|F| Status (0x0300)           |      Length                   |   off 8
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                     Status Code                               |   off 12
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                     Message ID                                |   off 16
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|      Message Type             |                                   off 20
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// The U-bit and the F-bit are the top two bits of the TLV type, and TLVTypeStatus
+// clears both. RFC 5036 Section 3.4.6: "U-bit SHOULD be 0 when the Status TLV is
+// sent in a Notification message." The F-bit "SHOULD be the same as the setting of
+// the F-bit in the Status Code field", which is clear in every code ze sends.
+func encodeNotification(buf []byte, m notificationMessage) int {
+	off := encodeMessageHeader(buf, MessageHeader{
+		Type:      MsgTypeNotification,
+		MessageID: m.MessageID,
+	})
+
+	var statusBuf [10]byte
+	binary.BigEndian.PutUint32(statusBuf[0:4], m.Status)
+	binary.BigEndian.PutUint32(statusBuf[4:8], m.ReferMessageID)
+	binary.BigEndian.PutUint16(statusBuf[8:10], m.ReferMessageType)
+
+	off += EncodeTLV(buf[off:], TLV{
+		Type:   TLVTypeStatus,
+		Length: 10,
+		Value:  statusBuf[:],
+	})
+
+	// Message Length counts everything after the Type and Length fields, which
+	// ldpTLVHdrLen sizes: the Message ID and the mandatory parameters.
+	binary.BigEndian.PutUint16(buf[2:4], uint16(off-ldpTLVHdrLen))
+	return off
+}
+
 // HelloMessage represents an LDP Hello (RFC 5036 Section 3.5.2).
 type HelloMessage struct {
 	MessageID     uint32

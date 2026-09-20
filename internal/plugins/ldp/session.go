@@ -63,9 +63,15 @@ const (
 // One second is the smallest, 65535 the largest.
 const keepaliveTimeMax = 65535 * time.Second
 
+// notificationWriteTimeout bounds the write of a Notification that ends a session.
+// The peer is being told the session is over, so there is nothing to wait for
+// beyond the time a healthy TCP stack needs to accept 32 octets.
+const notificationWriteTimeout = 5 * time.Second
+
 var (
-	errSessionClosed   = errors.New("ldp: session closed")
-	errKeepaliveExpiry = errors.New("ldp: keepalive timer expired")
+	errSessionClosed    = errors.New("ldp: session closed")
+	errKeepaliveExpiry  = errors.New("ldp: keepalive timer expired")
+	errBadKeepaliveTime = errors.New("ldp: peer proposed a KeepAlive Time of 0")
 )
 
 // Session represents a single LDP TCP session with a peer.
@@ -418,12 +424,30 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, onLabel func(l
 			if err != nil {
 				return err
 			}
-			// RFC 5036 Section 3.5.3: the Protocol Version in the Common Session
-			// Parameters TLV is 1. A session proposing any other version is rejected
-			// (Bad LDP Version) rather than negotiated: returning the error ends the
-			// read loop, so no further message from this peer is processed.
+			// RFC 5036 Section 3.5.3: "Two octet unsigned integer containing the
+			// version number of the protocol.  This version of the specification
+			// specifies LDP protocol version 1."
+			// A session proposing any other version is rejected rather than
+			// negotiated, with the Bad Protocol Version status code of Section 3.9.
 			if initMsg.ProtocolVersion != ldpVersion {
-				return fmt.Errorf("%w: initialization protocol version %d", errBadVersion, initMsg.ProtocolVersion)
+				s.log.Warn("ldp: initialization rejected, unsupported protocol version",
+					"version", initMsg.ProtocolVersion, "want", ldpVersion)
+				return s.rejectInit(statusBadProtocolVersion, msgHdr.MessageID,
+					fmt.Errorf("%w: initialization protocol version %d", errBadVersion, initMsg.ProtocolVersion))
+			}
+			// RFC 5036 Section 3.5.3: "Two octet unsigned non zero integer that
+			// indicates the number of seconds that the sending LSR proposes for the
+			// value of the KeepAlive Time."
+			// Zero is outside what the field can carry, and the negotiation in
+			// handleInit takes the smaller of the two proposals, so a zero would win
+			// it and leave the hold time at zero: the next read deadline would be
+			// now+0 and the session would die reported as a keepalive expiry. RFC 5036
+			// Section 3.9 gives this refusal a status code of its own, Session
+			// Rejected/Bad KeepAlive Time.
+			if initMsg.KeepaliveTime == 0 {
+				s.log.Warn("ldp: initialization rejected, peer proposed a KeepAlive Time of 0",
+					"peer", s.peerAddr.String())
+				return s.rejectInit(statusSessionRejectedBadKeepaliveTime, msgHdr.MessageID, errBadKeepaliveTime)
 			}
 			if s.handleInit(initMsg, peerLSRID) && onOperational != nil {
 				// Fire after handleInit has released s.mu so the callback can
@@ -498,9 +522,68 @@ func (s *Session) decodeLabelWithdraw(msgID uint32, msgBody []byte) (labelWithdr
 	return lw, nil
 }
 
+// rejectInit NAKs an Initialization message ze will not accept: it sends the
+// Notification carrying status, then returns cause so the read loop ends and the
+// caller closes the transport connection. RFC 5036 Section 3.5.1.1: "In this
+// case, after sending the Notification message the LSR SHOULD terminate the LDP
+// session by closing the session TCP connection and discard all state associated
+// with the session, including all label-FEC bindings learned via the session."
+//
+// A write failure is logged and not returned. The peer is already being refused,
+// so cause is what the caller has to see; replacing it with a socket error would
+// hide which parameter was unacceptable.
+func (s *Session) rejectInit(status, initMsgID uint32, cause error) error {
+	if err := s.sendNotification(status, initMsgID, MsgTypeInitialize); err != nil {
+		s.log.Warn("ldp: the rejection notification could not be sent",
+			"status", status, "error", err)
+	}
+	return cause
+}
+
+// sendNotification sends a Notification message carrying one Status TLV.
+// status is a 32-bit Status Code of RFC 5036 Section 3.9. referMsgID and
+// referMsgType name the peer message the status answers, and both are zero when
+// it answers no particular message (RFC 5036 Section 3.4.6).
+//
+// The write is bounded by notificationWriteTimeout. Every status ze sends is
+// fatal, so the session is being torn down and a peer that has stopped reading
+// MUST NOT be able to hold the read loop open by never draining its receive
+// window.
+func (s *Session) sendNotification(status, referMsgID uint32, referMsgType uint16) error {
+	var buf [64]byte
+	msgID := s.nextMsgID.Add(1)
+
+	if err := s.conn.SetWriteDeadline(time.Now().Add(notificationWriteTimeout)); err != nil {
+		return err
+	}
+
+	bodyLen := encodeNotification(buf[ldpHeaderLen:], notificationMessage{
+		MessageID:        msgID,
+		Status:           status,
+		ReferMessageID:   referMsgID,
+		ReferMessageType: referMsgType,
+	})
+
+	pduLen := uint16(bodyLen + 6)
+	encodePDUHeader(buf[:], PDUHeader{
+		Version:    ldpVersion,
+		PDULength:  pduLen,
+		LSRID:      s.localLSRID,
+		LabelSpace: s.localLabelSpc,
+	})
+
+	_, err := s.conn.Write(buf[:ldpHeaderLen+bodyLen])
+	return err
+}
+
 // handleInit applies a received Initialization message and advances the FSM.
 // It returns true when this message transitions the session into the operational
 // state, so the caller can advertise its local label mappings.
+//
+// The caller MUST have accepted msg first: processMessages rejects an
+// unacceptable Initialization before it gets here, so msg.KeepaliveTime is
+// non-zero and msg.ProtocolVersion is 1. handleInit only ever LOWERS the
+// negotiated keepalive, so a zero reaching it would zero the hold time.
 func (s *Session) handleInit(msg initMessage, peerLSRID [4]byte) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()

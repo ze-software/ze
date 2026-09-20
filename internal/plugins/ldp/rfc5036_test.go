@@ -8,10 +8,13 @@
 //
 // VALIDATES: the gated MUSTs of rfc/short/rfc5036.md that ze meets -- PDU version,
 // Common Hello Parameters reserved bits, Common Session Parameters protocol version,
-// Initialization exchange, KeepAlive negotiation and pacing, Hello Hold Time defaults.
+// Initialization exchange, KeepAlive negotiation and pacing, Hello Hold Time defaults,
+// and the rejection of an unacceptable Initialization by Notification.
 // PREVENTS: a Hello Hold Time of 0 being read as "drop the adjacency" (RFC 5036
-// Section 3.5.2 makes it "use the default": 15s Link, 45s Targeted), and a Targeted
-// Hello silently inheriting the Link default.
+// Section 3.5.2 makes it "use the default": 15s Link, 45s Targeted), a Targeted
+// Hello silently inheriting the Link default, and a KeepAlive Time of 0 winning the
+// negotiation of RFC 5036 Section 3.5.3, which would set the hold time to zero and
+// kill the session on the next read under the wrong diagnosis.
 package ldp
 
 import (
@@ -252,23 +255,144 @@ func TestRFC5036InitProtocolVersionOne(t *testing.T) {
 }
 
 // RFC requirement: RFC5036-x-3 negative -- an Initialization whose Common Session
-// Parameters Protocol Version is not 1 is rejected and the session never goes operational.
+// Parameters Protocol Version is not 1 is rejected and the session never goes
+// operational; ze answers the Bad Protocol Version Notification of RFC 5036 Section 3.9.
 func TestRFC5036InitProtocolVersionOtherRejected(t *testing.T) {
-	local, remote := net.Pipe()
-	defer func() { _ = local.Close() }()
-	defer func() { _ = remote.Close() }()
-
 	for _, version := range []uint16{0, 2, 65535} {
+		local, remote := net.Pipe()
+
 		rx := rfcTestSession(local)
 		rx.state = StateOpenSent
-		pdu := encodeInitPDU(version, 30)
-		err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil)
-		if !errors.Is(err, errBadVersion) {
+
+		done := make(chan error, 1)
+		go func() {
+			pdu := encodeInitPDU(version, 30)
+			done <- rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil)
+		}()
+
+		status, _, _ := readNotificationStatus(t, remote)
+		if status != statusBadProtocolVersion {
+			t.Errorf("version %d: status code = %#08x, want %#08x (Bad Protocol Version)",
+				version, status, statusBadProtocolVersion)
+		}
+		if err := <-done; !errors.Is(err, errBadVersion) {
 			t.Errorf("version %d: error = %v, want errBadVersion", version, err)
 		}
 		if rx.State() == StateOperational {
 			t.Errorf("version %d: session went operational on a rejected Initialization", version)
 		}
+
+		_ = local.Close()
+		_ = remote.Close()
+	}
+}
+
+// --------------------------------------------------------------------------
+// RFC5036-3.5.3-1 -- the KeepAlive Time in an Initialization is a non-zero integer
+// --------------------------------------------------------------------------
+
+// readNotificationStatus reads one Notification PDU from conn and returns the three
+// fields of its Status TLV (RFC 5036 Section 3.4.6): the 32-bit Status Code, the
+// Message ID the status refers to, and the message type it refers to.
+func readNotificationStatus(t *testing.T, conn net.Conn) (uint32, uint32, uint16) {
+	t.Helper()
+	_, msgHdr, body := readLDPPDU(t, conn)
+	if msgHdr.Type != MsgTypeNotification {
+		t.Fatalf("message type = %#x, want Notification (%#x)", msgHdr.Type, MsgTypeNotification)
+	}
+	tlv, _, err := DecodeTLV(body)
+	if err != nil {
+		t.Fatalf("DecodeTLV: %v", err)
+	}
+	if tlv.Type != TLVTypeStatus {
+		t.Fatalf("TLV type = %#x, want Status (%#x)", tlv.Type, TLVTypeStatus)
+	}
+	if len(tlv.Value) != 10 {
+		t.Fatalf("Status TLV value = %d octets, want 10", len(tlv.Value))
+	}
+	return binary.BigEndian.Uint32(tlv.Value[0:4]),
+		binary.BigEndian.Uint32(tlv.Value[4:8]),
+		binary.BigEndian.Uint16(tlv.Value[8:10])
+}
+
+// RFC requirement: RFC5036-3.5.3-1 positive -- an Initialization proposing a non-zero
+// KeepAlive Time is accepted. The session goes operational, the negotiated timer is the
+// smaller of the two proposals, the hold time is three times it, and no Notification
+// is sent.
+func TestRFC5036InitNonZeroKeepaliveTimeAccepted(t *testing.T) {
+	local, remote := net.Pipe()
+	defer func() { _ = local.Close() }()
+	defer func() { _ = remote.Close() }()
+
+	rx := rfcTestSession(local)
+	rx.state = StateOpenSent
+
+	pdu := encodeInitPDU(ldpVersion, 30)
+	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil); err != nil {
+		t.Fatalf("processMessages: %v", err)
+	}
+	if rx.State() != StateOperational {
+		t.Errorf("state = %s, want operational", rx.State())
+	}
+	if got := rx.currentKeepalive(); got != 30*time.Second {
+		t.Errorf("keepalive = %v, want 30s (the lower of 60 and 30)", got)
+	}
+	if got := rx.currentHoldTime(); got != 90*time.Second {
+		t.Errorf("hold time = %v, want 90s", got)
+	}
+
+	// An acceptable Initialization is answered with nothing on this path, so a read
+	// that finds no PDU inside the window is the proof that no Notification went out.
+	if err := remote.SetReadDeadline(time.Now().Add(200 * time.Millisecond)); err != nil {
+		t.Fatalf("SetReadDeadline: %v", err)
+	}
+	var probe [1]byte
+	if _, err := remote.Read(probe[:]); err == nil {
+		t.Error("a Notification was sent for an acceptable Initialization")
+	}
+}
+
+// RFC requirement: RFC5036-3.5.3-1 negative -- an Initialization proposing a KeepAlive
+// Time of 0 is refused. RFC 5036 Section 3.5.3 makes the field a "Two octet unsigned
+// non zero integer", so ze answers the Session Rejected/Bad KeepAlive Time Notification
+// of Section 3.9, ends the read loop, and never lets the zero reach the session timers.
+func TestRFC5036InitZeroKeepaliveTimeRejected(t *testing.T) {
+	local, remote := net.Pipe()
+	defer func() { _ = local.Close() }()
+	defer func() { _ = remote.Close() }()
+
+	rx := rfcTestSession(local)
+	rx.state = StateOpenSent
+
+	done := make(chan error, 1)
+	go func() {
+		pdu := encodeInitPDU(ldpVersion, 0)
+		done <- rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil)
+	}()
+
+	status, referID, referType := readNotificationStatus(t, remote)
+	if status != statusSessionRejectedBadKeepaliveTime {
+		t.Errorf("status code = %#08x, want %#08x (Session Rejected/Bad KeepAlive Time, E-bit set)",
+			status, statusSessionRejectedBadKeepaliveTime)
+	}
+	if referID != 7 {
+		t.Errorf("status refers to message %d, want the Initialization message id 7", referID)
+	}
+	if referType != MsgTypeInitialize {
+		t.Errorf("status refers to message type %#x, want Initialization (%#x)", referType, MsgTypeInitialize)
+	}
+
+	if err := <-done; !errors.Is(err, errBadKeepaliveTime) {
+		t.Errorf("processMessages error = %v, want errBadKeepaliveTime", err)
+	}
+	if rx.State() == StateOperational {
+		t.Error("session went operational on an Initialization proposing KeepAlive Time 0")
+	}
+	if rx.currentHoldTime() == 0 {
+		t.Error("hold time is 0: the rejected proposal reached the session timers")
+	}
+	if rx.currentKeepalive() == 0 {
+		t.Error("keepalive is 0: the rejected proposal reached the session timers")
 	}
 }
 
