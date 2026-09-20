@@ -55,7 +55,21 @@ var (
 )
 
 func main() {
+	// crashlog.Init replaces fd 2 with a pipe that a reader goroutine copies to
+	// the real stderr. A panic that nothing recovers writes its trace into that
+	// pipe and the process dies immediately, so the reader is never scheduled
+	// and the operator gets exit status 2 with no output at all. A deferred
+	// flush runs while the panic unwinds, restores fd 2 to the real stderr and
+	// drains what the pipe already holds, and the runtime then prints the trace
+	// where somebody can read it.
+	//
+	// The call below it is still owed: os.Exit runs no deferred function, so the
+	// ordinary path flushes for itself. Flush acts once, so the pair is safe.
+	defer flushCrashlog()
+
 	code := dispatchMain(os.Args[1:])
 	flushCrashlog()
-	os.Exit(code)
+	// gocritic's exitAfterDefer names the shape above, and it is the intended
+	// one: the defer exists for the PANIC path, which os.Exit never reaches.
+	os.Exit(code) //nolint:gocritic // exitAfterDefer: the flush on the line above serves this path
 }

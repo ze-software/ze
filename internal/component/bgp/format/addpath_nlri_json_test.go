@@ -106,3 +106,71 @@ func TestAppendNLRIJSONValueCarriesAddPathToTheDecoder(t *testing.T) {
 		})
 	}
 }
+
+// TestNLRIJSONKeepsAZeroPathIdentifier drives the two NLRI JSON writers with a
+// route whose Path Identifier is zero, which is the value that used to make the
+// formatter render an ADD-PATH route as a plain prefix.
+//
+// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
+// message, the NLRI encoding MUST be extended by prepending the Path Identifier
+// field, which is of four octets."
+//
+// The section reserves no value, so zero identifies a path like any other
+// number. ExaBGP writes it as "path-information":"0.0.0.0" (PathInfo.json,
+// src/exabgp/bgp/message/update/nlri/qualifier/path.py) and omits the member
+// only when ADD-PATH is disabled.
+//
+// VALIDATES: appendNLRIJSONValue and appendIPv4PrefixesFromWire decide the shape
+// from the negotiated layout, and write "path-id" for an identifier of zero.
+// PREVENTS: an ADD-PATH route with identifier zero rendering as the bare string
+// a route carrying no identifier renders as, which leaves a reader of the JSON
+// unable to tell the two apart.
+func TestNLRIJSONKeepsAZeroPathIdentifier(t *testing.T) {
+	// One /32 of 1.1.1.1, once behind a zero Path Identifier and once alone.
+	addPathSection := []byte{0x00, 0x00, 0x00, 0x00, 0x20, 0x01, 0x01, 0x01, 0x01}
+	plainSection := []byte{0x20, 0x01, 0x01, 0x01, 0x01}
+
+	cases := []struct {
+		name    string
+		data    []byte
+		addPath bool
+		want    string
+	}{
+		{
+			name:    "add-path negotiated",
+			data:    addPathSection,
+			addPath: true,
+			want:    `{"prefix":"1.1.1.1/32","path-id":0}`,
+		},
+		{
+			name:    "add-path not negotiated",
+			data:    plainSection,
+			addPath: false,
+			want:    `"1.1.1.1/32"`,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			parsed, rest, err := nlri.ParseINET(family.AFIIPv4, family.SAFIUnicast, tc.data, tc.addPath)
+			if err != nil {
+				t.Fatalf("parse NLRI: %v", err)
+			}
+			if len(rest) != 0 {
+				t.Fatalf("want the whole section consumed, %d octets left", len(rest))
+			}
+
+			got := string(appendNLRIJSONValue(nil, parsed, family.IPv4Unicast))
+			if got != tc.want {
+				t.Errorf("appendNLRIJSONValue wrote %s, want %s", got, tc.want)
+			}
+
+			// The body NLRI section never builds an NLRI struct, so it carries
+			// the same decision in its own loop and needs its own case.
+			fromWire := string(appendIPv4PrefixesFromWire(nil, tc.data, tc.addPath))
+			if fromWire != tc.want {
+				t.Errorf("appendIPv4PrefixesFromWire wrote %s, want %s", fromWire, tc.want)
+			}
+		})
+	}
+}

@@ -275,7 +275,13 @@ With ADD-PATH:
 ```json
 "nlri": [{"prefix": "10.0.0.0/24", "path-id": 1}]
 ```
-<!-- source: internal/component/bgp/format/text.go -- NLRI formatting per family -->
+
+The negotiated layout decides the shape, never the identifier's value. RFC 7911
+Section 3 reserves no value for the Path Identifier, so a route whose identifier
+is zero is written as `{"prefix": "10.0.0.0/24", "path-id": 0}`. The bare string
+form says the session carried no identifier for that route.
+
+<!-- source: internal/component/bgp/format/text_json.go -- appendNLRIJSONValue -->
 
 ### Labeled Unicast (MPLS)
 

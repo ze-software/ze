@@ -3,7 +3,6 @@
 package filter_community
 
 import (
-
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 

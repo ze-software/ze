@@ -318,6 +318,12 @@ class PathInfo:
 "path-information": "1.2.3.4"
 ```
 
+The member is written for every route the session carried a Path Identifier for,
+and RFC 7911 Section 3 reserves no value, so an identifier of zero renders as
+`"path-information": "0.0.0.0"`. `PathID()` returns the value alone, so a reader
+deciding whether the member is owed asks `HasAddPath()` instead of comparing
+that value against zero.
+
 <!-- source: internal/core/bgp/nlri/nlri.go -- WriteNLRI, LenWithContext -->
 <!-- source: internal/core/bgp/nlri/base.go -- PrefixNLRI.PathID -->
 

@@ -51,7 +51,19 @@ const (
 	extCommLayer2Info         = 0x800a // RFC 4761 Section 3.2.4: Layer2 Info, VPLS pseudowire control
 	extCommRedirectToIPv4     = 0x010c // draft-ietf-idr-flowspec-redirect-ip: redirect to an IPv4 next hop
 	extCommMUPDirectSegment   = 0x0c00 // draft-ietf-bess-mup-safi Section 3.2: MUP, Direct-Type Segment Identifier
+	extCommInterfaceSet       = 0x0702 // draft-ietf-idr-flowspec-interfaceset Section 5: interface set, transitive
+	extCommInterfaceSetNT     = 0x4702 // the same community, non-transitive
 )
+
+// interfaceSetDirections name the two flag bits above the group identifier, in
+// the words draft-ietf-idr-flowspec-interfaceset Section 5 gives them: "O" for
+// output and "I" for input, either or both.
+var interfaceSetDirections = [4]string{"none", "input", "output", "input-output"}
+
+// interfaceSetGroupIDBits is the width of the Group Identifier: "The Group
+// Identifier is coded as a 14-bit number (values goes from 0 to 16383)"
+// (Section 5). The two direction flags sit above it in the same 16-bit field.
+const interfaceSetGroupIDBits = 14
 
 // RFC 8955 Section 7.3 Figure 5: the two defined bits of the 6-octet Traffic
 // Action Field are the last two, so both sit in the final octet.
@@ -106,6 +118,10 @@ func (e ExtendedCommunity) AppendDecoded(buf []byte) []byte {
 		return appendExtCommTrafficRate(buf, e, "packets")
 	case extCommTrafficAction:
 		return appendExtCommTrafficAction(buf, e)
+	case extCommInterfaceSet:
+		return appendExtCommInterfaceSet(buf, e, true)
+	case extCommInterfaceSetNT:
+		return appendExtCommInterfaceSet(buf, e, false)
 	case extCommMUPDirectSegment:
 		// The two halves are a Direct-Type Segment Identifier, not an AS and a
 		// local administrator, but they split the six value octets exactly
@@ -156,6 +172,41 @@ func appendExtCommAS2Specific(buf []byte, name string, e ExtendedCommunity) []by
 // and the one ExaBGP prints (MUPExtendedCommunity.__repr__, its mup.py).
 // Rendering the octets left a MUP segment identifier an operator configured
 // coming back as "0x0c00:000a0000000a", which that parser refuses.
+
+// appendExtCommInterfaceSet appends
+// "interface-set:<transitivity>:<direction>:<AS number>:<group identifier>".
+//
+// draft-ietf-idr-flowspec-interfaceset Section 5 lays the community out as a
+// 4-octet AS number and then two direction flags above a 14-bit Group
+// Identifier, and it defines the community twice: "this document proposes to
+// have a transitive as well as a non transitive version of this extended
+// community". The two differ by one bit of the type octet, so the rendered
+// text has to say which one it is or the round trip loses it.
+//
+// That is the one place Ze's spelling and ExaBGP's part. ExaBGP prints four
+// fields and states transitivity as a separate JSON member
+// (InterfaceSet.json, community/extended/flowspec_scope.py), which it can do
+// because its flow grammar has a `scope` block of its own. Ze carries every
+// extended community in one flat list, so the text is the only place left to
+// say it. The ExaBGP bridge folds the two forms into one another.
+//
+// Until this arm existed the community had no name anywhere in Ze: the ExaBGP
+// config migration wrote it as raw hex and said so
+// (interfaceSetExtCommunity, exabgp/migration/migrate_flow_scope.go).
+func appendExtCommInterfaceSet(buf []byte, e ExtendedCommunity, transitive bool) []byte {
+	buf = append(buf, "interface-set:"...)
+	if transitive {
+		buf = append(buf, "transitive:"...)
+	} else {
+		buf = append(buf, "non-transitive:"...)
+	}
+	flagged := binary.BigEndian.Uint16(e[6:8])
+	buf = append(buf, interfaceSetDirections[flagged>>interfaceSetGroupIDBits]...)
+	buf = append(buf, ':')
+	buf = strconv.AppendUint(buf, uint64(binary.BigEndian.Uint32(e[2:6])), 10)
+	buf = append(buf, ':')
+	return strconv.AppendUint(buf, uint64(flagged&(1<<interfaceSetGroupIDBits-1)), 10)
+}
 
 // appendExtCommOriginAS2 appends "origin:<2-octet AS>:<IPv4 local
 // administrator>".

@@ -1498,7 +1498,7 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 			pathID:     42,
 			wantRD:     "2:65536:100",
 			wantLabels: `"labels":[[400,6401]]`, // each member is the label and the RFC 8277 stack entry it came from
-			wantPathID: false,              // path-id is transport-level, not in plugin decode output
+			wantPathID: false,                   // path-id is transport-level, not in plugin decode output
 		},
 	}
 

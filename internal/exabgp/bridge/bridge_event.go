@@ -409,12 +409,6 @@ func eorFamilyParts(data map[string]any) (afi, safi string, ok bool) {
 func convertUpdateIPC2(eventData map[string]any) map[string]any {
 	update := make(map[string]any)
 
-	// Extract attributes from "attr" object.
-	// Strip redundant :bytes suffix from rate-limit extended communities.
-	if attrObj, ok := eventData["attr"].(map[string]any); ok && len(attrObj) > 0 {
-		update["attribute"] = normalizeOutgoingAttributes(attrObj)
-	}
-
 	// Convert NLRI sections from "nlri" object
 	announce := make(map[string]map[string][]any)
 	withdraw := make(map[string][]any)
@@ -461,11 +455,17 @@ func convertUpdateIPC2(eventData map[string]any) map[string]any {
 						}
 					}
 				case "del":
+					// The same renaming as the announce arm above, because a
+					// withdrawn route is the SAME NLRI. Passing it through
+					// untouched published `labels`, `prefix` and an RD carrying
+					// its RFC 4364 type prefix under `withdraw`, and the
+					// matching members under `announce`, so one route read two
+					// ways depending on which direction it traveled.
 					for _, nlri := range nlriList {
 						if s, ok := nlri.(string); ok {
 							withdraw[exabgpFamily] = append(withdraw[exabgpFamily], map[string]any{bridgeUpdateNLRI: s})
 						} else {
-							withdraw[exabgpFamily] = append(withdraw[exabgpFamily], nlri)
+							withdraw[exabgpFamily] = append(withdraw[exabgpFamily], exabgpNLRIObject(exabgpFamily, nlri))
 						}
 					}
 				}
@@ -482,6 +482,20 @@ func convertUpdateIPC2(eventData map[string]any) map[string]any {
 	}
 	if len(withdraw) > 0 {
 		update["withdraw"] = withdraw
+	}
+
+	// Attributes LAST, because whether the next hop belongs in them depends on
+	// what the NLRI sections hold. Strip redundant :bytes suffix from
+	// rate-limit extended communities.
+	if attrObj, ok := eventData["attr"].(map[string]any); ok && len(attrObj) > 0 {
+		// An object the normaliser empties is not written at all. ExaBGP's
+		// encoder reads `'' if not update_msg.attributes else ...`
+		// (reactor/api/response/json.py), so a script testing `"attribute" in
+		// update` gets false there and got true here: ze states a next hop and
+		// an empty as-path that the normaliser then removes, which left `{}`.
+		if normalized := normalizeOutgoingAttributes(attrObj, len(withdraw) > 0); len(normalized) > 0 {
+			update["attribute"] = normalized
+		}
 	}
 
 	return update
@@ -846,7 +860,11 @@ var exabgpAttributeNames = map[string]string{
 	// ze names it the same as ExaBGP does and there is nothing to translate.
 }
 
-func normalizeOutgoingAttributes(attrObj map[string]any) map[string]any {
+// normalizeOutgoingAttributes restates ze's attribute object in ExaBGP's words.
+//
+// withdrawing says whether the update carries a withdraw, which decides one
+// member: see the next hop below.
+func normalizeOutgoingAttributes(attrObj map[string]any, withdrawing bool) map[string]any {
 	extComms, hasExt := attrObj["extended-community"]
 	var normalized any
 	changed := false
@@ -855,15 +873,24 @@ func normalizeOutgoingAttributes(attrObj map[string]any) map[string]any {
 	}
 
 	// ExaBGP states the next hop as the KEY the prefixes hang under inside
-	// `announce`, and never again inside `attribute`. Ze's own document carries
-	// it in both places, which is right for a ze reader and is one member too
-	// many for a script parsing ExaBGP's shape.
+	// `announce`, and drops it from `attribute` where that key carries it. Ze's
+	// own document states it in both places, which is right for a ze reader and
+	// is one member too many for a script parsing ExaBGP's shape.
 	//
-	// An EMPTY as-path is dropped for the same reason: ExaBGP writes the member
+	// A WITHDRAW has no such key, so the member stays: ExaBGP's own encoder
+	// reads `include_nexthop = bool(minus)` and keeps NEXT_HOP in the attribute
+	// object whenever the update withdraws anything
+	// (reactor/api/response/json.py). Dropping it there loses the only
+	// statement of which next hop the withdrawn route had.
+	//
+	// An EMPTY as-path is dropped unconditionally: ExaBGP writes the member
 	// only when the path has hops, so an `"as-path": []` is a member its readers
 	// never see. Both were measured against test/exabgp-compat/api/api-api.ci,
 	// which states the exact document ExaBGP produces for one announce.
 	_, hasNextHop := attrObj["next-hop"]
+	if withdrawing {
+		hasNextHop = false
+	}
 	emptyPath := false
 	if path, ok := attrObj["as-path"].([]any); ok && len(path) == 0 {
 		emptyPath = true
@@ -884,7 +911,9 @@ func normalizeOutgoingAttributes(attrObj map[string]any) map[string]any {
 	if changed {
 		cloned["extended-communities"] = normalized
 	}
-	delete(cloned, "next-hop")
+	if !withdrawing {
+		delete(cloned, "next-hop")
+	}
 	if emptyPath {
 		delete(cloned, "as-path")
 	}

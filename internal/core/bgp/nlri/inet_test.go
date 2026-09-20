@@ -511,3 +511,60 @@ func TestINETWriteNLRIIPv6(t *testing.T) {
 		})
 	}
 }
+
+// TestParseINETRecordsTheAddPathLayout pins the fact ParseINET used to discard:
+// whether the octets it read carried a Path Identifier.
+//
+// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
+// message, the NLRI encoding MUST be extended by prepending the Path Identifier
+// field, which is of four octets."
+//
+// The field has no reserved or absent value, so a reader comparing PathID
+// against zero cannot tell a route that carried an identifier of zero from a
+// route that carried none. Only the parser knows, because the negotiation told
+// it how to read the octets.
+//
+// VALIDATES: ParseINET stores the ADD-PATH layout it was given, and INET answers
+// for it through nlri.AddPathAware.
+// PREVENTS: every consumer of a parsed INET, the JSON formatters first, having
+// to guess the layout from an identifier of zero.
+func TestParseINETRecordsTheAddPathLayout(t *testing.T) {
+	t.Parallel()
+
+	// One /32 of 1.1.1.1, once behind a zero Path Identifier and once alone.
+	addPathSection := []byte{0x00, 0x00, 0x00, 0x00, 0x20, 0x01, 0x01, 0x01, 0x01}
+	plainSection := []byte{0x20, 0x01, 0x01, 0x01, 0x01}
+
+	cases := []struct {
+		name    string
+		data    []byte
+		addPath bool
+	}{
+		{name: "add-path negotiated", data: addPathSection, addPath: true},
+		{name: "add-path not negotiated", data: plainSection, addPath: false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			parsed, rest, err := ParseINET(family.AFIIPv4, family.SAFIUnicast, tc.data, tc.addPath)
+			if err != nil {
+				t.Fatalf("parse NLRI: %v", err)
+			}
+			if len(rest) != 0 {
+				t.Fatalf("want the whole section consumed, %d octets left", len(rest))
+			}
+			if parsed.PathID() != 0 {
+				t.Fatalf("want a path identifier of 0, got %d", parsed.PathID())
+			}
+
+			aware, ok := parsed.(AddPathAware)
+			if !ok {
+				t.Fatal("INET must implement AddPathAware, or a formatter cannot learn the layout")
+			}
+			if aware.HasAddPath() != tc.addPath {
+				t.Errorf("HasAddPath is %t, want %t", aware.HasAddPath(), tc.addPath)
+			}
+		})
+	}
+}

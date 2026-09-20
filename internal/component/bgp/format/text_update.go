@@ -511,7 +511,14 @@ func appendIPv4PrefixesFromWire(buf, data []byte, addPath bool) []byte {
 			buf = append(buf, ',')
 		}
 		first = false
-		if addPath && pathID != 0 {
+		// RFC 7911 Section 3: "In order to carry the Path Identifier in an
+		// UPDATE message, the NLRI encoding MUST be extended by prepending the
+		// Path Identifier field, which is of four octets."
+		//
+		// The negotiated layout decides the shape, never the value read out of
+		// it. The field has no absent value, so a route whose identifier is zero
+		// carried one and says so.
+		if addPath {
 			buf = append(buf, `{"prefix":"`...)
 			buf = pfx.AppendTo(buf)
 			buf = append(buf, `","path-id":`...)

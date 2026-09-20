@@ -240,21 +240,21 @@ func appendNLRIJSONValue(buf []byte, n nlri.NLRI, fam family.Family) []byte {
 		return w.AppendJSON(buf)
 	}
 
+	// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
+	// message, the NLRI encoding MUST be extended by prepending the Path
+	// Identifier field, which is of four octets."
+	//
+	// The octets say nothing about whether the first four are an identifier, and
+	// the identifier has no absent value, so a zero one is real. Ask the NLRI,
+	// which holds the layout it was parsed with; a carrier that stays silent
+	// carries none.
+	addPath := nlriHasAddPath(n)
+
 	// Fallback: external plugins over RPC. Wire-encode, hex, dispatch via registry.
 	// Registry APIs are string-keyed; stringify the typed family once at this boundary.
 	familyStr := fam.String()
 	if registry.PluginForFamily(familyStr) != "" {
 		hexData := hex.EncodeToString(n.Bytes())
-
-		// RFC 7911 Section 3: "the NLRI encoding MUST be extended by prepending
-		// the Path Identifier field, which is of four octets." Bytes() hands the
-		// decoder the octets as they arrived, identifier included, and nothing in
-		// them says whether the first four are one. Ask the NLRI, which was built
-		// with the negotiated layout; a carrier that stays silent carries none.
-		addPath := false
-		if a, ok := n.(nlri.AddPathAware); ok {
-			addPath = a.HasAddPath()
-		}
 
 		decoded, err := registry.DecodeNLRIByFamily(familyStr, hexData, addPath)
 		if err == nil {
@@ -262,10 +262,9 @@ func appendNLRIJSONValue(buf []byte, n nlri.NLRI, fam family.Family) []byte {
 		}
 	}
 
-	pathID := n.PathID()
-
-	// Simple prefix without path-id: output as string
-	if pathID == 0 {
+	// A simple prefix the session carried without ADD-PATH is one string. This
+	// is the common case, and it stays allocation-free.
+	if !addPath && n.PathID() == 0 {
 		if p, ok := n.(prefixer); ok {
 			buf = append(buf, '"')
 			buf = p.Prefix().AppendTo(buf)
@@ -274,8 +273,20 @@ func appendNLRIJSONValue(buf []byte, n nlri.NLRI, fam family.Family) []byte {
 		}
 	}
 
-	// Complex NLRI (has path-id or not a simple prefix): output as object
+	// Complex NLRI (ADD-PATH, a path identifier, or not a simple prefix): output
+	// as an object.
 	return appendNLRIJSON(buf, n)
+}
+
+// nlriHasAddPath reports whether this NLRI's wire bytes carried an RFC 7911 Path
+// Identifier. An NLRI type that does not implement nlri.AddPathAware cannot have
+// been parsed under ADD-PATH, so it answers false.
+func nlriHasAddPath(n nlri.NLRI) bool {
+	a, ok := n.(nlri.AddPathAware)
+	if !ok {
+		return false
+	}
+	return a.HasAddPath()
 }
 
 // prefixer is implemented by NLRI types that have a Prefix() method.
@@ -284,7 +295,7 @@ type prefixer interface {
 }
 
 // appendNLRIJSON appends a single NLRI as JSON object to buf.
-// RFC 7911: Outputs structured format with path-id when present.
+// RFC 7911: Outputs structured format with path-id when the wire carried one.
 // Format: {"prefix":"10.0.0.0/24"} or {"prefix":"10.0.0.0/24","path-id":1}.
 func appendNLRIJSON(buf []byte, n nlri.NLRI) []byte {
 	buf = append(buf, `{"prefix":"`...)
@@ -299,7 +310,16 @@ func appendNLRIJSON(buf []byte, n nlri.NLRI) []byte {
 	}
 	buf = append(buf, '"')
 
-	if pathID := n.PathID(); pathID != 0 {
+	// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
+	// message, the NLRI encoding MUST be extended by prepending the Path
+	// Identifier field, which is of four octets."
+	//
+	// The section reserves no value, so an identifier of zero is an identifier
+	// and the member is written for it. A non-zero identifier is written too:
+	// an NLRI built in process holds one without having been parsed under
+	// ADD-PATH, and dropping it would lose the route's identity.
+	pathID := n.PathID()
+	if nlriHasAddPath(n) || pathID != 0 {
 		buf = append(buf, `,"path-id":`...)
 		buf = strconv.AppendUint(buf, uint64(pathID), 10)
 	}

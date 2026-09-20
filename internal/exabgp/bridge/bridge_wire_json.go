@@ -113,6 +113,16 @@ func WireUpdateToExabgpJSON(payload []byte, facts SessionFacts, direction rpc.Me
 	// test files and the looking glass, the CLI decoder, the RIB formatter and
 	// the path filters all read. That is a migration, not a rendering fix, and
 	// it is not owed here: ze's flattened form is right for a ze reader.
+	//
+	// A withdraw-only UPDATE carries no attribute section at all, and Attrs()
+	// answers (nil, nil) for one: "Returns (nil, nil) if empty"
+	// (WireUpdate.Attrs, component/bgp/wireu/wire_update.go). There is nothing
+	// to overlay, and reading one panics. Checking the ERROR alone is what let
+	// that through, which is the nil a caller cannot tell from an answer
+	// (ai/rules/principles.md).
+	if attrs == nil {
+		return document, nil
+	}
 	overlayASPath(document, attrs)
 	overlayExtendedCommunities(document, attrs)
 	overlayUnknownAttributes(document, attrs)
@@ -267,16 +277,15 @@ func overlayExtendedCommunities(document map[string]any, attrs *attribute.Attrib
 	if !ok {
 		return
 	}
-	attrObject := attributeOf(update)
-	overlayCommunityWidth(attrObject, attrs, attribute.AttrExtCommunity, "extended-community", 8)
-	overlayCommunityWidth(attrObject, attrs, attribute.AttrIPv6ExtCommunity, "extended-community-ipv6", 20)
+	overlayCommunityWidth(update, attrs, attribute.AttrExtCommunity, "extended-community", 8)
+	overlayCommunityWidth(update, attrs, attribute.AttrIPv6ExtCommunity, "extended-community-ipv6", 20)
 }
 
 // overlayCommunityWidth rebuilds one community list as the {string, value}
 // members ExaBGP writes, pairing each rendered text with the octets it came
 // from by position.
 func overlayCommunityWidth(
-	attrObject map[string]any,
+	update map[string]any,
 	attrs *attribute.AttributesWire,
 	code attribute.AttributeCode,
 	key string,
@@ -286,6 +295,11 @@ func overlayCommunityWidth(
 	if err != nil || len(raw) == 0 || len(raw)%width != 0 {
 		return
 	}
+	// The attribute object is created only once there is something to put in
+	// it. Asking for it first left `"attribute": {}` on an update whose
+	// attributes the normaliser had emptied, and ExaBGP writes no member at all
+	// there (reactor/api/response/json.py).
+	attrObject := attributeOf(update)
 	existing, _ := attrObject[key].([]any)
 	rebuilt := make([]any, 0, len(raw)/width)
 	for offset := 0; offset+width <= len(raw); offset += width {
@@ -294,7 +308,13 @@ func overlayCommunityWidth(
 		// two halves describe the same community.
 		if index := offset / width; index < len(existing) {
 			if text, isText := existing[index].(string); isText {
-				member["string"] = exabgpCommunityText(text)
+				folded, transitive, states := exabgpInterfaceSet(text)
+				if states {
+					member["string"] = folded
+					member["transitive"] = transitive
+				} else {
+					member["string"] = exabgpCommunityText(text)
+				}
 			}
 		}
 		rebuilt = append(rebuilt, member)
@@ -337,6 +357,37 @@ var exabgpCommunitySpellings = [][2]string{
 	{"traffic-action:", "action "},
 	{"redirect-to-nexthop ", "redirect-to-nexthop-ietf "},
 	{"copy-to-nexthop ", "copy-to-nexthop-ietf "},
+}
+
+// exabgpInterfaceSet splits ze's interface-set text into the two halves ExaBGP
+// states separately, and answers false for anything that is not one.
+//
+// draft-ietf-idr-flowspec-interfaceset Section 5 defines the community twice,
+// transitive and non-transitive, which differ by one bit of the type octet. ze
+// writes that bit into the text, because every extended community it carries
+// sits in one flat list and the text is the only place left to say it. ExaBGP
+// has a `scope` block of its own, so it prints four fields and puts
+// transitivity in a JSON member beside them (InterfaceSet.json, its
+// flowspec_scope.py). It is the ONLY community ExaBGP writes that member for.
+func exabgpInterfaceSet(text string) (folded string, transitive, states bool) {
+	rest, isInterfaceSet := strings.CutPrefix(text, "interface-set:")
+	if !isInterfaceSet {
+		return "", false, false
+	}
+	transitivity, fields, split := strings.Cut(rest, ":")
+	if !split {
+		return "", false, false
+	}
+	switch transitivity {
+	case "transitive":
+		transitive = true
+	case "non-transitive":
+		transitive = false
+	default:
+		return "", false, false
+	}
+	var tb textbuf.Buffer
+	return tb.Str("interface-set:").Str(fields).String(), transitive, true
 }
 
 // exabgpCommunityText restates one rendered extended community in ExaBGP's

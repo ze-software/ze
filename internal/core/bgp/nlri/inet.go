@@ -53,9 +53,11 @@ type INET struct {
 	PrefixNLRI
 }
 
-// NewINET creates a new INET NLRI.
-// pathID=0 means no path identifier; pathID>0 stores the path ID.
-// Use WriteNLRI() with addPath=true to encode with path ID.
+// NewINET creates a new INET NLRI carrying pathID as its RFC 7911 Path
+// Identifier. Zero is an identifier like any other here.
+//
+// The result reports HasAddPath false, because a locally built NLRI has no wire
+// layout yet. Use WriteNLRI() with addPath=true to encode the identifier.
 func NewINET(fam family.Family, prefix netip.Prefix, pathID uint32) *INET {
 	return &INET{
 		fam:    fam,
@@ -139,11 +141,19 @@ func ParseINET(afi family.AFI, safi family.SAFI, data []byte, addpath bool) (NLR
 		return nil, nil, ErrInvalidAddress
 	}
 
-	inet := &INET{
-		fam:    family.Family{AFI: afi, SAFI: safi},
-		prefix: prefix,
-		pathID: pathID,
-	}
+	// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
+	// message, the NLRI encoding MUST be extended by prepending the Path
+	// Identifier field, which is of four octets."
+	//
+	// The layout is recorded, not inferred from the identifier. Zero is a valid
+	// Path Identifier, so a reader comparing pathID against zero cannot tell a
+	// route that carried one from a route that carried none.
+	inet := &INET{PrefixNLRI{
+		fam:     family.Family{AFI: afi, SAFI: safi},
+		prefix:  prefix,
+		pathID:  pathID,
+		addPath: addpath,
+	}}
 
 	return inet, data[offset+prefixBytes:], nil
 }

@@ -985,6 +985,20 @@ an exabgp-compat config is left alone for the same reason.
 <!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
 
+An exabgp-compat case runs TWO processes, ze and the mock BGP server, and its
+verdict names which one ended the case:
+
+- `ze exited before the mock BGP server finished its script: <error>` is a
+  daemon defect. Read the client stderr in the failure block.
+- `the mock BGP server failed: <error>` is a wire or document disagreement. The
+  mock prints the frame or the JSON member that did not match.
+- `the mock BGP server ended without reporting success` means its script did not
+  complete and it said nothing about why.
+
+Both used to print the bare `exit status N` of whichever process failed, which
+told a reader nothing about which of the two to open.
+<!-- source: internal/test/cli/cmd_exabgp.go -- exaBGPFailure -->
+
 ## Expectations
 
 ```

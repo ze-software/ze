@@ -1,0 +1,49 @@
+{
+  "rfc": "rfc9252",
+  "records": [
+    {
+      "rid": "RFC9252-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero",
+      "unit-sha": "9396171b4b7ae274",
+      "claim-sha": "6da8349c8082a9a0",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/prefixsid.go::EncodePrefixSIDSRv6",
+      "producer-sha": "88761970f8b8a9ef",
+      "break": "body of EncodePrefixSIDSRv6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9252-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero",
+      "unit-sha": "9396171b4b7ae274",
+      "claim-sha": "01c62b8c5e13df93",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/prefixsid.go::EncodePrefixSIDSRv6",
+      "producer-sha": "88761970f8b8a9ef",
+      "break": "body of EncodePrefixSIDSRv6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9252-3.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero",
+      "unit-sha": "9396171b4b7ae274",
+      "claim-sha": "4ae4657c4b00822f",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/prefixsid.go::EncodePrefixSIDSRv6",
+      "producer-sha": "88761970f8b8a9ef",
+      "break": "body of EncodePrefixSIDSRv6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9252-3.2-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/config/routeattr_test.go::TestEncodePrefixSIDSRv6_ReservedFieldsZero",
+      "unit-sha": "9396171b4b7ae274",
+      "claim-sha": "00f9777fc4042547",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/prefixsid.go::EncodePrefixSIDSRv6",
+      "producer-sha": "88761970f8b8a9ef",
+      "break": "body of EncodePrefixSIDSRv6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

@@ -107,7 +107,7 @@ is gone.
 
 ## JSON member spellings the bridge folds
 
-Four members carry the same fact under different words. Ze keeps its own word,
+Five members carry the same fact under different words. Ze keeps its own word,
 because each is load-bearing on Ze's side, and the bridge writes ExaBGP's word
 so a script reads one vocabulary.
 
@@ -117,6 +117,7 @@ so a script reads one vocabulary.
 | RFC 7911 Path Identifier | `"path-id": 16909060` | `"path-information": "1.2.3.4"` | RFC 7911 Section 3 calls it a 4-octet value, and Ze's CLI and RIB read the number |
 | FlowSpec DSCP on IPv6 | `dscp` | `traffic-class` | RFC 8956 Section 8 registers component type 11 as `DSCP` under both its IPv4 and its IPv6 name |
 | FlowSpec traffic-marking and traffic-action | `mark:10`, `traffic-action:sample` | `mark 10`, `action sample` | the FlowSpec firewall lowering keys on the colon form |
+| Interface set transitivity | `interface-set:non-transitive:input:1234:10` | `interface-set:input:1234:10` plus `"transitive": false` | Ze carries every extended community in one flat list, and ExaBGP has a `scope` block to state it beside |
 
 Nothing is lost either way, so each is a spelling rather than a conversion. The
 RFC governs the wire and says nothing about a JSON member, which is what leaves
@@ -128,7 +129,7 @@ quad in both projects, and so do `l2info` and the FlowSpec redirect-to-IP
 communities, because Ze's config parser already read those spellings and its
 renderer wrote something the parser refuses.
 <!-- source: internal/exabgp/bridge/bridge_event.go -- exabgpRD, exabgpPathInformation, exabgpFlowComponentName -->
-<!-- source: internal/exabgp/bridge/bridge_wire_json.go -- exabgpCommunitySpellings -->
+<!-- source: internal/exabgp/bridge/bridge_wire_json.go -- exabgpCommunitySpellings, exabgpInterfaceSet -->
 
 ---
 
@@ -138,6 +139,19 @@ renderer wrote something the parser refuses.
 three members Ze's own JSON does not carry: the AS_PATH's segments and their
 types, the numeric value beside each extended community, and the flag octet in
 an unknown attribute's `attribute-0xCC-0xFF` name.
+
+The community value is read for both widths, RFC 4360's 8 octets and RFC 5701's
+20, and it is built exactly and rounded once. RFC 5701's community is 160 bits
+wide and JSON has one number type, so accumulating the octets in a float rounds
+at every step: doing that put the member two thousand off an expectation whose
+own decimal literal rounds cleanly.
+
+One community gains a second member here. ExaBGP writes `"transitive"` beside
+the interface set and beside nothing else, because that community
+(draft-ietf-idr-flowspec-interfaceset Section 5) is defined twice, transitive
+and non-transitive, differing by one bit of the type octet. Ze states that bit
+in the text instead, since it carries every extended community in one flat list
+and has no `scope` block to put it in.
 
 The live bridge cannot. `translateAndForward` receives Ze's JSON event as text
 and has no wire to read, so an ExaBGP process attached to a running Ze gets Ze's

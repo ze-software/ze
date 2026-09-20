@@ -576,18 +576,28 @@ func runOneExaBGPTest(ctx context.Context, test *exabgpTestEntry, cli exabgpCLI)
 		return true, detail
 	}
 	rec.State = runner.StateFail
-	switch {
-	case clientFailed:
-		rec.Error = clientErrEarly
-		if rec.Error == nil {
-			rec.Error = errors.New("ExaBGP wrapper exited before mock BGP server completed")
-		}
-	case serverErr != nil:
-		rec.Error = serverErr
-	default:
-		rec.Error = errors.New("ExaBGP mock BGP server did not report success")
-	}
+	rec.Error = exaBGPFailure(clientFailed, clientErrEarly, serverErr)
 	return false, detail
+}
+
+// exaBGPFailure names the process that ended the case and what it exited with.
+//
+// The verdict used to be the bare error of whichever process failed, so a case
+// where ze exited early and a case where the mock refused a frame both printed
+// `exit status N` with nothing saying which of the two produced it. The two
+// need different reading: one is a daemon defect and the other is a wire or
+// document disagreement (plan/journal/failing-gate-prints-no-cause.md).
+func exaBGPFailure(clientFailed bool, clientErr, serverErr error) error {
+	if clientFailed {
+		if clientErr == nil {
+			return errors.New("ze exited before the mock BGP server finished its script, reporting success")
+		}
+		return fmt.Errorf("ze exited before the mock BGP server finished its script: %w", clientErr)
+	}
+	if serverErr != nil {
+		return fmt.Errorf("the mock BGP server failed: %w", serverErr)
+	}
+	return errors.New("the mock BGP server ended without reporting success, so its script did not complete")
 }
 
 func waitExaBGPPort(ctx context.Context, portCh <-chan int, server *exaProcess) (int, error) {

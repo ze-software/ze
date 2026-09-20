@@ -35,6 +35,15 @@ var evpnLogger = slogutil.DiscardLogger()
 
 // setEVPNLogger sets the package-level logger.
 // Called by cmd/ze/bgp/plugin_evpn.go with slogutil.PluginLogger().
+// The two members an EVPN route writes when Ze could not read its body: what it
+// is, and the octets it was. They are named here because goconst counts the
+// literals and because the pair must stay together, so a reader always gets the
+// bytes beside the verdict rather than a bare false.
+const (
+	jsonKeyParsed = "parsed"
+	jsonKeyRaw    = "raw"
+)
+
 func setEVPNLogger(l *slog.Logger) {
 	if l != nil {
 		evpnLogger = l
@@ -447,15 +456,15 @@ func decodeEVPNNLRI(data []byte, addPath bool) []map[string]any {
 		_, body, err := nlri.SplitPathID(remaining, addPath)
 		if err != nil {
 			results = append(results, map[string]any{
-				"parsed": false,
-				"raw":    textbuf.StringHexUpper(remaining),
+				jsonKeyParsed: false,
+				jsonKeyRaw:    textbuf.StringHexUpper(remaining),
 			})
 			break
 		}
 		if len(body) < 2 {
 			results = append(results, map[string]any{
-				"parsed": false,
-				"raw":    textbuf.StringHexUpper(remaining),
+				jsonKeyParsed: false,
+				jsonKeyRaw:    textbuf.StringHexUpper(remaining),
 			})
 			break
 		}
@@ -466,9 +475,9 @@ func decodeEVPNNLRI(data []byte, addPath bool) []map[string]any {
 		if len(body) < 2+routeLen {
 			// Truncated - add as unparsed
 			results = append(results, map[string]any{
-				"code":   int(routeType),
-				"parsed": false,
-				"raw":    textbuf.StringHexUpper(remaining),
+				"code":        int(routeType),
+				jsonKeyParsed: false,
+				jsonKeyRaw:    textbuf.StringHexUpper(remaining),
 			})
 			break
 		}
@@ -485,9 +494,9 @@ func decodeEVPNNLRI(data []byte, addPath bool) []map[string]any {
 		if err != nil {
 			evpnLogger.Debug("parse evpn failed", "err", err)
 			results = append(results, map[string]any{
-				"code":   int(routeType),
-				"parsed": false,
-				"raw":    textbuf.StringHexUpper(routeBody),
+				"code":        int(routeType),
+				jsonKeyParsed: false,
+				jsonKeyRaw:    textbuf.StringHexUpper(routeBody),
 			})
 		} else {
 			results = append(results, evpnToJSON(evpn, routeBody))
@@ -507,15 +516,15 @@ func evpnToJSON(e EVPN, rawData []byte) map[string]any {
 	// For unparsed routes (EVPNGeneric), only output code, parsed, raw
 	if _, ok := e.(*eVPNGeneric); ok {
 		result["code"] = int(e.RouteType())
-		result["parsed"] = false
-		result["raw"] = textbuf.StringHexUpper(rawData)
+		result[jsonKeyParsed] = false
+		result[jsonKeyRaw] = textbuf.StringHexUpper(rawData)
 		return result
 	}
 
 	// Match expected format: code, parsed, raw, name, rd, etc.
 	result["code"] = int(e.RouteType())
-	result["parsed"] = true
-	result["raw"] = textbuf.StringHexUpper(rawData)
+	result[jsonKeyParsed] = true
+	result[jsonKeyRaw] = textbuf.StringHexUpper(rawData)
 	result["name"] = evpnRouteName(e.RouteType())
 	result["rd"] = e.RD().String()
 

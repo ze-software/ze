@@ -91,6 +91,14 @@ NLRI (interface)
 - `family` - AFI/SAFI address family
 - `prefix` - IP prefix (netip.Prefix)
 - `pathID` - RFC 7911 ADD-PATH identifier
+- `addPath` - true when the wire carried a Path Identifier, read through `HasAddPath()`
+
+RFC 7911 Section 3 reserves no value for the Path Identifier, so `pathID` of
+zero identifies a path and says nothing about whether one arrived. `addPath`
+answers that, and only the parser can set it, because the negotiation is what
+told the parser how to read the octets. A locally built NLRI reports false: it
+has no wire layout yet, and `WriteNLRI` takes the layout from the session's
+EncodingContext.
 
 **RDNLRIBase** (base.go) - Shared by RD-based types:
 - `rd` - Route Distinguisher (8 bytes)
@@ -146,6 +154,11 @@ NLRI (interface)
 | 10.0.0.0/8 | `08 0A` | mask=8, 1 byte (10) |
 | 192.168.1.0/24 | `18 C0 A8 01` | mask=24, 3 bytes |
 | 10.0.0.1/32 | `20 0A 00 00 01` | mask=32, 4 bytes (full IP) |
+
+`ParseINET` takes the ADD-PATH flag the session negotiated, consumes the 4-octet
+Path Identifier when it is set, and records the flag on the NLRI it returns. A
+reader of a parsed INET therefore asks `HasAddPath()` for the layout and reads
+`PathID()` for the value, including when that value is zero.
 
 <!-- source: internal/core/bgp/nlri/inet.go -- ParseINET, INET.Len, INET.WriteTo -->
 
@@ -571,6 +584,11 @@ from a real one.
 The plugin text command `decode nlri <family> <hex>` and the `ze bgp decode`
 CLI both read a hex blob with no session behind it, so both decode with no Path
 Identifier.
+
+A core family takes the same route to the same answer. `INET` records the flag
+`ParseINET` was given, so `appendNLRIJSONValue` reads one interface for every
+family and renders `{"prefix": ..., "path-id": 0}` rather than a bare prefix
+string when the session carried a Path Identifier of zero.
 
 <!-- source: internal/core/bgp/nlri/nlri.go -- AddPathAware, SplitPathID -->
 <!-- source: internal/component/bgp/format/text_json.go -- appendNLRIJSONValue -->
