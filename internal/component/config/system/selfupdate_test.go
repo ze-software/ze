@@ -62,7 +62,7 @@ func newTestServer(t *testing.T, manifest map[string]any, binaryContent []byte) 
 	return ts
 }
 
-func newTestUpdater(t *testing.T, serverURL, target string, cfg SelfUpdateConfig) *SelfUpdater {
+func newTestUpdater(t *testing.T, serverURL, target string, cfg SelfUpdateConfig) *selfUpdater {
 	t.Helper()
 	su := newSelfUpdater(serverURL+"/version.json", 86400, cfg, nil)
 	su.running = "26.01.01"

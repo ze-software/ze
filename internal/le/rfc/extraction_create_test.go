@@ -131,7 +131,7 @@ func TestExtractionCreateWritesTheCommittedNativeSkeletonBytes(t *testing.T) {
 		t.Errorf("skeleton bytes differ from the committed native fixture:\nwant:\n%s\ngot:\n%s", want, body)
 	}
 
-	artifact, err := ParseExtractionArtifact(tree, filepath.Join(tree, filepath.FromSlash(report.Path)))
+	artifact, err := parseExtractionArtifact(tree, filepath.Join(tree, filepath.FromSlash(report.Path)))
 	if err != nil {
 		t.Fatalf("the production parser refused the skeleton: %v", err)
 	}
@@ -236,7 +236,7 @@ func TestExtractionCreateRefreshPreservesOnlyDecisionsForTheSameSentence(t *test
 	if report.Placed || report.UnclassifiedSites != 1 {
 		t.Fatalf("a refresh with an unclassified site landed in the corpus: %+v", report)
 	}
-	standing, err := ParseExtractionArtifact(tree, filepath.Join(tree, "rfc", "extraction", "rfc9999.json"))
+	standing, err := parseExtractionArtifact(tree, filepath.Join(tree, "rfc", "extraction", "rfc9999.json"))
 	if err != nil {
 		t.Fatalf("parse the standing artifact: %v", err)
 	}
@@ -245,7 +245,7 @@ func TestExtractionCreateRefreshPreservesOnlyDecisionsForTheSameSentence(t *test
 			sites, sections)
 	}
 
-	artifact, err := ParseExtractionArtifact(tree, filepath.Join(tree, filepath.FromSlash(report.Path)))
+	artifact, err := parseExtractionArtifact(tree, filepath.Join(tree, filepath.FromSlash(report.Path)))
 	if err != nil {
 		t.Fatalf("parse refreshed skeleton: %v", err)
 	}
@@ -502,7 +502,7 @@ func TestAFullyClassifiedRefreshStillLandsInTheCorpus(t *testing.T) {
 	if !report.Placed || report.Path != "rfc/extraction/rfc9999.json" {
 		t.Fatalf("a fully classified refresh did not land in the corpus: %+v", report)
 	}
-	refreshed, err := ParseExtractionArtifact(tree, filepath.Join(corpus, "rfc9999.json"))
+	refreshed, err := parseExtractionArtifact(tree, filepath.Join(corpus, "rfc9999.json"))
 	if err != nil {
 		t.Fatalf("parse the refreshed artifact: %v", err)
 	}

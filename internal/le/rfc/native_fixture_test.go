@@ -39,7 +39,7 @@ func TestNativeImplementationFixture(t *testing.T) {
 	//
 	// Re-sealed 2026-08-31 for the feature-out-of-scope exclusion kind. No verdict
 	// moved: the change adds one entry to the closed exclusion vocabulary that
-	// ParseExtractionArtifact accepts, and rfc/audit/ records no exclusion kind.
+	// parseExtractionArtifact accepts, and rfc/audit/ records no exclusion kind.
 	//
 	// Re-sealed 2026-09-01, for plan/spec-publish-the-rfc-requirement-ledger.md.
 	// No verdict moved. The change is an EXPORT pass: the polarities, the

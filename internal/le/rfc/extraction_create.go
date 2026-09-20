@@ -159,7 +159,7 @@ func deriveExtractionDocument(tree, stem string) (extractionDocument, error) {
 	path := treePath(tree, extractionRel+"/"+stem+".json")
 	var previous *Extraction
 	if _, statErr := os.Stat(path); statErr == nil {
-		parsed, parseErr := ParseExtractionArtifact(tree, path)
+		parsed, parseErr := parseExtractionArtifact(tree, path)
 		if parseErr != nil {
 			return extractionDocument{}, parseErr
 		}
@@ -402,7 +402,7 @@ func writeExtractionDocument(tree, directory, stem string, document extractionDo
 	}
 
 	path := filepath.Join(directory, stem+".json")
-	if _, err := ParseExtractionArtifact(tree, staged); err != nil {
+	if _, err := parseExtractionArtifact(tree, staged); err != nil {
 		reason := strings.ReplaceAll(err.Error(), relTo(tree, staged), relTo(tree, path))
 		var message textbuf.Buffer
 		return errors.New(message.Str("the skeleton derived for ").Str(stem).

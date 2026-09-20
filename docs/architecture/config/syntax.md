@@ -531,7 +531,6 @@ bgp {
                 local { ip <ip>; port <port>; accept <bool>; }
                 md5 { password <string>; ip <ip>; }
                 ttl { max <0-255>; set <0-255>; min <0-255>; }
-                link-local <bool>;
             }
 
             # Session (BGP protocol)
@@ -582,7 +581,6 @@ Peer configuration is organized into nested containers by concern.
 | `connection { remote { ip; port; connect; } }` | container | Peer IP address, dial port, initiate outbound connections (default: true) |
 | `connection { md5 { password; ip; } }` | container | TCP MD5 authentication (RFC 2385) |
 | `connection { ttl { max; set; min; } }` | container | GTSM max (RFC 5082), outgoing TTL, minimum incoming TTL |
-| `connection { link-local; }` | bool | Accepted and read by no code. `session { link-local; }` is the leaf that carries the address |
 
 ### session (BGP protocol)
 
@@ -749,7 +747,6 @@ attach process <plugin-name> {
     content {
         encoding json;       # json | text (default: inherit from plugin)
         format parsed;       # parsed | raw | full (default: parsed)
-        attribute all;       # all | none | "as-path next-hop ..." (default: all)
     }
     receive [ update state negotiated ];  # enum list of message types
     send [ update ];                      # enum list of sendable types
@@ -1146,7 +1143,7 @@ update {
 | `fragment` | Fragment flags (`first-fragment`, `last-fragment`) |
 | `dscp` | DSCP value |
 | `packet-length` | Packet length |
-| `traffic-class` | IPv6 traffic class |
+| `traffic-class` | The ExaBGP spelling of `dscp`. RFC 8956 Section 8 registers component type 11 under one name for both families, so the two words build one component |
 | `flow-label` | IPv6 flow label |
 
 #### Match Operators

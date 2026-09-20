@@ -306,7 +306,7 @@ func renderStatusPage(metas map[string]Meta, coverage []CoverageRow) (string, er
 		}
 		for index := range rows {
 			row := &rows[index]
-			tb.Str("| ").Str(RowName(row.Stem, row.Meta)).Str(" | ").Str(row.Meta.Area).
+			tb.Str("| ").Str(publicRowName(row.Stem, row.Meta)).Str(" | ").Str(row.Meta.Area).
 				Str(" | ").Str(row.Meta.Status).Str(" | ")
 			if !section.Brief {
 				tb.Str(proofCell(proof[row.Stem])).Str(" | ")

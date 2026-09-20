@@ -207,7 +207,7 @@ func serializeTreeIndent(tree *config.Tree, buf *textbuf.Buffer, indent string, 
 		}
 	}
 
-	// Write connection container (connection > remote, local, md5, ttl, link-local).
+	// Write connection container (connection > remote, local, md5, ttl).
 	if conn := tree.GetContainer("connection"); conn != nil {
 		buf.WriteString(indent)
 		buf.WriteString("connection {\n")

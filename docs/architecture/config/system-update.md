@@ -10,7 +10,7 @@ must keep doing.
 ## The backend
 
 Ze had two independent globals: `UpdateChecker` (a passive version check) and
-`SelfUpdater` (download, verify, stage, restart). Neither carried backend
+`selfUpdater` (download, verify, stage, restart). Neither carried backend
 identity or platform awareness, so a gokrazy appliance, where the image is
 managed by gokrazy, answered a firmware command with "not configured".
 
@@ -23,7 +23,7 @@ backends use.
 directly in JSON output.
 
 **The implementation is split by build tag.** `backend_ze_distro.go` (tag
-`ze_distro`) wraps `UpdateChecker` and `SelfUpdater`. `backend_ze_appliance.go`
+`ze_distro`) wraps `UpdateChecker` and `selfUpdater`. `backend_ze_appliance.go`
 (tag `!ze_distro`) is a stub that answers "unsupported in minimal build". A
 minimal build then compiles without the self-update dependency chain and still
 registers the `ze-self-update` name.

@@ -162,8 +162,8 @@ func TestGeneratedStatusRowsMatchTheAuthoredPage(t *testing.T) {
 		if migrationExempt[stem] {
 			continue
 		}
-		if RowName(stem, meta) != cells[0] {
-			t.Errorf("%s renders its first cell as %q, want %q", stem, RowName(stem, meta), cells[0])
+		if publicRowName(stem, meta) != cells[0] {
+			t.Errorf("%s renders its first cell as %q, want %q", stem, publicRowName(stem, meta), cells[0])
 		}
 		for index, want := range []string{cells[1], cells[2]} {
 			got := []string{meta.Area, meta.Status}[index]
@@ -379,7 +379,7 @@ func TestEveryWideRowPublishesItsOwnProofPartition(t *testing.T) {
 	stemOf := map[string]string{}
 	for stem, meta := range metas {
 		if meta.HasRow() && statusSection(meta.Support) != nil && !statusSection(meta.Support).Brief {
-			stemOf[RowName(stem, meta)] = stem
+			stemOf[publicRowName(stem, meta)] = stem
 		}
 	}
 	if len(stemOf) == 0 {

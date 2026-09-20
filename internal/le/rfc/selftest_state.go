@@ -169,7 +169,7 @@ func runExtractionSelftest() ([]leroot.SelftestResult, error) {
 	if err := writeSelftestFiles(root, map[string]string{"rfc/extraction/rfc9999.json": body}); err != nil {
 		return nil, err
 	}
-	parsed, err := ParseExtractionArtifact(root, filepath.Join(root, "rfc", "extraction", "rfc9999.json"))
+	parsed, err := parseExtractionArtifact(root, filepath.Join(root, "rfc", "extraction", "rfc9999.json"))
 	if err != nil {
 		return nil, err
 	}

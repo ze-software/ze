@@ -8,6 +8,10 @@ module ze-bgp-conf {
 
     description "BGP configuration for ZeBGP";
 
+    revision 2026-09-20 {
+        description "peer > connection > link-local and peer > attach > process > content > attribute are removed. No code read either one, so both accepted a value at commit and changed nothing.";
+    }
+
     revision 2026-01-01 {
         description "Initial revision";
     }
@@ -592,16 +596,6 @@ module ze-bgp-conf {
                         packet whose IP TTL, or IPv6 Hop Limit, is less than it.";
                     ze:help "Minimum incoming TTL";
                 }
-            }
-
-            leaf link-local {
-                type boolean;
-                description "The BGP reactor reads no value from the leaf, so the leaf changes no TCP connection and
-                    discovers no address. session > link-local is the leaf that carries a link-local address, and
-                    Ze writes that address after the global next hop (RFC 2545 Section 3). ze exabgp migrate sets
-                    this leaf true and writes the address into session > link-local for an ExaBGP peer that states
-                    local-link-local.";
-                ze:help "Auto-discover IPv6 link-local address for TCP connection";
             }
 
             container bfd {
@@ -1292,9 +1286,6 @@ module ze-bgp-conf {
                     leaf format { type string; description "Ze uses parsed when the leaf is absent. Ze lowercases the value before it passes the value to the program
      binding.";
  ze:help "Output format template for event rendering."; }
-                    leaf attribute { type string; description "The BGP reactor reads no value from the leaf. It takes encoding and format off the content container and
-     nothing else, so an event carries every attribute of the route whatever the leaf holds.";
- ze:help "Filter expression to select which BGP attributes are included in events."; }
                 }
 
                 leaf-list receive {

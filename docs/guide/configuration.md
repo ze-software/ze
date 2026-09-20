@@ -306,7 +306,10 @@ accept lifetimes); `extended-sequence true` selects RFC 7474 AuType 3. Bind a ch
 an interface directly, or set the interface `authentication { mode inherit }` and the
 chain bound to its area (`area { authentication { key-chain } }`) is used. `algorithm`
 is one of `simple`, `md5`, or `hmac-sha-1/256/384/512`; secrets are masked and
-`$9$`-encoded at rest, never shown in plaintext.
+`$9$`-encoded at rest, never shown in plaintext. A `key-chain` leaf naming no
+`key-chains` entry is refused at commit, and the error names the chain: a misspelled
+name would otherwise leave the interface accepting every packet unsigned. Naming no
+chain at all stays legitimate, and is how an interface runs unauthenticated.
 
 ```
 ospf {
@@ -3431,7 +3434,7 @@ When `auto-apply` is true, the server manifest must include a `sha256` field. Ze
 See the [Self-Update Guide](self-update.md) for server setup and fleet deployment details.
 
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- update-check config -->
-<!-- source: internal/component/config/system/selfupdate.go -- SelfUpdater -->
+<!-- source: internal/component/config/system/selfupdate.go -- selfUpdater -->
 <!-- source: cmd/ze/hub/main_system.go -- startUpdateChecker lifecycle -->
 
 ### NTP Client

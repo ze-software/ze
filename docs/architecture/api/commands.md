@@ -1098,6 +1098,7 @@ update text nlri ipv4/flow del \
 | icmp-code | ICMP code |
 | fragment | Fragment flags |
 | dscp | DSCP value |
+| traffic-class | DSCP value, under the ExaBGP spelling |
 | packet-length | Packet length |
 | flow-label | IPv6 flow label |
 

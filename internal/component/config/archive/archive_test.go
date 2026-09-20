@@ -70,32 +70,6 @@ func TestFormatFilename_NoExtension(t *testing.T) {
 	assert.Equal(t, "config-host.conf", name)
 }
 
-// --- ValidateTrigger tests ---
-
-// TestValidateTrigger verifies valid trigger keywords are accepted.
-//
-// VALIDATES: All four trigger keywords (commit, manual, daily, hourly) are valid.
-// PREVENTS: Valid trigger keywords being rejected.
-func TestValidateTrigger(t *testing.T) {
-	for _, trigger := range []string{"commit", "manual", "daily", "hourly"} {
-		t.Run(trigger, func(t *testing.T) {
-			assert.NoError(t, archive.ValidateTrigger(trigger))
-		})
-	}
-}
-
-// TestValidateTrigger_Invalid verifies invalid trigger keywords are rejected.
-//
-// VALIDATES: Invalid and empty trigger values produce errors.
-// PREVENTS: Silent acceptance of typos like "weekly" or "comit".
-func TestValidateTrigger_Invalid(t *testing.T) {
-	for _, trigger := range []string{"", "weekly", "comit", "always"} {
-		t.Run(trigger, func(t *testing.T) {
-			assert.Error(t, archive.ValidateTrigger(trigger))
-		})
-	}
-}
-
 // --- ValidateLocation tests ---
 
 // TestValidateLocation_Valid verifies URL parsing for file and HTTP schemes.

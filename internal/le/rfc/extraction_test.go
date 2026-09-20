@@ -258,7 +258,7 @@ func TestAnUnsignedSkeletonParsesAndStillFailsTheCheck(t *testing.T) {
  "sites": [{"id": "2:1", "quote": "A speaker MUST send the widget.", "disposition": null}]}`,
 	})
 
-	art, err := ParseExtractionArtifact(tree, filepath.Join(tree, "rfc", "extraction", "rfc9999.json"))
+	art, err := parseExtractionArtifact(tree, filepath.Join(tree, "rfc", "extraction", "rfc9999.json"))
 	if err != nil {
 		t.Fatalf("a skeleton must PARSE: %v", err)
 	}
@@ -315,7 +315,7 @@ func TestTheExclusionVocabularyTakesFeatureOutOfScopeAndRefusesAnInventedKind(t 
             "reason": "the widget is optional and Ze does not offer it"}]}`,
 			})
 
-			art, err := ParseExtractionArtifact(tree, filepath.Join(tree, "rfc", "extraction", "rfc9999.json"))
+			art, err := parseExtractionArtifact(tree, filepath.Join(tree, "rfc", "extraction", "rfc9999.json"))
 			if testcase.want != "" {
 				if err == nil {
 					t.Fatalf("%q parsed, so the set is not closed: %+v", testcase.kind, art)

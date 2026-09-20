@@ -42,9 +42,4 @@ func TestTriggerVocabularyMatchesModel(t *testing.T) {
 	if !slices.Equal(declared, known) {
 		t.Errorf("the model declares %v at %s, and this package acts on %v", declared, path, known)
 	}
-	for _, trigger := range declared {
-		if err := archive.ValidateTrigger(trigger); err != nil {
-			t.Errorf("the model declares trigger %q and ValidateTrigger refuses it: %v", trigger, err)
-		}
-	}
 }

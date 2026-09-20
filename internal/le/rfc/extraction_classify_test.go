@@ -101,7 +101,7 @@ func TestExtractionClassifyAppliesAWholeWalkAndPlacesIt(t *testing.T) {
 		t.Errorf("a whole walk reported a remainder: %+v", report)
 	}
 
-	artifact, err := ParseExtractionArtifact(tree, filepath.Join(tree, "rfc", "extraction", "rfc9998.json"))
+	artifact, err := parseExtractionArtifact(tree, filepath.Join(tree, "rfc", "extraction", "rfc9998.json"))
 	if err != nil {
 		t.Fatalf("the production parser refused the applied walk: %v", err)
 	}
@@ -435,7 +435,7 @@ func TestExtractionClassifyReplacesEveryFieldOfAReclassifiedSite(t *testing.T) {
 		t.Fatalf("apply the correction: %v", err)
 	}
 
-	artifact, err := ParseExtractionArtifact(tree, filepath.Join(tree, "rfc", "extraction", "rfc9998.json"))
+	artifact, err := parseExtractionArtifact(tree, filepath.Join(tree, "rfc", "extraction", "rfc9998.json"))
 	if err != nil {
 		t.Fatalf("parse the corrected walk: %v", err)
 	}

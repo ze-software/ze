@@ -22,10 +22,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/system"
 )
 
-var (
-	errEmptyTriggerValue    = errors.New("empty trigger value")
-	errEmptyArchiveLocation = errors.New("empty archive location")
-)
+var errEmptyArchiveLocation = errors.New("empty archive location")
 
 // Archive URL schemes.
 const (
@@ -111,18 +108,6 @@ func FormatFilename(format, configFile string, sys *system.SystemConfig, archive
 	)
 
 	return r.Replace(format) + ".conf"
-}
-
-// ValidateTrigger checks that a trigger keyword is valid.
-func ValidateTrigger(trigger string) error {
-	switch trigger {
-	case TriggerCommit, TriggerManual, TriggerDaily, TriggerHourly:
-		return nil
-	case "":
-		return errEmptyTriggerValue
-	}
-
-	return fmt.Errorf("invalid trigger %q (valid: commit, manual, daily, hourly)", trigger)
 }
 
 // RedactURL sanitizes a URL string by replacing any embedded password with "xxxxx".

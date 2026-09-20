@@ -62,8 +62,8 @@ type extendedManifest struct {
 	DownloadURL    string `json:"download-url,omitempty"`
 }
 
-// SelfUpdater extends UpdateChecker with download/verify/stage/restart logic.
-type SelfUpdater struct {
+// selfUpdater extends UpdateChecker with download/verify/stage/restart logic.
+type selfUpdater struct {
 	url      string
 	interval time.Duration
 	client   *http.Client
@@ -102,8 +102,8 @@ type SelfUpdater struct {
 // newSelfUpdater creates a self-updater. Call Start to begin.
 // The store parameter is used for persisting machine identity in zefs;
 // nil is safe (falls back to filesystem sources).
-func newSelfUpdater(url string, intervalSecs uint32, cfg SelfUpdateConfig, store identity.Storage) *SelfUpdater {
-	return &SelfUpdater{
+func newSelfUpdater(url string, intervalSecs uint32, cfg SelfUpdateConfig, store identity.Storage) *selfUpdater {
+	return &selfUpdater{
 		url:      url,
 		interval: time.Duration(intervalSecs) * time.Second,
 		client: &http.Client{
@@ -124,7 +124,7 @@ func defaultRestart(binPath string) error {
 }
 
 // Start begins the periodic check loop.
-func (su *SelfUpdater) Start(ctx context.Context) {
+func (su *selfUpdater) Start(ctx context.Context) {
 	ctx, su.cancel = context.WithCancel(ctx)
 	su.resolveTarget()
 	su.resolveIdentity()
@@ -134,7 +134,7 @@ func (su *SelfUpdater) Start(ctx context.Context) {
 }
 
 // Stop halts the updater and waits for the goroutine to exit.
-func (su *SelfUpdater) Stop() {
+func (su *selfUpdater) Stop() {
 	if su.cancel != nil {
 		su.cancel()
 	}
@@ -142,14 +142,14 @@ func (su *SelfUpdater) Stop() {
 }
 
 // Status returns the current update status (compatible with UpdateChecker).
-func (su *SelfUpdater) Status() UpdateStatus {
+func (su *selfUpdater) Status() UpdateStatus {
 	su.mu.RLock()
 	defer su.mu.RUnlock()
 	return su.status
 }
 
 // extendedStatus returns the full self-update status.
-func (su *SelfUpdater) extendedStatus() ExtendedUpdateStatus {
+func (su *selfUpdater) extendedStatus() ExtendedUpdateStatus {
 	su.mu.RLock()
 	defer su.mu.RUnlock()
 	return ExtendedUpdateStatus{
@@ -165,7 +165,7 @@ func (su *SelfUpdater) extendedStatus() ExtendedUpdateStatus {
 }
 
 // History returns the update event history.
-func (su *SelfUpdater) History() []UpdateEvent {
+func (su *selfUpdater) History() []UpdateEvent {
 	su.historyMu.Lock()
 	defer su.historyMu.Unlock()
 	out := make([]UpdateEvent, len(su.history))
@@ -173,7 +173,7 @@ func (su *SelfUpdater) History() []UpdateEvent {
 	return out
 }
 
-func (su *SelfUpdater) restartPolicy() string {
+func (su *selfUpdater) restartPolicy() string {
 	if su.cfg.RestartImmediate {
 		return "immediate"
 	}
@@ -184,7 +184,7 @@ func (su *SelfUpdater) restartPolicy() string {
 	return "manual"
 }
 
-func (su *SelfUpdater) run(ctx context.Context) {
+func (su *selfUpdater) run(ctx context.Context) {
 	defer close(su.done)
 	su.check(ctx)
 
@@ -211,7 +211,7 @@ const envRunningVersion = "ze.test.update.running.version"
 
 var _ = env.MustRegister(env.EnvEntry{Key: envRunningVersion, Type: "string", Description: "Override the running release the self-updater compares against (tests)"})
 
-func (su *SelfUpdater) runningVersion() string {
+func (su *selfUpdater) runningVersion() string {
 	if su.running != "" {
 		return su.running
 	}
@@ -221,7 +221,7 @@ func (su *SelfUpdater) runningVersion() string {
 	return version.Release()
 }
 
-func (su *SelfUpdater) check(ctx context.Context) {
+func (su *selfUpdater) check(ctx context.Context) {
 	logger := slogutil.Logger("self-update")
 	running := su.runningVersion()
 
@@ -341,7 +341,7 @@ func (su *SelfUpdater) check(ctx context.Context) {
 	su.download(ctx, manifest, running)
 }
 
-func (su *SelfUpdater) download(ctx context.Context, manifest extendedManifest, running string) {
+func (su *selfUpdater) download(ctx context.Context, manifest extendedManifest, running string) {
 	logger := slogutil.Logger("self-update")
 
 	su.mu.Lock()
@@ -416,7 +416,7 @@ func (su *SelfUpdater) download(ctx context.Context, manifest extendedManifest, 
 	su.attemptStage(ctx, manifest, running)
 }
 
-func (su *SelfUpdater) attemptStage(ctx context.Context, manifest extendedManifest, running string) {
+func (su *selfUpdater) attemptStage(ctx context.Context, manifest extendedManifest, running string) {
 	if su.cfg.MaintenanceStart != "" && su.cfg.MaintenanceEnd != "" {
 		if !su.inMaintenanceWindow() {
 			su.mu.Lock()
@@ -463,7 +463,7 @@ func (su *SelfUpdater) attemptStage(ctx context.Context, manifest extendedManife
 	su.handleRestart(ctx, manifest.Ver)
 }
 
-func (su *SelfUpdater) handleRestart(ctx context.Context, newVer string) {
+func (su *selfUpdater) handleRestart(ctx context.Context, newVer string) {
 	logger := slogutil.Logger("self-update")
 
 	if su.cfg.RestartImmediate {
@@ -494,7 +494,7 @@ func (su *SelfUpdater) handleRestart(ctx context.Context, newVer string) {
 		map[string]any{reportFieldNewVersion: newVer, reportFieldAction: "manual-restart-required"})
 }
 
-func (su *SelfUpdater) waitForRestartTime(ctx context.Context, newVer string) {
+func (su *selfUpdater) waitForRestartTime(ctx context.Context, newVer string) {
 	logger := slogutil.Logger("self-update")
 	target, err := parseHHMM(su.cfg.RestartTime)
 	if err != nil {
@@ -525,12 +525,12 @@ func (su *SelfUpdater) waitForRestartTime(ctx context.Context, newVer string) {
 }
 
 // manualCheck triggers an immediate check.
-func (su *SelfUpdater) manualCheck(ctx context.Context) {
+func (su *selfUpdater) manualCheck(ctx context.Context) {
 	su.check(ctx)
 }
 
 // manualDownload triggers an immediate download bypassing spread and maintenance window.
-func (su *SelfUpdater) manualDownload(ctx context.Context) (string, error) {
+func (su *selfUpdater) manualDownload(ctx context.Context) (string, error) {
 	logger := slogutil.Logger("self-update")
 	running := su.runningVersion()
 	manifest, err := su.fetchManifest(ctx)
@@ -583,7 +583,7 @@ func (su *SelfUpdater) manualDownload(ctx context.Context) (string, error) {
 }
 
 // manualApply triggers the full update cycle bypassing all scheduling.
-func (su *SelfUpdater) manualApply(ctx context.Context) (string, error) {
+func (su *selfUpdater) manualApply(ctx context.Context) (string, error) {
 	logger := slogutil.Logger("self-update")
 	running := su.runningVersion()
 	manifest, err := su.fetchManifest(ctx)
@@ -659,7 +659,7 @@ func (su *SelfUpdater) manualApply(ctx context.Context) (string, error) {
 }
 
 // manualRestart restarts into a staged version.
-func (su *SelfUpdater) manualRestart() error {
+func (su *selfUpdater) manualRestart() error {
 	su.mu.RLock()
 	staged := su.stagedVersion
 	su.mu.RUnlock()
@@ -673,7 +673,7 @@ func (su *SelfUpdater) manualRestart() error {
 }
 
 // Rollback restores the .prev binary and restarts.
-func (su *SelfUpdater) Rollback() error {
+func (su *selfUpdater) Rollback() error {
 	var tb textbuf.Buffer
 	prevPath := tb.Str(su.targetPath).Str(".prev").String()
 	if !fileExists(prevPath) {
@@ -690,7 +690,7 @@ func (su *SelfUpdater) Rollback() error {
 
 // --- manifest fetch ---
 
-func (su *SelfUpdater) fetchManifest(ctx context.Context) (extendedManifest, error) {
+func (su *selfUpdater) fetchManifest(ctx context.Context) (extendedManifest, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, su.url, http.NoBody)
 	if err != nil {
 		return extendedManifest{}, err
@@ -723,7 +723,7 @@ func (su *SelfUpdater) fetchManifest(ctx context.Context) (extendedManifest, err
 
 // --- download URL ---
 
-func (su *SelfUpdater) resolveDownloadURL(manifest extendedManifest) (string, error) {
+func (su *selfUpdater) resolveDownloadURL(manifest extendedManifest) (string, error) {
 	if manifest.DownloadURL != "" {
 		if err := ValidateUpdateCheckURL(manifest.DownloadURL); err != nil {
 			return "", fmt.Errorf("download-url validation: %w", err)
@@ -741,7 +741,7 @@ func (su *SelfUpdater) resolveDownloadURL(manifest extendedManifest) (string, er
 
 // --- binary download ---
 
-func (su *SelfUpdater) downloadBinary(ctx context.Context, downloadURL string) (string, error) {
+func (su *selfUpdater) downloadBinary(ctx context.Context, downloadURL string) (string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, downloadURL, http.NoBody)
 	if err != nil {
 		return "", err
@@ -792,7 +792,7 @@ func (su *SelfUpdater) downloadBinary(ctx context.Context, downloadURL string) (
 
 // --- binary staging ---
 
-func (su *SelfUpdater) stageBinary(tempPath string) error {
+func (su *selfUpdater) stageBinary(tempPath string) error {
 	target := su.targetPath
 
 	// Pre-flight: verify writable filesystem
@@ -837,7 +837,7 @@ func (su *SelfUpdater) stageBinary(tempPath string) error {
 
 // --- disk space ---
 
-func (su *SelfUpdater) checkDiskSpace(binarySize int64) error {
+func (su *selfUpdater) checkDiskSpace(binarySize int64) error {
 	dir := filepath.Dir(su.targetPath)
 	var stat syscall.Statfs_t
 	if err := syscall.Statfs(dir, &stat); err != nil {
@@ -856,7 +856,7 @@ func (su *SelfUpdater) checkDiskSpace(binarySize int64) error {
 
 // --- spread ---
 
-func (su *SelfUpdater) computeSpreadDelay(ver string) time.Duration {
+func (su *selfUpdater) computeSpreadDelay(ver string) time.Duration {
 	if d, ok := su.spreadDelay[ver]; ok {
 		return d
 	}
@@ -871,7 +871,7 @@ func (su *SelfUpdater) computeSpreadDelay(ver string) time.Duration {
 	return d
 }
 
-func (su *SelfUpdater) getFirstSeen(ver string) time.Time {
+func (su *selfUpdater) getFirstSeen(ver string) time.Time {
 	if t, ok := su.spreadFirstSeen[ver]; ok {
 		return t
 	}
@@ -882,7 +882,7 @@ func (su *SelfUpdater) getFirstSeen(ver string) time.Time {
 
 // --- identity ---
 
-func (su *SelfUpdater) resolvedIdentity() string {
+func (su *selfUpdater) resolvedIdentity() string {
 	if su.identity != "" {
 		return su.identity
 	}
@@ -896,7 +896,7 @@ func (su *SelfUpdater) resolvedIdentity() string {
 
 // --- target resolution ---
 
-func (su *SelfUpdater) resolveTarget() {
+func (su *selfUpdater) resolveTarget() {
 	exe, err := os.Executable()
 	if err != nil {
 		su.targetPath = os.Args[0]
@@ -910,13 +910,13 @@ func (su *SelfUpdater) resolveTarget() {
 	su.targetPath = resolved
 }
 
-func (su *SelfUpdater) resolveIdentity() {
+func (su *selfUpdater) resolveIdentity() {
 	su.identity = su.resolvedIdentity()
 }
 
 // --- stale temp cleanup ---
 
-func (su *SelfUpdater) cleanStaleTempFiles() {
+func (su *selfUpdater) cleanStaleTempFiles() {
 	dir := filepath.Dir(su.targetPath)
 	base := filepath.Base(su.targetPath)
 	var tb textbuf.Buffer
@@ -935,7 +935,7 @@ func (su *SelfUpdater) cleanStaleTempFiles() {
 
 // --- maintenance window ---
 
-func (su *SelfUpdater) inMaintenanceWindow() bool {
+func (su *selfUpdater) inMaintenanceWindow() bool {
 	start, err := parseHHMM(su.cfg.MaintenanceStart)
 	if err != nil {
 		return true
@@ -958,7 +958,7 @@ func (su *SelfUpdater) inMaintenanceWindow() bool {
 
 // --- history ---
 
-func (su *SelfUpdater) recordEvent(from, to, result string) {
+func (su *selfUpdater) recordEvent(from, to, result string) {
 	event := UpdateEvent{
 		Timestamp:   su.nowFunc(),
 		FromVersion: from,
@@ -979,7 +979,7 @@ func (su *SelfUpdater) recordEvent(from, to, result string) {
 // loadHistory restores the event history from the managed store
 // (<config-dir>/database/) under the update-history key. Best-effort: a
 // no-op when the store or key is absent, or the blob is malformed.
-func (su *SelfUpdater) loadHistory() {
+func (su *selfUpdater) loadHistory() {
 	data, ok := statestore.Get(zefs.KeyConfigUpdateHistory.Pattern)
 	if !ok {
 		return
@@ -999,7 +999,7 @@ func (su *SelfUpdater) loadHistory() {
 // saveHistory persists the event history into the shared zefs store under the
 // update-history key. Best-effort: a no-op when no store exists (statestore
 // never creates it); the next save retries.
-func (su *SelfUpdater) saveHistory() {
+func (su *selfUpdater) saveHistory() {
 	su.historyMu.Lock()
 	events := make([]UpdateEvent, len(su.history))
 	copy(events, su.history)

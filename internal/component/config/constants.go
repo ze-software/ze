@@ -9,7 +9,6 @@ const (
 	configFalse   = "false"   // Config value for boolean false
 	configEnable  = "enable"  // Config value for enabled state
 	configDisable = "disable" // Config value for disabled state
-	configSelf    = "self"    // Config value for next-hop self
 
 	// The type keywords a YANG leaf declares and an env.EnvEntry names. One
 	// vocabulary, so ValueType.String and the registrations in environment.go

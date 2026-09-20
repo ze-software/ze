@@ -630,7 +630,7 @@ func expandInheritance(neighbor *config.Tree, templates map[string]*config.Tree)
 //   - md5-password -> connection > md5 > password
 //   - group-updates -> behavior > group-updates
 //   - auto-flush -> behavior > auto-flush
-//   - local-link-local -> connection > link-local true + session > link-local <addr>
+//   - local-link-local -> session > link-local <addr>
 func copySimpleFields(src, dst *config.Tree) {
 	// Fields that remain as direct leaves on the peer.
 	directFields := []string{
@@ -650,17 +650,13 @@ func copySimpleFields(src, dst *config.Tree) {
 		dst.SetContainer("timer", timerContainer)
 	}
 
-	// ExaBGP "local-link-local" -> Ze connection > link-local true + session > link-local <addr>
+	// ExaBGP "local-link-local" -> Ze session > link-local <addr>.
+	//
+	// The address is the whole of it. A connection > link-local boolean was
+	// written here too until nothing was found that read it, and a leaf that
+	// changes no behavior is worse in a migrated config than in a schema: the
+	// operator reads it back as a setting that took effect.
 	if v, ok := src.Get("local-link-local"); ok {
-		// Set connection > link-local true
-		connContainer := dst.GetContainer("connection")
-		if connContainer == nil {
-			connContainer = config.NewTree()
-			dst.SetContainer("connection", connContainer)
-		}
-		connContainer.Set("link-local", configTrue)
-
-		// Set session > link-local <addr>
 		sessionContainer := dst.GetContainer("session")
 		if sessionContainer == nil {
 			sessionContainer = config.NewTree()

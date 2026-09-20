@@ -2,6 +2,17 @@
   "rfc": "rfc4271",
   "records": [
     {
+      "rid": "RFC4271-4.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/rib/rfc4271_partial_test.go::TestRFC4271PartialClearedWhenTheRailReadvertises",
+      "unit-sha": "a307744d73773bde",
+      "claim-sha": "0249026c16def459",
+      "route": "revert",
+      "producer": "internal/component/bgp/rib/commit.go::packAttributesWithASPath",
+      "producer-sha": "e15ac4ce6a1c005e",
+      "break": "body of packAttributesWithASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4271-9.1.2.2-4",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rib/rfc4271_test.go::TestAbsentMedStillComparesAsZeroInPhaseTwo",

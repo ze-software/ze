@@ -166,7 +166,7 @@ func ParseEvent(data []byte) (*Event, error) {
 
 	// ze-bgp JSON: NLRIs nested under "nlri" key.
 	if nlriData, ok := raw["nlri"]; ok {
-		ParseFamilyOps(&event, nlriData)
+		parseFamilyOps(&event, nlriData)
 	}
 
 	// ze-bgp JSON: raw bytes nested under "raw" key (format=full).
@@ -175,7 +175,7 @@ func ParseEvent(data []byte) (*Event, error) {
 	}
 
 	// Legacy format: Look for family keys at root level (format: "afi/safi").
-	ParseFamilyOps(&event, payloadData)
+	parseFamilyOps(&event, payloadData)
 
 	return &event, nil
 }
@@ -296,10 +296,10 @@ func convertRawFamilyMap[V any](in map[string]V, field string) map[family.Family
 	return out
 }
 
-// ParseFamilyOps extracts family operations from JSON data into the event.
+// parseFamilyOps extracts family operations from JSON data into the event.
 // Dynamic keys with the shape "afi/safi" are resolved via family.LookupFamily;
 // unregistered families are dropped and aggregated into a single debug log.
-func ParseFamilyOps(event *Event, data []byte) {
+func parseFamilyOps(event *Event, data []byte) {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return
@@ -593,23 +593,6 @@ func (e *Event) GetPeerState() string {
 	var info PeerInfoJSON
 	if err := json.Unmarshal(e.Peer, &info); err == nil && info.State != "" {
 		return info.State
-	}
-
-	return ""
-}
-
-// GetPeerSelector extracts peer selector string for request events.
-// For request events, ze sends peer as a JSON string (the selector).
-// Returns empty string if not a request event or no selector specified.
-func (e *Event) GetPeerSelector() string {
-	if len(e.Peer) == 0 {
-		return ""
-	}
-
-	// For request events, peer is a JSON string.
-	var selector string
-	if err := json.Unmarshal(e.Peer, &selector); err == nil {
-		return selector
 	}
 
 	return ""

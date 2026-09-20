@@ -93,12 +93,12 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 			dropped = append(dropped, kwDSCP)
 		}
 	}
-	if vals, ok := matchCriteria["traffic-class"]; ok {
-		seen["traffic-class"] = true
+	if vals, ok := matchCriteria[kwTrafficClass]; ok {
+		seen[kwTrafficClass] = true
 		if octets := parseFlowOctetsSlice(vals); len(octets) > 0 {
-			add("traffic-class", NewFlowDSCPComponent(octets...))
+			add(kwTrafficClass, NewFlowDSCPComponent(octets...))
 		} else {
-			dropped = append(dropped, "traffic-class")
+			dropped = append(dropped, kwTrafficClass)
 		}
 	}
 	if vals, ok := matchCriteria[kwFlowLabel]; ok {

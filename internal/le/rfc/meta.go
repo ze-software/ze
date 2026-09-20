@@ -456,13 +456,13 @@ func checkRowCells(out *Meta, section *statusSectionSpec, stem, where string) er
 // statusRowRFC is the stem shape whose public first cell is derived.
 var statusRowRFC = regexp.MustCompile(`\Arfc(\d+)\z`)
 
-// RowName answers the first cell of this summary's public row.
+// publicRowName answers the first cell of this summary's public row.
 //
 // Derived from the stem, because the stem already says which document this is
 // and a second spelling of it is a future disagreement. The override exists for
 // the one row whose name a stem cannot carry: ISO/IEC 10589 is not an RFC, not
 // a draft, and its published name holds a slash, a space and upper case.
-func RowName(stem string, meta Meta) string {
+func publicRowName(stem string, meta Meta) string {
 	if meta.Name != "" {
 		return meta.Name
 	}

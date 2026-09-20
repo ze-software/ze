@@ -626,7 +626,7 @@ func validateSectionDecision(rel string, decision classifySectionDecision) error
 	if !sectionDispositions[decision.Disposition] {
 		var message textbuf.Buffer
 		return errors.New(message.Str(place).Str(": disposition ").Str(pyRepr(decision.Disposition)).
-			Str(" is not one of ").Str(pyRepr(SectionDispositions())).
+			Str(" is not one of ").Str(pyRepr(sectionDispositionNames())).
 			Str(". Leave the section out of this file to record it as unclassified").String())
 	}
 	if decision.Disposition != dispositionSkipped {
@@ -640,7 +640,7 @@ func validateSectionDecision(rel string, decision classifySectionDecision) error
 	if !sectionSkipKinds[decision.SkipKind] {
 		var message textbuf.Buffer
 		return errors.New(message.Str(place).Str(": skipped needs a 'skip-kind' from ").
-			Str(pyRepr(SectionSkipKinds())).Str(", got ").Str(pyRepr(decision.SkipKind)).String())
+			Str(pyRepr(sectionSkipKindNames())).Str(", got ").Str(pyRepr(decision.SkipKind)).String())
 	}
 	if strings.TrimSpace(decision.Reason) != "" {
 		return nil

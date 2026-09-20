@@ -22,6 +22,7 @@ module ze-flowspec-cmd {
     // share a type code and carry different encodings, so destination-ipv4 and
     // destination-ipv6 are two names rather than one name and a qualifier. These
     // are the keywords ExaBGP emits. The bare words were its input aliases, and
+    revision 2026-09-20 { description "traffic-class is declared beside dscp, so the text path takes the word the config path already took."; }
     revision 2026-09-05 { description "The augment names one path, send bgp <selector> flowspec. It named two while announce was reachable bare and under peer, and both are gone."; }
     // the ExaBGP bridge converts them now.
     revision 2026-08-31 { description "The bare destination and source keywords are removed."; }
@@ -257,6 +258,22 @@ The operator, when given, sits in front of the number with no space.";
             description "A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.
 The DSCP field is 6 bits, so the parser refuses a value over 63.";
             ze:help "DSCP value to match (RFC 8955 type 11).";
+            leaf value {
+                type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; }
+                mandatory true;
+                description "The DSCP code point, 0 to 63, in decimal or as 0x hexadecimal. The
+operator, when given, sits in front of the number with no space.";
+                ze:help "DSCP, optionally with a comparison operator";
+            }
+        }
+
+        container traffic-class {
+            config false;
+            ze:modifier "repeat";
+            description "The word ExaBGP writes for the container above. RFC 8956 Section 8 registers
+component type 11 under one name for both families, so Ze writes dscp and accepts this word beside it.
+A value takes an optional operator, one of '>=', '<=', '!=', '>', '<' and '='.";
+            ze:help "DSCP value to match, under the ExaBGP spelling.";
             leaf value {
                 type string { pattern '(>=|<=|!=|>|<|=)?(0[xX][0-9a-fA-F]+|[0-9]+)'; length "1..24"; }
                 mandatory true;

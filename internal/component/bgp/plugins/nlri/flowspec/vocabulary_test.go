@@ -2,7 +2,10 @@
 // Overview: plugin_encode_text.go -- the single protocol and flag vocabularies
 package flowspec
 
-import "testing"
+import (
+	"slices"
+	"testing"
+)
 
 // TestConfigProtocolNamesResolve drives the CONFIG parser over every protocol
 // name this package accepts and asserts each one produces a match.
@@ -116,5 +119,41 @@ func TestConfigFragmentFlagsResolve(t *testing.T) {
 		if uint8(flags[0]) != value {
 			t.Errorf("fragment flag %q: got 0x%02x, want 0x%02x", name, uint8(flags[0]), value)
 		}
+	}
+}
+
+// TestTrafficClassIsOneComponentInBothPaths drives the two operator paths that
+// reach type 11 and asserts they answer the same thing.
+//
+// VALIDATES: traffic-class and dscp name one component. The text path is what
+// `send bgp <selector> flowspec traffic-class 10` reaches, and the config path
+// is what a `flow { traffic-class 10 }` route block reaches.
+// PREVENTS: the divergence that shipped before this test existed. The config
+// builder mapped traffic-class onto NewFlowDSCPComponent while the text encoder
+// held no such keyword, so one word was a valid rule in a config file and
+// `unknown component: traffic-class` over the API.
+func TestTrafficClassIsOneComponentInBothPaths(t *testing.T) {
+	dscp, err := EncodeFlowSpecComponents(IPv4FlowSpec, []string{kwDSCP, "=10"})
+	if err != nil {
+		t.Fatalf("text path, %s: %v", kwDSCP, err)
+	}
+
+	alias, err := EncodeFlowSpecComponents(IPv4FlowSpec, []string{kwTrafficClass, "=10"})
+	if err != nil {
+		t.Fatalf("text path, %s: %v", kwTrafficClass, err)
+	}
+	if !slices.Equal(dscp, alias) {
+		t.Errorf("text path: %s encodes %x and %s encodes %x", kwDSCP, dscp, kwTrafficClass, alias)
+	}
+
+	fs, dropped := buildFlowSpecComponents(map[string][]string{kwTrafficClass: {"=10"}}, false)
+	if len(dropped) != 0 {
+		t.Fatalf("config path dropped %v", dropped)
+	}
+	if fs == nil || len(fs.Components()) != 1 {
+		t.Fatalf("config path built %v, want one component", fs)
+	}
+	if got := fs.Components()[0].Type(); got != FlowDSCP {
+		t.Errorf("config path built component type %v, want %v", got, FlowDSCP)
 	}
 }

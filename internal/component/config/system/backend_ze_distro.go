@@ -12,7 +12,7 @@ func init() {
 
 type zeBackend struct {
 	checker *UpdateChecker
-	updater *SelfUpdater
+	updater *selfUpdater
 	started bool
 }
 

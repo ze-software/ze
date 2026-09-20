@@ -2135,10 +2135,10 @@ The system update surface is a single registered backend interface in `internal/
 <!-- source: internal/component/config/system/backend.go -- UpdateBackend, ActiveBackend, SetActiveBackend -->
 <!-- source: cmd/ze/hub/main_system.go -- startUpdateBackend platform selection -->
 
-The `ze-self-update` backend delegates to the existing passive `UpdateChecker` when only version checking is configured, and to `SelfUpdater` when auto-apply or restart policy is configured. This preserves the existing download, verification, staging, restart, and history code path.
+The `ze-self-update` backend delegates to the existing passive `UpdateChecker` when only version checking is configured, and to `selfUpdater` when auto-apply or restart policy is configured. This preserves the existing download, verification, staging, restart, and history code path.
 <!-- source: internal/component/config/system/backend_ze_distro.go -- newZeBackend -->
 <!-- source: internal/component/config/system/update.go -- UpdateChecker -->
-<!-- source: internal/component/config/system/selfupdate.go -- SelfUpdater -->
+<!-- source: internal/component/config/system/selfupdate.go -- selfUpdater -->
 
 The `gokrazy-ab` backend does not perform Ze binary replacement. It returns `managed by gokrazy` status, probes the gokrazy management Unix socket for reachability and update features, and makes manual firmware commands return a structured unsupported response.
 <!-- source: internal/component/config/system/backend_gokrazy.go -- gokrazyBackend status and firmware operations -->

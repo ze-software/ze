@@ -4,7 +4,15 @@
 GTSM, RFC 5880 FSM, detection timers, keyed MD5 and SHA1 authentication,
 echo mode, and multi-hop support. Static routes and BGP peers can use the BFD
 service for next-hop and session tracking.
-<!-- source: internal/component/bfd/bfd.go -- RunBFDPlugin -->
+
+`bfd { enabled false; }` is the master switch, and it refuses every session
+rather than only declining to start the pinned ones. A BGP peer that asks for
+a session on a disabled service is told no. It used to be told nothing: the
+flag gated startup alone, `EnsureSession` never read it, and a peer kept
+creating sessions on a service the operator had turned off
+(plan/journal/unwired-feature.md).
+<!-- source: internal/component/bfd/bfd.go -- RunBFDPlugin, (*pluginService).EnsureSession -->
+<!-- test: internal/component/bfd/enabled_test.go TestDisabledBFDRefusesTheSessionABGPPeerAsksFor -->
 <!-- source: internal/component/bfd/transport/udp_linux.go -- applySocketOptions, applySocketOptionsV6 -->
 <!-- source: internal/component/bfd/session/auth.go -- SetAuth, Sign, Verify -->
 <!-- source: internal/component/bfd/engine/echo.go -- echoTickLocked, handleEchoInbound -->

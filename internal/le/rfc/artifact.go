@@ -198,8 +198,8 @@ var sectionSkipKinds = map[string]bool{
 	"acknowledgements": true, "appendix-non-normative": true,
 }
 
-// SectionSkipKinds answers them sorted.
-func SectionSkipKinds() []string { return sortedKeys(sectionSkipKinds) }
+// sectionSkipKindNames answers them sorted.
+func sectionSkipKindNames() []string { return sortedKeys(sectionSkipKinds) }
 
 var siteDispositions = map[string]bool{DispositionMapped: true, DispositionExcluded: true}
 
@@ -208,8 +208,8 @@ func SiteDispositions() []string { return sortedKeys(siteDispositions) }
 
 var sectionDispositions = map[string]bool{dispositionWalked: true, dispositionSkipped: true}
 
-// SectionDispositions answers them sorted.
-func SectionDispositions() []string { return sortedKeys(sectionDispositions) }
+// sectionDispositionNames answers them sorted.
+func sectionDispositionNames() []string { return sortedKeys(sectionDispositions) }
 
 // specPathRE refuses everything that is not a spec. plan/known-failures/ and
 // plan/learned/ are homes the compliance rule names as NOT a decision
@@ -548,8 +548,8 @@ func validateRelocation(relocatedTo, reservedID, where, stem string) (string, st
 	return rel, trimmed, nil
 }
 
-// ParseExtractionArtifact reads and validates one rfc/extraction/<stem>.json.
-func ParseExtractionArtifact(tree, path string) (Extraction, error) {
+// parseExtractionArtifact reads and validates one rfc/extraction/<stem>.json.
+func parseExtractionArtifact(tree, path string) (Extraction, error) {
 	rel := relTo(tree, path)
 	wantStem := strings.TrimSuffix(filepath.Base(path), ".json")
 	var tb textbuf.Buffer
@@ -688,7 +688,7 @@ func parseSections(data map[string]any, rel string) ([]ExtractionSection, error)
 			tb.Reset()
 			return nil, parseErr(tb.Str(place).Str(": 'sites' must be a non-negative integer"))
 		}
-		disposition, err := dispositionOf(entry, sectionDispositions, SectionDispositions(), place)
+		disposition, err := dispositionOf(entry, sectionDispositions, sectionDispositionNames(), place)
 		if err != nil {
 			return nil, err
 		}
@@ -702,7 +702,7 @@ func parseSections(data map[string]any, rel string) ([]ExtractionSection, error)
 			if !sectionSkipKinds[skipKind] {
 				tb.Reset()
 				return nil, parseErr(tb.Str(place).Str(": skipped needs a 'skip-kind' from ").
-					Str(pyRepr(SectionSkipKinds())).Str(", got ").
+					Str(pyRepr(sectionSkipKindNames())).Str(", got ").
 					Str(pyRepr(orEmptyString(entry["skip-kind"]))))
 			}
 			if reason == "" {
@@ -905,8 +905,8 @@ func orEmptyString(value any) any {
 	return value
 }
 
-// ExtractionStems answers every stem under rfc/extraction/.
-func ExtractionStems(tree string) (map[string]bool, error) {
+// extractionStems answers every stem under rfc/extraction/.
+func extractionStems(tree string) (map[string]bool, error) {
 	dir := treePath(tree, extractionRel)
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -928,7 +928,7 @@ func ExtractionStems(tree string) (map[string]bool, error) {
 // LoadExtractions answers every artifact under rfc/extraction/, parsed. It
 // stops at the first malformed one.
 func LoadExtractions(tree string) (map[string]Extraction, error) {
-	stems, err := ExtractionStems(tree)
+	stems, err := extractionStems(tree)
 	if err != nil {
 		return nil, err
 	}
@@ -936,7 +936,7 @@ func LoadExtractions(tree string) (map[string]Extraction, error) {
 	for _, stem := range sortedSet(stems) {
 		var name textbuf.Buffer
 		path := treePath(tree, extractionRel, name.Str(stem).Str(".json").String())
-		art, err := ParseExtractionArtifact(tree, path)
+		art, err := parseExtractionArtifact(tree, path)
 		if err != nil {
 			return nil, err
 		}

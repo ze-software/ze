@@ -19,6 +19,7 @@ package bfd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net"
@@ -170,6 +171,22 @@ func (r *runtimeState) stopAll() {
 	r.loops = map[loopKey]*engine.Loop{}
 	r.loopDevices = map[loopKey]string{}
 	r.pinned = map[api.Key]api.SessionHandle{}
+}
+
+// applyConfig installs cfg and makes the runtime match it. A disabled plugin
+// stops every session it holds; an enabled one starts and stops the pinned
+// sessions cfg names.
+//
+// Startup and reload read bfd > enabled here and nowhere else, so the master
+// switch cannot mean one thing on the first apply and another on the second.
+// The caller MUST hold runtimeStateGuard.
+func (r *runtimeState) applyConfig(cfg *pluginConfig) error {
+	if !cfg.enabled {
+		r.stopAll()
+		r.cfg = cfg
+		return nil
+	}
+	return r.applyPinned(cfg)
 }
 
 // applyPinned reconciles the live pinned-session set against cfg. Sessions
@@ -471,12 +488,35 @@ type pluginService struct {
 	state *runtimeState
 }
 
+// errBfdNotConfigured says no configuration has reached the runtime state yet.
+// It is distinct from errBfdDisabled on purpose: an absent config and an
+// operator who turned the plugin off are two different answers, and a caller
+// that cannot tell them apart reports the wrong one to the operator.
+var errBfdNotConfigured = errors.New("bfd: no configuration applied")
+
+// errBfdDisabled says the operator set bfd > enabled to false. The leaf is the
+// master switch for the plugin, so it stops a runtime client's session as well
+// as a pinned one.
+var errBfdDisabled = errors.New("bfd: disabled by configuration (bfd > enabled false)")
+
 // EnsureSession dispatches the request to the correct engine.Loop,
 // creating the loop on demand. The returned SessionHandle is owned by
 // the caller; callers MUST call ReleaseSession when finished.
+//
+// A disabled plugin answers with an error rather than a session. The Service
+// stays published while bfd > enabled is false, because a client that asks for
+// a session needs to be told why it does not get one: the BGP reactor logs the
+// refusal, and a strict-mode peer stays down instead of coming up over a
+// liveness check that nobody is running (peer_bfd.go).
 func (s *pluginService) EnsureSession(req api.SessionRequest) (api.SessionHandle, error) {
 	runtimeStateGuard.Lock()
 	defer runtimeStateGuard.Unlock()
+	if s.state.cfg == nil {
+		return nil, errBfdNotConfigured
+	}
+	if !s.state.cfg.enabled {
+		return nil, errBfdDisabled
+	}
 	// RFC 5882 Section 4.4: "If multiple control protocols wish to establish
 	// BFD sessions with the same remote system for the same data protocol,
 	// all MUST share a single BFD session." Every client reaches the engine
@@ -723,13 +763,12 @@ func RunBFDPlugin(conn net.Conn) int {
 		}
 		runtimeStateGuard.Lock()
 		defer runtimeStateGuard.Unlock()
+		if applyErr := state.applyConfig(cfg); applyErr != nil {
+			return applyErr
+		}
 		if !cfg.enabled {
 			log.Info("bfd plugin disabled by config")
-			state.cfg = cfg
 			return nil
-		}
-		if applyErr := state.applyPinned(cfg); applyErr != nil {
-			return applyErr
 		}
 		log.Info("bfd plugin configured",
 			"profiles", len(cfg.profiles),
@@ -745,14 +784,12 @@ func RunBFDPlugin(conn net.Conn) int {
 		}
 		runtimeStateGuard.Lock()
 		defer runtimeStateGuard.Unlock()
+		if err := state.applyConfig(cfg); err != nil {
+			return fmt.Errorf("bfd: apply: %w", err)
+		}
 		if !cfg.enabled {
-			state.stopAll()
-			state.cfg = cfg
 			log.Info("bfd plugin disabled via reload")
 			return nil
-		}
-		if err := state.applyPinned(cfg); err != nil {
-			return fmt.Errorf("bfd: apply: %w", err)
 		}
 		log.Info("bfd plugin reloaded",
 			"profiles", len(cfg.profiles),

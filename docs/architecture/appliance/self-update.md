@@ -1,17 +1,17 @@
 # Self-update: the device pulls its own binary
 
-`SelfUpdater` downloads a new `ze` binary, verifies its SHA-256, replaces the
+`selfUpdater` downloads a new `ze` binary, verifies its SHA-256, replaces the
 running binary atomically, and optionally restarts. It targets standalone Linux
 deployments. A gokrazy appliance has its own update mechanism.
 
-<!-- source: internal/component/config/system/selfupdate.go -- SelfUpdater, download, verify, stage, restart -->
+<!-- source: internal/component/config/system/selfupdate.go -- selfUpdater, download, verify, stage, restart -->
 <!-- source: cmd/ze/update_serve.go -- the standalone update server that publishes the manifest -->
 <!-- source: internal/plugins/update-cmd/cmd/firmware.go -- update system firmware CLI handlers -->
 <!-- source: internal/plugins/update-cmd/cmd/show.go -- update status CLI handler -->
 
 ## Decisions
 
-- **`SelfUpdater` is its own type, not a mode flag on the version checker.** The
+- **`selfUpdater` is its own type, not a mode flag on the version checker.** The
   state machine differs: download, verify, stage, and restart, against
   fetch-and-compare. The hub picks between them from config. Auto-apply or a
   restart policy selects the self-updater; otherwise the checker runs unchanged.

@@ -14,6 +14,10 @@ module ze-bfd-conf {
          OSPF, static routes) are created at runtime via the plugin
          Service interface and do not appear here.";
 
+    revision 2026-09-20 {
+        description "enabled false now stops a runtime session as well as a pinned one.";
+    }
+
     revision 2026-04-11 {
         description "Initial BFD config skeleton.";
     }
@@ -27,11 +31,12 @@ module ze-bfd-conf {
         leaf enabled {
             type boolean;
             default true;
-            description "The default is true. false stops Ze from starting the sessions pinned in this bfd
-                container. A reload to false stops the pinned sessions already running. It does not stop
-                the BFD service. Ze publishes that service whatever this leaf holds, so a BGP peer that
-                carries a bfd container still gets a BFD session. To stop the session of a peer, remove
-                the bfd container from that peer or set its enabled leaf to false.";
+            description "The default is true. false stops every BFD session, the ones pinned in this bfd
+                container and the ones a protocol client asks for at runtime. A reload to false stops the
+                pinned sessions already running. A BGP peer that carries a bfd container gets a refusal
+                instead of a session, so a peer in strict mode stays down and a peer outside strict mode
+                runs without BFD. To stop the session of one peer only, remove the bfd container from that
+                peer or set its enabled leaf to false.";
             ze:help "Master switch for the BFD plugin.";
         }
 

@@ -44,9 +44,16 @@ const (
 	kwTCPFlags        = "tcp-flags"        // Type 9
 	kwPacketLength    = "packet-length"    // Type 10
 	kwDSCP            = "dscp"             // Type 11
-	kwFragment        = "fragment"         // Type 12
-	kwFlowLabel       = "flow-label"       // Type 13 (IPv6 only)
-	kwRD              = "rd"               // Route Distinguisher (VPN)
+	// kwTrafficClass is the ExaBGP spelling of Type 11. RFC 8956 Section 8
+	// registers the type under one name for both families -- "IPv4 Name: DSCP"
+	// and "IPv6 Name: DSCP" -- so dscp is the word Ze writes and this one is an
+	// accepted alias. It is declared here, beside the word it aliases, because
+	// the config path took it while the text path refused it for as long as the
+	// two paths each held their own copy of the vocabulary.
+	kwTrafficClass = "traffic-class" // Type 11, ExaBGP spelling
+	kwFragment     = "fragment"      // Type 12
+	kwFlowLabel    = "flow-label"    // Type 13 (IPv6 only)
+	kwRD           = "rd"            // Route Distinguisher (VPN)
 )
 
 // familyModeBoth declares a family this plugin both sends and receives.
@@ -221,7 +228,7 @@ func parseComponentText(args []string, fam Family) (FlowComponent, int, error) {
 		return parseTCPFlagsComponentText(args[1:])
 	case kwPacketLength:
 		return parseNumericComponentText(args[1:], FlowPacketLength)
-	case kwDSCP:
+	case kwDSCP, kwTrafficClass:
 		return parseNumericComponentText(args[1:], FlowDSCP)
 	case kwFragment:
 		return parseFragmentComponentText(args[1:])
@@ -420,7 +427,7 @@ func isComponentKeyword(token string) bool {
 	switch token {
 	case kwDestinationIPv4, kwDestinationIPv6, kwSourceIPv4, kwSourceIPv6,
 		kwProtocol, kwNextHeader, kwPort, kwDestPort, kwSourcePort,
-		kwICMPType, kwICMPCode, kwTCPFlags, kwPacketLength, kwDSCP,
+		kwICMPType, kwICMPCode, kwTCPFlags, kwPacketLength, kwDSCP, kwTrafficClass,
 		kwFragment, kwFlowLabel, kwRD:
 		return true
 	}

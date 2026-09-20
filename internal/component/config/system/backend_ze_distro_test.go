@@ -35,7 +35,7 @@ func TestBackendSelectionGokrazy(t *testing.T) {
 }
 
 func TestBackendSelectionSelfUpdate(t *testing.T) {
-	// VALIDATES: AC-2 Platform is Linux with auto-apply config selects ze-self-update wrapping SelfUpdater.
+	// VALIDATES: AC-2 Platform is Linux with auto-apply config selects ze-self-update wrapping selfUpdater.
 	// PREVENTS: auto-apply config falling back to passive version checking only.
 	cfg := testConfig()
 	cfg.SelfUpdate.AutoApply = true
@@ -49,7 +49,7 @@ func TestBackendSelectionSelfUpdate(t *testing.T) {
 		t.Fatalf("backend type = %T, want *zeBackend", backend)
 	}
 	if zb.updater == nil {
-		t.Fatal("expected SelfUpdater wrapper")
+		t.Fatal("expected selfUpdater wrapper")
 	}
 	if zb.checker != nil {
 		t.Fatal("checker should be nil when self-updater is selected")
