@@ -129,16 +129,24 @@ func (r *Registry) withdrawMatching(peer string, match func(*tagEntry) bool) (in
 	return r.withdrawEntries(matched)
 }
 
+// An entry the operator gave no tag is held for its lifetime alone, and it is
+// reached by ID or by `withdraw tag *`, never by a tag. Both predicates below
+// refuse an empty key rather than comparing it, because an empty key compares
+// EQUAL to every untagged entry: a key that arrived empty would otherwise
+// withdraw the whole untagged set, which is what `*` is for and what a tag
+// spelling must not become.
+func taggedAs(e *tagEntry, key string) bool { return key != "" && e.TagKey == key }
+
 // withdrawTag withdraws the entries carrying one tag key and one tag value.
 func (r *Registry) withdrawTag(peer, key, value string) (int, error) {
 	return r.withdrawMatching(peer, func(e *tagEntry) bool {
-		return e.TagKey == key && e.TagValue == value
+		return taggedAs(e, key) && e.TagValue == value
 	})
 }
 
 // withdrawTagKey withdraws every entry under a tag key, whatever its value.
 func (r *Registry) withdrawTagKey(peer, key string) (int, error) {
-	return r.withdrawMatching(peer, func(e *tagEntry) bool { return e.TagKey == key })
+	return r.withdrawMatching(peer, func(e *tagEntry) bool { return taggedAs(e, key) })
 }
 
 // withdrawAll withdraws every entry the registry holds.
@@ -197,7 +205,7 @@ func (r *Registry) List(f listFilter) []*tagEntry {
 
 	var result []*tagEntry
 	for _, e := range r.entries {
-		if f.TagKey != "" && e.TagKey != f.TagKey {
+		if f.TagKey != "" && !taggedAs(e, f.TagKey) {
 			continue
 		}
 		if f.TagValue != "" && e.TagValue != f.TagValue {

@@ -89,8 +89,10 @@ key and this value together to withdraw one group of announcements under a key."
                 config false;
                 ze:modifier "once";
                 description "The value is a Go duration such as 300s, or a whole number of
-seconds. It is read only when the announcement also carries a tag, because the timer lives
-with the registry entry.";
+seconds. It needs no tag: an announcement given a lifetime enters the registry either way,
+because that is where the timer lives, and the answer carries the id that withdraws it. An
+announcement with a lifetime and no tag is reached by that id or by withdraw all, never by
+a tag.";
                 ze:help "How long the announcement lives before ze withdraws it.";
                 leaf duration {
                     type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; }
@@ -146,8 +148,10 @@ key and this value together to withdraw one group of announcements under a key."
                 config false;
                 ze:modifier "once";
                 description "The value is a Go duration such as 300s, or a whole number of
-seconds. It is read only when the announcement also carries a tag, because the timer lives
-with the registry entry.";
+seconds. It needs no tag: an announcement given a lifetime enters the registry either way,
+because that is where the timer lives, and the answer carries the id that withdraws it. An
+announcement with a lifetime and no tag is reached by that id or by withdraw all, never by
+a tag.";
                 ze:help "How long the announcement lives before ze withdraws it.";
                 leaf duration {
                     type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; }
@@ -246,8 +250,10 @@ key and this value together to withdraw one group of announcements under a key."
                 config false;
                 ze:modifier "once";
                 description "The value is a Go duration such as 300s, or a whole number of
-seconds. It is read only when the announcement also carries a tag, because the timer lives
-with the registry entry.";
+seconds. It needs no tag: an announcement given a lifetime enters the registry either way,
+because that is where the timer lives, and the answer carries the id that withdraws it. An
+announcement with a lifetime and no tag is reached by that id or by withdraw all, never by
+a tag.";
                 ze:help "How long the announcement lives before ze withdraws it.";
                 leaf duration {
                     type string { pattern '([0-9]+(\\.[0-9]+)?(ns|us|ms|s|m|h))+|[0-9]+'; }

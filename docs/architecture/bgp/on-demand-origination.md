@@ -95,9 +95,17 @@ rather than resolved against the peer table. An entry records the fan-out it wen
 to, so naming a peer asks for the announcements sent to that fan-out. An operator
 who names a peer that received nothing withdraws nothing.
 
-`withdraw tag *` and `withdraw all` walk one set rather than two. Only a tagged
-announcement enters the registry, so every tracked announcement is a tagged one,
-and `withdrawAll` answers both.
+`withdraw tag *` and `withdraw all` walk one set rather than two, and
+`withdrawAll` answers both.
+
+A TAG is not what puts an announcement in the registry; needing to be tracked
+is. An announcement enters it for a tag or for a lifetime, because the expiry
+timer lives on the entry, and one given a lifetime and no tag would otherwise
+be announced forever while the command answered exactly as it does for a
+lifetime that was armed. Such an entry is reached by the id in the answer, or
+by `withdraw all`, and never by a tag: the tag predicates refuse an empty key,
+because an empty key compares equal to every untagged entry and one tag
+withdrawal would otherwise sweep the whole untagged set.
 
 An `UpdateRoute` call that carries no `tag.` meta stays fire-and-forget.
 

@@ -709,3 +709,38 @@ func TestHandleAnnounceUnicastAcceptsGlobalNextHop(t *testing.T) {
 		})
 	}
 }
+
+// TestAnnounceForWithoutATagStillExpires drives the lifetime through the
+// handler an operator's tokens actually arrive at.
+//
+// VALIDATES: `for <duration>` with no `tag` enters the registry and arms the
+//
+//	expiry, and the answer carries the ID that withdraws it.
+//
+// PREVENTS: announceAndTrack returning on an absent tag BEFORE reg.Announce,
+// which is the only site that arms the timer. `send bgp <peer> flowspec ...
+// for 300s` then announced the route, answered `announced: 1`, and never
+// withdrew it: the same answer an armed lifetime gives, which is what made it
+// invisible to the operator and to every test.
+//
+// It has to run through the handler. reg.Announce arms the timer whoever calls
+// it, so a test that calls the registry directly is green against the defect.
+func TestAnnounceForWithoutATagStillExpires(t *testing.T) {
+	reg := NewRegistry(func(*selector.Selector, bgptypes.NLRIBatch, plugin.Sender) error { return nil })
+	ctx := &pluginserver.CommandContext{}
+	rctr := &captureReactor{}
+
+	resp, err := handleAnnounceFlowspec(ctx, rctr, reg,
+		[]string{"destination-ipv4", "1.1.1.1/32", "discard", "for", "300s"})
+	require.NoError(t, err)
+	require.Equal(t, 1, rctr.calls, "the announcement is dispatched")
+
+	data := respData(t, resp)
+	require.Contains(t, data, "id", "an announcement the registry holds answers the ID that withdraws it")
+	assert.NotContains(t, data, "tag", "no tag was given, so none is answered")
+
+	entries := reg.List(listFilter{})
+	require.Len(t, entries, 1, "a lifetime with no tag did not enter the registry, so nothing will withdraw it")
+	require.NotNil(t, entries[0].ExpiresAt, "the entry carries no expiry, so the route is announced forever")
+	assert.Empty(t, entries[0].TagKey, "no tag was given and none was invented")
+}

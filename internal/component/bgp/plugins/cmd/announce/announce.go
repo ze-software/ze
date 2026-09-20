@@ -228,7 +228,18 @@ func announceAndTrack(reg *Registry, bgpReactor bgptypes.BGPReactor, sel *select
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 	}
 
-	if opts.tagKey == "" {
+	// The registry is entered for a tag OR a lifetime, because reg.Announce is
+	// the only site that arms the expiry timer. Returning here on an absent tag
+	// meant `send bgp <peer> unicast 10.0.0.0/24 for 300s` announced the route,
+	// answered `announced: 1`, and never withdrew it: the same answer a lifetime
+	// that WAS armed gives, which is what made it invisible.
+	//
+	// The two options are independent `ze:modifier "once"` siblings in
+	// ze-cli-announce-cmd.yang and the model ties neither to the other, so
+	// neither refusing `for` without `tag` nor inventing a tag for it would be
+	// answering what the operator asked. Nothing has to be invented: the entry
+	// is keyed by ID, not by tag, and the ID is in the answer.
+	if opts.tagKey == "" && opts.duration <= 0 {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
 			Data:   plugin.Map{"announced": 1},
@@ -240,13 +251,17 @@ func announceAndTrack(reg *Registry, bgpReactor bgptypes.BGPReactor, sel *select
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 	}
 
-	var tb textbuf.Buffer
-	tagStr := tb.Str(opts.tagKey).Byte('=').Str(opts.tagValue).String()
+	// The ID is always answered, because it is how an operator withdraws an
+	// announcement the registry holds. The tag is answered only when there is
+	// one: an entry entered for its lifetime alone has no tag, and "=" is not a
+	// tag, it is two empty fields wearing the shape of one.
+	data := plugin.Map{"announced": 1, "id": id}
+	if opts.tagKey != "" {
+		var tb textbuf.Buffer
+		data["tag"] = tb.Str(opts.tagKey).Byte('=').Str(opts.tagValue).String()
+	}
 
-	return &plugin.Response{
-		Status: plugin.StatusDone,
-		Data:   plugin.Map{"announced": 1, "id": id, "tag": tagStr},
-	}, nil
+	return &plugin.Response{Status: plugin.StatusDone, Data: data}, nil
 }
 
 func handleAnnounceUnicast(ctx *pluginserver.CommandContext, bgpReactor bgptypes.BGPReactor, reg *Registry, args []string) (*plugin.Response, error) {

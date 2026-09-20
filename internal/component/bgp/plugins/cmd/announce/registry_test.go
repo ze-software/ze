@@ -308,3 +308,41 @@ func TestRegistryPeerNarrowsWithdrawByID(t *testing.T) {
 	assert.Equal(t, 1, rec.count())
 	assert.Equal(t, 0, r.Len())
 }
+
+// TestRegistryEmptyTagKeyReachesNothing guards the predicate half of holding an
+// announcement the operator gave no tag.
+//
+// VALIDATES: an empty tag key withdraws nothing, by key or by key and value.
+// PREVENTS: the trap that opens the moment an untagged entry can exist. An
+// empty key compares EQUAL to every untagged entry, so one tag withdrawal
+// would sweep the whole untagged set. Withdrawing them together is what
+// `withdraw tag *` is for, and a tag spelling must not become it.
+//
+// The LIFETIME half of the same change is asserted at the command, not here:
+// reg.Announce arms the timer whoever calls it, so a test that calls it
+// directly passes against the defect (announce_test.go).
+func TestRegistryEmptyTagKeyReachesNothing(t *testing.T) {
+	r, rec := newTestRegistry()
+
+	mustAnnounce(t, r, "mitigation", "ddos-udp", "upstream", family.IPv4Unicast, "cli", 0)
+	mustAnnounce(t, r, "", "", "upstream", family.IPv4Unicast, "cli", time.Hour)
+
+	n, err := r.withdrawTagKey("", "")
+	require.NoError(t, err)
+	assert.Equal(t, 0, n, "an empty tag key withdrew entries; it compares equal to every untagged one")
+	n, err = r.withdrawTag("", "", "")
+	require.NoError(t, err)
+	assert.Equal(t, 0, n, "an empty tag key and value withdrew entries")
+	assert.Equal(t, 2, r.Len())
+	assert.Equal(t, 0, rec.count())
+
+	// A real tag reaches its own entry and not the untagged one, and
+	// withdraw-all is what reaches the untagged one by hand.
+	n, err = r.withdrawTagKey("", "mitigation")
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+	n, err = r.withdrawAll("")
+	require.NoError(t, err)
+	assert.Equal(t, 1, n)
+	assert.Equal(t, 0, r.Len())
+}
