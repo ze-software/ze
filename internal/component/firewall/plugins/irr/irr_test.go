@@ -619,3 +619,79 @@ func bindCountingOutcomes(t *testing.T) *countingOutcomes {
 	setMetricsRegistry(reg)
 	return reg
 }
+
+// VALIDATES: a prefix list too long for a firewall set fails the refresh and
+// leaves the sets already programmed in force.
+// PREVENTS: the truncating bound. It stopped the builder at the cap, logged one
+// WARN and returned the entries that fit, so refreshName read a short list as a
+// refresh that worked and programmed part of the operator's rule. The direction
+// of use decides how that hurts and the builder cannot see it: a term that
+// ACCEPTS from the set drops the traffic the missing prefixes carry, and a term
+// that DROPS on it forwards that traffic.
+// The test drives refreshName, because the helper alone cannot show the defect:
+// the defect is that the CALLER read the short list as a success.
+func TestRefreshNameRefusesAListTooLargeForASet(t *testing.T) {
+	withPrefixBound(t, 2)
+	plug, backend := newTestPlugin(t, fakeIRRWhois(t, map[string]string{
+		"!a4AS-TEST": "A1\n10.0.0.0/24\n10.1.0.0/24\n10.2.0.0/24\nC\n",
+	}))
+
+	// A filter that works, so the test can tell "kept what was programmed"
+	// from "programmed nothing".
+	plug.prefixStore.Put("AS-TEST", []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")}, nil)
+	if err := plug.applyTables(); err != nil {
+		t.Fatalf("seed apply: %v", err)
+	}
+
+	err := plug.refreshName("AS-TEST")
+	if err == nil {
+		t.Fatal("a list longer than a firewall set holds must fail the refresh, not program a part of it")
+	}
+	if !strings.Contains(err.Error(), "3 IPv4 prefixes") {
+		t.Errorf("the error must name the count and the bound, got %q", err)
+	}
+
+	applied, ok := backend.last()
+	if !ok {
+		t.Fatal("the seed apply never reached the backend")
+	}
+	v4 := setsByName(applied[0])["irr_v4_AS-TEST"]
+	if len(v4.Elements) != 2 || v4.Elements[0].Value != "192.0.2.0" {
+		t.Fatalf("the refused refresh replaced the programmed set: %+v", v4.Elements)
+	}
+}
+
+// VALIDATES: each family is bounded on its own, so a full IPv4 list leaves the
+// IPv6 set complete.
+// PREVENTS: the shared budget, which gave IPv4 the whole cap and IPv6 whatever
+// was left. An IPv6 set with no elements matches no address, and the interface
+// whitelist's drop term then takes every IPv6 packet arriving on the port,
+// which is the outage the store's own per-family guard exists to prevent
+// (internal/component/resolve/irr/store, Refresh).
+func TestRefreshNameKeepsIPv6WhenIPv4FillsTheBound(t *testing.T) {
+	withPrefixBound(t, 2)
+	plug, backend := newTestPlugin(t, fakeIRRWhois(t, map[string]string{
+		"!a4AS-TEST": "A1\n10.0.0.0/24\n10.1.0.0/24\nC\n",
+		"!a6AS-TEST": "A1\n2001:db8::/32\nC\n",
+	}))
+
+	if err := plug.refreshName("AS-TEST"); err != nil {
+		t.Fatalf("refreshName: %v", err)
+	}
+
+	applied, ok := backend.last()
+	if !ok {
+		t.Fatal("the refresh programmed nothing")
+	}
+	sets := setsByName(applied[0])
+	if got := len(sets["irr_v4_AS-TEST"].Elements); got != 4 {
+		t.Errorf("the IPv4 set holds %d elements, want 4 for its two prefixes", got)
+	}
+	v6 := sets["irr_v6_AS-TEST"]
+	if len(v6.Elements) != 2 {
+		t.Fatalf("the IPv6 set holds %d elements, want 2: the IPv4 list spent its budget", len(v6.Elements))
+	}
+	if v6.Elements[0].Value != "2001:db8::" {
+		t.Errorf("the IPv6 set holds %q, want the announced prefix", v6.Elements[0].Value)
+	}
+}

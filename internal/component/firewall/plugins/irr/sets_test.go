@@ -6,6 +6,7 @@ package irr
 
 import (
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/firewall"
@@ -183,6 +184,69 @@ func TestBuildTermSetsPairsTheFamilies(t *testing.T) {
 	}
 }
 
+// withPrefixBound lowers the per-family bound for one test and restores it
+// after. The shipped 500000 reaches the store only through the many member
+// queries of a large AS-SET, because one IRR reply is cut at 4 MB
+// (maxResponse, internal/component/resolve/irr/client.go), so a test that
+// drives a whole refresh cannot build one.
+func withPrefixBound(t *testing.T, bound int) {
+	t.Helper()
+	previous := maxPrefixesPerFamily
+	maxPrefixesPerFamily = bound
+	t.Cleanup(func() { maxPrefixesPerFamily = previous })
+}
+
+// prefixRun returns count distinct IPv4 /24 prefixes.
+func prefixRun(count int) []netip.Prefix {
+	prefixes := make([]netip.Prefix, 0, count)
+	for i := range count {
+		prefixes = append(prefixes, netip.PrefixFrom(netip.AddrFrom4([4]byte{10, byte(i / 256), byte(i % 256), 0}), 24))
+	}
+	return prefixes
+}
+
+// VALIDATES: the bound refuses the list that does not fit and admits the one
+// that exactly fills it, per family.
+// PREVENTS: an off-by-one at the bound, and a family judged against what the
+// other family spent.
+func TestOversizedEntryErrorAtTheBound(t *testing.T) {
+	withPrefixBound(t, 3)
+	v6 := []netip.Prefix{
+		netip.MustParsePrefix("2001:db8::/32"),
+		netip.MustParsePrefix("2001:db9::/32"),
+		netip.MustParsePrefix("2001:dba::/32"),
+	}
+	tests := []struct {
+		name        string
+		v4          []netip.Prefix
+		v6          []netip.Prefix
+		wantRefusal string
+	}{
+		{name: "both families empty"},
+		{name: "IPv4 exactly at the bound", v4: prefixRun(3)},
+		{name: "IPv4 one over the bound", v4: prefixRun(4), wantRefusal: "4 IPv4 prefixes"},
+		{name: "IPv6 one over the bound", v6: append(v6, netip.MustParsePrefix("2001:dbb::/32")), wantRefusal: "4 IPv6 prefixes"},
+		{name: "both families full", v4: prefixRun(3), v6: v6},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := oversizedEntryError("AS-TEST", &store.CachedEntry{IPv4: tt.v4, IPv6: tt.v6})
+			if tt.wantRefusal == "" {
+				if err != nil {
+					t.Fatalf("a list that fits was refused: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("a list longer than the bound was admitted")
+			}
+			if !strings.Contains(err.Error(), tt.wantRefusal) {
+				t.Errorf("error %q does not name %q", err, tt.wantRefusal)
+			}
+		})
+	}
+}
+
 // VALIDATES: /0 prefixes skipped to avoid overflow producing empty intervals.
 // PREVENTS: uint32 overflow wrapping exclusive end to 0.0.0.0 for /0.
 func TestPrefixRangeSkipsSlashZero(t *testing.T) {
@@ -190,7 +254,7 @@ func TestPrefixRangeSkipsSlashZero(t *testing.T) {
 		netip.MustParsePrefix("0.0.0.0/0"),
 		netip.MustParsePrefix("10.0.0.0/8"),
 	}
-	elements := prefixesToIntervalElements(v4, 100)
+	elements := prefixesToIntervalElements(v4)
 	if len(elements) != 2 {
 		t.Fatalf("expected 2 elements (1 prefix, /0 skipped), got %d", len(elements))
 	}

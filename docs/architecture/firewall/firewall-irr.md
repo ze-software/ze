@@ -212,6 +212,48 @@ Removing prefixes is an operator action: `clear firewall irr asn|as-set` calls
 `PrefixStore.Purge`. Without it, an AS-SET deregistered upstream would be
 enforced forever.
 
+### A list too long for a set is refused, and each family is bounded on its own
+
+<!-- source: internal/component/firewall/plugins/irr/sets.go -- maxPrefixesPerFamily, oversizedEntryError -->
+<!-- source: internal/component/firewall/plugins/irr/irr.go -- applyTables, verifyRefs -->
+
+One firewall set holds 500000 prefixes. The bound used to TRUNCATE: the builder
+stopped there, logged one WARN and returned the entries that fit, and
+`refreshName` and `refreshAllNow` read that short list as a refresh that worked
+and programmed it. Nothing downstream could see it. `Set.Validate`
+(`internal/component/firewall/model.go`) checks the name and the type, and the
+nftables backend loops over `Elements` whatever it holds.
+
+A firewall set is read in two directions and the builder can see neither, so a
+partial set has no safe reading:
+
+| The term says | A truncated set | An empty set |
+|---------------|-----------------|--------------|
+| `accept` from this set | drops the traffic the missing prefixes carry | drops every packet of that family the term guards |
+| `drop` on this set | forwards the traffic the missing prefixes carry | blocks nothing |
+
+So the list that does not fit is an error. `oversizedEntryError` answers it,
+`verifyRefs` refuses the commit with it, and `applyTables` refuses the apply,
+which leaves the sets already registered exactly as they are. This is the answer
+the IRR client already gives its own read cap, where a reply cut short by the
+4 MB limit is an error rather than a shorter prefix list.
+
+One oversized reference stops the whole apply rather than its own table. Leaving
+that entry's sets out instead makes `dropTablesMissingAProvidedSet` hold back
+its whole table, which takes a filter that was working out of the kernel.
+Registering nothing keeps every table as it is, and the operator is told:
+`update firewall irr` answers the error, `show firewall irr` reports the entry
+as `oversized`, and `ze doctor` reports
+`doctor-firewall-irr-oversized-data`.
+
+The bound is PER FAMILY, because one family is one set in the kernel. The two
+families shared one budget until 2026-09-20: IPv4 took the whole 500000 and IPv6
+got what was left. A large IPv4 list therefore left the IPv6 set EMPTY rather
+than short, which matched no address, and the interface whitelist's drop term
+then took every IPv6 packet arriving on the port. That is the same outage the
+per-family guard in `PrefixStore.Refresh` exists to prevent, reached by another
+route. A budget one list can spend on behalf of the other is not a budget.
+
 ### An interface binding with no prefixes produces no table
 
 <!-- source: internal/component/firewall/plugins/irr/sets.go -- buildIfaceTables -->

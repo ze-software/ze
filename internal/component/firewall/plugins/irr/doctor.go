@@ -28,6 +28,10 @@ const (
 	// codeIRRNoData fires when a configured IRR reference has no cached
 	// prefixes at all, so it filters nothing.
 	codeIRRNoData = "doctor-firewall-irr-no-data"
+	// codeIRROversizedData fires when a configured IRR reference holds more
+	// prefixes in one family than a firewall set takes, so the apply is
+	// refused and the rules naming it are not in the kernel.
+	codeIRROversizedData = "doctor-firewall-irr-oversized-data"
 )
 
 // irrDiagnosticCodes is the explanation metadata for the codes this plugin owns,
@@ -45,6 +49,12 @@ var irrDiagnosticCodes = []diagnostic.CodeMeta{
 		Title:       "Firewall IRR filter has no prefixes",
 		Description: "A firewall rule or interface binding references an ASN or AS-SET with no cached prefixes. The reference filters nothing. Run 'update firewall irr asn <asn>' or 'update firewall irr as-set <name>' to fetch the prefix list.",
 		Examples:    []string{"ze doctor --json", "ze explain doctor-firewall-irr-no-data"},
+	},
+	{
+		Code:        codeIRROversizedData,
+		Title:       "Firewall IRR reference is too large for a firewall set",
+		Description: "A firewall rule or interface binding references an ASN or AS-SET whose IPv4 or IPv6 prefix list is longer than one firewall set holds. Ze does not program a part of it, because a set that holds part of a prefix list drops traffic an accept rule was written to pass, and passes traffic a drop rule was written to block. The rules naming the reference are not in the kernel. Narrow the reference to the members you filter on, or run 'clear firewall irr as-set <name>' to remove it.",
+		Examples:    []string{"ze doctor --json", cmdShowIRR, "ze explain doctor-firewall-irr-oversized-data"},
 	},
 }
 
@@ -100,6 +110,19 @@ func checkIRRDataFreshness(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagn
 				Severity: diagnostic.SeverityError,
 				Message:  tb.String(),
 				Help:     updateHelp(ref),
+			})
+			continue
+		}
+		// An oversized entry is reported instead of a stale one. Both say the
+		// filter is not what the config asks for, and this one says the rules
+		// are not programmed at all, which is the larger fact.
+		if err := oversizedEntryError(ref.Name, entry); err != nil {
+			diags = append(diags, diagnostic.Diagnostic{
+				Code:     codeIRROversizedData,
+				Severity: diagnostic.SeverityError,
+				Message:  err.Error(),
+				Actual:   len(entry.IPv4) + len(entry.IPv6),
+				Expected: maxPrefixesPerFamily,
 			})
 			continue
 		}

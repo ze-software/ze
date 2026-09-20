@@ -83,9 +83,18 @@ func (plug *irrPlugin) showIRR() (string, any, error) {
 				// "stale" is the operator's answer to "is what I am enforcing
 				// what the IRR last said?". An entry goes stale when a refresh
 				// learns nothing and the previous prefixes stay in force.
-				if entry.Stale() {
+				//
+				// "oversized" outranks it, because that entry is enforcing
+				// nothing at all: one family holds more prefixes than a
+				// firewall set takes, so the apply is refused and the rules
+				// naming it are not in the kernel (oversizedEntryError,
+				// sets.go).
+				switch {
+				case oversizedEntryError(ref.Name, entry) != nil:
+					b.Str(`,"status":"oversized"`)
+				case entry.Stale():
 					b.Str(`,"status":"stale"`)
-				} else {
+				default:
 					b.Str(`,"status":"ok"`)
 				}
 				b.Str(`,"ipv4-count":`).Int(int64(len(entry.IPv4)))

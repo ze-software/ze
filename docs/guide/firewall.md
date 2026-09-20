@@ -480,14 +480,26 @@ plugin process, and counts under the same metric's `panic` label. Alert on it:
 `error` and `empty` report an upstream condition, `panic` reports a defect in
 ze, and the cached prefixes stay in force until it is fixed.
 
-`show firewall irr` reports each entry as `ok`, `stale`, or `missing`, and gives
-`data-age-seconds` for cached entries and `stale-since` for stale ones.
-`ze doctor` reports the same condition with two codes:
+One firewall set holds 500000 prefixes, and each family has that bound of its
+own. A reference whose IPv4 or IPv6 list is longer is refused: the commit fails,
+the refresh fails, and the sets already programmed stay in force. Ze does not
+program a part of the list, because a set that holds part of it drops traffic an
+`accept` rule was written to pass, and passes traffic a `drop` rule was written
+to block. Narrow the reference, or clear it.
+
+An apply refused for that reason counts under the
+`ze_firewall_irr_refresh_outcomes_total` label `apply-failed`.
+
+`show firewall irr` reports each entry as `ok`, `stale`, `oversized`, or
+`missing`, and gives `data-age-seconds` for cached entries and `stale-since` for
+stale ones. `ze doctor` reports the same conditions with three codes:
 
 - `doctor-firewall-irr-stale-data`: a referenced entry is enforcing prefixes the
   IRR has stopped confirming.
 - `doctor-firewall-irr-no-data`: a referenced entry has no prefixes, so it
   filters nothing.
+- `doctor-firewall-irr-oversized-data`: a referenced entry is longer than a
+  firewall set holds, so the rules naming it are not programmed.
 
 Run `ze explain <code>` for the full description. `ze_firewall_irr_data_age_seconds` is the
 age of the oldest data being enforced, and

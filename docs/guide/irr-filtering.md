@@ -193,6 +193,7 @@ The recording starts with a stored BGP peer that has no IRR plugin, server, AS-S
 | Status stays `pending` | IRR connectivity | Permit outbound TCP to the configured whois server and run `update bgp irr asn <asn>`. |
 | Status is `error` | `error` field in `show bgp irr` | Correct the AS-SET or server, then refresh. The last known good list remains active. |
 | Status is `stale` | `stale-since` and `data-age-seconds` in `show firewall irr` | The last refresh returned no prefixes. Confirm the AS-SET still exists and the server is reachable, then refresh. The previous prefixes stay enforced meanwhile. |
+| Status is `oversized`, and the rules naming the entry filter nothing | `ipv4-count` and `ipv6-count` in `show firewall irr` | One family holds more than the 500000 prefixes a firewall set takes. Ze programs none of the list, because a set holding part of it drops traffic an `accept` rule was written to pass. Narrow the AS-SET to the members you filter on, or run `clear firewall irr as-set <name>`. |
 | An AS-SET no longer exists and its prefixes are still enforced | `show firewall irr` | Run `clear firewall irr as-set <name>`. An empty answer never removes prefixes, so removal is an operator action. |
 | The wrong AS-SET is selected | `as-set` in `show bgp irr` | Configure the expected AS-SET explicitly under the peer session. |
 | A valid customer route is rejected | `show bgp irr check <peer-name> <prefix>` | Confirm the exact prefix is registered in the selected IRR sources and refresh the list. |

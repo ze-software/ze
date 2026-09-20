@@ -49,7 +49,7 @@ func init() {
 	}
 }
 
-// registerIRRDoctor registers the IRR data-freshness doctor check and the two
+// registerIRRDoctor registers the IRR data-freshness doctor check and the
 // diagnostic codes it emits. It lives in register.go so the side effect, and the
 // exit on a registration failure, stay in the plugin's registration file
 // (ai/patterns/registration.md).

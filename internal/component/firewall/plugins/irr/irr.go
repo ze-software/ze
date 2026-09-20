@@ -251,17 +251,21 @@ func warnUncachedRefs(ps *store.PrefixStore, refs []irrRef) {
 	}
 }
 
-// verifyRefs refuses a config whose IRR references have no prefixes to enforce.
-// An absent entry and an entry holding zero prefixes are both refused: neither
-// can filter anything, and committing either leaves the operator believing a
-// filter is in place. The message names the command that fetches the data.
+// verifyRefs refuses a config whose IRR references cannot be enforced as
+// written. An absent entry and an entry holding zero prefixes are both
+// refused: neither can filter anything, and committing either leaves the
+// operator believing a filter is in place. An entry too long for a firewall
+// set is refused for the same reason, because applyTables will not program a
+// part of it. The message names the command that repairs each case.
 func verifyRefs(ps *store.PrefixStore, refs []irrRef) error {
 	for _, ref := range refs {
 		entry := ps.Get(ref.Name)
-		if entry != nil && !entry.PrefixList().Empty() {
-			continue
+		if entry == nil || entry.PrefixList().Empty() {
+			return errors.New(uncachedRefMessage(ref, entry == nil))
 		}
-		return errors.New(uncachedRefMessage(ref, entry == nil))
+		if err := oversizedEntryError(ref.Name, entry); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -309,6 +313,14 @@ func (plug *irrPlugin) applyTables() error {
 	if len(termRefs) == 0 && len(ifaceBindings) == 0 {
 		_ = firewall.RegisterTables("firewall-irr", nil) // a withdraw registers no name, so it cannot be refused
 		return nil
+	}
+
+	// A reference that does not fit a firewall set stops the apply, and the
+	// sets already registered stay in force. Programming what fits would put
+	// part of the operator's rule in the kernel and report a success
+	// (oversizedEntryError, sets.go).
+	if err := refuseOversizedRefs(ps, cfg.allRefs()); err != nil {
+		return err
 	}
 
 	tables := buildIRRTables(ps, termRefs)
@@ -421,14 +433,23 @@ func (plug *irrPlugin) refreshAllNow() error {
 	if learned {
 		markRefreshLearned()
 	}
+
+	// The apply decides the outcome of a tick as much as the fetches do. A
+	// reference that outgrew a firewall set fetches cleanly and programs
+	// nothing (refuseOversizedRefs), so an apply that failed must not leave a
+	// lastRefresh an operator reads as a tick that took effect.
+	if err := plug.applyTables(); err != nil {
+		logger().Warn("firewall-irr: apply after refresh failed", "error", err)
+		incRefreshOutcome("apply-failed")
+		if firstErr == nil {
+			firstErr = err
+		}
+	}
+
 	if firstErr == nil {
 		plug.mu.Lock()
 		plug.lastRefresh = time.Now()
 		plug.mu.Unlock()
-	}
-
-	if err := plug.applyTables(); err != nil {
-		logger().Warn("firewall-irr: apply after refresh failed", "error", err)
 	}
 	return firstErr
 }
@@ -463,20 +484,24 @@ func (plug *irrPlugin) refreshName(name string) error {
 	logRefreshLearned(name, entry)
 	markRefreshLearned()
 
-	plug.mu.Lock()
-	plug.lastRefresh = time.Now()
-	plug.mu.Unlock()
-
 	updateMetricsGauges(ps, plug.configRefs())
 
 	// Both facts go to the operator, as they do after a purge: the prefixes are
-	// cached, and the rules that use them are not in the kernel.
+	// cached, and the rules that use them are not in the kernel. An entry that
+	// outgrew a firewall set ends here as well, with the count and the bound
+	// in the message (oversizedEntryError, sets.go).
 	if applyErr := plug.applyTables(); applyErr != nil {
 		var tb textbuf.Buffer
-		tb.Str("firewall irr: ").Str(name).Str(" refreshed, but the firewall tables could not be programmed: ")
+		tb.Str("firewall irr: ").Str(name).Str(" refreshed, but the rules naming it are not programmed: ")
 		tb.Str(applyErr.Error())
 		return errors.New(tb.String())
 	}
+
+	// The stamp comes last, after the apply. It answers "when did a refresh
+	// take effect", and a fetch whose data never reached the kernel did not.
+	plug.mu.Lock()
+	plug.lastRefresh = time.Now()
+	plug.mu.Unlock()
 	return nil
 }
 
