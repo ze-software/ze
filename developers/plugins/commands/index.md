@@ -10,8 +10,8 @@ Commands are declared in the `Registration` struct passed to `Run`. The engine l
 ```go
 err := p.Run(ctx, sdk.Registration{
     Commands: []sdk.CommandDecl{
-        {Name: "my-plugin status", Description: "Show current status"},
-        {Name: "my-plugin check", Description: "Trigger immediate check", Args: []string{"target"}},
+        {Name: "my-plugin status", ShortHelp: "Show current status"},
+        {Name: "my-plugin check", ShortHelp: "Trigger immediate check", Args: []string{"target"}},
     },
 })
 ```
@@ -287,19 +287,19 @@ Commands are declared with these fields:
 |-------|------|----------|---------|
 | `Name` | string | Yes | Command name (for example, `"my-plugin status"`) |
 | `Description` | string | No | The one-line SUMMARY, shown wherever the command appears on one line. One line, at most 256 bytes |
-| `LongHelp` | string | No | The LONG explanation this command's own help page prints, under the summary. At most 4096 bytes, newlines kept |
+| `Description` | string | No | The LONG explanation this command's own help page prints, under the summary. At most 4096 bytes, newlines kept |
 | `Args` | []string | No | Expected argument names (for help/completion) |
 | `Completable` | bool | No | Whether the command supports tab completion |
 | `Shape` | string | No | What the answer holds: `doc`, `map` or `tab` |
 | `Columns` | []string | No | The answer's keys, in the order a person reads them. Needs a `Shape` that has rows |
 | `AddressFields` | []string | No | The keys whose value holds an IP address or a prefix. Needs a `Shape` |
 
-`Description` and `LongHelp` are two texts, and neither is derived from the
+`ShortHelp` and `Description` are two texts, and neither is derived from the
 other. Write the summary as one sentence a reader meets in a list. Write the
 explanation as the paragraphs they read when they ask about that one command.
-Declare no `LongHelp` and the help page prints the summary alone.
+Declare no `Description` and the help page prints the summary alone.
 
-The wire keys are `description` and `long-help`. The spelling is `long-help`
+The wire keys are `short-help` and `description`. The spelling is `description`
 and not `help`, because `help` already names the summary in a completion row on
 this same protocol.
 
@@ -321,7 +321,7 @@ CLI waits for the answer, then refuses from what it has in hand.
 err := p.Run(ctx, sdk.Registration{
     Commands: []sdk.CommandDecl{{
         Name:          "my-plugin peers",
-        Description:   "Show the sessions",
+        ShortHelp:     "Show the sessions",
         Shape:         "tab",
         Columns:       []string{"address", "state", "up"},
         AddressFields: []string{"address"},
@@ -361,7 +361,7 @@ for an operator chain they would otherwise type in full. Declare one in the
 ```go
 err := p.Run(ctx, sdk.Registration{
     Commands: []sdk.CommandDecl{
-        {Name: "my-plugin status", Description: "Show current status"},
+        {Name: "my-plugin status", ShortHelp: "Show current status"},
     },
     Pipes: []sdk.PipeDecl{{
         Command:     "my-plugin status",
@@ -455,7 +455,7 @@ Provide usage information via a dedicated command:
 
 ```go
 // In Registration:
-sdk.CommandDecl{Name: "my-plugin help", Description: "Show available commands"},
+sdk.CommandDecl{Name: "my-plugin help", ShortHelp: "Show available commands"},
 
 // In handler:
 if command == "my-plugin help" {

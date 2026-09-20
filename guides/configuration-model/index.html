@@ -233,7 +233,7 @@ bgp {
         remote { connect false; }   # passive: don't initiate outbound
 
         capability {
-            asn4;
+            asn4 enable;
             route-refresh;
         }
 
@@ -285,7 +285,14 @@ requires; if that leads to a connection collision, Section 2.3 preserves the
 connection initiated by the speaker with the larger AS number. Ze also refuses to
 start with its own <code>router-id 0.0.0.0</code>, since Section 2.1 defines the BGP Identifier
 as a non-zero integer and every conformant peer would reject such an OPEN.</p>
-<!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — DetectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
+<p>Two facts decide "internal peer" for that check, and neither is taken from the
+OPEN alone. The AS is the configured <code>session { asn { remote } }</code> when the session
+has one, and the AS the peer advertises only for a dynamic peer that has none. That
+AS is internal when it equals Ze's own AS, and also when it equals a configured
+<code>session { asn { migration } }</code>: RFC 7705 Section 4.2 makes a peer reached under
+either ASN of a migrating pair an iBGP peer, so the Section 2.2 identifier check
+binds it exactly as it binds a peer in the same AS.</p>
+<!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/reactor/peer.go — sessionPeerAS; internal/component/bgp/reactor/session_as_migration.go — isIBGPWith; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — DetectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
 <h2 id="ospf">OSPF</h2>
 <p>The top-level <code>ospf</code> block enables Ze's native OSPF engine. The root container
 configures OSPFv2 for IPv4; <code>ospf { address-family ipv6 { ... } }</code> enables the
@@ -476,7 +483,10 @@ accept lifetimes); <code>extended-sequence true</code> selects RFC 7474 AuType 3
 an interface directly, or set the interface <code>authentication { mode inherit }</code> and the
 chain bound to its area (<code>area { authentication { key-chain } }</code>) is used. <code>algorithm</code>
 is one of <code>simple</code>, <code>md5</code>, or <code>hmac-sha-1/256/384/512</code>; secrets are masked and
-<code>$9$</code>-encoded at rest, never shown in plaintext.</p>
+<code>$9$</code>-encoded at rest, never shown in plaintext. A <code>key-chain</code> leaf naming no
+<code>key-chains</code> entry is refused at commit, and the error names the chain: a misspelled
+name would otherwise leave the interface accepting every packet unsigned. Naming no
+chain at all stays legitimate, and is how an interface runs unauthenticated.</p>
 <pre><code>ospf {
     router-id 10.0.0.1
     key-chains core {
@@ -1157,7 +1167,7 @@ the exemption does nothing, and Ze logs that at configure time naming the peer.<
 <tr>
 <td>4-byte ASN</td>
 <td><code>asn4</code></td>
-<td>presence (enabled by default)</td>
+<td><code>enable</code> (default), <code>disable</code>, <code>require</code>, <code>refuse</code></td>
 </tr>
 <tr>
 <td>Route Refresh</td>
@@ -1209,7 +1219,11 @@ ipv4/unicast, which RFC 4271 carries with no capability at all. The OPEN
 message carries no Multiprotocol capability in that case. That OPEN is correct,
 and a peer daemon that follows RFC 4271 reads it as IPv4 unicast.</p>
 <p>Ze sends the End-of-RIB marker for ipv4/unicast once it completes the initial
-routing update, as RFC 4724 Section 4 requires.</p>
+routing update, as RFC 4724 Section 4 requires. The initial routing update is
+the one Ze itself owns: static routes, <code>default-originate</code> and the peer's
+<code>update {}</code> block. A process attached to the peer does not hold the marker back
+(owner ruling, 2026-09-18), and routes it pushes after the marker are delivered
+as ordinary updates.</p>
 <p>A loaded plugin changes what Ze advertises. When the config declares no family,
 Ze advertises every family the loaded plugins can decode, and the session
 negotiates those.</p>
@@ -2207,10 +2221,17 @@ kernel.</p>
 holds every peer's routes in the RIB and serves them on the plugin API. It
 forwards no traffic, so a kernel route for each prefix is work with no reader.
 <code>fib-withhold [ bgp ]</code> programs none of them. The RIB is untouched, and so is
-<code>bgp-rib/best-change</code>, the stream the plugin API serves those routes on.</p>
+<code>bgp-rib/best-change</code>, the stream the plugin API serves those routes on.
+Withholding is the one verdict that refuses the write outright. Ze reaches the
+same install decision by three doors, a route arriving live, the permission
+sweep and a next-hop cascade, and only that verdict makes any of them decline.
+The other two decide what the install RECORDS rather than whether it happens,
+so a route whose next-hop the resolver cannot reach is still programmed: the
+Loc-RIB is not the router's whole picture of reachability, and an IGP next-hop
+on a link whose connected route no plugin inserted is on-link all the same.</p>
 <!-- source: internal/component/sysrib/yang/ze-rib-conf.yang -- fib-withhold leaf-list -->
-<!-- source: internal/component/sysrib/fibimport.go -- recordWithheldWinner, applyFIBImport -->
-<!-- source: internal/component/sysrib/sysrib.go -- recomputeBest, cascadeRecompute -->
+<!-- source: internal/component/sysrib/fibimport.go -- recordWithheldWinner, applyFIBImport, fibStateChange -->
+<!-- source: internal/component/sysrib/sysrib.go -- recomputeBest, cascadeRecompute, fibInstall -->
 <h2 id="static-routes">Static Routes</h2>
 <p>Routes can be configured directly per peer:</p>
 <pre><code>peer transit-a {
@@ -2585,7 +2606,7 @@ port's own selector ambiguous. <code>mac/match</code> <strong>takes precedence o
 error.</p>
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, validateSelectors, devicesWithMAC -->
 <!-- source: internal/component/iface/resolve.go -- matchByMAC, deviceMatchMAC -->
-<!-- source: internal/component/doctor/checks_linux.go -- checkInterfaces, selectedNetDevice -->
+<!-- source: internal/component/iface/doctor_linux.go -- checkEthernetInterfaces, selectedNetDevice -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf match (container mac) -->
 <h3 id="mac-address-binding">MAC Address Binding</h3>
 <p>For ethernet, veth, and bridge interfaces, the MAC container carries two independent
@@ -2601,7 +2622,7 @@ onto a different NIC the first time the kernel gives the name to another port. <
 reports that shape as <code>doctor-iface-mac-override-by-name</code>, at warning severity. Adding
 <code>mac { match }</code> against the NIC's permanent address clears it: the override then follows
 the NIC it was written for. Discovery writes no override on an ethernet for this reason.</p>
-<!-- source: internal/component/doctor/checks_linux.go -- macOverrideBoundByName -->
+<!-- source: internal/component/iface/doctor_linux.go -- macOverrideBoundByName -->
 <!-- source: internal/component/iface/config_apply.go -- applyConfig, SetMACAddress -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unique "mac/address", container mac -->
 <h3 id="discovery-during-init">Discovery During Init</h3>
@@ -3744,6 +3765,9 @@ is unavailable.</p>
         }
         transcript enabled;  # record session commands and output to local file
     }
+    mtu {
+        reference-address 1.1.1.1;  # the address show mtu measures beside the peers
+    }
 }
 </code></pre>
 <p>The <code>hide-version</code> leaf keeps the <code>X-Ze-Version</code> response header off the web
@@ -3756,16 +3780,33 @@ value applies at the next daemon start. No other header changes, and Ze sends no
 <p>The <code>cli { format { default } }</code> leaf controls the output format when no explicit
 pipe operator is specified. The default is <code>text</code>. Override per-session with
 <code>set cli format &lt;value&gt;</code> in operational mode; explicit pipe operators always win.</p>
-<p>The <code>cli { transcript }</code> leaf enables local transcript recording. When set to
+<p>The <code>cli { transcript }</code> leaf enables transcript recording. When set to
 <code>enabled</code>, <code>ze cli</code> and <code>ze config edit</code> sessions write all commands and their
 output to <code>$XDG_DATA_HOME/ze/transcripts/</code> (defaults to
-<code>~/.local/share/ze/transcripts/</code>). Transcripts include a header with
-timestamp, username, and remote host. Transcript writes are best-effort and
-never block CLI operation. Default is <code>disabled</code>.</p>
+<code>~/.local/share/ze/transcripts/</code>). The process that runs the session's model
+writes the file: the daemon, for a session on a stored configuration (the
+daemon owns the editor, <code>docs/guide/config-editor.md</code>), so the file is on the
+daemon host, one per session, named <code>transcript-&lt;stamp&gt;-&lt;pid&gt;-&lt;n&gt;.log</code>; the
+client, for <code>ze cli -c &lt;command&gt;</code> and for a loose-file <code>ze config edit</code>, named
+<code>transcript-&lt;stamp&gt;-&lt;pid&gt;.log</code>. Transcripts include a header with timestamp,
+username, and remote host. Transcript writes are best-effort and never block
+CLI operation. Default is <code>disabled</code>.</p>
+<p>A credential typed at the prompt is not written. The command line goes through
+the same redaction the SSH command log uses, so a bcrypt-shaped token and the
+value after a password-family keyword are each replaced with <code>&lt;redacted&gt;</code>
+before the line reaches the file. The answer needs no pass of its own: a
+command that echoes a config value masks it where it is written.</p>
+<p>The <code>mtu { reference-address }</code> leaf names the address <code>show mtu</code> measures
+beside the IPsec peers. A reference outside the tunnels is what tells a clamped
+access circuit from a clamped peer path. The value is one IPv4 or IPv6 address
+and the default is <code>1.1.1.1</code>. The environment variable
+<code>ze.mtu.reference-address</code> overrides the leaf. The command is described in
+<code>docs/architecture/diagnostics/path-mtu.md</code>.</p>
 <!-- source: internal/component/config/environment.go -- environment block parsing; internal/core/slogutil/slogutil.go -- log level config -->
+<!-- source: internal/component/mtu/cmd/mtu.go -- referenceAddress, the reader of the reference-address leaf -->
 <!-- source: internal/core/version/version.go -- HTTPHeaderHidden, the leaf both HTTP servers read -->
 <!-- source: internal/component/command/pipe.go -- configuredDefault -->
-<!-- source: internal/component/cli/transcript.go -- TranscriptWriter, TranscriptEnabled -->
+<!-- source: internal/component/cli/transcript.go -- TranscriptWriter, OpenTranscriptFile -->
 <h3 id="tls-certificates-from-the-pki-store">TLS Certificates From the PKI Store</h3>
 <p>Four TLS listeners can serve a certificate held in the <code>pki {}</code> store instead
 of a self-signed one: the web/API HTTPS listener, the looking glass, and the
@@ -3851,8 +3892,8 @@ no intermediate serves the leaf alone.</p>
 <td><code>ze.web.certificate</code> and <code>ze.looking-glass.certificate</code> set their listener's certificate and take precedence over the config file.</td>
 </tr>
 <tr>
-<td>Blob storage</td>
-<td>A named certificate comes from the <code>pki {}</code> container, so the looking glass serves one on a deployment that never ran <code>ze init</code>. Its blob store holds the self-signed certificate only. The web server needs blob storage whatever it serves, because its credentials and config live there.</td>
+<td>Store</td>
+<td>A named certificate comes from the <code>pki {}</code> container, so the looking glass serves one on a deployment that never ran <code>ze init</code>. The <code>database/</code> store holds the self-signed certificate only. The web server needs the store whatever it serves, because its credentials and config live there.</td>
 </tr>
 <tr>
 <td>Pre-flight</td>
@@ -4161,7 +4202,7 @@ replace binary only between 2 AM and 6 AM, restart at 3 AM.</p>
 <p>When <code>auto-apply</code> is true, the server manifest must include a <code>sha256</code> field. Ze refuses to auto-download binaries without a checksum. Manual commands (<code>update system firmware apply</code>) warn but proceed without verification.</p>
 <p>See the <a href="../self-update/">Self-Update Guide</a> for server setup and fleet deployment details.</p>
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- update-check config -->
-<!-- source: internal/component/config/system/selfupdate.go -- SelfUpdater -->
+<!-- source: internal/component/config/system/selfupdate.go -- selfUpdater -->
 <!-- source: cmd/ze/hub/main_system.go -- startUpdateChecker lifecycle -->
 <h3 id="ntp-client">NTP Client</h3>
 <p>Configure NTP under <code>environment { ntp { } }</code>:</p>
@@ -4208,7 +4249,7 @@ replace binary only between 2 AM and 6 AM, restart at 3 AM.</p>
 <td><code>persist-path</code></td>
 <td>string</td>
 <td><code>/perm/ze/timefile</code></td>
-<td>Path used to persist recovered time across restarts.</td>
+<td>A non-empty value enables recovered-time persistence in the daemon's selected store; it does not choose a loose file.</td>
 </tr>
 <tr>
 <td><code>server &lt;name&gt;.address</code></td>
@@ -4221,6 +4262,23 @@ replace binary only between 2 AM and 6 AM, restart at 3 AM.</p>
 <p>NTP responses are validated and timestamps outside years 2020-2100 are
 rejected. <code>max-step</code> is checked before <code>settimeofday</code>; responses whose clock
 offset exceeds the cap are rejected and logged.</p>
+<p>After a successful sync, Ze publishes the last-known time under
+<code>meta/ntp/last-time</code> in the selected <code>database/</code> tree. On startup it restores
+the system clock from that value before querying a server. Explicit-file
+startup uses the tree beside the file, with no <code>ze.config.dir</code> pin.</p>
+<p>The native restart fixture performs an NTP exchange with its own loopback UDP
+server, then restarts Ze without a server and checks the restored system clock.
+It changes the clock and therefore belongs in a disposable QEMU guest. With
+the guest's <code>ze</code> and <code>ze-test</code> binaries on <code>PATH</code>, its explicit action from a
+scratch directory is:</p>
+<pre><code class="language-sh">ZE_STORAGE_CLOCK_TEST=1 ze-test fixture storage/consumer-restart ntp
+</code></pre>
+<p>The fixture refuses to run without that opt-in. Its suite carrier,
+<code>test/plugin/storage-ntp-restart.ci</code>, passes the opt-in and is gated
+<code>option=needs-linux:caps=sys-time</code>: a process without <code>CAP_SYS_TIME</code> skips it,
+so an unprivileged developer host keeps its clock and the QEMU guest
+(<code>./le qemu all-tests</code>) runs it.</p>
+<!-- source: internal/test/fixture/storage_consumer_restart.go -- storageNTPRestart, storageNTPServer -->
 <!-- source: internal/plugins/ntp/yang/ze-ntp-conf.yang -- NTP config schema -->
 <!-- source: internal/plugins/ntp/ntp.go -- parseNTPConfig, doSync -->
 <h3 id="dhcp-server">DHCP Server</h3>
@@ -5047,7 +5105,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -5072,7 +5130,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

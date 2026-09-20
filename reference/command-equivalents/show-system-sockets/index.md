@@ -25,11 +25,11 @@ Every filter is optional and they combine. States use kernel names (ESTABLISHED,
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `protocol` | enum | no | `tcp`, `udp` |
-| `state` | string | no | any value of this type |
-| `port` | uint | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `protocol` | enum | no | `tcp`, `udp` | Filter by protocol. | The word is optional. Absent, the list carries both protocols. Ze reads /proc/net/tcp and /proc/net/tcp6 for tcp, and the udp pair for udp. |
+| `state` | string | no | any value of this type | Filter by socket state. | The value is a kernel state name such as established, listen or time_wait, in any letter case. Only sockets in that state are listed. A UDP socket has no state to match. |
+| `port` | uint | no | any value of this type | Filter by port number. | The value is a port number from 1 to 65535. A socket is listed when its local port or its remote port equals it. A value outside that range is ignored and the list is not filtered. |
 
 ## Mapping intents
 

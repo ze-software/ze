@@ -51,7 +51,7 @@
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#1-start-from-an-installed-ze-node">1. Start from an installed Ze node</a></li>
-<li><a href="#2-update-the-active-zefs-config">2. Update the active zefs config</a></li>
+<li><a href="#2-update-the-active-stored-config">2. Update the active stored config</a></li>
 <li><a href="#3-open-the-ui">3. Open the UI</a></li>
 <li><a href="#4-birdwatcher-compatible-api-paths">4. Birdwatcher-compatible API paths</a></li>
 <li><a href="#5-publish-it-safely">5. Publish it safely</a></li>
@@ -101,8 +101,8 @@
 </tr>
 </tbody>
 </table>
-<h2 id="2-update-the-active-zefs-config">2. Update the active zefs config</h2>
-<p>Keep the active configuration in <code>database.zefs</code>. The commands below read the current active config, normalize it to set format, append the looking-glass settings, render the import file, validate the result, import it back into zefs, and reload the daemon. They do not create <code>/etc/ze/edge-01.conf</code>.</p>
+<h2 id="2-update-the-active-stored-config">2. Update the active stored config</h2>
+<p>Keep the active configuration in the <code>database/</code> store. The commands below read the current active config, normalize it to set format, append the looking-glass settings, render the import file, validate the result, import it back into the store, and reload the daemon. They do not create <code>/etc/ze/edge-01.conf</code>.</p>
 <pre><code class="language-bash">set -euo pipefail
 
 umask 077
@@ -254,7 +254,7 @@ Sections 7.2 and 7.3.</p>
 </tr>
 </tbody>
 </table>
-<p>Ze terminates TLS itself unless you set <code>tls false</code>. The self-signed certificate needs a zefs blob store to hold it, so create one first with <code>ze init</code> (see <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a>). Without a blob store, an explicit <code>tls true</code> fails with <code>looking glass TLS requires blob storage (run ze init first)</code>, while the default falls back to plaintext and prints a warning naming the same remedy. Set <code>certificate &lt;name&gt;</code> to serve a certificate from the <code>pki {}</code> store instead: that material needs no blob store, and the listener sends the full chain (see <a href="../looking-glass/">Looking Glass</a>).</p>
+<p>Ze terminates TLS itself unless you set <code>tls false</code>. The self-signed certificate needs the <code>database/</code> store to hold it, so create one first with <code>ze init</code> (see <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a>). Without a store, an explicit <code>tls true</code> fails with <code>looking glass TLS requires persistent storage (run ze init first)</code>, while the default falls back to plaintext and prints a warning naming the same remedy. Set <code>certificate &lt;name&gt;</code> to serve a certificate from the <code>pki {}</code> container instead: that material needs no store, and the listener sends the full chain (see <a href="../looking-glass/">Looking Glass</a>).</p>
 <pre><code class="language-text">environment {
     looking-glass {
         enabled true
@@ -290,7 +290,7 @@ journalctl -u ze.service -n 100 --no-pager
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -315,7 +315,7 @@ journalctl -u ze.service -n 100 --no-pager
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

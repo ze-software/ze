@@ -98,6 +98,7 @@ Not enrolled. RFC 1035 predates RFC 2119 and states every obligation in lowercas
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 2 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **27** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (25):** [`RFC1035-2.3.3-1`](#rfc1035-2.3.3-1), [`RFC1035-2.3.3-2`](#rfc1035-2.3.3-2), [`RFC1035-2.3.4-1`](#rfc1035-2.3.4-1), [`RFC1035-2.3.4-2`](#rfc1035-2.3.4-2), [`RFC1035-3.1-1`](#rfc1035-3.1-1), [`RFC1035-3.1-2`](#rfc1035-3.1-2), [`RFC1035-3.1-3`](#rfc1035-3.1-3), [`RFC1035-3.1-4`](#rfc1035-3.1-4), [`RFC1035-3.1-5`](#rfc1035-3.1-5), [`RFC1035-3.1-6`](#rfc1035-3.1-6), [`RFC1035-4.1.1-1`](#rfc1035-4.1.1-1), [`RFC1035-4.1.1-2`](#rfc1035-4.1.1-2), [`RFC1035-4.1.1-3`](#rfc1035-4.1.1-3), [`RFC1035-4.1.3-1`](#rfc1035-4.1.3-1), [`RFC1035-4.1.3-2`](#rfc1035-4.1.3-2), [`RFC1035-4.1.4-1`](#rfc1035-4.1.4-1), [`RFC1035-4.1.4-2`](#rfc1035-4.1.4-2), [`RFC1035-4.1.4-3`](#rfc1035-4.1.4-3), [`RFC1035-4.1.4-4`](#rfc1035-4.1.4-4), [`RFC1035-4.1.4-5`](#rfc1035-4.1.4-5), [`RFC1035-4.2.1-1`](#rfc1035-4.2.1-1), [`RFC1035-4.2.1-2`](#rfc1035-4.2.1-2), [`RFC1035-4.2.1-3`](#rfc1035-4.2.1-3), [`RFC1035-4.2.2-1`](#rfc1035-4.2.2-1), [`RFC1035-6.4-1`](#rfc1035-6.4-1)

@@ -67,11 +67,15 @@
 </dl>
 <h3>Description</h3><p>Sends all probes concurrently for faster results than sequential traceroute.<br>Returns per-hop RTT and IP. Use probes and max-hops to tune accuracy vs speed.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>dest</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>probes</code></td><td>uint</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>max-hops</code></td><td>uint</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>timeout</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>dest</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Target host or IP address.</td><td>The value is the first bare word of the command. A host name is resolved
+in either address family, and the family of the answer selects ICMPv4 or ICMPv6.</td></tr>
+<tr><td><code>probes</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Number of probes per hop.</td><td>The value is accepted in the range 1 to 10 and then not read: a probe
+round sends one probe at each time-to-live.</td></tr>
+<tr><td><code>max-hops</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Maximum number of hops.</td><td>The value is the largest time-to-live Ze probes, 1 to 64. Absent, or set
+to 30, the round probes 16 hops.</td></tr>
+<tr><td><code>timeout</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Timeout duration.</td><td>The value is accepted in Go duration syntax, 1s to 30s, and then not read:
+a probe round waits one second for every answer.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -135,7 +139,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

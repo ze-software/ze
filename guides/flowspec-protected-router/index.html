@@ -51,10 +51,11 @@
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#1-start-from-an-installed-ze-node">1. Start from an installed Ze node</a></li>
-<li><a href="#2-update-the-active-zefs-config">2. Update the active zefs config</a></li>
+<li><a href="#2-update-the-active-stored-config">2. Update the active stored config</a></li>
 <li><a href="#3-check-the-firewall-backend">3. Check the firewall backend</a>
 <ol>
 <li><a href="#what-the-bridge-enforces-and-what-it-refuses">What the bridge enforces, and what it refuses</a></li>
+<li><a href="#traffic-filtering-actions-ze-does-not-perform">Traffic filtering actions ze does not perform</a></li>
 </ol></li>
 <li><a href="#4-test-with-a-safe-flowspec-rule">4. Test with a safe FlowSpec rule</a></li>
 <li><a href="#5-protect-the-bgp-session-itself">5. Protect the BGP session itself</a></li>
@@ -101,8 +102,8 @@
 </tr>
 </tbody>
 </table>
-<h2 id="2-update-the-active-zefs-config">2. Update the active zefs config</h2>
-<p>Keep the active configuration in <code>database.zefs</code>. The commands below read the current active config, normalize it to set format, append the FlowSpec protection settings, render the import file, validate the result, import it back into zefs, and reload the daemon. They do not create <code>/etc/ze/edge-01.conf</code>.</p>
+<h2 id="2-update-the-active-stored-config">2. Update the active stored config</h2>
+<p>Keep the active configuration in the <code>database/</code> store. The commands below read the current active config, normalize it to set format, append the FlowSpec protection settings, render the import file, validate the result, import it back into the store, and reload the daemon. They do not create <code>/etc/ze/edge-01.conf</code>.</p>
 <pre><code class="language-bash">set -euo pipefail
 
 umask 077
@@ -240,6 +241,28 @@ more traffic than the peer asked it to drop.</p>
 <p>A refused route stops at the bridge and goes no further. Routes ze CAN enforce,
 and the rulesets of every other firewall owner, continue to reach the kernel.</p>
 <!-- source: internal/plugins/flowspec-firewall/translate.go -- protocolMatches -->
+<h3 id="traffic-filtering-actions-ze-does-not-perform">Traffic filtering actions ze does not perform</h3>
+<p>Ze performs three of the RFC 8955 Section 7 traffic filtering actions:
+traffic-rate-bytes, traffic-rate-packets and traffic-marking. It does not
+perform rt-redirect (Section 7.4), traffic-action (Section 7.3), or the
+redirect-to-nexthop pair of draft-ietf-idr-flowspec-redirect-ip.</p>
+<p>Section 7.4 gives rt-redirect three encodings: a two-octet AS, an IPv4 address,
+and a four-octet AS. Ze refuses all three alike. A four-byte-ASN peer therefore
+gets the same answer as a two-byte-ASN peer.</p>
+<!-- source: internal/plugins/flowspec-firewall/translate.go -- unperformableAction -->
+<p>A route carrying one of those is REFUSED as a whole, logged with the community
+that caused the refusal, and counted in <code>ze_flowspec_rules_refused_total</code> under
+the reason <code>unsupported-action</code>. Ze does not install the part of the route it
+can perform.</p>
+<p>RFC 8955 Section 7 says that where not all traffic filtering actions can be
+applied "they should be treated as interfering Traffic Filtering Actions", and
+Section 7.7 leaves the choice among interfering actions to the implementation
+while asking that the behavior be documented. This section is that document.
+The choice is to refuse, because the alternative installs a rule ending in
+accept: a route asking ze to rate-limit AND redirect would then send the
+traffic to its original destination while the peer was told the route was
+accepted.</p>
+<!-- source: internal/plugins/flowspec-firewall/translate.go -- unperformableAction -->
 <h2 id="4-test-with-a-safe-flowspec-rule">4. Test with a safe FlowSpec rule</h2>
 <p>The bridge only programs nftables from FlowSpec that <code>edge-01</code> <em>receives</em>, so the rule must be announced from a peer toward <code>edge-01</code>, not injected on <code>edge-01</code> itself. Use a lab prefix first. The example below drops TCP traffic to <code>10.0.0.0/8</code> port 80.</p>
 <p>If the source (<code>flowspec-rr</code>, <code>203.0.113.1</code>) is a Ze node, announce toward <code>edge-01</code> (<code>192.0.2.10</code>) with the required <code>peer &lt;selector&gt;</code> prefix:</p>
@@ -351,7 +374,7 @@ sudo systemctl reload ze.service
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -376,7 +399,7 @@ sudo systemctl reload ze.service
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

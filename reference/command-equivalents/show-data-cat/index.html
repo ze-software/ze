@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>show data cat - Command Equivalents - Ze</title>
-        <meta name="description" content="Print the raw content of a blob store entry." />
+        <meta name="description" content="Print the value of a storage key." />
         <meta property="og:title" content="show data cat - Command Equivalents - Ze" />
-        <meta property="og:description" content="Print the raw content of a blob store entry." />
+        <meta property="og:description" content="Print the value of a storage key." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="show data cat - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Print the raw content of a blob store entry." />
+        <meta name="twitter:description" content="Print the value of a storage key." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -48,7 +48,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
     <h1 id="command-equivalent-detail-title">show data cat</h1>
-    <p>Print the raw content of a blob store entry.</p>
+    <p>Print the value of a storage key.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
@@ -62,10 +62,12 @@
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
 <div><dt>Pipes</dt><dd>none: this command reaches no pipe layer</dd></div>
 </dl>
-<h3>Description</h3><p>Outputs the value for the given key, like &#39;cat&#39; for ZeFS.</p>
+<h3>Description</h3><p>Outputs the decoded value for the given storage key.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>key</code></td><td>string</td><td>yes</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>key</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Storage key to print</td><td>The key of one entry, as show data list prints it. The bytes stored
+under it are written out unchanged, and a key the store does not
+hold is an error.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -129,7 +131,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

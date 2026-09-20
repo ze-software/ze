@@ -25,9 +25,9 @@ The dispatcher calls this same command to undo a compound create. An interface i
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Interface name | The interface to delete. The unit and address forms below keep this interface and remove one unit or one address of it. |
 
 ## Mapping intents
 

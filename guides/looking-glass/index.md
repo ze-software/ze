@@ -28,7 +28,7 @@ environment {
 | `server <name> { ip }` | `0.0.0.0` | Listen address. Set to `127.0.0.1` to restrict to local access. |
 | `server <name> { port }` | `8443` | Listen port. Must differ from the web UI port. |
 | `tls` | `true` | Serve HTTPS. Set `false` to serve plaintext. |
-| `certificate` | (empty) | Name of a `pki { certificate <name> }` entry to serve. Empty means a self-signed certificate from blob storage (`ze init`). |
+| `certificate` | (empty) | Name of a `pki { certificate <name> }` entry to serve. Empty selects a self-signed certificate in the live store. |
 | `token` | (empty) | Bearer token. When set, every `/api/` and `/lg/` route needs `Authorization: Bearer <token>`. Empty leaves the looking glass open. |
 
 Environment variable overrides: `ze.looking-glass.listen=ip:port`, `ze.looking-glass.enabled=true`, `ze.looking-glass.tls=false`, `ze.looking-glass.token=<token>`, `ze.looking-glass.certificate=<name>`.
@@ -40,10 +40,10 @@ it serves HTTPS unless you turn TLS off. Two rules apply:
 
 - Write `tls false` (or set `ze.looking-glass.tls=false`) to serve plaintext,
   for example behind a proxy that terminates TLS.
-- With no `certificate` and no blob storage there is no self-signed certificate
-  to serve. If you wrote `tls true`, Ze reports the error and does not start the
-  looking glass. If you wrote nothing and took the default, Ze serves plaintext
-  and prints a warning that names `ze init` as the remedy.
+- Without a live store or named certificate, Ze cannot persist a self-signed
+  certificate. Explicit `tls true` refuses the looking-glass listener.
+  With the default TLS setting, it serves plaintext and warns that `ze init`
+  is required for persistence. An explicit-file start creates a live store.
 
 ### Serve your own certificate
 
@@ -67,8 +67,8 @@ environment {
 | Fail closed | A name the store does not hold, or an entry with no `private { key }`, refuses the start: Ze exits and names the missing certificate. A reload that names one is rejected as a whole, and the running looking glass keeps the chain it is serving. Ze never falls back to a self-signed certificate for a name you configured. |
 | Rotation | Load new material under the same name and reload: the listener serves the new chain from the next handshake, with no rebind, so a viewer's open connection survives. |
 | TLS off | `tls false` serves no certificate, so the leaf is inert. Neither the start nor a reload reads the name. |
-| Plaintext by downgrade | You took the `tls` default and have no blob store, so Ze dropped the looking glass to plaintext at start. A `certificate` name you add later changes nothing there. The reload is accepted and rotates nothing. Restart Ze to serve the named chain over TLS. |
-| No blob storage needed | The material comes from the `pki {}` container, so a named certificate serves on a deployment that never ran `ze init`. The blob store holds the self-signed certificate only. |
+| Plaintext by downgrade | A storeless stdin daemon took the TLS default and started the looking glass in plaintext. A later certificate name does not enable TLS; restart to serve the named chain. |
+| No live store needed | A named certificate comes from the `pki {}` container. Only the self-signed certificate needs the live store. |
 | Name | 1 to 255 characters, `A-Z a-z 0-9 . _ -`. It is a store key, never a file path. |
 | Own leaf | The looking glass and the web UI have separate `certificate` leaves, so each listener serves the certificate that matches its own hostname. |
 | Env override | `ze.looking-glass.certificate` takes precedence over the config file. |
@@ -115,7 +115,7 @@ The looking glass exposes a birdwatcher-compatible JSON API for integration with
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/looking-glass/status` | Router ID, version, uptime. |
+| `GET /api/looking-glass/status` | Router ID, version, start time, and when the last config reload finished. It answers 502 when one of the four commands behind it fails, and never a status object with an empty router ID. |
 | `GET /api/looking-glass/protocols/bgp` | Peer list with state and route counts. |
 | `GET /api/looking-glass/routes/protocol/{name}` | Routes from a named peer. |
 | `GET /api/looking-glass/routes/table/{family}` | Best routes by address family (URL-encode the `/` in family, e.g., `ipv4%2Funicast`). |

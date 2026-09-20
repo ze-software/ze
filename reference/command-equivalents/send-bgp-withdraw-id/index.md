@@ -25,10 +25,10 @@ Only a tagged announcement carries an id. The withdraw acts only when the select
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type |
-| `id` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, a comma-separated list of those, or * for every peer. The message goes to each session the selector matches. |
+| `id` | string | yes | any value of this type | Announcement id, as show announcements reports it | The value is the whole number show announcements reports in its id column. A value that is not a number is refused, and an id that names no announcement of the selector answers 'not found'. |
 
 ## Mapping intents
 

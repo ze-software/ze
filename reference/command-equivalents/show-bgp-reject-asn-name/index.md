@@ -25,9 +25,9 @@ The same answer for a single list, for a config that holds many.
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Reject-ASN list name | The name of one configured reject-asn list. A name no list carries is refused, and the answer names the missing list. |
 
 ## Mapping intents
 

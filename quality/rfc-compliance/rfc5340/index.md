@@ -98,6 +98,7 @@ Five MUST gaps, annotated in [`rfc/short/rfc5340.md`](https://github.com/ze-soft
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **23** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (16):** [`RFC5340-2.5-1`](#rfc5340-2.5-1), [`RFC5340-2.8-3`](#rfc5340-2.8-3), [`RFC5340-2.8-4`](#rfc5340-2.8-4), [`RFC5340-4.1.2-2`](#rfc5340-4.1.2-2), [`RFC5340-4.2.1.1-1`](#rfc5340-4.2.1.1-1), [`RFC5340-4.2.1.1-2`](#rfc5340-4.2.1.1-2), [`RFC5340-4.2.1.2-1`](#rfc5340-4.2.1.2-1), [`RFC5340-4.2.2-5`](#rfc5340-4.2.2-5), [`RFC5340-A.3.1-2`](#rfc5340-a.3.1-2), [`RFC5340-A.4.7-1`](#rfc5340-a.4.7-1), [`RFC5340-A.4.7-2`](#rfc5340-a.4.7-2), [`RFC5340-A.4.8-1`](#rfc5340-a.4.8-1), [`RFC5340-C.3-1`](#rfc5340-c.3-1), [`RFC5340-C.3-2`](#rfc5340-c.3-2), [`RFC5340-C.3-3`](#rfc5340-c.3-3), [`RFC5340-C.3-4`](#rfc5340-c.3-4)

@@ -59,11 +59,18 @@ ze -d example.conf             # shorthand for ze.log=debug + ze.log.relay=debug
 Change log levels on a running daemon without restart:
 
 ```bash
-ze cli -c "bgp log set bgp.fsm debug"
-ze cli -c "bgp log set bgp.reactor info"
-ze cli -c "bgp log levels"         # show current levels
+ze cli -c "request log level bgp.fsm debug"
+ze cli -c "request log level bgp.reactor info"
+ze cli -c "request log level bgp.reactor disabled"   # silence one subsystem
+ze cli -c "show log levels"                          # show current levels
 ```
-<!-- source: internal/plugins/log/cmd/handlers.go -- log show/set RPCs -->
+
+`disabled` silences the subsystem until a later `request log level` sets a
+level again. `show log levels` reports it as `disabled`, and a subsystem that
+started disabled through `ze.log.<subsystem>=disabled` is listed the same way,
+so the runtime command can enable it. A level set at runtime is lost on
+restart.
+<!-- source: internal/plugins/log/cmd/handlers.go -- log show/set RPCs; internal/core/slogutil/slogutil.go -- SetLevel, disabledLevel -->
 
 ## Priority Order
 
@@ -181,5 +188,5 @@ Run `ze env` to see the full list with descriptions. Below is the complete inven
 ```bash
 ze env list -v                 # show all env vars with current values
 ze env get ze.log              # show specific var details
-ze cli -c "bgp log levels"  # show runtime log levels
+ze cli -c "show log levels"    # show runtime log levels
 ```

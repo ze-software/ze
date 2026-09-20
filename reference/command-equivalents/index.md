@@ -1,6 +1,6 @@
 # Command Equivalents
 
-467 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+468 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -434,6 +434,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show metrics pool` | Read-only | - | - | - | - | [details](show-metrics-pool/) |
 | `show metrics values` | Read-only | - | - | - | - | [details](show-metrics-values/) |
 | `show mpls forwarding` | Read-only | - | - | - | - | [details](show-mpls-forwarding/) |
+| `show mtu` | Read-only | - | - | - | - | [details](show-mtu/) |
 | `show neighbor` | Read-only | - | - | - | `show arp` | [details](show-neighbor/) |
 | `show nexthop-table` | Read-only | - | - | - | - | [details](show-nexthop-table/) |
 | `show ospf` | Read-only | - | - | - | - | [details](show-ospf/) |

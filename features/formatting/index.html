@@ -114,7 +114,7 @@ set cli format          # shows the current default
 </table>
 <p>The choice persists for the session via the <code>ze.cli.format</code> setting; it can
 also be set permanently through YANG config.</p>
-<!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat, validCLIFormats -->
+<!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat, cliFormatLeafPath -->
 <!-- source: internal/component/command/pipe.go -- ze.cli.format env registration, configuredDefault -->
 <h3 id="piping-inline">Piping inline</h3>
 <p>Append <code>| &lt;operator&gt;</code> to a command that answers with data, shell-like:</p>
@@ -178,7 +178,7 @@ behaviour.</p>
 <p>Ze's own tooling uses the same operator. Completion, the runtime command tree
 and the live dashboard each parse an exec-channel answer. Each asks for it
 through one helper, rather than composing the pipe itself.</p>
-<!-- source: internal/core/ssh/client/client.go -- RawCommand, ExecCommandRaw -->
+<!-- source: internal/component/cli/sshclient/client.go -- RawCommand, ExecCommandRaw -->
 <h3 id="the-offline-way-ze-pipe">The offline way: <code>ze pipe</code></h3>
 <p>Scripts and pipelines outside an interactive session apply the same
 operators to any captured JSON via <code>ze pipe</code>:</p>
@@ -558,7 +558,7 @@ already produced. A command filter stops it being produced.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

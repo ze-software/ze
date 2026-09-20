@@ -83,6 +83,7 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
 
 **Annotated instead of tested (11):** [`RFC2473-4.1.1-1`](#rfc2473-4.1.1-1), [`RFC2473-4.1.1-2`](#rfc2473-4.1.1-2), [`RFC2473-4.1.1-3`](#rfc2473-4.1.1-3), [`RFC2473-4.1.1-4`](#rfc2473-4.1.1-4), [`RFC2473-4.1.2-1`](#rfc2473-4.1.2-1), [`RFC2473-7.1-1`](#rfc2473-7.1-1), [`RFC2473-7.1-2`](#rfc2473-7.1-2), [`RFC2473-7.1-3`](#rfc2473-7.1-3), [`RFC2473-7.1-4`](#rfc2473-7.1-4), [`RFC2473-7.2-1`](#rfc2473-7.2-1), [`RFC2473-8-1`](#rfc2473-8-1)

@@ -37,15 +37,15 @@ One page per RFC, naming each requirement, the test evidence behind it, and the 
 
 Every homepage number links to the page where you can inspect the test layer, transcript, peer list, RFC gate, or generated source evidence behind it.
 
- [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**29,900+ unit tests**
+ [Read the evidence map](https://ze-software.net/quality/) [Watch product demos](https://ze-software.net/demos/terminal/) [**30,800+ unit tests**
 
 - Wire encoding, parsing
 - Config, FSM, plugins
 - gomu mutates code to check assertions
 
- Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**1,892 of 3,057 RFC MUSTs**
+ Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**1,907 of 3,058 RFC MUSTs**
 
-- 61.9% tested
+- 62.4% tested
 - 147 RFCs Ze claims support for
 - 182 RFCs with requirements extracted
 
@@ -55,7 +55,7 @@ Every homepage number links to the page where you can inspect the test layer, tr
 - Editor, commits, reloads
 - Commands checked as operators run them
 
- Functional transcript format and rerun path.](https://ze-software.net/quality/functional-ci/) [**83 fuzz targets**
+ Functional transcript format and rerun path.](https://ze-software.net/quality/functional-ci/) [**84 fuzz targets**
 
 - Parsers, external inputs
 - Wire formats, config files

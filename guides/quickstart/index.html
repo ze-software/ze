@@ -80,18 +80,32 @@ default feature tags derived from <code>feature-gates.txt</code>:</p>
 <p>This tracks the module's default branch (development version), not a
 tagged release -- there are no tagged releases yet.</p>
 <h2 id="initialize">Initialize</h2>
-<p>Ze runs an SSH server on localhost for CLI access (<code>ze cli</code>, <code>ze show</code>, <code>ze signal</code>). This keeps the control plane authenticated even in multi-user environments. Set up credentials once:</p>
-<pre><code class="language-bash">./ze init
+<p>Ze runs an SSH server on localhost for CLI access (<code>ze cli</code>, <code>ze show</code>, <code>ze signal</code>). This keeps the control plane authenticated even in multi-user environments. Initialize the folder that will hold the example config:</p>
+<pre><code class="language-bash">export ZE_CONFIG_DIR="$PWD"
+./ze init
 </code></pre>
 <p>This prompts for username, password, SSH host (default <code>127.0.0.1</code>), port (default <code>2222</code>), and node name (default: hostname). Credentials are stored locally with bcrypt-hashed passwords. For scripting (later fields fall back to their defaults):</p>
 <!-- source: internal/plugins/init/main.go -- Run, defaultHost, defaultPort, bcrypt hashing -->
 <pre><code class="language-bash">echo -e "admin\nsecret" | bin/ze init
 </code></pre>
-<p>Running <code>ze init</code> a second time will refuse with <code>error: database already exists</code>. To reinitialize, use <code>--force</code> -- this backs up the old database as <code>database.zefs.replaced-&lt;date&gt;</code> before creating a new one:</p>
+<p>Initialization creates a private <code>database/</code> tree in the selected folder.
+Every directory under the store is 0700 and every frame file 0600, owned by the
+caller. Running <code>ze init</code> a second time refuses either an existing tree or a
+<code>database.zefs</code> seed. To reinitialize, use <code>--force</code>; this preserves the old tree
+as <code>database.replaced-&lt;stamp&gt;</code> before publishing the fully seeded replacement.</p>
 <pre><code class="language-bash">./ze signal stop             # stop daemon first
 ./ze init --force            # prompts for confirmation, then backs up and reinitializes
 </code></pre>
 <!-- source: internal/plugins/init/main.go -- forceFlag -->
+<p><code>--force --yes</code> confirms replacement in a script. Replacement refuses while any
+process owns the store, regardless of the selected SSH target. Ordinary startup
+refuses an existing blob without converting it. The diagnostic names
+<code>ze init --from &lt;blob&gt;</code>, which imports a local blob; the URL form is storage-2.
+Appliance first boot already imports its seed. <code>ze init --seed</code> writes an
+explicit blob artifact for appliance builders.</p>
+<!-- source: internal/plugins/init/main.go -- Run -->
+<!-- source: internal/component/config/storage/open.go -- detect -->
+<!-- source: cmd/ze/ze_core_autoinit.go -- gokrazyAutoInit -->
 <figure class="terminal-demo" data-terminal-demo="zefs-config">
   <div class="terminal-demo__intro">
     <div>
@@ -232,8 +246,9 @@ the same way -- this is how interface and interior-gateway routes reach your pee
 <!-- source: internal/plugins/static/register.go -- registerStaticSources; internal/component/config/loader_redistribute.go -- ExtractRedistributeRules -->
 </li>
 <li><strong>Direct announcement</strong> (<code>192.168.1.0/24</code>): a prefix declared inline on the peer in its
-<code>update {}</code> block, sent as soon as the session establishes.
-<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
+<code>update {}</code> block, sent as soon as the session establishes, followed by the End-of-RIB
+marker. Neither waits for a plugin attached to that peer (owner ruling, 2026-09-18).
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, the marker follows the routes the peer owns -->
 </li>
 </ul>
 <blockquote>
@@ -253,6 +268,12 @@ received routes. It is not needed for the config above; see <a href="../plugins/
 </code></pre>
 <!-- source: cmd/ze/ze_core_dispatch.go -- registerLocalCommands, "start" root handler; cmd/ze/ze_core_start.go -- cmdStart, startConfigPath -->
 <p>The config path goes behind the <code>start</code> keyword. A bare <code>./ze example.conf</code> is rejected with <code>unknown command: example.conf</code> (exit 1); global flags such as <code>-d</code> are consumed before the keyword, so they stay ahead of it.</p>
+<p>An explicit path selects the store in that file's folder, before
+<code>ZE_CONFIG_DIR</code> or the default path. If neither a tree nor a seed exists there,
+startup creates a private tree. Every explicit-file start reads the supplied file;
+daemon commits update that file and stored history. Bare <code>ze start</code> uses the
+stored active config instead. Keep <code>ZE_CONFIG_DIR</code> set in the second terminal so
+CLI commands read the credentials from the same folder.</p>
 <p>Ze logs to stderr. You should see something like:</p>
 <pre><code>level=INFO  msg="hub ready" subsystem=hub plugins=1 peers=1 listen=":179"
 level=INFO  msg="peer connecting" subsystem=bgp.reactor peer=test-peer address=10.0.0.2
@@ -339,7 +360,7 @@ announce a route; the address split is what keeps it working when you do.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -364,7 +385,7 @@ announce a route; the address split is what keeps it working when you do.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 08:15 UTC</span>
                 </div>
             </div>
         </footer>

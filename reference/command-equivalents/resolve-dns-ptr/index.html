@@ -67,8 +67,9 @@
 </dl>
 <h3>Description</h3><p>The address is turned into its in-addr.arpa or ip6.arpa name before<br>the query. The cache holds the answer under that name, so show dns cache record takes it in<br>that form.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>ip-address</code></td><td>string</td><td>yes</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>ip-address</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>IP address to reverse-look-up.</td><td>An IPv4 or IPv6 address in its usual text form. The resolver turns it
+into the reverse name itself, so pass the address and not the in-addr.arpa name.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping intents</h2>
@@ -138,7 +139,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

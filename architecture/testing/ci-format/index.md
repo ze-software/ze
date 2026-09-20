@@ -233,7 +233,7 @@ already writes: no new directive chooses between them.
 
 | The `exec=` line | Where the block goes | Why |
 |------------------|----------------------|-----|
-| `ze -`, and its flagged forms `ze -d -`, `ze --plugin <p> -`, `ze --mcp <port> -`, `ze --web <port> --insecure-web -` | a FILE in the work directory, and argv becomes `ze [flags] start <file>` | the daemon re-reads its config on SIGHUP, a restart reuses it, `action=rewrite:dest=ze-bgp.conf` addresses it by bare name, and a rollback assertion reads the directory beside it |
+| `ze -`, and its flagged forms `ze -d -`, `ze --plugin <p> -`, `ze --mcp <port> -`, `ze --web <port> --insecure-web -` | a FILE in a stable per-daemon directory, and argv becomes `ze [flags] start <file>` | SIGHUP reads the source again and a restart reuses its tree |
 | `ze-peer ...` with NO `-` in argv | a temporary FILE appended to argv | `ze-test peer` takes its expect script as a path argument |
 | `ze-peer ... -` | PIPED | `LoadExpectFile` opens its argument through `cliio`, so `-` is standard input there |
 | every other line, `ze bgp decode -`, `ze config validate -`, `ze-test replay -`, `sh -c ...` included | PIPED | `-` is the `cliio` stdin token (`ai/rules/cli.md`), and the command reads standard input |
@@ -244,6 +244,16 @@ when that argument is the `-`. A `-` belonging to a verb is left in argv and the
 block is piped, so `ze config validate -` and `ze bgp decode pcap -` test the
 form the operator types.
 <!-- source: internal/test/runner/runner_exec_util.go -- routeStdinBlock -->
+
+The first daemon block uses `ze-bgp.conf` in the test work directory, so a
+fixture rewriting that bare name still edits the source the daemon reads.
+Further distinct blocks use `daemon-2/ze-<block>.conf`, `daemon-3/…`, each
+with its own sibling `database/`. Reusing a block reuses its directory.
+Numbered directories distinguish even block names that sanitise identically.
+Wrapped launches such as `ze-test fail-syscall … -- ze -` retain real stdin
+and receive an isolated `ze.config.dir` by the same allocation rule.
+Explicit file paths remain authoritative; the runner does not choose a backend.
+<!-- source: internal/test/runner/runner_config.go -- zeConfigFileName -->
 
 Until 2026-09-07 the runner took the FIRST `-` in argv whatever it meant, so
 every verb form ran against a file path the author never wrote. A test that
@@ -384,7 +394,7 @@ option=<type>:key=value[:key=value...]
 | `update` | `value=<behavior>` | UPDATE message behavior |
 | `env` | `var=<KEY>:value=<V>` | Set environment variable |
 | `skip-os` | `value=<os>[,<os>]` | Skip test on listed GOOS values (e.g., `darwin`, `linux`) |
-| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le qemu all-tests`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, and `bpf`; an unavailable capability produces a visible skip. |
+| `needs-linux` | `[caps=<tok>[,<tok>]]` | Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through `./le qemu all-tests`. `caps=` declares required capabilities such as `net-admin`, `net-raw`, `bpf`, and `sys-time`; an unavailable capability produces a visible skip. |
 | `needs-path` | `value=<repo-rel-path>[:hint=<cmd>]` | Declares an optional heavyweight artifact. The runner resolves the path against the repository root and prints the native `hint` when the artifact is absent. A malformed or escaping path is a parse error. |
 | `netns-link` | `name=<if>[:address=<cidr>]` | Provisions a dummy interface inside the per-test namespace. The test skips outside the `./le qemu netns-test` path because the named link must never be created on the host. |
 | `exclusive` | `group=<name>` | Never run concurrently with another test carrying the same group name. Tests outside the group are unaffected and keep running alongside, so this costs far less wall-clock than dropping a whole suite to `-p 1`. Use it when tests contend for a kernel-global observation surface that unique names or addresses cannot partition: the ddos tests (`group=ddos-flood`) all flood the same loopback interface, and each daemon's detector picks its victim by top-destination-bytes over that interface's counters, so a sibling's concurrent flood is indistinguishable from the test's own. Applies on every platform and in every runner mode, because the contention is a property of the tests rather than of the host. |
@@ -402,6 +412,7 @@ option=<type>:key=value[:key=value...]
 | The same, and needs privileged network configuration (creates interfaces, brings links up, programs netlink) | `option=needs-linux:caps=net-admin` |
 | The same, and opens a raw or packet socket (`resolve ping`, traceroute) | `option=needs-linux:caps=net-raw` |
 | The same, and loads eBPF | `option=needs-linux:caps=bpf` |
+| The same, and sets the system clock (the NTP plugin restoring persisted time) | `option=needs-linux:caps=sys-time` |
 | Skips on one non-Linux OS for a reason unrelated to the kernel | `option=skip-os:value=darwin` |
 | Needs an optional heavyweight artifact the checkout does not carry | `option=needs-path:value=<repo-rel>:hint=<cmd>` |
 
@@ -974,6 +985,30 @@ an exabgp-compat config is left alone for the same reason.
 <!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
 
+An exabgp-compat case runs TWO processes, ze and the mock BGP server, and its
+verdict names which one ended the case:
+
+- `ze exited before the mock BGP server finished its script: <error>` is a
+  daemon defect. Read the client stderr in the failure block.
+- `the mock BGP server failed: <error>` is a wire or document disagreement. The
+  mock prints the frame or the JSON member that did not match.
+- `the mock BGP server ended without reporting success` means its script did not
+  complete and it said nothing about why.
+
+Both used to print the bare `exit status N` of whichever process failed, which
+told a reader nothing about which of the two to open.
+<!-- source: internal/test/cli/cmd_exabgp.go -- exaBGPFailure -->
+
+Both processes are stopped by a `defer` beside the start that created them, so
+a case that returns by any route, a panic included, leaves neither running. The
+stops written inside the branch arms are ORDERING barriers rather than
+lifetimes: a process's output must not be read while it is still writing, and
+its exit status does not exist until it has one. How the suite's forks are
+created and canceled is in
+`docs/architecture/testing/runner-architecture.md`, "How a suite's child
+processes end".
+<!-- source: internal/test/cli/cmd_exabgp.go -- runOneExaBGPTest, the two defers -->
+
 ## Expectations
 
 ```
@@ -1157,8 +1192,21 @@ files gets them in that same directory, so the two spellings name one place. For
 glob `contains`, at least one matched file must contain the text. For glob
 `not-contains`, no matched file may contain it.
 
-Use file expectations for post-run artifacts such as generated configs, pointer
-files, and logs. Do not write shell just to inspect files.
+Use file expectations for loose source files and exported artifacts such as logs.
+Persistent config, versions, pointers and plugin state use key expectations:
+
+```
+expect=key:path=meta/config/router.conf/active:exists=true
+expect=key:path=meta/config/router.conf/candidate:absent=true
+expect=key:glob=file/[0-9]*/router.conf:count=2
+expect=key:glob=file/[0-9]*/router.conf:contains=router-id 1.2.3.4
+```
+
+Key expectations resolve beneath `database/` in the work directory and decode
+the complete netcapstring frame before inspecting its value. A bad CRC or
+trailing frame bytes fail the assertion. They accept the same path, glob,
+count and containment checks as files. A missing key satisfies `absent`;
+an unreadable or corrupt key does not.
 <!-- source: internal/test/runner/runner_validate.go -- validateFileChecks -->
 
 ### Negative Expectations (reject)
@@ -1599,7 +1647,9 @@ needs `fixture.Poll` around the read, never a fixed settle before it.
 
 Engine steps drive a live daemon through CLI dispatch, first-class in `.ci`
 instead of an embedded Python observer. The runner serializes the parsed steps
-to `engine-steps.json` in the test tmpfs; the `.ci` declares the executor as an
+to `engine-steps.json` in the test tmpfs, and links it into the `daemon-N/`
+config directory of every further daemon, because a plugin runs in its daemon's
+config directory; the `.ci` declares the executor as an
 external plugin (`run "ze-test engine-steps ./engine-steps.json"`), which runs
 the steps from `OnAllPluginsReady` and reports failures via the
 `ZE-OBSERVER-FAIL` sentinel the runner gates on.
@@ -1924,7 +1974,16 @@ Named keys `input=key:name=<key>` accepts: `tab`, `enter`, `esc`, `escape`,
 | `expect=file:path=<rel>:contains=<text>` | On-disk file content | `expect=file:path=test.conf:contains=bgp` |
 | `expect=file:path=<rel>:not-contains=<text>` | File must NOT contain | `expect=file:path=test.conf:not-contains=old` |
 | `expect=file:path=<rel>:absent=true` | File does not exist | `expect=file:path=test.conf:absent=true` |
+| `expect=key:path=<key>:contains=<text>` | Decoded persistent value | `expect=key:path=file/active/test.conf:contains=bgp` |
+| `expect=key:path=<key>:not-contains=<text>` | Decoded value excludes text | `expect=key:path=file/active/test.conf:not-contains=old` |
+| `expect=key:path=<key>:absent` | Key does not exist | `expect=key:path=file/active/test.conf.draft:absent` |
 <!-- source: internal/component/cli/testing/expect.go -- editor expectation types -->
+
+Editor tests use a tree store by default; `option=storage:value=tree` states
+that choice explicitly, and other values are refused. The runner seeds config
+fixtures once and all sessions and `restart=` steps share the same lifetime
+store handle. `expect=key` reads that handle, while `expect=file` reads the
+original loose fixture or a separate exported artifact.
 
 `hint` reads the second message line with every style stripped. That row carries
 the completion hint, and the summary of the candidate the operator selected.

@@ -67,8 +67,9 @@
 </dl>
 <h3>Description</h3><p>Performs a longest-prefix-match and returns the<br>matching route with gateway, interface, protocol, and metric.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>ip</code></td><td>string</td><td>yes</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>ip</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Destination IP address to look up</td><td>One IPv4 or IPv6 address without a prefix length. The
+kernel answers with the route it selects for a packet to that address.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping intents</h2>
@@ -140,7 +141,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

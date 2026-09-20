@@ -280,12 +280,14 @@ has no wire encoding and the parser refuses it.</p>
 </code></pre>
 <p>The meticulous variants enforce strict monotonic sequence numbers;
 non-meticulous variants allow a receiver to accept equal sequence
-numbers across retransmits. The <code>persist-dir</code> leaf (top-level on
-<code>bfd { }</code>) names a directory where ze stores the last TX sequence
-per session so a Meticulous session resumes above the peer's replay
-window after a process restart. Without <code>persist-dir</code>, Meticulous
-sessions still work at runtime but briefly re-synchronize after a
-restart while the peer's replay window slides forward.</p>
+numbers across retransmits. A non-empty <code>persist-dir</code> leaf (top-level on
+<code>bfd { }</code>) enables persistence of the last TX sequence under
+<code>meta/bfd/auth/&lt;session&gt;</code> in the daemon's selected <code>database/</code> tree. The leaf's
+path is retained as an opt-in setting; it does not select a second directory.
+A Meticulous session resumes above its saved sequence floor after a process
+restart. Without persistence, it must re-synchronise with the peer's replay
+window. Explicit-file startup selects the store beside that file without a
+<code>ze.config.dir</code> pin.</p>
 <p>Authentication failures increment <code>ze_bfd_auth_failures_total{mode}</code>.</p>
 <h3 id="enabling-bfd-on-a-bgp-peer">Enabling BFD on a BGP peer</h3>
 <p>The common path. Adding a <code>bfd { ... }</code> container inside a BGP peer's
@@ -868,7 +870,7 @@ document for the full gap list and the intended follow-up order.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -893,7 +895,7 @@ document for the full gap list and the intended follow-up order.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

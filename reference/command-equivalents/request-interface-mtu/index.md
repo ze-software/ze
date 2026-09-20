@@ -25,10 +25,10 @@ The MTU is between 68 and 65535 bytes.
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
-| `bytes` | uint | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Interface name | The interface that up, down, mtu and mac act on. Each of those commands inherits it, and migrate names its own interfaces instead. |
+| `bytes` | uint | yes | any value of this type | MTU in bytes | The largest frame payload the interface accepts. A value outside 68 to 65535 is refused before the backend is called. |
 
 ## Mapping intents
 

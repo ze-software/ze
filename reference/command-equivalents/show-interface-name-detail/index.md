@@ -25,9 +25,9 @@ The answer is the whole record the backend holds for that interface, and the cou
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Interface name | The interface whose record is shown. The backend looks it up by this name, and an unknown name answers the backend's error. |
 
 ## Mapping intents
 

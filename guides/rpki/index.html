@@ -241,7 +241,13 @@ it has no address at all and it uses the global actions. It is reported at start
 overrides with the source of each leaf (<code>peer-actions</code>). An entry names what it is: <code>"peer"</code>
 carries a remote address, and <code>"group"</code> carries a listen-range group's name and states what
 every session that group accepts inherits.</p>
-<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions per-peer resolution, statusCommand -->
+<p><code>running</code> and <code>synced</code> are measured rather than asserted. <code>running</code> is the flag
+the per-prefix work reads, so it answers whether this daemon would consult the
+cache at all, and <code>synced</code> counts the cache servers that have delivered a set.
+<code>synced</code> false beside <code>running</code> true is the state an operator cannot otherwise
+see: validation is switched on and no cache has answered, so every route is
+Not-Found rather than validated.</p>
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions per-peer resolution, statusCommand, validationEnabled -->
 <h4 id="blackhole-exemption">Blackhole exemption</h4>
 <table>
 <thead>
@@ -443,6 +449,11 @@ alias the plugin declares over its own command, and it answers the same record
 <code>show bgp rpki summary</code> answers. The seven counters are <code>vrp-count</code>,
 <code>validation-enabled</code>, <code>sessions-total</code>, <code>sessions-established</code>,
 <code>sessions-synced</code>, <code>aspa-enabled</code> and <code>aspa-records</code>.</p>
+<p><code>validation-enabled</code> is derived from <code>sessions-synced</code>, not from whether the
+plugin is loaded: it answers true only while at least one cache server has
+delivered a set. A daemon carrying the plugin with no cache reachable therefore
+reports it false, which is the honest answer, because no route is being
+validated against anything.</p>
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- summaryFieldNames, summaryAliasExpansion, appendSummaryFields -->
 <p>A plugin's pipe alias lives in the daemon's registry. <code>ze cli</code> with no command
 argument expands the chain in the client process instead, so <code>| summary</code> comes
@@ -758,7 +769,7 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -783,7 +794,7 @@ The local RTR cache classifies 9.43.0.0/24 as Valid, 10.43.0.0/24 as Invalid, an
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

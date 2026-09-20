@@ -25,10 +25,10 @@ Dials the named remote (which must have outgoing-calls enabled), sends OCRQ, and
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `remote` | string | yes | any value of this type |
-| `called` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `remote` | string | yes | any value of this type | Configured l2tp/remote dial-target name. | The name of an l2tp/remote entry, which supplies the address and the shared secret Ze dials with. An unknown name, or an entry without outgoing-calls, is refused before any packet is sent. |
+| `called` | string | yes | any value of this type | Called Number for the OCRQ. | The number the remote LAC dials, as free text. Ze copies it into the Called Number AVP of the OCRQ without validation, so its form is what the LAC accepts. |
 
 ## Mapping intents
 

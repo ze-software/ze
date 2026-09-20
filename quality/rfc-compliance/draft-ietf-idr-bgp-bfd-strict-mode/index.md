@@ -94,6 +94,7 @@ Enrolled: BFD Strict-Mode for BGP (capability code 74): four MUST-level requirem
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **4** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (4):** [`DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-4-1`](#draft-ietf-idr-bgp-bfd-strict-mode-4-1), [`DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-6-1`](#draft-ietf-idr-bgp-bfd-strict-mode-6-1), [`DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-1`](#draft-ietf-idr-bgp-bfd-strict-mode-10-1), [`DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE-10-2`](#draft-ietf-idr-bgp-bfd-strict-mode-10-2)

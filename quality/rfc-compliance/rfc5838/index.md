@@ -100,6 +100,7 @@ Eight MUST gaps annotated in [`rfc/short/rfc5838.md`](https://github.com/ze-soft
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **16** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (4):** [`RFC5838-2.3-1`](#rfc5838-2.3-1), [`RFC5838-2.4-1`](#rfc5838-2.4-1), [`RFC5838-2.6-1`](#rfc5838-2.6-1), [`RFC5838-2.8-1`](#rfc5838-2.8-1)
@@ -112,8 +113,8 @@ Eight MUST gaps annotated in [`rfc/short/rfc5838.md`](https://github.com/ze-soft
 |---|---|---|---|---|
 | `RFC5838-2.2-1` | A router supporting AFs "MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs" (§2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the AF-bit is set in Hello and DD Options only; LSA origination never sets it -- encoder_v6.go:33 applies SetAF to the Hello/DD path only, and origination_v6.go:254 with origination_v6_link.go:51 build Router/Network/Link-LSA Options via neutralToV6Options, which omits OptAF |
 | `RFC5838-2.3-1` | Prefixes that don't conform to an instance's AF "MUST NOT be used in the route computation for that instance" (§2.3) | MUST NOT | 2.3 | **positive:** `unit/verify` [`TestIPv4OverV3BuildRoutes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L278). **negative:** `unit/verify` [`TestV6PrefixToNetipAFWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L251) |
-| `RFC5838-2.4-1` | A router participating in an AF (AF-bit set) "MUST discard Hello packets having the AF-bit clear in the Options field" (§2.4) | MUST | 2.4 | **positive:** `unit/verify` [`TestAFBitGatesFullNonDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L150). **negative:** `unit/verify` [`TestAFBitGatesFullNonDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L149) |
-| `RFC5838-2.4-2` | For the Base IPv6 unicast AF the AF-bit check "MUST NOT be done (for backward compatibility)" (§2.4) | MUST NOT | 2.4 | **positive:** `unit/verify` [`TestAFBitIgnoredDefaultAF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L175). **negative:** no negative test. **{single-polarity}:** the default IPv6-unicast AF has no reject path -- afBitAccepted at multiaf.go:181 returns true immediately for e.af.isDefault, so a base-AF Hello is never dropped for a missing AF-bit and there is no negative behavior to exercise |
+| `RFC5838-2.4-1` | A router participating in an AF (AF-bit set) "MUST discard Hello packets having the AF-bit clear in the Options field" (§2.4) | MUST | 2.4 | **positive:** `unit/verify` [`TestAFBitGatesFullNonDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L156). **negative:** `unit/verify` [`TestAFBitGatesFullNonDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L155) |
+| `RFC5838-2.4-2` | For the Base IPv6 unicast AF the AF-bit check "MUST NOT be done (for backward compatibility)" (§2.4) | MUST NOT | 2.4 | **positive:** `unit/verify` [`TestAFBitIgnoredDefaultAF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L181). **negative:** no negative test. **{single-polarity}:** the default IPv6-unicast AF has no reject path -- afBitAccepted at multiaf.go:181 returns true immediately for e.af.isDefault, so a base-AF Hello is never dropped for a missing AF-bit and there is no negative behavior to exercise |
 | `RFC5838-2.5-1` | After placing the link's IPv4 address in the first 32 bits of the Link-LSA "link local address" field, "The remaining bits MUST be set to zero" (§2.5) | MUST | 2.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** v6OriginateLinkLSA at origination_v6_link.go:42-48 always encodes an IPv6 link-local address in the Link-LSA link-local field and returns false without one, so an IPv4-AF Link-LSA never carries the interface IPv4 address in the leading 32 bits |
 | `RFC5838-2.6-1` | For IPv4 unicast and IPv4 multicast AFs "the Forwarding Address in AS-external-LSAs and NSSA-LSAs MUST encode an IPv4 address" (§2.6) | MUST | 2.6 | **positive:** `unit/verify` [`TestV6ForwardingAddrAFWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L331). **negative:** `unit/verify` [`TestV6ForwardingAddrAFWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L332) |
 | `RFC5838-2.6-2` | After placing the IPv4 Forwarding Address in the first 32 bits of the Forwarding Address field, "The remaining bits MUST be set to zero" (§2.6) | MUST | 2.6 | **positive:** `unit/verify` [`TestV6ForwardingAddrAFWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/afstrategy_v6_test.go#L333). **negative:** no negative test. **{single-polarity}:** forwardingAddressForAF at origination_v6_nssa.go:29-31 zero-initialises the 16-byte field and writes only the leading 4 IPv4 octets, so the remaining bits are structurally zero and no non-zero-trailing path exists to reject |
@@ -184,8 +185,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestAFBitGatesFullNonDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L149) | unit/verify | unproven |
-| positive | [`TestAFBitGatesFullNonDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L150) | unit/verify | unproven |
+| negative | [`TestAFBitGatesFullNonDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L155) | unit/verify | unproven |
+| positive | [`TestAFBitGatesFullNonDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L156) | unit/verify | unproven |
 
 ### [`RFC5838-2.4-2`](#rfc5838-2.4-2)
 
@@ -195,7 +196,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestAFBitIgnoredDefaultAF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L175) | unit/verify | unproven |
+| positive | [`TestAFBitIgnoredDefaultAF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L181) | unit/verify | unproven |
 
 ### [`RFC5838-2.5-1`](#rfc5838-2.5-1)
 

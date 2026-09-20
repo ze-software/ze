@@ -291,7 +291,7 @@ leaf group {
 <h2 id="best-practices">Best Practices</h2>
 <ol>
 <li><strong>Use meaningful namespaces</strong> -- include your organization</li>
-<li><strong>Add descriptions</strong> -- help users understand fields</li>
+<li><strong>Add both help texts</strong> -- a <code>ze:help</code> one-line summary for the completion row, and a <code>description</code> paragraph for the <code>?</code> box</li>
 <li><strong>Set sensible defaults</strong> -- reduce required config</li>
 <li><strong>Validate early</strong> -- use YANG constraints, not just code</li>
 <li><strong>Use the <code>Handlers</code> field</strong> -- list the config path prefixes your plugin manages</li>
@@ -354,16 +354,19 @@ func main() {
 <pre><code class="language-yang">module acme-monitor {
     namespace "urn:acme:monitor";
     prefix acme;
+    import ze-extensions { prefix ze; }
 
     description "ACME endpoint monitoring plugin";
 
     container acme-monitor {
-        description "Monitor configuration";
+        ze:help "Monitor configuration.";
+        description "Every endpoint the plugin polls, and where it sends an alert.";
 
         leaf endpoint {
             type string;
             mandatory true;
-            description "HTTPS endpoint to monitor";
+            ze:help "HTTPS endpoint to monitor.";
+            description "The plugin issues one GET to this URL at every interval.";
         }
 
         leaf interval {
@@ -371,12 +374,14 @@ func main() {
                 range "10..3600";
             }
             default 60;
-            description "Check interval in seconds";
+            ze:help "Check interval in seconds.";
+            description "The pause between two polls of the endpoint, from 10 seconds to one hour.";
         }
 
         list alert {
             key "name";
-            description "Alert destinations";
+            ze:help "Alert destinations.";
+            description "One entry for each address that receives a failure notice.";
 
             leaf name {
                 type string {
@@ -401,7 +406,7 @@ func main() {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

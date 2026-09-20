@@ -5,12 +5,12 @@ Originate a FlowSpec rule on demand (RFC 8955).
 ## Ze command
 
 - Registry path: `send bgp flowspec`
-- Usage: `send bgp <selector> flowspec [destination-ipv4 <prefix> ...] [destination-ipv6 <prefix> ...] [destination-port <value> ...] [dscp <value> ...] [flow-label <value> ...] [fragment <value> ...] [icmp-code <value> ...] [icmp-type <value> ...] [next-header <value> ...] [packet-length <value> ...] [port <value> ...] [protocol <value> ...] [rd <value>] [source-ipv4 <prefix> ...] [source-ipv6 <prefix> ...] [source-port <value> ...] [tcp-flags <value> ...] (community <value>\|rate-limit <bytes-per-second>\|discard) [tag <key> <value>] [for <duration>]`
+- Usage: `send bgp <selector> flowspec [destination-ipv4 <prefix> ...] [destination-ipv6 <prefix> ...] [destination-port <value> ...] [dscp <value> ...] [flow-label <value> ...] [fragment <value> ...] [icmp-code <value> ...] [icmp-type <value> ...] [next-header <value> ...] [packet-length <value> ...] [port <value> ...] [protocol <value> ...] [rd <value>] [source-ipv4 <prefix> ...] [source-ipv6 <prefix> ...] [source-port <value> ...] [tcp-flags <value> ...] [traffic-class <value> ...] (community <value>\|rate-limit <bytes-per-second>\|discard) [tag <key> <value>] [for <duration>]`
 - Mode: Daemon
 - Wire method: `ze-bgp:announce-flowspec`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
-- Subcommands: `action`, `destination-ipv4`, `destination-ipv6`, `destination-port`, `dscp`, `flow-label`, `for`, `fragment`, `icmp-code`, `icmp-type`, `next-header`, `packet-length`, `port`, `protocol`, `rd`, `source-ipv4`, `source-ipv6`, `source-port`, `tag`, `tcp-flags`
+- Subcommands: `action`, `destination-ipv4`, `destination-ipv6`, `destination-port`, `dscp`, `flow-label`, `for`, `fragment`, `icmp-code`, `icmp-type`, `next-header`, `packet-length`, `port`, `protocol`, `rd`, `source-ipv4`, `source-ipv6`, `source-port`, `tag`, `tcp-flags`, `traffic-class`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
@@ -25,9 +25,9 @@ The match components come from ze-flowspec-cmd, which augments this container. T
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, a comma-separated list of those, or * for every peer. The message goes to each session the selector matches. |
 
 ## Mapping intents
 

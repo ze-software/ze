@@ -67,9 +67,12 @@
 </dl>
 <h3>Description</h3><p>Types: cpu (requires duration, e.g. 30s), heap, goroutine, allocs<br>(instant snapshots). Output is pprof format you can open with<br>&#39;go tool pprof&#39;. Send the file to support for deep analysis.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>type</code></td><td>enum</td><td>no</td><td><code>cpu</code> <code>heap</code> <code>goroutine</code> <code>allocs</code></td></tr>
-<tr><td><code>duration</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>type</code></td><td>enum</td><td>no</td><td><code>cpu</code> <code>heap</code> <code>goroutine</code> <code>allocs</code></td><td>Profile type.</td><td>The word is optional and the default is heap. Only cpu runs for a time
+and reads duration. The three others return at once. The response carries the pprof
+bytes as base64 in data, with format pprof-base64.</td></tr>
+<tr><td><code>duration</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Profile duration.</td><td>The value is a Go duration with a unit, from 1s to 60s, and the default
+is 10s. Only a cpu profile reads it. A second cpu profile is refused while one runs.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -133,7 +136,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

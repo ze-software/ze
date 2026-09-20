@@ -25,9 +25,9 @@ Tells the peer to mark existing routes as stale. After re-sending, send EORR to 
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. 'pause' and 'resume' refuse a selector that matches more than one peer, and the other commands act on each peer it matches. |
 
 ## Mapping intents
 

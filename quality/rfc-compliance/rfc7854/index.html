@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7854 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7854: BGP Monitoring Protocol (BMP). 13 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 7854: BGP Monitoring Protocol (BMP). 14 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 7854 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7854: BGP Monitoring Protocol (BMP). 13 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 7854: BGP Monitoring Protocol (BMP). 14 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7854 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7854: BGP Monitoring Protocol (BMP). 13 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 7854: BGP Monitoring Protocol (BMP). 14 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -115,22 +116,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>46.2%</strong><b>6 of 13 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>53.8%</strong><b>7 of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>6.9%</strong><b>2 of 29 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>50.0%</strong><b>7 of 14 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>50.0%</strong><b>7 of 14 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>6.5%</strong><b>2 of 31 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>13</strong><b>of 21 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 13 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>14</strong><b>of 22 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 14 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -198,10 +199,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>21</td>
+<td>22</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>13</td>
+<td>14</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -216,10 +217,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>29</td>
+<td>31</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>29</td>
+<td>31</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
@@ -260,7 +261,7 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>6</strong></td>
+<td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -279,11 +280,15 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>13</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>14</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc7854-x-1"><code>RFC7854-x-1</code></a>, <a href="#rfc7854-x-2"><code>RFC7854-x-2</code></a>, <a href="#rfc7854-x-3"><code>RFC7854-x-3</code></a>, <a href="#rfc7854-x-5"><code>RFC7854-x-5</code></a>, <a href="#rfc7854-x-8"><code>RFC7854-x-8</code></a>, <a href="#rfc7854-4.5-2"><code>RFC7854-4.5-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc7854-x-1"><code>RFC7854-x-1</code></a>, <a href="#rfc7854-x-2"><code>RFC7854-x-2</code></a>, <a href="#rfc7854-x-3"><code>RFC7854-x-3</code></a>, <a href="#rfc7854-x-5"><code>RFC7854-x-5</code></a>, <a href="#rfc7854-x-8"><code>RFC7854-x-8</code></a>, <a href="#rfc7854-4.9-1"><code>RFC7854-4.9-1</code></a>, <a href="#rfc7854-4.5-2"><code>RFC7854-4.5-2</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (7):</strong> <a href="#rfc7854-x-4"><code>RFC7854-x-4</code></a>, <a href="#rfc7854-x-6"><code>RFC7854-x-6</code></a>, <a href="#rfc7854-x-7"><code>RFC7854-x-7</code></a>, <a href="#rfc7854-x-9"><code>RFC7854-x-9</code></a>, <a href="#rfc7854-x-10"><code>RFC7854-x-10</code></a>, <a href="#rfc7854-x-11"><code>RFC7854-x-11</code></a>, <a href="#rfc7854-x-12"><code>RFC7854-x-12</code></a></p>
 </section>
 <section><h2>Requirements</h2>
@@ -298,7 +303,7 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L18" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestBMPCommonHeaderDecode</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L37" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestBMPCommonHeaderDecode</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L73" title="internal/component/bgp/plugins/bmp/session_test.go" target="_blank" rel="noopener"><code>TestBMPMalformedHeaderDrops</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L74" title="internal/component/bgp/plugins/bmp/session_test.go" target="_blank" rel="noopener"><code>TestBMPMalformedHeaderDrops</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-2">RFC7854-x-2</code></td><td colspan="3"><span class="rfc-subject">Common Header must be 6 bytes: Version (1) + Message Length (4) + Message Type (1) (Wire Format)</span></td></tr>
@@ -334,8 +339,8 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L352" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv4</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L367" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv6</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L426" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv4</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L441" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv6</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-6">RFC7854-x-6</code></td><td colspan="3"><span class="rfc-subject">Initiation message must be sent immediately after TCP connection establishment (Session Lifecycle)</span></td></tr>
@@ -362,8 +367,8 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L207" title="internal/component/bgp/plugins/bmp/sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderPeerUp</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L127" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerUp</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L260" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestBMPPeerUpSkippedOnCacheMiss</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L136" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerUp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L269" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestBMPPeerUpSkippedOnCacheMiss</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerup_openless_test.go#L47" title="internal/component/bgp/plugins/bmp/peerup_openless_test.go" target="_blank" rel="noopener"><code>TestPeerUpOnCacheMissNeverReachesTheCollector</code></a></span></div>
 </div></td>
 </tr>
@@ -382,7 +387,7 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-10">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L244" title="internal/component/bgp/plugins/bmp/sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderPeerDown</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L289" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerDown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L298" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerDown</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> Peer Down is always written with a reason byte, so there is no valid Peer Down without one to assert against</p></td>
 </tr>
@@ -401,9 +406,18 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-12">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L130" title="internal/component/bgp/plugins/bmp/session_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverUnidirectional</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L132" title="internal/component/bgp/plugins/bmp/session_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverUnidirectional</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the receiver loop (internal/component/bgp/plugins/bmp/bmp.go:441-492) issues only reads and the sender hold-loop (sender.go:207-237) reads only to detect close, so neither role writes toward the monitored router on a valid session and there is no reject case to construct</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.9-1">RFC7854-4.9-1</code></td><td colspan="3"><span class="rfc-subject">Peer Down must carry the Data field when the Reason is 1, 2 or 3: the BGP NOTIFICATION PDU for reason 1 and reason 3, and the 2-byte FSM event code for reason 2 (§4.9, Peer Down Notification)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.9-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L88" title="internal/component/bgp/plugins/bmp/peerdown_data_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerDownCarriesTheDataItsReasonRequires</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L147" title="internal/component/bgp/plugins/bmp/peerdown_data_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.5-2">RFC7854-4.5-2</code></td><td colspan="3"><span class="rfc-subject">The monitoring station must close the TCP session after receiving a termination message (§4.5, Termination Message)</span></td></tr>
 <tr><td></td>
@@ -508,7 +522,7 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L73" title="internal/component/bgp/plugins/bmp/session_test.go" target="_blank" rel="noopener"><code>TestBMPMalformedHeaderDrops</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L74" title="internal/component/bgp/plugins/bmp/session_test.go" target="_blank" rel="noopener"><code>TestBMPMalformedHeaderDrops</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -588,12 +602,12 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L367" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv6</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L441" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv6</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L352" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv4</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L426" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv4</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -638,7 +652,7 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L260" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestBMPPeerUpSkippedOnCacheMiss</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L269" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestBMPPeerUpSkippedOnCacheMiss</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -648,7 +662,7 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L127" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerUp</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L136" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerUp</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -683,7 +697,7 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L289" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerDown</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L298" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerDown</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -723,7 +737,27 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L130" title="internal/component/bgp/plugins/bmp/session_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverUnidirectional</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L132" title="internal/component/bgp/plugins/bmp/session_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverUnidirectional</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3><a href="#rfc7854-4.9-1"><code>RFC7854-4.9-1</code></a></h3>
+<p>Peer Down must carry the Data field when the Reason is 1, 2 or 3: the BGP NOTIFICATION PDU for reason 1 and reason 3, and the 2-byte FSM event code for reason 2 (§4.9, Peer Down Notification)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L147" title="internal/component/bgp/plugins/bmp/peerdown_data_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L88" title="internal/component/bgp/plugins/bmp/peerdown_data_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerDownCarriesTheDataItsReasonRequires</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -836,7 +870,7 @@ Loc-RIB route monitoring is provided under RFC 9069.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

@@ -100,6 +100,7 @@ Three MUST gaps, each annotated in [`rfc/short/rfc4035.md`](https://github.com/z
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **108** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (5):** [`RFC4035-3-8`](#rfc4035-3-8), [`RFC4035-3-9`](#rfc4035-3-9), [`RFC4035-3.1.4.1-1`](#rfc4035-3.1.4.1-1), [`RFC4035-4.6-3`](#rfc4035-4.6-3), [`RFC4035-4.9-1`](#rfc4035-4.9-1)

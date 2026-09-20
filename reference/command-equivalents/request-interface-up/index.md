@@ -25,9 +25,9 @@ Only the administrative state changes. show interface reports the operational st
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Interface name | The interface that up, down, mtu and mac act on. Each of those commands inherits it, and migrate names its own interfaces instead. |
 
 ## Mapping intents
 

@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 38 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 2.6% | 1 of 38 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 38 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 38 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 2 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -33,7 +33,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 100.0% | 38 of 38 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 97.4% | 37 of 38 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
 The 7 shares marked as a part above are the whole of the 38 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
@@ -63,12 +63,12 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 38 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
-| Gated with no test | 38 |
+| Gated with no test | 37 |
 | Nightly-only evidence | 0 |
-| Test tags | 0 |
-| Tagged units | 0 |
+| Test tags | 2 |
+| Tagged units | 2 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 2 |
 | Summary | `rfc/short/rfc8362.md` |
 | Requirement shard | `rfc/requirements/rfc8362.md` |
 | RFC text | `rfc/full/rfc8362.txt` |
@@ -93,20 +93,23 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the gated population |
+| Positive and negative tests | 1 | one part of the gated population |
 | Annotated instead of tested | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 38 | one part of the gated population |
+| No test and no annotation | 37 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **38** | every gated MUST falls in exactly one bucket above |
 
-**No test and no annotation (38):** [`RFC8362-2-1`](#rfc8362-2-1), [`RFC8362-3.1.1-1`](#rfc8362-3.1.1-1), [`RFC8362-3.2-1`](#rfc8362-3.2-1), [`RFC8362-3.3-1`](#rfc8362-3.3-1), [`RFC8362-3.4-1`](#rfc8362-3.4-1), [`RFC8362-3.5-1`](#rfc8362-3.5-1), [`RFC8362-3.6-1`](#rfc8362-3.6-1), [`RFC8362-3.7-1`](#rfc8362-3.7-1), [`RFC8362-3.8-1`](#rfc8362-3.8-1), [`RFC8362-3.9-1`](#rfc8362-3.9-1), [`RFC8362-3.10-1`](#rfc8362-3.10-1), [`RFC8362-3.10-2`](#rfc8362-3.10-2), [`RFC8362-3.11-1`](#rfc8362-3.11-1), [`RFC8362-3.11-2`](#rfc8362-3.11-2), [`RFC8362-3.12-1`](#rfc8362-3.12-1), [`RFC8362-4.2-1`](#rfc8362-4.2-1), [`RFC8362-4.3-1`](#rfc8362-4.3-1), [`RFC8362-4.3-2`](#rfc8362-4.3-2), [`RFC8362-4.4-1`](#rfc8362-4.4-1), [`RFC8362-4.4-2`](#rfc8362-4.4-2), [`RFC8362-4.5-1`](#rfc8362-4.5-1), [`RFC8362-4.5-2`](#rfc8362-4.5-2), [`RFC8362-4.7-1`](#rfc8362-4.7-1), [`RFC8362-4.7-2`](#rfc8362-4.7-2), [`RFC8362-4.7-3`](#rfc8362-4.7-3), [`RFC8362-4.8-1`](#rfc8362-4.8-1), [`RFC8362-5-1`](#rfc8362-5-1), [`RFC8362-5-2`](#rfc8362-5-2), [`RFC8362-6.2-1`](#rfc8362-6.2-1), [`RFC8362-6.3-1`](#rfc8362-6.3-1), [`RFC8362-6.3-2`](#rfc8362-6.3-2), [`RFC8362-6.3-3`](#rfc8362-6.3-3), [`RFC8362-6.3-4`](#rfc8362-6.3-4), [`RFC8362-6.3-5`](#rfc8362-6.3-5), [`RFC8362-8.1-1`](#rfc8362-8.1-1), [`RFC8362-8.1-2`](#rfc8362-8.1-2), [`RFC8362-8.2-1`](#rfc8362-8.2-1), [`RFC8362-8.2-2`](#rfc8362-8.2-2)
+**Positive and negative tests (1):** [`RFC8362-2-1`](#rfc8362-2-1)
+
+**No test and no annotation (37):** [`RFC8362-3.1.1-1`](#rfc8362-3.1.1-1), [`RFC8362-3.2-1`](#rfc8362-3.2-1), [`RFC8362-3.3-1`](#rfc8362-3.3-1), [`RFC8362-3.4-1`](#rfc8362-3.4-1), [`RFC8362-3.5-1`](#rfc8362-3.5-1), [`RFC8362-3.6-1`](#rfc8362-3.6-1), [`RFC8362-3.7-1`](#rfc8362-3.7-1), [`RFC8362-3.8-1`](#rfc8362-3.8-1), [`RFC8362-3.9-1`](#rfc8362-3.9-1), [`RFC8362-3.10-1`](#rfc8362-3.10-1), [`RFC8362-3.10-2`](#rfc8362-3.10-2), [`RFC8362-3.11-1`](#rfc8362-3.11-1), [`RFC8362-3.11-2`](#rfc8362-3.11-2), [`RFC8362-3.12-1`](#rfc8362-3.12-1), [`RFC8362-4.2-1`](#rfc8362-4.2-1), [`RFC8362-4.3-1`](#rfc8362-4.3-1), [`RFC8362-4.3-2`](#rfc8362-4.3-2), [`RFC8362-4.4-1`](#rfc8362-4.4-1), [`RFC8362-4.4-2`](#rfc8362-4.4-2), [`RFC8362-4.5-1`](#rfc8362-4.5-1), [`RFC8362-4.5-2`](#rfc8362-4.5-2), [`RFC8362-4.7-1`](#rfc8362-4.7-1), [`RFC8362-4.7-2`](#rfc8362-4.7-2), [`RFC8362-4.7-3`](#rfc8362-4.7-3), [`RFC8362-4.8-1`](#rfc8362-4.8-1), [`RFC8362-5-1`](#rfc8362-5-1), [`RFC8362-5-2`](#rfc8362-5-2), [`RFC8362-6.2-1`](#rfc8362-6.2-1), [`RFC8362-6.3-1`](#rfc8362-6.3-1), [`RFC8362-6.3-2`](#rfc8362-6.3-2), [`RFC8362-6.3-3`](#rfc8362-6.3-3), [`RFC8362-6.3-4`](#rfc8362-6.3-4), [`RFC8362-6.3-5`](#rfc8362-6.3-5), [`RFC8362-8.1-1`](#rfc8362-8.1-1), [`RFC8362-8.1-2`](#rfc8362-8.1-2), [`RFC8362-8.2-1`](#rfc8362-8.2-1), [`RFC8362-8.2-2`](#rfc8362-8.2-2)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8362-2-1` | "For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them." (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8362-2-1` | "For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them." (§2) | MUST | 2 | **positive:** `unit/verify` [`TestRFC8362ExtendedLSAsSetUBitOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L66). **negative:** `unit/verify` [`TestRFC8362BaseLSAsKeepUBitClearOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L98) |
 | `RFC8362-3.1.1-1` | "If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored." (§3.1.1) | MUST | 3.1.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8362-3.2-1` | The Router-Link TLV is only applicable to the E-Router-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8362-3.3-1` | The Attached-Routers TLV is only applicable to the E-Network-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.3) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test |
@@ -161,7 +164,6 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC8362-2-1`](#rfc8362-2-1) "For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them." (§2) | no test | no test carries this requirement id |
 | [`RFC8362-3.1.1-1`](#rfc8362-3.1.1-1) "If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored." (§3.1.1) | no test | no test carries this requirement id |
 | [`RFC8362-3.2-1`](#rfc8362-3.2-1) The Router-Link TLV is only applicable to the E-Router-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.2) | no test | no test carries this requirement id |
 | [`RFC8362-3.3-1`](#rfc8362-3.3-1) The Attached-Routers TLV is only applicable to the E-Network-LSA: "Inclusion in other Extended LSAs MUST be ignored." (§3.3) | no test | no test carries this requirement id |
@@ -210,7 +212,10 @@ A tagged unit reads unproven where no discrimination record exists for it: nothi
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC8362-2-1, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC8362BaseLSAsKeepUBitClearOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L98) | unit/verify | revert, verified |
+| positive | [`TestRFC8362ExtendedLSAsSetUBitOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L66) | unit/verify | revert, verified |
 
 ### [`RFC8362-3.1.1-1`](#rfc8362-3.1.1-1)
 

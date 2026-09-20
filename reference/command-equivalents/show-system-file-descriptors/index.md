@@ -25,9 +25,9 @@ Summary mode: totals by type (socket, pipe, file). Detail mode: every fd with it
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `mode` | enum | no | `summary`, `detail` |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `mode` | enum | no | `summary`, `detail` | Display mode. | The word is optional and the default is summary. Detail keeps the totals and appends the descriptor rows, so the output grows with the number of open files. |
 
 ## Mapping intents
 

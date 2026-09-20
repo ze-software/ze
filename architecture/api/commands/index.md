@@ -38,15 +38,21 @@ identity is injected only by trusted transport wiring.
 Commands follow a **verb-first** convention: `<action> <module> [args...]`.
 The action verb determines the command's behavior; the module implements it.
 
-| Verb | Purpose | Examples |
-|------|---------|---------|
-| `show` | Read-only display (returns data, exits) | `show bgp peer <selector> detail`, `show warnings` |
-| `set` | Create or modify | `set bgp peer X ...` |
-| `create` | Add to the running daemon | `create bgp peer X asn 65001` |
-| `delete` | Remove | `delete bgp peer X` |
-| `update` | Route operations (announce, withdraw, refresh), firmware, prefix data | `update system firmware check`, `update bgp peer * prefix` |
-| `monitor` | Long-running auto-refreshing display | `monitor bgp` (TUI dashboard) |
+`command.Verbs` is the vocabulary, and it gives each verb one of three roles:
+`RoleRead` for `show`, `monitor` and `resolve`, `RoleMutation` for `set` and
+`delete`, and `RoleAction` for every other verb. A token the map does not hold
+answers `RoleUnspecified`, which is what `IsVerb` reads.
 
+What each verb PROMISES an operator, which selector it takes, and what a new
+command under it must look like are one table on one page, and this page does
+not carry a second copy of it: `docs/architecture/cli/command-verbs.md`.
+
+`IsReadOnlyPath` decides which authorization section a command lands in, and it
+asks `command.IsReadOnlyVerb` for the verb half rather than holding a list of
+read verbs. The five noun-first roots that predate the verb-first grammar are
+the rest of its answer.
+<!-- source: internal/component/command/verbs.go -- Verbs, verbRole, IsVerb, IsReadOnlyVerb -->
+<!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath, legacyReadRoots -->
 <!-- source: internal/component/cmd/show/doc.go -- show verb -->
 <!-- source: internal/component/cmd/set/doc.go -- set verb -->
 <!-- source: internal/component/cmd/delete/doc.go -- delete verb -->
@@ -221,6 +227,7 @@ the bus from buggy or malicious producers.
 | `ze-show:warnings` | `handleShowWarnings` in `internal/component/cmd/show/show.go` | `{"warnings": [Issue, ...], "count": N}` |
 | `ze-show:errors` | `handleShowErrors` in `internal/component/cmd/show/show.go` | `{"errors": [Issue, ...], "count": N}` |
 | `ze-show:traffic` | `handleShowTraffic` in `internal/component/traffic/cmd/traffic.go` | `{"interfaces": [...], "count": N}` or single interface detail |
+| `ze-show:mtu` | `handleShowMTU` in `internal/component/mtu/cmd/mtu.go` | one document: `status`, `measurements` (rows of `target`, `label`, `outcome`, `path-mtu`, `method`, `probes`, `lossy`, `prober`, `exchanges`, `ike-confirmed`, `ike-declined`, `caveats`, `cached-path-mtu`), `tunnels` (rows of `peer`, `remote`, `interface`, `mode`, `encapsulation`, `transform`, `path-mtu`, `assumed`, `current-mtu`, `ceiling`, `recommended`, `mss`, `verdict`, `octets`, `sized`, `reason`), `commands`, `notes`, `caveats`; `inventory`, `verdict`, `reference` on a run over the peers; `underlay` once read; `tcp-mtu-probing` once read. Keys and presence rules: `docs/architecture/diagnostics/path-mtu.md` |
 | `ze-show:static` | `forwardShowStatic` in `internal/plugins/static/cmd_show.go` | JSON array of configured static routes (proxy to static plugin) |
 | `ze-show:policy-routes` | `forwardShowPolicyRoutes` in `internal/plugins/policyroute/cmd_show.go` | JSON array of PBR policy routes (proxy to policyroute plugin) |
 | `ze-show:policy-chain` | `handleShowPolicyChain` in `internal/component/bgp/plugins/cmd/policy/handler.go` | `{"chains": [{"peer": "...", "name": "...", "import": [{"name": "...", "canonical": "..."}], "export": [...]}]}` — per-peer effective filter chains, plain name plus canonical ref |
@@ -238,7 +245,7 @@ the bus from buggy or malicious producers.
 | `ze-show:system-kernel-log` | `handleShowSystemKernelLog` in `kernel_log_linux.go` | `{"entries": [...], "count": N}` (Linux only) |
 | `ze-show:system-goroutines` | `handleShowSystemGoroutines` in `goroutines.go` | `{"total": N, "by-state": {...}, "mode": "..."}` |
 | `ze-show:tcp-check` | `HandleTCPCheck` in `internal/plugins/diag/cmd/tcp_check.go` | `{"host": "...", "port": N, "result": "...", "latency-ms": N}` |
-| `ze-show:traceroute` | `handleTraceroute` in `traceroute.go` | `{"target": "...", "hops": [{"hop": N, "addr": "...", "rtt-ms": N, "ttl": N}, ...]}` |
+| `ze-show:traceroute` | `handleTraceroute` in `traceroute.go` | `{"target": "...", "hops": [{"hop": N, "addr": "...", "rtt-ms": N, "ttl": N}, ...]}`. Under `do-not-fragment` a hop that refused the probe's size also carries `"next-hop-mtu-reported": bool` and, when true, `"next-hop-mtu": N`, and ends the trace (`docs/architecture/diagnostics/active-probes.md`) |
 | `ze-show:capture-interface` | `handleCaptureInterface` in `capture_interface_linux.go` | pcap: `{"format": "pcap", "packets": N, "pcap": "base64...", "snap-len": N}`; text: `{"format": "text", "packets": N, "lines": [...]}` (Linux only) |
 | `ze-show:system-file-descriptors` | `handleShowSystemFD` in `fd_linux.go` | `{"total": N, "by-type": {...}, "soft-limit": N, "hard-limit": N}` (Linux only) |
 | `ze-show:dns-lookup` | `handleDNSLookup` in `internal/component/resolve/cmd/show_dns.go` | `{"name": "...", "type": "...", "records": [...], "query-time-ms": N}` |
@@ -508,9 +515,9 @@ system version api       # Show IPC protocol version
 system subsystem list    # List available subsystems
 system command list      # List all commands (builtin + plugin)
 system command list verbose  # List with source (builtin/process name)
-system command help "<name>" # Show command details
-system command complete "<partial>"  # Complete command names
-system command complete "<cmd>" args [<completed>...] "<partial>"  # Arg completion
+system command help name "<name>"    # Show command details; the bare "<name>" is accepted too
+system command complete partial "<partial>"  # Complete command names; the bare "<partial>" is accepted too
+system command complete args "<cmd>" [<completed>...] "<partial>"  # Arg completion
 ```
 <!-- source: internal/core/ipc/yang/ze-system-api.yang -- system RPCs -->
 
@@ -790,6 +797,8 @@ show bgp rib rpf <family> <source-addr>      # RPF lookup (longest-prefix-match 
 Generic pipes apply to the answer the command produced. The operator language has exactly one statement, `pipeCatalog`, and [`docs/features/pipe-operators.generated.md`](https://github.com/ze-software/ze/blob/main/docs/features/pipe-operators.generated.md) is that table published; naming the operators here again is the drift this catalog exists to end. What a given command owes is published per command by `ze help command --json`, derived from the shape it declares, and an operator the shape cannot support is refused by name before the command runs.
 
 For a command the daemon serves, the DAEMON runs the chain. `execMiddleware` splits it off an SSH exec command and applies it, and `ze cli -c` sends the chain intact and prints what comes back. Only the daemon holds the configuration, so only the daemon can honor `environment cli format default`. A command the client serves in its own process through `RegisterLocalData` is the exception: `ServeLocal` runs the same chain over the local payload, before any daemon is contacted. `| save` is refused on every chain the daemon expands, because the file would be written on the daemon's filesystem with the daemon's privileges.
+
+A chain the answer's shape cannot support is refused AFTER the command has run, and the refusal then arrives as the answer itself, marked with `pipe error: `. `ze cli -c` reads that mark on the first bytes of the stream: the refusal goes to stderr and the client exits 1, so a script that redirects stdout collects no diagnostic and reads no success.
 <!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog -->
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 <!-- source: internal/component/command/pipe_save.go -- validateSaveOps -->
@@ -1091,6 +1100,7 @@ update text nlri ipv4/flow del \
 | icmp-code | ICMP code |
 | fragment | Fragment flags |
 | dscp | DSCP value |
+| traffic-class | DSCP value, under the ExaBGP spelling |
 | packet-length | Packet length |
 | flow-label | IPv6 flow label |
 
@@ -1386,22 +1396,33 @@ nothing, so a missing mandatory argument is reported instead
 missing: direction`, and not a complaint about the `update` keyword the handler
 reads).
 
-A leaf's own `description` reaches no surface. `argDefFor`
+A leaf's own `ze:help` and `description` travel with the argument. `argDefFor`
 (`config/yang/command.go`) reads the leaf's `type` and its `mandatory`
-statement, and `command.ArgDef` carries no description field. State what an
-argument means in the command's own `ze:help`.
+statement, then fills `ShortHelp` from `GetHelpExtension` over the leaf's
+`ze:help` and `Description` from the entry's `Description`, the same two readers
+every carrier uses. Neither text is derived from the other, and a leaf that
+declares one leaves the other empty. A merged command node keeps the
+definitions of the first module that declared them, the first-wins case of
+`mergeHelpText`. Four readers print the pair: `ze help command --json` (`args`
+entries carry `short-help` and `description`, each when declared), the site
+command catalog and the wiki catalog (`args` entries carry the same two keys,
+and their pages print the summary and the explanation beside each argument),
+and the web admin command form (the summary beside each input, the
+explanation under it).
 
 ```go
 type ArgDef struct {
-    Name       string         // YANG leaf name (kebab-case)
-    Kind       ArgKind        // ArgString, ArgEnum, ArgUint, ArgUnion
-    EnumValues []string       // Valid enum values
-    UintBits   int            // 8, 16, 32, or 64
-    Ranges     []UintRange    // Valid ranges (disjoint segments supported)
-    Pattern    *regexp.Regexp // Compiled XSD pattern for ArgString
-    UnionDefs  []ArgDef       // Member types for ArgUnion
-    Mandatory  bool           // True if YANG leaf has mandatory true
-    Anchor     string         // Path keyword this value follows; "" for a trailing value
+    Name        string         // YANG leaf name (kebab-case)
+    Kind        ArgKind        // ArgString, ArgEnum, ArgUint, ArgUnion
+    EnumValues  []string       // Valid enum values
+    UintBits    int            // 8, 16, 32, or 64
+    Ranges      []UintRange    // Valid ranges (disjoint segments supported)
+    Pattern     *regexp.Regexp // Compiled XSD pattern for ArgString
+    UnionDefs   []ArgDef       // Member types for ArgUnion
+    Mandatory   bool           // True if YANG leaf has mandatory true
+    ShortHelp   string         // The leaf's ze:help summary
+    Description string         // The leaf's description explanation
+    Anchor      string         // Path keyword this value follows; "" for a trailing value
 }
 ```
 
@@ -1418,8 +1439,13 @@ module is merged, with `Anchor` set to the container's name, and the renderer
 places the value right after that keyword. The command under such a container
 that acts on no single member of the set states `ze:inherit "none"`:
 `show bgp peer list` reads every peer, and `request interface migrate` names two
-interfaces of its own. Nothing binds a value by `Anchor`: a positional token
-still goes to the definition whose type constrains it most (`positionalDef`).
+interfaces of its own. The dispatcher binds the bare token after the anchor
+keyword to the leaf anchored there (`anchoredDef`, `plugin/server/command.go`),
+and a surface that builds a command from a name-to-value map writes the value
+at that same place through `command.WriteInvocation` (`arguments.go`), which
+the web admin form and the MCP tool call share. A positional token after the
+command still goes to the definition whose type constrains it most
+(`positionalDef`).
 
 Runtime-dynamic hints (e.g., address families from plugin registry) remain as
 `ValueHints` callbacks. Static hints (log levels, FD limit "max") are
@@ -1504,8 +1530,17 @@ this barrier: the two BGP quiescers together cover the forward pool AND the
 per-peer initial-sync drain, so a route sent during establishment is on the wire
 (past its EOR) before the barrier returns.
 
+**What the barrier does NOT cover.** A peer with no session, and a peer whose
+TCP connect has not completed, are both reported settled: neither has a
+counterparty, and a peer nobody is listening for waits in that state for the life
+of the process, so counting it would hang every quiesce behind it. A peer holding
+a LIVE handshake (OpenSent or OpenConfirm) is waited on, because the socket is up
+and the far end answered, so its whole initial routing update is owed. That arm
+was absent until 2026-09-19, and until then a caller could quiesce, be told
+"done", and shut the daemon down between the OPEN exchange and the End-of-RIB.
+
 <!-- source: internal/component/plugin/server/quiesce.go -- Quiescer, QuiescerRegistry, quiesceAll, handleQuiesce, registerReactorQuiescer -->
-<!-- source: internal/component/bgp/reactor/reactor_api.go -- DrainPeerSync, peersSynced; peer.go PendingSync -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- DrainPeerSync, peersSynced; peer.go pendingSync, handshakeInFlight -->
 <!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request/quiesce -> ze-system:quiesce -->
 
 ### Peer Selector Parsing
@@ -1548,8 +1583,8 @@ same pair, in the declaration form their own registration uses.
 
 | Field | Declared by | Holds |
 |-------|-------------|-------|
-| `command.Node.Description` | the `description` statement | the one-line SUMMARY |
-| `command.Node.Help` | the `ze:help` extension | the LONG explanation of that one command |
+| `command.Node.ShortHelp` | the `ze:help` extension | the one-line SUMMARY |
+| `command.Node.Description` | the `description` statement | the LONG explanation of that one command |
 
 Neither is derived from the other, and no reader shortens either one to guess
 at the other. The summary is authored short because it is a summary. No reader
@@ -1560,44 +1595,51 @@ cuts it: every surface prints the summary whole.
 one command path. A collision leaves the first value in place and logs
 `YANG command help text mismatch` naming the field that collided.
 
-An empty `Help` is a command nobody has written an explanation for, and the
-help page prints its summary alone. An empty `Description` is a defect:
+An empty `Description` is a command nobody has written an explanation for, and
+the help page prints its summary alone. An empty `ShortHelp` is a defect:
 `validateNode` names each one by path.
 
 An RPC carries the same two texts, in the same two YANG statements.
 `ExtractRPCs` (`internal/component/config/yang/rpc.go`) writes them to
-`RPCMeta.Description` and `RPCMeta.Help`. `GetHelpExtension` is the ONE reader
+`RPCMeta.ShortHelp` and `RPCMeta.Description`, and each input, output and
+notification leaf carries the same pair on `LeafMeta.ShortHelp` and
+`LeafMeta.Description` (`extractEntryLeaves`). The hub copies the leaf pair to
+`api.ParamMeta` and `mcp.ParamInfo`; `api.CommandSchema` and the MCP tool
+`inputSchema` write the summary as the property's JSON Schema `title` and the
+explanation as its `description`, each only when the leaf declares it; the
+gRPC `ParamInfo` message carries `short_help` and `description`; and
+`ze help ai --json` lists each rpc's `input` and `output` leaves and each
+notification's `leaves` with both keys. `GetHelpExtension` is the ONE reader
 of the extension for both carriers. A command container reaches it through
 `Entry.Exts`, and an rpc through `gyang.RPC.Exts()`.
 `./le docvalid help-shape` holds the two corpora to one shape.
 
 An RPC's pair reaches an agent through the machine-readable reference.
-`SchemaRegistry.RegisterRPCs` copies both to `RegisteredRPC.Description` and
-`RegisteredRPC.LongHelp`. `aihelp.Build` then publishes them under `description`
-and `long-help`, the two keys `ze help command --json` uses for a command.
+`SchemaRegistry.RegisterRPCs` copies both to `RegisteredRPC.ShortHelp` and
+`RegisteredRPC.Description`. `aihelp.Build` then publishes them under `short-help`
+and `description`, the two keys `ze help command --json` uses for a command.
 `ze help ai --json` and the MCP `ze_reference` tool read that one projection.
 The `show schema methods` and `ze schema methods` tables print one line for each
 RPC. Both read the summary alone, as every other one-line surface does.
 
 A PLUGIN command carries the same two texts, declared in its Stage 1 message as
-`description` and `long-help`. `VisibleCommandEntries` reads both off the
+`short-help` and `description`. `VisibleCommandEntries` reads both off the
 registry, and `MergeCommandPaths` fills each field of the tree on its own. A
 plugin that declares a summary and no explanation therefore fills the summary
-alone. The names cross at that call. The plugin server spells them
-`Description` and `LongHelp`, because `Help` already means the SUMMARY there,
-on `Completion` and on the dispatcher's builtin `Command`. The bound and the control-character
+alone. The plugin server spells them `ShortHelp` and `Description` too, on
+`Completion` and on the dispatcher's builtin `Command`. The bound and the control-character
 refusal on a declared text are in
 `docs/architecture/api/process-protocol.md`.
 
-`command help "<name>"` answers with both, under the `description` and
-`long-help` keys, for a builtin and for a plugin command alike.
+`command help "<name>"` answers with both, under the `short-help` and
+`description` keys, for a builtin and for a plugin command alike.
 
-`system command list` carries both texts on every row too. The `help` key holds
-the summary, and `long-help` holds the explanation. That answer is the only
+`system command list` carries both texts on every row too. The `short-help` key
+holds the summary, and `description` holds the explanation. That answer is the only
 place the ATTACHED console of `ze start --cli` reads either text from. An
 explanation that does not travel here is one its `?` key cannot print.
 `commandRows` fills the pair for a builtin and for a registered plugin command
-alike. A command that declares no explanation yields a row with no `long-help`
+alike. A command that declares no explanation yields a row with no `description`
 key.
 
 On the client, `applyCommandText` writes the pair onto the node the row names,
@@ -1605,8 +1647,8 @@ in ONE walk. `injectPluginCommands` carries the pair into a node the tree does
 not yet hold.
 
 An OFFLINE LOCAL command carries the same two texts in a `registry.Meta`,
-declared beside its handler in Go rather than in a YANG module. `Description` is
-the summary and `LongHelp` is the explanation, and the same empty-is-unwritten
+declared beside its handler in Go rather than in a YANG module. `ShortHelp` is
+the summary and `Description` is the explanation, and the same empty-is-unwritten
 rule holds for both. `collectCommands` (`cmd/ze/help_command.go`) merges these
 registrations into `ze help command --json` after the tree, and skips one whose
 path the tree already holds, so the catalog publishes the node's texts for such
@@ -1624,26 +1666,26 @@ surfaces.
 
 | Surface | Producer | Reads |
 |---------|----------|-------|
-| The per-command help page | `commandHelpPage`, rendered by `helpfmt.(*Page).WriteTo` | `Description` on the header line, then `Help` in the body block, then the child rows. A node states its own two texts whether or not it has children |
-| A help page's child rows | `command.HelpEntries` | `Description` |
-| A completion candidate | `command.TreeCompleter.matchChildren`, `choiceSuggestions` | `Description` |
+| The per-command help page | `commandHelpPage`, rendered by `helpfmt.(*Page).WriteTo` | `ShortHelp` on the header line, then `Description` in the body block, then the child rows. A node states its own two texts whether or not it has children |
+| A help page's child rows | `command.HelpEntries` | `ShortHelp` |
+| A completion candidate | `command.TreeCompleter.matchChildren`, `choiceSuggestions` | `ShortHelp`, copied to the candidate's `Suggestion.Description` |
 | The interactive completion pane | `internal/component/cli` `Model.renderDropdownBox` | nothing. A menu row is the command name alone, and a name wider than the box is clamped to the frame |
-| The interactive message line | `internal/component/cli` `Model.warningText`, `Model.handleKeyMsg` (the `?` key), `Model.updateCompletions` | `Description`, whole, for the candidate the menu has selected |
-| The interactive explanation box, which the `?` key opens | `internal/component/cli` `Model.renderExplanationBox`, answered by `command.TreeCompleter.Explain` | `Help`, whole. The attached console reads it from the `long-help` key of `system command list` |
-| A shell-completion record | `internal/plugins/completion` `writeCompletionRecord` | `Description` |
-| The `ze help command` table row | `printCommandTable` | `Description` |
-| `ze help command --verbose` | `printCommandVerbose` | `Description`, then `Help` |
-| `ze help command --json` | `commandEntry` | `description`, and `long-help` |
-| The web admin command form | `buildAdminFragmentData`, rendered by the `commandForm` template | `Description` as the lede, `Help` as the body |
-| The web completion dropdown | `HandleCLICompleteWithCommandCompleter` | `Description`, in the JSON `description` key |
-| An MCP tool's action enum | `buildToolDef` | `Description`, one line for each action |
-| An MCP tool's own description | `buildToolDef`, `commandText` | `Description`, then a blank line, then `LongHelp` |
-| The OpenAPI operation | `OpenAPISchema` | `Description` as `summary`, `LongHelp` as `description` |
-| The published wiki catalog | `wikicatalog.Render` | `Description` in the summary table column, `LongHelp` in the `###` detail block |
-| The published CLI reference row | `internal/le/site` `writeCommandRow`, `commandMirrorDescription` | `Description` |
-| The published per-command detail page | `internal/le/site` `equivalentZeCard`, `equivalentDetailMirror` | `Description` as the lede, `LongHelp` as the Description body |
-| The `llms.txt` command line | `internal/le/site` `writeLLMSCommands` | `Description`, whole and with no character budget |
-| An offline local command in any of the rows above | `registry.ListLocal`, merged by `collectCommands` and by `wikicatalog.Collect` | `Meta.Description` and `Meta.LongHelp`, in place of the node's two texts |
+| The interactive message line | `internal/component/cli` `Model.warningText`, `Model.handleKeyMsg` (the `?` key), `Model.updateCompletions` | `ShortHelp`, whole, for the candidate the menu has selected |
+| The interactive explanation box, which the `?` key opens | `internal/component/cli` `Model.renderExplanationBox`, answered by `command.TreeCompleter.Explain` | `Description`, whole. The attached console reads it from the `description` key of `system command list` |
+| A shell-completion record | `internal/plugins/completion` `writeCompletionRecord` | `ShortHelp`, read from the candidate's `Suggestion.Description` |
+| The `ze help command` table row | `printCommandTable` | `ShortHelp` |
+| `ze help command --verbose` | `printCommandVerbose` | `ShortHelp`, then `Description` |
+| `ze help command --json` | `commandEntry` | `short-help`, and `description` |
+| The web admin command form | `buildAdminFragmentData`, rendered by the `commandForm` template | `ShortHelp` as the lede, `Description` as the body |
+| The web completion dropdown | `HandleCLICompleteWithCommandCompleter` | `ShortHelp`, in the JSON `description` key |
+| An MCP tool's action enum | `buildToolDef` | `ShortHelp`, one line for each action |
+| An MCP tool's own description | `buildToolDef`, `commandText` | `ShortHelp`, then a blank line, then `Description` |
+| The OpenAPI operation | `OpenAPISchema` | `ShortHelp` as `summary`, `Description` as `description` |
+| The published wiki catalog | `wikicatalog.Render` | `ShortHelp` in the summary table column, `Description` in the `###` detail block |
+| The published CLI reference row | `internal/le/site` `writeCommandRow`, `commandMirrorDescription` | `ShortHelp` |
+| The published per-command detail page | `internal/le/site` `equivalentZeCard`, `equivalentDetailMirror` | `ShortHelp` as the lede, `Description` as the Description body |
+| The `llms.txt` command line | `internal/le/site` `writeLLMSCommands` | `ShortHelp`, whole and with no character budget |
+| An offline local command in any of the rows above | `registry.ListLocal`, merged by `collectCommands` and by `wikicatalog.Collect` | `Meta.ShortHelp` and `Meta.Description`, in place of the node's two texts |
 
 The machine surfaces carry the same pair. `commandMeta`
 (`cmd/ze/hub/command_meta.go`) holds both halves for the API and MCP listers.
@@ -2091,6 +2133,10 @@ parent's payload does not carry? An alias reshapes what was returned.
 `show bgp rpki roa 192.0.2.0/24` fails both and stays a subcommand.
 `show bgp rpki cache` fails the second one: it reports `preference`,
 `session-id`, `serial` and three intervals that the bare answer does not carry.
+`preference` is the cache the router connects to FIRST rather than a label:
+RFC 8210 Section 10 loads from the most preferred cache that answers, and the
+next one is contacted only when it does not, so the row says which cache the
+records in hand came from.
 
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, appendSummaryFields, appendCacheServers, summaryFieldNames, buildSummaryAliasExpansion -->
 

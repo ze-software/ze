@@ -463,6 +463,10 @@ discovery capabilities alongside the generated tools.</p>
 <p>The published <code>inputSchema</code> says the same thing, and says it per request. The
 <code>required</code> array names <code>command</code> for a client that declared no form-mode
 elicitation. The array is absent for a client that did declare it.</p>
+<p>A generated tool's typed parameters carry the two texts their YANG leaf
+declares: the property's <code>title</code> is the leaf's <code>ze:help</code> summary and its
+<code>description</code> is the leaf's <code>description</code> explanation. A text the leaf does not
+declare writes no key, and neither is derived from the other.</p>
 <p>Ze cannot advertise a single answer here, because the two clients get different
 behaviour. A schema-validating host would otherwise refuse to make the very call
 that reaches the prompt.</p>
@@ -515,7 +519,7 @@ so it is never out of date.</p>
 </tr>
 <tr>
 <td><code>ze help ai --json</code></td>
-<td>Machine-readable JSON with commands, RPCs, plugins, families, services. An RPC carries its one-line summary under <code>description</code> and its long explanation under <code>long-help</code>, and omits <code>long-help</code> when the module declares no <code>ze:help</code></td>
+<td>Machine-readable JSON with commands, RPCs, notifications, plugins, families, services. An RPC carries its one-line summary under <code>short-help</code> and its long explanation under <code>description</code>, and omits <code>description</code> when the module declares no <code>description</code>. Its <code>input</code> and <code>output</code> leaves, and a notification's <code>leaves</code>, carry the same two keys from the leaf's own <code>ze:help</code> and <code>description</code></td>
 </tr>
 <tr>
 <td><code>ze help ai cli</code></td>
@@ -752,7 +756,7 @@ keeps naming the taskId that <code>task-call</code> produced.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -777,7 +781,7 @@ keeps naming the taskId that <code>task-call</code> produced.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

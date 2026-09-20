@@ -25,14 +25,14 @@ Returns audit log entries with timestamps, actors, and actions. Filters (all opt
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `action` | string | no | any value of this type |
-| `actor` | string | no | any value of this type |
-| `surface` | string | no | any value of this type |
-| `since` | string | no | any value of this type |
-| `until` | string | no | any value of this type |
-| `count` | uint | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `action` | string | no | any value of this type | Filter by action type | The value is an action name as the action column reports it, such as config-commit or login, compared as text. Absent, entries of every action are shown. |
+| `actor` | string | no | any value of this type | Filter by actor name | The value is the name of the user or process that acted, compared as text with the actor column. Absent, entries of every actor are shown. |
+| `surface` | string | no | any value of this type | Filter by surface name | The value is the surface the action came through: cli, web or api, compared as text. Absent, entries of every surface are shown. |
+| `since` | string | no | any value of this type | Start time (RFC3339) | The value is an RFC 3339 timestamp such as 2026-09-15T08:00:00Z, and any other form is refused. Entries recorded before it are left out. |
+| `until` | string | no | any value of this type | End time (RFC3339) | The value is an RFC 3339 timestamp such as 2026-09-15T18:00:00Z, and any other form is refused. Entries recorded after it are left out. |
+| `count` | uint | no | any value of this type | Maximum number of entries | The value is a whole number of 1 or more. The query stops after that many matching entries, oldest first. Absent, every matching entry is shown. |
 
 ## Mapping intents
 

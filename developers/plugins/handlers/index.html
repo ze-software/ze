@@ -530,8 +530,13 @@ run while the engine is waiting for the response, causing a deadlock.</p>
 })
 </code></pre>
 <h3 id="nlri-handlers">NLRI Handlers</h3>
-<p>Plugins that handle address families register encode/decode handlers:</p>
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEncodeNLRI, OnDecodeNLRI, OnDecodeCapability -->
+<p>Plugins that handle address families register encode/decode handlers.</p>
+<p>The decode handler takes a third argument, <code>addPath</code>. It states whether each
+NLRI in <code>hex</code> carries a 4-octet Path Identifier ahead of it. RFC 7911 Section 3
+adds that field once the two speakers negotiate ADD-PATH for the family, and the
+octets do not announce it. A handler that ignores the flag reads the Path
+Identifier as the first bytes of the NLRI.</p>
+<!-- source: pkg/plugin/sdk/sdk_callbacks.go -- OnEncodeNLRI, OnDecodeNLRI, OnDecodeCapability, DecodeNLRIHandler -->
 <pre><code class="language-go">// Encode NLRI from text arguments to hex
 p.OnEncodeNLRI(func(family string, args []string) (string, error) {
     // args: component keywords (e.g., ["destination-ipv4", "10.0.0.0/24"])
@@ -540,8 +545,8 @@ p.OnEncodeNLRI(func(family string, args []string) (string, error) {
 })
 
 // Decode NLRI from hex to data structure (SDK marshals once)
-p.OnDecodeNLRI(func(family string, hex string) (any, error) {
-    result, err := decodeFlowSpec(family, hex)
+p.OnDecodeNLRI(func(family string, hex string, addPath bool) (any, error) {
+    result, err := decodeFlowSpec(family, hex, addPath)
     return result, err
 })
 
@@ -664,7 +669,7 @@ return fmt.Errorf("validation failed")
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

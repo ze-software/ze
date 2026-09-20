@@ -265,9 +265,10 @@ crash-loops at first boot instead of serving.</p>
 ze appliance build edge-01
 </code></pre>
 <p>The named appliance keeps its config and secrets between builds. The build
-assembles its ZeFS database, builds the disk image through vendored gokrazy,
-formats the persistent partition, injects the database, and writes the build
-manifest.</p>
+assembles its ZeFS seed artifact, builds the disk image through vendored gokrazy,
+formats the persistent partition, injects <code>database.zefs</code>, and writes the build
+manifest. Seed assembly uses the explicit blob-artifact storage API, so image
+building continues to produce the same blob format.</p>
 <pre><code class="language-bash">ze appliance show edge-01
 ze appliance config edge-01 --merged
 </code></pre>
@@ -294,8 +295,16 @@ sudo dd if=tmp/gokrazy/ze.img of=/dev/rdiskN bs=4m
 <p>Or import into Proxmox:</p>
 <pre><code class="language-bash">qm importdisk &lt;vmid&gt; tmp/gokrazy/ze.img &lt;storage&gt;
 </code></pre>
-<p>The machine boots to a serial console (115200 baud). Ze starts automatically, gets a DHCP address, and loads its active configuration from <code>/perm/ze/database.zefs</code> (bootstrapped from the seed template on first boot). The serial console requires authentication with the local admin credentials before granting shell access. If the credentials database is missing or unreadable, access is granted without authentication for emergency recovery. When <code>admin-enabled: false</code> is set in the appliance config, the serial console denies the built-in admin (fail-closed) and prints "local admin login disabled".</p>
-<!-- source: cmd/ze/login.go -- loginMain, fail-open path, admin-disabled check -->
+<p>The machine boots to a serial console (115200 baud). On first boot Ze explicitly
+imports <code>/perm/ze/database.zefs</code> into <code>/perm/ze/database/</code>, logs the import, and
+retires the seed as <code>database.zefs.replaced-*</code>. Subsequent starts use the live
+tree. Ze gets a DHCP address and loads its active configuration from that tree.
+The serial console requires authentication with the local admin credentials
+before granting shell access. If the store is missing or unreadable, or the
+credentials cannot be read, the login is refused with the error named. When
+<code>admin-enabled: false</code> is set in the appliance config, the serial console denies
+the built-in admin (fail-closed) and prints "local admin login disabled".</p>
+<!-- source: cmd/ze/login.go -- loginMain, fail-closed store and credential reads, admin-disabled check -->
 <h2 id="configuration">Configuration</h2>
 <h3 id="seed-config">Seed config</h3>
 <p>The initial Ze config is stored as the seed template in
@@ -318,7 +327,10 @@ set interface dhcp-auto true
 <p>To change the seed config, edit <code>gokrazy/ze/ze.conf</code>, or use the structured
 workflow's <code>config-base</code> and per-appliance <code>ze.conf</code> files.</p>
 <h3 id="runtime-config">Runtime config</h3>
-<p>Once booted, use <code>ze config edit</code> over SSH to modify the running configuration. Changes are stored in <code>/perm/ze/database.zefs</code> and persist across reboots and image updates.</p>
+<p>Once booted, use <code>ze config edit</code> over SSH to modify the running configuration.
+Changes are stored in <code>/perm/ze/database/</code> and persist across reboots and image
+updates. The daemon owns the store for its lifetime; offline maintenance must
+run as the store owner after the daemon stops.</p>
 <h3 id="environment-variables">Environment variables</h3>
 <p>Ze's environment is set in <code>gokrazy/ze/config.json</code> under <code>PackageConfig</code>:</p>
 <!-- source: gokrazy/ze/config.json -- Environment array -->
@@ -334,7 +346,7 @@ workflow's <code>config-base</code> and per-appliance <code>ze.conf</code> files
 <tr>
 <td><code>ze.config.dir</code></td>
 <td><code>/perm/ze</code></td>
-<td>Persistent storage for database.zefs</td>
+<td>Configuration folder containing the live <code>database/</code> tree</td>
 </tr>
 <tr>
 <td><code>ze.bgp.api.socketpath</code></td>
@@ -432,7 +444,11 @@ fill <code>/perm</code>.</p>
 <h3 id="process-supervision">Process supervision</h3>
 <p>Gokrazy's init restarts Ze if it exits with a non-zero status (except 125, which means "don't restart"). Ze handles SIGTERM for graceful shutdown. Logs (stdout/stderr) are captured in ring buffers visible through the gokrazy web UI.</p>
 <h3 id="persistent-storage">Persistent storage</h3>
-<p>The <code>/perm</code> partition (ext4) survives image updates. Ze stores its database (<code>database.zefs</code>), TLS certificates, and config state there via the <code>ze.config.dir=/perm/ze</code> environment variable.</p>
+<p>The <code>/perm</code> partition (ext4) survives image updates. The configuration folder
+<code>/perm/ze</code>, selected by <code>ze.config.dir</code>, contains the live <code>database/</code> tree.
+Credentials, TLS material and config history are keys in that tree, with 0700
+directories and 0600 frame files owned by the daemon user. The retired seed
+remains beside it for recovery.</p>
 <h2 id="repo-layout">Repo layout</h2>
 <pre><code>gokrazy/
   .gitignore              # excludes *.img
@@ -624,8 +640,12 @@ reports the restore. <code>ze appliance init</code> validates and writes the sam
 <p>A <code>ze</code> older than this validation could store a certificate and a key that do
 not load as a pair. On such an appliance the web listener does not start. Run
 <code>ze doctor</code> to find it: the stored pair is reported as <code>doctor-tls-invalid</code>,
-"certificate and key in storage are not a usable pair". <code>replace-cert</code> fixes it.</p>
-<!-- source: internal/component/doctor/checks_tls.go -- checkWebTLSPair -->
+"certificate and key in storage are not a usable pair". <code>replace-cert</code> fixes it.
+On an appliance that holds no store yet, <code>ze doctor</code> does not report the pair
+at all: it prints <code>doctor-storage-unavailable</code> as a WARNING for the folder and
+one more for each feature that needs the store (<code>web TLS pair: refused, this doctor run resolved no storage</code>), and exits 0. A store it cannot read is an
+ERROR.</p>
+<!-- source: internal/component/web/doctor_material.go -- checkWebTLSPair -->
 <h3 id="config-layering">Config layering</h3>
 <p>Set <code>config-base</code> in <code>appliance.json</code> to share a base config across appliances:</p>
 <pre><code class="language-json">{
@@ -860,7 +880,7 @@ ze appliance config-push --all --parallel 4
 <p>Config-push uses SSH (operator's key via ssh-agent) to upload the merged config to the device, which validates and applies it. No secrets are transmitted over SSH.</p>
 <!-- source: internal/appliance/cmd_config_push.go -- configPushOne -->
 <h3 id="device-side-config-behavior">Device-side config behavior</h3>
-<p>At boot, unmanaged devices resolve the active config in ZeFS. If no active
+<p>At boot, unmanaged devices resolve the active config in the live tree. If no active
 config exists, Ze bootstraps one from the seed template or interface discovery.
 If <code>/perm/ze/config-pushed.conf</code> exists and parses as Ze config, Ze writes it
 over the active config. If the pushed config fails validation, Ze deletes that
@@ -877,12 +897,12 @@ pushed file and continues with the existing active config.</p>
 <tr>
 <td>1</td>
 <td>Existing or bootstrapped active config</td>
-<td><span class="ev-src"><span class="ev-ref"><code>file/active/ze.conf</code></span></span></td>
+<td>in the live tree. <span class="ev-src"><span class="ev-ref"><code>file/active/ze.conf</code></span></span></td>
 </tr>
 <tr>
 <td>2</td>
 <td>Seed template, only when active config is missing</td>
-<td><span class="ev-src"><span class="ev-ref"><code>file/template/ze.conf</code></span></span></td>
+<td>in the live tree. <span class="ev-src"><span class="ev-ref"><code>file/template/ze.conf</code></span></span></td>
 </tr>
 <tr>
 <td>3</td>
@@ -896,8 +916,8 @@ pushed file and continues with the existing active config.</p>
 <!-- source: cmd/ze/ze_core_start.go -- cmdStart config bootstrap order -->
 <!-- source: cmd/ze/pushed_config.go -- checkPushedConfig, writeConfigActiveHash -->
 <p><strong>Last-known-good hash:</strong> at build time, <code>ze appliance build</code> writes the SHA-256
-of the assembled seed config to <code>meta/config/last-known-good</code> in ZeFS. This
-serves as the build-time integrity baseline.</p>
+of the assembled seed config to <code>meta/config/last-known-good</code> in the seed blob.
+First boot imports this build-time integrity baseline into the live tree.</p>
 <!-- source: internal/appliance/cmd_assemble.go -- assembleZeFS last-known-good -->
 <p><strong>Config push and health monitor:</strong> <code>config-push</code> connects over SSH, stages the
 merged config, validates it, and applies it on the device. The source-backed
@@ -956,7 +976,7 @@ config was saved. If the window completes, the active config hash is written to
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -981,7 +1001,7 @@ config was saved. If the window completes, the active config hash is written to
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

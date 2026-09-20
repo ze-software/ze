@@ -223,6 +223,15 @@ refuses what it cannot support, from the answer it has in hand, after it runs.</
 <!-- source: internal/component/config/cli/cmd_migrate.go -- migrate command -->
 <!-- source: internal/component/config/cli/cmd_dump.go -- dump command -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- diff command -->
+<p>Interactive <code>ze config edit</code> and <code>ze cli</code> run their models in the daemon over
+SSH. The daemon owns their drafts, commits, and command history. A named stored
+config selects that config, not another config with the daemon's active path.
+Invalid or missing selections are refused.</p>
+<p><code>ze config edit -f &lt;file&gt;</code> edits a loose file offline. It does not bypass an
+active writer's store lock. For a running daemon, omit <code>-f</code>.</p>
+<!-- source: internal/component/cli/sshclient/terminal.go -- RunInteractive -->
+<!-- source: internal/component/ssh/session.go -- parseSessionRequest -->
+<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
 <h3 id="schema-discovery">Schema Discovery</h3>
 <table>
 <thead>
@@ -382,7 +391,7 @@ The dashboard polls three local BGP sessions. Press &#34;s&#34; to sort by the n
 </figure>
 <p><strong>Commit confirmed:</strong> The editor supports <code>commit confirmed &lt;seconds&gt;</code> for safe remote changes. The config is applied immediately but auto-reverts if <code>confirm</code> is not issued within the timeout window (1-3600 seconds). Use <code>confirm abort</code> to revert manually. Modeled after Junos commit confirmed.</p>
 <!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed -->
-<p><strong>Command history persistence:</strong> Both <code>ze config edit</code> and <code>ze cli</code> persist command history to the zefs blob store. History survives application restarts, is stored per-mode (edit vs command) and per-user, with consecutive dedup and a configurable rolling window (default 100, max 10000). Graceful degradation when no blob store is available (in-memory only).</p>
+<p><strong>Command history persistence:</strong> Both <code>ze config edit</code> and <code>ze cli</code> persist command history to the <code>database/</code> store. History survives application restarts, is stored per-mode (edit vs command) and per-user, with consecutive dedup and a configurable rolling window (default 100, max 10000). Graceful degradation when no blob store is available (in-memory only).</p>
 <!-- source: internal/component/cli/history.go -- History type -->
 <p><strong>Login warnings:</strong> When an operator connects via SSH, ze checks for conditions requiring attention and displays warnings in the welcome area. Each warning includes a message and an actionable command. Currently checks for stale prefix data (peers with <code>prefix-updated</code> older than 6 months); run <code>update bgp peer * prefix</code> to refresh from PeeringDB.</p>
 <!-- source: internal/component/ssh/session.go -- createSessionModel login warning collection -->
@@ -456,7 +465,7 @@ The dashboard polls three local BGP sessions. Press &#34;s&#34; to sort by the n
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

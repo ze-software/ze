@@ -25,9 +25,9 @@ Give the profile name after the name keyword. The answer is one profile object, 
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Profile name | The name a bfd profile block declares in the configuration. The match is exact, and the values answered are the ones in effect after inheritance. |
 
 ## Mapping intents
 

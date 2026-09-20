@@ -149,7 +149,7 @@ Choice [1]:
 <h3 id="what-it-does">What It Does</h3>
 <ol>
 <li>Copies the running ze binary to <code>&lt;prefix&gt;/bin/ze</code></li>
-<li>If no <code>database.zefs</code> exists at the config path: creates the config directory</li>
+<li>Creates the config directory when it is absent, preserving any existing store</li>
 </ol>
 <p>The config directory is resolved from the binary path following GNU prefix
 conventions:</p>
@@ -213,13 +213,15 @@ RuntimeDirectory=ze
 [Install]
 WantedBy=multi-user.target
 </code></pre>
-<p><code>ze install systemd</code> refuses to run unless <code>&lt;config-dir&gt;/database.zefs</code> exists.
-It creates the <code>ze</code> user and group if missing, changes ownership of the config
-directory and <code>database.zefs</code> to <code>ze:ze</code>, writes <code>/etc/systemd/system/ze.service</code>,
-runs <code>systemctl daemon-reload</code>, and enables the service. Use <code>--dry-run</code> to
-print the unit file without root or systemd, <code>--config &lt;dir&gt;</code> to override the
-config directory in the unit, <code>--force</code> to overwrite an existing unit, and
-<code>--start</code> to start the service after enabling it.</p>
+<p><code>ze install systemd</code> requires <code>&lt;config-dir&gt;/database/</code> and refuses while another
+process owns the store. It creates the <code>ze</code> user and group if missing,
+recursively transfers the store to <code>ze:ze</code>, writes
+<code>/etc/systemd/system/ze.service</code>, runs <code>systemctl daemon-reload</code>, and enables the
+service. Storage ownership is strict even for root: after transfer, offline
+maintenance runs as <code>ze</code> with the daemon stopped. Use <code>--dry-run</code> to print the
+unit file without root or systemd, <code>--config &lt;dir&gt;</code> to override its config
+directory, <code>--force</code> to overwrite an existing unit, and <code>--start</code> to start the
+service after enabling it.</p>
 <p>The systemd unit sets <code>XDG_RUNTIME_DIR=/run/ze</code>, so the daemon socket is
 <code>/run/ze/ze.socket</code>. For local operator CLI access, configure
 <code>daemon { socket "/run/ze/ze.socket"; }</code> or export <code>XDG_RUNTIME_DIR=/run/ze</code>.</p>
@@ -283,7 +285,7 @@ describe each piece.</p>
 ze appliance build prod
 </code></pre>
 <p>This produces <code>~/.config/ze/appliances/prod/ze-&lt;timestamp&gt;.img</code> with TLS, SSH
-credentials, and a seed config baked into its <code>/perm</code> zefs. Match
+credentials, and a seed config baked into <code>/perm/ze/database.zefs</code>. Match
 <code>image.arch</code> in <code>appliance.json</code> to the target CPU.</p>
 <h3 id="2-build-the-installer-kernel-and-initrd">2. Build the installer kernel and initrd</h3>
 <p>The target PXE-boots a kernel + initrd, <em>not</em> the disk image. Build both for the
@@ -333,10 +335,13 @@ responds with the HTTP boot script URL instead of the TFTP bootfile.</li>
 <li>iPXE fetches <code>boot.ipxe</code> from the image server, which contains the kernel
 command line with <code>ze.server</code>, <code>ze.image</code>, and <code>ip=dhcp</code>.</li>
 <li>iPXE loads the installer kernel + initrd via HTTP and boots.</li>
-<li>The initrd downloads the image and <code>database.zefs</code>, writes the first fixed
-disk (<code>/dev/sda</code>, <code>/dev/nvme0n1</code>, <code>/dev/mmcblk0</code> ...; removable, virtual,
-optical and <code>mtdblock</code> flash devices are skipped), and reboots.</li>
-<li>The target boots ze in <a href="#bootstrap-mode">bootstrap mode</a> and starts SSH.</li>
+<li>The initrd writes the selected fixed disk (<code>/dev/sda</code>, <code>/dev/nvme0n1</code>,
+<code>/dev/mmcblk0</code> ...). It preserves a baked <code>database.zefs</code> or an existing
+<code>database/</code> tree on the written partition. Only a seedless partition receives
+<code>/install/database.zefs</code>, then the device reboots.</li>
+<li>Ze explicitly imports the seed into <code>/perm/ze/database/</code>, retains the seed as
+<code>database.zefs.replaced-*</code>, and serves its configuration. A credential-only
+seed enters <a href="#bootstrap-mode">bootstrap mode</a>.</li>
 </ol>
 <h3 id="5-log-in-and-configure">5. Log in and configure</h3>
 <pre><code class="language-bash">ssh admin@&lt;target-ip&gt;      # the password given to --ssh-password
@@ -687,12 +692,12 @@ ze process. The child shuts down cleanly (closes listeners, drains
 connections). Closing the parent also sends EOF on the stdin pipe,
 which ze treats as a shutdown signal.</p>
 <h2 id="bootstrap-mode">Bootstrap Mode</h2>
-<p>When ze starts with a zefs database but no config file and no template,
-it enters bootstrap mode automatically. This is the expected state after
-a PXE-provisioned device boots for the first time.</p>
+<p>When Ze starts with a live store but no config file and no template, it enters
+bootstrap mode automatically. A PXE credential-only seed reaches this state
+after the first boot imports it into <code>/perm/ze/database/</code>.</p>
 <h3 id="what-happens">What Happens</h3>
 <ol>
-<li>Ze detects no config in zefs (no <code>file/active/ze.conf</code>, no <code>file/template/ze.conf</code>).</li>
+<li>Ze detects no config in the store (no <code>file/active/ze.conf</code>, no <code>file/template/ze.conf</code>).</li>
 <li>Interface discovery enumerates all OS network interfaces.</li>
 <li>A minimal config is generated: DHCP client enabled on every ethernet
 interface, SSH server enabled.</li>
@@ -710,8 +715,8 @@ ze starts in normal mode.</li>
 <ul>
 <li>Only ethernet interfaces get DHCP. Bridge, veth, dummy, loopback,
 wireguard, and xfrm interfaces are skipped.</li>
-<li>SSH credentials come from zefs (written by the installer initrd), not
-from the generated config.</li>
+<li>SSH credentials come from the live tree, imported from the seed installed
+by the initrd.</li>
 <li>Bootstrap mode is only intended for trusted/provisioning networks.
 SSH is enabled on all interfaces.</li>
 <li>If no ethernet interfaces are found (or the netlink backend is not
@@ -740,8 +745,10 @@ and the initrd's init script installs ze.</p>
 compressed image</li>
 <li>Writes the image to the selected non-removable block device (decompressing
 in ISO mode)</li>
-<li>In HTTP mode only, re-reads the partition table, mounts partition 4 (ext4,
-<code>/perm</code>), downloads <code>database.zefs</code>, and writes it to <code>/perm/ze/database.zefs</code></li>
+<li>In HTTP mode only, re-reads the partition table and mounts partition 4
+(ext4, <code>/perm</code>). It preserves an existing <code>database/</code> tree or non-empty
+<code>database.zefs</code>; otherwise it downloads the bootstrap seed to
+<code>/perm/ze/database.zefs</code>.</li>
 <li>In HTTP mode, reboots. In ISO mode, powers off so the operator can remove
 the installer media before the next boot.</li>
 </ol>
@@ -967,11 +974,13 @@ architecture, profile, config, and kernel version.</p>
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 <!-- source: internal/appliance/kernelbuilder/qemu.go -- runQEMU -->
 <h2 id="end-to-end-qemu-verification">End-to-End QEMU Verification</h2>
-<p><code>./le qemu install-test</code> exercises the entire chain with no hardware. It builds
-the initrd and an appliance image, boots the installer kernel and initrd against
-a blank virtio disk, downloads and writes the image and ZeFS over HTTP, then
-boots the written disk and logs in over SSH.</p>
-<pre><code class="language-bash">ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le qemu install-test
+<p><code>./le qemu install-test</code> builds the initrd and an appliance image, boots the
+installer against a blank virtio disk, and transfers the image over HTTP. It
+then boots the installed disk and authenticates over SSH. The storage proof
+also checks the logged first-boot import, the live tree's seed key values, and
+the retired seed. An incomplete staging tree is planted before boot to exercise
+restart with an interrupted import.</p>
+<pre><code class="language-bash">ZE_INSTALL_KERNEL=$PWD/build/kernel/Image ./le --name storage-proof qemu install-test
 </code></pre>
 <p><code>./le qemu install-iso-test</code> exercises the ISO transport. It creates an ISO
 through <code>ze appliance iso</code>, boots it, verifies the embedded image is written
@@ -1035,7 +1044,7 @@ default installer kernel.</p>
 <tr>
 <td><code>ZE_INSTALL_IMAGE</code> / <code>ZE_INSTALL_ZEFS</code></td>
 <td>unset</td>
-<td>Reuse a prebuilt image + zefs instead of building one</td>
+<td>Reuse a fresh prebuilt image and its matching seed blob instead of building them</td>
 </tr>
 </tbody>
 </table>
@@ -1062,7 +1071,7 @@ real network and <code>ze install remote</code> on port 80.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -1087,7 +1096,7 @@ real network and <code>ze install remote</code> on port 80.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

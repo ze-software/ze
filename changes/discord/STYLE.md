@@ -111,12 +111,48 @@ things with them.
 
 A section with both gets a `New:` list and a `Fixed:` list, in that order.
 
+## Release progress
+
+Before drafting, use the shared comparison described in
+`ai/skills/ze-weekly-update.md`, "Collect release progress".
+Use the previous source post's `release-to` as the start revision when present.
+The first report uses UTC boundaries from `covers:` and the current branch's
+first-parent history. Record full commit IDs as `release-from` and `release-to`
+in the website source front matter. Missing history is an error.
+
+Read both required groups (`immediate` and `pre-release`) and the nice-to-have
+group before selecting items. Keep every status and diagnostic in the evidence.
+Write one short progress paragraph with remaining release work items and
+relevant scope changes. Link https://ze-software.net/project/roadmap/.
+Use user-facing capabilities in the body. Spec filenames and bucket names stay
+in the drafting evidence.
+
+Explain additions, removals, priority moves, and status changes separately.
+A smaller queue cannot prove delivery. Read the source producer before calling
+removed work shipped. The comparison shows the queue at two endpoints and
+misses items added and removed between them. Continue the shipped-feature
+research for those items. Never derive effort, a completion percentage,
+release readiness, or a release date from these counts.
+
+While bucket and ownership decisions remain unresolved, label the draft as an
+inventory preview and withhold public release classification. Keep planned
+capabilities under `Coming up`. The progress paragraph shares the existing
+message budget with the standing RFC MUST programme. Neither replaces the other.
+
+Save fixed numbers and prose in `website/changes/posts/<covers-start>.md`
+before approval. Website news and Discord consume this body. Do not insert
+live roadmap tokens, recompute counts during sending, or refresh an old post.
+The Discord archive keeps the posted text. Revision fields remain in the source
+post, separate from the public body.
+
 ## Format that works (template)
 
 ```
 **📅 Ze Weekly Update**
 
 <one-line framing of the week: which areas saw work>
+
+<short release-progress paragraph and https://ze-software.net/project/roadmap/>
 
 **🔒 <Theme>**
 <optional one-line intro>
@@ -155,13 +191,20 @@ Avoid (hype / internal / em dash):
 
 ## Workflow for a new weekly update
 
-1. Gather what shipped since the last update (git log since the last post date;
-   the previous archive file's `covers:` end date is your start point).
-2. Draft in the template above. Group by theme. Strip internal/process language.
-3. Show the draft to Thomas to tweak. Do not post until he approves.
-4. On approval, inspect the exact messages with `./le weekly source <draft.md>`,
+1. Establish `covers:` from the previous post or Thomas's explicit range.
+   Collect the pinned release comparison before drafting.
+2. Verify shipped claims at their source producers for the selected end revision.
+   Draft in the template above and keep internal terms out of the body.
+3. Preview with `./le weekly source <draft.md>` without `confirm`.
+   Show Thomas the exact messages. Do not post until he approves them.
+4. On approval, inspect the exact messages again with `./le weekly source <draft.md>`,
    then publish with `./le weekly source <draft.md> confirm`. Use `channel
    ze-test confirm` for a rehearsal. The command splits at section boundaries
    to stay within Discord's 2000-character limit.
 5. The command archives the exact posted text in `website/changes/discord/`
    with front matter (`posted`, `channel`, `covers`, `backfilled` when set).
+   Resume a partial send only with the reported `resume-from <N>` arguments.
+   Later inventory edits never change the approved body or the archive.
+   If the preview text changes, including an automatic date stamp, obtain
+   approval again. Implementation verification uses dry runs only and sends
+   nothing, including to `ze-test`.

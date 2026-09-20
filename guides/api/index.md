@@ -62,13 +62,13 @@ not act as a fallback for a failed per-user login.
 <!-- source: internal/component/api/rest/auth.go -- RESTServer.withAuth -->
 <!-- source: internal/component/api/grpc/server.go -- GRPCServer.checkAuth -->
 
-The per-user source merges the zefs users with `system.authentication.user`
-entries from the running config. A config user replaces a zefs user with the
-same name. Only zefs users that survive this merge keep the zefs recovery
+The per-user source merges managed-store users with `system.authentication.user`
+entries from the running config. A config user replaces a stored user with the
+same name. Only stored users that survive this merge keep the recovery
 profile. A successful login carries its authorization view with the
 authenticated request. Concurrent requests with the same username cannot
 replace each other's resolved profiles.
-<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers, mergeAuthUsers, usersFromZefsDB -->
+<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers, mergeAuthUsers, usersFromStore -->
 <!-- source: cmd/ze/hub/api.go -- buildAPIAuthentication -->
 <!-- source: internal/component/aaa/login_profiles.go -- WithProfileAuthorizer, AuthorizerForResult -->
 
@@ -109,11 +109,11 @@ API auth mode: single-token (shared bearer)
 ```
 
 ```
-warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or initialize zefs
+warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or run ze init
 ```
 
 The per-user count includes surviving zefs users and config users. To leave
-single-token or NONE mode, add a config user or initialize zefs. To keep shared
+single-token or NONE mode, add a config user or run `ze init`. To keep shared
 credentials, set `ze.api-server.token`.
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig API auth mode output -->
 
@@ -204,10 +204,13 @@ plugin commands registered during startup. Documentation routes use the same
 Bearer authentication policy as the API when auth is configured.
 
 Each command operation carries the two help texts the command declares. The
-`summary` is the one-line summary from the YANG `description` statement, and
-the `description` is the long explanation from `ze:help`. A command that
-declares no explanation carries no `description` key. The gRPC `CommandInfo`
-message carries the summary only.
+`summary` is the one-line summary from the YANG `ze:help` statement, and
+the `description` is the long explanation from the YANG `description`. A command that
+declares no explanation carries no `description` key. Each parameter property
+in the operation's request schema carries the same pair from its YANG leaf:
+`title` is the leaf's `ze:help` and `description` is the leaf's `description`,
+and a text the leaf does not declare writes no key. The gRPC `CommandInfo` and
+`ParamInfo` messages carry both texts as `short_help` and `description`.
 <!-- source: internal/component/api/rest/server.go -- registerRoutes documentation handlers use withAuth -->
 
 ## gRPC Services

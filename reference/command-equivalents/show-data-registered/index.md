@@ -21,7 +21,7 @@ List the key patterns registered by all subsystems.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows you what types of data ZeFS knows about.
+Lists the storage key patterns registered by subsystems.
 
 ## Arguments
 

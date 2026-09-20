@@ -54,11 +54,19 @@ When piped or scripted (stdin is not a TTY), prints static help and exits 1.
 ```
 ze                               # Interactive command menu (TTY only)
 ze start <config-file>           # Start daemon from a config file (keyword-first)
-ze start                         # Start daemon from database
+ze start                         # Start from the stored active config
 ze -                             # Start daemon reading config from stdin
 ```
 <!-- source: cmd/ze/ze_core_start.go -- cmdStart, startConfigPath (ze start <config-file>) -->
 <!-- source: cmd/ze/ze_core_dispatch.go -- zeDispatch (- stdin sentinel; no free-form config-path sink) -->
+
+`ze start <config-file>` reads that file on every start. It creates `database/`
+beside the file only when neither a tree nor a legacy blob exists. Daemon commits
+update that file and stored history. An external edit causes a commit conflict.
+Bare `ze start` reads the stored active config instead.
+
+`ze -` does not create a missing store. Without a store, it uses a temporary
+in-memory CA and reports unavailable persistent features.
 
 The bare `ze <config-file>` form was **removed**: a free-form path in the first
 position can collide with a command name (a config file named `bgp` or `signal`
@@ -86,7 +94,7 @@ Press Escape to move back through the menu and return to the shell.
 | Flag | Purpose |
 |------|---------|
 | `-d`, `--debug` | Enable debug logging |
-| `-f <file>` | Use filesystem directly, bypass blob store |
+| `-f <file>` | Start from an explicit config file |
 | `--plugin <name>` | Load plugin before starting a YANG/native config (repeatable). Hub/orchestrator configs reject this; use `plugin { internal ... }` or `plugin { external ... }` in the config instead. |
 | `--pprof <addr:port>` | Start pprof HTTP server |
 | `-V`, `--version` | Show version (also available as `ze show version`) |
@@ -201,7 +209,7 @@ ze config migrate <file>         # Convert old format to current
 
 | Flag | Purpose |
 |------|---------|
-| `-f` | Bypass database, use filesystem directly |
+| `-f` | Edit a loose file offline without bypassing store ownership |
 | `-o <output>` | Output file (migrate) |
 | `--dry-run` | Show what would be migrated without changes (migrate) |
 | `--list` | List available transformations (migrate) |
@@ -1074,9 +1082,11 @@ ze show firewall group <name>           # Elements of a named group
 **`show firewall ruleset`** joins the applied desired state (chains +
 terms) with kernel counters read back via the nft backend's `GetCounters`
 call. Every rule is auto-instrumented with an anonymous counter
-expression when applied; the term name is stored in nftables'
-`Rule.UserData` and recovered on readback so the join is explicit (not
-index-based). Rejects when no firewall backend is loaded or when the
+expression when applied. The expression sits after the term's matches
+and ahead of its actions, so the row reports the packets that term
+matched and not the packets the chain saw. The term name is stored in
+nftables' `Rule.UserData` and recovered on readback so the join is
+explicit (not index-based). Rejects when no firewall backend is loaded or when the
 active backend is not `nft`.
 
 **`show firewall group`** reads from the applied-state snapshot, not
@@ -1220,6 +1230,59 @@ Returns result (connected/refused/timeout) and latency-ms.
 
 <!-- source: internal/plugins/diag/cmd/tcp_check.go -- HandleTCPCheck -->
 
+### show mtu
+
+```
+ze show mtu                          # Measure every IPsec peer and the reference address
+ze show mtu host 192.0.2.1           # Measure one address instead of the peers
+ze show mtu exhaustive               # Probe every size on the wire, discarding the cached and the reported path MTU
+ze show mtu host 2001:db8::1 detail  # Report every probe sent and every reply received
+```
+
+`host` takes one IPv4 or IPv6 address, and a value that is not an address is
+refused by the grammar. `exhaustive` and `detail` are bare words and go with either
+form. The answer is one document: `status`, `measurements`, `tunnels`,
+`commands`, `notes` and `caveats` always; `inventory`, `verdict` and
+`reference` on a run over the peers; `underlay` once the route's interface
+was read. Every measurement row says which prober produced its figure:
+`prober: ike` when the peer's live IKE SA confirmed or measured the path with
+a padded exchange (`ike-confirmed` is the largest size it proved; `path-mtu`
+stays the ICMP figure unless IKE refuted it), `prober: icmp` otherwise, with
+`ike-declined` saying why a live SA was not used and each row's `caveats`
+naming what its prober cannot see. The
+reference address is the `environment { mtu { reference-address } }` leaf. The
+payload keys, the run and its outcomes are
+`docs/architecture/diagnostics/path-mtu.md`. The command changes nothing on
+the router: the commands it lists are for the operator to apply.
+
+A run over two aes128gcm tunnels whose path is clamped at 1400, as
+`test/plugin/show-mtu-oversized-tunnels.ci` builds it, answers (the notes, the
+caveats and each row's `exchanges` elided; the IKE SAs are aes256-cbc, so the
+padded exchange asked at 1400 left at the 1388 grid point and confirmed it):
+
+```json
+{
+  "status": "ok",
+  "inventory": "registered",
+  "verdict": "action-needed",
+  "measurements": [
+    {"target": "10.99.2.1", "label": "peer", "outcome": "measured", "path-mtu": 1400, "method": "via ICMP", "probes": 4, "lossy": false, "prober": "ike", "ike-confirmed": 1388},
+    {"target": "10.99.2.3", "label": "peer", "outcome": "measured", "path-mtu": 1400, "method": "via ICMP", "probes": 4, "lossy": false, "prober": "ike", "ike-confirmed": 1388}
+  ],
+  "reference": {"host": "10.99.2.9", "path-mtu": 1400, "method": "via ICMP", "prober": "icmp"},
+  "underlay": {"interface": "sr0", "kind": "veth", "mtu": 1600, "source": "route to 10.99.2.1", "advice": "circuit-clamped"},
+  "tunnels": [
+    {"peer": "site-b", "remote": "10.99.2.1", "interface": "xa", "mode": "tunnel", "encapsulation": false, "transform": "aes128gcm/none",
+     "path-mtu": 1400, "assumed": false, "current-mtu": 1500, "ceiling": 1346, "recommended": 1314, "mss": 1274,
+     "verdict": "oversized", "octets": 154, "sized": true}
+  ],
+  "commands": ["set interface xfrm xa mtu 1314", "set interface xfrm xb mtu 1314", "set interface veth sr0 mtu 1400"]
+}
+```
+
+<!-- source: internal/component/mtu/cmd/mtu.go -- handleShowMTU -->
+<!-- source: internal/component/mtu/cmd/run.go -- runMTU -->
+
 ### show traceroute
 
 ```
@@ -1227,13 +1290,18 @@ ze show traceroute 8.8.8.8                        # Trace path to target
 ze show traceroute 8.8.8.8 max-hops 10            # Limit to 10 hops (1-64)
 ze show traceroute 8.8.8.8 timeout 2s             # Per-probe timeout (1s-30s)
 ze show traceroute 8.8.8.8 probes 1               # 1 probe per hop (1-10)
+ze show traceroute 8.8.8.8 do-not-fragment honor-cache  # DF bit set (see ping for bypass-cache)
 ze show traceroute 2001:db8::1                     # IPv6 target
 ze show traceroute example.com                     # Hostname (resolved to IP)
 ```
 
 Returns JSON with target and per-hop array. Each hop has: hop (int), addr
-(string or "*" for timeout), rtt-ms (float or null), ttl (int). Requires
-CAP_NET_RAW (root privilege enforced at startup).
+(string or "*" for timeout), rtt-ms (float or null), ttl (int). Under
+`do-not-fragment` a hop that refused the probe's size also carries
+`next-hop-mtu-reported` (bool) and, when true, `next-hop-mtu` (int, octets),
+and the trace ends at that hop. Requires CAP_NET_RAW: the kernel delivers
+Time Exceeded to a raw ICMP socket only, so without the capability the
+command refuses to run and names it.
 
 <!-- source: internal/component/traceroute/cmd/traceroute.go -- handleTraceroute -->
 
@@ -1257,7 +1325,7 @@ In `| log` mode, the hop legend (printed every 25 rounds) is enriched by
 `| resolve` (adds reverse DNS hostnames) or `| origin` (adds ASN name
 or AS number from Team Cymru).
 
-Requires CAP_NET_RAW.
+Requires CAP_NET_RAW, as `show traceroute` does.
 
 <!-- source: internal/component/cli/model_traceroute.go -- traceroute monitor model -->
 
@@ -1277,7 +1345,8 @@ Loss%, Last, Min, Avg, Max, StDev. Esc/q/Ctrl-C to stop.
 
 Default interval: 1s. Default timeout: 5s.
 
-Requires CAP_NET_RAW.
+Runs with CAP_NET_RAW, or without it when the daemon's group is inside
+`net.ipv4.ping_group_range` (see "ping / traceroute").
 
 <!-- source: internal/component/cli/model_ping.go -- ping monitor model -->
 
@@ -1564,7 +1633,9 @@ ze show bgp | summary    # the aggregate fields alone
 
 `show bgp` takes an optional family argument and carries no subcommand of its
 own. A token that names no family and no subcommand comes back as an unknown
-command, so a mistyped subcommand is not reported as an invalid family.
+command, so a mistyped subcommand is not reported as an invalid family. The
+family is the last token the command reads, so a token after it is refused the
+same way: `show bgp ipv4 rubbish` names no command and answers no summary.
 
 The two aliases and the column order are declared on `show bgp`, and a command
 inherits a declaration from its own path or an ancestor of it. Each branch under
@@ -1590,7 +1661,7 @@ select. The RPKI plugin declares the alias on its `registry.Registration`, which
 every reader that links the composition root sees, so `ze help command --json`
 and `./le command list` both list `summary` on the command. Each row carries the
 command's summary under `description` and its long explanation under
-`long-help`. The full RPKI command list is in `docs/guide/rpki.md`.
+`description`. The full RPKI command list is in `docs/guide/rpki.md`.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, summaryAliasExpansion -->
 <!-- source: cmd/ze/help_command.go -- appendPluginCommands -->
 <!-- source: internal/le/command/list/commandlist.go -- aliasesFor -->
@@ -1616,6 +1687,8 @@ traceroute` also work offline, streaming results until Ctrl-C.
 ze show ping 8.8.8.8                          # 5 probes, 5s timeout
 ze show ping 8.8.8.8 count 10 timeout 3s      # count 1-100, timeout 1s-30s
 ze show ping 8.8.8.8 size 1400                # ICMP payload bytes (1-65507)
+ze show ping 8.8.8.8 size 1400 do-not-fragment honor-cache   # DF bit set, kernel path-MTU cache honored
+ze show ping 8.8.8.8 size 1400 do-not-fragment bypass-cache  # DF bit set, cached path MTU ignored
 ze monitor ping 8.8.8.8 interval 500ms        # stream until Ctrl-C (100ms-30s)
 ze monitor ping 8.8.8.8 count 5               # stop after 5 probes
 ze monitor ping 8.8.8.8 size 1400 count 20    # 20 probes carrying a 1400-byte payload
@@ -1633,6 +1706,39 @@ ping` streams live statistics. Omitting `count` on `monitor ping` streams until
 Ctrl-C, which is the difference between them; `monitor ping` additionally takes
 `interval` (100ms-30s). The two accept identical arguments whether or not a
 daemon is running.
+
+`do-not-fragment` sets the Don't Fragment bit on every probe, on `show ping`,
+`resolve ping`, `show traceroute` and `resolve traceroute`, and it takes one
+of two values. `do-not-fragment honor-cache` honors the kernel's cached path
+MTU: a probe larger than the cached value is refused at send time.
+`do-not-fragment bypass-cache` ignores the cached value, so the probe is put
+on the wire at its full size and the path answers for itself. The keyword
+without a value is refused, as every keyword of an operational command is.
+Absent, the DF bit is clear and the kernel fragments a probe larger than the
+path, as before. `monitor ping` does not take the keyword. Linux only:
+elsewhere the keyword is refused as unsupported and a probe without it still
+runs.
+
+A probe the path refused for its size is a reply row with `status`
+`too-big`, `next-hop-mtu-reported` (bool) and, when true, `next-hop-mtu`
+(int, the octets the router reported). A probe the kernel refused against
+its cached path MTU, which `honor-cache` asks for, has `status`
+`too-big-cached` with the cache's estimate, never reached the wire, and is
+left out of `sent`. When any probe was refused, the summary carries the same
+two keys with the smallest value reported. A refusal with no usable value
+(RFC 1191's zero from an old router, or an IPv6 value below 1280) says
+`next-hop-mtu-reported: false` and carries no `next-hop-mtu` key. Every run
+with the keyword also carries `path-mtu` (int, octets) on the summary: the
+estimate the kernel holds for the destination once the probes have run. The
+key is absent when the kernel holds no estimate.
+
+Ping runs on a raw ICMP socket when the daemon holds CAP_NET_RAW, and
+otherwise on Linux's unprivileged ICMP socket when the daemon's group is
+inside `net.ipv4.ping_group_range`; `do-not-fragment` and the reported MTU
+work on both. Traceroute needs the raw socket and refuses to run without it.
+`ze doctor` reports the state before the first probe: `doctor-icmp-probe`
+when neither socket opens, naming which of the two fixes applies, and
+`doctor-icmp-probe-unprivileged` when ping runs on the fallback.
 
 <!-- source: internal/component/ping/cmd/register.go -- showPingLocal -->
 <!-- source: internal/component/ping/cmd/ping.go -- parsePingArgs -->
@@ -1827,19 +1933,34 @@ renders them: `ze cli -c "show yang tree --config | json"`.
 
 ### ze init
 
-Bootstrap the database (interactive or piped).
+Initialize `database/` in `ze.config.dir`, or the default config directory.
+The populated tree becomes visible only after credentials and initial config
+are durable. An existing tree or blob refuses initialization.
 
 ```
 ze init                          # Interactive setup
-ze init -managed                 # Fleet mode
-ze init -force                   # Replace existing database
+ze init --managed                # Fleet mode
+ze init --force --yes             # Replace an unowned store with a backup
+ze init --from database.zefs      # Import a local blob into the live store
 ```
 
-Prompts for: username, password, host (127.0.0.1), port (2222), name (hostname).
-After credentials are stored, ze init discovers OS network interfaces via netlink
-and writes initial interface configuration (ethernet, bridge, veth, dummy, loopback)
-to the database as `ze.conf`.
-<!-- source: internal/plugins/init/main.go -- Run, runInit, defaultHost, defaultPort -->
+Input fields are username, password, host, port, and instance name.
+The default host is `127.0.0.1`, the port is `2222`, and the name is the hostname.
+Normal initialization discovers interfaces and stores their initial config.
+
+| Flag | Purpose |
+|------|---------|
+| `--managed` | Enable managed configuration |
+| `--force` | Preserve the old store as `.replaced-<stamp>` before replacement |
+| `--yes` | Skip the replacement confirmation |
+| `--web-cert <address>` | Generate a web TLS certificate |
+| `--web-cert-name <name>` | Add a DNS name to that certificate |
+| `--seed` | Build a `database.zefs` appliance seed without host interface discovery |
+| `--from <blob>` | Import a local blob into the live store and retire it as `.replaced-<stamp>`; reads no credentials; refuses `--seed`; with `--force --yes` replaces an existing store |
+
+Replacement refuses a live store owner, regardless of the selected SSH target.
+Run maintenance as the store owner, including when you have root access.
+<!-- source: internal/plugins/init/main.go -- Run, runInit, runImport, defaultHost, defaultPort -->
 <!-- source: internal/component/iface/discover.go -- DiscoverInterfaces -->
 <!-- source: internal/component/iface/emit.go -- EmitConfig -->
 
@@ -1875,11 +1996,15 @@ ze install remote --interface eth0 --network 10.0.0.0/24 \
 | `--force` | Overwrite an existing `/etc/systemd/system/ze.service` |
 | `--dry-run` | Print the generated unit file to stdout without root, systemctl, or filesystem writes |
 
-`ze install systemd` requires Linux, `systemctl`, root, and an existing
-`<config-dir>/database.zefs`. Run `sudo ze init` first. The generated unit runs
-as user/group `ze`, sets `XDG_RUNTIME_DIR=/run/ze`, creates `/run/ze` through
-`RuntimeDirectory=ze`, and grants `CAP_NET_ADMIN`, `CAP_NET_RAW`, and
-`CAP_NET_BIND_SERVICE` through systemd capabilities.
+`ze install systemd` requires Linux, `systemctl`, root, and an initialized
+`<config-dir>/database/`. It transfers the complete store to user/group `ze`
+under the same ownership lock. Stop the daemon before installation or replacement.
+Later store maintenance runs as `ze`, not root.
+
+The generated unit sets `XDG_RUNTIME_DIR=/run/ze`, creates `/run/ze`, and grants
+`CAP_NET_ADMIN`, `CAP_NET_RAW`, and `CAP_NET_BIND_SERVICE`.
+<!-- source: internal/plugins/systemd/cmd_install.go -- cmdInstall, chownConfig -->
+<!-- source: internal/component/config/storage/ownership.go -- TransferOwnership -->
 
 The daemon socket is `/run/ze/ze.socket` under this unit. Configure
 `daemon { socket "/run/ze/ze.socket"; }` or run operator commands with
@@ -1958,18 +2083,21 @@ The password for a non-super-admin user must come from `ze.ssh.password`
 (env) or an interactive prompt. There is intentionally no `--password`
 flag (passwords in argv leak into shell history and `ps`).
 
-The zefs store is one source among these, not a prerequisite. It is created
-`0600` and owned by whoever installed ze, so an operator who cannot read it can
-still log in by naming themselves with `--user` and supplying `ze.ssh.password`:
+The `database/` store is one source among these, not a prerequisite. Its
+directories are created `0700` and its frames `0600`, all owned by whoever
+installed ze, so an operator who cannot read it can still log in by naming themselves with `--user` and supplying `ze.ssh.password`:
 resolution falls back to the built-in `127.0.0.1:2222` target. Set `ze.ssh.host`
 and `ze.ssh.port` (or pass `--remote`) if the daemon listens elsewhere, because
 the `meta/ssh/default` pointer lives in the store and cannot be read either.
 With no username from flag or env and no readable store, the CLI fails and names
-`--user` and `ze.ssh.password` rather than guessing an identity.
-<!-- source: internal/core/ssh/client/client.go -- readCredentials, openStoreIfReadable -->
+`--user` and `ze.ssh.password` rather than guessing an identity. A store that
+exists but is unsafe (a `database` that is not a directory, a loose mode) is not
+"unreadable": the CLI refuses with the path and the repair, because that is a
+defect to fix, not a lack of access.
+<!-- source: internal/component/cli/sshclient/client.go -- readCredentials, openStoreIfReadable -->
 
 See [authentication.md](../authentication/index.md) for the full multi-user workflow.
-<!-- source: internal/core/ssh/client/client.go -- ReadCredentialsWithFlags -->
+<!-- source: internal/component/cli/sshclient/client.go -- ReadCredentialsWithFlags -->
 <!-- source: docs/guide/authentication.md -- Logging in as a YANG user -->
 
 ### ze start --web
@@ -2061,20 +2189,32 @@ operators (match, count, first, last, display) work on both JSON and plain text.
 
 ### ze data
 
-Low-level blob store management.
+Inspect a live tree read-only, or modify a tree or explicit blob artifact offline.
+Mutations refuse an active writer. Keys are raw, namespaced paths, and `list`
+recursively lists matching keys.
 
 ```
-ze data import <file>...           # Import files into blob
-ze data rm <key>...                # Remove entries
-ze data list [prefix]              # List entries
-ze data cat <key>                  # Print entry content
-ze data registered                 # List all registered key patterns
-ze data registered <pattern>       # Show details for a key pattern
+ze data --path /etc/ze/database list meta/
+ze data --path /etc/ze/database cat meta/instance/name
+ze data write <key> <file>         # A file of "-" reads stdin
+ze data import <file>...           # Import under file/active/<basename>
+ze data rm <key>...
+ze data registered [pattern]
+ze data check
+ze data repair --output <new-path>
+ze data encode [--crc|--header] [--cap N] <string|->
 ```
 
-| Flag | Purpose |
-|------|---------|
-| `--path <store>` | Blob store path <!-- source: internal/component/config/storage/cli/main.go -- Run, subcommandHandlers --> |
+`--path <store>` selects the exact tree directory or `.zefs` artifact.
+Without it, commands use `database/` under the configured directory.
+Data commands never initialize a missing live store.
+
+`check` verifies every frame and names corrupt keys. `repair` preserves the source
+and writes verified keys to a new tree or blob. It refuses an existing output.
+Integrity exits are `0` for success, `1` for corruption or skipped keys, and `2`
+for an I/O failure or unsafe path.
+<!-- source: internal/component/config/storage/cli/main.go -- Run, openStore, cmdWrite, cmdImport -->
+<!-- source: internal/component/config/storage/cli/cmd_integrity.go -- cmdCheck, cmdRepair, cmdEncode -->
 
 ### ze plugin
 
@@ -2328,7 +2468,7 @@ Many commands take a `peer <selector>` argument:
 | `show bgp peer <sel> history` | read-only | FSM transition history |
 | `show bgp` | read-only | BGP summary table (all peers) |
 | `show bgp update-delay` | read-only | The startup convergence hold: whether this speaker is withholding its first advertisement, which condition ended a hold that has finished (`converged`, `establish-wait`, `max-delay`), and how many of the expected peers have converged. Read it when a speaker has come up and advertised nothing: it separates a working hold from a wedged daemon <!-- source: internal/component/bgp/plugins/cmd/peer/update_delay.go -- handleBgpUpdateDelay --> |
-| `show bgp <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count |
+| `show bgp <afi/safi>` | read-only | Per-family summary: filter to peers that negotiated this AFI/SAFI. Shorthands `ipv4`, `ipv6`, `l2vpn` expand to `ipv4/unicast`, `ipv6/unicast`, `l2vpn/evpn`. Unknown or un-negotiated families reject with the list of families currently negotiated on this daemon. Response adds `family` + `peers-in-family`; `peers-established` is the filtered count. A token after the family is refused as an unknown command |
 | `request peer <sel> pause` | write | Pause read loop (flow control) |
 | `request peer <sel> resume` | write | Resume read loop |
 | `request peer <sel> teardown [<code>] [<msg>]` | write | Graceful close with NOTIFICATION |

@@ -25,9 +25,9 @@ Device certificates only: a CA certificate in the store holds no private key.
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Certificate name | The name of a device certificate in the store. A CA name and a device certificate with no private key are each refused. |
 
 ## Mapping intents
 

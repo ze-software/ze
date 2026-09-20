@@ -101,6 +101,7 @@ Three MUST gaps, annotated in [`rfc/short/rfc8666.md`](https://github.com/ze-sof
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **31** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (21):** [`RFC8666-5-2`](#rfc8666-5-2), [`RFC8666-5-7`](#rfc8666-5-7), [`RFC8666-6-1`](#rfc8666-6-1), [`RFC8666-6-2`](#rfc8666-6-2), [`RFC8666-6-3`](#rfc8666-6-3), [`RFC8666-6-4`](#rfc8666-6-4), [`RFC8666-6-5`](#rfc8666-6-5), [`RFC8666-6-6`](#rfc8666-6-6), [`RFC8666-6-7`](#rfc8666-6-7), [`RFC8666-6-8`](#rfc8666-6-8), [`RFC8666-6-9`](#rfc8666-6-9), [`RFC8666-6-11`](#rfc8666-6-11), [`RFC8666-6-12`](#rfc8666-6-12), [`RFC8666-6-13`](#rfc8666-6-13), [`RFC8666-6-14`](#rfc8666-6-14), [`RFC8666-7.1-1`](#rfc8666-7.1-1), [`RFC8666-7.1-2`](#rfc8666-7.1-2), [`RFC8666-7.2-1`](#rfc8666-7.2-1), [`RFC8666-8.2-1`](#rfc8666-8.2-1), [`RFC8666-8.4.1-1`](#rfc8666-8.4.1-1), [`RFC8666-11-1`](#rfc8666-11-1)

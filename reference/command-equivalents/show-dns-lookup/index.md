@@ -25,10 +25,10 @@ Resolves <hostname> using the daemon's DNS resolver (falls back to the system re
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `hostname` | string | yes | any value of this type |
-| `type` | enum | no | `A`, `AAAA`, `MX`, `NS`, `TXT`, `CNAME`, `PTR` |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `hostname` | string | yes | any value of this type | Hostname to resolve. | A DNS name of at most 253 characters. The first word that is not the type keyword is taken as the name, and a call with no name is refused. |
+| `type` | enum | no | `A`, `AAAA`, `MX`, `NS`, `TXT`, `CNAME`, `PTR` | DNS record type. | The record type to query, written after the type keyword. The default is A. Ze upper-cases the value, and a type outside this list is refused with the list of accepted ones. |
 
 ## Mapping intents
 

@@ -124,7 +124,7 @@
 <ol>
 <li><a href="#what-each-carrier-earns-in-the-ledger">What each carrier earns in the ledger</a></li>
 </ol></li>
-<li><a href="#who-writes-an-owner-approval-row">Who writes an owner-approval row</a></li>
+<li><a href="#the-owners-approval-lives-in-the-commit">The owner&#39;s approval lives in the commit</a></li>
 </ol></li>
 <li><a href="#phase-10-documentation">Phase 10: Documentation</a>
 <ol>
@@ -577,9 +577,12 @@ requirement is genuinely testable only one way, annotate its summary line
 <code>{lower-layer: &lt;layer&gt;; &lt;path&gt;.go::&lt;Symbol&gt; ...}</code> covers a behavior a layer
 under Ze performs on state Ze installs, where Ze's own boundary carries no
 value to assert, and <code>{feature-declined: "&lt;RFC sentence&gt;"; &lt;path&gt;.go::&lt;Symbol&gt; ...}</code> covers an obligation conditional on a feature the RFC makes optional and
-Ze declined. Each needs a reason (a bare annotation is rejected), and the last
-two need the facts their gates check: the layer and the producer, or the
-quoted sentence and the producer
+Ze declined. <code>{rollup: &lt;id or stem&gt;, ...; why}</code> is for a row that asserts
+nothing of its own ("implement all of this document"). The gate derives its
+state from the rows it names, and refuses a target no enrolled summary holds.
+Each needs a reason (a bare annotation is rejected). The last three need the
+facts their gates check: the layer and the producer, the quoted sentence and
+the producer, or the target list
 (<code>docs/contributing/rfc-conformance-gates.md</code>).</li>
 <li><strong>Place the tag inline at the table case</strong> when one function covers many
 requirements. One id per line, polarity mandatory. The tag is the only authored
@@ -599,7 +602,7 @@ demonstrates and nothing wider: a claim that says more than the body checks is
 the defect the record exists to refuse.</li>
 </ul>
 <h4 id="what-each-carrier-earns-in-the-ledger">What each carrier earns in the ledger</h4>
-<!-- source: internal/le/rfc/carriers.go -- Carrier, suiteCarriers, interopCarriers, interopTrees -->
+<!-- source: internal/le/rfc/carriers.go -- Carrier, suiteCarriers, carriersFor, CarrierFor, interopCarriers, interopTrees -->
 <p>Evidence has two axes: KIND (which layer the test exercises) and TIER (whether
 anything executes it). Both are DERIVED from the carrier table rather than
 declared by the test.</p>
@@ -620,10 +623,16 @@ declared by the test.</p>
 <td><code>verify</code>, on every push</td>
 </tr>
 <tr>
-<td><code>test/&lt;suite&gt;/*.ci</code></td>
+<td><code>test/&lt;suite&gt;/*.ci</code> from <code>suiteCarriers</code></td>
 <td><code>functional</code></td>
 <td><code>./le functional gating</code></td>
-<td><code>verify</code>, but only from a suite the functional run actually gates. <code>suiteCarriers</code> builds one prefixed row per name in <code>functional.GatingNames</code>, so a <code>.ci</code> in a non-gating suite (static, traffic, flow-export, vpp, vrrp) earns no verify tier, and is skipped entirely. <span class="ev-src"><span class="ev-ref"><code>test/draft/</code></span></span></td>
+<td><code>verify</code> for each suite in <code>functional.GatingNames</code>. Other directories need a separately registered carrier; is skipped entirely. <span class="ev-src"><span class="ev-ref"><code>test/draft/</code></span></span></td>
+</tr>
+<tr>
+<td><span class="ev-src"><span class="ev-ref"><code>test/exabgp-compat/*.ci</code></span></span></td>
+<td><code>functional</code></td>
+<td><code>./le functional exabgp-test</code></td>
+<td><code>verify</code>, through the full verifier's separate ExaBGP stage</td>
 </tr>
 <tr>
 <td><span class="ev-src"><span class="ev-ref"><code>test/editor/*.et</code></span></span></td>
@@ -754,33 +763,32 @@ judgements during unrelated work.</p>
 <li>
 <p><strong>Never change a tagged test to make it pass.</strong> Once a test carries an
 <code>RFC requirement:</code> tag it is the requirement: fix your code, not the test.
-Changing its behavior needs the owner's approval. Write it as one row in
-<code>test/rfc-changed/&lt;session&gt;.md</code>, your own session's shard of the approval
-ledger, and commit that shard with the change. The native weakening check
-reads it and blocks the edit until a row names the test.</p>
+Changing its behavior needs the owner's approval.</p>
 </li>
 </ul>
-<h3 id="who-writes-an-owner-approval-row">Who writes an owner-approval row</h3>
-<p>This is the one difference between the two ledgers, and it decides everything
-else. A weakening row in <code>test/weakened/&lt;session&gt;.md</code> is the author's own
-justification, and a reviewer reads it to judge the author. A row in
-<code>test/rfc-changed/&lt;session&gt;.md</code> is the OWNER's decision, written down by the
-author who asked for it.</p>
-<p>An author cannot approve their own change. <code>ai/rules/testing.md</code> says it in one
-line: a weakening row does not authorize changing a tagged test, because
-self-service justification is not user approval. <strong>A row here with no answer
-from the owner behind it is a forgery, not a shortcut.</strong> So the Reason column
-holds what the owner approved, not what the author wanted.</p>
-<p>The shard layout serves that rule rather than bending it. A row you did not
-write sits in a file named after its writer, no commit but that writer's own can
-carry it (<code>./le commit create</code> refuses a foreign shard), and the gate drops a
-row only after proving git holds it at HEAD. Reason: an approval published under
-the wrong commit's subject is a forged record of an owner decision, and it is
-the one failure of this file that leaves no trace.</p>
-<p>Name what the owner approved, and say why the tagged requirement is still proven
-after the change. Quote the requirement id, so a reader can open <code>rfc/short/</code>
-beside it. A reason that does not answer the second question approves a
-compliance claim losing its evidence.</p>
+<h3 id="the-owners-approval-lives-in-the-commit">The owner's approval lives in the commit</h3>
+<p>An author cannot approve their own change. A weakening row in
+<code>test/weakened/&lt;session&gt;.md</code> is the author's own justification, and a reviewer
+reads it to judge the author; it approves nothing here. Once the owner has
+answered, record his words, once:</p>
+<pre><code>./le rfc approve unit &lt;package&gt;.&lt;TestName&gt; reason "&lt;the owner's words&gt;"
+</code></pre>
+<p>The command writes one row into <code>tmp/commit-rfc-approved-&lt;session&gt;.md</code>, the
+file this commit session owns (<code>./le commit session</code>) and git never sees. A
+second call for the same unit replaces the reason. The Write/Edit hook and
+<code>./le commit create</code> both read that file, and both refuse a change to a tagged
+unit that no row names, printing the command. <code>./le commit create</code> then carries
+each row it used into the commit message as one trailer line,
+<code>RFC-approved: &lt;package&gt;.&lt;TestName&gt;: &lt;reason&gt;</code>, and the generated script drops
+the used rows from the file once the commit succeeds. The commit that changed
+the test is the record, where a reader looks first: <code>git log --grep RFC-approved:</code> lists every approval. A row whose whole trailer line a commit
+already carries approves nothing further: <code>trailerLanded</code>
+(<code>internal/le/commit/rfcchange.go</code>) compares each message line to the trailer,
+and the refusal names that commit by short hash and subject. A row with no
+answer from the owner behind
+it is a forgery, not a shortcut, so the reason names what the owner approved
+and why the tagged requirement is still proven after the change, quoting the
+requirement id.</p>
 <!-- source: internal/le/testweakened/proposed.go -- RFC-tagged carrier approval -->
 <!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->
 <p>Full rules: <code>ai/skills/ze-rfc.md</code>; audit method: <code>ai/skills/ze-rfc-audit.md</code>.</p>
@@ -971,7 +979,7 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 08:15 UTC</span>
                 </div>
             </div>
         </footer>

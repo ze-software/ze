@@ -67,8 +67,10 @@
 </dl>
 <h3>Description</h3><p>Pass a number or &#39;max&#39; to go to the hard limit. Takes effect immediately.<br>Check current limits with &#39;show system file-descriptors&#39;.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>limit</code></td><td>union</td><td>no</td><td><code>max</code></td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>limit</code></td><td>union</td><td>no</td><td><code>max</code></td><td>New limit or max for hard limit.</td><td>The value is the new soft limit on open descriptors, a count from 1 up to
+the hard limit, or the word max. Ze sets it with setrlimit and reports the previous,
+the current and the hard limit. Zero, or a count above the hard limit, is refused.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -132,7 +134,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

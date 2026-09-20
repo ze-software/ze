@@ -25,9 +25,9 @@ The command is idempotent. When a unit or address command under it fails, and th
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Interface name | The name of the dummy to create. A name that holds an interface of another type is refused, and the error names both types. |
 
 ## Mapping intents
 

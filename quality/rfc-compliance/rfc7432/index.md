@@ -98,6 +98,7 @@ Fifteen MUST gaps annotated in [`rfc/short/rfc7432.md`](https://github.com/ze-so
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **82** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (3):** [`RFC7432-5-1`](#rfc7432-5-1), [`RFC7432-9.2.1-1`](#rfc7432-9.2.1-1), [`RFC7432-10-1`](#rfc7432-10-1)

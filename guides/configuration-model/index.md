@@ -34,7 +34,7 @@ bgp {
         remote { connect false; }   # passive: don't initiate outbound
 
         capability {
-            asn4;
+            asn4 enable;
             route-refresh;
         }
 
@@ -90,7 +90,15 @@ connection initiated by the speaker with the larger AS number. Ze also refuses t
 start with its own `router-id 0.0.0.0`, since Section 2.1 defines the BGP Identifier
 as a non-zero integer and every conformant peer would reject such an OPEN.
 
-<!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — DetectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
+Two facts decide "internal peer" for that check, and neither is taken from the
+OPEN alone. The AS is the configured `session { asn { remote } }` when the session
+has one, and the AS the peer advertises only for a dynamic peer that has none. That
+AS is internal when it equals Ze's own AS, and also when it equals a configured
+`session { asn { migration } }`: RFC 7705 Section 4.2 makes a peer reached under
+either ASN of a migrating pair an iBGP peer, so the Section 2.2 identifier check
+binds it exactly as it binds a peer in the same AS.
+
+<!-- source: internal/component/bgp/reactor/session_open_validation.go — validateOpenIdentifier; internal/component/bgp/reactor/peer.go — sessionPeerAS; internal/component/bgp/reactor/session_as_migration.go — isIBGPWith; internal/component/bgp/message/open.go — ValidateBGPIdentifier; internal/component/bgp/reactor/session.go — DetectCollision; internal/component/bgp/reactor/config.go — parseRouterID -->
 
 ## OSPF
 
@@ -303,7 +311,10 @@ accept lifetimes); `extended-sequence true` selects RFC 7474 AuType 3. Bind a ch
 an interface directly, or set the interface `authentication { mode inherit }` and the
 chain bound to its area (`area { authentication { key-chain } }`) is used. `algorithm`
 is one of `simple`, `md5`, or `hmac-sha-1/256/384/512`; secrets are masked and
-`$9$`-encoded at rest, never shown in plaintext.
+`$9$`-encoded at rest, never shown in plaintext. A `key-chain` leaf naming no
+`key-chains` entry is refused at commit, and the error names the chain: a misspelled
+name would otherwise leave the interface accepting every packet unsigned. Naming no
+chain at all stays legitimate, and is how an interface runs unauthenticated.
 
 ```
 ospf {
@@ -879,7 +890,7 @@ Configured under `capability { }` at any inheritance level.
 
 | Capability | Config | Values |
 |------------|--------|--------|
-| 4-byte ASN | `asn4` | presence (enabled by default) |
+| 4-byte ASN | `asn4` | `enable` (default), `disable`, `require`, `refuse` |
 | Route Refresh | `route-refresh` | presence |
 | Extended Message | `extended-message` | presence |
 | Graceful Restart | `graceful-restart { restart-time 120; }` | See [Graceful Restart guide](../graceful-restart/index.md) |
@@ -912,7 +923,11 @@ message carries no Multiprotocol capability in that case. That OPEN is correct,
 and a peer daemon that follows RFC 4271 reads it as IPv4 unicast.
 
 Ze sends the End-of-RIB marker for ipv4/unicast once it completes the initial
-routing update, as RFC 4724 Section 4 requires.
+routing update, as RFC 4724 Section 4 requires. The initial routing update is
+the one Ze itself owns: static routes, `default-originate` and the peer's
+`update {}` block. A process attached to the peer does not hold the marker back
+(owner ruling, 2026-09-18), and routes it pushes after the marker are delivered
+as ordinary updates.
 
 A loaded plugin changes what Ze advertises. When the config declares no family,
 Ze advertises every family the loaded plugins can decode, and the session
@@ -1769,9 +1784,17 @@ holds every peer's routes in the RIB and serves them on the plugin API. It
 forwards no traffic, so a kernel route for each prefix is work with no reader.
 `fib-withhold [ bgp ]` programs none of them. The RIB is untouched, and so is
 `bgp-rib/best-change`, the stream the plugin API serves those routes on.
+Withholding is the one verdict that refuses the write outright. Ze reaches the
+same install decision by three doors, a route arriving live, the permission
+sweep and a next-hop cascade, and only that verdict makes any of them decline.
+The other two decide what the install RECORDS rather than whether it happens,
+so a route whose next-hop the resolver cannot reach is still programmed: the
+Loc-RIB is not the router's whole picture of reachability, and an IGP next-hop
+on a link whose connected route no plugin inserted is on-link all the same.
+
 <!-- source: internal/component/sysrib/yang/ze-rib-conf.yang -- fib-withhold leaf-list -->
-<!-- source: internal/component/sysrib/fibimport.go -- recordWithheldWinner, applyFIBImport -->
-<!-- source: internal/component/sysrib/sysrib.go -- recomputeBest, cascadeRecompute -->
+<!-- source: internal/component/sysrib/fibimport.go -- recordWithheldWinner, applyFIBImport, fibStateChange -->
+<!-- source: internal/component/sysrib/sysrib.go -- recomputeBest, cascadeRecompute, fibInstall -->
 
 ## Static Routes
 
@@ -2170,7 +2193,7 @@ error.
 
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, validateSelectors, devicesWithMAC -->
 <!-- source: internal/component/iface/resolve.go -- matchByMAC, deviceMatchMAC -->
-<!-- source: internal/component/doctor/checks_linux.go -- checkInterfaces, selectedNetDevice -->
+<!-- source: internal/component/iface/doctor_linux.go -- checkEthernetInterfaces, selectedNetDevice -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf match (container mac) -->
 
 ### MAC Address Binding
@@ -2190,7 +2213,7 @@ reports that shape as `doctor-iface-mac-override-by-name`, at warning severity. 
 `mac { match }` against the NIC's permanent address clears it: the override then follows
 the NIC it was written for. Discovery writes no override on an ethernet for this reason.
 
-<!-- source: internal/component/doctor/checks_linux.go -- macOverrideBoundByName -->
+<!-- source: internal/component/iface/doctor_linux.go -- macOverrideBoundByName -->
 <!-- source: internal/component/iface/config_apply.go -- applyConfig, SetMACAddress -->
 
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- unique "mac/address", container mac -->
@@ -3115,6 +3138,9 @@ environment {
         }
         transcript enabled;  # record session commands and output to local file
     }
+    mtu {
+        reference-address 1.1.1.1;  # the address show mtu measures beside the peers
+    }
 }
 ```
 
@@ -3130,17 +3156,36 @@ The `cli { format { default } }` leaf controls the output format when no explici
 pipe operator is specified. The default is `text`. Override per-session with
 `set cli format <value>` in operational mode; explicit pipe operators always win.
 
-The `cli { transcript }` leaf enables local transcript recording. When set to
+The `cli { transcript }` leaf enables transcript recording. When set to
 `enabled`, `ze cli` and `ze config edit` sessions write all commands and their
 output to `$XDG_DATA_HOME/ze/transcripts/` (defaults to
-`~/.local/share/ze/transcripts/`). Transcripts include a header with
-timestamp, username, and remote host. Transcript writes are best-effort and
-never block CLI operation. Default is `disabled`.
+`~/.local/share/ze/transcripts/`). The process that runs the session's model
+writes the file: the daemon, for a session on a stored configuration (the
+daemon owns the editor, `docs/guide/config-editor.md`), so the file is on the
+daemon host, one per session, named `transcript-<stamp>-<pid>-<n>.log`; the
+client, for `ze cli -c <command>` and for a loose-file `ze config edit`, named
+`transcript-<stamp>-<pid>.log`. Transcripts include a header with timestamp,
+username, and remote host. Transcript writes are best-effort and never block
+CLI operation. Default is `disabled`.
+
+A credential typed at the prompt is not written. The command line goes through
+the same redaction the SSH command log uses, so a bcrypt-shaped token and the
+value after a password-family keyword are each replaced with `<redacted>`
+before the line reaches the file. The answer needs no pass of its own: a
+command that echoes a config value masks it where it is written.
+
+The `mtu { reference-address }` leaf names the address `show mtu` measures
+beside the IPsec peers. A reference outside the tunnels is what tells a clamped
+access circuit from a clamped peer path. The value is one IPv4 or IPv6 address
+and the default is `1.1.1.1`. The environment variable
+`ze.mtu.reference-address` overrides the leaf. The command is described in
+`docs/architecture/diagnostics/path-mtu.md`.
 
 <!-- source: internal/component/config/environment.go -- environment block parsing; internal/core/slogutil/slogutil.go -- log level config -->
+<!-- source: internal/component/mtu/cmd/mtu.go -- referenceAddress, the reader of the reference-address leaf -->
 <!-- source: internal/core/version/version.go -- HTTPHeaderHidden, the leaf both HTTP servers read -->
 <!-- source: internal/component/command/pipe.go -- configuredDefault -->
-<!-- source: internal/component/cli/transcript.go -- TranscriptWriter, TranscriptEnabled -->
+<!-- source: internal/component/cli/transcript.go -- TranscriptWriter, OpenTranscriptFile -->
 
 ### TLS Certificates From the PKI Store
 
@@ -3201,7 +3246,7 @@ no intermediate serves the leaf alone.
 | Rotation | Changing the referenced certificate's material and reloading rotates it live. The web listener and the looking glass serve the new chain from the next handshake without rebinding, so an open SSE stream and a viewer's open connection both survive. DoT/DoH rebind, because their listener signature folds in the certificate fingerprint. |
 | One commit | A single commit can add a certificate AND reference it. The reload installs the store before any consumer applies its config. |
 | Env override | `ze.web.certificate` and `ze.looking-glass.certificate` set their listener's certificate and take precedence over the config file. |
-| Blob storage | A named certificate comes from the `pki {}` container, so the looking glass serves one on a deployment that never ran `ze init`. Its blob store holds the self-signed certificate only. The web server needs blob storage whatever it serves, because its credentials and config live there. |
+| Store | A named certificate comes from the `pki {}` container, so the looking glass serves one on a deployment that never ran `ze init`. The `database/` store holds the self-signed certificate only. The web server needs the store whatever it serves, because its credentials and config live there. |
 | Pre-flight | `ze doctor` reports a reference that is missing, keyless, expired, or whose intermediate does not reach a configured CA, as `doctor-tls-reference` or `doctor-tls-expired`. Run it before deploying. |
 
 An external geodns plugin process cannot read the in-process store: a
@@ -3408,7 +3453,7 @@ When `auto-apply` is true, the server manifest must include a `sha256` field. Ze
 See the [Self-Update Guide](../self-update/index.md) for server setup and fleet deployment details.
 
 <!-- source: internal/component/config/system/yang/ze-system-conf.yang -- update-check config -->
-<!-- source: internal/component/config/system/selfupdate.go -- SelfUpdater -->
+<!-- source: internal/component/config/system/selfupdate.go -- selfUpdater -->
 <!-- source: cmd/ze/hub/main_system.go -- startUpdateChecker lifecycle -->
 
 ### NTP Client
@@ -3433,12 +3478,34 @@ environment {
 | `enabled` | boolean | `false` | Enable NTP time synchronization. |
 | `interval` | uint32 | `3600` | Sync interval in seconds. Range: 60-86400. |
 | `max-step` | uint32 | `3600` | Maximum accepted NTP clock step in seconds. `0` explicitly allows unlimited steps. |
-| `persist-path` | string | `/perm/ze/timefile` | Path used to persist recovered time across restarts. |
+| `persist-path` | string | `/perm/ze/timefile` | A non-empty value enables recovered-time persistence in the daemon's selected store; it does not choose a loose file. |
 | `server <name>.address` | string | (none) | NTP server hostname or IP address. Configured servers take priority over DHCP option 42 servers. |
 
 NTP responses are validated and timestamps outside years 2020-2100 are
 rejected. `max-step` is checked before `settimeofday`; responses whose clock
 offset exceeds the cap are rejected and logged.
+
+After a successful sync, Ze publishes the last-known time under
+`meta/ntp/last-time` in the selected `database/` tree. On startup it restores
+the system clock from that value before querying a server. Explicit-file
+startup uses the tree beside the file, with no `ze.config.dir` pin.
+
+The native restart fixture performs an NTP exchange with its own loopback UDP
+server, then restarts Ze without a server and checks the restored system clock.
+It changes the clock and therefore belongs in a disposable QEMU guest. With
+the guest's `ze` and `ze-test` binaries on `PATH`, its explicit action from a
+scratch directory is:
+
+```sh
+ZE_STORAGE_CLOCK_TEST=1 ze-test fixture storage/consumer-restart ntp
+```
+
+The fixture refuses to run without that opt-in. Its suite carrier,
+`test/plugin/storage-ntp-restart.ci`, passes the opt-in and is gated
+`option=needs-linux:caps=sys-time`: a process without `CAP_SYS_TIME` skips it,
+so an unprivileged developer host keeps its clock and the QEMU guest
+(`./le qemu all-tests`) runs it.
+<!-- source: internal/test/fixture/storage_consumer_restart.go -- storageNTPRestart, storageNTPServer -->
 
 <!-- source: internal/plugins/ntp/yang/ze-ntp-conf.yang -- NTP config schema -->
 <!-- source: internal/plugins/ntp/ntp.go -- parseNTPConfig, doSync -->

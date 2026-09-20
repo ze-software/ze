@@ -25,9 +25,9 @@ Modes: summary (groups by state), blocked (only lock/channel waiters), full (all
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `mode` | enum | no | `summary`, `blocked`, `full` |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `mode` | enum | no | `summary`, `blocked`, `full` | Display mode. | The word is optional and the default is summary. The blocked list carries each waiting goroutine with its id, its state and its stack, after the same totals. A full dump is one text block of up to 16 MB, so keep it for a hang. |
 
 ## Mapping intents
 

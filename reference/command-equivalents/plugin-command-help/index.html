@@ -54,7 +54,7 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>plugin command help</code></dd></div>
-<div><dt>Usage</dt><dd><code>plugin command help</code></dd></div>
+<div><dt>Usage</dt><dd><code>plugin command help &lt;name&gt;</code></dd></div>
 <div><dt>Mode</dt><dd>Read-only</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-plugin:command-help</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
@@ -67,7 +67,10 @@
 </dl>
 <h3>Description</h3><p>The name is looked up in the plugin registry only, so a built-in<br>command is reported as unknown. The answer carries the summary, the long explanation, the<br>argument form and the plugin that registered it.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>name</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Plugin command name</td><td>The full command name, as plugin command list prints it. A name
+no plugin registered fails with unknown plugin command.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -130,7 +133,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

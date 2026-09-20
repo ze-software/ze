@@ -91,6 +91,7 @@ Feature remains Experimental pending production hardening and deployment evidenc
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **10** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (1):** [`RFC1195-3.9-1`](#rfc1195-3.9-1)

@@ -100,6 +100,7 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **8** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (6):** [`RFC5883-3-1`](#rfc5883-3-1), [`RFC5883-4.3-1`](#rfc5883-4.3-1), [`RFC5883-4.3-2`](#rfc5883-4.3-2), [`RFC5883-5-1`](#rfc5883-5-1), [`RFC5883-5-2`](#rfc5883-5-2), [`RFC5883-x-1`](#rfc5883-x-1)

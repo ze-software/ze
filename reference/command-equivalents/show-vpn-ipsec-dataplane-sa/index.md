@@ -25,9 +25,9 @@ Lists each installed ESP SA with its SPI, addresses, mode, algorithms, replay wi
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `spi` | uint | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `spi` | uint | no | any value of this type | Show all SAs with this SPI. | The value is decimal. Ze keeps only the SAs whose SPI equals it, and the inbound SA and the outbound SA of one tunnel carry different SPIs, so one value names one direction. The value 0 is refused. |
 
 ## Mapping intents
 

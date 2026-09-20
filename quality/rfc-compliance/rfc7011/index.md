@@ -100,6 +100,7 @@ One MUST gap in [`rfc/short/rfc7011.md`](https://github.com/ze-software/ze/blob/
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **19** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (4):** [`RFC7011-3-1`](#rfc7011-3-1), [`RFC7011-3.3.1-1`](#rfc7011-3.3.1-1), [`RFC7011-8-1`](#rfc7011-8-1), [`RFC7011-8-2`](#rfc7011-8-2)

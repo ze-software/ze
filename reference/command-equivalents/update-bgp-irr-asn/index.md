@@ -25,9 +25,9 @@ Re-queries the IRR server for the given ASN only.
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `asn` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `asn` | string | yes | any value of this type | ASN number. | The AS number as a plain decimal from 0 to 4294967295. An ASN with no IRR-filtered peer is refused, and a refresh the IRR server fails is reported with the server's error. |
 
 ## Mapping intents
 

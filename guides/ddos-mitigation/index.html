@@ -836,6 +836,38 @@ FlowSpec responder is mitigating.</p>
 its own leak-probe cycle. Each probe lets a bounded trickle of traffic through
 (<code>probe-rate</code> bps) to test whether the flood is still arriving. This is the only
 passive signal available until an inbound flow collector exists.</p>
+<p><strong>What a commit does to a live FlowSpec announcement.</strong> The plugin builds a new
+responder for the new config, and what happens to the announcement depends on
+what the commit says. The NLRI lives in the BGP engine's RIB and in every peer's,
+neither of which belongs to this plugin, so an announcement the plugin forgets is
+one no operator can lift.</p>
+<table>
+<thead>
+<tr>
+<th>The commit</th>
+<th>The live announcement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Any <code>ddos flowspec</code> leaf, <code>response-level</code> still <code>enforce</code></td>
+<td>KEPT, with its cap and its running leak-probe. The new responder is handed the rule, the victim it covers, the instant it went out and the probe's position in its cycle, so the cap keeps counting from the FIRST announce and the probe still decides the withdrawal. The new config governs from the commit, so a <code>commit</code> that shortens <code>max-mitigation-duration</code> applies the shorter cap to the rule already announced. <code>announce-rate-limit</code> keeps the budget already spent, so committing is not a way to announce past the limit</td>
+</tr>
+<tr>
+<td><code>response-level alert</code></td>
+<td>WITHDRAWN at once. <code>alert</code> is detect-and-report, and lifting an upstream discard is what an operator commits it for. The log line is <code>response-level left enforce, withdrawing the announcement</code></td>
+</tr>
+<tr>
+<td>The <code>ddos flowspec</code> block deleted</td>
+<td>WITHDRAWN at once. The plugin is stopped as soon as the reload lands, so an announcement carried past this point would sit in every peer's RIB with no responder and no cap worker left to withdraw it. The log line is <code>the ddos flowspec section was removed, withdrawing the announcement</code></td>
+</tr>
+<tr>
+<td><code>action</code> or <code>rate-limit-bytes</code> changed</td>
+<td>The rule already on the wire keeps the action it was announced with. Nothing re-announces, so the new values govern the NEXT announcement</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/ddos/flowspec/register.go -- replaceResponder; internal/plugins/ddos/flowspec/responder.go -- adoptAnnouncement, withdrawForConfig, enforceMaxDuration -->
 <h3 id="vpp-dataplane">VPP dataplane</h3>
 <p>Detection works on both the Linux netlink dataplane and the VPP DPDK dataplane.
 The VPP iface backend populates <code>InterfaceInfo.Stats</code> from VPP's stats segment,
@@ -896,7 +928,7 @@ degrades to a coarse generic-flood drop.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -921,7 +953,7 @@ degrades to a coarse generic-flood drop.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

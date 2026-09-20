@@ -25,9 +25,9 @@ Returns matching time series from the internal registry. Multiple label filters 
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Prometheus metric name | The value is the whole metric name, such as ze_bgp_connect_retry_counter, compared as text with the start of each sample line. A name that matches no sample answers an empty list. |
 
 ## Mapping intents
 

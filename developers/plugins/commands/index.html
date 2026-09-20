@@ -80,8 +80,8 @@
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl, DeclareRegistrationInput -->
 <pre><code class="language-go">err := p.Run(ctx, sdk.Registration{
     Commands: []sdk.CommandDecl{
-        {Name: "my-plugin status", Description: "Show current status"},
-        {Name: "my-plugin check", Description: "Trigger immediate check", Args: []string{"target"}},
+        {Name: "my-plugin status", ShortHelp: "Show current status"},
+        {Name: "my-plugin check", ShortHelp: "Trigger immediate check", Args: []string{"target"}},
     },
 })
 </code></pre>
@@ -405,7 +405,7 @@ no line can carry earn the same rejected row, and the head then states <code>map
 <td>The one-line SUMMARY, shown wherever the command appears on one line. One line, at most 256 bytes</td>
 </tr>
 <tr>
-<td><code>LongHelp</code></td>
+<td><code>Description</code></td>
 <td>string</td>
 <td class="cell-no">✕</td>
 <td>The LONG explanation this command's own help page prints, under the summary. At most 4096 bytes, newlines kept</td>
@@ -442,11 +442,11 @@ no line can carry earn the same rejected row, and the head then states <code>map
 </tr>
 </tbody>
 </table>
-<p><code>Description</code> and <code>LongHelp</code> are two texts, and neither is derived from the
+<p><code>ShortHelp</code> and <code>Description</code> are two texts, and neither is derived from the
 other. Write the summary as one sentence a reader meets in a list. Write the
 explanation as the paragraphs they read when they ask about that one command.
-Declare no <code>LongHelp</code> and the help page prints the summary alone.</p>
-<p>The wire keys are <code>description</code> and <code>long-help</code>. The spelling is <code>long-help</code>
+Declare no <code>Description</code> and the help page prints the summary alone.</p>
+<p>The wire keys are <code>short-help</code> and <code>description</code>. The spelling is <code>description</code>
 and not <code>help</code>, because <code>help</code> already names the summary in a completion row on
 this same protocol.</p>
 <h2 id="declaring-what-your-answer-holds">Declaring What Your Answer Holds</h2>
@@ -479,7 +479,7 @@ CLI waits for the answer, then refuses from what it has in hand.</p>
 <pre><code class="language-go">err := p.Run(ctx, sdk.Registration{
     Commands: []sdk.CommandDecl{{
         Name:          "my-plugin peers",
-        Description:   "Show the sessions",
+        ShortHelp:     "Show the sessions",
         Shape:         "tab",
         Columns:       []string{"address", "state", "up"},
         AddressFields: []string{"address"},
@@ -512,7 +512,7 @@ for an operator chain they would otherwise type in full. Declare one in the
 <!-- source: pkg/plugin/sdk/sdk_types.go -- PipeDecl, Registration -->
 <pre><code class="language-go">err := p.Run(ctx, sdk.Registration{
     Commands: []sdk.CommandDecl{
-        {Name: "my-plugin status", Description: "Show current status"},
+        {Name: "my-plugin status", ShortHelp: "Show current status"},
     },
     Pipes: []sdk.PipeDecl{{
         Command:     "my-plugin status",
@@ -619,7 +619,7 @@ reaches.</p>
 <h2 id="help-text">Help Text</h2>
 <p>Provide usage information via a dedicated command:</p>
 <pre><code class="language-go">// In Registration:
-sdk.CommandDecl{Name: "my-plugin help", Description: "Show available commands"},
+sdk.CommandDecl{Name: "my-plugin help", ShortHelp: "Show available commands"},
 
 // In handler:
 if command == "my-plugin help" {
@@ -644,7 +644,7 @@ if command == "my-plugin help" {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

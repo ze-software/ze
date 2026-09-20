@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8362 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps, 38 with no test." />
+        <meta name="description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps, 37 with no test." />
         <meta property="og:title" content="RFC 8362 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps, 38 with no test." />
+        <meta property="og:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps, 37 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8362 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps, 38 with no test." />
+        <meta name="twitter:description" content="RFC 8362: OSPFv3 Link State Advertisement (LSA) Extensibility. 38 gated MUST-level requirements, 0 declared gaps, 37 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -115,10 +116,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 38 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>2.6%</strong><b>1 of 38 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 38 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 38 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>2 of 2 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -132,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>100.0%</strong><b>38 of 38 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>97.4%</strong><b>37 of 38 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 38 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -214,22 +215,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>38</td>
+<td>37</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8362.md</code></td>
@@ -262,7 +263,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>0</strong></td>
+<td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -274,18 +275,23 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>38</strong></td>
+<td><strong>37</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
 <tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>38</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>No test and no annotation (38):</strong> <a href="#rfc8362-2-1"><code>RFC8362-2-1</code></a>, <a href="#rfc8362-3.1.1-1"><code>RFC8362-3.1.1-1</code></a>, <a href="#rfc8362-3.2-1"><code>RFC8362-3.2-1</code></a>, <a href="#rfc8362-3.3-1"><code>RFC8362-3.3-1</code></a>, <a href="#rfc8362-3.4-1"><code>RFC8362-3.4-1</code></a>, <a href="#rfc8362-3.5-1"><code>RFC8362-3.5-1</code></a>, <a href="#rfc8362-3.6-1"><code>RFC8362-3.6-1</code></a>, <a href="#rfc8362-3.7-1"><code>RFC8362-3.7-1</code></a>, <a href="#rfc8362-3.8-1"><code>RFC8362-3.8-1</code></a>, <a href="#rfc8362-3.9-1"><code>RFC8362-3.9-1</code></a>, <a href="#rfc8362-3.10-1"><code>RFC8362-3.10-1</code></a>, <a href="#rfc8362-3.10-2"><code>RFC8362-3.10-2</code></a>, <a href="#rfc8362-3.11-1"><code>RFC8362-3.11-1</code></a>, <a href="#rfc8362-3.11-2"><code>RFC8362-3.11-2</code></a>, <a href="#rfc8362-3.12-1"><code>RFC8362-3.12-1</code></a>, <a href="#rfc8362-4.2-1"><code>RFC8362-4.2-1</code></a>, <a href="#rfc8362-4.3-1"><code>RFC8362-4.3-1</code></a>, <a href="#rfc8362-4.3-2"><code>RFC8362-4.3-2</code></a>, <a href="#rfc8362-4.4-1"><code>RFC8362-4.4-1</code></a>, <a href="#rfc8362-4.4-2"><code>RFC8362-4.4-2</code></a>, <a href="#rfc8362-4.5-1"><code>RFC8362-4.5-1</code></a>, <a href="#rfc8362-4.5-2"><code>RFC8362-4.5-2</code></a>, <a href="#rfc8362-4.7-1"><code>RFC8362-4.7-1</code></a>, <a href="#rfc8362-4.7-2"><code>RFC8362-4.7-2</code></a>, <a href="#rfc8362-4.7-3"><code>RFC8362-4.7-3</code></a>, <a href="#rfc8362-4.8-1"><code>RFC8362-4.8-1</code></a>, <a href="#rfc8362-5-1"><code>RFC8362-5-1</code></a>, <a href="#rfc8362-5-2"><code>RFC8362-5-2</code></a>, <a href="#rfc8362-6.2-1"><code>RFC8362-6.2-1</code></a>, <a href="#rfc8362-6.3-1"><code>RFC8362-6.3-1</code></a>, <a href="#rfc8362-6.3-2"><code>RFC8362-6.3-2</code></a>, <a href="#rfc8362-6.3-3"><code>RFC8362-6.3-3</code></a>, <a href="#rfc8362-6.3-4"><code>RFC8362-6.3-4</code></a>, <a href="#rfc8362-6.3-5"><code>RFC8362-6.3-5</code></a>, <a href="#rfc8362-8.1-1"><code>RFC8362-8.1-1</code></a>, <a href="#rfc8362-8.1-2"><code>RFC8362-8.1-2</code></a>, <a href="#rfc8362-8.2-1"><code>RFC8362-8.2-1</code></a>, <a href="#rfc8362-8.2-2"><code>RFC8362-8.2-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#rfc8362-2-1"><code>RFC8362-2-1</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (37):</strong> <a href="#rfc8362-3.1.1-1"><code>RFC8362-3.1.1-1</code></a>, <a href="#rfc8362-3.2-1"><code>RFC8362-3.2-1</code></a>, <a href="#rfc8362-3.3-1"><code>RFC8362-3.3-1</code></a>, <a href="#rfc8362-3.4-1"><code>RFC8362-3.4-1</code></a>, <a href="#rfc8362-3.5-1"><code>RFC8362-3.5-1</code></a>, <a href="#rfc8362-3.6-1"><code>RFC8362-3.6-1</code></a>, <a href="#rfc8362-3.7-1"><code>RFC8362-3.7-1</code></a>, <a href="#rfc8362-3.8-1"><code>RFC8362-3.8-1</code></a>, <a href="#rfc8362-3.9-1"><code>RFC8362-3.9-1</code></a>, <a href="#rfc8362-3.10-1"><code>RFC8362-3.10-1</code></a>, <a href="#rfc8362-3.10-2"><code>RFC8362-3.10-2</code></a>, <a href="#rfc8362-3.11-1"><code>RFC8362-3.11-1</code></a>, <a href="#rfc8362-3.11-2"><code>RFC8362-3.11-2</code></a>, <a href="#rfc8362-3.12-1"><code>RFC8362-3.12-1</code></a>, <a href="#rfc8362-4.2-1"><code>RFC8362-4.2-1</code></a>, <a href="#rfc8362-4.3-1"><code>RFC8362-4.3-1</code></a>, <a href="#rfc8362-4.3-2"><code>RFC8362-4.3-2</code></a>, <a href="#rfc8362-4.4-1"><code>RFC8362-4.4-1</code></a>, <a href="#rfc8362-4.4-2"><code>RFC8362-4.4-2</code></a>, <a href="#rfc8362-4.5-1"><code>RFC8362-4.5-1</code></a>, <a href="#rfc8362-4.5-2"><code>RFC8362-4.5-2</code></a>, <a href="#rfc8362-4.7-1"><code>RFC8362-4.7-1</code></a>, <a href="#rfc8362-4.7-2"><code>RFC8362-4.7-2</code></a>, <a href="#rfc8362-4.7-3"><code>RFC8362-4.7-3</code></a>, <a href="#rfc8362-4.8-1"><code>RFC8362-4.8-1</code></a>, <a href="#rfc8362-5-1"><code>RFC8362-5-1</code></a>, <a href="#rfc8362-5-2"><code>RFC8362-5-2</code></a>, <a href="#rfc8362-6.2-1"><code>RFC8362-6.2-1</code></a>, <a href="#rfc8362-6.3-1"><code>RFC8362-6.3-1</code></a>, <a href="#rfc8362-6.3-2"><code>RFC8362-6.3-2</code></a>, <a href="#rfc8362-6.3-3"><code>RFC8362-6.3-3</code></a>, <a href="#rfc8362-6.3-4"><code>RFC8362-6.3-4</code></a>, <a href="#rfc8362-6.3-5"><code>RFC8362-6.3-5</code></a>, <a href="#rfc8362-8.1-1"><code>RFC8362-8.1-1</code></a>, <a href="#rfc8362-8.1-2"><code>RFC8362-8.1-2</code></a>, <a href="#rfc8362-8.2-1"><code>RFC8362-8.2-1</code></a>, <a href="#rfc8362-8.2-2"><code>RFC8362-8.2-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -297,8 +303,8 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8362-2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L66" title="internal/plugins/ospf/rfc8362_test.go" target="_blank" rel="noopener"><code>TestRFC8362ExtendedLSAsSetUBitOnTheWire</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L98" title="internal/plugins/ospf/rfc8362_test.go" target="_blank" rel="noopener"><code>TestRFC8362BaseLSAsKeepUBitClearOnTheWire</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8362-3.1.1-1">RFC8362-3.1.1-1</code></td><td colspan="3"><span class="rfc-subject">&#34;If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored.&#34; (§3.1.1)</span></td></tr>
@@ -751,10 +757,6 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc8362-2-1"><code>RFC8362-2-1</code></a> &#34;For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them.&#34; (§2)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
 <tr><td><a href="#rfc8362-3.1.1-1"><code>RFC8362-3.1.1-1</code></a> &#34;If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored.&#34; (§3.1.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id</td>
@@ -912,7 +914,23 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
 <h3><a href="#rfc8362-2-1"><code>RFC8362-2-1</code></a></h3>
 <p>&#34;For backward compatibility, the U-bit MUST be set in the LS Type so that the LSAs will be flooded by OSPFv3 routers that do not understand them.&#34; (§2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC8362-2-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L98" title="internal/plugins/ospf/rfc8362_test.go" target="_blank" rel="noopener"><code>TestRFC8362BaseLSAsKeepUBitClearOnTheWire</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8362_test.go#L66" title="internal/plugins/ospf/rfc8362_test.go" target="_blank" rel="noopener"><code>TestRFC8362ExtendedLSAsSetUBitOnTheWire</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc8362-3.1.1-1"><code>RFC8362-3.1.1-1</code></a></h3>
 <p>&#34;If the N-bit is set and the PrefixLength is NOT 128 for the IPv6 Address Family or 32 for the IPv4 Address Family [OSPFV3-AF], the N-bit MUST be ignored.&#34; (§3.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1097,7 +1115,7 @@ Out of scope as a document by owner decision, 2026-09-01, and tracked for future
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

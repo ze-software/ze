@@ -93,6 +93,7 @@ Sender remains conservative at 128 bytes for interoperability.
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **4** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (4):** [`RFC9003-2-1`](#rfc9003-2-1), [`RFC9003-2-2`](#rfc9003-2-2), [`RFC9003-2-3`](#rfc9003-2-3), [`RFC9003-2-4`](#rfc9003-2-4)

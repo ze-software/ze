@@ -10,7 +10,7 @@ Guides that take you from a blank shell to a working setup.
 
 - [Quickstart two BGP peers talking in under five minutes](https://ze-software.net/guides/quickstart/)
 - [Install Ze daemon install or bootable appliance](https://ze-software.net/guides/ze-install/)
-- [Build on Ubuntu compile, install, create zefs, set up SSH](https://ze-software.net/guides/ubuntu-build-install/)
+- [Build on Ubuntu compile, install, initialize the store, start SSH](https://ze-software.net/guides/ubuntu-build-install/)
 - [BGP configuration peer settings, inheritance, validation, and policy](https://ze-software.net/features/bgp-configuration/)
 - [`CLI` commands diff, commit, history, and operator commands](https://ze-software.net/features/cli-commands/)
 - [CLI tour interactive, one-shot, pipes, and runtime control](https://ze-software.net/guides/cli/)

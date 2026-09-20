@@ -139,13 +139,13 @@ not act as a fallback for a failed per-user login.</p>
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig API auth mode -->
 <!-- source: internal/component/api/rest/auth.go -- RESTServer.withAuth -->
 <!-- source: internal/component/api/grpc/server.go -- GRPCServer.checkAuth -->
-<p>The per-user source merges the zefs users with <code>system.authentication.user</code>
-entries from the running config. A config user replaces a zefs user with the
-same name. Only zefs users that survive this merge keep the zefs recovery
+<p>The per-user source merges managed-store users with <code>system.authentication.user</code>
+entries from the running config. A config user replaces a stored user with the
+same name. Only stored users that survive this merge keep the recovery
 profile. A successful login carries its authorization view with the
 authenticated request. Concurrent requests with the same username cannot
 replace each other's resolved profiles.</p>
-<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers, mergeAuthUsers, usersFromZefsDB -->
+<!-- source: cmd/ze/hub/main_servers.go -- liveLocalUsers, mergeAuthUsers, usersFromStore -->
 <!-- source: cmd/ze/hub/api.go -- buildAPIAuthentication -->
 <!-- source: internal/component/aaa/login_profiles.go -- WithProfileAuthorizer, AuthorizerForResult -->
 <p>At boot, Ze reads the merged user source once after it populates the config
@@ -175,10 +175,10 @@ request stays read-only, so Ze denies writes before command authorization.</p>
 </code></pre>
 <pre><code>API auth mode: single-token (shared bearer)
 </code></pre>
-<pre><code>warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or initialize zefs
+<pre><code>warning: API auth mode: NONE (no users, no token) -- set ze.api-server.token or run ze init
 </code></pre>
 <p>The per-user count includes surviving zefs users and config users. To leave
-single-token or NONE mode, add a config user or initialize zefs. To keep shared
+single-token or NONE mode, add a config user or run <code>ze init</code>. To keep shared
 credentials, set <code>ze.api-server.token</code>.</p>
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig API auth mode output -->
 <h2 id="rest-endpoints">REST Endpoints</h2>
@@ -374,10 +374,13 @@ per-user authentication for API-driven config changes.</p>
 plugin commands registered during startup. Documentation routes use the same
 Bearer authentication policy as the API when auth is configured.</p>
 <p>Each command operation carries the two help texts the command declares. The
-<code>summary</code> is the one-line summary from the YANG <code>description</code> statement, and
-the <code>description</code> is the long explanation from <code>ze:help</code>. A command that
-declares no explanation carries no <code>description</code> key. The gRPC <code>CommandInfo</code>
-message carries the summary only.</p>
+<code>summary</code> is the one-line summary from the YANG <code>ze:help</code> statement, and
+the <code>description</code> is the long explanation from the YANG <code>description</code>. A command that
+declares no explanation carries no <code>description</code> key. Each parameter property
+in the operation's request schema carries the same pair from its YANG leaf:
+<code>title</code> is the leaf's <code>ze:help</code> and <code>description</code> is the leaf's <code>description</code>,
+and a text the leaf does not declare writes no key. The gRPC <code>CommandInfo</code> and
+<code>ParamInfo</code> messages carry both texts as <code>short_help</code> and <code>description</code>.</p>
 <!-- source: internal/component/api/rest/server.go -- registerRoutes documentation handlers use withAuth -->
 <h2 id="grpc-services">gRPC Services</h2>
 <p>Proto definitions: <code>api/proto/ze.proto</code>, package <code>ze.api.v1</code>.</p>
@@ -621,7 +624,7 @@ dispatcher command strings.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -646,7 +649,7 @@ dispatcher command strings.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,76 +1,64 @@
 {
   "gate": {
     "ok": false,
-    "error-count": 4,
-    "gated-must": 3319,
+    "error-count": 7,
+    "gated-must": 3320,
     "enrolled-rfcs": 184,
-    "test-tags": 4667,
-    "message": "rfc-requirements: 4 violation(s)",
+    "test-tags": 4735,
+    "message": "rfc-requirements: 7 violation(s)",
     "violations": [
-      "rfc/short/rfc4302.md:273: RFC4302-3.3.4-1 [MUST] has no test and no annotation: An AH implementation MUST support generation of ICMP PMTU messages, or",
-      "rfc/short/rfc4302.md:282: RFC4302-5-1 [MUST] has no test and no annotation: An implementation claiming conformance MUST fully implement the AH syn",
-      "rfc/short/rfc4302.md:283: RFC4302-5-2 [MUST] has no test and no annotation: An implementation claiming to support multicast traffic MUST comply wi",
-      "rfc/short/rfc5082.md:189: RFC5082-3-2 [MUST] has no test and no annotation: The TTL 255 transmit and verify rule also applies to the related ICMP "
+      "rfc/discrimination/rfc2661.json: the revert record for RFC2661-6.1-1 negative at internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go::TestSCCRQMissingMandatoryAVPIsAnswered no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of sendUnassociatedStopCCN replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/reactor.go::sendUnassociatedStopCCN. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc2661.json: the revert record for RFC2661-6.1-1 negative at test/l2tp/rfc2661-sccrq-mandatory-avp.ci no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of sendUnassociatedStopCCN replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/reactor.go::sendUnassociatedStopCCN. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc5880.json: the revert record for RFC5880-6.8.6-18 positive at internal/component/bfd/engine/rfc5881_test.go::TestFirstPacketMatchesWhatTheTransportSurfaces no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleInbound replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bfd/engine/loop.go::handleInbound. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc7311.json: the revert record for RFC7311-3.2-4 positive at internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPNonTransitiveIsKept no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of validateAttributeFlags replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/message/rfc7606.go::validateAttributeFlags. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc7311.json: the revert record for RFC7311-3.2-4 negative at internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPTransitiveIsDiscarded no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of validateAttributeFlags replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/message/rfc7606.go::validateAttributeFlags. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc7311.json: the revert record for RFC7311-3.2-4 positive at internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPNonTransitiveKeptOnReceive no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of validateAttributeFlags replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/message/rfc7606.go::validateAttributeFlags. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved",
+      "rfc/discrimination/rfc7311.json: the revert record for RFC7311-3.2-4 negative at internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPTransitiveDiscardedOnReceive no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of validateAttributeFlags replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/message/rfc7606.go::validateAttributeFlags. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
     ],
     "findings": [
       {
-        "message": "rfc/short/rfc4302.md:273: RFC4302-3.3.4-1 [MUST] has no test and no annotation: An AH implementation MUST support generation of ICMP PMTU messages, or",
-        "where": "rfc/short/rfc4302.md:273",
-        "rid": "RFC4302-3.3.4-1",
-        "level": "MUST",
-        "section": "3.3.4",
-        "text": "An AH implementation MUST support generation of ICMP PMTU messages, or the equivalent internal signaling for a native host implementation (§3.3.4)",
-        "issue": "has no test and no annotation"
+        "message": "rfc/discrimination/rfc2661.json: the revert record for RFC2661-6.1-1 negative at internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go::TestSCCRQMissingMandatoryAVPIsAnswered no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of sendUnassociatedStopCCN replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/reactor.go::sendUnassociatedStopCCN. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
       },
       {
-        "message": "rfc/short/rfc4302.md:282: RFC4302-5-1 [MUST] has no test and no annotation: An implementation claiming conformance MUST fully implement the AH syn",
-        "where": "rfc/short/rfc4302.md:282",
-        "rid": "RFC4302-5-1",
-        "level": "MUST",
-        "section": "5",
-        "text": "An implementation claiming conformance MUST fully implement the AH syntax and processing for unicast traffic, and MUST comply with all requirements of the Security Architecture document (§5)",
-        "issue": "has no test and no annotation"
+        "message": "rfc/discrimination/rfc2661.json: the revert record for RFC2661-6.1-1 negative at test/l2tp/rfc2661-sccrq-mandatory-avp.ci no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of sendUnassociatedStopCCN replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/l2tp/reactor.go::sendUnassociatedStopCCN. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
       },
       {
-        "message": "rfc/short/rfc4302.md:283: RFC4302-5-2 [MUST] has no test and no annotation: An implementation claiming to support multicast traffic MUST comply wi",
-        "where": "rfc/short/rfc4302.md:283",
-        "rid": "RFC4302-5-2",
-        "level": "MUST",
-        "section": "5",
-        "text": "An implementation claiming to support multicast traffic MUST comply with the additional requirements specified for such traffic (§5)",
-        "issue": "has no test and no annotation"
+        "message": "rfc/discrimination/rfc5880.json: the revert record for RFC5880-6.8.6-18 positive at internal/component/bfd/engine/rfc5881_test.go::TestFirstPacketMatchesWhatTheTransportSurfaces no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of handleInbound replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bfd/engine/loop.go::handleInbound. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
       },
       {
-        "message": "rfc/short/rfc5082.md:189: RFC5082-3-2 [MUST] has no test and no annotation: The TTL 255 transmit and verify rule also applies to the related ICMP ",
-        "where": "rfc/short/rfc5082.md:189",
-        "rid": "RFC5082-3-2",
-        "level": "MUST",
-        "section": "3",
-        "text": "The TTL 255 transmit and verify rule also applies to the related ICMP error handling messages of a GTSM-enabled session (§3, restated §6.1)",
-        "issue": "has no test and no annotation"
+        "message": "rfc/discrimination/rfc7311.json: the revert record for RFC7311-3.2-4 positive at internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPNonTransitiveIsKept no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of validateAttributeFlags replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/message/rfc7606.go::validateAttributeFlags. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc7311.json: the revert record for RFC7311-3.2-4 negative at internal/component/bgp/message/rfc7606_aigp_test.go::TestRFC7606AIGPTransitiveIsDiscarded no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of validateAttributeFlags replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/message/rfc7606.go::validateAttributeFlags. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc7311.json: the revert record for RFC7311-3.2-4 positive at internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPNonTransitiveKeptOnReceive no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of validateAttributeFlags replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/message/rfc7606.go::validateAttributeFlags. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
+      },
+      {
+        "message": "rfc/discrimination/rfc7311.json: the revert record for RFC7311-3.2-4 negative at internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPTransitiveDiscardedOnReceive no longer verifies (producer-changed): the producer's behavior changed since the break was applied to it. The break \"body of validateAttributeFlags replaced by panic(\\\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\\\")\" was observed to redden that unit when applied to internal/component/bgp/message/rfc7606.go::validateAttributeFlags. `./le rfc check` replays nothing: it compares the fingerprints the proof was taken against, so a moved fingerprint means the red was never re-observed over the code that is there now. Re-record it with `./le rfc discriminate`, or delete the record with the tag it proved"
       }
     ]
   },
   "share": {
-    "proven": 1892,
-    "gated": 3057,
+    "proven": 1907,
+    "gated": 3058,
     "rfcs": 147,
     "inspected": 182,
-    "gated-inspected": 3319,
-    "percent": "61.9"
+    "gated-inspected": 3320,
+    "percent": "62.4"
   },
   "satisfaction": [
     {
       "key": "both_polarities",
-      "count": 1532
+      "count": 1546
     },
     {
       "key": "single_polarity",
-      "count": 360
+      "count": 361
     },
     {
       "key": "gap",
-      "count": 493
+      "count": 486
     },
     {
       "key": "one_polarity_unexcused",
@@ -78,11 +66,11 @@
     },
     {
       "key": "missing_unexcused",
-      "count": 4
+      "count": 0
     },
     {
       "key": "not_applicable",
-      "count": 635
+      "count": 632
     },
     {
       "key": "lower_layer",
@@ -91,11 +79,15 @@
     {
       "key": "feature_declined",
       "count": 4
+    },
+    {
+      "key": "rollup",
+      "count": 0
     }
   ],
   "gaps": {
-    "requirements": 493,
-    "rfcs": 81,
+    "requirements": 486,
+    "rfcs": 80,
     "status-counts": [
       {
         "status": "Partial",
@@ -112,20 +104,12 @@
       {
         "status": "Not supported",
         "count": 1
-      },
-      {
-        "status": "Supported in IPsec",
-        "count": 1
       }
     ],
     "supported-with-remaining": [
       {
         "rfc": "RFC 1350",
         "remaining": "RFC1350-2-3 unmet (Sorcerer's Apprentice fix): sendAndWaitACK retransmits DATA on any non-matching ACK (handler.go) instead of silently ignoring a duplicate or stale ACK."
-      },
-      {
-        "rfc": "RFC 3748",
-        "remaining": "One MUST is unmet. Ze derives no Extended Master Session Key: `exportEAPTLSMSK` (`internal/core/eap/eap_tls.go`) keeps the MSK half of the RFC 9190 Section 2.3 key material and drops the EMSK half, and `DeriveMSK` (`internal/core/eap/mschapv2.go`) returns an MSK alone. Section 7.10 requires a key-deriving method to export both, so `RFC3748-7.10-6`, which confines the EMSK to the peer and the server that derived it, has no key to confine and stays open. Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers a Type-254 Request with the legacy Nak Section 5.7 prescribes rather than composing an Expanded Nak. Ze's authenticator sends no Notification Request, which RFC 3748 Section 5.2 states as an option (\"An authenticator MAY send a Notification Request to the peer at any time when there is no outstanding Request, prior to completion of an EAP authentication method\") and which the owner declined on 2026-09-01; Ze's peer answers one, which is the mandatory half. Two further features are absent by decision rather than by omission, and neither is a conformance gap. Ze's authenticator terminates every EAP method locally and does not act as a pass-through agent for a backend authentication server; Section 2 says \"Support for pass-through is optional\". Ze offers neither the One Time Password method (Type 5) nor the Generic Token Card method (Type 6), which Section 5 leaves to the implementation (\"Implementations MAY support other Types defined here or in future RFCs\"). A later scope decision can revisit any of the three. The Type 4 (MD5-Challenge) deviation authorized on 2026-08-30 was WITHDRAWN by the owner on 2026-09-01, who ordered the method implemented; both roles now run it."
       },
       {
         "rfc": "RFC 6396",
@@ -149,7 +133,7 @@
       },
       {
         "rfc": "RFC 1661",
-        "count": 24,
+        "count": 22,
         "status": "Partial"
       },
       {
@@ -204,11 +188,11 @@
     "fresh": 56,
     "shifted": 0,
     "stale": 0,
-    "missing": 3263
+    "missing": 3264
   },
   "verify": {
     "command": "./le rfc check",
-    "stages": 49,
+    "stages": 50,
     "gate-stages": 1
   }
 }

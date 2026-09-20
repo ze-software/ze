@@ -100,6 +100,7 @@ Enrolled: ASPA AS_PATH verification: 4 MET + 2 single-polarity (6-1, 7-2) + 2 ga
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **8** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (4):** [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-2`](#draft-ietf-sidrops-aspa-verification-6-2), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-3`](#draft-ietf-sidrops-aspa-verification-6-3), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-x-1`](#draft-ietf-sidrops-aspa-verification-x-1), [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-7-1`](#draft-ietf-sidrops-aspa-verification-7-1)

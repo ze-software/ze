@@ -100,6 +100,7 @@ EPE SID origination is not implemented: no code instantiates PeerNode/Adj/Set SI
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **12** | every gated MUST falls in exactly one bucket above |
 
 **Annotated instead of tested (12):** [`RFC9086-3-1`](#rfc9086-3-1), [`RFC9086-3-2`](#rfc9086-3-2), [`RFC9086-4.2-1`](#rfc9086-4.2-1), [`RFC9086-4.2-2`](#rfc9086-4.2-2), [`RFC9086-5-1`](#rfc9086-5-1), [`RFC9086-5.2-1`](#rfc9086-5.2-1), [`RFC9086-5-2`](#rfc9086-5-2), [`RFC9086-5-3`](#rfc9086-5-3), [`RFC9086-5-4`](#rfc9086-5-4), [`RFC9086-7-1`](#rfc9086-7-1), [`RFC9086-5-5`](#rfc9086-5-5), [`RFC9086-5-6`](#rfc9086-5-6)

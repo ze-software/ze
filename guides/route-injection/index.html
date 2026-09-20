@@ -63,6 +63,7 @@
 <li><a href="#colon-less-flowspec-actions">Colon-Less FlowSpec Actions</a></li>
 <li><a href="#one-encoder-per-flowspec-action">One Encoder Per FlowSpec Action</a></li>
 <li><a href="#next-hop-self">Next-Hop Self</a></li>
+<li><a href="#a-link-local-next-hop-needs-the-capability">A Link-Local Next Hop Needs the Capability</a></li>
 <li><a href="#a-peer-never-receives-its-own-address-as-next-hop">A Peer Never Receives Its Own Address as Next Hop</a></li>
 <li><a href="#a-withdrawal-needs-a-session-that-advertised-something">A Withdrawal Needs a Session That Advertised Something</a></li>
 <li><a href="#an-exabgp-scripts-burst-nets-before-the-wire">An ExaBGP Script&#39;s Burst Nets Before the Wire</a></li>
@@ -360,6 +361,18 @@ and one refused a 4-octet AS in a redirect the others encoded.</p>
 <!-- source: internal/core/bgp/attribute/flowspec_encode.go -- FlowSpecTrafficRate, FlowSpecTrafficAction, FlowSpecTrafficMarking, FlowSpecRedirect -->
 <h3 id="next-hop-self">Next-Hop Self</h3>
 <p><code>nhop self</code> resolves to the local address of each destination peer at wire time.</p>
+<h3 id="a-link-local-next-hop-needs-the-capability">A Link-Local Next Hop Needs the Capability</h3>
+<p>A next hop in <code>fe80::/10</code> produces a 16-octet Next Hop field holding one
+link-local address. RFC 2545 Section 3 has no such form, and
+draft-ietf-idr-linklocal-capability defines it behind capability 77, so ze sends
+it only toward a peer whose session negotiated that capability. For IPv4 NLRI
+the draft's Section 5 asks for the capability AND RFC 8950 Extended Next Hop
+Encoding.</p>
+<p>On any other session the route is left out of the announcement toward that peer
+and the skip is logged, which is what Section 4 asks for when no conformant next
+hop is left: "the BGP route MUST not be advertised to its peer". Enable it with
+<code>session capability link-local-nexthop</code> on the peer or its group.</p>
+<!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, linkLocalOnlyNextHopPermitted -->
 <h3 id="a-peer-never-receives-its-own-address-as-next-hop">A Peer Never Receives Its Own Address as Next Hop</h3>
 <p>RFC 4271 Section 5.1.3: "A route originated by a BGP speaker SHALL NOT be
 advertised to a peer using an address of that peer as NEXT_HOP." Ze asks that
@@ -501,7 +514,7 @@ ships a Python launcher or helper.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -526,7 +539,7 @@ ships a Python launcher or helper.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

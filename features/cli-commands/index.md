@@ -129,6 +129,17 @@ refuses what it cannot support, from the answer it has in hand, after it runs.
 <!-- source: internal/component/config/cli/cmd_dump.go -- dump command -->
 <!-- source: internal/component/config/cli/cmd_diff.go -- diff command -->
 
+Interactive `ze config edit` and `ze cli` run their models in the daemon over
+SSH. The daemon owns their drafts, commits, and command history. A named stored
+config selects that config, not another config with the daemon's active path.
+Invalid or missing selections are refused.
+
+`ze config edit -f <file>` edits a loose file offline. It does not bypass an
+active writer's store lock. For a running daemon, omit `-f`.
+<!-- source: internal/component/cli/sshclient/terminal.go -- RunInteractive -->
+<!-- source: internal/component/ssh/session.go -- parseSessionRequest -->
+<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
+
 ### Schema Discovery
 
 | Command | Description |
@@ -206,7 +217,7 @@ The dashboard polls three local BGP sessions. Press "s" to sort by the next colu
 **Commit confirmed:** The editor supports `commit confirmed <seconds>` for safe remote changes. The config is applied immediately but auto-reverts if `confirm` is not issued within the timeout window (1-3600 seconds). Use `confirm abort` to revert manually. Modeled after Junos commit confirmed.
 <!-- source: internal/component/cli/model_load.go -- cmdCommitConfirmed -->
 
-**Command history persistence:** Both `ze config edit` and `ze cli` persist command history to the zefs blob store. History survives application restarts, is stored per-mode (edit vs command) and per-user, with consecutive dedup and a configurable rolling window (default 100, max 10000). Graceful degradation when no blob store is available (in-memory only).
+**Command history persistence:** Both `ze config edit` and `ze cli` persist command history to the `database/` store. History survives application restarts, is stored per-mode (edit vs command) and per-user, with consecutive dedup and a configurable rolling window (default 100, max 10000). Graceful degradation when no blob store is available (in-memory only).
 <!-- source: internal/component/cli/history.go -- History type -->
 
 **Login warnings:** When an operator connects via SSH, ze checks for conditions requiring attention and displays warnings in the welcome area. Each warning includes a message and an actionable command. Currently checks for stale prefix data (peers with `prefix-updated` older than 6 months); run `update bgp peer * prefix` to refresh from PeeringDB.

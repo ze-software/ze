@@ -25,9 +25,9 @@ Reads the RIR delegation table that ships with the binary, or the newer copy an 
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `asn` | union | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `asn` | union | yes | any value of this type | AS number to look up. | The AS number in plain decimal or in asdot notation, which Ze parses to one 32-bit value before it searches the delegation table. |
 
 ## Mapping intents
 

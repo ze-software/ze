@@ -25,10 +25,10 @@ Give the address in the same CIDR form it was added with. The interface stays, a
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
-| `prefix` | union | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Interface name | The interface that holds the address. Its other addresses stay. |
+| `prefix` | union | yes | any value of this type | Address in CIDR form | An IPv4 or IPv6 address with its prefix length. Ze passes the string to the netlink backend, so it must match the string the add used. |
 
 ## Mapping intents
 

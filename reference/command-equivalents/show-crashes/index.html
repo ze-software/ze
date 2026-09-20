@@ -67,8 +67,10 @@
 </dl>
 <h3>Description</h3><p>Without arguments, lists every stored report with its kind: &#39;panic&#39; for a Go<br>panic this daemon caught, &#39;kernel&#39; for a kernel fault recovered from the<br>reserved region on the following boot. The listing also carries a readiness<br>block, which reports configured and armed separately because the reservation<br>is a kernel boot argument and a commit alone does not arm it. Use &#39;latest&#39; to<br>see the newest report or &#39;name &lt;filename&gt;&#39; to print one. Send the output to<br>support when reporting a crash.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>name</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>name</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Crash report name (used with &#39;name &lt;filename&gt;&#39;).</td><td>The file name of one stored report, as the listing prints it. Ze reads
+that file from the crash directory and prints it. A name holding a slash or &#39;..&#39; is
+refused.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -132,7 +134,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

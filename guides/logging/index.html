@@ -128,11 +128,17 @@ ze.log.bgp.fsm    ZE_LOG_BGP_FSM    ze_log_bgp_fsm
 </code></pre>
 <h3 id="runtime-change">Runtime Change</h3>
 <p>Change log levels on a running daemon without restart:</p>
-<pre><code class="language-bash">ze cli -c "bgp log set bgp.fsm debug"
-ze cli -c "bgp log set bgp.reactor info"
-ze cli -c "bgp log levels"         # show current levels
+<pre><code class="language-bash">ze cli -c "request log level bgp.fsm debug"
+ze cli -c "request log level bgp.reactor info"
+ze cli -c "request log level bgp.reactor disabled"   # silence one subsystem
+ze cli -c "show log levels"                          # show current levels
 </code></pre>
-<!-- source: internal/plugins/log/cmd/handlers.go -- log show/set RPCs -->
+<p><code>disabled</code> silences the subsystem until a later <code>request log level</code> sets a
+level again. <code>show log levels</code> reports it as <code>disabled</code>, and a subsystem that
+started disabled through <code>ze.log.&lt;subsystem&gt;=disabled</code> is listed the same way,
+so the runtime command can enable it. A level set at runtime is lost on
+restart.</p>
+<!-- source: internal/plugins/log/cmd/handlers.go -- log show/set RPCs; internal/core/slogutil/slogutil.go -- SetLevel, disabledLevel -->
 <h2 id="priority-order">Priority Order</h2>
 <p>Most specific wins, environment beats config:</p>
 <ol>
@@ -353,7 +359,7 @@ the terminal.</p>
 <h2 id="inspecting-current-configuration">Inspecting Current Configuration</h2>
 <pre><code class="language-bash">ze env list -v                 # show all env vars with current values
 ze env get ze.log              # show specific var details
-ze cli -c "bgp log levels"  # show runtime log levels
+ze cli -c "show log levels"    # show runtime log levels
 </code></pre>
 
             </section>
@@ -372,7 +378,7 @@ ze cli -c "bgp log levels"  # show runtime log levels
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -397,7 +403,7 @@ ze cli -c "bgp log levels"  # show runtime log levels
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

@@ -25,9 +25,9 @@ Lists all IPv4 and IPv6 prefixes in the cached prefix-list for the given ASN or 
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | ASN or AS-SET name | The cache key, as the update command stored it: an ASN in the form AS64500, or an AS-SET name. A key with no cached data is an error. |
 
 ## Mapping intents
 

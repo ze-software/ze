@@ -8,7 +8,7 @@ The agent can search and edit. It still has to discover why the project is built
 
 One of the more frustrating parts of building Ze with AI is explaining a decision, getting an implementation which follows it, then having to explain it again to the next session. The code survives, but without the reasoning behind it an arriving agent can find a perfectly plausible way to undo the choice.
 
-Ze is a network operating system spread over 780+ Go packages. A harness gives an agent the ability to search those packages and edit them, while the repository has to explain why they are built that way. Putting every explanation in the opening prompt would leave most of it unrelated to the task, so the agent needs to learn where to look and when to look there.
+Ze is a network operating system spread over 790 Go packages. A harness gives an agent the ability to search those packages and edit them, while the repository has to explain why they are built that way. Putting every explanation in the opening prompt would leave most of it unrelated to the task, so the agent needs to learn where to look and when to look there.
 
 In [AI slop is the wrong test](../ai-slop-is-the-wrong-test/), I argued that I remain responsible for the generated code. Giving the next session useful guidance is part of that responsibility, and so is deciding what happens when it ignores the guidance. A check which stops the wrong change can help teach the project, but a badly chosen refusal can teach the wrong lesson.
 

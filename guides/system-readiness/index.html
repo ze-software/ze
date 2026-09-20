@@ -93,7 +93,7 @@ remediation guidance.</p>
 <tbody>
 <tr>
 <td><code>doctor-store-integrity</code></td>
-<td>zefs database corruption</td>
+<td><code>database/</code> store corruption</td>
 </tr>
 <tr>
 <td><code>doctor-config-missing</code></td>
@@ -168,12 +168,16 @@ remediation guidance.</p>
 <td>System clock vs NTP (&gt;5 min)</td>
 </tr>
 <tr>
+<td><code>doctor-gtsm-kernel-state</code></td>
+<td>A BGP peer with <code>connection ttl</code> (RFC 5082 GTSM) whose kernel state for related ICMP messages is short: inside the daemon (<code>show doctor</code>), the host route carrying hop limit 255 or the <code>ze_gtsm</code> table the daemon published is missing from the kernel; in <code>ze doctor</code>, before a start, the kernel resolves no route to the peer, so that route cannot be installed at apply <!-- source: internal/component/gtsm/doctor.go -- checkKernelState --></td>
+</tr>
+<tr>
 <td><code>doctor-redistribute-unknown-source</code></td>
 <td>A <code>redistribute</code> import names a source no component registered. The daemon refuses to start on it</td>
 </tr>
 <tr>
 <td><code>doctor-redistribute-unknown-destination</code></td>
-<td>A <code>redistribute</code> destination names a protocol nothing registered, so every rule under it is inert. A warning, because a build that omits that protocol is a legitimate reason <!-- source: internal/component/doctor/checks_redistribute.go -- checkRedistributeRules --></td>
+<td>A <code>redistribute</code> destination names a protocol nothing registered, so every rule under it is inert. A warning, because a build that omits that protocol is a legitimate reason <!-- source: internal/component/config/doctor_redistribute.go -- checkRedistributeRules --></td>
 </tr>
 <tr>
 <td><code>doctor-vpp-unreachable</code></td>
@@ -232,7 +236,7 @@ when any component is <code>down</code>.</p>
 </tr>
 <tr>
 <td><code>firewall</code></td>
-<td>Stale ze_* tables, chain drift vs config</td>
+<td>Stale ze_* tables, chain drift vs config, a ze_* table the kernel lost, and an audit that could not read the kernel</td>
 </tr>
 <tr>
 <td><code>iface</code></td>
@@ -370,7 +374,7 @@ show warnings source bgp
 <td><code>firewall-drift</code></td>
 <td>firewall</td>
 <td>warning</td>
-<td>Chain count mismatch vs config</td>
+<td>Chain count mismatch vs config, or a ze_* table the kernel no longer has</td>
 </tr>
 <tr>
 <td><code>plugin-crash</code></td>
@@ -465,9 +469,18 @@ for the full protocol.</p>
 <h3 id="requirements">Requirements</h3>
 <p>Every new doctor check must:</p>
 <ol>
-<li>Use a diagnostic code with the <code>doctor-</code> prefix.</li>
+<li>Use a diagnostic code with the <code>doctor-</code> prefix for a code the check
+introduces. A check that bridges another surface's validator declares the
+codes that validator emits: the semantic-validation check in
+<code>internal/component/config</code> declares <code>config-mcp-invalid</code> and its siblings,
+because a <code>doctor-</code> alias for them would be a second code for one fact. The
+registry accepts any well-formed lower-kebab code
+(<code>diagnostic.RegisterDoctorCheck</code>).</li>
 <li>Register the code in <code>internal/core/diagnostic/codes.go</code> so
-<code>ze explain &lt;code&gt;</code> works.</li>
+<code>ze explain &lt;code&gt;</code> works. The entry names the code through an exported
+constant, and the check that emits it references that constant. A code
+spelled a second time in the emitting package is a second declaration of
+one fact, and <code>./le enumeration check</code> refuses it.</li>
 <li>Include a unit test proving the check fires when the relevant config
 is present and emits the registered code.</li>
 </ol>
@@ -488,7 +501,7 @@ is present and emits the registered code.</li>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -513,7 +526,7 @@ is present and emits the registered code.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

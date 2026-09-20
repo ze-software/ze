@@ -25,9 +25,9 @@ Each entry shows the incoming label, swap/push/pop operation, and outgoing next-
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `limit` | uint | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `limit` | uint | no | any value of this type | Maximum number of entries. | The value is a positive integer. Ze returns at most that many entries and sets truncated to true when the kernel holds more. Absent, the value is 100000. |
 
 ## Mapping intents
 

@@ -25,9 +25,9 @@ Pass the interface name: show vrrp interface name <interface>.
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `value` | string | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `value` | string | no | any value of this type | Parent interface name | The name of the parent interface whose virtual routers the answer lists. The word after the name keyword is the value, and a bare word with no keyword is accepted from a programmatic sender. |
 
 ## Mapping intents
 

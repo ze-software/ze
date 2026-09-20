@@ -54,7 +54,7 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>show traceroute</code></dd></div>
-<div><dt>Usage</dt><dd><code>show traceroute [dest &lt;dest&gt;] [max-hops &lt;max-hops&gt;] [timeout &lt;timeout&gt;] [probes &lt;probes&gt;]</code></dd></div>
+<div><dt>Usage</dt><dd><code>show traceroute [dest &lt;dest&gt;] [max-hops &lt;max-hops&gt;] [timeout &lt;timeout&gt;] [probes &lt;probes&gt;] [do-not-fragment &lt;honor-cache|bypass-cache&gt;]</code></dd></div>
 <div><dt>Mode</dt><dd>Read-only</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-show:traceroute</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
@@ -67,11 +67,21 @@
 </dl>
 <h3>Description</h3><p>Shows each hop with its IP and round-trip time. Dest can be an IP or hostname.<br>Defaults: 30 max hops, 3 probes per hop. Increase probes for more reliable RTT<br>measurements.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>dest</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>max-hops</code></td><td>uint</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>timeout</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>probes</code></td><td>uint</td><td>no</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>dest</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Target host or IP address.</td><td>The value is the first bare word of the command. A host name is resolved
+in either address family, and the family of the answer selects ICMPv4 or ICMPv6.</td></tr>
+<tr><td><code>max-hops</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Maximum number of hops.</td><td>The value is the largest time-to-live Ze probes, 1 to 64. The trace stops
+early when the target answers. Absent, the value is 30.</td></tr>
+<tr><td><code>timeout</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Timeout duration.</td><td>The value is the time Ze waits for one probe, in Go duration syntax, 1s
+to 30s. Absent, the value is 3s.</td></tr>
+<tr><td><code>probes</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Number of probes per hop.</td><td>The value is the number of probes Ze sends at each time-to-live, 1 to 10,
+and each probe reports its own round-trip time. Absent, the value is 3.</td></tr>
+<tr><td><code>do-not-fragment</code></td><td>enum</td><td>no</td><td><code>honor-cache</code> <code>bypass-cache</code></td><td>Set the Don&#39;t Fragment bit; honor-cache obeys the cached path MTU, bypass-cache ignores it.</td><td>The keyword takes one of two values. honor-cache sets the Don&#39;t Fragment bit
+and honors the kernel&#39;s cached path MTU: a probe larger than the cached value is refused at
+send time, and a router&#39;s Fragmentation Needed answer updates the cache. bypass-cache sets
+the bit and ignores the cached value, so the probe is put on the wire at its full size.
+Absent, the kernel fragments a probe larger than the path, which is the behavior of before
+the keyword existed.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping intents</h2>
@@ -144,7 +154,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

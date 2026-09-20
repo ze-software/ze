@@ -25,9 +25,9 @@ Drops the entry from memory and from the persisted cache, then re-applies the fi
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `asn` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `asn` | string | yes | any value of this type | ASN number | The AS number, 1 to 4294967294, in plain or dotted form. The entry purged is the one the update command stored under the decimal spelling. |
 
 ## Mapping intents
 

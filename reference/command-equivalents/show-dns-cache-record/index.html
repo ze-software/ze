@@ -67,8 +67,9 @@
 </dl>
 <h3>Description</h3><p>The name must match the cache key exactly, and a reverse lookup<br>is held under its in-addr.arpa or ip6.arpa name. A name that is not cached answers an empty<br>list and a count of zero.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>name</code></td><td>string</td><td>yes</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>name</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Record name to inspect.</td><td>The cache key, compared as an exact string. Each entry reported
+under it carries the name, the type, the records and the seconds of TTL left.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping intents</h2>
@@ -138,7 +139,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

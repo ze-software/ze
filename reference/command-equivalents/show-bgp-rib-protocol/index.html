@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>show bgp rib protocol - Command Equivalents - Ze</title>
-        <meta name="description" content="Show routes for a specific protocol: &lt;protocol&gt; [peer-selector] [pipeline-args...]" />
+        <meta name="description" content="Query the routes one protocol feeds into the RIB." />
         <meta property="og:title" content="show bgp rib protocol - Command Equivalents - Ze" />
-        <meta property="og:description" content="Show routes for a specific protocol: &lt;protocol&gt; [peer-selector] [pipeline-args...]" />
+        <meta property="og:description" content="Query the routes one protocol feeds into the RIB." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="show bgp rib protocol - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Show routes for a specific protocol: &lt;protocol&gt; [peer-selector] [pipeline-args...]" />
+        <meta name="twitter:description" content="Query the routes one protocol feeds into the RIB." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -48,15 +48,15 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
     <h1 id="command-equivalent-detail-title">show bgp rib protocol</h1>
-    <p>Show routes for a specific protocol: &lt;protocol&gt; [peer-selector] [pipeline-args...]</p>
+    <p>Query the routes one protocol feeds into the RIB.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>show bgp rib protocol</code></dd></div>
-<div><dt>Usage</dt><dd><code>show bgp rib protocol</code></dd></div>
+<div><dt>Usage</dt><dd><code>show bgp rib protocol &lt;protocol&gt;</code></dd></div>
 <div><dt>Mode</dt><dd>Read-only</dd></div>
-<div><dt>Wire method</dt><dd><code>not listed</code></dd></div>
+<div><dt>Wire method</dt><dd><code>ze-rib-api:protocol</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
@@ -68,8 +68,12 @@
 <div><dt>Address fields</dt><dd>peer, next-hop</dd></div>
 <div><dt>Column order</dt><dd>peer, direction, family, prefix, next-hop, path-id, as-path, origin, local-pref, med, communities</dd></div>
 </dl>
+<h3>Description</h3><p>Answers the same rows as show bgp rib, limited to the Adj-RIB-In<br>tables one protocol feeds. bgp reads the BGP peers. Every other protocol, bmp for<br>example, reads the tables its monitored peers fill. The pipeline words after the<br>protocol are the ones show bgp rib takes: peer &lt;selector&gt; limits the answer to<br>the matching peers, then filters, then one terminal.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>protocol</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Registered protocol name</td><td>The name of a registered protocol. The bgp-rib plugin refuses a
+name the protocol registry does not hold and names the registered ones.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -132,7 +136,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

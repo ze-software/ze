@@ -67,9 +67,11 @@
 </dl>
 <h3>Description</h3><p>The VLAN id is 1 to 4094, and the new interface is named<br>&lt;name&gt;.&lt;vid&gt;. The dummy is created first when it is absent, and deleted again when this step<br>fails.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>name</code></td><td>string</td><td>yes</td><td>any value of this type</td></tr>
-<tr><td><code>vid</code></td><td>uint</td><td>yes</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>name</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Parent interface name</td><td>The dummy the unit hangs off. The dispatcher creates it
+first when it is absent.</td></tr>
+<tr><td><code>vid</code></td><td>uint</td><td>yes</td><td>any value of this type</td><td>VLAN ID</td><td>The 802.1Q tag of the unit. The new device is named
+&lt;name&gt;.&lt;vid&gt;, and a tag outside 1 to 4094 is refused before the backend is called.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -133,7 +135,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

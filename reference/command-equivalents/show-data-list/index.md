@@ -1,6 +1,6 @@
 # `show data list`
 
-List everything stored in the ZeFS blob store.
+List the keys in the selected store.
 
 ## Ze command
 
@@ -21,7 +21,7 @@ List everything stored in the ZeFS blob store.
 - Command pipes: none
 - Pipe aliases: none
 
-Shows all keys and their sizes. Use 'show data cat <key>' to see the content of a specific entry.
+Lists the keys in the selected store. Use 'show data cat <key>' to read one value.
 
 ## Arguments
 

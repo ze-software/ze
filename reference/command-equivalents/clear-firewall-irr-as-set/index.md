@@ -25,9 +25,9 @@ Drops the entry from memory and from the persisted cache, then re-applies the fi
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `as-set` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `as-set` | string | yes | any value of this type | AS-SET name | The RPSL set name the update command stored, for example AS-EXAMPLE. The entry under that exact name is purged. |
 
 ## Mapping intents
 

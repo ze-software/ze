@@ -238,11 +238,11 @@ structured events and consumes commands. It never imports plugin code.</p>
 <h2 id="configuration">Configuration</h2>
 <p>JUNOS-like hierarchical syntax: <code>{}</code> blocks, <code>;</code> terminators, <code>#</code> comments.
 YANG-driven parsing. Three-level inheritance: BGP globals, group defaults, peer
-overrides. Configuration is stored in ZeFS (a blob store with commit/rollback)
+overrides. Configuration is stored in a managed <code>database/</code> tree (with commit/rollback)
 and managed through an interactive editor accessible over SSH.</p>
 <p>For the full config syntax reference, see <a href="https://github.com/ze-software/ze/blob/main/docs/config-reference.md" target="_blank" rel="noopener">config-reference.md</a>.</p>
 <!-- source: internal/component/config/tokenizer.go -- tokenizer for JUNOS-like syntax -->
-<!-- source: pkg/zefs/store.go -- ZeFS blob store -->
+<!-- source: internal/component/config/storage/open.go -- Open, detect -->
 <h2 id="plugin-architecture">Plugin Architecture</h2>
 <p>Most protocol and system features are registry-loaded plugins: RIB storage,
 route reflection, graceful restart, RPKI validation, NLRI encoding, FIB
@@ -419,7 +419,7 @@ forwarding decisions, state trackers update best-path state.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

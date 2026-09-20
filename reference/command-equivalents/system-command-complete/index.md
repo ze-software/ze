@@ -5,7 +5,7 @@ List the completion candidates for a partial command.
 ## Ze command
 
 - Registry path: `system command complete`
-- Usage: `system command complete`
+- Usage: `system command complete <partial>`
 - Mode: Read-only
 - Wire method: `ze-system:command-complete`
 - Backends: any backend
@@ -25,7 +25,9 @@ Ze completes a command NAME from the partial text. Write 'args' before the comma
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `partial` | string | yes | any value of this type | Partial command text | The text typed so far. The candidates match it on a case-insensitive prefix, and a prefix that matches nothing answers an empty list. |
 
 ## Mapping intents
 

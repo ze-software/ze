@@ -5,7 +5,7 @@ Show one plugin command's summary, explanation, arguments, and source plugin.
 ## Ze command
 
 - Registry path: `plugin command help`
-- Usage: `plugin command help`
+- Usage: `plugin command help <name>`
 - Mode: Read-only
 - Wire method: `ze-plugin:command-help`
 - Backends: any backend
@@ -25,7 +25,9 @@ The name is looked up in the plugin registry only, so a built-in command is repo
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Plugin command name | The full command name, as plugin command list prints it. A name no plugin registered fails with unknown plugin command. |
 
 ## Mapping intents
 

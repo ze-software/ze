@@ -23,7 +23,7 @@ remediation guidance.
 
 | Code | What it checks |
 |------|----------------|
-| `doctor-store-integrity` | zefs database corruption |
+| `doctor-store-integrity` | `database/` store corruption |
 | `doctor-config-missing` | Config file resolution |
 | `doctor-config-parse` | Config syntax |
 | `doctor-config-reference` | Dangling policy/filter references |
@@ -42,8 +42,9 @@ remediation guidance.
 | `doctor-dns-resolver` | Name server reachability |
 | `doctor-*-unreachable` | External-service reachability probes that warn (never fail startup) when a configured peer is down: RADIUS admin (`doctor-radius-admin-unreachable`), RPKI cache (`doctor-rpki-unreachable`), BMP collector (`doctor-bmp-unreachable`), NTP (`doctor-ntp-server-unreachable`), management hub (`doctor-hub-unreachable`) <!-- source: internal/component/managed/doctor.go -- checkHubReachable / doctor-hub-unreachable --> |
 | `doctor-clock-skew` | System clock vs NTP (>5 min) |
+| `doctor-gtsm-kernel-state` | A BGP peer with `connection ttl` (RFC 5082 GTSM) whose kernel state for related ICMP messages is short: inside the daemon (`show doctor`), the host route carrying hop limit 255 or the `ze_gtsm` table the daemon published is missing from the kernel; in `ze doctor`, before a start, the kernel resolves no route to the peer, so that route cannot be installed at apply <!-- source: internal/component/gtsm/doctor.go -- checkKernelState --> |
 | `doctor-redistribute-unknown-source` | A `redistribute` import names a source no component registered. The daemon refuses to start on it |
-| `doctor-redistribute-unknown-destination` | A `redistribute` destination names a protocol nothing registered, so every rule under it is inert. A warning, because a build that omits that protocol is a legitimate reason <!-- source: internal/component/doctor/checks_redistribute.go -- checkRedistributeRules --> |
+| `doctor-redistribute-unknown-destination` | A `redistribute` destination names a protocol nothing registered, so every rule under it is inert. A warning, because a build that omits that protocol is a legitimate reason <!-- source: internal/component/config/doctor_redistribute.go -- checkRedistributeRules --> |
 | `doctor-vpp-unreachable` | VPP API socket (Linux) |
 | `doctor-vpp-version` | VPP version compatibility (Linux) |
 | `doctor-module-missing` | Kernel modules (Linux) |
@@ -72,7 +73,7 @@ when any component is `down`.
 |-----------|-----------------|
 | `bgp` | Session stuck, flap, EOR timeout warnings |
 | `fib` | Sync failure, orphan routes, programming lag |
-| `firewall` | Stale ze_* tables, chain drift vs config |
+| `firewall` | Stale ze_* tables, chain drift vs config, a ze_* table the kernel lost, and an audit that could not read the kernel |
 | `iface` | RX/TX error counter increases |
 | `plugins` | Plugin crashes and disabled-by-respawn-limit |
 | `vpp` | VPP API socket reachability (when present) |
@@ -128,7 +129,7 @@ show warnings source bgp
 | `fib-orphan` | fib | warning | Orphan routes swept at startup |
 | `fib-programming-lag` | fib | warning | Routes pending >30s |
 | `firewall-stale-table` | firewall | warning | ze_* table in kernel not in config |
-| `firewall-drift` | firewall | warning | Chain count mismatch vs config |
+| `firewall-drift` | firewall | warning | Chain count mismatch vs config, or a ze_* table the kernel no longer has |
 | `plugin-crash` | plugin | error | Plugin process exited unexpectedly |
 | `plugin-down` | plugin | warning | Plugin disabled (respawn limit) |
 | `iface-errors` | iface | warning | RX/TX error counters increasing |
@@ -227,8 +228,17 @@ for the full protocol.
 
 Every new doctor check must:
 
-1. Use a diagnostic code with the `doctor-` prefix.
+1. Use a diagnostic code with the `doctor-` prefix for a code the check
+   introduces. A check that bridges another surface's validator declares the
+   codes that validator emits: the semantic-validation check in
+   `internal/component/config` declares `config-mcp-invalid` and its siblings,
+   because a `doctor-` alias for them would be a second code for one fact. The
+   registry accepts any well-formed lower-kebab code
+   (`diagnostic.RegisterDoctorCheck`).
 2. Register the code in `internal/core/diagnostic/codes.go` so
-   `ze explain <code>` works.
+   `ze explain <code>` works. The entry names the code through an exported
+   constant, and the check that emits it references that constant. A code
+   spelled a second time in the emitting package is a second declaration of
+   one fact, and `./le enumeration check` refuses it.
 3. Include a unit test proving the check fires when the relevant config
    is present and emits the registered code.

@@ -653,7 +653,7 @@ environment. Go 1.27 removed the `tlsunsafeekm` GODEBUG setting that once lifted
 removed setting carrying its old value is a fatal error that the Go runtime raises before
 the daemon starts, so setting it stops ze rather than reaching the peer.
 
-<!-- source: internal/core/eap/eap_tls.go -- exportEAPTLSMSK, eapTLS12ExportRefused -->
+<!-- source: internal/core/eap/eap_tls.go -- exportEAPTLSKeys, eapTLS12ExportRefused -->
 
 ## Denial-of-service protection
 
@@ -941,6 +941,16 @@ allowed when they share that one address, for example to negotiate several ports
 
 <!-- source: internal/component/ike/engine/transport_mode.go -- transportSelectorPairs -->
 
+A tunnel-mode peer's `vti { bind <name> }` names an `interface { xfrm <name> { if-id } }`
+block. The Child SA is installed with that interface's if_id, so the tunnel's traffic
+enters and leaves through the named interface and the interface's MTU is the tunnel's.
+The interface has to exist when the peer's first Child SA is created: a binding that names
+no xfrm interface, or one configured with `if-id 0`, fails the Child SA with an error
+naming the interface. `show mtu` reports whether that interface's MTU fits the measured
+path (`docs/architecture/diagnostics/path-mtu.md`).
+
+<!-- source: internal/component/ike/engine/established.go -- resolveIfID -->
+
 A peer that declines the request establishes the Child SA in tunnel mode. Set
 `transport-required true` when that downgrade is unacceptable: Ze then deletes the SA
 instead, which is what Section 1.3.1 asks of an initiator. It defaults to false, so a peer
@@ -1096,6 +1106,16 @@ RFC 7296 Section 2.3 reads as a window of one. Ze holds one request outstanding 
 exactly one request id.
 
 <!-- source: internal/component/ike/engine/msgid.go -- reserveRequestWindow, releaseRequestWindow -->
+
+The `child-sa` object of `show vpn ipsec sa` describes the Child SA as installed.
+`esp-encryption` and `esp-integrity` name the proposal the peer accepted: with two
+proposals in the `esp-group` and a peer that accepts only the second, the payload names
+the second. `mode` is `tunnel` or `transport`, `udp-encapsulation` says the SA receives
+ESP inside UDP on port 4500, and `remote-address` is the endpoint the SA was installed
+on, which behind a NAT differs from the configured `remote-address` of the peer. Those
+three, with the transform, are what size an ESP packet on the tunnel.
+
+<!-- source: internal/component/ike/cmd/show_ipsec.go -- saToMap -->
 
 `clear vpn ipsec sa` sends a best-effort encrypted IKE Delete before removing
 local state. Initiator peers then re-establish immediately. If the UDP Delete is

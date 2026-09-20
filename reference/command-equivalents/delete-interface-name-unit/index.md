@@ -25,10 +25,10 @@ The VLAN id is 1 to 4094. The interface deleted is <name>.<vid>, so the parent i
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
-| `vid` | uint | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Parent interface name | The parent interface. Ze joins it with the VLAN id into <name>.<vid> and deletes that device. |
+| `vid` | uint | yes | any value of this type | VLAN ID | The 802.1Q tag of the unit to remove. A tag outside 1 to 4094 is refused before the backend is called. |
 
 ## Mapping intents
 

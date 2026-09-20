@@ -25,9 +25,9 @@ Re-queries the IRR server for all peers using the given AS-SET name.
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `as-set` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `as-set` | string | yes | any value of this type | AS-SET name. | The AS-SET name as the peer configuration spells it, compared as an exact string. Every enrolled ASN that resolves through this AS-SET is refreshed, and a name no enrolled ASN uses is refused. |
 
 ## Mapping intents
 

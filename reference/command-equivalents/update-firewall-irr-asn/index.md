@@ -25,9 +25,9 @@ Queries the IRR server and saves resolved prefixes to the zefs cache. Creates th
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `asn` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `asn` | string | yes | any value of this type | ASN number | The AS number, 1 to 4294967294, in plain or dotted form. The cache key is the decimal spelling with an AS prefix, so 1.10 and 65546 name one entry. |
 
 ## Mapping intents
 

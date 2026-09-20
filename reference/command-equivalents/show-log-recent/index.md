@@ -25,11 +25,11 @@ Filters (all optional): level <lvl>, component <name>, count <N>. Newest entries
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `level` | enum | no | `disabled`, `debug`, `info`, `warn`, `err` |
-| `component` | string | no | any value of this type |
-| `count` | uint | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `level` | enum | no | `disabled`, `debug`, `info`, `warn`, `err` | Filter by log level | Keeps the entries whose level equals this value, and no other level. Without it every level is shown. |
+| `component` | string | no | any value of this type | Filter by component name | Keeps the entries whose component name equals this value exactly. Without it every component is shown. |
+| `count` | uint | no | any value of this type | Maximum number of entries | Stops the answer after this many entries, newest first. It MUST be 1 or more, and without it every buffered entry is shown. |
 
 ## Mapping intents
 

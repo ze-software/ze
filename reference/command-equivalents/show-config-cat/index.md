@@ -25,9 +25,9 @@ Outputs the config as-is.
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `id` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `id` | string | yes | any value of this type | Stored configuration snapshot id. | The value is a key that show config list prints. Ze reads that file from the configuration store and writes its bytes unchanged. |
 
 ## Mapping intents
 

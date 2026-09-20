@@ -25,9 +25,9 @@ Lists all IPv4 and IPv6 prefixes in the IRR-resolved prefix-list for the given p
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `peer` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `peer` | string | yes | any value of this type | Peer address. | The address of an IRR-filtered peer, spelled as the configuration spells it. The plugin finds the ASN the peer is enrolled under and answers that ASN's prefix list. An address no enrolled ASN carries is refused. |
 
 ## Mapping intents
 

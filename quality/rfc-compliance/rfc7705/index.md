@@ -93,6 +93,7 @@ Two advisory items, neither of them a MUST. [`RFC7705-3.3-9`](#rfc7705-3.3-9), t
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **9** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (9):** [`RFC7705-3.3-1`](#rfc7705-3.3-1), [`RFC7705-3.3-2`](#rfc7705-3.3-2), [`RFC7705-3.3-3`](#rfc7705-3.3-3), [`RFC7705-3.3-4`](#rfc7705-3.3-4), [`RFC7705-3.3-5`](#rfc7705-3.3-5), [`RFC7705-4.2-1`](#rfc7705-4.2-1), [`RFC7705-4.2-2`](#rfc7705-4.2-2), [`RFC7705-4.2-3`](#rfc7705-4.2-3), [`RFC7705-4.2-4`](#rfc7705-4.2-4)

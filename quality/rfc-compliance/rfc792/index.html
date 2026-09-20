@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -241,7 +242,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: ICMP Echo/Echo Reply, the only part of ICMP ze exercises (ping, show ping, ping-monitor). Gated obligations are the echo request&#39;s Type/Code/Checksum, which internal/core/probe BuildICMPEcho emits and the probe tests pin; the responder-only obligations (data returned unchanged, reply formation) are {not-applicable} because ze is the echo requester, never the echoer.</p>
+<p>Enrolled: ICMP Echo/Echo Reply, the only part of ICMP ze constructs (ping, show ping, ping-monitor); the error messages a probe provokes are read through the kernel error queue, not parsed by ze. Gated obligations are the echo request&#39;s Type/Code/Checksum, which internal/core/probe BuildICMPEcho emits and the probe tests pin; the responder-only obligations (data returned unchanged, reply formation) are {not-applicable} because ze is the echo requester, never the echoer.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 792.</p>
@@ -270,6 +271,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
 <tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>6</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
@@ -505,7 +510,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

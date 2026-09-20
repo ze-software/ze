@@ -25,9 +25,9 @@ Drops the group's addresses from memory and from the persisted cache, then re-ap
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Domain group name | A group from the firewall configuration. The cache entries of that group's names are purged, and a name no group carries is an error. |
 
 ## Mapping intents
 

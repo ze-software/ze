@@ -48,7 +48,7 @@
     <span class="journey-eyebrow">Guide</span>
     <h1 id="authentication">Authentication</h1>
     <p>Ze supports local operator users defined in the daemon configuration, in
-addition to the bootstrap super-admin written to <code>database.zefs</code> by <code>ze init</code>.
+addition to the bootstrap super-admin written to the <code>database/</code> store by <code>ze init</code>.
 This guide covers adding configured users, hashing their passwords, and
 connecting with the <code>ze</code> CLI.</p>
 </div>
@@ -101,8 +101,8 @@ connecting with the <code>ze</code> CLI.</p>
 </thead>
 <tbody>
 <tr>
-<td>zefs super-admin</td>
-<td><code>database.zefs</code> (<code>meta/auth/local/{username,password}</code>)</td>
+<td>Bootstrap super-admin</td>
+<td><code>database/</code> store (<code>meta/auth/local/{username,password}</code>)</td>
 <td><code>ze init</code></td>
 <td>Bootstrap and recovery -- the operator who set the box up</td>
 </tr>
@@ -123,7 +123,7 @@ takes precedence and the zefs entry is dropped. This lets operators override
 the bootstrap password via configuration without a stale zefs hash remaining
 as a backdoor.</p>
 <h3 id="disabling-the-super-admin">Disabling the super-admin</h3>
-<p>Setting <code>meta/instance/admin-disabled</code> to <code>"true"</code> in the zefs database
+<p>Setting <code>meta/instance/admin-disabled</code> to <code>"true"</code> in the <code>database/</code> store
 (via <code>admin-enabled: false</code> in the appliance config) disables the super-admin
 on all surfaces: SSH, web, API, and serial console. The serial console
 returns "local admin login disabled" and denies access (fail-closed), unlike
@@ -347,7 +347,7 @@ ze cli -u alice
 # Single command, then exit
 ze cli -u alice -c "show version"
 </code></pre>
-<!-- source: internal/core/ssh/client/client.go -- ReadCredentialsWithFlags -->
+<!-- source: internal/component/cli/sshclient/client.go -- ReadCredentialsWithFlags -->
 <p>The same flag works on <code>ze bgp plugin cli</code>, <code>ze signal</code>, <code>ze config set</code>,
 <code>ze config edit</code>, and <code>ze interface migrate</code>.</p>
 <h3 id="the-stored-hash-is-a-credential-only-over-a-local-connection">The stored hash is a credential only over a local connection</h3>
@@ -394,7 +394,7 @@ listener. The guard runs before any covered listener binds:</p>
 </tr>
 <tr>
 <td>REST and gRPC API</td>
-<td>Configure an API token, initialize zefs, or configure a <code>system.authentication.user</code></td>
+<td>Configure an API token, run <code>ze init</code>, or configure a <code>system.authentication.user</code></td>
 </tr>
 </tbody>
 </table>
@@ -495,7 +495,7 @@ so completion stays silent and returns no peer completions. Other completion
 still works; only dynamic peer names are missing.</p>
 <p>If you would rather not keep a password in the environment, leave both unset and
 completion resolves as the zefs super-admin, which needs no password.</p>
-<!-- source: internal/core/ssh/client/client.go -- LoadCredentialsNoPrompt -->
+<!-- source: internal/component/cli/sshclient/client.go -- LoadCredentialsNoPrompt -->
 <h2 id="ssh-public-key-authentication">SSH public key authentication</h2>
 <p>Users can authenticate to the SSH server with public keys instead of (or in
 addition to) passwords. Each user can have multiple named keys.</p>
@@ -590,7 +590,7 @@ of <code>plaintext-password</code> is held in-memory by the editor and persisted
 zefs draft blob (mode 0o600) by <code>SaveDraft</code>. The plaintext is converted to
 the bcrypt hash and the ephemeral leaf is removed at commit; the draft is
 deleted afterward. Plaintext never appears in the canonical config file
-nor in commit metadata, but does briefly live in the local zefs database
+nor in commit metadata, but does briefly live in the local <code>database/</code> store
 during the editing session.</p>
 <p>A config file you write yourself is the other path. Ze hashes it at load and leaves
 your file as you wrote it, so the plaintext stays on disk until you replace it. Refer
@@ -698,7 +698,7 @@ and continues.</p>
 </tr>
 <tr>
 <td>Client credential resolver</td>
-<td><span class="ev-src"><span class="ev-ref"><code>internal/core/ssh/client/client.go</code></span></span></td>
+<td><span class="ev-src"><span class="ev-ref"><code>internal/component/cli/sshclient/client.go</code></span></span></td>
 </tr>
 <tr>
 <td><code>ze passwd</code></td>
@@ -723,7 +723,7 @@ and continues.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -748,7 +748,7 @@ and continues.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

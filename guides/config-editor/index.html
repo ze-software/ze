@@ -72,7 +72,12 @@
 <pre><code class="language-bash">ze config edit                      # Edit default config
 ze config edit myconfig.conf        # Edit specific file
 </code></pre>
-<p>The editor starts an ephemeral ze instance in the background for live YANG validation and completion suggestions.</p>
+<p>Stored editing runs inside the owning daemon over an SSH terminal session. When
+no daemon answers, the editor starts an ephemeral daemon and connects to it.
+Once connected, the local process holds no writable store handle. Terminal
+resizing and input travel over the SSH PTY, and the daemon persists drafts and
+command history.</p>
+<!-- source: internal/component/cli/sshclient/terminal.go -- RunInteractive -->
 <p>Three more surfaces reach the same editor against a running daemon. An SSH
 session opens in configuration mode. The web interface gives each authenticated
 user an editor of their own. The console of <code>ze start --cli</code> opens at the
@@ -177,12 +182,9 @@ apply here without becoming operational pipe operators.</p>
 <p><code>show | changes</code> and <code>show | compare</code> include the draft's structural operations,
 not only its leaf values. A deleted list entry, a deleted container, a deleted
 list, a <code>rename</code>, an <code>insert</code> at a position, and a <code>deactivate</code> or <code>activate</code> are
-recorded in the per-user change file rather than in the value tree. On a
-blob-backed store these were invisible: the diff the operator reviewed read empty
-while the operation still applied at commit, so ze accepted an action and did
-something else. Both surfaces now read the same change file whichever backend
-holds it.</p>
-<!-- source: internal/component/config/storage/blob.go -- resolveDirKey, blobStorage.List -->
+recorded in the per-user change file rather than in the value tree. The tree
+store exposes those change files to both display surfaces, so the reviewed diff
+includes the operations that commit will apply.</p>
 <!-- source: internal/component/cli/editor.go -- listChangeFiles, readChangeFileContent -->
 <!-- source: internal/component/config/change_file.go -- StructuralOp and its seven types -->
 <h3 id="secrets-are-masked-on-every-display-path">Secrets are masked on every display path</h3>
@@ -273,11 +275,40 @@ rejected with a clear error: an interactive editor needs a TTY, and rollback/his
 need on-disk revision history that a piped config does not have.</p>
 <!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig -->
 <!-- source: internal/component/cli/editor.go -- NewEditorFromContent, SetStdoutSink -->
+<p><code>validate</code>, <code>show</code>, and a diff between two explicit paths read those paths
+without opening a store. Equal filenames in different folders remain separate
+inputs. An offline <code>set</code> writes the supplied file and records its previous
+content only when that folder already holds a store. Without one it prints
+<code>no version recorded</code>; it does not create a store. <code>history</code>, numbered <code>diff</code>,
+and <code>rollback</code> require the folder's history and name <code>ze init</code> when it is absent.
+An offline writer refuses while the daemon owns that store.</p>
+<!-- source: internal/component/config/cli/editor_stdin.go -- openEditableConfig, noticeUnrecordedVersion -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- resolveDiff -->
+<p><code>ze config import --dir &lt;folder&gt; &lt;file&gt;...</code> selects a destination independently
+of its input files. Without <code>--dir</code>, the destination follows <code>ze.config.dir</code>
+and then the default config folder. <code>--name</code> supplies the destination name for
+one input, including stdin. Duplicate basenames and existing destination names
+are refused before any input is written.</p>
+<!-- source: internal/component/config/cli/cmd_import.go -- cmdImportWithStorage -->
 <h2 id="editing-modes">Editing Modes</h2>
-<p>The editor operates in one of two modes depending on the storage backend.</p>
-<!-- source: internal/component/config/cli/cmd_edit.go -- runEditor, storage.IsBlobStorage -->
-<p><strong>File mode</strong> (<code>ze config edit -f</code> or when no zefs database exists): the editor works directly on a config file. <code>commit</code> writes the full configuration tree to disk. All operations (set, delete, load) modify the in-memory tree and the commit serializes the result. This is the simplest path: no change tracking, no conflict detection, no draft files.</p>
-<p><strong>Session mode</strong> (zefs blob store): each editing session gets an identity (<code>user@origin%timestamp</code>) and a per-user change file that records every edit with metadata (who, when, previous value). <code>commit</code> applies only the current session's tracked changes to the committed config, enabling concurrent multi-user editing with conflict detection, blame, and crash recovery. See the <a href="https://github.com/ze-software/ze/blob/main/docs/research/comparison/freertr/23-concurrent-editing.md" target="_blank" rel="noopener">concurrent editing</a> reference for the full protocol.</p>
+<p>The selected source determines the editor's mode.</p>
+<!-- source: internal/component/config/cli/cmd_edit.go -- cmdEditWithStorage, runEditor, runStoredEditor -->
+<p><strong>File mode</strong> (<code>ze config edit -f &lt;file&gt;</code>): the editor reads and writes the
+explicit loose file. It keeps its <code>.edit</code> recovery file alongside it, and
+records rollback versions in an existing store. A file changed externally
+since it was opened causes commit to fail rather than overwrite the edit.
+<code>-f</code> cannot be combined with <code>--web</code> or <code>--insecure-web</code>; use session mode
+without <code>-f</code> to serve the web editor from the owning daemon.</p>
+<p><strong>Session mode</strong> (<code>ze config edit</code>, SSH, web, or the attached console): the
+owning daemon gives each session an identity (<code>user@origin%timestamp</code>) and a
+per-user change file. Commit applies the session's changes with conflict
+detection. The same store holds draft recovery and history for every surface.</p>
+<p>When the daemon was started with an explicit file, every start reads that
+file, and daemon commits update it together with stored history. An external
+edit must be reconciled before a competing daemon commit can succeed. Bare
+<code>ze start</code> takes its active configuration from the store.</p>
+<!-- source: internal/component/cli/editor.go -- NewLooseFileEditor, NewEditorWithStorage -->
+<!-- source: internal/component/cli/editor_commands.go -- Save -->
 <p>Some commands are not yet supported in session mode because they replace the tree wholesale and cannot be expressed as tracked change entries. These return an error when attempted:</p>
 <!-- source: internal/component/cli/editor_commands.go -- errLoadNotSupportedInSessionMode, errCopyNotSupportedInSessionMode, errDeactivateNotSupportedInSessionMode, errActivateNotSupportedInSessionMode -->
 <!-- source: internal/component/cli/model_commands.go -- errCommitConfirmedNotYetSupportedIn -->
@@ -327,24 +358,24 @@ leaf-list member rather than a leaf or a path.</p>
 <tr>
 <th>Feature</th>
 <th>File mode</th>
-<th>Session mode (zefs)</th>
+<th>Session mode</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td>Commit</td>
-<td>Writes full tree</td>
-<td>Applies tracked changes</td>
+<td>Writes explicit file</td>
+<td>Applies tracked changes in the owning daemon</td>
 </tr>
 <tr>
 <td>Multi-user</td>
-<td class="cell-no">✕</td>
-<td class="cell-yes">✓</td>
+<td>Offline writer only</td>
+<td>Per-user change files</td>
 </tr>
 <tr>
 <td>Conflict detection</td>
-<td class="cell-no">✕</td>
-<td>Live and stale</td>
+<td>External file changes</td>
+<td>Live and stale changes</td>
 </tr>
 <tr>
 <td>Blame / authorship</td>
@@ -354,7 +385,7 @@ leaf-list member rather than a leaf or a path.</p>
 <tr>
 <td>Crash recovery</td>
 <td><code>.edit</code> file</td>
-<td>Change files + draft</td>
+<td>Change files and draft</td>
 </tr>
 <tr>
 <td>Draft / discard path</td>
@@ -379,13 +410,16 @@ transit-free ASNs on <code>bgp policy reject-asn ... via</code></li>
 still accepts every value its YANG type admits, so an ASN outside the offered
 set is entered and committed with no warning.</p>
 <p>A menu row is the config key alone. The second message line above the prompt
-shows the summary of the selected key, which the YANG <code>description</code> statement
-declares.</p>
+shows the summary of the selected key, which the YANG <code>ze:help</code> statement
+declares. Tab on the value of an enumeration key does the same for each value:
+the message line shows the <code>ze:help</code> that value declares, and a value that
+declares none shows an empty line rather than a placeholder.</p>
 <!-- source: internal/component/cli/model_render.go -- renderDropdownBox, warningText -->
+<!-- source: internal/component/cli/completer.go -- valueCompletions -->
 <p>Press <code>?</code> on a highlighted key to read its long explanation, in a box above the
-prompt. That text is the <code>ze:help</code> extension the schema declares, and it is
-often a paragraph. The message line holds one row, so the box is the only place
-the paragraph fits. A key that declares no <code>ze:help</code> says so on the message
+prompt. That text is the <code>description</code> statement the schema declares, and it
+is often a paragraph. The message line holds one row, so the box is the only place
+the paragraph fits. A key that declares no <code>description</code> says so on the message
 line, and its summary is not repeated in the box.</p>
 <!-- source: internal/component/cli/model_keys.go -- revealCandidateExplanation, revealDeclared -->
 <p>Tab on a complete config path reveals nothing more to read: <code>?</code> is the key that
@@ -537,7 +571,7 @@ ze config archive prod config.conf # Archive to named destination
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -562,7 +596,7 @@ ze config archive prod config.conf # Archive to named destination
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

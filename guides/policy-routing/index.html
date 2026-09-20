@@ -180,11 +180,10 @@ several, where N is the interface's position in the list, counted from</p>
 and each row names the rule the traffic can take, rather than one merged
 row for the whole policy.</li>
 </ol>
-<p>The packet and byte counts in those rows are not per interface. The nft
-backend puts the counter at the front of the rule, ahead of the interface
-match, so the counter increments for every packet the <code>ze_pr</code> chain sees.
-Two interfaces on one policy report the same count. Read the rows to see
-which rules exist, not to see how much traffic each interface carried.</p>
+<p>The packet and byte counts in those rows are per interface. The nft
+backend puts the counter after the rule's matches, so each row counts
+the packets that arrived on the interface the row names. An interface
+that carries nothing reads zero while its siblings climb.</p>
 <p>A policy that names no interface matches every ingress interface.</p>
 <!-- source: internal/plugins/policyroute/translate.go -- ruleTerms, termName -->
 <!-- source: internal/plugins/firewall/nft/backend_linux.go -- applyChain, mergeRuleCounters -->
@@ -383,7 +382,7 @@ the shared firewall table registry.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -408,7 +407,7 @@ the shared firewall table registry.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

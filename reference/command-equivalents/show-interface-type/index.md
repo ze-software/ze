@@ -25,9 +25,9 @@ Types include ethernet, bridge, vxlan, wireguard, tunnel, bond, and more. If you
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `type` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `type` | string | yes | any value of this type | Ze interface type to filter by | The type name the backend reports for an interface, compared without regard to case. When no interface has it, the error lists the types present. |
 
 ## Mapping intents
 

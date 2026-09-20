@@ -25,9 +25,9 @@ Pass the session ID. Returns access type, assigned addresses, authentication sta
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `id` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `id` | string | yes | any value of this type | Subscriber session ID. | The id column of the show subscriber table. An L2TP session is named l2tp-<tunnel-id>-<session-id> and a PPPoE session pppoe-<ifindex>-<session-id>. An unknown id is refused with 'session not found'. |
 
 ## Mapping intents
 

@@ -25,9 +25,9 @@ Pass the local tunnel ID. Returns control channel state, peer endpoint, hello in
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `id` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `id` | string | yes | any value of this type | Local tunnel ID. | The decimal local tunnel ID from the show l2tp tunnel table. Zero is refused because RFC 2661 reserves it, and an unknown ID is refused with 'no tunnel with local-tid'. |
 
 ## Mapping intents
 

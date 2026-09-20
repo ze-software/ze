@@ -464,7 +464,7 @@ outside the process.</p>
 <td>The one-line SUMMARY. Every surface that shows the command on one line reads it. One line, at most 256 bytes, no control character</td>
 </tr>
 <tr>
-<td><code>long-help</code></td>
+<td><code>description</code></td>
 <td><code>string</code></td>
 <td>The LONG explanation the command's own help page prints. At most 4096 bytes, newlines kept, every other control character refused</td>
 </tr>
@@ -508,12 +508,12 @@ outside the process.</p>
 <p>The last three are optional and additive. A plugin that sends none keeps the
 behavior it had before they existed. A plugin that sends one the engine refuses
 fails Stage 1 and does not start.</p>
-<p><code>description</code> and <code>long-help</code> are two texts and neither is derived from the
-other. The key is <code>long-help</code> and not <code>help</code>, because <code>help</code> already names the
+<p><code>short-help</code> and <code>description</code> are two texts and neither is derived from the
+other. The key is <code>description</code> and not <code>help</code>, because <code>help</code> already names the
 SUMMARY in a completion row on this same protocol. A plugin that sends
-<code>description</code> and no <code>long-help</code> renders with its summary and an empty
-explanation. That is what every plugin written before <code>long-help</code> existed
-sends. An empty <code>long-help</code> NEVER renders as an empty summary.</p>
+<code>description</code> and no <code>description</code> renders with its summary and an empty
+explanation. That is what every plugin written before <code>description</code> existed
+sends. An empty <code>description</code> NEVER renders as an empty summary.</p>
 <p><code>validateHelpDecls</code> reads both texts before any conversion. It refuses a text
 past its bound, and a control character the text's shape does not allow. The
 summary reaches the tab-separated shell-completion format and the one-line
@@ -596,7 +596,7 @@ obligation.</p>
 </table>
 <p>Set <code>afi</code> and <code>safi</code> for a custom family. A built-in family can omit both numeric fields.</p>
 <p><strong>Wire example:</strong></p>
-<pre><code>#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","description":"Show FlowSpec status"}],"wants-config":["bgp"]}
+<pre><code>#1 ze-plugin-engine:declare-registration {"families":[{"name":"ipv4/flow","mode":"both","afi":1,"safi":133}],"commands":[{"name":"flowspec status","short-help":"Show FlowSpec status"}],"wants-config":["bgp"]}
 #1 ok
 </code></pre>
 <h3 id="stage-2-config-engine-to-plugin">Stage 2: Config (Engine to Plugin)</h3>
@@ -645,6 +645,18 @@ obligation.</p>
 <pre><code>#1 ze-plugin-callback:configure {"sections":[{"root":"bgp","data":"{\"bgp\":{\"peer\":{...}}}"}]}
 #1 ok
 </code></pre>
+<p><strong>Refusing the configuration.</strong> Answer with <code>#1 error</code> and the reason when you
+cannot take what you were sent. That answer is a refusal: ze stops your plugin,
+and ze itself stops when your registration carries <code>FatalOnConfigError</code>, so an
+operator who mistyped a value is told rather than left with a router silently
+missing your feature. Return an error from your <code>OnConfigure</code> handler and the
+Go SDK writes that response for you.</p>
+<pre><code>#1 ze-plugin-callback:configure {"sections":[...]}
+#1 error {"code":"error","message":"address family \"ipv6-unicat\" is not a family"}
+</code></pre>
+<p>Never answer <code>ok</code> for a configuration you rejected, and never just close the
+connection: a lost connection is a transport failure, which says nothing about
+the configuration and so never stops ze.</p>
 <h3 id="stage-3-capabilities-plugin-to-engine">Stage 3: Capabilities (Plugin to Engine)</h3>
 <p>Plugin sends <code>ze-plugin-engine:declare-capabilities</code> with a <code>DeclareCapabilitiesInput</code>:</p>
 <!-- source: pkg/plugin/rpc/types.go -- DeclareCapabilitiesInput -->
@@ -804,7 +816,7 @@ arguments and returns the exit code:</p>
 // socket, no goroutine.
 func declaration() sdk.Registration {
     return sdk.Registration{
-        Commands: []sdk.CommandDecl{{Name: "acme-monitor status", Description: "Show monitor status"}},
+        Commands: []sdk.CommandDecl{{Name: "acme-monitor status", ShortHelp: "Show monitor status"}},
     }
 }
 
@@ -1248,7 +1260,7 @@ config-verify, etc.) and bye.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

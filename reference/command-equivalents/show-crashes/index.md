@@ -25,9 +25,9 @@ Without arguments, lists every stored report with its kind: 'panic' for a Go pan
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | no | any value of this type | Crash report name (used with 'name <filename>'). | The file name of one stored report, as the listing prints it. Ze reads that file from the crash directory and prints it. A name holding a slash or '..' is refused. |
 
 ## Mapping intents
 

@@ -25,9 +25,9 @@ Asks for each name in the group at once rather than waiting for its TTL. A name 
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Domain group name | A group from the firewall configuration. Every name in that group is resolved, and a name no group carries is an error that lists the groups present. |
 
 ## Mapping intents
 

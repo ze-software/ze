@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -274,6 +275,10 @@ No tracked gap in current source anchors.
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
 <tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>6</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
@@ -614,7 +619,7 @@ No tracked gap in current source anchors.
 <tbody>
 <tr><td><code>7:3</code></td>
 <td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
-<td>Binds the party filing a future Type value assignment request with IANA, and IANA which records the answer: the sentence directs what such a REQUEST must specify, namely whether the value is for a transitive or a non-transitive Extended Community. Ze consumes allocated type codes and files no assignment request, so it never plays the requester role. The lowercase &#39;must&#39; is why the site scan sees it only under the prose register. The role is a registry act by a person, so no producer could perform it. Ze CONSUMES the resulting assignment: the extended community codec reads the type octet it is given (`internal/component/bgp/attribute`).</td>
+<td>Binds the party filing a future Type value assignment request with IANA, and IANA which records the answer: the sentence directs what such a REQUEST must specify, namely whether the value is for a transitive or a non-transitive Extended Community. Ze consumes allocated type codes and files no assignment request, so it never plays the requester role. The lowercase &#39;must&#39; is why the site scan sees it only under the prose register. The role is a registry act by a person, so no producer could perform it. Ze CONSUMES the resulting assignment: the extended community codec reads the type octet it is given (`internal/core/bgp/attribute`).</td>
 <td>Future requests for assignment of a Type value must specify whether the Type value is intended for a transitive or a non- transitive Extended Community.</td>
 </tr>
 <tr><td><code>8:1</code></td>
@@ -663,7 +668,7 @@ No tracked gap in current source anchors.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

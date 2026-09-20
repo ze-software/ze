@@ -67,8 +67,9 @@
 </dl>
 <h3>Description</h3><p>Pass the session ID. Returns discovery tags,<br>LCP/NCP state, assigned addresses, and traffic counters.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>id</code></td><td>string</td><td>yes</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>id</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>PPPoE session ID.</td><td>The decimal sid column of the show pppoe session table. Zero is refused
+because RFC 2516 reserves it, and an unknown id is refused with &#39;no session with sid&#39;.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -132,7 +133,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

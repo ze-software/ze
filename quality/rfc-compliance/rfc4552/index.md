@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 14.8% | 4 of 27 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 40.7% | 11 of 27 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 27 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 19 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 26.3% | 5 of 19 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -68,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 19 |
 | Tagged units | 19 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 5 |
 | Summary | `rfc/short/rfc4552.md` |
 | Requirement shard | `rfc/requirements/rfc4552.md` |
 | RFC text | `rfc/full/rfc4552.txt` |
@@ -100,6 +100,7 @@ Virtual-link IPsec is unimplemented, which is five MUSTs across §9 and §11.
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **27** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (4):** [`RFC4552-3-1`](#rfc4552-3-1), [`RFC4552-4-2`](#rfc4552-4-2), [`RFC4552-6-6`](#rfc4552-6-6), [`RFC4552-12-1`](#rfc4552-12-1)
@@ -110,31 +111,31 @@ Virtual-link IPsec is unimplemented, which is five MUSTs across §9 and §11.
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC4552-2-2` | All implementations conforming to this specification MUST support transport mode SA to provide required IPsec security to OSPFv3 packets (§2) | MUST | 2 | **positive:** `unit/verify` [`TestIPsecSAIsWildcardWithOSPFSelector`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L152). **negative:** no negative test. **{single-polarity}:** the installer only ever builds a transport-mode SA (buildIPsecSA Mode=ModeTransport, ipsec_install.go), so there is no tunnel-mode reject path to exercise |
+| `RFC4552-2-2` | All implementations conforming to this specification MUST support transport mode SA to provide required IPsec security to OSPFv3 packets (§2) | MUST | 2 | **positive:** `unit/verify` [`TestIPsecSAPerDestinationWithOSPFSelector`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L229). **negative:** no negative test. **{single-polarity}:** the installer only ever builds a transport-mode SA (buildIPsecSA Mode=ModeTransport, ipsec_install.go), so there is no tunnel-mode reject path to exercise |
 | `RFC4552-3-1` | Implementations conforming to this specification MUST support authentication for OSPFv3 (§3) | MUST | 3 | **positive:** `unit/verify` [`TestParseOSPFIPsecConfig`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L49). **negative:** `unit/verify` [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L105) |
-| `RFC4552-3-2` | In order to provide authentication to OSPFv3, implementations MUST support ESP (§3) | MUST | 3 | **positive:** `unit/verify` [`TestIPsecInstallOnInterfaceUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L69). **negative:** no negative test. **{single-polarity}:** an esp interface always installs an SA with Proto=ProtoESP (ipsecProtoNumber, ipsec_install.go); "supporting ESP" has no reject path of its own |
+| `RFC4552-3-2` | In order to provide authentication to OSPFv3, implementations MUST support ESP (§3) | MUST | 3 | **positive:** `unit/verify` [`TestIPsecInstallOnInterfaceUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L118). **negative:** no negative test. **{single-polarity}:** an esp interface always installs an SA with Proto=ProtoESP (ipsecProtoNumber, ipsec_install.go); "supporting ESP" has no reject path of its own |
 | `RFC4552-3-4` | When OSPFv3 authentication is enabled, OSPFv3 packets that are not protected with AH or ESP MUST be silently discarded (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies installs the inbound require-policy (SADirIn, transport mode, upper-protocol 89, scoped to the arrival ifindex), and Linux XFRM discards an OSPFv3 packet that arrives on that interface without the required AH or ESP transform. Ze only samples the resulting counters (readXfrmDropsPlatform, ipsec_drops_linux.go) |
 | `RFC4552-3-5` | When OSPFv3 authentication is enabled, OSPFv3 packets that fail the authentication checks MUST be silently discarded (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs the integrity transform and its truncation length, and Linux XFRM discards a packet whose ICV does not verify. Ze holds no verifying branch of its own and reads only the XfrmInIntegFailures/XfrmInStateProtoError counters |
 | `RFC4552-4-2` | If confidentiality is provided, ESP MUST be used (§4) | MUST | 4 | **positive:** `unit/verify` [`TestIPsecESPConfidentialityValid`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L203). **negative:** `unit/verify` [`TestIPsecAHWithEncryptionRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L88) |
 | `RFC4552-4-3` | When OSPFv3 confidentiality is enabled, OSPFv3 packets that are not protected with ESP MUST be silently discarded (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies installs the inbound require-policy on a confidentiality-enabled interface, and Linux XFRM discards an OSPFv3 packet that arrives there without the required ESP transform |
 | `RFC4552-4-4` | When OSPFv3 confidentiality is enabled, OSPFv3 packets that fail the confidentiality checks MUST be silently discarded (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams installs the ESP encryption transform beside the integrity one, and Linux XFRM discards a packet whose decryption or integrity check fails |
-| `RFC4552-6-1` | IPsec in transport mode MUST be supported (§6) | MUST | 6 | **positive:** `unit/verify` [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L190). **negative:** no negative test. **{single-polarity}:** every installed policy is transport mode (buildIPsecPolicies Mode=ModeTransport, ipsec_install.go); there is no non-transport policy to reject |
-| `RFC4552-6-2` | The implementation MUST support multiple SPDs with an SPD selection function that chooses a specific SPD based on interface (§6) | MUST | 6 | **positive:** `unit/verify` [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L192). **negative:** no negative test. **{single-polarity}:** each interface's policies are scoped by IfIndex (buildIPsecPolicies IfIndex, ipsec_install.go), so the per-interface policy set is the interface-selected SPD; there is no reject path |
-| `RFC4552-6-3` | The implementation MUST be able to use source address, destination address, protocol, and direction as selectors in the SPD (§6) | MUST | 6 | **positive:** `unit/verify` [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L195). **negative:** no negative test. **{single-polarity}:** every policy carries source, destination, upper-protocol 89, and direction selectors (buildIPsecPolicies, ipsec_install.go); a selector set is emitted, never rejected |
-| `RFC4552-6-4` | The implementation MUST be able to tag inbound packets with the ID of the (physical or virtual) interface via which they arrived (§6) | MUST | 6 | **positive:** `unit/verify` [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L198). **negative:** no negative test. **{single-polarity}:** the inbound require-policy is scoped to the arrival ifindex (buildIPsecPolicies SADirIn IfIndex, ipsec_install.go); the kernel does the per-packet tagging, ze only supplies the interface selector |
-| `RFC4552-6-5` | Manually configured keys MUST be able to secure the specified traffic (§6) | MUST | 6 | **positive:** `unit/verify` [`TestSAParamsSharedKey`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L248). **negative:** no negative test. **{single-polarity}:** the SA is keyed from the statically configured SPI+key with no IKE (buildIPsecSA, ipsec_install.go); manual keying has no reject path |
+| `RFC4552-6-1` | IPsec in transport mode MUST be supported (§6) | MUST | 6 | **positive:** `unit/verify` [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L260). **negative:** no negative test. **{single-polarity}:** every installed policy is transport mode (buildIPsecPolicies Mode=ModeTransport, ipsec_install.go); there is no non-transport policy to reject |
+| `RFC4552-6-2` | The implementation MUST support multiple SPDs with an SPD selection function that chooses a specific SPD based on interface (§6) | MUST | 6 | **positive:** `unit/verify` [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L262). **negative:** no negative test. **{single-polarity}:** each interface's policies are scoped by IfIndex (buildIPsecPolicies IfIndex, ipsec_install.go), so the per-interface policy set is the interface-selected SPD; there is no reject path |
+| `RFC4552-6-3` | The implementation MUST be able to use source address, destination address, protocol, and direction as selectors in the SPD (§6) | MUST | 6 | **positive:** `unit/verify` [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L265). **negative:** no negative test. **{single-polarity}:** every policy carries source, destination, upper-protocol 89, and direction selectors (buildIPsecPolicies, ipsec_install.go); a selector set is emitted, never rejected |
+| `RFC4552-6-4` | The implementation MUST be able to tag inbound packets with the ID of the (physical or virtual) interface via which they arrived (§6) | MUST | 6 | **positive:** `unit/verify` [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L268). **negative:** no negative test. **{single-polarity}:** the inbound require-policy is scoped to the arrival ifindex (buildIPsecPolicies SADirIn IfIndex, ipsec_install.go); the kernel does the per-packet tagging, ze only supplies the interface selector |
+| `RFC4552-6-5` | Manually configured keys MUST be able to secure the specified traffic (§6) | MUST | 6 | **positive:** `unit/verify` [`TestSAParamsSharedKey`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L318). **negative:** no negative test. **{single-polarity}:** the SA is keyed from the statically configured SPI+key with no IKE (buildIPsecSA, ipsec_install.go); manual keying has no reject path |
 | `RFC4552-6-6` | The implementation MUST NOT allow the user to choose stream ciphers as the encryption algorithm for securing OSPFv3 packets (§6) | MUST NOT | 6 | **positive:** `unit/verify` [`TestIPsecESPConfidentialityValid`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L205). **negative:** `unit/verify` [`TestIPsecStreamCipherRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L224) |
 | `RFC4552-6-7` | The algorithm key words (MUST, MUST NOT, REQUIRED, SHOULD, SHOULD NOT) that appear in RFC 4305 [N6] are to be interpreted per RFC 2119 for OSPFv3 support as well, except when in conflict with the stream-cipher prohibition (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** an interpretation clause importing RFC 4305 [N6] algorithm keywords; RFC 4552 defines no independent behavior here. The concrete algorithm conformance lives in the config enums (ipsecAuthKeyLen and ipsecEncKeyLen, internal/plugins/ospf/config.go) and the stream-cipher carve-out is RFC4552-6-6 |
 | `RFC4552-6-9` | IP encapsulation of ESP packets MUST be supported (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecSA installs the transport-mode ESP SA and asks for no UDP encapsulation, so xfrmStateFromParams writes no Encap, and Linux XFRM carries every ESP packet directly in IP |
 | `RFC4552-6-11` | The IPsec implementation MUST support the establishment and maintenance of multiple SAs with the same selectors between a given sender and receiver (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams writes each state with its own SPI, and Linux XFRM keys the SAD by destination, SPI and protocol, so several SAs carrying one selector set coexist between a given sender and receiver |
-| `RFC4552-7-1` | The implementations MUST use manually configured keys with the same SA parameters (SPI, keys, etc.) for both inbound and outbound SAs (§7) | MUST | 7 | **positive:** `unit/verify` [`TestIPsecSAIsWildcardWithOSPFSelector`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L139). **negative:** no negative test. **{single-polarity}:** one manually configured SPI/key drives the single shared SA that both protects egress and verifies ingress (buildIPsecSA installed once, ipsec_install.go); there is no reject path |
+| `RFC4552-7-1` | The implementations MUST use manually configured keys with the same SA parameters (SPI, keys, etc.) for both inbound and outbound SAs (§7) | MUST | 7 | **positive:** `unit/verify` [`TestIPsecSAPerDestinationWithOSPFSelector`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L194). **negative:** no negative test. **{single-polarity}:** one manually configured SPI/key drives the single shared SA that both protects egress and verifies ingress (buildIPsecSA installed once, ipsec_install.go); there is no reject path |
 | `RFC4552-9-1` | A different SA than the SA of the underlying interface MUST be provided for virtual links (§9) | MUST | 9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** OSPFv3 virtual-link IPsec is unimplemented; the installer consumes only configured-interface IPsec blocks (setConfig over cfg.Interfaces, ipsec_install.go) and no virtual link ever installs an SA. Disclosed in docs/features/rfc-status.md RFC 4552 row |
 | `RFC4552-9-2` | Routers that implement this specification MUST change the way source and destination addresses are chosen for packets exchanged over virtual links when IPsec is enabled (§9) | MUST | 9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze never enables IPsec on a virtual link, so it does not switch virtual-link source/destination selection when IPsec is on; the endpoints stay RFC 5340 §2.9 routed globals (v6ResolveVirtualEndpointLocked, virtuallink_v6.go:28-35). Disclosed in docs/features/rfc-status.md RFC 4552 row |
 | `RFC4552-9-3` | The first IPv6 address with the "LA-bit" set in prefixes advertised in intra-area-prefix-LSAs in the transit area MUST be used as the source address for packets exchanged over the virtual link (§9) | MUST | 9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** virtual-link IPsec is unimplemented, so the RFC 4552 §9 rule of using the first LA-bit intra-area-prefix address as the source is not applied; ze selects the source from RFC 5340 routed globals (v6RouterGlobalAddr, virtuallink_v6.go:42-81). Disclosed in docs/features/rfc-status.md RFC 4552 row |
 | `RFC4552-9-4` | The first IPv6 address with the "LA-bit" set in prefixes received in intra-area-prefix-LSAs from the virtual neighbor in the transit area MUST be used as the destination address for packets exchanged over the virtual link (§9) | MUST | 9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the matching destination rule (first LA-bit intra-area-prefix address of the virtual neighbor) is likewise unapplied because virtual-link IPsec is unimplemented (virtuallink_v6.go:28-35). Disclosed in docs/features/rfc-status.md RFC 4552 row |
-| `RFC4552-11-1` | The IPsec protection barrier MUST be around the OSPF protocol so that all inbound and outbound OSPF traffic goes through IPsec processing (§11) | MUST | 11 | **positive:** `unit/verify` [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L201). **negative:** no negative test. **{single-polarity}:** the out/in/fwd proto-89 policies put the IPsec barrier around all OSPF traffic on the interface (buildIPsecPolicies, ipsec_install.go); the barrier is installed, never rejected |
-| `RFC4552-11-2` | The SPD selection function MUST return an SPD with the bypass rule for all interfaces that have OSPFv3 authentication/confidentiality disabled (§11) | MUST | 11 | **positive:** `unit/verify` [`TestIPsecDisabledInterfaceBypass`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L278). **negative:** no negative test. **{single-polarity}:** a disabled interface installs no require-policy (setConfig adds only interfaces with an IPsec block, ipsec_install.go), so its OSPF is bypassed by the kernel default; the bypass has no reject path |
-| `RFC4552-11-3` | The SPD selection function MUST return an SPD with the protect rules for all interfaces that have OSPFv3 authentication/confidentiality enabled (§11) | MUST | 11 | **positive:** `unit/verify` [`TestIPsecInstallOnInterfaceUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L74). **negative:** no negative test. **{single-polarity}:** an enabled interface installs the out/in/fwd protect (require) policies (installLocked, ipsec_install.go); the protect rules are installed, never rejected |
+| `RFC4552-11-1` | The IPsec protection barrier MUST be around the OSPF protocol so that all inbound and outbound OSPF traffic goes through IPsec processing (§11) | MUST | 11 | **positive:** `unit/verify` [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L271). **negative:** no negative test. **{single-polarity}:** the out/in/fwd proto-89 policies put the IPsec barrier around all OSPF traffic on the interface (buildIPsecPolicies, ipsec_install.go); the barrier is installed, never rejected |
+| `RFC4552-11-2` | The SPD selection function MUST return an SPD with the bypass rule for all interfaces that have OSPFv3 authentication/confidentiality disabled (§11) | MUST | 11 | **positive:** `unit/verify` [`TestIPsecDisabledInterfaceBypass`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L350). **negative:** no negative test. **{single-polarity}:** a disabled interface installs no require-policy (setConfig adds only interfaces with an IPsec block, ipsec_install.go), so its OSPF is bypassed by the kernel default; the bypass has no reject path |
+| `RFC4552-11-3` | The SPD selection function MUST return an SPD with the protect rules for all interfaces that have OSPFv3 authentication/confidentiality enabled (§11) | MUST | 11 | **positive:** `unit/verify` [`TestIPsecInstallOnInterfaceUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L128). **negative:** no negative test. **{single-polarity}:** an enabled interface installs the out/in/fwd protect (require) policies (installLocked, ipsec_install.go); the protect rules are installed, never rejected |
 | `RFC4552-11-4` | The virtual-link SPD rules MUST be installed in the SPD for the interfaces that are connected to the transit area for the virtual link (§11) | MUST | 11 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no virtual-link SPD rules are installed on transit-area interfaces because virtual-link IPsec is unimplemented (ipsec_install.go installs only configured-interface policies). Disclosed in docs/features/rfc-status.md RFC 4552 row |
 | `RFC4552-12-1` | The implementations MUST allow the administrator to configure the cryptographic and authentication keys in hexadecimal format (§12) | MUST | 12 | **positive:** `unit/verify` [`TestParseOSPFIPsecConfig`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L43). **negative:** `unit/verify` [`TestIPsecNonHexKeyRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L238) |
 | `RFC4552-4-1` | Implementations conforming to this specification SHOULD support confidentiality for OSPFv3 (§4) | SHOULD | 4 | **positive:** no positive test. **negative:** no negative test |
@@ -178,7 +179,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIPsecSAIsWildcardWithOSPFSelector`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L152) | unit/verify | unproven |
+| positive | [`TestIPsecSAPerDestinationWithOSPFSelector`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L229) | unit/verify | revert, verified |
 
 ### [`RFC4552-3-1`](#rfc4552-3-1)
 
@@ -199,7 +200,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIPsecInstallOnInterfaceUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L69) | unit/verify | unproven |
+| positive | [`TestIPsecInstallOnInterfaceUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L118) | unit/verify | mutant, verified |
 
 ### [`RFC4552-3-4`](#rfc4552-3-4)
 
@@ -252,7 +253,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L190) | unit/verify | unproven |
+| positive | [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L260) | unit/verify | unproven |
 
 ### [`RFC4552-6-2`](#rfc4552-6-2)
 
@@ -262,7 +263,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L192) | unit/verify | unproven |
+| positive | [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L262) | unit/verify | unproven |
 
 ### [`RFC4552-6-3`](#rfc4552-6-3)
 
@@ -272,7 +273,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L195) | unit/verify | unproven |
+| positive | [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L265) | unit/verify | unproven |
 
 ### [`RFC4552-6-4`](#rfc4552-6-4)
 
@@ -282,7 +283,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L198) | unit/verify | unproven |
+| positive | [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L268) | unit/verify | unproven |
 
 ### [`RFC4552-6-5`](#rfc4552-6-5)
 
@@ -292,7 +293,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestSAParamsSharedKey`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L248) | unit/verify | unproven |
+| positive | [`TestSAParamsSharedKey`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L318) | unit/verify | revert, verified |
 
 ### [`RFC4552-6-6`](#rfc4552-6-6)
 
@@ -337,7 +338,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIPsecSAIsWildcardWithOSPFSelector`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L139) | unit/verify | unproven |
+| positive | [`TestIPsecSAPerDestinationWithOSPFSelector`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L194) | unit/verify | revert, verified |
 
 ### [`RFC4552-9-1`](#rfc4552-9-1)
 
@@ -379,7 +380,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L201) | unit/verify | unproven |
+| positive | [`TestIPsecPoliciesInterfaceScopedWildcard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L271) | unit/verify | unproven |
 
 ### [`RFC4552-11-2`](#rfc4552-11-2)
 
@@ -389,7 +390,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIPsecDisabledInterfaceBypass`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L278) | unit/verify | unproven |
+| positive | [`TestIPsecDisabledInterfaceBypass`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L350) | unit/verify | unproven |
 
 ### [`RFC4552-11-3`](#rfc4552-11-3)
 
@@ -399,7 +400,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestIPsecInstallOnInterfaceUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L74) | unit/verify | unproven |
+| positive | [`TestIPsecInstallOnInterfaceUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L128) | unit/verify | mutant, verified |
 
 ### [`RFC4552-11-4`](#rfc4552-11-4)
 

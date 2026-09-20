@@ -47,14 +47,14 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="build-and-install-ze-on-ubuntu">Build and install Ze on Ubuntu</h1>
-    <p>This page starts from a blank Ubuntu server and leaves you with an installed <code>ze</code> binary, a <code>database.zefs</code>, an SSH listener, a systemd service, and one place to add Ze features.</p>
+    <p>This page starts from a blank Ubuntu server and leaves you with an installed <code>ze</code> binary, a private <code>database/</code> store, an SSH listener, a systemd service, and one place to add Ze features.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#1-install-build-tools">1. Install build tools</a></li>
 <li><a href="#2-build-ze">2. Build Ze</a></li>
 <li><a href="#3-install-the-binary">3. Install the binary</a></li>
-<li><a href="#4-create-databasezefs">4. Create database.zefs</a></li>
-<li><a href="#5-create-the-first-config-in-zefs">5. Create the first config in zefs</a></li>
+<li><a href="#4-create-the-live-store">4. Create the live store</a></li>
+<li><a href="#5-create-the-first-stored-config">5. Create the first stored config</a></li>
 <li><a href="#6-install-and-start-systemd">6. Install and start systemd</a></li>
 <li><a href="#7-test-ssh-login-and-rbac">7. Test SSH login and RBAC</a></li>
 <li><a href="#8-add-features">8. Add features</a></li>
@@ -64,7 +64,7 @@
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
 <!-- source: internal/le/featuretags/daemontags.go -- DaemonTags -->
-<!-- source: internal/plugins/init/main.go -- ze init input format and database.zefs creation -->
+<!-- source: internal/plugins/init/main.go -- Run, runInit -->
 <!-- source: internal/component/authz/yang/ze-authz-conf.yang -- system.authentication.user base fields and system.authorization.profile -->
 <!-- source: internal/component/ssh/yang/ze-ssh-conf.yang -- environment.ssh and public-keys augmentation -->
 <h2 id="1-install-build-tools">1. Install build tools</h2>
@@ -126,8 +126,8 @@ CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bg
 /usr/local/bin/ze version
 </code></pre>
 <p><code>/usr/local/bin/ze</code> uses <code>/etc/ze</code> as its config directory.</p>
-<h2 id="4-create-databasezefs">4. Create <code>database.zefs</code></h2>
-<p><code>ze init</code> creates <code>/etc/ze/database.zefs</code>. It stores the bootstrap admin user, the SSH client defaults, and the instance name. The input lines are:</p>
+<h2 id="4-create-the-live-store">4. Create the live store</h2>
+<p><code>ze init</code> creates <code>/etc/ze/database/</code>. It stores the bootstrap admin user, the SSH client defaults, and the instance name. The input lines are:</p>
 <ol>
 <li>username</li>
 <li>password</li>
@@ -137,12 +137,23 @@ CGO_ENABLED=0 go build -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bg
 </ol>
 <pre><code class="language-bash">sudo install -d -m 0700 /etc/ze
 printf 'admin\nCHANGE_ME_BOOTSTRAP\n\n\nedge-01\n' | sudo /usr/local/bin/ze init
-sudo test -s /etc/ze/database.zefs
+sudo test -d /etc/ze/database
 </code></pre>
-<p>This creates the zefs bootstrap admin. Keep it as a recovery user until you have tested the configured users below.</p>
-<h2 id="5-create-the-first-config-in-zefs">5. Create the first config in zefs</h2>
-<p>Keep the active configuration inside <code>database.zefs</code>. Do not create <code>/etc/ze/edge-01.conf</code> as a second source of truth. Build the candidate with set-format lines, render the import file, validate it, then load it into zefs with one <code>ze config import</code> command.</p>
-<p>Hash the configured user passwords before writing the candidate. This keeps plaintext out of shell history, process arguments, and the zefs command history.</p>
+<p>This creates the bootstrap admin in an atomically published tree. Its directories
+are 0700 and files 0600. Both an existing tree and a <code>database.zefs</code> artifact
+refuse initialization; <code>ze init --force --yes</code> replaces an unowned store and
+retains a <code>.replaced-&lt;stamp&gt;</code> backup. <code>ze init --from &lt;blob&gt;</code> imports a local
+blob; the URL form is storage-2. Keep the bootstrap admin as a recovery user until you
+have tested the configured users below.</p>
+<!-- source: internal/plugins/init/main.go -- Run, runInit -->
+<h2 id="5-create-the-first-stored-config">5. Create the first stored config</h2>
+<p>Keep the active configuration inside <code>database/</code> for bare <code>ze start</code>. Do not
+create <code>/etc/ze/edge-01.conf</code> as a second source of truth in this workflow.
+An explicit <code>ze start &lt;file&gt;</code> has different semantics: that file is authoritative
+on every start, and daemon commits update it as well as stored history. Build the
+candidate with set-format lines, render the import file, validate it, then load
+it with one <code>ze config import</code> command.</p>
+<p>Hash the configured user passwords before writing the candidate. This keeps plaintext out of shell history, process arguments, and stored command history.</p>
 <pre><code class="language-bash">ADMIN_HASH="$(printf '%s\n' 'CHANGE_ME_BOOTSTRAP' | /usr/local/bin/ze passwd)"
 NOC_HASH="$(printf '%s\n' 'CHANGE_ME_NOC' | /usr/local/bin/ze passwd)"
 
@@ -177,17 +188,26 @@ sudo /usr/local/bin/ze config list
 <p>Expected validation output:</p>
 <pre><code class="language-text">configuration valid: /tmp/tmp.XXXXXXXXXX
 </code></pre>
-<p>The explicit <code>admin</code> user matters. Once any configured user has profile assignments, unassigned users are denied by local RBAC. Defining <code>admin</code> in config keeps the bootstrap name usable with an explicit <code>admin</code> profile. <code>ze start</code> reads the active <code>edge-01.conf</code> config from zefs.</p>
+<p>The explicit <code>admin</code> user matters. Once any configured user has profile assignments, unassigned users are denied by local RBAC. Defining <code>admin</code> in config keeps the bootstrap name usable with an explicit <code>admin</code> profile. Bare <code>ze start</code> reads the stored active <code>edge-01.conf</code>.</p>
 <h2 id="6-install-and-start-systemd">6. Install and start systemd</h2>
 <pre><code class="language-bash">sudo /usr/local/bin/ze install systemd --start
 systemctl status ze.service --no-pager
 </code></pre>
-<p>The generated unit starts <code>/usr/local/bin/ze start</code>, uses <code>/etc/ze</code> as <code>ZE_CONFIG_DIR</code>, and sets the runtime directory to <code>/run/ze</code>.</p>
-<p>For local operator commands from the shell, either run as root with the same config directory, or point the CLI at the systemd runtime socket:</p>
-<pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
-/usr/local/bin/ze status
-/usr/local/bin/ze cli -c "help"
+<p>The generated unit starts <code>/usr/local/bin/ze start</code>, uses <code>/etc/ze</code> as
+<code>ZE_CONFIG_DIR</code>, and sets the runtime directory to <code>/run/ze</code>. Installation
+transfers the complete tree and ownership lock to <code>ze</code> before service startup,
+and refuses if a daemon already owns it.</p>
+<!-- source: internal/plugins/systemd/cmd_install.go -- serviceRuntime.cmdInstall, serviceRuntime.chownConfig -->
+<p>After transfer, even root cannot open the store through Ze. Local commands that
+use stored credentials run as the owner:</p>
+<pre><code class="language-bash">sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze /usr/local/bin/ze status
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze /usr/local/bin/ze cli -c "help"
 </code></pre>
+<p>Root still manages systemd and binary installation. Offline store maintenance
+requires stopping the daemon first and running the storage command as <code>ze</code>.
+Read-only credential lookup remains available while the daemon runs.</p>
+<!-- source: internal/component/config/storage/open.go -- OpenReadOnly -->
+<!-- source: internal/component/config/storage/ownership.go -- TransferOwnership -->
 <h2 id="7-test-ssh-login-and-rbac">7. Test SSH login and RBAC</h2>
 <p>The <code>admin</code> user can run operational and edit commands. The <code>noc</code> user can run operational commands but cannot edit config.</p>
 <pre><code class="language-bash">export XDG_RUNTIME_DIR=/run/ze
@@ -220,7 +240,11 @@ ZE_SSH_PASSWORD='CHANGE_ME_NOC' /usr/local/bin/ze cli --user noc -c "help"
 </tr>
 </tbody>
 </table>
-<p>For normal installs, keep the default binary and add runtime features to the active zefs config. The feature pages use this pattern: read the current zefs entry, normalize it to set format, append set-format lines, render a checked import file, validate, import, and reload.</p>
+<p>For normal installs, keep the default binary and add runtime features to the
+stored config. The example below exports the current entry, renders and validates
+a candidate, then stops the owning daemon for an offline import as the store
+owner. The shell supplies the candidate through stdin so its temporary-file
+permissions do not need widening.</p>
 <pre><code class="language-bash">set -euo pipefail
 
 umask 077
@@ -228,7 +252,7 @@ CONFIG_SET="$(mktemp)"
 CONFIG_IMPORT="$(mktemp)"
 trap 'rm -f "$CONFIG_SET" "$CONFIG_IMPORT"' EXIT
 
-sudo /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o "$CONFIG_SET" -
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze /usr/local/bin/ze config cat edge-01.conf | /usr/local/bin/ze config migrate -o "$CONFIG_SET" -
 
 cat &gt;&gt;"$CONFIG_SET" &lt;&lt;'EOF'
 set plugin internal bgp-rr use bgp-rr
@@ -236,8 +260,9 @@ EOF
 
 /usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
 /usr/local/bin/ze config validate "$CONFIG_IMPORT"
-sudo /usr/local/bin/ze config import --name edge-01.conf "$CONFIG_IMPORT"
-sudo systemctl reload ze.service
+sudo systemctl stop ze.service
+sudo -u ze env ZE_CONFIG_DIR=/etc/ze /usr/local/bin/ze config import --name edge-01.conf - &lt; "$CONFIG_IMPORT"
+sudo systemctl start ze.service
 </code></pre>
 <p>Use the pages below as feature-specific starting points:</p>
 <table>
@@ -271,7 +296,7 @@ sudo systemctl reload ze.service
 sudo /usr/local/bin/ze uninstall systemd
 sudo /usr/local/bin/ze uninstall local
 </code></pre>
-<p>Use <code>--purge</code> only when you want to remove <code>/etc/ze</code> and <code>database.zefs</code>.</p>
+<p>Use <code>--purge</code> only when you want to remove <code>/etc/ze</code> and its <code>database/</code> tree.</p>
 
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
@@ -310,7 +335,7 @@ sudo /usr/local/bin/ze uninstall local
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

@@ -25,9 +25,9 @@ The answer is the interface name and its Rx and Tx statistics. A backend that ke
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Interface name | The interface whose statistics are read. The answer repeats this name beside the Rx and Tx values. |
 
 ## Mapping intents
 

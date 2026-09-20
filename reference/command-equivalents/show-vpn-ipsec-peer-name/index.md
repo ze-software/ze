@@ -25,9 +25,9 @@ Returns IKE SA state, all child SAs with traffic selectors, and byte counts.
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Configured IPsec peer name. | The value is the key of a site-to-site peer entry, at most 255 characters. Ze returns every IKE SA that peer holds, and answers 'peer not found' when none is up. |
 
 ## Mapping intents
 

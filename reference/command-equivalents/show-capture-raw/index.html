@@ -67,11 +67,15 @@
 </dl>
 <h3>Description</h3><p>Actions: start (begin capturing), stop (halt), dump (retrieve). Protocols:<br>l2tp, bgp. Output formats: pcap (for Wireshark), json. Limit with count &lt;N&gt;.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>action</code></td><td>enum</td><td>no</td><td><code>start</code> <code>stop</code> <code>dump</code></td></tr>
-<tr><td><code>protocol</code></td><td>enum</td><td>no</td><td><code>l2tp</code> <code>bgp</code></td></tr>
-<tr><td><code>format</code></td><td>enum</td><td>no</td><td><code>pcap</code> <code>json</code></td></tr>
-<tr><td><code>count</code></td><td>uint</td><td>no</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>action</code></td><td>enum</td><td>no</td><td><code>start</code> <code>stop</code> <code>dump</code></td><td>Capture action.</td><td>The verb the command performs. It is required, and a call without one is
+refused with the usage line.</td></tr>
+<tr><td><code>protocol</code></td><td>enum</td><td>no</td><td><code>l2tp</code> <code>bgp</code></td><td>Protocol to capture.</td><td>Narrows the action to one protocol. Absent, the action applies to every
+protocol with a raw capture, and the answer carries one key for each.</td></tr>
+<tr><td><code>format</code></td><td>enum</td><td>no</td><td><code>pcap</code> <code>json</code></td><td>Output format.</td><td>Read by dump alone. The default is json. With pcap the answer carries a
+&lt;protocol&gt;-pcap key holding the base64 file and a &lt;protocol&gt;-packets count.</td></tr>
+<tr><td><code>count</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Maximum number of messages.</td><td>Read by dump alone. At most this many messages are returned for each
+protocol. Absent or 0, every captured message is returned.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -135,7 +139,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

@@ -158,7 +158,7 @@ Full-width prose under a section head for anything longer than a sentence or two
 
 ### Maturity tiers on cards
 
-Shipped cards are solid clay. .card.experimental adds a dashed border and an "Experimental" status chip. .card.aspiration is a flat dashed blueprint whose title links to its pending spec in the main repo's plan/ directory.
+Shipped cards are solid clay. .card.experimental adds a dashed border and an "Experimental" status chip. Remaining release work items are listed on the [generated roadmap](https://ze-software.net/project/roadmap/), an inventory preview pending owner classification.
 
 ### .doc-diagram
 

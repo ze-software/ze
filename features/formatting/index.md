@@ -36,7 +36,7 @@ set cli format          # shows the current default
 The choice persists for the session via the `ze.cli.format` setting; it can
 also be set permanently through YANG config.
 
-<!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat, validCLIFormats -->
+<!-- source: internal/component/cli/model_keys.go -- handleSetCLIFormat, cliFormatLeafPath -->
 <!-- source: internal/component/command/pipe.go -- ze.cli.format env registration, configuredDefault -->
 
 ### Piping inline
@@ -122,7 +122,7 @@ Ze's own tooling uses the same operator. Completion, the runtime command tree
 and the live dashboard each parse an exec-channel answer. Each asks for it
 through one helper, rather than composing the pipe itself.
 
-<!-- source: internal/core/ssh/client/client.go -- RawCommand, ExecCommandRaw -->
+<!-- source: internal/component/cli/sshclient/client.go -- RawCommand, ExecCommandRaw -->
 
 ### The offline way: `ze pipe`
 

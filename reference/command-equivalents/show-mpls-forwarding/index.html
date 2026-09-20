@@ -67,8 +67,10 @@
 </dl>
 <h3>Description</h3><p>Each entry shows the incoming label, swap/push/pop operation, and outgoing<br>next-hop. Pass &#39;limit N&#39; to cap large tables. Linux only.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>limit</code></td><td>uint</td><td>no</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>limit</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Maximum number of entries.</td><td>The value is a positive integer. Ze returns at most that many
+entries and sets truncated to true when the kernel holds more. Absent, the value
+is 100000.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping intents</h2>
@@ -136,7 +138,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

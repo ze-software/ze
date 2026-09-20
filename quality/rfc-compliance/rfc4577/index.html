@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -280,6 +281,10 @@ Twenty gaps, annotated in <a href="https://github.com/ze-software/ze/blob/main/r
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
+</tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
 <tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>36</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
@@ -613,8 +618,8 @@ Twenty gaps, annotated in <a href="https://github.com/ze-software/ze/blob/main/r
 <td>MUST</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L22" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthImplemented</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L46" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthRejectsForgery</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L21" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthImplemented</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L45" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthRejectsForgery</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.4-6">RFC4577-4.2.4-6</code></td><td colspan="3"><span class="rfc-subject">The default Domain Identifier value (if none is configured) should be NULL (§4.2.4)</span></td></tr>
@@ -694,7 +699,7 @@ Twenty gaps, annotated in <a href="https://github.com/ze-software/ze/blob/main/r
 <td>SHOULD</td>
 <td>6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L69" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577InterfaceUsesConfiguredCryptoAuth</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L68" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577InterfaceUsesConfiguredCryptoAuth</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the negative -- an interface with no key chain sending unauthenticated OSPF packets -- is the state this SHOULD recommends against, not a behavior the implementation must exhibit, so asserting it would pin the unrecommended path instead of the requirement</p></td>
 </tr>
@@ -748,7 +753,7 @@ Twenty gaps, annotated in <a href="https://github.com/ze-software/ze/blob/main/r
 <td>MAY</td>
 <td>4.1.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-4.1.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L92" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577VirtualLinkGivesArea0Adjacency</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L91" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577VirtualLinkGivesArea0Adjacency</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> this is a MAY, the permission to reach the area 0 adjacency over a virtual link. A negative would have to assert that some configuration does NOT yield a backbone virtual link, which exercises virtual-link configuration handling rather than the permission this requirement grants</p></td>
 </tr>
@@ -1128,12 +1133,12 @@ Twenty gaps, annotated in <a href="https://github.com/ze-software/ze/blob/main/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L46" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthRejectsForgery</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L45" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthRejectsForgery</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L22" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthImplemented</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L21" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577CryptographicAuthImplemented</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1148,7 +1153,7 @@ Twenty gaps, annotated in <a href="https://github.com/ze-software/ze/blob/main/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L69" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577InterfaceUsesConfiguredCryptoAuth</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L68" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577InterfaceUsesConfiguredCryptoAuth</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1163,7 +1168,7 @@ Twenty gaps, annotated in <a href="https://github.com/ze-software/ze/blob/main/r
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L92" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577VirtualLinkGivesArea0Adjacency</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4577_test.go#L91" title="internal/plugins/ospf/rfc4577_test.go" target="_blank" rel="noopener"><code>TestRFC4577VirtualLinkGivesArea0Adjacency</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1206,7 +1211,7 @@ Twenty gaps, annotated in <a href="https://github.com/ze-software/ze/blob/main/r
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

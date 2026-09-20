@@ -4,18 +4,18 @@
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>Roadmap - Ze</title>
-        <meta name="description" content="The work between now and a first release of Ze you can trust in production." />
-        <meta property="og:title" content="Roadmap - Ze" />
-        <meta property="og:description" content="The work between now and a first release of Ze you can trust in production." />
+        <title>Release roadmap - Ze</title>
+        <meta name="description" content="Release work items from committed specs, an inventory preview pending owner classification." />
+        <meta property="og:title" content="Release roadmap - Ze" />
+        <meta property="og:description" content="Release work items from committed specs, an inventory preview pending owner classification." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Roadmap - Ze" />
-        <meta name="twitter:description" content="The work between now and a first release of Ze you can trust in production." />
+        <meta name="twitter:title" content="Release roadmap - Ze" />
+        <meta name="twitter:description" content="Release work items from committed specs, an inventory preview pending owner classification." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../assets/vendor/fonts/fonts.css" />
@@ -45,72 +45,2881 @@
         <main id="top" class="has-page-sidebar" tabindex="-1">
             <section class="md-content reveal">
 <div class="journey-hero reveal">
-    <span class="journey-eyebrow">Release path</span>
-    <h1 id="roadmap">Roadmap</h1>
-    <p>Ze is pre-release. This page is about one thing: the work that stands between
-today and a first release you can trust in production. It is a sequence, not a
-calendar. Each step gates the next, and the honest answer to "when" is "when
-the step before it is genuinely done".</p>
+    <span class="journey-eyebrow">Inventory preview</span>
+    <h1 id="release-roadmap">Release roadmap</h1>
+    <p>Generated inventory; do not edit this output.</p>
 </div>
-<div class="roadmap-forward-note">
-  <p>The <a href="../changes/">changes log</a> records what has already shipped week by week. This page looks forward.</p>
-</div>
-<div class="roadmap-step-list">
-  <section class="roadmap-step">
-    <h2>1. Close the open specs</h2>
-    <p>Ze is built spec by spec: nothing gets written without a spec that says what it should do and how it will be tested. There is still a backlog of open specs, and the first job is to work through it so the feature set stops being a moving target. Until that is done, the surface keeps growing, and a growing surface is the wrong thing to try to stabilise.</p>
-    <div class="roadmap-chip-row" aria-label="Step focus">
-      <span class="roadmap-chip" data-tone="platform">Specs</span>
-      <span class="roadmap-chip" data-tone="operate">Tests</span>
-      <span class="roadmap-chip" data-tone="observe">Scope control</span>
-    </div>
-  </section>
-  <section class="roadmap-step">
-    <h2>2. Make it stable</h2>
-    <p>Once the feature set stops moving, the effort turns to hardening what is there: chasing down races, tightening the tests, and closing the known trust-model gaps tracked in the <a href="../../security/">security policy</a>. The routing core is already heavily tested, but "heavily tested" and "boring to run for months" are not the same thing, and the second one is the goal.</p>
-    <div class="roadmap-chip-row" aria-label="Step focus">
-      <span class="roadmap-chip" data-tone="secure">Security</span>
-      <span class="roadmap-chip" data-tone="routing">Routing core</span>
-      <span class="roadmap-chip" data-tone="operate">Reliability</span>
-    </div>
-  </section>
-  <section class="roadmap-step">
-    <h2>3. Prove it in production</h2>
-    <p>Tests and lab interop take Ze a long way, but they are not a substitute for real traffic on real hardware for long enough to find operational failures. This step is about running Ze where it has to keep working, watching what breaks, and fixing it. Operator feedback matters most here, which is why the project is open this early.</p>
-    <div class="roadmap-chip-row" aria-label="Step focus">
-      <span class="roadmap-chip" data-tone="services">Real traffic</span>
-      <span class="roadmap-chip" data-tone="observe">Telemetry</span>
-      <span class="roadmap-chip" data-tone="platform">Hardware</span>
-    </div>
-  </section>
-  <section class="roadmap-step">
-    <h2>4. Freeze the configuration syntax</h2>
-    <p>Today the configuration syntax can still change, and the site says so. Before a release, the syntax has to settle so that a config you write keeps working. The policy is no silent breakage: any change that affects an existing config comes with either an automatic migration or a clear error. Getting the syntax to a point where it stops needing to change is the last big piece before release.</p>
-    <div class="roadmap-chip-row" aria-label="Step focus">
-      <span class="roadmap-chip" data-tone="automate">Migration</span>
-      <span class="roadmap-chip" data-tone="operate">Validation</span>
-      <span class="roadmap-chip" data-tone="secure">No silent breakage</span>
-    </div>
-  </section>
-  <section class="roadmap-step">
-    <h2>5. Release</h2>
-    <p>The first release is what all of the above adds up to: a frozen configuration model, a stable feature set, and enough production mileage to stand behind it. Upgrade paths will be provided from that point on.</p>
-    <div class="roadmap-chip-row" aria-label="Step focus">
-      <span class="roadmap-chip" data-tone="platform">Frozen model</span>
-      <span class="roadmap-chip" data-tone="observe">Production evidence</span>
-      <span class="roadmap-chip" data-tone="automate">Upgrade paths</span>
-    </div>
-  </section>
-  <section class="roadmap-step roadmap-step-muted">
-    <h2>What is not the priority right now</h2>
-    <p>New large features are not the focus on the way to the first release. Stability comes first. Known gaps against other daemons, such as BGP confederations, are listed honestly on the <a href="../../compare/">comparison page</a>, and the <a href="../../features/">features page</a> marks what is shipped versus still experimental. If something you need is missing or you want to help move a milestone along, say so on <a href="https://discord.gg/T8s7CjPDne" target="_blank" rel="noopener">Discord</a> or the <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">issue tracker</a>.</p>
-    <div class="roadmap-chip-row" aria-label="Step focus">
-      <span class="roadmap-chip" data-tone="meta">Not now</span>
-      <span class="roadmap-chip" data-tone="routing">Known gaps</span>
-      <span class="roadmap-chip" data-tone="operate">Feedback</span>
-    </div>
-  </section>
-</div>
+<nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
+<li><a href="#status-breakdown">Status breakdown</a></li>
+<li><a href="#required-before-release">Required before release</a>
+<ol>
+<li><a href="#operator-visible-defects-and-missing-behavior-115">Operator-visible defects and missing behavior (115)</a></li>
+<li><a href="#other-release-obligations-42">Other release obligations (42)</a></li>
+</ol></li>
+<li><a href="#nice-to-haves">Nice-to-haves</a>
+<ol>
+<li><a href="#optional-work-183">Optional work (183)</a></li>
+</ol></li>
+<li><a href="#status-legend">Status legend</a></li>
+</ol></nav>
+<p>Inventory preview pending owner classification. Bucket assignments are recorded facts; required/optional classification is not yet approved.</p>
+<!-- roadmap-revision: ee07d863f025373a57c3f3019d7fb1054d0b3a9b -->
+<p>Source revision: <a href="https://github.com/ze-software/ze/commit/ee07d863f025373a57c3f3019d7fb1054d0b3a9b" target="_blank" rel="noopener">ee07d863f025373a57c3f3019d7fb1054d0b3a9b</a>.</p>
+<p>Input digest (SHA-256): f4befb3b6d3aa7cb09fb944d80a054de952a6b2d6fe591032a4ce37a2cb9dd47.</p>
+<p>Pending edits appear after commit and regeneration. Counts measure spec work items, including umbrella and child files separately. They do not measure effort, completion percentage, or release readiness.</p>
+<p>Required work items: <strong>157</strong>. Nice-to-have work items: <strong>183</strong>. Total: <strong>340</strong>.</p>
+<h2 id="status-breakdown">Status breakdown</h2>
+<table>
+<thead>
+<tr>
+<th>Declared status</th>
+<th style="text-align:right">Work items</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>in-progress</td>
+<td style="text-align:right">37</td>
+</tr>
+<tr>
+<td>verification</td>
+<td style="text-align:right">1</td>
+</tr>
+<tr>
+<td>ready</td>
+<td style="text-align:right">21</td>
+</tr>
+<tr>
+<td>design</td>
+<td style="text-align:right">68</td>
+</tr>
+<tr>
+<td>skeleton</td>
+<td style="text-align:right">196</td>
+</tr>
+<tr>
+<td>blocked</td>
+<td style="text-align:right">14</td>
+</tr>
+<tr>
+<td>deferred</td>
+<td style="text-align:right">3</td>
+</tr>
+</tbody>
+</table>
+<h2 id="required-before-release">Required before release</h2>
+<h3 id="operator-visible-defects-and-missing-behavior-115">Operator-visible defects and missing behavior (115)</h3>
+<table>
+<thead>
+<tr>
+<th>Work item</th>
+<th>Status</th>
+<th>Updated</th>
+<th>Phase</th>
+<th>Dependencies</th>
+<th>Diagnostics</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-announce-build-key-is-the-builder-argument-set.md" target="_blank" rel="noopener">the announce build key IS the builder's argument set</a> (spec-announce-build-key-is-the-builder-argument-set)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-announce-grammar-stated-and-enforced.md" target="_blank" rel="noopener">announce-grammar-stated-and-enforced</a> (spec-announce-grammar-stated-and-enforced)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>5/6</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bgp-as-migration.md" target="_blank" rel="noopener">bgp-as-migration -- RFC 7705 Section 4.2 Internal BGP AS Migration</a> (spec-bgp-as-migration)</td>
+<td>in-progress</td>
+<td>2026-09-14</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bgp-local-as-options.md" target="_blank" rel="noopener">plan/immediate/spec-bgp-local-as-options.md</a>`</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bgp-local-as-options.md" target="_blank" rel="noopener">bgp-local-as-options -- preserve the direction each option governs</a> (spec-bgp-local-as-options)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>1/7</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bmp-statistics-timeout-sends-no-report.md" target="_blank" rel="noopener">bmp-statistics-timeout-sends-no-report</a> (spec-bmp-statistics-timeout-sends-no-report)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>3/3</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-config-set-never-echoes-a-secret.md" target="_blank" rel="noopener">a command that acknowledges what the operator typed never echoes a secret</a> (spec-config-set-never-echoes-a-secret)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-connected-static-reach-the-locrib.md" target="_blank" rel="noopener">connected and static reach the Loc-RIB</a> (spec-connected-static-reach-the-locrib)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>6/7</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-eap-tls-certificate-revocation.md" target="_blank" rel="noopener">eap-tls-certificate-revocation</a> (spec-eap-tls-certificate-revocation)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>spec-ipsec-rfc9190</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-fib-depth.md" target="_blank" rel="noopener">fib-depth -- Routing Decision and FIB Programming Depth</a> (spec-fib-depth)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-vrf-0-umbrella.md" target="_blank" rel="noopener">spec-vrf-0-umbrella.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-fixit-redistribution-chain-drops-silently.md" target="_blank" rel="noopener">Redistribution chain drops every route silently</a> (spec-fixit-redistribution-chain-drops-silently)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-generated-command-usage.md" target="_blank" rel="noopener">generated-command-usage</a> (spec-generated-command-usage)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-kernel-capability-gate.md" target="_blank" rel="noopener">kernel-capability-gate</a> (spec-kernel-capability-gate)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>6/6</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-lifecycle-invariants.md" target="_blank" rel="noopener">lifecycle-invariants</a> (spec-lifecycle-invariants)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>1/10</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-ospf-accept-lifetime-receive-window.md" target="_blank" rel="noopener">ospf-accept-lifetime-receive-window</a> (spec-ospf-accept-lifetime-receive-window)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-ospf-rfc3101-nssa-defaults.md" target="_blank" rel="noopener">ospf-rfc3101-nssa-defaults</a> (spec-ospf-rfc3101-nssa-defaults)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-static-route-tag-reaches-no-consumer.md" target="_blank" rel="noopener">static-route-tag-reaches-no-consumer</a> (spec-static-route-tag-reaches-no-consumer)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-yang-rpc-declarations-with-no-handler.md" target="_blank" rel="noopener">yang-rpc-declarations-with-no-handler</a> (spec-yang-rpc-declarations-with-no-handler)</td>
+<td>in-progress</td>
+<td>2026-09-13</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bcp194-0-umbrella.md" target="_blank" rel="noopener">BCP 194 umbrella -- follow RFC 7454 and RFC 8195</a> (spec-bcp194-0-umbrella)</td>
+<td>ready</td>
+<td>2026-08-08</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bcp194-1-communities.md" target="_blank" rel="noopener">BCP 194 child 1 -- community handling (RFC 7454 §11 and RFC 8195)</a> (spec-bcp194-1-communities)</td>
+<td>ready</td>
+<td>2026-08-12</td>
+<td>3b/6</td>
+<td>spec-bcp194-0-umbrella</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-remove-takes-the-working-tree-copy.md" target="_blank" rel="noopener">a removal takes the working-tree copy with it</a> (spec-remove-takes-the-working-tree-copy)</td>
+<td>ready</td>
+<td>2026-09-07</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-commit-stages-in-a-private-index.md" target="_blank" rel="noopener">plan/spec-commit-stages-in-a-private-index.md</a>` (product code recorded landed; shares `internal/le/commit/script.go`; proof and closure remain open)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-rfc4301-architecture-gaps.md" target="_blank" rel="noopener">rfc4301-architecture-gaps</a> (spec-rfc4301-architecture-gaps)</td>
+<td>ready</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ipsec-lifetime-volume.md" target="_blank" rel="noopener">plan/spec-ipsec-lifetime-volume.md</a>` (owns the Section 4.4.2.1 byte-count SAD lifetime); `<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md" target="_blank" rel="noopener">plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md</a>` (owns the `rfc4301` extraction sign-off and the ledger scope set)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-test-children-run-in-the-checkout-root.md" target="_blank" rel="noopener">test children run in the checkout root</a> (spec-test-children-run-in-the-checkout-root)</td>
+<td>ready</td>
+<td>2026-09-07</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-add-path-limit-send-receive.md" target="_blank" rel="noopener">ADD-PATH limit becomes a send/receive container, with ingress enforcement</a> (spec-add-path-limit-send-receive)</td>
+<td>design</td>
+<td>2026-09-11</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bgp-filtered-route-storage.md" target="_blank" rel="noopener">BGP filtered-route retention and a real routes_filtered</a> (spec-bgp-filtered-route-storage)</td>
+<td>design</td>
+<td>2026-07-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bgp-ls-receiver-fault-management.md" target="_blank" rel="noopener">bgp-ls-receiver-fault-management</a> (spec-bgp-ls-receiver-fault-management)</td>
+<td>design</td>
+<td>2026-08-26</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bgp-netns.md" target="_blank" rel="noopener">spec-bgp-netns (title unavailable)</a> (spec-bgp-netns)</td>
+<td>design</td>
+<td>2026-07-16</td>
+<td>0/N (research)</td>
+<td>- (not blocked by any spec; this spec IS the fix for the shipped default, see "Why this is the default case" below)</td>
+<td>title unavailable</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bgp-per-peer-received-counter.md" target="_blank" rel="noopener">BGP per-peer pre-policy received counter</a> (spec-bgp-per-peer-received-counter)</td>
+<td>design</td>
+<td>2026-08-08</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-config-bound-authority.md" target="_blank" rel="noopener">config-bound-authority</a> (spec-config-bound-authority)</td>
+<td>design</td>
+<td>2026-09-08</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-firewall-dynamic-address-group.md" target="_blank" rel="noopener">firewall-dynamic-address-group</a> (spec-firewall-dynamic-address-group)</td>
+<td>design</td>
+<td>2026-07-04</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-fixit-ca-root-location.md" target="_blank" rel="noopener">fixit-ca-root-location</a> (spec-fixit-ca-root-location)</td>
+<td>design</td>
+<td>2026-09-04</td>
+<td>research complete, design complete, nothing implemented</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-fixit-selector-narrows-through-a-pipe.md" target="_blank" rel="noopener">selector narrows through a pipe</a> (spec-fixit-selector-narrows-through-a-pipe)</td>
+<td>design</td>
+<td>2026-09-04</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-ipsec-remote-access.md" target="_blank" rel="noopener">ipsec-remote-access</a> (spec-ipsec-remote-access)</td>
+<td>design</td>
+<td>2026-07-31</td>
+<td>-</td>
+<td>- (was `spec-fixit-ipsec-verify-siblings`, closed 2026-08-03)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-lcp-restart-counters.md" target="_blank" rel="noopener">lcp-restart-counters</a> (spec-lcp-restart-counters)</td>
+<td>design</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-login-identity-for-looking-glass-and-gnmi.md" target="_blank" rel="noopener">give the looking glass and gNMI a per-user login</a> (spec-login-identity-for-looking-glass-and-gnmi)</td>
+<td>design</td>
+<td>2026-08-11</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-login-service-authorisation.md" target="_blank" rel="noopener">plan/spec-login-service-authorisation.md</a>`</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-mpls-9-rsvp-te-one-to-one-backup.md" target="_blank" rel="noopener">mpls-9-rsvp-te-one-to-one-backup</a> (spec-mpls-9-rsvp-te-one-to-one-backup)</td>
+<td>design</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>mpls-4-rsvp-te-fast-reroute (facility backup), mpls-3-rsvp-te (closed), mpls-1-kernel (closed)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-pki-show-private-key.md" target="_blank" rel="noopener">pki-show-private-key</a> (spec-pki-show-private-key)</td>
+<td>design</td>
+<td>2026-07-03</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-pppoe-subscribers-produce-no-accounting-or-telemetry.md" target="_blank" rel="noopener">pppoe-subscribers-produce-no-accounting-or-telemetry</a> (spec-pppoe-subscribers-produce-no-accounting-or-telemetry)</td>
+<td>design</td>
+<td>2026-09-09</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-review-bus-async-fanout.md" target="_blank" rel="noopener">EventBus backpressure symmetry, async fan-out, and ordering (DESIGN-REVIEW finding 4)</a> (spec-review-bus-async-fanout)</td>
+<td>design</td>
+<td>2026-07-06</td>
+<td>-</td>
+<td>spec-unify-buffer-lifetime (HARD ordering: async fan-out must not land first) (closed, learned 1077 -- ordering constraint satisfied)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-review-redistribute-orchestrator.md" target="_blank" rel="noopener">Redistribute orchestrator producer/consumer symmetry and dead skip machinery (DESIGN-REVIEW finding 5)</a> (spec-review-redistribute-orchestrator)</td>
+<td>design</td>
+<td>2026-07-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-review-sdk-boundary-versioning.md" target="_blank" rel="noopener">Plugin protocol versioning and a real SDK boundary (DESIGN-REVIEW finding 7)</a> (spec-review-sdk-boundary-versioning)</td>
+<td>design</td>
+<td>2026-07-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-review-typed-config-decode.md" target="_blank" rel="noopener">Typed config decode and BGP diff consumption (DESIGN-REVIEW finding 3)</a> (spec-review-typed-config-decode)</td>
+<td>design</td>
+<td>2026-07-06</td>
+<td>-</td>
+<td>spec-unify-config-diff (map-diff dedup, adjacent; closed, learned 1079)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md" target="_blank" rel="noopener">rfc7947-adj-rib-in-accepts-filtered-updates</a> (spec-rfc7947-adj-rib-in-accepts-filtered-updates)</td>
+<td>design</td>
+<td>2026-08-30</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-rpki-invalid-accepted-and-state-policy.md" target="_blank" rel="noopener">rpki-invalid-accepted-and-state-policy</a> (spec-rpki-invalid-accepted-and-state-policy)</td>
+<td>design</td>
+<td>2026-08-30</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-srv6-bestpath-resolvability.md" target="_blank" rel="noopener">srv6-bestpath-resolvability -- SRv6 Service SID Resolvability Before Best-Path</a> (spec-srv6-bestpath-resolvability)</td>
+<td>design</td>
+<td>2026-09-08</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-subscriber-utilisation-has-no-operator-view.md" target="_blank" rel="noopener">subscriber-utilisation-has-no-operator-view</a> (spec-subscriber-utilisation-has-no-operator-view)</td>
+<td>design</td>
+<td>2026-09-09</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-pppoe-subscribers-produce-no-accounting-or-telemetry.md" target="_blank" rel="noopener">plan/immediate/spec-pppoe-subscribers-produce-no-accounting-or-telemetry.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-tombstone-forwarding-policy.md" target="_blank" rel="noopener">tombstone-forwarding-policy</a> (spec-tombstone-forwarding-policy)</td>
+<td>design</td>
+<td>2026-08-07</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-update-block-name-is-the-list-key.md" target="_blank" rel="noopener">update block name is the list key</a> (spec-update-block-name-is-the-list-key)</td>
+<td>design</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-vpp-interface-in-use.md" target="_blank" rel="noopener">vpp-interface-in-use</a> (spec-vpp-interface-in-use)</td>
+<td>design</td>
+<td>2026-08-18</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-vpp-reply-deadline-iface-fib-static.md" target="_blank" rel="noopener">bound the VPP reply wait in iface, fib and static, and report a wedged dataplane</a> (spec-vpp-reply-deadline-iface-fib-static)</td>
+<td>design</td>
+<td>2026-08-11</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bcp194-2-role-policy.md" target="_blank" rel="noopener">BCP 194 child 2 -- peering role drives policy</a> (spec-bcp194-2-role-policy)</td>
+<td>skeleton</td>
+<td>2026-08-08</td>
+<td>-</td>
+<td>spec-bcp194-0-umbrella</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bcp194-3-session.md" target="_blank" rel="noopener">BCP 194 child 3 -- speaker and session hardening</a> (spec-bcp194-3-session)</td>
+<td>skeleton</td>
+<td>2026-08-08</td>
+<td>-</td>
+<td>spec-bcp194-0-umbrella</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bcp194-4-prefix.md" target="_blank" rel="noopener">BCP 194 child 4 -- prefix filtering defaults</a> (spec-bcp194-4-prefix)</td>
+<td>skeleton</td>
+<td>2026-08-08</td>
+<td>-</td>
+<td>spec-bcp194-0-umbrella</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bcp194-6-remaining-rfc8195-functions.md" target="_blank" rel="noopener">BCP 194 child 6 -- the remaining RFC 8195 functions</a> (spec-bcp194-6-remaining-rfc8195-functions)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>spec-bcp194-0-umbrella</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bfd-link-local-peer-zone.md" target="_blank" rel="noopener">bfd-link-local-peer-zone</a> (spec-bfd-link-local-peer-zone)</td>
+<td>skeleton</td>
+<td>2026-09-11</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bgp-link-local-only-next-hop.md" target="_blank" rel="noopener">bgp-link-local-only-next-hop</a> (spec-bgp-link-local-only-next-hop)</td>
+<td>skeleton</td>
+<td>2026-09-01</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bgp-ls-receiver-accept-and-limit-controls.md" target="_blank" rel="noopener">bgp-ls-receiver-accept-and-limit-controls</a> (spec-bgp-ls-receiver-accept-and-limit-controls)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>spec-bgp-ls-receiver-fault-management</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bgp-rib-state-subtree-has-no-producer.md" target="_blank" rel="noopener">bgp-rib-state-subtree-has-no-producer</a> (spec-bgp-rib-state-subtree-has-no-producer)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>spec-improve-2-gnmi-state</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bmp-route-action-redistribute-acts-as-monitor.md" target="_blank" rel="noopener">bmp-route-action-redistribute-acts-as-monitor</a> (spec-bmp-route-action-redistribute-acts-as-monitor)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-config-fmt-preserves-operator-information.md" target="_blank" rel="noopener">config-fmt preserves operator information</a> (spec-config-fmt-preserves-operator-information)</td>
+<td>skeleton</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-config-leaf-consumption-gate.md" target="_blank" rel="noopener">config-leaf-consumption-gate</a> (spec-config-leaf-consumption-gate)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-config-verify-rejects-unknown-keys.md" target="_blank" rel="noopener">config-verify-rejects-unknown-keys</a> (spec-config-verify-rejects-unknown-keys)</td>
+<td>skeleton</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-dataplane-seams-0-umbrella.md" target="_blank" rel="noopener">dataplane-seams-0 -- Backend Neutrality at the Control-Plane / Dataplane Boundary (Umbrella)</a> (spec-dataplane-seams-0-umbrella)</td>
+<td>skeleton</td>
+<td>2026-08-07</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-ddos-baseline-warmup-maturity.md" target="_blank" rel="noopener">ddos-baseline-warmup-maturity</a> (spec-ddos-baseline-warmup-maturity)</td>
+<td>skeleton</td>
+<td>2026-08-15</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-ddos-blind-detector-diagnostic.md" target="_blank" rel="noopener">ddos-blind-detector-diagnostic</a> (spec-ddos-blind-detector-diagnostic)</td>
+<td>skeleton</td>
+<td>2026-08-15</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-ddos-direction-allowlist-deferred-flowspec-withdraw.md" target="_blank" rel="noopener">ddos-direction-allowlist-deferred-flowspec-withdraw -- withdraw on late exemption</a> (spec-ddos-direction-allowlist-deferred-flowspec-withdraw)</td>
+<td>skeleton</td>
+<td>2026-07-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-declared-commands-without-leaves.md" target="_blank" rel="noopener">declared commands take values their command nodes do not declare</a> (spec-declared-commands-without-leaves)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-dhcpv6-client-never-requests-a-delegated-prefix.md" target="_blank" rel="noopener">dhcpv6-client-never-requests-a-delegated-prefix</a> (spec-dhcpv6-client-never-requests-a-delegated-prefix)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-every-binder-root-stops-and-starts-around-an-address-move.md" target="_blank" rel="noopener">every-binder-root-stops-and-starts-around-an-address-move</a> (spec-every-binder-root-stops-and-starts-around-an-address-move)</td>
+<td>skeleton</td>
+<td>2026-09-12</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-fib-vpp-enabled-and-batching-leaves.md" target="_blank" rel="noopener">fib-vpp-enabled-and-batching-leaves</a> (spec-fib-vpp-enabled-and-batching-leaves)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-fixit-ddos-baseline-restore-staleness.md" target="_blank" rel="noopener">a persisted DDoS baseline of any age restores as fully mature</a> (spec-fixit-ddos-baseline-restore-staleness)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-fixit-ddos-frag-flood-family.md" target="_blank" rel="noopener">fixit-ddos-frag-flood-family</a> (spec-fixit-ddos-frag-flood-family)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-fixit-ddos-incident-heartbeat-wiring.md" target="_blank" rel="noopener">fixit-ddos-incident-heartbeat-wiring</a> (spec-fixit-ddos-incident-heartbeat-wiring)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-fixit-ddos-incident-lifecycle-on-teardown.md" target="_blank" rel="noopener">an open DDoS incident is never resolved on teardown</a> (spec-fixit-ddos-incident-lifecycle-on-teardown)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-fixit-ddos-incident-outbound-durability.md" target="_blank" rel="noopener">one failed incident open discards the whole DDoS incident</a> (spec-fixit-ddos-incident-outbound-durability)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-fixit-vpp-vlan-promiscuous.md" target="_blank" rel="noopener">fixit-vpp-vlan-promiscuous</a> (spec-fixit-vpp-vlan-promiscuous)</td>
+<td>skeleton</td>
+<td>2026-08-01</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-fleet-6-config-freeze.md" target="_blank" rel="noopener">fleet-6 -- Config Freeze, Emergency Disable, and Reconnect Safety</a> (spec-fleet-6-config-freeze)</td>
+<td>skeleton</td>
+<td>2026-06-26</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-gnu-option-syntax-across-every-program.md" target="_blank" rel="noopener">gnu-option-syntax-across-every-program</a> (spec-gnu-option-syntax-across-every-program)</td>
+<td>skeleton</td>
+<td>2026-09-12</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-ike-dpd-demand-driven.md" target="_blank" rel="noopener">ike-dpd-demand-driven</a> (spec-ike-dpd-demand-driven)</td>
+<td>skeleton</td>
+<td>2026-08-07</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-ike-fragmentation-rfc7383.md" target="_blank" rel="noopener">ike-fragmentation-rfc7383</a> (spec-ike-fragmentation-rfc7383)</td>
+<td>skeleton</td>
+<td>2026-09-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-ike-responder-eap-preserves-state-on-unauthenticated-input.md" target="_blank" rel="noopener">ike-responder-eap-preserves-state-on-unauthenticated-input</a> (spec-ike-responder-eap-preserves-state-on-unauthenticated-input)</td>
+<td>skeleton</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-ike-virtual-ip-assignment.md" target="_blank" rel="noopener">ike-virtual-ip-assignment</a> (spec-ike-virtual-ip-assignment)</td>
+<td>skeleton</td>
+<td>2026-08-31</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-improve-2-gnmi-state.md" target="_blank" rel="noopener">improve-2 -- Operational-State Providers for gNMI Get</a> (spec-improve-2-gnmi-state)</td>
+<td>skeleton</td>
+<td>2026-07-08</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-improve-5-panic-boundaries.md" target="_blank" rel="noopener">improve-5 -- Panic Containment at Network-Input Task Boundaries</a> (spec-improve-5-panic-boundaries)</td>
+<td>skeleton</td>
+<td>2026-07-08</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-interface-monitor-container-names-no-behavior.md" target="_blank" rel="noopener">interface-monitor-container-names-no-behavior</a> (spec-interface-monitor-container-names-no-behavior)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-ipsec-close-action-and-dpd-action-select-nothing.md" target="_blank" rel="noopener">ipsec-close-action-and-dpd-action-select-nothing</a> (spec-ipsec-close-action-and-dpd-action-select-nothing)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-ipsec-key-exchange-ikev1-runs-ikev2.md" target="_blank" rel="noopener">ipsec-key-exchange-ikev1-runs-ikev2</a> (spec-ipsec-key-exchange-ikev1-runs-ikev2)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-ipsec-vti-bind-installs-if-id-zero.md" target="_blank" rel="noopener">ipsec-vti-bind-installs-if-id-zero</a> (spec-ipsec-vti-bind-installs-if-id-zero)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-ldp-keepalive-expiry-notification.md" target="_blank" rel="noopener">ldp-keepalive-expiry-notification</a> (spec-ldp-keepalive-expiry-notification)</td>
+<td>skeleton</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-ospf-max-metric-startup-shutdown-windows.md" target="_blank" rel="noopener">ospf-max-metric-startup-shutdown-windows</a> (spec-ospf-max-metric-startup-shutdown-windows)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-peer-deactivate-and-bulk-route-purge.md" target="_blank" rel="noopener">peer-deactivate-and-bulk-route-purge</a> (spec-peer-deactivate-and-bulk-route-purge)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-peer-leaves-the-peer-parser-never-reads.md" target="_blank" rel="noopener">peer-leaves-the-peer-parser-never-reads</a> (spec-peer-leaves-the-peer-parser-never-reads)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-reactor-tuning-leaves-reach-no-reader.md" target="_blank" rel="noopener">reactor-tuning-leaves-reach-no-reader</a> (spec-reactor-tuning-leaves-reach-no-reader)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-restore-path-exceeds-create-path.md" target="_blank" rel="noopener">a restore path that does more than the create path</a> (spec-restore-path-exceeds-create-path)</td>
+<td>skeleton</td>
+<td>2026-08-18</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-rfc2545-next-hop-truncated-to-sixteen-bytes.md" target="_blank" rel="noopener">the relayed RFC 2545 next hop, and three more relay gaps</a> (spec-rfc2545-next-hop-truncated-to-sixteen-bytes)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-rfc2545-readvertise-on-condition-flip.md" target="_blank" rel="noopener">an RFC 2545 condition flip leaves the peer with a next hop it cannot resolve</a> (spec-rfc2545-readvertise-on-condition-flip)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-rfc5176-remaining-defect-classes.md" target="_blank" rel="noopener">RFC 5176 residual CoA atomicity and session matching</a> (spec-rfc5176-remaining-defect-classes)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-lifecycle-invariants.md" target="_blank" rel="noopener">plan/immediate/spec-lifecycle-invariants.md</a>` (applied-result contract, AC-3/AC-4; shared design boundary)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-route-source-attribute.md" target="_blank" rel="noopener">route-source-attribute</a> (spec-route-source-attribute)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-rpc-published-name-does-not-reach-its-handler.md" target="_blank" rel="noopener">rpc-published-name-does-not-reach-its-handler</a> (spec-rpc-published-name-does-not-reach-its-handler)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-rpki-cache-preference-and-source-marking.md" target="_blank" rel="noopener">rpki-cache-preference-and-source-marking</a> (spec-rpki-cache-preference-and-source-marking)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-show-bgp-decode-encode-answer-structured-data.md" target="_blank" rel="noopener">show bgp decode and show bgp encode answer text, so no operator chain reaches them</a> (spec-show-bgp-decode-encode-answer-structured-data)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-show-bgp-one-name-for-the-peer-address.md" target="_blank" rel="noopener">show-bgp-one-name-for-the-peer-address</a> (spec-show-bgp-one-name-for-the-peer-address)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-show-bgp-operators-over-identity-keyed-rows.md" target="_blank" rel="noopener">resolve and origin over rows keyed by identity</a> (spec-show-bgp-operators-over-identity-keyed-rows)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>spec-cli-show-bgp-answer-shapes</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-show-bgp-rib-best-row-top-level-fields.md" target="_blank" rel="noopener">show bgp rib best and show bgp rib describe one route differently</a> (spec-show-bgp-rib-best-row-top-level-fields)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-software-version-mode-implements-two-of-four.md" target="_blank" rel="noopener">software-version-mode-implements-two-of-four</a> (spec-software-version-mode-implements-two-of-four)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-srv6-evpn-label-width.md" target="_blank" rel="noopener">srv6-evpn-label-width -- EVPN Label Storage Width for SRv6 Transposition</a> (spec-srv6-evpn-label-width)</td>
+<td>skeleton</td>
+<td>2026-06-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-startup-deferred-reapply-idempotency.md" target="_blank" rel="noopener">startup-deferred-reapply-idempotency</a> (spec-startup-deferred-reapply-idempotency)</td>
+<td>skeleton</td>
+<td>2026-07-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-static-routes-take-the-bgp-group-shape.md" target="_blank" rel="noopener">static routes take the BGP group shape</a> (spec-static-routes-take-the-bgp-group-shape)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>spec-connected-static-reach-the-locrib (owns the arbitration point the new distance leaf needs)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-watchdog-withdraw-read-by-presence.md" target="_blank" rel="noopener">watchdog-withdraw-read-by-presence</a> (spec-watchdog-withdraw-read-by-presence)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-managed-server-hardening.md" target="_blank" rel="noopener">managed-server-hardening</a> (spec-managed-server-hardening)</td>
+<td>blocked</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-rfc4271-med-ibgp-readvertisement.md" target="_blank" rel="noopener">RFC 4271 MED Removal Before IBGP Readvertisement</a> (spec-rfc4271-med-ibgp-readvertisement)</td>
+<td>blocked</td>
+<td>2026-08-17</td>
+<td>5/5</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-rfcgate-1b-rfc7296-pilot-deferred-eap-identifier.md" target="_blank" rel="noopener">rfcgate-1b-rfc7296-pilot-deferred-eap-identifier</a> (spec-rfcgate-1b-rfc7296-pilot-deferred-eap-identifier)</td>
+<td>blocked</td>
+<td>2026-08-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-rfcgate-1b-rfc7296-pilot-deferred-ike-source-address.md" target="_blank" rel="noopener">rfcgate-1b-rfc7296-pilot-deferred-ike-source-address</a> (spec-rfcgate-1b-rfc7296-pilot-deferred-ike-source-address)</td>
+<td>blocked</td>
+<td>2026-08-02</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-traffic-vpp-deferred-reply-timeout.md" target="_blank" rel="noopener">traffic-vpp-deferred-reply-timeout</a> (spec-traffic-vpp-deferred-reply-timeout)</td>
+<td>blocked</td>
+<td>2026-09-19</td>
+<td>6/6</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-fib-p4-leaves-reach-a-noop-backend.md" target="_blank" rel="noopener">fib-p4-leaves-reach-a-noop-backend</a> (spec-fib-p4-leaves-reach-a-noop-backend)</td>
+<td>deferred</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-tunnel-outer-ttl-on-the-vpp-backend.md" target="_blank" rel="noopener">tunnel-outer-ttl-on-the-vpp-backend</a> (spec-tunnel-outer-ttl-on-the-vpp-backend)</td>
+<td>deferred</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h3 id="other-release-obligations-42">Other release obligations (42)</h3>
+<table>
+<thead>
+<tr>
+<th>Work item</th>
+<th>Status</th>
+<th>Updated</th>
+<th>Phase</th>
+<th>Dependencies</th>
+<th>Diagnostics</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-evidence-gate.md" target="_blank" rel="noopener">release-evidence-gate</a> (spec-release-evidence-gate)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-site-renderers-in-go.md" target="_blank" rel="noopener">site renderers in Go</a> (spec-site-renderers-in-go)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>10/10</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-storage-1-backend-parity.md" target="_blank" rel="noopener">storage-1-backend-parity</a> (spec-storage-1-backend-parity)</td>
+<td>in-progress</td>
+<td>2026-09-17</td>
+<td>7/7: publication and verification handoff</td>
+<td>- (owner ordering of 2026-09-16 named `path-mtu-diagnostic`; it closed on main at `6cfeef34ad` the same day)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-rfcgate-2-deferred-unrun-interop-trees.md" target="_blank" rel="noopener">rfcgate-2-deferred-unrun-interop-trees</a> (spec-rfcgate-2-deferred-unrun-interop-trees)</td>
+<td>ready</td>
+<td>2026-08-01</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-storage-3-content-addressed-history.md" target="_blank" rel="noopener">storage-3-content-addressed-history</a> (spec-storage-3-content-addressed-history)</td>
+<td>ready</td>
+<td>2026-09-18</td>
+<td>-</td>
+<td>storage-1-backend-parity, storage-2-blob-artifact</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-a-gate-reports-the-population-it-judged.md" target="_blank" rel="noopener">a gate reports the population it judged</a> (spec-a-gate-reports-the-population-it-judged)</td>
+<td>design</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-bgp-ls-origination-and-the-scheduled-marker.md" target="_blank" rel="noopener">bgp-ls-origination-and-the-scheduled-marker</a> (spec-bgp-ls-origination-and-the-scheduled-marker)</td>
+<td>design</td>
+<td>2026-08-26</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-0-umbrella.md" target="_blank" rel="noopener">release-audit-0-umbrella</a> (spec-release-audit-0-umbrella)</td>
+<td>design</td>
+<td>2026-05-24</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-evidence-gate.md" target="_blank" rel="noopener">spec-release-evidence-gate.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-1-surface-inventory.md" target="_blank" rel="noopener">release-audit-1-surface-inventory</a> (spec-release-audit-1-surface-inventory)</td>
+<td>design</td>
+<td>2026-05-24</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-0-umbrella.md" target="_blank" rel="noopener">spec-release-audit-0-umbrella.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-2-bgp-protocol.md" target="_blank" rel="noopener">release-audit-2-bgp-protocol</a> (spec-release-audit-2-bgp-protocol)</td>
+<td>design</td>
+<td>2026-05-25</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-1-surface-inventory.md" target="_blank" rel="noopener">spec-release-audit-1-surface-inventory.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-8-docs-onboarding.md" target="_blank" rel="noopener">release-audit-8-docs-onboarding</a> (spec-release-audit-8-docs-onboarding)</td>
+<td>design</td>
+<td>2026-05-25</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-1-surface-inventory.md" target="_blank" rel="noopener">spec-release-audit-1-surface-inventory.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-distribution.md" target="_blank" rel="noopener">release-distribution</a> (spec-release-distribution)</td>
+<td>design</td>
+<td>2026-07-10</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-evidence-gate.md" target="_blank" rel="noopener">spec-release-evidence-gate.md</a>`, `<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-0-umbrella.md" target="_blank" rel="noopener">spec-release-audit-0-umbrella.md</a>`</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-rfc-evidence-deferred-unbootable-suite-musts.md" target="_blank" rel="noopener">rfc-evidence-deferred-unbootable-suite-musts</a> (spec-rfc-evidence-deferred-unbootable-suite-musts)</td>
+<td>design</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-storage-2-blob-artifact.md" target="_blank" rel="noopener">storage-2-blob-artifact</a> (spec-storage-2-blob-artifact)</td>
+<td>design</td>
+<td>2026-09-18</td>
+<td>-</td>
+<td>storage-1-backend-parity</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-a-test-passes-at-any-concurrency.md" target="_blank" rel="noopener">a-test-passes-at-any-concurrency</a> (spec-a-test-passes-at-any-concurrency)</td>
+<td>skeleton</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-eor-treats-route-processes-as-peers.md" target="_blank" rel="noopener">eor-treats-route-processes-as-peers</a> (spec-eor-treats-route-processes-as-peers)</td>
+<td>skeleton</td>
+<td>2026-09-18</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-finish-appliance-qemu-evidence.md" target="_blank" rel="noopener">finish-appliance-qemu-evidence</a> (spec-finish-appliance-qemu-evidence)</td>
+<td>skeleton</td>
+<td>2026-07-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-finish-l2tp.md" target="_blank" rel="noopener">finish-l2tp</a> (spec-finish-l2tp)</td>
+<td>skeleton</td>
+<td>2026-08-07</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-fixit-version-cannot-identify-a-build.md" target="_blank" rel="noopener">container build provenance</a> (spec-fixit-version-cannot-identify-a-build)</td>
+<td>skeleton</td>
+<td>2026-08-18</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-followup-rfc-enrollment.md" target="_blank" rel="noopener">followup-rfc-enrollment</a> (spec-followup-rfc-enrollment)</td>
+<td>skeleton</td>
+<td>2026-07-17</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-gokrazy-builddir-tmp-deferred-build-flow-unification.md" target="_blank" rel="noopener">gokrazy-builddir-tmp-deferred-build-flow-unification</a> (spec-gokrazy-builddir-tmp-deferred-build-flow-unification)</td>
+<td>skeleton</td>
+<td>2026-07-23</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-interop-suite-red.md" target="_blank" rel="noopener">interop-suite-red -- resolve the recorded interop failures and their evidence gaps</a> (spec-interop-suite-red)</td>
+<td>skeleton</td>
+<td>2026-08-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-ipsec-nat-transport-runs-on-the-runtime-kernel.md" target="_blank" rel="noopener">ipsec-nat-transport-runs-on-the-runtime-kernel</a> (spec-ipsec-nat-transport-runs-on-the-runtime-kernel)</td>
+<td>skeleton</td>
+<td>2026-09-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-prefix-count-installed-proven-against-a-real-peer.md" target="_blank" rel="noopener">prefix-count-installed-proven-against-a-real-peer</a> (spec-prefix-count-installed-proven-against-a-real-peer)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-3-config-cli.md" target="_blank" rel="noopener">release-audit-3-config-cli</a> (spec-release-audit-3-config-cli)</td>
+<td>skeleton</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-1-surface-inventory.md" target="_blank" rel="noopener">spec-release-audit-1-surface-inventory.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-4-web-lg-api.md" target="_blank" rel="noopener">release-audit-4-web-lg-api</a> (spec-release-audit-4-web-lg-api)</td>
+<td>skeleton</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-1-surface-inventory.md" target="_blank" rel="noopener">spec-release-audit-1-surface-inventory.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-5-plugins-rib.md" target="_blank" rel="noopener">release-audit-5-plugins-rib</a> (spec-release-audit-5-plugins-rib)</td>
+<td>skeleton</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-1-surface-inventory.md" target="_blank" rel="noopener">spec-release-audit-1-surface-inventory.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-6-system-linux.md" target="_blank" rel="noopener">release-audit-6-system-linux</a> (spec-release-audit-6-system-linux)</td>
+<td>skeleton</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-1-surface-inventory.md" target="_blank" rel="noopener">spec-release-audit-1-surface-inventory.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-7-resilience-security.md" target="_blank" rel="noopener">release-audit-7-resilience-security</a> (spec-release-audit-7-resilience-security)</td>
+<td>skeleton</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-release-audit-1-surface-inventory.md" target="_blank" rel="noopener">spec-release-audit-1-surface-inventory.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-rfc-evidence-deferred-ike-eap-tranche.md" target="_blank" rel="noopener">rfc-evidence-deferred-ike-eap-tranche</a> (spec-rfc-evidence-deferred-ike-eap-tranche)</td>
+<td>skeleton</td>
+<td>2026-08-03</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-rfc-evidence-deferred-isis-rsvpte-ldp-tranche.md" target="_blank" rel="noopener">rfc-evidence-deferred-isis-rsvpte-ldp-tranche</a> (spec-rfc-evidence-deferred-isis-rsvpte-ldp-tranche)</td>
+<td>skeleton</td>
+<td>2026-08-03</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-rfc-extraction-boilerplate-split-loses-an-obligation.md" target="_blank" rel="noopener">rfc-extraction-boilerplate-split-loses-an-obligation</a> (spec-rfc-extraction-boilerplate-split-loses-an-obligation)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-rfc-ledger-gap-count-reader.md" target="_blank" rel="noopener">the RFC ledger reads a gap count only when it is spelled</a> (spec-rfc-ledger-gap-count-reader)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-rfc-ledger-rows-for-the-thirty-two-undeclared.md" target="_blank" rel="noopener">rfc-ledger-rows-for-the-thirty-two-undeclared</a> (spec-rfc-ledger-rows-for-the-thirty-two-undeclared)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-rfc-requirement-reattribution.md" target="_blank" rel="noopener">rfc-requirement-reattribution</a> (spec-rfc-requirement-reattribution)</td>
+<td>skeleton</td>
+<td>2026-09-01</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-rfc3748-undeclared-met-obligations.md" target="_blank" rel="noopener">fourteen RFC 3748 obligations Ze meets and does not declare</a> (spec-rfc3748-undeclared-met-obligations)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>spec-rfcgate-6-supported-extraction-signoff</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-rfc4861-rfc8106-enrolment.md" target="_blank" rel="noopener">rfc4861-rfc8106-enrolment</a> (spec-rfc4861-rfc8106-enrolment)</td>
+<td>skeleton</td>
+<td>2026-09-07</td>
+<td>0/1</td>
+<td>- (was `spec-router-advertisement`, delivered and closed 2026-09-07)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-rfcgate-5-should-level.md" target="_blank" rel="noopener">rfcgate-5-should-level</a> (spec-rfcgate-5-should-level)</td>
+<td>skeleton</td>
+<td>2026-08-04</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-followup-rfc-enrollment.md" target="_blank" rel="noopener">plan/pre-release/spec-followup-rfc-enrollment.md</a>` (MUST-level enrolment milestone defined below)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-test-synchronisation-is-a-fence-never-a-clock.md" target="_blank" rel="noopener">test-synchronisation-is-a-fence-never-a-clock</a> (spec-test-synchronisation-is-a-fence-never-a-clock)</td>
+<td>skeleton</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-ze-config-fmt.md" target="_blank" rel="noopener">ze-config-fmt</a> (spec-ze-config-fmt)</td>
+<td>skeleton</td>
+<td>2026-08-15</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-config-fmt-preserves-operator-information.md" target="_blank" rel="noopener">spec-config-fmt-preserves-operator-information.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-rfcgate-1b-rfc7296-pilot-deferred-child-rekey-refusal-proof.md" target="_blank" rel="noopener">rfcgate-1b-rfc7296-pilot-deferred-child-rekey-refusal-proof</a> (spec-rfcgate-1b-rfc7296-pilot-deferred-child-rekey-refusal-proof)</td>
+<td>blocked</td>
+<td>2026-08-05</td>
+<td>-</td>
+<td>- (live-SA versus test-seam design decision remains blocked below)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/pre-release/spec-rfcgate-6-supported-extraction-signoff.md" target="_blank" rel="noopener">rfcgate-6-supported-extraction-signoff</a> (spec-rfcgate-6-supported-extraction-signoff)</td>
+<td>blocked</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md" target="_blank" rel="noopener">plan/immediate/spec-rfc7947-adj-rib-in-accepts-filtered-updates.md</a>` (RFC 7947 implementation/sign-off slice)</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="nice-to-haves">Nice-to-haves</h2>
+<p>The first release can ship without these items; no later delivery date is implied.</p>
+<h3 id="optional-work-183">Optional work (183)</h3>
+<table>
+<thead>
+<tr>
+<th>Work item</th>
+<th>Status</th>
+<th>Updated</th>
+<th>Phase</th>
+<th>Dependencies</th>
+<th>Diagnostics</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ci-parser-refuses-an-assertion-key-it-does-not-read.md" target="_blank" rel="noopener">the generic .ci parser refuses an assertion key it does not read</a> (spec-ci-parser-refuses-an-assertion-key-it-does-not-read)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-commit-message-file-carries-its-own-suffix.md" target="_blank" rel="noopener">a prepared commit's message file carries its own random suffix</a> (spec-commit-message-file-carries-its-own-suffix)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-commit-stages-in-a-private-index.md" target="_blank" rel="noopener">a prepared commit stages in a private index over a snapshot</a> (spec-commit-stages-in-a-private-index)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ledger-shards-per-commit-session.md" target="_blank" rel="noopener">plan/spec-ledger-shards-per-commit-session.md</a>` (both touch `internal/le/commit/prepare.go`)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-crash-capture.md" target="_blank" rel="noopener">crash-capture</a> (spec-crash-capture)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>7/8</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fixit-flap-test-cannot-build-its-own-stimulus.md" target="_blank" rel="noopener">the link-flap test cannot build the stimulus it exists to measure</a> (spec-fixit-flap-test-cannot-build-its-own-stimulus)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fixit-plugin-concurrency-is-pinned-to-a-ci-constant.md" target="_blank" rel="noopener">fixit-plugin-concurrency-is-pinned-to-a-ci-constant</a> (spec-fixit-plugin-concurrency-is-pinned-to-a-ci-constant)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>3/4</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fixit-unexport-package-private-symbols.md" target="_blank" rel="noopener">fixit-unexport-package-private-symbols</a> (spec-fixit-unexport-package-private-symbols)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>7/8</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-interop-image-copies-a-prebuilt-ze.md" target="_blank" rel="noopener">interop image copies a prebuilt ze</a> (spec-interop-image-copies-a-prebuilt-ze)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ipsec-esp-dual-form-receive.md" target="_blank" rel="noopener">ipsec-esp-dual-form-receive</a> (spec-ipsec-esp-dual-form-receive)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>5/5</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ipsec-rfc9190.md" target="_blank" rel="noopener">ipsec-rfc9190</a> (spec-ipsec-rfc9190)</td>
+<td>in-progress</td>
+<td>2026-09-08</td>
+<td>8/8</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ledger-shards-per-commit-session.md" target="_blank" rel="noopener">the two test ledgers become one shard per commit session</a> (spec-ledger-shards-per-commit-session)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-password-weakness-warning.md" target="_blank" rel="noopener">password-weakness-warning</a> (spec-password-weakness-warning)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>5/6</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-perf-next-0-umbrella.md" target="_blank" rel="noopener">perf-next-0-umbrella -- Third Hot-Path Optimization Round</a> (spec-perf-next-0-umbrella)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>5/5</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-plugin-query-mode.md" target="_blank" rel="noopener">plugin-query-mode</a> (spec-plugin-query-mode)</td>
+<td>in-progress</td>
+<td>2026-09-08</td>
+<td>5/5</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-route-config-plugin-migration.md" target="_blank" rel="noopener">route-config-plugin-migration</a> (spec-route-config-plugin-migration)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>5/8</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-test-parse-ci-parser-refuses-an-unread-directive.md" target="_blank" rel="noopener">the test/parse .ci parser refuses a directive it does not read</a> (spec-test-parse-ci-parser-refuses-an-unread-directive)</td>
+<td>in-progress</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ci-parser-refuses-an-assertion-key-it-does-not-read.md" target="_blank" rel="noopener">plan/spec-ci-parser-refuses-an-assertion-key-it-does-not-read.md</a>` (landed at `8c7f0a5bf2`, which set the vocabulary this one adopts)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-verify-scope-5-suite-coverage-map.md" target="_blank" rel="noopener">verify-scope-5-suite-coverage-map</a> (spec-verify-scope-5-suite-coverage-map)</td>
+<td>in-progress</td>
+<td>2026-09-07</td>
+<td>5/5</td>
+<td>spec-verify-scope-2-change-set-selector (closed 2026-09-05; the selector is `internal/le/changed/selector.go` and `docs/architecture/testing/verify-freshness-scope.md`)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-release-roadmap.md" target="_blank" rel="noopener">Release roadmap for the repository, website, and weekly news</a> (spec-release-roadmap)</td>
+<td>verification</td>
+<td>2026-09-20</td>
+<td>5/5</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-anomaly-0-umbrella.md" target="_blank" rel="noopener">Behavioral Security Anomaly Detection (Umbrella)</a> (spec-anomaly-0-umbrella)</td>
+<td>ready</td>
+<td>2026-07-02</td>
+<td>-</td>
+<td>1046 (traffic-analysis), 1048 (anomaly-1-detect), 1049 (anomaly-2-shape)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-anomaly-7-as-entities-cohorts.md" target="_blank" rel="noopener">Anomaly Child 7 -- Per-ASN Entities &amp; AS-Origin Cohort Rarity</a> (spec-anomaly-7-as-entities-cohorts)</td>
+<td>ready</td>
+<td>2026-07-02</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-bgp-decode-render.md" target="_blank" rel="noopener">bgp-decode-render -- one ordered description tree for decoded BGP messages</a> (spec-bgp-decode-render)</td>
+<td>ready</td>
+<td>2026-08-15</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fixit-netns-test-dut-tags.md" target="_blank" rel="noopener">fixit-netns-test-dut-tags</a> (spec-fixit-netns-test-dut-tags)</td>
+<td>ready</td>
+<td>2026-08-14</td>
+<td>0/2 (research)</td>
+<td>—</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fixit-private-asn-leak-deferred-ebgp-auto-filters.md" target="_blank" rel="noopener">fixit-private-asn-leak-deferred-ebgp-auto-filters</a> (spec-fixit-private-asn-leak-deferred-ebgp-auto-filters)</td>
+<td>ready</td>
+<td>2026-08-14</td>
+<td>-</td>
+<td>- (but SEQUENCES against three in-progress specs -- see "Convergence")</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-improve-4-conformance-fixtures.md" target="_blank" rel="noopener">improve-4 -- File-Driven Protocol Conformance Fixtures</a> (spec-improve-4-conformance-fixtures)</td>
+<td>ready</td>
+<td>2026-07-10</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-improve-6-yang-coverage.md" target="_blank" rel="noopener">improve-6 -- YANG Coverage Report</a> (spec-improve-6-yang-coverage)</td>
+<td>ready</td>
+<td>2026-07-10</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-improve-8-fuzz-decode-context.md" target="_blank" rel="noopener">improve-8 -- Fuzz the Negotiated-Capability Decode Space</a> (spec-improve-8-fuzz-decode-context)</td>
+<td>ready</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ipsec-12-esn.md" target="_blank" rel="noopener">ipsec-12-esn -- Extended Sequence Numbers (ESN) for ESP Child SAs</a> (spec-ipsec-12-esn)</td>
+<td>ready</td>
+<td>2026-06-20</td>
+<td>-</td>
+<td>spec-ipsec-0-umbrella (native IKEv2 engine, XFRM/VPP dataplane)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-le-command-namespaces.md" target="_blank" rel="noopener">le-command-namespaces</a> (spec-le-command-namespaces)</td>
+<td>ready</td>
+<td>2026-08-28</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ospf-ext-0-umbrella.md" target="_blank" rel="noopener">ospf-ext-0 -- OSPF Extensions (Umbrella, both address families)</a> (spec-ospf-ext-0-umbrella)</td>
+<td>ready</td>
+<td>2026-06-24</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ospf-ext-13-l3vpn-dn-bit.md" target="_blank" rel="noopener">spec-ospf-ext-13-l3vpn-dn-bit.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-rename-0-umbrella.md" target="_blank" rel="noopener">rename-0-umbrella -- retire the legacy package names</a> (spec-rename-0-umbrella)</td>
+<td>ready</td>
+<td>2026-07-08</td>
+<td>0/3</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-rename-1-ike-packet.md" target="_blank" rel="noopener">rename-1-ike-packet -- rename ike/wire to ike/packet</a> (spec-rename-1-ike-packet)</td>
+<td>ready</td>
+<td>2026-07-08</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-rename-2-bgp-packet.md" target="_blank" rel="noopener">rename-2-bgp-packet -- rename bgp/message to bgp/packet</a> (spec-rename-2-bgp-packet)</td>
+<td>ready</td>
+<td>2026-07-22</td>
+<td>-</td>
+<td>spec-rib-arch-0-umbrella.md (closed, learned 1128)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-bgp-deferred-confederation-otc.md" target="_blank" rel="noopener">bgp-deferred-confederation-otc</a> (spec-bgp-deferred-confederation-otc)</td>
+<td>design</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-bgp-evpn-route-type-match.md" target="_blank" rel="noopener">bgp-evpn-route-type-match</a> (spec-bgp-evpn-route-type-match)</td>
+<td>design</td>
+<td>2026-07-04</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-bgp-remote-as-auto.md" target="_blank" rel="noopener">bgp-remote-as-auto</a> (spec-bgp-remote-as-auto)</td>
+<td>design</td>
+<td>2026-07-04</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-bridge-disable-learning.md" target="_blank" rel="noopener">bridge-disable-learning</a> (spec-bridge-disable-learning)</td>
+<td>design</td>
+<td>2026-07-04</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-cmd-deprecation.md" target="_blank" rel="noopener">cmd-deprecation</a> (spec-cmd-deprecation)</td>
+<td>design</td>
+<td>2026-05-21</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-dhcp-log-level.md" target="_blank" rel="noopener">dhcp-log-level</a> (spec-dhcp-log-level)</td>
+<td>design</td>
+<td>2026-07-03</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-eap-tls-authenticator-empty-message-guard.md" target="_blank" rel="noopener">eap-tls-authenticator-empty-message-guard</a> (spec-eap-tls-authenticator-empty-message-guard)</td>
+<td>design</td>
+<td>2026-08-10</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-filter-wire-0-umbrella.md" target="_blank" rel="noopener">filter-wire-0-umbrella -- Wire-native filter-chain IPC (remove the text round-trip)</a> (spec-filter-wire-0-umbrella)</td>
+<td>design</td>
+<td>2026-07-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-finish-vpp-stub.md" target="_blank" rel="noopener">finish-vpp-stub</a> (spec-finish-vpp-stub)</td>
+<td>design</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-firewall-prefix-normalize.md" target="_blank" rel="noopener">firewall-prefix-normalize</a> (spec-firewall-prefix-normalize)</td>
+<td>design</td>
+<td>2026-07-04</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-firewall-remote-group.md" target="_blank" rel="noopener">firewall-remote-group</a> (spec-firewall-remote-group)</td>
+<td>design</td>
+<td>2026-09-02</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fixit-bgp-off-plugin-functional.md" target="_blank" rel="noopener">fixit-bgp-off-plugin-functional</a> (spec-fixit-bgp-off-plugin-functional)</td>
+<td>design</td>
+<td>2026-07-22</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fixit-functional-suite-pins-the-unshipped-backend.md" target="_blank" rel="noopener">fixit-functional-suite-pins-the-unshipped-backend</a> (spec-fixit-functional-suite-pins-the-unshipped-backend)</td>
+<td>design</td>
+<td>2026-08-28</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fleet-0-umbrella.md" target="_blank" rel="noopener">fleet-0 -- Fleet Management (Umbrella)</a> (spec-fleet-0-umbrella)</td>
+<td>design</td>
+<td>2026-05-15</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-hardware-watchdog.md" target="_blank" rel="noopener">hardware-watchdog</a> (spec-hardware-watchdog)</td>
+<td>design</td>
+<td>2026-07-04</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ike-ppk.md" target="_blank" rel="noopener">ike-ppk</a> (spec-ike-ppk)</td>
+<td>design</td>
+<td>2026-07-04</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ike-reauth.md" target="_blank" rel="noopener">ike-reauth</a> (spec-ike-reauth)</td>
+<td>design</td>
+<td>2026-07-03</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-install-9-cloud-init.md" target="_blank" rel="noopener">Cloud-Init for Gokrazy Appliance</a> (spec-install-9-cloud-init)</td>
+<td>design</td>
+<td>2026-06-03</td>
+<td>RESEARCH</td>
+<td>spec-install-8-appliance-iso (completed; closed, learned 854)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ipsec-11-mobike.md" target="_blank" rel="noopener">ipsec-11 -- MOBIKE (RFC 4555)</a> (spec-ipsec-11-mobike)</td>
+<td>design</td>
+<td>2026-05-21</td>
+<td>-</td>
+<td>ipsec-8 (Child SA/XFRM), ipsec-9 (NAT-T)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ipsec-lifetime-volume.md" target="_blank" rel="noopener">ipsec-lifetime-volume</a> (spec-ipsec-lifetime-volume)</td>
+<td>design</td>
+<td>2026-07-04</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ipsec-vpp-policy-interface.md" target="_blank" rel="noopener">ipsec-vpp-policy-interface</a> (spec-ipsec-vpp-policy-interface)</td>
+<td>design</td>
+<td>2026-08-10</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-isis-spf-lsp-timers.md" target="_blank" rel="noopener">isis-spf-lsp-timers</a> (spec-isis-spf-lsp-timers)</td>
+<td>design</td>
+<td>2026-07-04</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-kernel-lockdown-hardening.md" target="_blank" rel="noopener">kernel-lockdown-hardening</a> (spec-kernel-lockdown-hardening)</td>
+<td>design</td>
+<td>2026-06-30</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-knowledge-routing.md" target="_blank" rel="noopener">knowledge-routing</a> (spec-knowledge-routing)</td>
+<td>design</td>
+<td>2026-08-03</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-liveness-event-tears-down-bgp-peer.md" target="_blank" rel="noopener">liveness-event-tears-down-bgp-peer</a> (spec-liveness-event-tears-down-bgp-peer)</td>
+<td>design</td>
+<td>2026-09-07</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-login-service-authorisation.md" target="_blank" rel="noopener">login-service authorisation, a named set of doors an account may use</a> (spec-login-service-authorisation)</td>
+<td>design</td>
+<td>2026-08-11</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-pol-0-umbrella.md" target="_blank" rel="noopener">Structured Policy Language Umbrella</a> (spec-pol-0-umbrella)</td>
+<td>design</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-review-plugin-registration-manifest.md" target="_blank" rel="noopener">Plugin hook manifest and single YANG declaration (DESIGN-REVIEW finding 8)</a> (spec-review-plugin-registration-manifest)</td>
+<td>design</td>
+<td>2026-07-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ssh-fido2-keys.md" target="_blank" rel="noopener">ssh-fido2-keys</a> (spec-ssh-fido2-keys)</td>
+<td>design</td>
+<td>2026-08-16</td>
+<td>-</td>
+<td>`spec-ssh-optional-composition` (closed)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-vrf-0-umbrella.md" target="_blank" rel="noopener">vrf-0 -- VRF as first-class organising principle (Umbrella)</a> (spec-vrf-0-umbrella)</td>
+<td>design</td>
+<td>2026-04-15</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-web-plugin-extension-registry.md" target="_blank" rel="noopener">web-plugin-extension-registry</a> (spec-web-plugin-extension-registry)</td>
+<td>design</td>
+<td>2026-09-11</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ze-website-0-umbrella.md" target="_blank" rel="noopener">ze-website-0 -- Browser CLI and Protocol Lab (Umbrella)</a> (spec-ze-website-0-umbrella)</td>
+<td>design</td>
+<td>2026-08-17</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-apply-refuses-to-destroy-live-session-state.md" target="_blank" rel="noopener">an apply that would destroy live session state must refuse</a> (spec-apply-refuses-to-destroy-live-session-state)</td>
+<td>skeleton</td>
+<td>2026-08-18</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-bcp194-5-damping.md" target="_blank" rel="noopener">BCP 194 child 5 -- route flap dampening position</a> (spec-bcp194-5-damping)</td>
+<td>skeleton</td>
+<td>2026-08-08</td>
+<td>-</td>
+<td>spec-bcp194-0-umbrella</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-bgp-deferred-community-name-leaf.md" target="_blank" rel="noopener">bgp-deferred-community-name-leaf</a> (spec-bgp-deferred-community-name-leaf)</td>
+<td>skeleton</td>
+<td>2026-07-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-bgp-pcap-decode-real-capture-fixture.md" target="_blank" rel="noopener">bgp-pcap-decode-real-capture-fixture -- prove the reader on bytes a network produced</a> (spec-bgp-pcap-decode-real-capture-fixture)</td>
+<td>skeleton</td>
+<td>2026-09-08</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-bgp-peer-metric-labels.md" target="_blank" rel="noopener">bgp-peer-metric-labels</a> (spec-bgp-peer-metric-labels)</td>
+<td>skeleton</td>
+<td>2026-08-01</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-bgp-vpn-attr-set.md" target="_blank" rel="noopener">bgp-vpn-attr-set</a> (spec-bgp-vpn-attr-set)</td>
+<td>skeleton</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-blackhole-authorization-from-irr.md" target="_blank" rel="noopener">blackhole-authorization-from-irr</a> (spec-blackhole-authorization-from-irr)</td>
+<td>skeleton</td>
+<td>2026-08-13</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-changed-source-to-functional-suite-map.md" target="_blank" rel="noopener">changed-source functional-suite coverage and CI consumption</a> (spec-changed-source-to-functional-suite-map)</td>
+<td>skeleton</td>
+<td>2026-08-18</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-verify-scope-5-suite-coverage-map.md" target="_blank" rel="noopener">plan/spec-verify-scope-5-suite-coverage-map.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ci-coverage-remaining-surfaces.md" target="_blank" rel="noopener">ci-coverage-remaining-surfaces</a> (spec-ci-coverage-remaining-surfaces)</td>
+<td>skeleton</td>
+<td>2026-08-17</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ci-peer-harness-contract-backlog.md" target="_blank" rel="noopener">ci-peer-harness-contract-backlog</a> (spec-ci-peer-harness-contract-backlog)</td>
+<td>skeleton</td>
+<td>2026-08-23</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-cli-operator-defined-aliases.md" target="_blank" rel="noopener">cli-operator-defined-aliases</a> (spec-cli-operator-defined-aliases)</td>
+<td>skeleton</td>
+<td>2026-08-19</td>
+<td>0/1</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-cli-pipe-column-modifiers.md" target="_blank" rel="noopener">cli-pipe-column-modifiers</a> (spec-cli-pipe-column-modifiers)</td>
+<td>skeleton</td>
+<td>2026-08-19</td>
+<td>0/1</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-cli-retired-command-hint.md" target="_blank" rel="noopener">cli-retired-command-hint</a> (spec-cli-retired-command-hint)</td>
+<td>skeleton</td>
+<td>2026-08-21</td>
+<td>0/1</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-code-can-land-with-no-design-doc.md" target="_blank" rel="noopener">code-can-land-with-no-design-doc</a> (spec-code-can-land-with-no-design-doc)</td>
+<td>skeleton</td>
+<td>2026-08-09</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-config-at-rest-encryption.md" target="_blank" rel="noopener">config-at-rest-encryption</a> (spec-config-at-rest-encryption)</td>
+<td>skeleton</td>
+<td>2026-08-01</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-config-operation-oldconfig-has-no-reader.md" target="_blank" rel="noopener">config-operation-oldconfig-has-no-reader</a> (spec-config-operation-oldconfig-has-no-reader)</td>
+<td>skeleton</td>
+<td>2026-09-12</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-connection-management-command.md" target="_blank" rel="noopener">an operator command to list, re-check and close live connections</a> (spec-connection-management-command)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-crypto-policy.md" target="_blank" rel="noopener">crypto-policy</a> (spec-crypto-policy)</td>
+<td>skeleton</td>
+<td>2026-08-01</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-dataplane-seams-1-route-type-numbering.md" target="_blank" rel="noopener">dataplane-seams-1 -- Route Type Values Independent of Linux (Skeleton)</a> (spec-dataplane-seams-1-route-type-numbering)</td>
+<td>skeleton</td>
+<td>2026-08-07</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-dataplane-seams-0-umbrella.md" target="_blank" rel="noopener">plan/immediate/spec-dataplane-seams-0-umbrella.md</a>` (finding F-1)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-dataplane-seams-2-backend-typed-index.md" target="_blank" rel="noopener">dataplane-seams-2 -- The Resolved Interface Index Carries Its Dataplane (Skeleton)</a> (spec-dataplane-seams-2-backend-typed-index)</td>
+<td>skeleton</td>
+<td>2026-08-07</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-dataplane-seams-0-umbrella.md" target="_blank" rel="noopener">plan/immediate/spec-dataplane-seams-0-umbrella.md</a>` (finding F-2)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-dataplane-seams-3-route-egress-interface.md" target="_blank" rel="noopener">dataplane-seams-3 -- Egress Interface on the Route Event (Skeleton)</a> (spec-dataplane-seams-3-route-egress-interface)</td>
+<td>skeleton</td>
+<td>2026-08-07</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-dataplane-seams-0-umbrella.md" target="_blank" rel="noopener">plan/immediate/spec-dataplane-seams-0-umbrella.md</a>` (finding F-3)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-dataplane-seams-4-control-packet-rx.md" target="_blank" rel="noopener">dataplane-seams-4 -- Shared Control-Packet Receive Path: Decide Whether One Should Exist (Skeleton)</a> (spec-dataplane-seams-4-control-packet-rx)</td>
+<td>skeleton</td>
+<td>2026-08-07</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-dataplane-seams-0-umbrella.md" target="_blank" rel="noopener">plan/immediate/spec-dataplane-seams-0-umbrella.md</a>` (finding F-4)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-dataplane-seams-5-copp-non-tcp.md" target="_blank" rel="noopener">dataplane-seams-5 -- Control-Plane Policing Beyond TCP (Skeleton)</a> (spec-dataplane-seams-5-copp-non-tcp)</td>
+<td>skeleton</td>
+<td>2026-08-07</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-dataplane-seams-0-umbrella.md" target="_blank" rel="noopener">plan/immediate/spec-dataplane-seams-0-umbrella.md</a>` (finding F-5)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ddos-direction-allowlist-deferred-per-source-drop-term.md" target="_blank" rel="noopener">ddos-direction-allowlist-deferred-per-source-drop-term -- carve the drop by source</a> (spec-ddos-direction-allowlist-deferred-per-source-drop-term)</td>
+<td>skeleton</td>
+<td>2026-07-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ddos-per-destination-detection.md" target="_blank" rel="noopener">ddos-per-destination-detection</a> (spec-ddos-per-destination-detection)</td>
+<td>skeleton</td>
+<td>2026-08-15</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ddos-show-hook.md" target="_blank" rel="noopener">spec-ddos-show-hook (title unavailable)</a> (spec-ddos-show-hook)</td>
+<td>skeleton</td>
+<td>2026-07-16</td>
+<td>-</td>
+<td>-</td>
+<td>title unavailable</td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-dhcp-pool-options.md" target="_blank" rel="noopener">dhcp-pool-options</a> (spec-dhcp-pool-options)</td>
+<td>skeleton</td>
+<td>2026-07-10</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-dhcpv6-server.md" target="_blank" rel="noopener">dhcpv6-server</a> (spec-dhcpv6-server)</td>
+<td>skeleton</td>
+<td>2026-07-03</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-doctor-codes-move-to-their-owners.md" target="_blank" rel="noopener">doctor codes move to their owners</a> (spec-doctor-codes-move-to-their-owners)</td>
+<td>skeleton</td>
+<td>2026-09-14</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-eap-tls-anonymous-nai.md" target="_blank" rel="noopener">eap-tls-anonymous-nai</a> (spec-eap-tls-anonymous-nai)</td>
+<td>skeleton</td>
+<td>2026-08-12</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fail-open-call-site-drain.md" target="_blank" rel="noopener">fail-open-call-site-drain</a> (spec-fail-open-call-site-drain)</td>
+<td>skeleton</td>
+<td>2026-08-14</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-finish-report-bus.md" target="_blank" rel="noopener">finish-report-bus</a> (spec-finish-report-bus)</td>
+<td>skeleton</td>
+<td>2026-07-06</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-finish-web-cli-ux.md" target="_blank" rel="noopener">finish-web-cli-ux</a> (spec-finish-web-cli-ux)</td>
+<td>skeleton</td>
+<td>2026-07-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fixit-parse-suite-helper-cannot-invoke-ze.md" target="_blank" rel="noopener">fixit-parse-suite-helper-cannot-invoke-ze</a> (spec-fixit-parse-suite-helper-cannot-invoke-ze)</td>
+<td>skeleton</td>
+<td>2026-08-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fixit-rfc-summary-protocol-only-rule-contradicts-annotations.md" target="_blank" rel="noopener">fixit-rfc-summary-protocol-only-rule-contradicts-annotations</a> (spec-fixit-rfc-summary-protocol-only-rule-contradicts-annotations)</td>
+<td>skeleton</td>
+<td>2026-08-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fixit-sleeps-qemu-bulk.md" target="_blank" rel="noopener">fixit-sleeps-qemu-bulk</a> (spec-fixit-sleeps-qemu-bulk)</td>
+<td>skeleton</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fixit-stress-repro-counts-a-run-that-never-started.md" target="_blank" rel="noopener">fixit-stress-repro-counts-a-run-that-never-started</a> (spec-fixit-stress-repro-counts-a-run-that-never-started)</td>
+<td>skeleton</td>
+<td>2026-08-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fixit-strongswan-tls13-certreq-authorities.md" target="_blank" rel="noopener">fixit-strongswan-tls13-certreq-authorities -- two upstream strongSwan defects Ze works around, and the reports that must be filed</a> (spec-fixit-strongswan-tls13-certreq-authorities)</td>
+<td>skeleton</td>
+<td>2026-08-14</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fleet-1-device-registry.md" target="_blank" rel="noopener">fleet-1 -- Device Registry and Fleet Dashboard</a> (spec-fleet-1-device-registry)</td>
+<td>skeleton</td>
+<td>2026-05-15</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fleet-2-config-templates.md" target="_blank" rel="noopener">fleet-2 -- Config Templates and Group Assignment</a> (spec-fleet-2-config-templates)</td>
+<td>skeleton</td>
+<td>2026-05-15</td>
+<td>-</td>
+<td>spec-fleet-1-device-registry</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fleet-3-audit-trail.md" target="_blank" rel="noopener">fleet-3 -- Fleet Audit Trail</a> (spec-fleet-3-audit-trail)</td>
+<td>skeleton</td>
+<td>2026-05-15</td>
+<td>-</td>
+<td>spec-fleet-1-device-registry</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fleet-4-inventory-health.md" target="_blank" rel="noopener">fleet-4 -- Inventory and Health Reporting</a> (spec-fleet-4-inventory-health)</td>
+<td>skeleton</td>
+<td>2026-05-15</td>
+<td>-</td>
+<td>spec-fleet-1-device-registry</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fleet-5-staged-rollout.md" target="_blank" rel="noopener">fleet-5 -- Staged Rollout</a> (spec-fleet-5-staged-rollout)</td>
+<td>skeleton</td>
+<td>2026-05-15</td>
+<td>-</td>
+<td>spec-fleet-2-config-templates, spec-fleet-4-inventory-health</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fleet-7-config-reconnect-resolution.md" target="_blank" rel="noopener">fleet-7 -- Diverged Config Resolution</a> (spec-fleet-7-config-reconnect-resolution)</td>
+<td>skeleton</td>
+<td>2026-06-26</td>
+<td>-</td>
+<td>spec-fleet-6-config-freeze</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-flow-export-3-sampled-scale.md" target="_blank" rel="noopener">Flow Export - Sampled Scale (NetFlow v9 / IPFIX at high rate)</a> (spec-flow-export-3-sampled-scale)</td>
+<td>skeleton</td>
+<td>2026-05-29</td>
+<td>-</td>
+<td>spec-flow-export-2-flow-records (closed, learned 819)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-followup-pki-chain.md" target="_blank" rel="noopener">followup-pki-chain</a> (spec-followup-pki-chain)</td>
+<td>skeleton</td>
+<td>2026-09-03</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-gr-advanced.md" target="_blank" rel="noopener">gr-advanced</a> (spec-gr-advanced)</td>
+<td>skeleton</td>
+<td>2026-07-08</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-gr-fixtures-bypass-config-loading.md" target="_blank" rel="noopener">gr-fixtures-bypass-config-loading</a> (spec-gr-fixtures-bypass-config-loading)</td>
+<td>skeleton</td>
+<td>2026-09-20</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-harness-fail-open-guard-backlog.md" target="_blank" rel="noopener">harness-fail-open-guard-backlog</a> (spec-harness-fail-open-guard-backlog)</td>
+<td>skeleton</td>
+<td>2026-08-14</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ike-post-quantum.md" target="_blank" rel="noopener">ike-post-quantum</a> (spec-ike-post-quantum)</td>
+<td>skeleton</td>
+<td>2026-07-03</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-improve-0-umbrella.md" target="_blank" rel="noopener">improve-0 -- Comparison-Review Improvements (Umbrella)</a> (spec-improve-0-umbrella)</td>
+<td>skeleton</td>
+<td>2026-07-08</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-improve-1-nb-transactions.md" target="_blank" rel="noopener">improve-1 -- Northbound Config Transaction Contract</a> (spec-improve-1-nb-transactions)</td>
+<td>skeleton</td>
+<td>2026-07-08</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-installed-count-memory-magnitude-undisclosed.md" target="_blank" rel="noopener">`count installed` discloses its bound and not its magnitude</a> (spec-installed-count-memory-magnitude-undisclosed)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-interop-wire-capture.md" target="_blank" rel="noopener">interop-wire-capture -- observe the bytes on the wire in an interop scenario</a> (spec-interop-wire-capture)</td>
+<td>skeleton</td>
+<td>2026-08-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ipsec-0-umbrella.md" target="_blank" rel="noopener">ipsec-0 -- IPsec VPN (Umbrella)</a> (spec-ipsec-0-umbrella)</td>
+<td>skeleton</td>
+<td>2026-05-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ipsec-auth-piggyback.md" target="_blank" rel="noopener">ipsec-auth-piggyback</a> (spec-ipsec-auth-piggyback)</td>
+<td>skeleton</td>
+<td>2026-08-01</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ipsec-dataplane-selector.md" target="_blank" rel="noopener">ipsec-dataplane-selector</a> (spec-ipsec-dataplane-selector)</td>
+<td>skeleton</td>
+<td>2026-08-10</td>
+<td>-</td>
+<td>spec-ipsec-vpp-policy-interface; spec-ipsec-esp-dual-form-receive (real-VPP ESP proof)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ipsec-ipcomp.md" target="_blank" rel="noopener">ipsec-ipcomp</a> (spec-ipsec-ipcomp)</td>
+<td>skeleton</td>
+<td>2026-07-31</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ipsec-opaque-selector-port-mask.md" target="_blank" rel="noopener">ipsec-opaque-selector-port-mask</a> (spec-ipsec-opaque-selector-port-mask)</td>
+<td>skeleton</td>
+<td>2026-08-01</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ipsec-vpp-dataplane-readback.md" target="_blank" rel="noopener">ipsec-vpp-dataplane-readback</a> (spec-ipsec-vpp-dataplane-readback)</td>
+<td>skeleton</td>
+<td>2026-09-11</td>
+<td>SCOPE approved; RESEARCH and DESIGN pending</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-irr-filtering-both-directions.md" target="_blank" rel="noopener">irr-filtering-both-directions</a> (spec-irr-filtering-both-directions)</td>
+<td>skeleton</td>
+<td>2026-08-13</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-knowledge-0-umbrella-deferred-model-selection-policy.md" target="_blank" rel="noopener">knowledge-0-umbrella-deferred-model-selection-policy</a> (spec-knowledge-0-umbrella-deferred-model-selection-policy)</td>
+<td>skeleton</td>
+<td>2026-08-03</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-l2tp-ipv6-subscriber.md" target="_blank" rel="noopener">l2tp-ipv6-subscriber</a> (spec-l2tp-ipv6-subscriber)</td>
+<td>skeleton</td>
+<td>2026-08-30</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-le-builds-every-personality.md" target="_blank" rel="noopener">le-builds-every-personality</a> (spec-le-builds-every-personality)</td>
+<td>skeleton</td>
+<td>2026-09-13</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-le-every-area-dispatches-through-one-table.md" target="_blank" rel="noopener">le-every-area-dispatches-through-one-table</a> (spec-le-every-area-dispatches-through-one-table)</td>
+<td>skeleton</td>
+<td>2026-09-12</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-le-one-verb-one-job.md" target="_blank" rel="noopener">le-one-verb-one-job</a> (spec-le-one-verb-one-job)</td>
+<td>skeleton</td>
+<td>2026-09-12</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-le-every-area-dispatches-through-one-table.md" target="_blank" rel="noopener">plan/spec-le-every-area-dispatches-through-one-table.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-mcp2026-5-state-resources.md" target="_blank" rel="noopener">mcp2026-5-state-resources</a> (spec-mcp2026-5-state-resources)</td>
+<td>skeleton</td>
+<td>2026-07-28</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-native-action-job-admission.md" target="_blank" rel="noopener">native-action-job-admission</a> (spec-native-action-job-admission)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ntp-server.md" target="_blank" rel="noopener">ntp-server</a> (spec-ntp-server)</td>
+<td>skeleton</td>
+<td>2026-07-03</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-parallel-agents-verify-a-tree-nobody-authored.md" target="_blank" rel="noopener">parallel agents verify a tree nobody authored</a> (spec-parallel-agents-verify-a-tree-nobody-authored)</td>
+<td>skeleton</td>
+<td>2026-08-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-plugin-alias-reaches-the-client.md" target="_blank" rel="noopener">a plugin's pipe alias reaches the CLI client</a> (spec-plugin-alias-reaches-the-client)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-plugin-declaration-fields-on-registration.md" target="_blank" rel="noopener">plugin-declaration-fields-on-registration</a> (spec-plugin-declaration-fields-on-registration)</td>
+<td>skeleton</td>
+<td>2026-09-09</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-plugin-declaration-names-a-path-it-serves.md" target="_blank" rel="noopener">a plugin declares only on a command path it serves</a> (spec-plugin-declaration-names-a-path-it-serves)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-plugin-runner-inertness.md" target="_blank" rel="noopener">plugin-runner-inertness</a> (spec-plugin-runner-inertness)</td>
+<td>skeleton</td>
+<td>2026-09-09</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-publish-the-regenerated-command-catalog.md" target="_blank" rel="noopener">publish-the-regenerated-command-catalog</a> (spec-publish-the-regenerated-command-catalog)</td>
+<td>skeleton</td>
+<td>2026-09-08</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-radius-acct-timewheel.md" target="_blank" rel="noopener">radius-acct-timewheel</a> (spec-radius-acct-timewheel)</td>
+<td>skeleton</td>
+<td>2026-07-10</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-radius-chap-eap-admin.md" target="_blank" rel="noopener">radius-chap-eap-admin</a> (spec-radius-chap-eap-admin)</td>
+<td>skeleton</td>
+<td>2026-07-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-reactor-split.md" target="_blank" rel="noopener">reactor-split -- decompose the bgp/reactor god package</a> (spec-reactor-split)</td>
+<td>skeleton</td>
+<td>2026-07-08</td>
+<td>-</td>
+<td>spec-rib-arch-0-umbrella.md (closed, learned 1128)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-record-answers-payload-handlers-outside-the-rib-walks.md" target="_blank" rel="noopener">every payload handler outside the two RIB walks still buffers its answer</a> (spec-record-answers-payload-handlers-outside-the-rib-walks)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-refactor-commit-proof-by-per-function-diff.md" target="_blank" rel="noopener">prove a refactor commit moved code without changing it</a> (spec-refactor-commit-proof-by-per-function-diff)</td>
+<td>skeleton</td>
+<td>2026-08-18</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-reject-literal-has-a-producer.md" target="_blank" rel="noopener">reject-literal-has-a-producer</a> (spec-reject-literal-has-a-producer)</td>
+<td>skeleton</td>
+<td>2026-08-22</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-rfc-anchor-resolution-check.md" target="_blank" rel="noopener">rfc-anchor-resolution-check</a> (spec-rfc-anchor-resolution-check)</td>
+<td>skeleton</td>
+<td>2026-08-10</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-router-advertisement-options-out-of-scope.md" target="_blank" rel="noopener">router-advertisement-options-out-of-scope</a> (spec-router-advertisement-options-out-of-scope)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>0/1</td>
+<td>- (was `spec-router-advertisement`, delivered and closed 2026-09-05)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-rules-situation-index.md" target="_blank" rel="noopener">rules-situation-index</a> (spec-rules-situation-index)</td>
+<td>skeleton</td>
+<td>2026-08-07</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-shrink-only-baseline-cannot-see-a-relocation.md" target="_blank" rel="noopener">a shrink-only baseline cannot see a relocation</a> (spec-shrink-only-baseline-cannot-see-a-relocation)</td>
+<td>skeleton</td>
+<td>2026-08-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-srv6-labeled-unicast.md" target="_blank" rel="noopener">srv6-labeled-unicast -- SRv6 Support for Labeled Unicast (SAFIMPLSLabel)</a> (spec-srv6-labeled-unicast)</td>
+<td>skeleton</td>
+<td>2026-06-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-srv6-static-segments.md" target="_blank" rel="noopener">srv6-static-segments</a> (spec-srv6-static-segments)</td>
+<td>skeleton</td>
+<td>2026-07-04</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-stale-spec-frame-check.md" target="_blank" rel="noopener">stale-spec-frame-check</a> (spec-stale-spec-frame-check)</td>
+<td>skeleton</td>
+<td>2026-08-10</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-standard-families-register-outside-the-bgp-tag.md" target="_blank" rel="noopener">standard families register outside the bgp tag</a> (spec-standard-families-register-outside-the-bgp-tag)</td>
+<td>skeleton</td>
+<td>2026-09-14</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-streaming-answer-protocol.md" target="_blank" rel="noopener">streaming-answer-protocol</a> (spec-streaming-answer-protocol)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-stress-repro-refuses-a-stale-binary.md" target="_blank" rel="noopener">stress-repro-refuses-a-stale-binary</a> (spec-stress-repro-refuses-a-stale-binary)</td>
+<td>skeleton</td>
+<td>2026-08-15</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-tcp-ao-rfc5925.md" target="_blank" rel="noopener">tcp-ao-rfc5925</a> (spec-tcp-ao-rfc5925)</td>
+<td>skeleton</td>
+<td>2026-08-12</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-testing-latched-counter-vacuity-trap.md" target="_blank" rel="noopener">a latched counter passes a test it cannot fail</a> (spec-testing-latched-counter-vacuity-trap)</td>
+<td>skeleton</td>
+<td>2026-08-18</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-traceroute-unprivileged-socket.md" target="_blank" rel="noopener">traceroute-unprivileged-socket</a> (spec-traceroute-unprivileged-socket)</td>
+<td>skeleton</td>
+<td>2026-09-15</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-two-verifies-share-one-run-end-to-end.md" target="_blank" rel="noopener">two verifies share one run, proven through the real binary</a> (spec-two-verifies-share-one-run-end-to-end)</td>
+<td>skeleton</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-unrecognized-field-value-must-fail-loudly.md" target="_blank" rel="noopener">unrecognized-field-value-must-fail-loudly</a> (spec-unrecognized-field-value-must-fail-loudly)</td>
+<td>skeleton</td>
+<td>2026-08-14</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-unused-code-hidden-behind-exported-symbols.md" target="_blank" rel="noopener">unused-code-hidden-behind-exported-symbols</a> (spec-unused-code-hidden-behind-exported-symbols)</td>
+<td>skeleton</td>
+<td>2026-08-10</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-verify-scope-0-umbrella.md" target="_blank" rel="noopener">verify-scope-0-umbrella</a> (spec-verify-scope-0-umbrella)</td>
+<td>skeleton</td>
+<td>2026-08-19</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-vpp-loopback-mac.md" target="_blank" rel="noopener">vpp-loopback-mac</a> (spec-vpp-loopback-mac)</td>
+<td>skeleton</td>
+<td>2026-08-01</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-vpp-mac-change-capability.md" target="_blank" rel="noopener">vpp-mac-change-capability</a> (spec-vpp-mac-change-capability)</td>
+<td>skeleton</td>
+<td>2026-08-18</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-vpp-numa-smt.md" target="_blank" rel="noopener">vpp-numa-smt</a> (spec-vpp-numa-smt)</td>
+<td>skeleton</td>
+<td>2026-07-10</td>
+<td>-</td>
+<td>spec-vpp-isolated-cpus (closed 2026-09-07), spec-vpp-host-tuning (closed, learned 1105)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-vpp-slaac-tap-premise.md" target="_blank" rel="noopener">vpp-slaac-tap-premise</a> (spec-vpp-slaac-tap-premise)</td>
+<td>skeleton</td>
+<td>2026-08-24</td>
+<td>-</td>
+<td>none. `spec-fixit-vpp-slaac-no-dataplane-path` landed the gate and closed on 2026-08-29</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-vrf.md" target="_blank" rel="noopener">vrf</a> (spec-vrf)</td>
+<td>skeleton</td>
+<td>2026-08-29</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-vrf-0-umbrella.md" target="_blank" rel="noopener">spec-vrf-0-umbrella.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-vrrp-7-vpp.md" target="_blank" rel="noopener">vrrp-7 -- VRRP on the VPP Dataplane (Skeleton)</a> (spec-vrrp-7-vpp)</td>
+<td>skeleton</td>
+<td>2026-07-14</td>
+<td>-</td>
+<td>spec-vrrp-5-plugin (closed with vrrp-0..5, commit fbc99f1d4, learned 1124)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-vrrp-deferred-keepalived-interop-scenarios.md" target="_blank" rel="noopener">vrrp-deferred-keepalived-interop-scenarios</a> (spec-vrrp-deferred-keepalived-interop-scenarios)</td>
+<td>skeleton</td>
+<td>2026-07-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-web-testing-gaps.md" target="_blank" rel="noopener">web-testing-gaps</a> (spec-web-testing-gaps)</td>
+<td>skeleton</td>
+<td>2026-08-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-wildcard-bind-excuses-a-binder-from-an-address-move.md" target="_blank" rel="noopener">wildcard-bind-excuses-a-binder-from-an-address-move</a> (spec-wildcard-bind-excuses-a-binder-from-an-address-move)</td>
+<td>skeleton</td>
+<td>2026-09-12</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-every-binder-root-stops-and-starts-around-an-address-move.md" target="_blank" rel="noopener">plan/immediate/spec-every-binder-root-stops-and-starts-around-an-address-move.md</a>`</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-wire-edit-5-fanout-dedup-deferred-fanout-ci.md" target="_blank" rel="noopener">wire-edit-5-fanout-dedup-deferred-fanout-ci -- finish the socket-level fan-out dedup functional test</a> (spec-wire-edit-5-fanout-dedup-deferred-fanout-ci)</td>
+<td>skeleton</td>
+<td>2026-08-02</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-wire-edit-5-fanout-dedup-deferred-small-fanout-regression.md" target="_blank" rel="noopener">wire-edit-5-fanout-dedup-deferred-small-fanout-regression -- the 3% cost of dedup when every destination is its own group</a> (spec-wire-edit-5-fanout-dedup-deferred-small-fanout-regression)</td>
+<td>skeleton</td>
+<td>2026-08-02</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-yang-config-leaf-short-and-long-help.md" target="_blank" rel="noopener">yang-config-leaf-short-and-long-help</a> (spec-yang-config-leaf-short-and-long-help)</td>
+<td>skeleton</td>
+<td>2026-08-31</td>
+<td>-</td>
+<td>`spec-yang-short-and-long-command-help` (closed)</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ze-api-callback-pump.md" target="_blank" rel="noopener">ze-api-callback-pump</a> (spec-ze-api-callback-pump)</td>
+<td>skeleton</td>
+<td>2026-08-16</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-cli-root-namespace-grammar-deferred-gate-reach.md" target="_blank" rel="noopener">cli-root-namespace-grammar-deferred-gate-reach</a> (spec-cli-root-namespace-grammar-deferred-gate-reach)</td>
+<td>blocked</td>
+<td>2026-08-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-fixit-dns-rfc1035-conformance.md" target="_blank" rel="noopener">fixit-dns-rfc1035-conformance</a> (spec-fixit-dns-rfc1035-conformance)</td>
+<td>blocked</td>
+<td>2026-08-28</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-improve-3-event-replay-deferred-deterministic-scheduler.md" target="_blank" rel="noopener">improve-3-event-replay-deferred-deterministic-scheduler</a> (spec-improve-3-event-replay-deferred-deterministic-scheduler)</td>
+<td>blocked</td>
+<td>2026-08-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-ospf-ext-13-l3vpn-dn-bit.md" target="_blank" rel="noopener">ospf-ext-13 -- OSPFv2 L3VPN PE-CE DN bit (RFC 4576, RFC 4577)</a> (spec-ospf-ext-13-l3vpn-dn-bit)</td>
+<td>blocked</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-vrf-0-umbrella.md" target="_blank" rel="noopener">spec-vrf-0-umbrella.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-rename-3-wireu-fold.md" target="_blank" rel="noopener">rename-3-wireu-fold -- fold bgp/wireu into bgp/packet</a> (spec-rename-3-wireu-fold)</td>
+<td>blocked</td>
+<td>2026-07-08</td>
+<td>-</td>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-rename-2-bgp-packet.md" target="_blank" rel="noopener">spec-rename-2-bgp-packet.md</a></td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-support-export.md" target="_blank" rel="noopener">support-export</a> (spec-support-export)</td>
+<td>blocked</td>
+<td>2026-09-05</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-wire-edit-2-deferred-ci-substitution.md" target="_blank" rel="noopener">wire-edit-2-deferred-ci-substitution -- did child 2 close on substitute tests it was allowed to substitute?</a> (spec-wire-edit-2-deferred-ci-substitution)</td>
+<td>blocked</td>
+<td>2026-08-02</td>
+<td>-</td>
+<td>-</td>
+<td></td>
+</tr>
+<tr>
+<td><a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/spec-bgp-local-as-inbound-append.md" target="_blank" rel="noopener">bgp-local-as-inbound-append -- the RFC 7705 inbound append as a configuration recipe</a> (spec-bgp-local-as-inbound-append)</td>
+<td>deferred</td>
+<td>2026-09-19</td>
+<td>-</td>
+<td>`<a href="https://github.com/ze-software/ze/blob/ee07d863f025373a57c3f3019d7fb1054d0b3a9b/plan/immediate/spec-bgp-local-as-options.md" target="_blank" rel="noopener">plan/immediate/spec-bgp-local-as-options.md</a>`</td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<h2 id="status-legend">Status legend</h2>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>skeleton</td>
+<td>Captured task; design has not started</td>
+</tr>
+<tr>
+<td>design</td>
+<td>Research and design in progress</td>
+</tr>
+<tr>
+<td>ready</td>
+<td>Design complete; ready for implementation</td>
+</tr>
+<tr>
+<td>in-progress</td>
+<td>Implementation in progress</td>
+</tr>
+<tr>
+<td>verification</td>
+<td>Committed implementation awaiting independent review and closure; still open</td>
+</tr>
+<tr>
+<td>blocked</td>
+<td>Waiting on a declared prerequisite</td>
+</tr>
+<tr>
+<td>deferred</td>
+<td>Explicitly postponed; still counted</td>
+</tr>
+<tr>
+<td>unparsed / unknown / other values</td>
+<td>Metadata needs attention; still counted</td>
+</tr>
+</tbody>
+</table>
+<p>The report records declared status only. Phase text and checkboxes do not establish completion. Removed specs require source verification before a delivery claim.</p>
+<p><a href="../../data/release-roadmap.json">Snapshot JSON</a></p>
 
             </section>
             <aside class="page-sidebar" aria-label="Related page links">
@@ -156,7 +2965,7 @@ the step before it is genuinely done".</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

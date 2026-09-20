@@ -91,6 +91,7 @@ No MUST gap remains gated in [`rfc/short/rfc2516.md`](https://github.com/ze-soft
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **22** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (15):** [`RFC2516-x-1`](#rfc2516-x-1), [`RFC2516-x-2`](#rfc2516-x-2), [`RFC2516-x-3`](#rfc2516-x-3), [`RFC2516-5.2-1`](#rfc2516-5.2-1), [`RFC2516-5.3-1`](#rfc2516-5.3-1), [`RFC2516-x-5`](#rfc2516-x-5), [`RFC2516-5.2-2`](#rfc2516-5.2-2), [`RFC2516-5.2-3`](#rfc2516-5.2-3), [`RFC2516-5.2-4`](#rfc2516-5.2-4), [`RFC2516-5.3-3`](#rfc2516-5.3-3), [`RFC2516-5.3-4`](#rfc2516-5.3-4), [`RFC2516-5.4-1`](#rfc2516-5.4-1), [`RFC2516-5.4-2`](#rfc2516-5.4-2), [`RFC2516-x-7`](#rfc2516-x-7), [`RFC2516-7-1`](#rfc2516-7-1)

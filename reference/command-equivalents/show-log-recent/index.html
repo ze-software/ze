@@ -67,10 +67,13 @@
 </dl>
 <h3>Description</h3><p>Filters (all optional): level &lt;lvl&gt;, component &lt;name&gt;, count &lt;N&gt;. Newest<br>entries first. Useful when you cannot access the log file directly.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>level</code></td><td>enum</td><td>no</td><td><code>disabled</code> <code>debug</code> <code>info</code> <code>warn</code> <code>err</code></td></tr>
-<tr><td><code>component</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>count</code></td><td>uint</td><td>no</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>level</code></td><td>enum</td><td>no</td><td><code>disabled</code> <code>debug</code> <code>info</code> <code>warn</code> <code>err</code></td><td>Filter by log level</td><td>Keeps the entries whose level equals this value, and no other level. Without it
+every level is shown.</td></tr>
+<tr><td><code>component</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Filter by component name</td><td>Keeps the entries whose component name equals this value exactly. Without it every
+component is shown.</td></tr>
+<tr><td><code>count</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Maximum number of entries</td><td>Stops the answer after this many entries, newest first. It MUST be 1 or more, and
+without it every buffered entry is shown.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping intents</h2>
@@ -140,7 +143,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

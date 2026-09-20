@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4302 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4302: IP Authentication Header. 34 gated MUST-level requirements, 2 declared gaps, 3 with no test." />
+        <meta name="description" content="RFC 4302: IP Authentication Header. 32 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 4302 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4302: IP Authentication Header. 34 gated MUST-level requirements, 2 declared gaps, 3 with no test." />
+        <meta property="og:description" content="RFC 4302: IP Authentication Header. 32 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4302 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4302: IP Authentication Header. 34 gated MUST-level requirements, 2 declared gaps, 3 with no test." />
+        <meta name="twitter:description" content="RFC 4302: IP Authentication Header. 32 gated MUST-level requirements, 2 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -115,26 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>23.5%</strong><b>8 of 34 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 34 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 34 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>16 of 16 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>28.1%</strong><b>9 of 32 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>18 of 18 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>34</strong><b>of 44 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 34 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 34 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>58.8%</strong><b>20 of 34 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>2.9%</strong><b>1 of 34 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>32</strong><b>of 44 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 32 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>62.5%</strong><b>20 of 32 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>3.1%</strong><b>1 of 32 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>14.7%</strong><b>5 of 34 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>6.2%</strong><b>2 of 32 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 34 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 32 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -205,7 +206,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>44</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>34</td>
+<td>32</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -214,22 +215,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>3</td>
+<td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>16</td>
+<td>18</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>16</td>
+<td>18</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>16</td>
+<td>18</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4302.md</code></td>
@@ -260,7 +261,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>8</strong></td>
+<td><strong>9</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -272,20 +273,24 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>3</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>34</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr><td>Derived from other rows</td>
+<td><strong>2</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>32</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (8):</strong> <a href="#rfc4302-2-1"><code>RFC4302-2-1</code></a>, <a href="#rfc4302-2-2"><code>RFC4302-2-2</code></a>, <a href="#rfc4302-2.4-1"><code>RFC4302-2.4-1</code></a>, <a href="#rfc4302-2.4-5"><code>RFC4302-2.4-5</code></a>, <a href="#rfc4302-2.4-6"><code>RFC4302-2.4-6</code></a>, <a href="#rfc4302-3.4.2-1"><code>RFC4302-3.4.2-1</code></a>, <a href="#rfc4302-3.4.3-1"><code>RFC4302-3.4.3-1</code></a>, <a href="#rfc4302-3.4.3-5"><code>RFC4302-3.4.3-5</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (9):</strong> <a href="#rfc4302-2-1"><code>RFC4302-2-1</code></a>, <a href="#rfc4302-2-2"><code>RFC4302-2-2</code></a>, <a href="#rfc4302-2.4-1"><code>RFC4302-2.4-1</code></a>, <a href="#rfc4302-2.4-5"><code>RFC4302-2.4-5</code></a>, <a href="#rfc4302-2.4-6"><code>RFC4302-2.4-6</code></a>, <a href="#rfc4302-3.3.4-1"><code>RFC4302-3.3.4-1</code></a>, <a href="#rfc4302-3.4.2-1"><code>RFC4302-3.4.2-1</code></a>, <a href="#rfc4302-3.4.3-1"><code>RFC4302-3.4.3-1</code></a>, <a href="#rfc4302-3.4.3-5"><code>RFC4302-3.4.3-5</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (23):</strong> <a href="#rfc4302-2.3-1"><code>RFC4302-2.3-1</code></a>, <a href="#rfc4302-2.4-2"><code>RFC4302-2.4-2</code></a>, <a href="#rfc4302-2.4-3"><code>RFC4302-2.4-3</code></a>, <a href="#rfc4302-2.4-4"><code>RFC4302-2.4-4</code></a>, <a href="#rfc4302-2.5-1"><code>RFC4302-2.5-1</code></a>, <a href="#rfc4302-2.5-2"><code>RFC4302-2.5-2</code></a>, <a href="#rfc4302-2.5-3"><code>RFC4302-2.5-3</code></a>, <a href="#rfc4302-2.5-5"><code>RFC4302-2.5-5</code></a>, <a href="#rfc4302-2.5.1-1"><code>RFC4302-2.5.1-1</code></a>, <a href="#rfc4302-2.6-1"><code>RFC4302-2.6-1</code></a>, <a href="#rfc4302-3.3.2-1"><code>RFC4302-3.3.2-1</code></a>, <a href="#rfc4302-3.3.3.1-1"><code>RFC4302-3.3.3.1-1</code></a>, <a href="#rfc4302-3.3.3.2.2-1"><code>RFC4302-3.3.3.2.2-1</code></a>, <a href="#rfc4302-3.3.3.2.2-2"><code>RFC4302-3.3.3.2.2-2</code></a>, <a href="#rfc4302-3.3.3.2.2-3"><code>RFC4302-3.3.3.2.2-3</code></a>, <a href="#rfc4302-3.3.3.2.2-4"><code>RFC4302-3.3.3.2.2-4</code></a>, <a href="#rfc4302-3.4.1-1"><code>RFC4302-3.4.1-1</code></a>, <a href="#rfc4302-3.4.3-2"><code>RFC4302-3.4.3-2</code></a>, <a href="#rfc4302-3.4.3-3"><code>RFC4302-3.4.3-3</code></a>, <a href="#rfc4302-3.4.3-4"><code>RFC4302-3.4.3-4</code></a>, <a href="#rfc4302-4-1"><code>RFC4302-4-1</code></a>, <a href="#rfc4302-a2-1"><code>RFC4302-A2-1</code></a>, <a href="#rfc4302-a2-2"><code>RFC4302-A2-2</code></a></p>
-<p class="rfc-id-list"><strong>No test and no annotation (3):</strong> <a href="#rfc4302-3.3.4-1"><code>RFC4302-3.3.4-1</code></a>, <a href="#rfc4302-5-1"><code>RFC4302-5-1</code></a>, <a href="#rfc4302-5-2"><code>RFC4302-5-2</code></a></p>
+<p class="rfc-id-list"><strong>Derived from other rows (2):</strong> <a href="#rfc4302-5-1"><code>RFC4302-5-1</code></a>, <a href="#rfc4302-5-2"><code>RFC4302-5-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -297,8 +302,8 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>SHALL</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4302-2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L298" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAProtocolNumber</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L303" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAProtocolNumber</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L370" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAProtocolNumber</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L375" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAProtocolNumber</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2-2">RFC4302-2-2</code></td><td colspan="3"><span class="rfc-subject">AH carries no version number, so backward-compatibility concerns MUST be addressed by a signaling mechanism between the two peers, an SA management protocol or an out-of-band configuration mechanism (§2)</span></td></tr>
@@ -306,8 +311,8 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4302-2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L167" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHParametersComeFromConfiguration</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L175" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHParametersComeFromConfiguration</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L171" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHParametersComeFromConfiguration</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L179" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHParametersComeFromConfiguration</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2.3-1">RFC4302-2.3-1</code></td><td colspan="3"><span class="rfc-subject">The RESERVED field MUST be set to zero by the sender (§2.3)</span></td></tr>
@@ -325,7 +330,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4302-2.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L37" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSAIdentifiedBySPIAndProtocol</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L45" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSAIdentifiedBySPIAndProtocol</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L46" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSAIdentifiedBySPIAndProtocol</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2.4-2">RFC4302-2.4-2</code></td><td colspan="3"><span class="rfc-subject">An implementation that supports multicast MUST support multicast SAs using the SAD search order this section gives (§2.4)</span></td></tr>
@@ -360,8 +365,8 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>MUST</td>
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4302-2.4-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L65" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSAAddressMatchIndication</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L73" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSAAddressMatchIndication</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L69" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSAAddressMatchIndication</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L77" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSAAddressMatchIndication</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2.4-6">RFC4302-2.4-6</code></td><td colspan="3"><span class="rfc-subject">The SPI value zero is reserved for local implementation-specific use and MUST NOT be sent on the wire (§2.4)</span></td></tr>
@@ -369,8 +374,8 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>MUST NOT</td>
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4302-2.4-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L95" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSPIReservedRangeRefused</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L90" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSPIReservedRangeRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L99" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSPIReservedRangeRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L94" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSPIReservedRangeRefused</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-2.5-1">RFC4302-2.5-1</code></td><td colspan="3"><span class="rfc-subject">For a unicast SA or a single-sender multicast SA the sender MUST increment the Sequence Number for every transmitted packet (§2.5)</span></td></tr>
@@ -486,8 +491,8 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>MUST</td>
 <td>3.3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4302-3.3.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go#L133" title="internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go" target="_blank" rel="noopener"><code>TestAHPathMTUIsSignaledToTheLocalSender</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go#L143" title="internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go" target="_blank" rel="noopener"><code>TestAHPathMTUIsSignaledToTheLocalSender</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.4.1-1">RFC4302-3.4.1-1</code></td><td colspan="3"><span class="rfc-subject">A packet offered to AH that appears to be an IP fragment MUST be discarded, and that is an auditable event (§3.4.1)</span></td></tr>
@@ -504,8 +509,8 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>MUST</td>
 <td>3.4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4302-3.4.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L118" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHInboundRequirePolicyInstalled</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L126" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHInboundRequirePolicyInstalled</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L122" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHInboundRequirePolicyInstalled</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L130" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHInboundRequirePolicyInstalled</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.4.3-1">RFC4302-3.4.3-1</code></td><td colspan="3"><span class="rfc-subject">All AH implementations MUST support the anti-replay service, whose use the receiver enables or disables per SA (§3.4.3)</span></td></tr>
@@ -513,8 +518,8 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>MUST</td>
 <td>3.4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4302-3.4.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L362" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAReplayWindow</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L367" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAReplayWindow</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L434" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAReplayWindow</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L439" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAReplayWindow</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-3.4.3-2">RFC4302-3.4.3-2</code></td><td colspan="3"><span class="rfc-subject">When anti-replay is enabled for an SA the receive packet counter MUST be initialized to zero as the SA is established (§3.4.3)</span></td></tr>
@@ -569,7 +574,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4302-5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{rollup}:</strong> RFC4302-2-1, RFC4302-2-2, RFC4302-2.3-1, RFC4302-2.4-1, RFC4302-2.4-5, RFC4302-2.4-6, RFC4302-2.5-1, RFC4302-2.5-2, RFC4302-2.5-3, RFC4302-2.5-5, RFC4302-2.5.1-1, RFC4302-2.6-1, RFC4302-3.3.2-1, RFC4302-3.3.3.1-1, RFC4302-3.3.3.2.2-1, RFC4302-3.3.3.2.2-2, RFC4302-3.3.3.2.2-3, RFC4302-3.3.3.2.2-4, RFC4302-3.3.4-1, RFC4302-3.4.1-1, RFC4302-3.4.2-1, RFC4302-3.4.3-1, RFC4302-3.4.3-2, RFC4302-3.4.3-3, RFC4302-3.4.3-4, RFC4302-3.4.3-5, RFC4302-4-1, RFC4302-A2-1, RFC4302-A2-2, rfc4301; Section 5 binds a conforming implementation to &#34;the AH syntax and processing described here for unicast traffic&#34;, which is every gated row of this summary except the three multicast rows of Section 2.4, and to &#34;all requirements of the Security Architecture document&#34;, which is the whole of RFC 4301</p><p class="rfc-mark"><strong>derived:</strong> gap: RFC4302-2.5-5 is annotated {gap}</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-5-2">RFC4302-5-2</code></td><td colspan="3"><span class="rfc-subject">An implementation claiming to support multicast traffic MUST comply with the additional requirements specified for such traffic (§5)</span></td></tr>
 <tr><td></td>
@@ -578,7 +583,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4302-5-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{rollup}:</strong> RFC4302-2.4-2, RFC4302-2.4-3, RFC4302-2.4-4; Section 5 binds a multicast implementation to &#34;the additional requirements specified for support of such traffic&#34;, which are the three multicast rows of Section 2.4</p><p class="rfc-mark"><strong>derived:</strong> met</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4302-a2-1">RFC4302-A2-1</code></td><td colspan="3"><span class="rfc-subject">When the IP implementation leaves a Fragmentation Extension Header in place after reassembly, AH MUST remove or skip it and repair the preceding Next Header before ICV processing (§A2)</span></td></tr>
 <tr><td></td>
@@ -761,10 +766,6 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/component/ike/dataplane/xfrm_linux.go::xfrmStateFromParams names the integrity algorithm, and the kernel&#39;s implementation of that algorithm supplies the default when the algorithm gives no answer</td>
 </tr>
-<tr><td><a href="#rfc4302-3.3.4-1"><code>RFC4302-3.3.4-1</code></a> An AH implementation MUST support generation of ICMP PMTU messages, or the equivalent internal signaling for a native host implementation (§3.3.4)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
 <tr><td><a href="#rfc4302-3.4.1-1"><code>RFC4302-3.4.1-1</code></a> A packet offered to AH that appears to be an IP fragment MUST be discarded, and that is an auditable event (§3.4.1)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {lower-layer}: Linux XFRM; internal/plugins/ospf/ipsec_install.go::buildIPsecPolicies installs the inbound require-policy that puts OSPF traffic through the kernel&#39;s AH input, which is where a packet offered to AH that is an IP fragment is dropped</td>
@@ -787,11 +788,11 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 </tr>
 <tr><td><a href="#rfc4302-5-1"><code>RFC4302-5-1</code></a> An implementation claiming conformance MUST fully implement the AH syntax and processing for unicast traffic, and MUST comply with all requirements of the Security Architecture document (§5)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {rollup}: RFC4302-2-1, RFC4302-2-2, RFC4302-2.3-1, RFC4302-2.4-1, RFC4302-2.4-5, RFC4302-2.4-6, RFC4302-2.5-1, RFC4302-2.5-2, RFC4302-2.5-3, RFC4302-2.5-5, RFC4302-2.5.1-1, RFC4302-2.6-1, RFC4302-3.3.2-1, RFC4302-3.3.3.1-1, RFC4302-3.3.3.2.2-1, RFC4302-3.3.3.2.2-2, RFC4302-3.3.3.2.2-3, RFC4302-3.3.3.2.2-4, RFC4302-3.3.4-1, RFC4302-3.4.1-1, RFC4302-3.4.2-1, RFC4302-3.4.3-1, RFC4302-3.4.3-2, RFC4302-3.4.3-3, RFC4302-3.4.3-4, RFC4302-3.4.3-5, RFC4302-4-1, RFC4302-A2-1, RFC4302-A2-2, rfc4301; Section 5 binds a conforming implementation to &#34;the AH syntax and processing described here for unicast traffic&#34;, which is every gated row of this summary except the three multicast rows of Section 2.4, and to &#34;all requirements of the Security Architecture document&#34;, which is the whole of RFC 4301</td>
 </tr>
 <tr><td><a href="#rfc4302-5-2"><code>RFC4302-5-2</code></a> An implementation claiming to support multicast traffic MUST comply with the additional requirements specified for such traffic (§5)</td>
 <td>no test</td>
-<td>no test carries this requirement id</td>
+<td>no test carries this requirement id; annotated {rollup}: RFC4302-2.4-2, RFC4302-2.4-3, RFC4302-2.4-4; Section 5 binds a multicast implementation to &#34;the additional requirements specified for support of such traffic&#34;, which are the three multicast rows of Section 2.4</td>
 </tr>
 <tr><td><a href="#rfc4302-a2-1"><code>RFC4302-A2-1</code></a> When the IP implementation leaves a Fragmentation Extension Header in place after reassembly, AH MUST remove or skip it and repair the preceding Next Header before ICV processing (§A2)</td>
 <td>no test</td>
@@ -815,12 +816,12 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L303" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAProtocolNumber</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L375" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAProtocolNumber</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L298" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAProtocolNumber</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L370" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAProtocolNumber</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -835,12 +836,12 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L175" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHParametersComeFromConfiguration</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L179" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHParametersComeFromConfiguration</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L167" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHParametersComeFromConfiguration</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L171" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHParametersComeFromConfiguration</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -859,7 +860,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L45" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSAIdentifiedBySPIAndProtocol</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L46" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSAIdentifiedBySPIAndProtocol</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -891,12 +892,12 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L73" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSAAddressMatchIndication</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L77" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSAAddressMatchIndication</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L65" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSAAddressMatchIndication</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L69" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSAAddressMatchIndication</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -911,12 +912,12 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L90" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSPIReservedRangeRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L94" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSPIReservedRangeRefused</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L95" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSPIReservedRangeRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L99" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHSPIReservedRangeRefused</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -974,7 +975,23 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <h3><a href="#rfc4302-3.3.4-1"><code>RFC4302-3.3.4-1</code></a></h3>
 <p>An AH implementation MUST support generation of ICMP PMTU messages, or the equivalent internal signaling for a native host implementation (§3.3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC4302-3.3.4-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go#L143" title="internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go" target="_blank" rel="noopener"><code>TestAHPathMTUIsSignaledToTheLocalSender</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go#L133" title="internal/plugins/ospf/ipsec_pmtu_integration_linux_test.go" target="_blank" rel="noopener"><code>TestAHPathMTUIsSignaledToTheLocalSender</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc4302-3.4.1-1"><code>RFC4302-3.4.1-1</code></a></h3>
 <p>A packet offered to AH that appears to be an IP fragment MUST be discarded, and that is an auditable event (§3.4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -987,12 +1004,12 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L126" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHInboundRequirePolicyInstalled</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L130" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHInboundRequirePolicyInstalled</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L118" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHInboundRequirePolicyInstalled</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_rfc4302_test.go#L122" title="internal/plugins/ospf/ipsec_rfc4302_test.go" target="_blank" rel="noopener"><code>TestAHInboundRequirePolicyInstalled</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1007,12 +1024,12 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L367" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAReplayWindow</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L439" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAReplayWindow</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L362" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAReplayWindow</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L434" title="internal/plugins/ospf/ipsec_install_test.go" target="_blank" rel="noopener"><code>TestIPsecSAReplayWindow</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1438,7 +1455,7 @@ Scoped to configured manual IPsec support. No counter reset before sequence-numb
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

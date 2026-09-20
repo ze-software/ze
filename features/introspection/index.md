@@ -47,7 +47,7 @@ One registration is still out of their reach: an EXTERNAL plugin's. It registers
 nothing in the composition root, so its declaration reaches a running daemon
 alone, through `show command help "<name>"` and Tab completion in the
 interactive session. That answer carries a command's two help texts under
-`description` (the one-line summary) and `long-help` (the explanation), for a
+`description` (the one-line summary) and `description` (the explanation), for a
 builtin and for a plugin command alike.
 
 `ze show plugin declarations` closes that last gap. One row for each plugin

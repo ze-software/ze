@@ -69,8 +69,10 @@
 </dl>
 <h3>Description</h3><p>Each peer row carries the remote and local ASN, the router ID, the peer type,<br>and four timers: receive hold time, send hold time, keepalive, and connect<br>retry. The &#39;connect&#39; and &#39;accept&#39; flags say which directions this session opens.<br>A &#39;messages&#39; map counts OPEN, UPDATE, NOTIFICATION, KEEPALIVE, ROUTE-REFRESH and<br>End-of-RIB in each direction. Negotiated nonzero PATHS-LIMIT values appear<br>under capabilities.paths-limit, keyed by family: send is the peer&#39;s maximum<br>paths per prefix enforced on our outbound updates; receive is our advertised<br>receive request, not a locally enforced inbound limit. Zero or absent limits<br>are omitted.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>selector</code></td><td>string</td><td>yes</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>selector</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Peer selector</td><td>The value is an IP address, a peer name, an AS pattern such as as65001, a
+glob, or * for every peer. Every command under &#39;show bgp peer&#39; reads the peers it matches,
+except &#39;list&#39;, which reads every peer.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping intents</h2>
@@ -138,7 +140,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

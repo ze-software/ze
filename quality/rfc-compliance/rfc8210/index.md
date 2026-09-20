@@ -98,6 +98,7 @@ Twelve MUST-level gaps, each annotated in [`rfc/short/rfc8210.md`](https://githu
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **56** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (8):** [`RFC8210-5-1`](#rfc8210-5-1), [`RFC8210-5.1-1`](#rfc8210-5.1-1), [`RFC8210-5.1-2`](#rfc8210-5.1-2), [`RFC8210-5.2-1`](#rfc8210-5.2-1), [`RFC8210-8.3-1`](#rfc8210-8.3-1), [`RFC8210-10-1`](#rfc8210-10-1), [`RFC8210-7-8`](#rfc8210-7-8), [`RFC8210-8.4-1`](#rfc8210-8.4-1)

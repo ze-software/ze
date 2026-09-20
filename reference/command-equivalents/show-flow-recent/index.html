@@ -67,8 +67,10 @@
 </dl>
 <h3>Description</h3><p>Without arguments, returns every ring record (oldest to newest, up to the<br>configured recent-flow-ring capacity). With &#39;dst &lt;prefix&gt;&#39;, filters to flows<br>whose destination is inside that prefix. The ring is fed only while conntrack<br>export is enabled; the filter is by destination prefix (conntrack is<br>host-global and carries no ingress interface).</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>dst</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>dst</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Destination prefix or address to filter by (used with &#39;dst &lt;prefix&gt;&#39;).</td><td>The value is an IPv4 or IPv6 prefix in CIDR form, or a bare address,
+which Ze reads as a /32 or a /128. Ze keeps only the ring records whose destination is
+inside that prefix.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -132,7 +134,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

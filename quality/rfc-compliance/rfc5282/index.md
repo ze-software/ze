@@ -91,6 +91,7 @@ The AES CCM transforms are offered for the IKE SA alone. An esp-group proposal n
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **19** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (19):** [`RFC5282-3-1`](#rfc5282-3-1), [`RFC5282-3.1-1`](#rfc5282-3.1-1), [`RFC5282-3.1-2`](#rfc5282-3.1-2), [`RFC5282-3.2-1`](#rfc5282-3.2-1), [`RFC5282-3.2-2`](#rfc5282-3.2-2), [`RFC5282-3.2-3`](#rfc5282-3.2-3), [`RFC5282-3.2-4`](#rfc5282-3.2-4), [`RFC5282-4-1`](#rfc5282-4-1), [`RFC5282-4-2`](#rfc5282-4-2), [`RFC5282-4-3`](#rfc5282-4-3), [`RFC5282-4-4`](#rfc5282-4-4), [`RFC5282-5.1-1`](#rfc5282-5.1-1), [`RFC5282-5.1-2`](#rfc5282-5.1-2), [`RFC5282-7.1-1`](#rfc5282-7.1-1), [`RFC5282-7.1-2`](#rfc5282-7.1-2), [`RFC5282-7.3-1`](#rfc5282-7.3-1), [`RFC5282-7.3-2`](#rfc5282-7.3-2), [`RFC5282-8-1`](#rfc5282-8-1), [`RFC5282-8-2`](#rfc5282-8-2)

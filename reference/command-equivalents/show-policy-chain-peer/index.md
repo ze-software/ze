@@ -25,9 +25,9 @@ The selector (IP, name, as<N>) and the optional direction are parsed by the hand
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, or * for every peer. The chain of each peer it matches is shown. |
 
 ## Mapping intents
 

@@ -83,6 +83,7 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **2** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (2):** [`RFC6138-4-1`](#rfc6138-4-1), [`RFC6138-x-1`](#rfc6138-x-1)
@@ -91,7 +92,7 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC6138-4-1` | If the interface is a "cut-edge", updating of the LSA MUST NOT be delayed by LDP's operational state (the link is advertised immediately, regardless of LDP) (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L358). **negative:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L361) |
+| `RFC6138-4-1` | If the interface is a "cut-edge", updating of the LSA MUST NOT be delayed by LDP's operational state (the link is advertised immediately, regardless of LDP) (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L360). **negative:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L363) |
 | `RFC6138-x-1` | If an SPF run was scheduled but is pending execution, that SPF must be executed immediately before any procedure checks whether an interface is a "cut-edge" (Appendix A) | MUST | x | **positive:** `unit/verify` [`TestLDPSyncCutEdgeUsesFreshSPF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/ldp_sync_cutedge_test.go#L57). **negative:** `unit/verify` [`TestLDPSyncCutEdgeUsesFreshSPF`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/ldp_sync_cutedge_test.go#L60) |
 
 ## Gaps and untested MUSTs
@@ -110,8 +111,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L361) | unit/verify | unproven |
-| positive | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L358) | unit/verify | unproven |
+| negative | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L363) | unit/verify | unproven |
+| positive | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L360) | unit/verify | unproven |
 
 ### [`RFC6138-x-1`](#rfc6138-x-1)
 

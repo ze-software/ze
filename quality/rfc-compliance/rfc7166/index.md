@@ -100,6 +100,7 @@ The OSPFv3 Authentication Trailer is absent: no AT-bit in the OSPFv3 Options, no
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **17** | every gated MUST falls in exactly one bucket above |
 
 **Annotated instead of tested (17):** [`RFC7166-2.1-1`](#rfc7166-2.1-1), [`RFC7166-3-3`](#rfc7166-3-3), [`RFC7166-3-6`](#rfc7166-3-6), [`RFC7166-4.1-2`](#rfc7166-4.1-2), [`RFC7166-4.1-3`](#rfc7166-4.1-3), [`RFC7166-4.1-4`](#rfc7166-4.1-4), [`RFC7166-4.1-5`](#rfc7166-4.1-5), [`RFC7166-4.1.1-1`](#rfc7166-4.1.1-1), [`RFC7166-4.2-3`](#rfc7166-4.2-3), [`RFC7166-4.2-4`](#rfc7166-4.2-4), [`RFC7166-4.3-1`](#rfc7166-4.3-1), [`RFC7166-4.3-4`](#rfc7166-4.3-4), [`RFC7166-4.4-1`](#rfc7166-4.4-1), [`RFC7166-4.6-1`](#rfc7166-4.6-1), [`RFC7166-4.6-3`](#rfc7166-4.6-3), [`RFC7166-4.6-5`](#rfc7166-4.6-5), [`RFC7166-4.6-6`](#rfc7166-4.6-6)

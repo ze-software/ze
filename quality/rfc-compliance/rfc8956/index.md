@@ -100,6 +100,7 @@ Seven MUST-level gaps, each annotated in [`rfc/short/rfc8956.md`](https://github
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **9** | every gated MUST falls in exactly one bucket above |
 
 **Annotated instead of tested (9):** [`RFC8956-2-1`](#rfc8956-2-1), [`RFC8956-2-2`](#rfc8956-2-2), [`RFC8956-3.1-1`](#rfc8956-3.1-1), [`RFC8956-3.1-2`](#rfc8956-3.1-2), [`RFC8956-3.6-1`](#rfc8956-3.6-1), [`RFC8956-3.6-2`](#rfc8956-3.6-2), [`RFC8956-3.6-3`](#rfc8956-3.6-3), [`RFC8956-3.1-3`](#rfc8956-3.1-3), [`RFC8956-5-1`](#rfc8956-5-1)

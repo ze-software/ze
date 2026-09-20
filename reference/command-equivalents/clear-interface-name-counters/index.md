@@ -25,9 +25,9 @@ Only the named interface is reset. Ze translates the name to its kernel device f
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Interface name | The interface whose counters are reset. The answer names it as the scope cleared, where the form without a name reports all. |
 
 ## Mapping intents
 

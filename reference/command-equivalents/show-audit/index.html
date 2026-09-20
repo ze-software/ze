@@ -67,13 +67,19 @@
 </dl>
 <h3>Description</h3><p>Returns audit log entries with timestamps, actors, and actions.<br>Filters (all optional, combinable): action &lt;type&gt;, actor &lt;name&gt;,<br>surface &lt;name&gt; (cli, web, api), since/until &lt;RFC3339&gt;, count &lt;N&gt;.<br>Actions include config-commit, login, peer-teardown, and more.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>action</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>actor</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>surface</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>since</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>until</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>count</code></td><td>uint</td><td>no</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>action</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Filter by action type</td><td>The value is an action name as the action column reports it, such as
+config-commit or login, compared as text. Absent, entries of every action are shown.</td></tr>
+<tr><td><code>actor</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Filter by actor name</td><td>The value is the name of the user or process that acted, compared as text
+with the actor column. Absent, entries of every actor are shown.</td></tr>
+<tr><td><code>surface</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Filter by surface name</td><td>The value is the surface the action came through: cli, web or api,
+compared as text. Absent, entries of every surface are shown.</td></tr>
+<tr><td><code>since</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Start time (RFC3339)</td><td>The value is an RFC 3339 timestamp such as 2026-09-15T08:00:00Z, and any other
+form is refused. Entries recorded before it are left out.</td></tr>
+<tr><td><code>until</code></td><td>string</td><td>no</td><td>any value of this type</td><td>End time (RFC3339)</td><td>The value is an RFC 3339 timestamp such as 2026-09-15T18:00:00Z, and any other
+form is refused. Entries recorded after it are left out.</td></tr>
+<tr><td><code>count</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Maximum number of entries</td><td>The value is a whole number of 1 or more. The query stops after that many
+matching entries, oldest first. Absent, every matching entry is shown.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -137,7 +143,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

@@ -100,6 +100,7 @@ One MUST gap, gated in [`rfc/short/rfc3787.md`](https://github.com/ze-software/z
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **3** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (2):** [`RFC3787-x-1`](#rfc3787-x-1), [`RFC3787-x-2`](#rfc3787-x-2)

@@ -91,6 +91,7 @@ No tracked gap in current source anchors.
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **1** | every gated MUST falls in exactly one bucket above |
 
 **Annotated instead of tested (1):** [`RFC7535-6-1`](#rfc7535-6-1)

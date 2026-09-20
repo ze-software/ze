@@ -25,12 +25,12 @@ Actions: start (begin capturing), stop (halt), dump (retrieve). Protocols: l2tp,
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `action` | enum | no | `start`, `stop`, `dump` |
-| `protocol` | enum | no | `l2tp`, `bgp` |
-| `format` | enum | no | `pcap`, `json` |
-| `count` | uint | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `action` | enum | no | `start`, `stop`, `dump` | Capture action. | The verb the command performs. It is required, and a call without one is refused with the usage line. |
+| `protocol` | enum | no | `l2tp`, `bgp` | Protocol to capture. | Narrows the action to one protocol. Absent, the action applies to every protocol with a raw capture, and the answer carries one key for each. |
+| `format` | enum | no | `pcap`, `json` | Output format. | Read by dump alone. The default is json. With pcap the answer carries a <protocol>-pcap key holding the base64 file and a <protocol>-packets count. |
+| `count` | uint | no | any value of this type | Maximum number of messages. | Read by dump alone. At most this many messages are returned for each protocol. Absent or 0, every captured message is returned. |
 
 ## Mapping intents
 

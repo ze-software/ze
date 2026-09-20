@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>request bgp rib fastpath - Command Equivalents - Ze</title>
-        <meta name="description" content="Enable/disable/report the zero-copy forward-handle fast path (rib-arch-6): &lt;enable|disable|status&gt;" />
+        <meta name="description" content="Switch or report the zero-copy forward-handle fast path." />
         <meta property="og:title" content="request bgp rib fastpath - Command Equivalents - Ze" />
-        <meta property="og:description" content="Enable/disable/report the zero-copy forward-handle fast path (rib-arch-6): &lt;enable|disable|status&gt;" />
+        <meta property="og:description" content="Switch or report the zero-copy forward-handle fast path." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="request bgp rib fastpath - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Enable/disable/report the zero-copy forward-handle fast path (rib-arch-6): &lt;enable|disable|status&gt;" />
+        <meta name="twitter:description" content="Switch or report the zero-copy forward-handle fast path." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -48,25 +48,28 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
     <h1 id="command-equivalent-detail-title">request bgp rib fastpath</h1>
-    <p>Enable/disable/report the zero-copy forward-handle fast path (rib-arch-6): &lt;enable|disable|status&gt;</p>
+    <p>Switch or report the zero-copy forward-handle fast path.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>request bgp rib fastpath</code></dd></div>
-<div><dt>Usage</dt><dd><code>request bgp rib fastpath</code></dd></div>
+<div><dt>Usage</dt><dd><code>request bgp rib fastpath &lt;enable|disable|status&gt;</code></dd></div>
 <div><dt>Mode</dt><dd>Daemon</dd></div>
-<div><dt>Wire method</dt><dd><code>not listed</code></dd></div>
+<div><dt>Wire method</dt><dd><code>ze-rib-api:fastpath</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
-<div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
+<div><dt>Task support</dt><dd>forbidden: the MCP server never answers with a task handle</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
 <div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
 <div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
+<h3>Description</h3><p>The fast path hands a forward handle to the Loc-RIB consumer<br>without copying the route. enable and disable switch it, and status reports the<br>counters. Each of the three answers the same counter snapshot.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>action</code></td><td>enum</td><td>yes</td><td><code>enable</code> <code>disable</code> <code>status</code></td><td>enable, disable or status</td><td>One of the three words. Any other word is refused by name.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -129,7 +132,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

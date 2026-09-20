@@ -91,6 +91,7 @@ Enrolled 2026-08-10. All seven gated obligations of section 3 are proven in both
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **7** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (7):** [`RFC5301-3-4`](#rfc5301-3-4), [`RFC5301-3-5`](#rfc5301-3-5), [`RFC5301-3-6`](#rfc5301-3-6), [`RFC5301-3-7`](#rfc5301-3-7), [`RFC5301-3-8`](#rfc5301-3-8), [`RFC5301-3-9`](#rfc5301-3-9), [`RFC5301-3-10`](#rfc5301-3-10)

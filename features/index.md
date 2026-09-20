@@ -1,6 +1,6 @@
 # Every feature Ze ships.
 
-52 shipped features plus the planned roadmap. Each card's category shows where the feature fits: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
+52 shipped or experimental feature cards. Each card's category shows where the feature fits: operate, routing, services, automate, observe, secure, or platform. Everything shipped runs in both daemon and appliance modes unless a card says otherwise.
 
 ## Built for demanding operators.
 
@@ -542,48 +542,6 @@ Implemented and tested, still waiting for production evidence.
 
 [Learn more](https://ze-software.net/guides/irr-filtering/)
 
-## Specified, not built.
+## Release roadmap
 
-Aspirations with written, reviewed specs. Nothing here is usable today.
-
-> Every card links to a pending spec in the main repo's `plan/` directory. Captured intent moves from skeleton, to design, to ready, to in progress. A spec is deleted only when the work ships.
-
-### OSPF L3VPN PE-CE
-
-*routing / Spec'd* -- `RFC 4576` `RFC 4577` `L3VPN`
-
-- PE-CE **DN bit** loop prevention
-- Domain ID, route type, **VPN route tag**
-- Blocked on **VRF/MPLS L3VPN** infrastructure
-
-[Learn more](https://github.com/ze-software/ze/blob/main/plan/spec-ospf-ext-13-l3vpn-dn-bit.md)
-
-### VRF
-
-*routing / Spec'd* -- `VRF` `L3VPN`
-
-- VRF as a **first-class** concept
-- Per-VRF **BGP stacks**, YANG config
-- Kernel **VRF devices**, table binding
-
-[Learn more](https://github.com/ze-software/ze/blob/main/plan/spec-vrf-0-umbrella.md)
-
-### Kernel Lockdown
-
-*secure / Spec'd* -- `Lockdown` `Integrity`
-
-- Kernel **lockdown** integrity mode
-- Blocks unsigned **modules**, kexec, /dev/mem
-- Design **reviewed**, waiting for schedule
-
-[Learn more](https://github.com/ze-software/ze/blob/main/plan/spec-kernel-lockdown-hardening.md)
-
-### Cloud-Init Provisioning
-
-*platform / Spec'd* -- `Cloud-init` `User-data`
-
-- Appliance identity from **cloud metadata**
-- SSH keys and config via **user-data**
-- No **pre-baked** seed image needed
-
-[Learn more](https://github.com/ze-software/ze/blob/main/plan/spec-install-9-cloud-init.md)
+The [release inventory](https://ze-software.net/project/roadmap/) lists remaining release work items and nice-to-haves from committed specs. It is an inventory preview pending owner classification.

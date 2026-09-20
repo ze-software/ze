@@ -6,6 +6,13 @@
 Ze implements RFC 7854 BMP in both directions: as a **receiver** (accepting
 feeds from routers) and as a **sender** (streaming state to collectors).
 
+Both halves follow a reload. A commit that adds, moves or disables a receiver
+listener rebinds it, and one that changes the sender bounces the collector
+sessions, so neither reports success over a change it did not make. A Peer Down
+carries the Data its reason code requires: RFC 7854 Section 4.9 draws the field
+as present for reasons 1, 2 and 3, so a session ze closed by NOTIFICATION
+carries that PDU and one closed without carries the two-octet FSM event code.
+
 ## Configuration
 
 BMP receiver is configured under `environment { bmp { ... } }` (like SSH,

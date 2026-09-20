@@ -1335,10 +1335,10 @@ The config parser auto-decodes <code>$9$</code>-prefixed values on load
 so the plaintext base64 form never reaches the config file on disk. Public
 keys are public and stored plaintext.</p>
 <p><strong><code>$9$</code> is JunOS-compatible obfuscation, not encryption.</strong> Anyone with
-read access to the config file (or the zefs blob, depending on storage
-backend) can trivially recover the plaintext key via <code>secret.Decode</code>. The
-protection is on the filesystem layer: <code>chmod 600 /etc/ze/ze.conf</code> (or the
-equivalent on the <code>.zefs</code> blob). This is the same posture ze uses for BGP
+read access to the config file (or the <code>database/</code> store) can trivially
+recover the plaintext key via <code>secret.Decode</code>. The protection is on the
+filesystem layer: <code>chmod 600 /etc/ze/ze.conf</code> (the store's tree is 0700 and
+its files 0600, see <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/storage-backends.md" target="_blank" rel="noopener">storage-backends.md</a>). This is the same posture ze uses for BGP
 MD5 passwords, SSH secrets, MCP tokens, and API tokens.</p>
 <!-- source: internal/component/config/secret/secret.go -- Encode, Decode, IsEncoded ($9$ implementation) -->
 <h3 id="reconciliation">Reconciliation</h3>
@@ -2268,7 +2268,7 @@ exact-or-reject.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

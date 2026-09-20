@@ -25,9 +25,9 @@ Without an algorithm, SHA-256.
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Certificate name | The name of a CA or device certificate in the store. The hash is taken over its DER bytes. An unknown name is refused, and the refusal lists the names the store holds. |
 
 ## Mapping intents
 

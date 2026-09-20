@@ -25,9 +25,9 @@ The signals are fan-out (distinct destinations), out/in byte ratio (exfiltration
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | no | any value of this type | Source address filter | A source IP address, compared as text against each entry's address. Only the entries with that exact address are listed. |
 
 ## Mapping intents
 

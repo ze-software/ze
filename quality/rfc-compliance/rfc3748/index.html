@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3748 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3748: Extensible Authentication Protocol (EAP). 61 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 3748: Extensible Authentication Protocol (EAP). 61 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 3748 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 61 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 61 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3748 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 61 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 3748: Extensible Authentication Protocol (EAP). 61 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -115,24 +116,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>77.0%</strong><b>47 of 61 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>80.3%</strong><b>49 of 61 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8.2%</strong><b>5 of 61 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 61 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>46.8%</strong><b>52 of 111 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 61 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>50.4%</strong><b>60 of 119 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>61</strong><b>of 67 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>8</strong><b>of 61 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>13.1%</strong><b>8 of 61 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>7</strong><b>of 61 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>11.5%</strong><b>7 of 61 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 61 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 61 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>1.6%</strong><b>1 of 61 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 61 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -162,7 +159,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -208,10 +205,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>61</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>8</td>
+<td>7</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>1</td>
+<td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
@@ -220,16 +217,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>111</td>
+<td>119</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>111</td>
+<td>119</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>52</td>
+<td>60</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc3748.md</code></td>
@@ -253,8 +250,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Section 4.2 discards that stop a rogue authenticator bypassing the method: the peer reads an EAP-Success only once the method conversation concluded, drops an EAP-Failure once both ends indicated success, and both roles drop a Code outside 1-4 (<code>PeerSession.Process</code> and <code>Session.Process</code>, <code>internal/core/eap</code>). The peer answers Type 1 (Identity), Type 2 (Notification) and Type 3 (Nak): a Notification Request draws a five-octet Notification Response and its message reaches the operator log, and a Request for an authentication Type ze does not run draws a six-octet legacy Nak naming the configured method, until the peer has answered a method Request and Section 2.1 closes the Nak (<code>PeerSession.handleRequest</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/peer.go" target="_blank" rel="noopener"><code>internal/core/eap/peer.go</code></a>). A Type-254 Request draws the same legacy Nak, which is what Section 5.7 prescribes for a peer not equipped to interpret an Expanded Type. Type 4 (MD5-Challenge) runs on both roles and is the <code>authentication { mode eap-md5 }</code> an operator selects. It is never a default, and adopting a configuration that names it writes one warning quoting the RFC 7296 Section 2.16 sentence that discourages a method establishing no shared key (<code>warnKeylessEAPModes</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/eap_auth.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/eap_auth.go</code></a>).
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-<p>One MUST is unmet.</p>
-<p class="rfc-prose"><strong>Ze derives no Extended Master Session Key:</strong> <code>exportEAPTLSMSK</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls.go" target="_blank" rel="noopener"><code>internal/core/eap/eap_tls.go</code></a>) keeps the MSK half of the RFC 9190 Section 2.3 key material and drops the EMSK half, and <code>DeriveMSK</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2.go" target="_blank" rel="noopener"><code>internal/core/eap/mschapv2.go</code></a>) returns an MSK alone. Section 7.10 requires a key-deriving method to export both, so <code>RFC3748-7.10-6</code>, which confines the EMSK to the peer and the server that derived it, has no key to confine and stays open. Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers a Type-254 Request with the legacy Nak Section 5.7 prescribes rather than composing an Expanded Nak. Ze&#39;s authenticator sends no Notification Request, which RFC 3748 Section 5.2 states as an option (&#34;An authenticator MAY send a Notification Request to the peer at any time when there is no outstanding Request, prior to completion of an EAP authentication method&#34;) and which the owner declined on 2026-09-01; Ze&#39;s peer answers one, which is the mandatory half. Two further features are absent by decision rather than by omission, and neither is a conformance gap. Ze&#39;s authenticator terminates every EAP method locally and does not act as a pass-through agent for a backend authentication server; Section 2 says &#34;Support for pass-through is optional&#34;. Ze offers neither the One Time Password method (Type 5) nor the Generic Token Card method (Type 6), which Section 5 leaves to the implementation (&#34;Implementations MAY support other Types defined here or in future RFCs&#34;). A later scope decision can revisit any of the three. The Type 4 (MD5-Challenge) deviation authorized on 2026-08-30 was WITHDRAWN by the owner on 2026-09-01, who ordered the method implemented; both roles now run it.</p>
+<p>Every MUST is met. Both key-deriving methods now export the two keys RFC 3748 Section 7.10 requires.</p>
+<p class="rfc-prose"><strong>EAP-TLS:</strong> <code>exportEAPTLSKeys</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/eap_tls.go" target="_blank" rel="noopener"><code>internal/core/eap/eap_tls.go</code></a>) asks the TLS exporter for the whole 128-octet Key_Material both RFC 5216 Section 2.3 and RFC 9190 Section 2.3 define, and cuts it into <code>MSK = Key_Material(0,63)</code> and <code>EMSK = Key_Material(64,127)</code> on both roles.</p>
+<p class="rfc-prose"><strong>EAP-MSCHAPv2:</strong> <code>deriveEMSK</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/mschapv2.go" target="_blank" rel="noopener"><code>internal/core/eap/mschapv2.go</code></a>) expands the RFC 3079 Section 3 MPPE master key into 64 octets with HKDF-Expand over SHA-256 under a label of its own, beside the <code>DeriveMSK</code> that already took the same root down the MPPE branch. No document defines an EAP-MSCHAPv2 EMSK, and none needs to: Section 7.10 says &#34;The EMSK is not shared with the authenticator or any other third party&#34; and Section 7.2.1 says &#34;Use of the EMSK is reserved&#34;, so the key never reaches the wire and no interop rests on its value. The two keys are siblings of the master key rather than parent and child, which is what meets the separation Section 7.10 demands: &#34;an attacker recovering the MSK or EMSK MUST NOT be able to recover the other quantity with a level of effort less than brute force.&#34; Reaching either from the other means inverting SHA-1 or HMAC-SHA-256 to get back to the master key. The EMSK then goes no further than the two sessions that derived it, as the same section requires: on both methods it is an unexported field of <code>Session</code> and of <code>PeerSession</code> with no accessor and no result field, so no other package can read it, and <code>Close</code> erases it. Ze reads no Expanded Type (254), which Section 5 states as a SHOULD, and answers a Type-254 Request with the legacy Nak Section 5.7 prescribes rather than composing an Expanded Nak. Ze&#39;s authenticator sends no Notification Request, which RFC 3748 Section 5.2 states as an option (&#34;An authenticator MAY send a Notification Request to the peer at any time when there is no outstanding Request, prior to completion of an EAP authentication method&#34;) and which the owner declined on 2026-09-01; Ze&#39;s peer answers one, which is the mandatory half. Two further features are absent by decision rather than by omission, and neither is a conformance gap. Ze&#39;s authenticator terminates every EAP method locally and does not act as a pass-through agent for a backend authentication server; Section 2 says &#34;Support for pass-through is optional&#34;. Ze offers neither the One Time Password method (Type 5) nor the Generic Token Card method (Type 6), which Section 5 leaves to the implementation (&#34;Implementations MAY support other Types defined here or in future RFCs&#34;). A later scope decision can revisit any of the three. The Type 4 (MD5-Challenge) deviation authorized on 2026-08-30 was WITHDRAWN by the owner on 2026-09-01, who ordered the method implemented; both roles now run it.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -263,11 +261,11 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>47</strong></td>
+<td><strong>49</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>14</strong></td>
+<td><strong>12</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -282,12 +280,16 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
 <tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>61</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (47):</strong> <a href="#rfc3748-4-1"><code>RFC3748-4-1</code></a>, <a href="#rfc3748-4-2"><code>RFC3748-4-2</code></a>, <a href="#rfc3748-2-2"><code>RFC3748-2-2</code></a>, <a href="#rfc3748-2.1-1"><code>RFC3748-2.1-1</code></a>, <a href="#rfc3748-2.1-2"><code>RFC3748-2.1-2</code></a>, <a href="#rfc3748-2.1-3"><code>RFC3748-2.1-3</code></a>, <a href="#rfc3748-4.2-2"><code>RFC3748-4.2-2</code></a>, <a href="#rfc3748-4-4"><code>RFC3748-4-4</code></a>, <a href="#rfc3748-4.1-3"><code>RFC3748-4.1-3</code></a>, <a href="#rfc3748-4.1-4"><code>RFC3748-4.1-4</code></a>, <a href="#rfc3748-4.1-5"><code>RFC3748-4.1-5</code></a>, <a href="#rfc3748-4.2-5"><code>RFC3748-4.2-5</code></a>, <a href="#rfc3748-4.2-6"><code>RFC3748-4.2-6</code></a>, <a href="#rfc3748-4-5"><code>RFC3748-4-5</code></a>, <a href="#rfc3748-4.2-7"><code>RFC3748-4.2-7</code></a>, <a href="#rfc3748-4.2-8"><code>RFC3748-4.2-8</code></a>, <a href="#rfc3748-4.2-9"><code>RFC3748-4.2-9</code></a>, <a href="#rfc3748-2-3"><code>RFC3748-2-3</code></a>, <a href="#rfc3748-2.2-1"><code>RFC3748-2.2-1</code></a>, <a href="#rfc3748-4.1-6"><code>RFC3748-4.1-6</code></a>, <a href="#rfc3748-4.1-7"><code>RFC3748-4.1-7</code></a>, <a href="#rfc3748-4.1-8"><code>RFC3748-4.1-8</code></a>, <a href="#rfc3748-4.1-9"><code>RFC3748-4.1-9</code></a>, <a href="#rfc3748-4.1-10"><code>RFC3748-4.1-10</code></a>, <a href="#rfc3748-4.1-11"><code>RFC3748-4.1-11</code></a>, <a href="#rfc3748-2.1-4"><code>RFC3748-2.1-4</code></a>, <a href="#rfc3748-4.2-15"><code>RFC3748-4.2-15</code></a>, <a href="#rfc3748-4.2-10"><code>RFC3748-4.2-10</code></a>, <a href="#rfc3748-4.2-11"><code>RFC3748-4.2-11</code></a>, <a href="#rfc3748-4.2-12"><code>RFC3748-4.2-12</code></a>, <a href="#rfc3748-4.2-13"><code>RFC3748-4.2-13</code></a>, <a href="#rfc3748-4.2-14"><code>RFC3748-4.2-14</code></a>, <a href="#rfc3748-7.10-5"><code>RFC3748-7.10-5</code></a>, <a href="#rfc3748-7.10-7"><code>RFC3748-7.10-7</code></a>, <a href="#rfc3748-5-1"><code>RFC3748-5-1</code></a>, <a href="#rfc3748-5-2"><code>RFC3748-5-2</code></a>, <a href="#rfc3748-5.2-1"><code>RFC3748-5.2-1</code></a>, <a href="#rfc3748-5.2-2"><code>RFC3748-5.2-2</code></a>, <a href="#rfc3748-5.3.1-1"><code>RFC3748-5.3.1-1</code></a>, <a href="#rfc3748-5.3.1-2"><code>RFC3748-5.3.1-2</code></a>, <a href="#rfc3748-5.3.1-3"><code>RFC3748-5.3.1-3</code></a>, <a href="#rfc3748-5.3.1-4"><code>RFC3748-5.3.1-4</code></a>, <a href="#rfc3748-5.4-1"><code>RFC3748-5.4-1</code></a>, <a href="#rfc3748-5.4-2"><code>RFC3748-5.4-2</code></a>, <a href="#rfc3748-5.1-2"><code>RFC3748-5.1-2</code></a>, <a href="#rfc3748-7.5-1"><code>RFC3748-7.5-1</code></a>, <a href="#rfc3748-7.10-4"><code>RFC3748-7.10-4</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (14):</strong> <a href="#rfc3748-2-1"><code>RFC3748-2-1</code></a>, <a href="#rfc3748-4.1-1"><code>RFC3748-4.1-1</code></a>, <a href="#rfc3748-4.1-2"><code>RFC3748-4.1-2</code></a>, <a href="#rfc3748-4.2-1"><code>RFC3748-4.2-1</code></a>, <a href="#rfc3748-4.2-4"><code>RFC3748-4.2-4</code></a>, <a href="#rfc3748-2.3-1"><code>RFC3748-2.3-1</code></a>, <a href="#rfc3748-3.1-1"><code>RFC3748-3.1-1</code></a>, <a href="#rfc3748-3.1-2"><code>RFC3748-3.1-2</code></a>, <a href="#rfc3748-3.1-3"><code>RFC3748-3.1-3</code></a>, <a href="#rfc3748-3.1-4"><code>RFC3748-3.1-4</code></a>, <a href="#rfc3748-5.7-1"><code>RFC3748-5.7-1</code></a>, <a href="#rfc3748-7.10-1"><code>RFC3748-7.10-1</code></a>, <a href="#rfc3748-7.10-2"><code>RFC3748-7.10-2</code></a>, <a href="#rfc3748-7.10-6"><code>RFC3748-7.10-6</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (49):</strong> <a href="#rfc3748-4-1"><code>RFC3748-4-1</code></a>, <a href="#rfc3748-4-2"><code>RFC3748-4-2</code></a>, <a href="#rfc3748-2-2"><code>RFC3748-2-2</code></a>, <a href="#rfc3748-2.1-1"><code>RFC3748-2.1-1</code></a>, <a href="#rfc3748-2.1-2"><code>RFC3748-2.1-2</code></a>, <a href="#rfc3748-2.1-3"><code>RFC3748-2.1-3</code></a>, <a href="#rfc3748-4.2-2"><code>RFC3748-4.2-2</code></a>, <a href="#rfc3748-7.10-2"><code>RFC3748-7.10-2</code></a>, <a href="#rfc3748-4-4"><code>RFC3748-4-4</code></a>, <a href="#rfc3748-4.1-3"><code>RFC3748-4.1-3</code></a>, <a href="#rfc3748-4.1-4"><code>RFC3748-4.1-4</code></a>, <a href="#rfc3748-4.1-5"><code>RFC3748-4.1-5</code></a>, <a href="#rfc3748-4.2-5"><code>RFC3748-4.2-5</code></a>, <a href="#rfc3748-4.2-6"><code>RFC3748-4.2-6</code></a>, <a href="#rfc3748-4-5"><code>RFC3748-4-5</code></a>, <a href="#rfc3748-4.2-7"><code>RFC3748-4.2-7</code></a>, <a href="#rfc3748-4.2-8"><code>RFC3748-4.2-8</code></a>, <a href="#rfc3748-4.2-9"><code>RFC3748-4.2-9</code></a>, <a href="#rfc3748-2-3"><code>RFC3748-2-3</code></a>, <a href="#rfc3748-2.2-1"><code>RFC3748-2.2-1</code></a>, <a href="#rfc3748-4.1-6"><code>RFC3748-4.1-6</code></a>, <a href="#rfc3748-4.1-7"><code>RFC3748-4.1-7</code></a>, <a href="#rfc3748-4.1-8"><code>RFC3748-4.1-8</code></a>, <a href="#rfc3748-4.1-9"><code>RFC3748-4.1-9</code></a>, <a href="#rfc3748-4.1-10"><code>RFC3748-4.1-10</code></a>, <a href="#rfc3748-4.1-11"><code>RFC3748-4.1-11</code></a>, <a href="#rfc3748-2.1-4"><code>RFC3748-2.1-4</code></a>, <a href="#rfc3748-4.2-15"><code>RFC3748-4.2-15</code></a>, <a href="#rfc3748-4.2-10"><code>RFC3748-4.2-10</code></a>, <a href="#rfc3748-4.2-11"><code>RFC3748-4.2-11</code></a>, <a href="#rfc3748-4.2-12"><code>RFC3748-4.2-12</code></a>, <a href="#rfc3748-4.2-13"><code>RFC3748-4.2-13</code></a>, <a href="#rfc3748-4.2-14"><code>RFC3748-4.2-14</code></a>, <a href="#rfc3748-7.10-5"><code>RFC3748-7.10-5</code></a>, <a href="#rfc3748-7.10-6"><code>RFC3748-7.10-6</code></a>, <a href="#rfc3748-7.10-7"><code>RFC3748-7.10-7</code></a>, <a href="#rfc3748-5-1"><code>RFC3748-5-1</code></a>, <a href="#rfc3748-5-2"><code>RFC3748-5-2</code></a>, <a href="#rfc3748-5.2-1"><code>RFC3748-5.2-1</code></a>, <a href="#rfc3748-5.2-2"><code>RFC3748-5.2-2</code></a>, <a href="#rfc3748-5.3.1-1"><code>RFC3748-5.3.1-1</code></a>, <a href="#rfc3748-5.3.1-2"><code>RFC3748-5.3.1-2</code></a>, <a href="#rfc3748-5.3.1-3"><code>RFC3748-5.3.1-3</code></a>, <a href="#rfc3748-5.3.1-4"><code>RFC3748-5.3.1-4</code></a>, <a href="#rfc3748-5.4-1"><code>RFC3748-5.4-1</code></a>, <a href="#rfc3748-5.4-2"><code>RFC3748-5.4-2</code></a>, <a href="#rfc3748-5.1-2"><code>RFC3748-5.1-2</code></a>, <a href="#rfc3748-7.5-1"><code>RFC3748-7.5-1</code></a>, <a href="#rfc3748-7.10-4"><code>RFC3748-7.10-4</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (12):</strong> <a href="#rfc3748-2-1"><code>RFC3748-2-1</code></a>, <a href="#rfc3748-4.1-1"><code>RFC3748-4.1-1</code></a>, <a href="#rfc3748-4.1-2"><code>RFC3748-4.1-2</code></a>, <a href="#rfc3748-4.2-1"><code>RFC3748-4.2-1</code></a>, <a href="#rfc3748-4.2-4"><code>RFC3748-4.2-4</code></a>, <a href="#rfc3748-2.3-1"><code>RFC3748-2.3-1</code></a>, <a href="#rfc3748-3.1-1"><code>RFC3748-3.1-1</code></a>, <a href="#rfc3748-3.1-2"><code>RFC3748-3.1-2</code></a>, <a href="#rfc3748-3.1-3"><code>RFC3748-3.1-3</code></a>, <a href="#rfc3748-3.1-4"><code>RFC3748-3.1-4</code></a>, <a href="#rfc3748-5.7-1"><code>RFC3748-5.7-1</code></a>, <a href="#rfc3748-7.10-1"><code>RFC3748-7.10-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -466,16 +468,18 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-7.10-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L324" title="internal/core/eap/rfc3748_test.go" target="_blank" rel="noopener"><code>TestRFC3748MSKSize</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the MSK is the compile-time fixed [64]byte returned by DeriveMSK (internal/core/eap/mschapv2.go:206) and by the EAP-TLS ExportKeyingMaterial(...,64) (eap_tls.go:262), so the 64-octet floor cannot be undershot and has no negative case</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> the MSK is the compile-time fixed [64]byte returned by DeriveMSK (internal/core/eap/mschapv2.go) and by the first half of the 128-octet Key_Material exportEAPTLSKeys takes (internal/core/eap/eap_tls.go), so the 64-octet floor cannot be undershot and has no negative case</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-7.10-2">RFC3748-7.10-2</code></td><td colspan="3"><span class="rfc-subject">EMSK MUST be at least 64 octets (S7.10)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>7.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-7.10-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze derives only the MSK (exported for the IKEv2 AUTH payload) and never derives or consumes the EMSK -- no EMSK is produced anywhere in internal/core/eap, so there is no EMSK to size-check</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L109" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSExportsASixtyFourOctetEMSK</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L90" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L178" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoEMSKWithoutACompletedExport</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L152" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-7.10-3">RFC3748-7.10-3</code></td><td colspan="3"><span class="rfc-subject">An EAP method that establishes no shared key, such as MD5-Challenge, SHOULD NOT be used with IKEv2 (RFC 7296 S2.16 states the rule; S7.10 anchors this id)</span></td></tr>
 <tr><td></td>
@@ -731,9 +735,11 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <td>MUST</td>
 <td>7.10</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3748-7.10-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze derives no EMSK, so the key this obligation confines is never produced and no behavior of ze can be measured against it. exportEAPTLSMSK (internal/core/eap/eap_tls.go) asks the TLS exporter for the 128 octets RFC 9190 Section 2.3 defines and copies only the first 64, the MSK, leaving the EMSK half unread; DeriveMSK (internal/core/eap/mschapv2.go) returns a 64-octet MSK and derives nothing else. Section 7.10 requires a key-deriving method to export both -- &#34;an EAP method supporting key derivation MUST export a Master Session Key (MSK) of at least 64 octets, and an Extended Master Session Key (EMSK) of at least 64 octets&#34; -- so the missing EMSK is behavior ze owes, and this row stays open until a method derives one and a test proves it stays where it was derived</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L231" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L205" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L269" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEMSKIsNeverHandedOutward</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L243" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3748-7.10-7">RFC3748-7.10-7</code></td><td colspan="3"><span class="rfc-subject">EAP peers, authenticators and authentication servers MUST be prepared for situations in which one of the parties discards the key state, which remains valid on another party (S7.10)</span></td></tr>
 <tr><td></td>
@@ -943,14 +949,6 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <tr><td><a href="#rfc3748-5.7-1"><code>RFC3748-5.7-1</code></a> When Type = 254 (Expanded Types), Vendor-Id 0 = IETF namespace (S5.7)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze offers MD5-Challenge (4), EAP-TLS (13) and EAP-MSCHAPv2 (26); NewSession rejects every other type (NewSession, internal/core/eap/eap.go) and the codec never encodes or parses an Expanded Type (254) packet or its Vendor-Id field, so no Vendor-Id namespace rule can bind. The peer reads TypeExpandedEAP only to route a Type-254 Request to the legacy Nak that Section 5.7 prescribes for a peer not equipped to interpret it (PeerSession.naks, internal/core/eap/peer.go), and that Nak carries no Vendor-Id</td>
-</tr>
-<tr><td><a href="#rfc3748-7.10-2"><code>RFC3748-7.10-2</code></a> EMSK MUST be at least 64 octets (S7.10)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze derives only the MSK (exported for the IKEv2 AUTH payload) and never derives or consumes the EMSK -- no EMSK is produced anywhere in internal/core/eap, so there is no EMSK to size-check</td>
-</tr>
-<tr><td><a href="#rfc3748-7.10-6"><code>RFC3748-7.10-6</code></a> The EMSK MUST remain on the EAP peer and EAP server where it is derived, and MUST NOT be transported to, shared with, or used to derive keys for additional parties (S7.10)</td>
-<td>{gap}, no test</td>
-<td>ze derives no EMSK, so the key this obligation confines is never produced and no behavior of ze can be measured against it. exportEAPTLSMSK (internal/core/eap/eap_tls.go) asks the TLS exporter for the 128 octets RFC 9190 Section 2.3 defines and copies only the first 64, the MSK, leaving the EMSK half unread; DeriveMSK (internal/core/eap/mschapv2.go) returns a 64-octet MSK and derives nothing else. Section 7.10 requires a key-deriving method to export both -- &#34;an EAP method supporting key derivation MUST export a Master Session Key (MSK) of at least 64 octets, and an Extended Master Session Key (EMSK) of at least 64 octets&#34; -- so the missing EMSK is behavior ze owes, and this row stays open until a method derives one and a test proves it stays where it was derived</td>
 </tr>
 </tbody>
 </table>
@@ -1219,7 +1217,33 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <h3><a href="#rfc3748-7.10-2"><code>RFC3748-7.10-2</code></a></h3>
 <p>EMSK MUST be at least 64 octets (S7.10)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-7.10-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L178" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoEMSKWithoutACompletedExport</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L152" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L109" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748EAPTLSExportsASixtyFourOctetEMSK</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L90" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748MSCHAPv2ExportsASixtyFourOctetEMSK</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-7.10-3"><code>RFC3748-7.10-3</code></a></h3>
 <p>An EAP method that establishes no shared key, such as MD5-Challenge, SHOULD NOT be used with IKEv2 (RFC 7296 S2.16 states the rule; S7.10 anchors this id)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1793,7 +1817,33 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
 <h3><a href="#rfc3748-7.10-6"><code>RFC3748-7.10-6</code></a></h3>
 <p>The EMSK MUST remain on the EAP peer and EAP server where it is derived, and MUST NOT be transported to, shared with, or used to derive keys for additional parties (S7.10)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC3748-7.10-6, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L269" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEMSKIsNeverHandedOutward</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L243" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L231" title="internal/core/eap/rfc3748_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheEMSKStaysOnBothEndsThatDerivedIt</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L205" title="internal/core/eap/rfc3748_mschapv2_emsk_test.go" target="_blank" rel="noopener"><code>TestRFC3748TheMSCHAPv2EMSKStaysWhereItWasDerived</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc3748-7.10-7"><code>RFC3748-7.10-7</code></a></h3>
 <p>EAP peers, authenticators and authentication servers MUST be prepared for situations in which one of the parties discards the key state, which remains valid on another party (S7.10)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -2759,7 +2809,7 @@ EAP framework inside IKEv2 IKE_AUTH, Success and Failure handling, and the Secti
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:58 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

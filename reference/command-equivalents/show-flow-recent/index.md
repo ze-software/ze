@@ -25,9 +25,9 @@ Without arguments, returns every ring record (oldest to newest, up to the config
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `dst` | string | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `dst` | string | no | any value of this type | Destination prefix or address to filter by (used with 'dst <prefix>'). | The value is an IPv4 or IPv6 prefix in CIDR form, or a bare address, which Ze reads as a /32 or a /128. Ze keeps only the ring records whose destination is inside that prefix. |
 
 ## Mapping intents
 

@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -281,6 +282,10 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
 <tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>4</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
@@ -297,7 +302,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>SHALL</td>
 <td>3 - Constructing the Next Hop field</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2545-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L666" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L618" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L136" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L133" title="internal/component/bgp/reactor/announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceAcceptsLinkLocalSecondAddress</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L67" title="internal/component/bgp/reactor/announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceRefusesUnusableIPv6NextHop</code></a></span></div>
@@ -312,7 +317,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>SHALL</td>
 <td>3 - Constructing the Next Hop field</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2545-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L670" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L622" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L140" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L136" title="internal/component/bgp/reactor/announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceAcceptsLinkLocalSecondAddress</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/announce_nexthop_guard_test.go#L108" title="internal/component/bgp/reactor/announce_nexthop_guard_test.go" target="_blank" rel="noopener"><code>TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress</code></a></span></div>
@@ -327,9 +332,9 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>SHALL</td>
 <td>3 - Constructing the Next Hop field</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2545-3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L673" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L625" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L143" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceAppendsLinkLocalWhenSection3Holds</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L698" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L650" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L176" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L16" title="test/exabgp-compat/encoding/conf-llnh-update.ci" target="_blank" rel="noopener"><code>conf-llnh-update.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-lla-only.ci#L7" title="test/exabgp-compat/encoding/conf-llnh-lla-only.ci" target="_blank" rel="noopener"><code>conf-llnh-lla-only.ci</code></a></span></div>
@@ -342,7 +347,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>SHALL</td>
 <td>3 - Constructing the Next Hop field</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2545-3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L702" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L654" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_send_test.go#L180" title="internal/component/bgp/reactor/peer_send_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceOmitsLinkLocalWhenPeerOffLink</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/encode/new-v6.ci#L11" title="test/encode/new-v6.ci" target="_blank" rel="noopener"><code>new-v6.ci</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/exabgp-compat/encoding/conf-llnh-update.ci#L22" title="test/exabgp-compat/encoding/conf-llnh-update.ci" target="_blank" rel="noopener"><code>conf-llnh-update.ci</code></a></span></div>
@@ -403,7 +408,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L666" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L618" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -448,7 +453,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L670" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L622" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -483,7 +488,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L698" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L650" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -503,7 +508,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L673" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L625" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateAppendsLinkLocalWhenSection3Holds</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -538,7 +543,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L702" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_initial_sync_test.go#L654" title="internal/component/bgp/reactor/peer_initial_sync_test.go" target="_blank" rel="noopener"><code>TestDefaultOriginateOmitsLinkLocalWhenPeerOffLink</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -728,7 +733,7 @@ No tracked gap in current source anchors. Sections 2 and 4 bind a network admini
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 08:15 UTC</span>
                 </div>
             </div>
         </footer>

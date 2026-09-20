@@ -2705,7 +2705,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Config storage/archive</td>
 <td>Persistent config store</td>
-<td>ZeFS stores active/draft/historical entries in one <code>.zefs</code> blob; daemon owns blob and terminal commands connect over SSH. <span class="ev-src"><span class="ev-ref"><code>docs/architecture/zefs-format.md:104-183</code></span><span class="ev-ref"><code>docs/architecture/zefs-format.md:139-173</code></span></span></td>
+<td>The live <code>database/</code> tree stores active/draft/historical entries under one key space, <code>.zefs</code> blob is a seed or backup artifact only; the daemon owns the store and terminal commands connect over SSH. <span class="ev-src"><span class="ev-ref"><code>docs/architecture/storage-backends.md</code></span><span class="ev-ref"><code>docs/architecture/zefs-format.md:104-183</code></span><span class="ev-ref"><code>docs/architecture/zefs-format.md:139-173</code></span></span></td>
 <td>ConfigMgmt paths include, archive directory, commit log, rollback files, <code>commit-revisions "100"</code>. <span class="ev-src"><span class="ev-ref"><code>/config/config.boot</code></span><span class="ev-ref"><code>python/vyos/config_mgmt.py:68-76</code></span><span class="ev-ref"><code>data/config.boot.default</code></span><span class="ev-ref"><code>data/config.boot.default:26-27</code></span></span></td>
 <td><code>cfgAll</code> renders <code>client config-backup</code>, <code>client config-save</code>, and <code>client config-archive</code> lines; config files are run by <code>cfgInit.executeSWcommands</code>. <span class="ev-src"><span class="ev-ref"><code>src/org/freertr/cfg/cfgAll.java:4018-4025</code></span><span class="ev-ref"><code>src/org/freertr/cfg/cfgInit.java:1119-1163</code></span></span></td>
 <td>Ze uses custom blob storage. VyOS uses config.boot plus archive directory. freeRtr has config save/archive flags and startup execution model.</td>
@@ -3505,7 +3505,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Configuration storage and config tree</td>
 <td>Storage abstractions and tree representations</td>
-<td>Ze <code>cmdStart</code> resolves blob or filesystem storage in and requires blob storage unless auto-init or fallback applies in <code>:150-174</code>; hub reads active/candidate configs and writes active versions in. <span class="ev-src"><span class="ev-ref"><code>ze_core_start.go:29-40</code></span><span class="ev-ref"><code>hub/main.go:126-154</code>, <code>:209-226</code></span></span></td>
+<td>Ze <code>cmdStart</code> opens the <code>database/</code> tree beside the configuration, creating it for <code>ze start &lt;file&gt;</code> when none exists and refusing a <code>database.zefs</code> where the live store belongs, <code>ze_core_start.go</code>; hub reads active/candidate configs and writes active versions in. <span class="ev-src"><span class="ev-ref"><code>hub/main.go:126-154</code>, <code>:209-226</code></span></span></td>
 <td>VyOS Config API describes running/session config semantics in <code>Config.__init__</code> chooses <code>ConfigSourceVyconfSession</code> or <code>ConfigSourceSession</code> and stores running/session trees at <code>:137-154</code>. <span class="ev-src"><span class="ev-ref"><code>python/vyos/config.py:44-57</code></span></span></td>
 <td>freeRtr stores global state in static Java registries, such as <code>cfgAll.routers</code>, <code>cfgAll.ifaces</code>, daemon lists at; config file handling exists in <code>cfgInit</code> fields <code>cfgFileHw</code>/<code>cfgFileSw</code> at. <span class="ev-src"><span class="ev-ref"><code>cfgAll.java:229-500</code></span><span class="ev-ref"><code>cfgInit.java:100-109</code></span></span></td>
 <td>[analysis] Ze has explicit storage backends and versioned active/candidate behavior. VyOS has running/session tree sources. freeRtr represents runtime config as live Java objects backed by config files.</td>
@@ -3621,7 +3621,7 @@ about non-BGP router OS breadth.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

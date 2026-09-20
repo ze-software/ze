@@ -1664,7 +1664,7 @@ refuses the others BY NAME before your handler runs. Declare nothing and the CLI
 waits for the answer, then refuses from what it has in hand.</p>
 <pre><code class="language-go">Commands: []sdk.CommandDecl{{
 	Name:          "my-plugin peers",
-	Description:   "Show the sessions",
+	ShortHelp:     "Show the sessions",
 	Shape:         "tab",
 	Columns:       []string{"address", "state", "up"},
 	AddressFields: []string{"address"},
@@ -1764,14 +1764,16 @@ command argument, which expands the chain in the client process and answers
 <p>The declaration is voluntary. It says WHEN your routes belong, not what you may send, so a plugin that pushes routes on its own schedule declares nothing and is never waited for, and binding it with <code>send [ update ]</code> costs the peer no delay.</p>
 <p>An external plugin has the same declaration under a different name. It is registered nowhere in this tree, so it declares <code>signals-session-ready</code> in its Stage-1 <code>declare-registration</code> instead, and the engine reads it off the running process. Declaring nothing stays the default there too.</p>
 <p>The name you are waited for under is the one the operator wrote in <code>attach process &lt;name&gt;</code>, whatever your plugin is called. <code>plugin { internal rs { use bgp-rs } }</code> runs the process as <code>rs</code>, and the engine resolves that alias back to the <code>bgp-rs</code> registration before it asks whether you declared. Your report carries the process name, so it is credited to <code>rs</code> as well. The spelling of the implementation does not change the answer: <code>use bgp-rs</code>, <code>use ze.bgp-rs</code>, <code>run ze.bgp-rs</code> and <code>run ze plugin bgp-rs</code> all reach the same registration, because one function (<code>plugin.RegistryNames</code>) answers which registry row a process configuration names and every caller derives from it.</p>
-<p>Three facts have to hold before a peer waits for your process, and each one is something you can check in your own config. The peer grants the route-push rail, with <code>send [ update ]</code> or <code>send [ raw ]</code>. The plugin declares the field. The peer grants <code>receive [ state ]</code>, because the report answers the peer-up event: a process the peer never tells about the session cannot push into that session's initial update, so it is not waited for. A binding with <code>send [ update ]</code> and no <code>receive [ state ]</code> is therefore free of the wait rather than stalled by it.</p>
-<p>Report once per establishment, from your peer-up handler, and report even when you had nothing to replay: the barrier cannot tell "finished with nothing to send" from "still working". A process that never reports only delays that peer's End-of-RIB to <code>apiSyncTimeout</code> (2s), which logs a WARN naming the peer and the silent processes.</p>
+<p>Three facts have to hold before a peer names your process in its barrier, and each one is something you can check in your own config. The peer grants the route-push rail, with <code>send [ update ]</code> or <code>send [ raw ]</code>. The plugin declares the field. The peer grants <code>receive [ state ]</code>, because the report answers the peer-up event: a process the peer never tells about the session cannot push into that session's initial update, so it is never named.</p>
+<p>Report once per establishment, from your peer-up handler, and report even when you had nothing to replay: the barrier cannot tell "finished with nothing to send" from "still working".</p>
+<p><strong>Your report does not hold the peer's End-of-RIB (owner ruling, 2026-09-18).</strong> A process that creates routes counts as a peer when the marker is decided, and Ze does not wait for a peer's marker before sending its own. The marker goes out as soon as the peer has written the routes it owns itself. What your report buys is ORDER during the initial sync: routes you push before it are part of that update, and routes you push after the marker are delivered as ordinary updates, which is what RFC 4724 Section 2 describes. A process that never reports costs its peer nothing.</p>
 <!-- source: internal/component/plugin/registry/registry.go -- Registration.SignalsSessionReady -->
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput.SignalsSessionReady -->
 <!-- source: internal/component/plugin/server/events.go -- (*Server).declaresSessionReady -->
 <!-- source: internal/component/plugin/resolve.go -- RegistryNames -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- Peer.initialUpdateReporters -->
-<!-- source: internal/component/bgp/reactor/peer.go -- Peer.waitForAPISync -->
+<!-- source: internal/component/bgp/reactor/peer.go -- Peer.SignalAPIReady -->
+<!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes -->
 <h2 id="startup-timing">Startup Timing</h2>
 <p>Each handshake stage is bounded by progress, not by wall clock. A stage fails only when the whole startup tier goes <code>ze.plugin.stage.timeout</code> (default 5s) without any plugin completing a stage; every completion re-arms the window. A BGP config puts twenty or more plugins in one tier (<code>bgp</code>, <code>bgp-bmp</code>, <code>bgp-rpki</code>, every <code>bgp-filter-*</code>), and a flat per-tier budget meant a CPU-starved or slow-disk host could lose all of them at once and come up with its BGP plugins missing.</p>
 <p>The wait stays bounded three ways: a repeated stage completion is ignored, so a looping plugin cannot hold the window open; a wedged tier trips within one timeout of the last progress; and shutdown ends the wait. Worst case is <code>(plugins + 1) x timeout</code> per stage.</p>
@@ -1811,7 +1813,7 @@ command argument, which expands the chain in the client process and answers
 </tr>
 <tr>
 <td><code>decode-nlri &lt;family&gt; &lt;hex&gt;</code></td>
-<td>Decode NLRI from hex</td>
+<td>Decode NLRI from hex. The text command carries no ADD-PATH token, so the hex holds no Path Identifier</td>
 </tr>
 <tr>
 <td><code>encode-nlri &lt;family&gt; &lt;args&gt;</code></td>
@@ -1842,7 +1844,7 @@ command argument, which expands the chain in the client process and answers
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -1867,7 +1869,7 @@ command argument, which expands the chain in the client process and answers
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

@@ -93,6 +93,7 @@ Gated per requirement in [`rfc/short/rfc1997.md`](https://github.com/ze-software
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **5** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (5):** [`RFC1997-Well-1`](#rfc1997-well-1), [`RFC1997-Well-2`](#rfc1997-well-2), [`RFC1997-Well-3`](#rfc1997-well-3), [`RFC1997-Encoding-1`](#rfc1997-encoding-1), [`RFC1997-Well-4`](#rfc1997-well-4)

@@ -23,9 +23,9 @@ Example topology:
 | `flowspec-rr` | FlowSpec route reflector | `203.0.113.1` | `65010` |
 | `flowspec-rr-b` | second trusted source | `203.0.113.2` | `65010` |
 
-## 2. Update the active zefs config
+## 2. Update the active stored config
 
-Keep the active configuration in `database.zefs`. The commands below read the current active config, normalize it to set format, append the FlowSpec protection settings, render the import file, validate the result, import it back into zefs, and reload the daemon. They do not create `/etc/ze/edge-01.conf`.
+Keep the active configuration in the `database/` store. The commands below read the current active config, normalize it to set format, append the FlowSpec protection settings, render the import file, validate the result, import it back into the store, and reload the daemon. They do not create `/etc/ze/edge-01.conf`.
 
 ```bash
 set -euo pipefail
@@ -135,6 +135,35 @@ A refused route stops at the bridge and goes no further. Routes ze CAN enforce,
 and the rulesets of every other firewall owner, continue to reach the kernel.
 
 <!-- source: internal/plugins/flowspec-firewall/translate.go -- protocolMatches -->
+
+### Traffic filtering actions ze does not perform
+
+Ze performs three of the RFC 8955 Section 7 traffic filtering actions:
+traffic-rate-bytes, traffic-rate-packets and traffic-marking. It does not
+perform rt-redirect (Section 7.4), traffic-action (Section 7.3), or the
+redirect-to-nexthop pair of draft-ietf-idr-flowspec-redirect-ip.
+
+Section 7.4 gives rt-redirect three encodings: a two-octet AS, an IPv4 address,
+and a four-octet AS. Ze refuses all three alike. A four-byte-ASN peer therefore
+gets the same answer as a two-byte-ASN peer.
+
+<!-- source: internal/plugins/flowspec-firewall/translate.go -- unperformableAction -->
+
+A route carrying one of those is REFUSED as a whole, logged with the community
+that caused the refusal, and counted in `ze_flowspec_rules_refused_total` under
+the reason `unsupported-action`. Ze does not install the part of the route it
+can perform.
+
+RFC 8955 Section 7 says that where not all traffic filtering actions can be
+applied "they should be treated as interfering Traffic Filtering Actions", and
+Section 7.7 leaves the choice among interfering actions to the implementation
+while asking that the behavior be documented. This section is that document.
+The choice is to refuse, because the alternative installs a rule ending in
+accept: a route asking ze to rate-limit AND redirect would then send the
+traffic to its original destination while the peer was told the route was
+accepted.
+
+<!-- source: internal/plugins/flowspec-firewall/translate.go -- unperformableAction -->
 
 ## 4. Test with a safe FlowSpec rule
 

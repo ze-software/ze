@@ -51,7 +51,7 @@
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#1-start-from-an-installed-ze-node">1. Start from an installed Ze node</a></li>
-<li><a href="#2-update-the-active-zefs-config">2. Update the active zefs config</a></li>
+<li><a href="#2-update-the-active-stored-config">2. Update the active stored config</a></li>
 <li><a href="#3-verify-sessions-and-reflector-state">3. Verify sessions and reflector state</a></li>
 <li><a href="#4-inject-a-test-flowspec-rule">4. Inject a test FlowSpec rule</a></li>
 <li><a href="#5-router-side-shape">5. Router-side shape</a></li>
@@ -102,8 +102,8 @@
 </tr>
 </tbody>
 </table>
-<h2 id="2-update-the-active-zefs-config">2. Update the active zefs config</h2>
-<p>Keep the active configuration in <code>database.zefs</code>. The commands below read the current active config, normalize it to set format, append the route-reflector settings, render the import file, validate the result, import it back into zefs, and reload the daemon. They do not create <code>/etc/ze/edge-01.conf</code>.</p>
+<h2 id="2-update-the-active-stored-config">2. Update the active stored config</h2>
+<p>Keep the active configuration in the <code>database/</code> store. The commands below read the current active config, normalize it to set format, append the route-reflector settings, render the import file, validate the result, import it back into the store, and reload the daemon. They do not create <code>/etc/ze/edge-01.conf</code>.</p>
 <pre><code class="language-bash">set -euo pipefail
 
 umask 077
@@ -282,7 +282,7 @@ address-family ipv4 flowspec
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -307,7 +307,7 @@ address-family ipv4 flowspec
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

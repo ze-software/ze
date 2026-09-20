@@ -65,6 +65,8 @@ Routes selected and prepared for advertisement to one peer.</p>
 Address Family Identifier and Subsequent Address Family Identifier. Together they identify a BGP family such as IPv4 unicast, EVPN, or FlowSpec.</p>
 <p><strong>AS path</strong><br>
 The sequence of autonomous systems a BGP route has traversed. Ze uses it for loop detection, policy, best-path selection, and topology display.</p>
+<p><strong>BART</strong><br>
+Balanced Routing Table, the <code>gaissmai/bart</code> library under Ze's prefix-keyed route store. It is Knuth's Allotment Routing Table (ART) laid out as a stride-8 multibit trie. It is unrelated to the Adaptive Radix Tree (Leis et al., 2013), which shares the ART acronym.</p>
 <p><strong>BGP Role</strong><br>
 An RFC 9234 relationship such as provider, customer, peer, route server, or route-server client. Roles help detect route leaks and control OTC processing.</p>
 <p><strong>End-of-RIB</strong><br>
@@ -116,7 +118,7 @@ A registered Ze extension. Plugins may run in process or as external programs an
 <p><strong>Plugin hub</strong><br>
 The authenticated transport and dispatch layer used by external plugins and managed components. It is separate from Fleet Management even when configuration shares a surrounding plugin block.</p>
 <p><strong>ZeFS</strong><br>
-Ze's blob storage format for configuration, credentials, revisions, and other registered data.</p>
+Ze's blob artifact format (<code>.zefs</code>): a seed, a backup, or an import source carrying the same keys as the live <code>database/</code> store. It is never the live store.</p>
 <h2 id="operator-surfaces">Operator surfaces</h2>
 <p><strong>CLI</strong><br>
 The interactive or one-shot command interface reached over Ze's SSH server.</p>
@@ -147,7 +149,7 @@ Reduction of a recorded chaos event sequence to the smallest sequence that still
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

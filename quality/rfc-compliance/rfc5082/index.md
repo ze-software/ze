@@ -10,10 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 75.0% | 3 of 4 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 100.0% | 4 of 4 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0.0% | 0 of 4 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 100.0% | 6 of 6 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 100.0% | 15 of 15 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -27,14 +28,6 @@ measures that are neither good news nor bad
 | Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| No test at all | 25.0% | 1 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-
 The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
@@ -46,7 +39,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -63,19 +56,19 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Gated MUST-level | 4 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
-| Gated with no test | 1 |
+| Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 6 |
-| Tagged units | 6 |
+| Test tags | 15 |
+| Tagged units | 15 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 6 |
+| Discrimination records | 15 |
 | Summary | `rfc/short/rfc5082.md` |
 | Requirement shard | `rfc/requirements/rfc5082.md` |
 | RFC text | `rfc/full/rfc5082.txt` |
 
 ## Enrolment
 
-Enrolled: Generalized TTL Security Mechanism (GTSM): four MUST-level requirements. Ze installs the socket options that make the Linux stack perform the check, so conformance is judged on the whole stack. RFC5082-3-1 (transmit TTL 255) is produced by network.setIPTTL (IP_TTL / IPV6_UNICAST_HOPS, internal/core/network/ttl_linux.go), driven for BGP by reactor.parseTTLSettings (`ttl max N` derives OutTTL=255) and reactor.tuneTCPConnectionForSettings, for the listen socket by Reactor.listenTTLForListener plus network.setListenIPTTL, and for BFD by transport.applySocketOptions / applySocketOptionsV6 (IP_TTL=255, IPV6_UNICAST_HOPS=255). RFC5082-3-3 (no decrement) holds because Linux does not decrement locally originated packets; the observable proof is a peer socket carrying IP_MINTTL=255 accepting the connection. RFC5082-3-4 (never drop Trusted or Unknown) holds because network.setIPMinTTL is applied only when a peer configures a floor, so a packet no GTSM session claims meets no TTL gate, and bfd/engine.passesTTLGate admits TTL >= MinTTL. RFC5082-3-2 (the same TTL 255 rule for the related ICMP error messages) is produced by no layer: Linux emits ICMP errors from the IP stack with net.ipv4.ip_default_ttl, not with the socket IP_TTL, and no socket option gates the TTL of an inbound ICMP error. RFC5082-3-1, RFC5082-3-3 and RFC5082-3-4 are proven in both polarities by internal/core/network/ttl_gtsm_linux_test.go, each with a verified discrimination record in rfc/discrimination/rfc5082.json. RFC5082-3-2 carries no test: the behavior does not exist to test.
+Enrolled: Generalized TTL Security Mechanism (GTSM): four MUST-level requirements. Ze installs the socket options that make the Linux stack perform the check, so conformance is judged on the whole stack. RFC5082-3-1 (transmit TTL 255) is produced by network.setIPTTL (IP_TTL / IPV6_UNICAST_HOPS, internal/core/network/ttl_linux.go), driven for BGP by reactor.parseTTLSettings (`ttl max N` derives OutTTL=255) and reactor.tuneTCPConnectionForSettings, for the listen socket by Reactor.listenTTLForListener plus network.setListenIPTTL, and for BFD by transport.applySocketOptions / applySocketOptionsV6 (IP_TTL=255, IPV6_UNICAST_HOPS=255). RFC5082-3-3 (no decrement) holds because Linux does not decrement locally originated packets; the observable proof is a peer socket carrying IP_MINTTL=255 accepting the connection. RFC5082-3-4 (never drop Trusted or Unknown) holds because network.setIPMinTTL is applied only when a peer configures a floor, so a packet no GTSM session claims meets no TTL gate, and bfd/engine.passesTTLGate admits TTL >= MinTTL. RFC5082-3-2 (the same TTL 255 rule for the related ICMP error messages) has a transmit half and a receive half in each family, and each cell is answered by a different kernel mechanism. Transmit, both families: a locally generated ICMP error takes its TTL from ip_select_ttl (net/ipv4/ip_output.c) and ip6_dst_hoplimit (net/ipv6/ip6_output.c), which read the RTAX_HOPLIMIT route metric before net.ipv4.ip_default_ttl and the interface hop limit, so gtsm.installHopLimitRoute (internal/component/gtsm/route_linux.go) installs a host route to each GTSM peer carrying that metric. Receive, IPv6: tcp_v6_err compares the hop limit of the ICMPv6 error itself against the IPV6_MINHOPCOUNT that network.setIPMinTTL installs (kernel 7.2, net/ipv6/tcp_ipv6.c, tcp_v6_err), so the socket option answers it. Receive, IPv4: tcp_v4_err compares IP_MINTTL against the TTL quoted inside the ICMP payload, a field the sender of the error chooses, because icmp_rcv has pulled skb->data to the quoted header of ze's own earlier packet (net/ipv4/tcp_ipv4.c, tcp_v4_err), so the socket option cannot answer it and gtsm.peerTerms publishes an nftables input table instead. Each term matches the quoted IPv4 header's destination (the peer) and the quoted TCP port on either side (the BGP port), reads no outer source, and drops the error below the peer's floor (peerTerms, internal/component/gtsm/gtsm.go, lowered by lowerICMPErrorQuotedDestinationMatch and lowerICMPErrorQuotedTCPPortMatch, internal/plugins/firewall/nft/lower_linux.go). The outer source is not read because any router on the path generates the error and a forged error carries whatever source its sender chose, while the kernel delivers it to the session by the header it quotes. All four requirements are proven in both polarities: RFC5082-3-1, RFC5082-3-3 and RFC5082-3-4 by internal/core/network/ttl_gtsm_linux_test.go, and RFC5082-3-2's four cells by internal/component/gtsm/gtsm_rfc5082_linux_test.go, each with a verified discrimination record in rfc/discrimination/rfc5082.json.
 
 ## What the public ledger says
 
@@ -83,35 +76,35 @@ Enrolled: Generalized TTL Security Mechanism (GTSM): four MUST-level requirement
 
 **What the ledger says is covered**
 
-Per-peer BGP GTSM through `connection { ttl { max; set; min } }`: `parseTTLSettings` derives an outgoing TTL of 255 and an inbound floor of 255-N+1 from `ttl max N` ([`internal/component/bgp/reactor/config.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config.go)), `tuneTCPConnectionForSettings` installs IP_TTL / IPV6_UNICAST_HOPS and IP_MINTTL / IPV6_MINHOPCOUNT on the connected socket ([`internal/component/bgp/reactor/session_connection.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_connection.go), [`internal/core/network/ttl_linux.go`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_linux.go)), and `listenTTLForListener` carries the same outgoing TTL onto the listen socket so a GTSM peer that dials in does not drop the SYN-ACK ([`internal/component/bgp/reactor/reactor.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor.go)). BFD sets IP_TTL=255 and IPV6_UNICAST_HOPS=255 on transmit and gates the received TTL ([`internal/component/bfd/transport/udp_linux.go`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_linux.go), `passesTTLGate` in [`internal/component/bfd/engine/loop.go`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/loop.go)). VRRP sends and requires TTL 255 ([`internal/plugins/vrrp/packet/validate.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate.go)). Requirements bound per requirement in [`rfc/requirements/rfc5082.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc5082.md).
+Per-peer BGP GTSM through `connection { ttl { max; set; min } }`: `parseTTLSettings` derives an outgoing TTL of 255 and an inbound floor of 255-N+1 from `ttl max N` ([`internal/component/bgp/reactor/config.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config.go)), `tuneTCPConnectionForSettings` installs IP_TTL / IPV6_UNICAST_HOPS and IP_MINTTL / IPV6_MINHOPCOUNT on the connected socket ([`internal/component/bgp/reactor/session_connection.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_connection.go), [`internal/core/network/ttl_linux.go`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_linux.go)), and `listenTTLForListener` carries the same outgoing TTL onto the listen socket so a GTSM peer that dials in does not drop the SYN-ACK ([`internal/component/bgp/reactor/reactor.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor.go)). BFD sets IP_TTL=255 and IPV6_UNICAST_HOPS=255 on transmit and gates the received TTL ([`internal/component/bfd/transport/udp_linux.go`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_linux.go), `passesTTLGate` in [`internal/component/bfd/engine/loop.go`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/loop.go)). VRRP sends and requires TTL 255 ([`internal/plugins/vrrp/packet/validate.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate.go)). The related ICMP error messages of a BGP GTSM peer are carried by `internal/component/gtsm`, which the reactor's peer reconcile publishes the peer set to (`Reactor.gtsmPeers`, [`internal/component/bgp/reactor/gtsm.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/gtsm.go)): a host route carrying RTAX_HOPLIMIT 255 for the transmit rule, and the `ze_gtsm` nftables input table for the IPv4 receive rule. Requirements bound per requirement in [`rfc/requirements/rfc5082.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc5082.md).
 
 **What the ledger says remains**
 
-The socket options are Linux-only: the non-Linux build returns an unsupported error and leaves the OS default ([`internal/core/network/ttl_other.go`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_other.go)). Dynamic GTSM capability negotiation is not offered. RFC 5082 Section 2.1 neither assumes nor defines one, ze configures GTSM statically per peer, and the obligation conditional on running such a negotiation is excluded as `feature-out-of-scope` in [`rfc/extraction/rfc5082.json`](https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc5082.json). That absent feature is an implementation gap a later scope decision can revisit, and not a conformance gap.
+- **The socket options are Linux-only:** the non-Linux build returns an unsupported error and leaves the OS default ([`internal/core/network/ttl_other.go`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_other.go)). Dynamic GTSM capability negotiation is not offered. RFC 5082 Section 2.1 neither assumes nor defines one, ze configures GTSM statically per peer, and the obligation conditional on running such a negotiation is excluded as `feature-out-of-scope` in [`rfc/extraction/rfc5082.json`](https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc5082.json). That absent feature is an implementation gap a later scope decision can revisit, and not a conformance gap. The related-message filter claims a BGP GTSM session: it associates an ICMP error with a session by the header the error quotes alone, the quoted IPv4 destination (the peer) and the quoted TCP port on either side (peerTerms, [`internal/component/gtsm/gtsm.go`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm.go), and lowerICMPErrorQuotedDestinationMatch, [`internal/plugins/firewall/nft/lower_linux.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/firewall/nft/lower_linux.go)), reads no outer source, and drops the error below the floor, so the related messages of a BFD or VRRP GTSM session, which quote no TCP header, are not claimed by it. The drop policy for a Dangerous related message is not configurable; ze applies the answer it already applies to a Dangerous main packet.
+- **Owner ruling, 2026-09-15:** the Section 3 sentence "are expected to be configurable" is a suggestion outside the RFC 2119 vocabulary and not a requirement, so the drop stays fixed and no option is added.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 3 | one part of the gated population |
+| Positive and negative tests | 4 | one part of the gated population |
 | Annotated instead of tested | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 1 | one part of the gated population |
+| No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **4** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (3):** [`RFC5082-3-1`](#rfc5082-3-1), [`RFC5082-3-3`](#rfc5082-3-3), [`RFC5082-3-4`](#rfc5082-3-4)
-
-**No test and no annotation (1):** [`RFC5082-3-2`](#rfc5082-3-2)
+**Positive and negative tests (4):** [`RFC5082-3-1`](#rfc5082-3-1), [`RFC5082-3-2`](#rfc5082-3-2), [`RFC5082-3-3`](#rfc5082-3-3), [`RFC5082-3-4`](#rfc5082-3-4)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC5082-3-1` | The TTL field in all IP packets used for transmission of messages associated with GTSM-enabled protocol sessions MUST be set to 255 (§3) | MUST | 3 - GTSM Procedure | **positive:** `unit/verify` [`TestGTSMDialerSetsOutgoingTTLTo255`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L40). **negative:** `unit/verify` [`TestGTSMDialerWithoutOutTTLLeavesTheDefault`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L59) |
-| `RFC5082-3-2` | The TTL 255 transmit and verify rule also applies to the related ICMP error handling messages of a GTSM-enabled session (§3, restated §6.1) | MUST | 3 - GTSM Procedure | **positive:** no positive test. **negative:** no negative test |
+| `RFC5082-3-2` | The TTL 255 transmit and verify rule also applies to the related ICMP error handling messages of a GTSM-enabled session (§3, restated §6.1) | MUST | 3 - GTSM Procedure | **positive:** `unit/verify` [`TestGTSMDropsADangerousQuotedICMPError`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L194). **positive:** `unit/verify` [`TestGTSMMinHopCountDropsALowHopLimitICMPv6Error`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L333). **positive:** `unit/verify` [`TestGTSMTransmittedICMPErrorCarriesTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L70). **positive:** `unit/verify` [`TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L116). **negative:** `unit/verify` [`TestGTSMDeliversAQuotedICMPErrorAtTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L234). **negative:** `unit/verify` [`TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L92). **negative:** `unit/verify` [`TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L134). **negative:** `unit/verify` [`TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L359) |
 | `RFC5082-3-3` | The TTL of GTSM-enabled sessions MUST NOT be decremented by the forwarding plane (§3) | MUST NOT | 3 - GTSM Procedure | **positive:** `unit/verify` [`TestGTSMTransmittedTTLArrivesUndecremented`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L83). **negative:** `unit/verify` [`TestGTSMTransmittedTTLReportsTheValueSet`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L111) |
-| `RFC5082-3-4` | Implementations MUST NOT drop, as part of GTSM processing, packets classified as Trusted or Unknown (§3) | MUST NOT | 3 - GTSM Procedure | **positive:** `unit/verify` [`TestGTSMFloorDeliversATrustedPacket`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L138). **negative:** `unit/verify` [`TestGTSMNoFloorDeliversAnUnknownPacket`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L165) |
+| `RFC5082-3-4` | Implementations MUST NOT drop, as part of GTSM processing, packets classified as Trusted or Unknown (§3) | MUST NOT | 3 - GTSM Procedure | **positive:** `unit/verify` [`TestGTSMDeliversAnICMPErrorNoSessionClaims`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L279). **positive:** `unit/verify` [`TestGTSMFloorDeliversATrustedPacket`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L138). **negative:** `unit/verify` [`TestGTSMNoFloorDeliversAnUnknownPacket`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L165) |
 | `RFC5082-3-5` | GTSM added to a protocol as an additional feature SHOULD NOT be enabled by default (§3) | SHOULD NOT | 3 - GTSM Procedure | **positive:** no positive test. **negative:** no negative test |
 | `RFC5082-3-6` | Implementations SHOULD ensure that packets classified as Dangerous do not compete for resources with packets classified as Trusted or Unknown (§3) | SHOULD | 3 - GTSM Procedure | **positive:** no positive test. **negative:** no negative test |
 | `RFC5082-3-7` | Implementations MAY drop packets classified as Dangerous (§3) | MAY | 3 - GTSM Procedure | **positive:** no positive test. **negative:** no negative test |
@@ -121,9 +114,7 @@ The socket options are Linux-only: the non-Linux build returns an unsupported er
 
 ## Gaps and untested MUSTs
 
-| Requirement | State | Reason |
-|---|---|---|
-| [`RFC5082-3-2`](#rfc5082-3-2) The TTL 255 transmit and verify rule also applies to the related ICMP error handling messages of a GTSM-enabled session (§3, restated §6.1) | no test | no test carries this requirement id |
+RFC 5082 declares no gap, and every gated MUST it carries has a test bound to it.
 
 ## Proof state
 
@@ -146,7 +137,16 @@ The TTL 255 transmit and verify rule also applies to the related ICMP error hand
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC5082-3-2, so no unit is bound to it.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestGTSMDeliversAQuotedICMPErrorAtTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L234) | unit/verify | revert, verified |
+| negative | [`TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L92) | unit/verify | revert, verified |
+| negative | [`TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L134) | unit/verify | revert, verified |
+| negative | [`TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L359) | unit/verify | revert, verified |
+| positive | [`TestGTSMDropsADangerousQuotedICMPError`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L194) | unit/verify | revert, verified |
+| positive | [`TestGTSMMinHopCountDropsALowHopLimitICMPv6Error`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L333) | unit/verify | revert, verified |
+| positive | [`TestGTSMTransmittedICMPErrorCarriesTTL255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L70) | unit/verify | revert, verified |
+| positive | [`TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L116) | unit/verify | revert, verified |
 
 ### [`RFC5082-3-3`](#rfc5082-3-3)
 
@@ -168,6 +168,7 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestGTSMNoFloorDeliversAnUnknownPacket`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L165) | unit/verify | revert, verified |
+| positive | [`TestGTSMDeliversAnICMPErrorNoSessionClaims`](https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L279) | unit/verify | revert, verified |
 | positive | [`TestGTSMFloorDeliversATrustedPacket`](https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L138) | unit/verify | revert, verified |
 
 ## Extraction sign-off

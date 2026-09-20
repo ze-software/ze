@@ -25,9 +25,9 @@ Performs a longest-prefix-match and returns the matching route with gateway, int
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `ip` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `ip` | string | yes | any value of this type | Destination IP address to look up | One IPv4 or IPv6 address without a prefix length. The kernel answers with the route it selects for a packet to that address. |
 
 ## Mapping intents
 

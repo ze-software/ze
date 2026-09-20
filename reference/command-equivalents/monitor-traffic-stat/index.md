@@ -25,9 +25,9 @@ Without arguments, shows all interfaces. With 'name <interface>', filters to one
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | no | any value of this type | Interface name filter | The name of one interface, matched exactly against the interface names in each snapshot. Every other interface is left out of the stream. |
 
 ## Mapping intents
 

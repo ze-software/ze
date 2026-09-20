@@ -25,9 +25,9 @@ Lists IPv4 ARP and IPv6 ND entries with MAC addresses and states. Pass ipv4 or i
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `family` | enum | no | `ipv4`, `ipv6`, `any`, `all` |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `family` | enum | no | `ipv4`, `ipv6`, `any`, `all` | Address family filter | Selects the address family the answer carries. The default when it is absent is both families. |
 
 ## Mapping intents
 

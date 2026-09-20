@@ -154,8 +154,11 @@ and inspectable via <code>ze env get</code>.</p>
 <!-- source: internal/core/envcatalog/catalog.go -- VisibleEntries -->
 <p>In the interactive CLI operational mode, <code>show env get</code> and
 <code>show env registered</code> also offer env-key completion through the
-shared command tree.</p>
+shared command tree. <code>wireEnvHints</code> spells the <code>show</code> in those two paths
+as <code>command.VerbShow</code>, the verb registry's own constant, so renaming the
+read verb moves the completion paths with it.</p>
 <!-- source: internal/component/command/valuehints.go -- wireEnvHints -->
+<!-- source: internal/component/command/verbs.go -- VerbShow -->
 <h2 id="changes-in-2026-04">Changes in 2026-04</h2>
 <p>The ExaBGP compatibility surface was trimmed. Every
 <code>ze.bgp.daemon.*</code>, <code>ze.bgp.log.*</code>, <code>ze.bgp.tcp.*</code>, <code>ze.bgp.api.*</code>, and
@@ -247,7 +250,7 @@ ones so an operator can audit an ExaBGP env file before commit.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -272,7 +275,7 @@ ones so an operator can audit an ExaBGP env file before commit.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

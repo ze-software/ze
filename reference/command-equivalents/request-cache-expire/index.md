@@ -25,9 +25,9 @@ The entry is removed at once rather than when its lifetime ends. The ID leaf acc
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `id` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `id` | string | yes | any value of this type | Cache entry ID, or a comma-separated list of IDs. | One decimal cache entry ID, as show cache lists it, or several joined by commas. A comma-separated value runs the action once for each ID and reports a failure for each ID that is not in the cache. A value that is not a decimal number is refused as an invalid cache id. |
 
 ## Mapping intents
 

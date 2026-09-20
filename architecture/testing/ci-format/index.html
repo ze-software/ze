@@ -499,8 +499,8 @@ already writes: no new directive chooses between them.</p>
 <tbody>
 <tr>
 <td><code>ze -</code>, and its flagged forms <code>ze -d -</code>, <code>ze --plugin &lt;p&gt; -</code>, <code>ze --mcp &lt;port&gt; -</code>, <code>ze --web &lt;port&gt; --insecure-web -</code></td>
-<td>a FILE in the work directory, and argv becomes <code>ze [flags] start &lt;file&gt;</code></td>
-<td>the daemon re-reads its config on SIGHUP, a restart reuses it, <code>action=rewrite:dest=ze-bgp.conf</code> addresses it by bare name, and a rollback assertion reads the directory beside it</td>
+<td>a FILE in a stable per-daemon directory, and argv becomes <code>ze [flags] start &lt;file&gt;</code></td>
+<td>SIGHUP reads the source again and a restart reuses its tree</td>
 </tr>
 <tr>
 <td><code>ze-peer ...</code> with NO <code>-</code> in argv</td>
@@ -525,6 +525,15 @@ when that argument is the <code>-</code>. A <code>-</code> belonging to a verb i
 block is piped, so <code>ze config validate -</code> and <code>ze bgp decode pcap -</code> test the
 form the operator types.</p>
 <!-- source: internal/test/runner/runner_exec_util.go -- routeStdinBlock -->
+<p>The first daemon block uses <code>ze-bgp.conf</code> in the test work directory, so a
+fixture rewriting that bare name still edits the source the daemon reads.
+Further distinct blocks use <code>daemon-2/ze-&lt;block&gt;.conf</code>, <code>daemon-3/…</code>, each
+with its own sibling <code>database/</code>. Reusing a block reuses its directory.
+Numbered directories distinguish even block names that sanitise identically.
+Wrapped launches such as <code>ze-test fail-syscall … -- ze -</code> retain real stdin
+and receive an isolated <code>ze.config.dir</code> by the same allocation rule.
+Explicit file paths remain authoritative; the runner does not choose a backend.</p>
+<!-- source: internal/test/runner/runner_config.go -- zeConfigFileName -->
 <p>Until 2026-09-07 the runner took the FIRST <code>-</code> in argv whatever it meant, so
 every verb form ran against a file path the author never wrote. A test that
 named a stdin block on a verb was testing the path form under a <code>-</code> that said
@@ -777,7 +786,7 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 <tr>
 <td><code>needs-linux</code></td>
 <td><code>[caps=&lt;tok&gt;[,&lt;tok&gt;]]</code></td>
-<td>Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through <code>./le qemu all-tests</code>. <code>caps=</code> declares required capabilities such as <code>net-admin</code>, <code>net-raw</code>, and <code>bpf</code>; an unavailable capability produces a visible skip.</td>
+<td>Linux-only test. It skips on non-Linux hosts and runs in the QEMU guest through <code>./le qemu all-tests</code>. <code>caps=</code> declares required capabilities such as <code>net-admin</code>, <code>net-raw</code>, <code>bpf</code>, and <code>sys-time</code>; an unavailable capability produces a visible skip.</td>
 </tr>
 <tr>
 <td><code>needs-path</code></td>
@@ -828,6 +837,10 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 <tr>
 <td>The same, and loads eBPF</td>
 <td><code>option=needs-linux:caps=bpf</code></td>
+</tr>
+<tr>
+<td>The same, and sets the system clock (the NTP plugin restoring persisted time)</td>
+<td><code>option=needs-linux:caps=sys-time</code></td>
 </tr>
 <tr>
 <td>Skips on one non-Linux OS for a reason unrelated to the kernel</td>
@@ -1477,6 +1490,28 @@ an exabgp-compat config is left alone for the same reason.</p>
 <!-- source: internal/test/runner/loopback_linux.go -- no-op on Linux for IPv4 -->
 <!-- source: internal/test/runner/loopback_darwin.go -- SIOCAIFADDR on BSD -->
 <!-- source: internal/le/setup/actions.go -- Answer -->
+<p>An exabgp-compat case runs TWO processes, ze and the mock BGP server, and its
+verdict names which one ended the case:</p>
+<ul>
+<li><code>ze exited before the mock BGP server finished its script: &lt;error&gt;</code> is a
+daemon defect. Read the client stderr in the failure block.</li>
+<li><code>the mock BGP server failed: &lt;error&gt;</code> is a wire or document disagreement. The
+mock prints the frame or the JSON member that did not match.</li>
+<li><code>the mock BGP server ended without reporting success</code> means its script did not
+complete and it said nothing about why.</li>
+</ul>
+<p>Both used to print the bare <code>exit status N</code> of whichever process failed, which
+told a reader nothing about which of the two to open.</p>
+<!-- source: internal/test/cli/cmd_exabgp.go -- exaBGPFailure -->
+<p>Both processes are stopped by a <code>defer</code> beside the start that created them, so
+a case that returns by any route, a panic included, leaves neither running. The
+stops written inside the branch arms are ORDERING barriers rather than
+lifetimes: a process's output must not be read while it is still writing, and
+its exit status does not exist until it has one. How the suite's forks are
+created and canceled is in
+<code>docs/architecture/testing/runner-architecture.md</code>, "How a suite's child
+processes end".</p>
+<!-- source: internal/test/cli/cmd_exabgp.go -- runOneExaBGPTest, the two defers -->
 <h2 id="expectations">Expectations</h2>
 <pre><code>expect=&lt;type&gt;:key=value[:key=value...]
 </code></pre>
@@ -1613,8 +1648,18 @@ child ran and where a daemon writes its artifacts. A test that declares <code>tm
 files gets them in that same directory, so the two spellings name one place. For
 glob <code>contains</code>, at least one matched file must contain the text. For glob
 <code>not-contains</code>, no matched file may contain it.</p>
-<p>Use file expectations for post-run artifacts such as generated configs, pointer
-files, and logs. Do not write shell just to inspect files.</p>
+<p>Use file expectations for loose source files and exported artifacts such as logs.
+Persistent config, versions, pointers and plugin state use key expectations:</p>
+<pre><code>expect=key:path=meta/config/router.conf/active:exists=true
+expect=key:path=meta/config/router.conf/candidate:absent=true
+expect=key:glob=file/[0-9]*/router.conf:count=2
+expect=key:glob=file/[0-9]*/router.conf:contains=router-id 1.2.3.4
+</code></pre>
+<p>Key expectations resolve beneath <code>database/</code> in the work directory and decode
+the complete netcapstring frame before inspecting its value. A bad CRC or
+trailing frame bytes fail the assertion. They accept the same path, glob,
+count and containment checks as files. A missing key satisfies <code>absent</code>;
+an unreadable or corrupt key does not.</p>
 <!-- source: internal/test/runner/runner_validate.go -- validateFileChecks -->
 <h3 id="negative-expectations-reject">Negative Expectations (reject)</h3>
 <pre><code>reject=stderr:contains=&lt;text&gt;
@@ -2212,7 +2257,9 @@ needs <code>fixture.Poll</code> around the read, never a fixed settle before it.
 <h2 id="engine-steps">Engine Steps</h2>
 <p>Engine steps drive a live daemon through CLI dispatch, first-class in <code>.ci</code>
 instead of an embedded Python observer. The runner serializes the parsed steps
-to <code>engine-steps.json</code> in the test tmpfs; the <code>.ci</code> declares the executor as an
+to <code>engine-steps.json</code> in the test tmpfs, and links it into the <code>daemon-N/</code>
+config directory of every further daemon, because a plugin runs in its daemon's
+config directory; the <code>.ci</code> declares the executor as an
 external plugin (<code>run "ze-test engine-steps ./engine-steps.json"</code>), which runs
 the steps from <code>OnAllPluginsReady</code> and reports failures via the
 <code>ZE-OBSERVER-FAIL</code> sentinel the runner gates on.</p>
@@ -2692,9 +2739,29 @@ expect=json:conn=1:seq=1:json={...}
 <td>File does not exist</td>
 <td><code>expect=file:path=test.conf:absent=true</code></td>
 </tr>
+<tr>
+<td><code>expect=key:path=&lt;key&gt;:contains=&lt;text&gt;</code></td>
+<td>Decoded persistent value</td>
+<td><span class="ev-src"><span class="ev-ref"><code>expect=key:path=file/active/test.conf:contains=bgp</code></span></span></td>
+</tr>
+<tr>
+<td><code>expect=key:path=&lt;key&gt;:not-contains=&lt;text&gt;</code></td>
+<td>Decoded value excludes text</td>
+<td><span class="ev-src"><span class="ev-ref"><code>expect=key:path=file/active/test.conf:not-contains=old</code></span></span></td>
+</tr>
+<tr>
+<td><code>expect=key:path=&lt;key&gt;:absent</code></td>
+<td>Key does not exist</td>
+<td><span class="ev-src"><span class="ev-ref"><code>expect=key:path=file/active/test.conf.draft:absent</code></span></span></td>
+</tr>
 </tbody>
 </table>
 <!-- source: internal/component/cli/testing/expect.go -- editor expectation types -->
+<p>Editor tests use a tree store by default; <code>option=storage:value=tree</code> states
+that choice explicitly, and other values are refused. The runner seeds config
+fixtures once and all sessions and <code>restart=</code> steps share the same lifetime
+store handle. <code>expect=key</code> reads that handle, while <code>expect=file</code> reads the
+original loose fixture or a separate exported artifact.</p>
 <p><code>hint</code> reads the second message line with every style stripped. That row carries
 the completion hint, and the summary of the candidate the operator selected.
 <code>explanation</code> reads the long explanation Tab reveals, without the box that frames
@@ -2815,7 +2882,7 @@ expect=completion:contains=router-id,local-as,peer
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

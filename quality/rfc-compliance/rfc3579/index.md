@@ -98,6 +98,7 @@ Fourteen MUST-level requirements are unproven or unreached, and none of them cha
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **31** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (17):** [`RFC3579-1-1`](#rfc3579-1-1), [`RFC3579-1.2-1`](#rfc3579-1.2-1), [`RFC3579-2.1-1`](#rfc3579-2.1-1), [`RFC3579-2.1-3`](#rfc3579-2.1-3), [`RFC3579-2.2-1`](#rfc3579-2.2-1), [`RFC3579-2.6.3-1`](#rfc3579-2.6.3-1), [`RFC3579-2.6.3-2`](#rfc3579-2.6.3-2), [`RFC3579-2.6.4-1`](#rfc3579-2.6.4-1), [`RFC3579-3-1`](#rfc3579-3-1), [`RFC3579-3.1-1`](#rfc3579-3.1-1), [`RFC3579-3.1-2`](#rfc3579-3.1-2), [`RFC3579-3.1-3`](#rfc3579-3.1-3), [`RFC3579-3.1-4`](#rfc3579-3.1-4), [`RFC3579-3.2-1`](#rfc3579-3.2-1), [`RFC3579-3.3-1`](#rfc3579-3.3-1), [`RFC3579-3.3-2`](#rfc3579-3.3-2), [`RFC3579-4.3.6-2`](#rfc3579-4.3.6-2)

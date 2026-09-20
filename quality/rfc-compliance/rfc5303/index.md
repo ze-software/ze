@@ -98,6 +98,7 @@ Gaps gated in [`rfc/short/rfc5303.md`](https://github.com/ze-software/ze/blob/ma
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **18** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (9):** [`RFC5303-3.1-1`](#rfc5303-3.1-1), [`RFC5303-3.1-4`](#rfc5303-3.1-4), [`RFC5303-3.1-6`](#rfc5303-3.1-6), [`RFC5303-3.2-1`](#rfc5303-3.2-1), [`RFC5303-3.2-2`](#rfc5303-3.2-2), [`RFC5303-3.2-3`](#rfc5303-3.2-3), [`RFC5303-3.2-5`](#rfc5303-3.2-5), [`RFC5303-3.2-10`](#rfc5303-3.2-10), [`RFC5303-3.2-13`](#rfc5303-3.2-13)

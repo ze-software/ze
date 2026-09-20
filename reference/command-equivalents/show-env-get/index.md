@@ -25,9 +25,9 @@ Returns the variable name, current value, default, and what it controls.
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Environment variable name | The variable's full name as Ze registered it, matched exactly. A name Ze never declared is refused, even when the process inherited it. |
 
 ## Mapping intents
 

@@ -25,10 +25,10 @@ The VLAN id is 1 to 4094, and the new interface is named <name>.<vid>. The dummy
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
-| `vid` | uint | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Parent interface name | The dummy the unit hangs off. The dispatcher creates it first when it is absent. |
+| `vid` | uint | yes | any value of this type | VLAN ID | The 802.1Q tag of the unit. The new device is named <name>.<vid>, and a tag outside 1 to 4094 is refused before the backend is called. |
 
 ## Mapping intents
 

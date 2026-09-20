@@ -25,11 +25,11 @@ Each row carries the id, the tag, the family, the peer selector, the source and 
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `tag` | string | no | any value of this type |
-| `selector` | string | no | any value of this type |
-| `family` | string | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `tag` | string | no | any value of this type | Show only announcements carrying this tag key | The value is a tag key, compared as text with the key each announcement was made with. Absent, announcements of every key are listed. |
+| `selector` | string | no | any value of this type | Show only announcements whose peer selector matches this pattern | The value is compared as text with the selector the announcement was made with, so it MUST be spelled the way that announcement spelled it. Absent, announcements to every selector are listed. |
+| `family` | string | no | any value of this type | Show only announcements of this address family | The value is an address family as the family column reports it, such as ipv4/unicast. Absent, announcements of every family are listed. |
 
 ## Mapping intents
 

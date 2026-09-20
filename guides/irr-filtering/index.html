@@ -299,6 +299,11 @@ The operational commands use Ze&#39;s default text format. Its key/value layout 
 <td>The last refresh returned no prefixes. Confirm the AS-SET still exists and the server is reachable, then refresh. The previous prefixes stay enforced meanwhile.</td>
 </tr>
 <tr>
+<td>Status is <code>oversized</code>, and the rules naming the entry filter nothing</td>
+<td><code>ipv4-count</code> and <code>ipv6-count</code> in <code>show firewall irr</code></td>
+<td>One family holds more than the 500000 prefixes a firewall set takes. Ze programs none of the list, because a set holding part of it drops traffic an <code>accept</code> rule was written to pass. Narrow the AS-SET to the members you filter on, or run <code>clear firewall irr as-set &lt;name&gt;</code>.</td>
+</tr>
+<tr>
 <td>An AS-SET no longer exists and its prefixes are still enforced</td>
 <td><code>show firewall irr</code></td>
 <td>Run <code>clear firewall irr as-set &lt;name&gt;</code>. An empty answer never removes prefixes, so removal is an operator action.</td>
@@ -337,7 +342,7 @@ The operational commands use Ze&#39;s default text format. Its key/value layout 
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -362,7 +367,7 @@ The operational commands use Ze&#39;s default text format. Its key/value layout 
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

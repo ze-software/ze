@@ -136,8 +136,15 @@ from its component graph, so a page loads only what it reaches.
 
 ### URL Scheme
 
-URLs follow a verb-first three-tier pattern:
+URLs follow a verb-first three-tier pattern. A segment that is also a canonical
+CLI verb (`show`, `monitor`, and `set`, `delete`, `commit` under `/config/`)
+takes its spelling from `command.Verbs`, so the web URL and the CLI command
+cannot drift apart. `config`, `admin`, `portal`, `login`, `assets` and the
+editor words `edit`, `add`, `form`, `add-form`, `changes`, `rename`, `discard`
+and `compare` are this router's own and the verb registry holds none of them.
+
 <!-- source: internal/component/web/handler.go -- ParseURL, knownPrefixes, configVerbs -->
+<!-- source: internal/component/command/verbs.go -- VerbShow, VerbMonitor, VerbSet, VerbDelete, VerbCommit -->
 <!-- source: internal/component/web/handler_config_form.go -- HandleConfigDeleteWithAuthorizer -->
 
 | Tier | URL Pattern | Method | Description |
@@ -341,7 +348,7 @@ Admin command results are displayed as titled cards showing the command name, ou
 
 ## Resilience
 
-**Corrupt change files:** If a per-user change file in the blob store is unparseable (e.g., from a previous bug), it is automatically discarded with a warning log. The user can continue editing without manual intervention.
+**Corrupt change files:** If a per-user change file in the live store is unparseable (e.g., from a previous bug), it is automatically discarded with a warning log. The user can continue editing without manual intervention.
 <!-- source: internal/component/cli/editor_draft.go -- readChangeFile -->
 
 **Asset caching:** Static assets (`/assets/`) are served with `Cache-Control: no-cache, must-revalidate` so browsers always pick up changes after binary updates without requiring a hard refresh.

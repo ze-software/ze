@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -284,6 +285,10 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
 <tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>8</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
@@ -301,8 +306,8 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5443-2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L143" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncForcesMaxMetric</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L186" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncRestoresAfterHoldDown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L145" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncForcesMaxMetric</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L188" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncRestoresAfterHoldDown</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-2">RFC5443-2-2</code></td><td colspan="3"><span class="rfc-subject">In OSPF, the maximum cost advertised is LSInfinity, the 16-bit value `0xFFFF` (&#34;In the case of OSPF, this cost is LSInfinity (16-bit value 0xFFFF), as proposed in [RFC3137]&#34;) (§2)</span></td></tr>
@@ -310,8 +315,8 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5443-2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L156" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncMaxMetricValue</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L292" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncDisabledIsNoOp</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L158" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncMaxMetricValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L294" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncDisabledIsNoOp</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-3">RFC5443-2-3</code></td><td colspan="3"><span class="rfc-subject">In IS-IS, the maximum metric advertised is `2^24-2` (`0xFFFFFE`) (&#34;In the case of ISIS, the maximum metric value is 2^24-2 (0xFFFFFE)&#34;) (§2)</span></td></tr>
@@ -337,8 +342,8 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5443-2-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L165" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncSubscribesSessionEvents</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L188" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncRestoresAfterHoldDown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L167" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncSubscribesSessionEvents</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L190" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncRestoresAfterHoldDown</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-2-6">RFC5443-2-6</code></td><td colspan="3"><span class="rfc-subject">When LDP End-of-LIB is implemented, consider the neighbor LDP session fully operational only upon receipt of the End-of-LIB notification message (&#34;The neighbor LDP session is considered fully operational when the End-of-LIB notification message is received&#34;) (§2)</span></td></tr>
@@ -355,8 +360,8 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5443-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L370" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L373" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L372" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L375" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-4-1">RFC5443-4-1</code></td><td colspan="3"><span class="rfc-subject">Apply the cost-raising mechanism only to the IP link cost, not the TE link cost (&#34;The mechanism described in this document should only be applied to the IP link cost to prevent unnecessary TE tunnel reroutes&#34;) (§4)</span></td></tr>
@@ -364,8 +369,8 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>MUST</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5443-4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L364" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L367" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L366" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L369" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5443-3-2">RFC5443-3-2</code></td><td colspan="3"><span class="rfc-subject">When a genuine link problem (not merely link bring-up) causes the cost-out, the implementation should issue network management alerts so the operator can address the condition (&#34;an implementation should issue network management alerts to report the error condition and enable the operator to address it&#34;) (§3)</span></td></tr>
@@ -457,12 +462,12 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L186" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncRestoresAfterHoldDown</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L188" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncRestoresAfterHoldDown</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L143" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncForcesMaxMetric</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L145" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncForcesMaxMetric</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -477,12 +482,12 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L292" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncDisabledIsNoOp</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L294" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncDisabledIsNoOp</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L156" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncMaxMetricValue</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L158" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncMaxMetricValue</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -505,12 +510,12 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L188" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncRestoresAfterHoldDown</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L190" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncRestoresAfterHoldDown</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L165" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncSubscribesSessionEvents</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L167" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncSubscribesSessionEvents</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -529,12 +534,12 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L373" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L375" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L370" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L372" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -549,12 +554,12 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L367" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L369" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L364" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L366" title="internal/plugins/ospf/ldp_sync_test.go" target="_blank" rel="noopener"><code>TestLDPSyncTECostUntouched</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -597,7 +602,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

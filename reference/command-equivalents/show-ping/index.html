@@ -54,7 +54,7 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>show ping</code></dd></div>
-<div><dt>Usage</dt><dd><code>show ping [dest &lt;dest&gt;] [count &lt;count&gt;] [size &lt;size&gt;] [timeout &lt;timeout&gt;]</code></dd></div>
+<div><dt>Usage</dt><dd><code>show ping [dest &lt;dest&gt;] [count &lt;count&gt;] [size &lt;size&gt;] [timeout &lt;timeout&gt;] [do-not-fragment &lt;honor-cache|bypass-cache&gt;]</code></dd></div>
 <div><dt>Mode</dt><dd>Read-only</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-show:ping</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
@@ -67,11 +67,21 @@
 </dl>
 <h3>Description</h3><p>Sends ICMP echo requests to &lt;dest&gt; (IP or hostname). Default count is 5.<br>Timeout uses Go duration syntax (e.g. 3s, 500ms). Confirms reachability from<br>this box, not from your workstation.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>dest</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>count</code></td><td>uint</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>size</code></td><td>uint</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>timeout</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>dest</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Target host or IP address.</td><td>The value is the first bare word of the command. A host name is resolved
+in either address family, and the family of the answer selects ICMPv4 or ICMPv6.</td></tr>
+<tr><td><code>count</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>Number of ping packets.</td><td>The value is the number of echo requests Ze sends, 1 to 100, paced 10
+milliseconds apart. Absent, the value is 5.</td></tr>
+<tr><td><code>size</code></td><td>uint</td><td>no</td><td>any value of this type</td><td>ICMP echo payload size in bytes (1-65507). Omit for the engine default.</td><td>Ze fills the payload to exactly this many bytes, with its marker copied
+into the front so a capture still identifies the sender.</td></tr>
+<tr><td><code>timeout</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Timeout duration.</td><td>The value is the time Ze waits for each reply, in Go duration syntax, 1s
+to 30s. Absent, the value is 5s.</td></tr>
+<tr><td><code>do-not-fragment</code></td><td>enum</td><td>no</td><td><code>honor-cache</code> <code>bypass-cache</code></td><td>Set the Don&#39;t Fragment bit; honor-cache obeys the cached path MTU, bypass-cache ignores it.</td><td>The keyword takes one of two values. honor-cache sets the Don&#39;t Fragment bit
+and honors the kernel&#39;s cached path MTU: a probe larger than the cached value is refused at
+send time, and a router&#39;s Fragmentation Needed answer updates the cache. bypass-cache sets
+the bit and ignores the cached value, so the probe is put on the wire at its full size.
+Absent, the kernel fragments a probe larger than the path, which is the behavior of before
+the keyword existed.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping intents</h2>
@@ -144,7 +154,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

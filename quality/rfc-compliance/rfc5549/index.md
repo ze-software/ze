@@ -91,6 +91,7 @@ Main public claim uses RFC 8950.
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **6** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (3):** [`RFC5549-4-1`](#rfc5549-4-1), [`RFC5549-3-1`](#rfc5549-3-1), [`RFC5549-4-4`](#rfc5549-4-4)

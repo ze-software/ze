@@ -67,10 +67,14 @@
 </dl>
 <h3>Description</h3><p>Each row carries the id, the tag, the family, the peer selector, the<br>source and the creation time. An expiry time is present only when the announcement was made<br>with for.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>tag</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>selector</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
-<tr><td><code>family</code></td><td>string</td><td>no</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>tag</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Show only announcements carrying this tag key</td><td>The value is a tag key, compared as text with the key each announcement was
+made with. Absent, announcements of every key are listed.</td></tr>
+<tr><td><code>selector</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Show only announcements whose peer selector matches this pattern</td><td>The value is compared as text with the selector the announcement was made
+with, so it MUST be spelled the way that announcement spelled it. Absent, announcements to
+every selector are listed.</td></tr>
+<tr><td><code>family</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Show only announcements of this address family</td><td>The value is an address family as the family column reports it, such as
+ipv4/unicast. Absent, announcements of every family are listed.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -134,7 +138,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

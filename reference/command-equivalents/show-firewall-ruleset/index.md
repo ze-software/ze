@@ -25,9 +25,9 @@ Joins applied desired state with kernel counters from the nft backend.
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Firewall table name | The table name as the configuration spells it, without the ze prefix the backend adds. A name no applied table carries is an error that lists the tables applied. |
 
 ## Mapping intents
 

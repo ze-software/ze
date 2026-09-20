@@ -68,9 +68,13 @@
 </dl>
 <h3>Description</h3><p>Reports whether the<br>prefix would be accepted or rejected, and which entry matches.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>peer</code></td><td>string</td><td>yes</td><td>any value of this type</td></tr>
-<tr><td><code>prefix</code></td><td>string</td><td>yes</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>peer</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Peer address.</td><td>The address of an IRR-filtered peer, spelled as the configuration
+spells it. The prefix is evaluated against the list of the ASN that peer is enrolled
+under. An address no enrolled ASN carries is refused.</td></tr>
+<tr><td><code>prefix</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Prefix to check (CIDR).</td><td>An IPv4 or IPv6 prefix in CIDR form, which Ze parses before the
+check. The answer echoes it and reports accepted true or false, with the entry that
+matched when one did.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping intents</h2>
@@ -139,7 +143,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

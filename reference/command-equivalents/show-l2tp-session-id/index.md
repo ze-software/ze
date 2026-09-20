@@ -25,9 +25,9 @@ Pass the local session ID. Returns PPP state, assigned addresses, negotiated LCP
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `id` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `id` | string | yes | any value of this type | Local session ID. | The decimal local session ID from the show l2tp session table. Zero is refused because RFC 2661 reserves it, and an unknown ID is refused with 'no session with local-sid'. |
 
 ## Mapping intents
 

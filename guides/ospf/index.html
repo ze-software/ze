@@ -188,7 +188,7 @@ each peer's delivery to it is derived from the rule. See
 <p>Received external LSAs are resolved by the external SPF stage, which runs after the intra-area and inter-area route tables are built. Each external is resolved against its ASBR (or a non-zero forwarding address, re-resolved through the route table; unreachable externals are skipped). Type 1 (E1) cost is the distance to the forwarding target plus the advertised metric; type 2 (E2) cost is the advertised metric only, tie-broken by the forwarding distance. A type 1 external always wins over a type 2 regardless of cost, and any external ranks below an intra-area or inter-area route for the same prefix. The winning path installs as one <code>locrib.Path</code> with admin distance 110.</p>
 <!-- source: internal/plugins/ospf/spf/external.go -- ComputeExternal, ComputeExternalWith, betterExternal -->
 <!-- source: internal/plugins/ospf/afstrategy_v6.go -- v6ExternalReader -->
-<p><code>default-information originate</code> advertises a Type 5 default (<code>0.0.0.0/0</code>). With <code>always</code> it originates unconditionally; otherwise it originates only while a non-OSPF default route exists in the Loc-RIB (OSPF's own default does not satisfy the condition). The engine re-evaluates the condition at config-apply and live on Loc-RIB default-route changes, withdrawing the Type 5 when the condition lapses.</p>
+<p><code>default-information originate</code> advertises a default route: <code>0.0.0.0/0</code> as an OSPFv2 Type 5 AS-External-LSA, and <code>::/0</code> as an OSPFv3 AS-External-LSA, whose LS Type is <code>0x4005</code> rather than <code>0x0005</code> (RFC 5340 Section 4.4.3.6). The two numbers are not interchangeable and the wrong one fails quietly: RFC 5340 Appendix A.4.2.1 reads <code>0x0005</code> as U=0 with S2S1=00, which is link-local scope, so a v2-numbered default floods to the directly attached routers and no further. With <code>always</code> it originates unconditionally; otherwise it originates only while a non-OSPF default route exists in the Loc-RIB (OSPF's own default does not satisfy the condition). The engine re-evaluates the condition at config-apply and live on Loc-RIB default-route changes, withdrawing the LSA when the condition lapses.</p>
 <!-- source: internal/plugins/ospf/default.go -- applyDefaultInformation, hasNonOSPFDefault, watchDefaultRoute -->
 <h2 id="stub-and-nssa-areas">Stub and NSSA areas</h2>
 <p>A stub area (<code>area-type stub</code>) carries no AS-External information: the E-bit is clear in every Hello and Router-LSA originated within it (a Hello whose E-bit does not match is dropped and no adjacency forms), Type 4 ASBR-Summary and Type 5 AS-External LSAs are neither accepted from nor flooded into the area, and each attached ABR injects a single Type 3 default (<code>0.0.0.0/0</code>; OSPFv3 injects the equivalent <code>::/0</code> as an Inter-Area-Prefix-LSA) at the configured <code>default-cost</code>. A totally-stubby area (<code>no-summary true</code>) additionally suppresses every inter-area Type 3 summary except that default, so a spoke holds only intra-area routes plus one default.</p>
@@ -371,18 +371,15 @@ each peer's delivery to it is derived from the rule. See
 <!-- source: internal/plugins/ospf/gr.go -- grManager, registerGraceConsumer, grFamilyLabel -->
 <!-- source: internal/plugins/ospf/gr_restarter.go -- prepareRestart, enterRestart, exitRestart, resumeFromNVS -->
 <!-- source: internal/plugins/ospf/gr_helper.go -- onGraceReceived, helperEntryAllowed, helperExit, helperShouldExitOnChange -->
-<p><strong>The non-volatile store needs a pinned config directory.</strong> OSPF runs as its own
-process and opens the ZeFS store itself, so it writes the restart fact only when
-the operator pinned a directory with <code>ze.config.dir</code>. Unpinned, the path would be
-binary-relative and shared by every <code>ze</code> invocation on the host, and ZeFS locks
-in process, not across processes. So OSPF opens nothing: the restart fact is not
-persisted, and the RFC 7474 boot count falls back to a hashed clock seed instead
-of a stored counter. <code>doctor-ospf-graceful-restart-nvs</code> warns when the restarter
-is enabled in this state. Set <code>ze.config.dir</code> on any deployment that wants
-Graceful Restart to survive a restart. The appliance image already sets it to
-<code>/perm/ze</code>.</p>
-<!-- source: internal/plugins/ospf/auth_keystore.go -- pinnedStateDir, openBootCountStore -->
-<!-- source: internal/plugins/ospf/gr_nvs.go -- restartFact, writeRestartFact, readRestartFact, openGRStore -->
+<p><strong>OSPF uses the daemon-owned store through state RPCs.</strong> It does not open a
+second store or require a separate <code>ze.config.dir</code> setting. Runtime initialization
+durably increments the boot count and reads restart state before packet processing.
+A failed state request stops initialization; there is no clock-derived fallback.
+Restart writes wait for the daemon's durable acknowledgement. Reads distinguish
+absent state from unavailable or corrupt state.</p>
+<!-- source: internal/plugins/ospf/auth_keystore.go -- loadOSPFBootCount -->
+<!-- source: internal/plugins/ospf/state.go -- initializeState -->
+<!-- source: internal/plugins/ospf/gr_nvs.go -- restartFact, writeRestartFact, readRestartFact -->
 <!-- source: internal/plugins/ospf/gr_preserve.go -- capturePrefixLSIDs, restoreInterfaceIDs, v6OriginateGraceLSA -->
 <!-- source: internal/plugins/ospf/packet/grace_lsa.go -- GraceLSA, EncodeGraceLSA, DecodeGraceLSA -->
 <!-- source: internal/plugins/ospf/v3/packet/lsa_grace.go -- GraceLSA, decodeGraceLSA -->
@@ -555,7 +552,7 @@ The recording uses `ze cli` directly. No output wrapper or synthetic summary sit
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -580,7 +577,7 @@ The recording uses `ze cli` directly. No output wrapper or synthetic summary sit
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

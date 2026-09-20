@@ -59,6 +59,7 @@ the nft backend lowers them to nftables kernel expressions.</p>
 </ol></li>
 <li><a href="#tables-and-chains">Tables and Chains</a>
 <ol>
+<li><a href="#tables-another-feature-installs">Tables another feature installs</a></li>
 <li><a href="#table-families">Table Families</a></li>
 <li><a href="#chain-types">Chain Types</a></li>
 <li><a href="#hooks">Hooks</a></li>
@@ -270,6 +271,22 @@ more chains; a base chain has a type, hook, priority, and default policy.</p>
     }
 }
 </code></pre>
+<h3 id="tables-another-feature-installs">Tables another feature installs</h3>
+<p>A <code>ze_</code> table is not always one the <code>firewall { }</code> section declared. A feature
+that needs kernel state of its own publishes a table through the same backend,
+so it appears beside yours in <code>show firewall ruleset &lt;name&gt;</code> and is withdrawn
+with the configuration that asked for it.</p>
+<p>One example: a BGP peer configured
+with <code>connection { ttl { max N; } }</code> (RFC 5082 GTSM) gets <code>ze_gtsm</code>, an input
+chain that drops an ICMP error which quotes that peer's BGP session and arrives
+below the peer's TTL floor. The chain names the session by the header the error
+quotes (the peer as the quoted destination, and the BGP port), whoever sent the
+error. Its terms therefore read the quoted header as a raw payload compare
+(<code>@th,192,32 0xc0000202</code> is 192.0.2.2) and carry no <code>ip saddr</code>.
+<code>show firewall ruleset gtsm</code> lists it, and removing
+the peer's <code>ttl</code> block removes it. The full list of table owners is in
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/firewall/table-ownership-and-shutdown-flush.md" target="_blank" rel="noopener">table ownership</a>.</p>
+<!-- source: internal/component/gtsm/gtsm.go -- filterTables, peerTerms -->
 <h3 id="table-families">Table Families</h3>
 <p><code>inet</code> (dual-stack), <code>ip</code>, <code>ip6</code>, <code>arp</code>, <code>bridge</code>, <code>netdev</code>.</p>
 <h3 id="chain-types">Chain Types</h3>
@@ -796,14 +813,24 @@ list drops everything the operator wrote it to accept.</p>
 plugin process, and counts under the same metric's <code>panic</code> label. Alert on it:
 <code>error</code> and <code>empty</code> report an upstream condition, <code>panic</code> reports a defect in
 ze, and the cached prefixes stay in force until it is fixed.</p>
-<p><code>show firewall irr</code> reports each entry as <code>ok</code>, <code>stale</code>, or <code>missing</code>, and gives
-<code>data-age-seconds</code> for cached entries and <code>stale-since</code> for stale ones.
-<code>ze doctor</code> reports the same condition with two codes:</p>
+<p>One firewall set holds 500000 prefixes, and each family has that bound of its
+own. A reference whose IPv4 or IPv6 list is longer is refused: the commit fails,
+the refresh fails, and the sets already programmed stay in force. Ze does not
+program a part of the list, because a set that holds part of it drops traffic an
+<code>accept</code> rule was written to pass, and passes traffic a <code>drop</code> rule was written
+to block. Narrow the reference, or clear it.</p>
+<p>An apply refused for that reason counts under the
+<code>ze_firewall_irr_refresh_outcomes_total</code> label <code>apply-failed</code>.</p>
+<p><code>show firewall irr</code> reports each entry as <code>ok</code>, <code>stale</code>, <code>oversized</code>, or
+<code>missing</code>, and gives <code>data-age-seconds</code> for cached entries and <code>stale-since</code> for
+stale ones. <code>ze doctor</code> reports the same conditions with three codes:</p>
 <ul>
 <li><code>doctor-firewall-irr-stale-data</code>: a referenced entry is enforcing prefixes the
 IRR has stopped confirming.</li>
 <li><code>doctor-firewall-irr-no-data</code>: a referenced entry has no prefixes, so it
 filters nothing.</li>
+<li><code>doctor-firewall-irr-oversized-data</code>: a referenced entry is longer than a
+firewall set holds, so the rules naming it are not programmed.</li>
 </ul>
 <p>Run <code>ze explain &lt;code&gt;</code> for the full description. <code>ze_firewall_irr_data_age_seconds</code> is the
 age of the oldest data being enforced, and
@@ -1104,7 +1131,7 @@ A crash bypasses this path entirely, leaving tables in place.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -1129,7 +1156,7 @@ A crash bypasses this path entirely, leaving tables in place.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

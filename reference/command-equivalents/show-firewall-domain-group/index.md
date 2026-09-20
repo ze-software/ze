@@ -25,9 +25,9 @@ Lists each group with its names, the addresses Ze is enforcing for them, when ea
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | no | any value of this type | Group name; omit to list every group | A group from the firewall configuration. A name no group carries is an error that lists the groups present. |
 
 ## Mapping intents
 

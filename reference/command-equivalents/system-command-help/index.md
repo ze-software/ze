@@ -5,7 +5,7 @@ Show the detailed help for one command.
 ## Ze command
 
 - Registry path: `system command help`
-- Usage: `system command help`
+- Usage: `system command help <name>`
 - Mode: Read-only
 - Wire method: `ze-system:command-help`
 - Backends: any backend
@@ -21,11 +21,13 @@ Show the detailed help for one command.
 - Command pipes: none
 - Pipe aliases: none
 
-The answer carries command, description, long-help and source. A command a plugin registered also carries args and its timeout. An unknown name fails with 'unknown command: <name>'.
+The answer carries command, short-help, description and source. A command a plugin registered also carries args and its timeout. An unknown name fails with 'unknown command: <name>'.
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Command name | The full command name, as command list prints it. A name in neither registry fails with unknown command. |
 
 ## Mapping intents
 

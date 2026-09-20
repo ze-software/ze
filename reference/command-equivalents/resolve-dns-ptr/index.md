@@ -25,9 +25,9 @@ The address is turned into its in-addr.arpa or ip6.arpa name before the query. T
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `ip-address` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `ip-address` | string | yes | any value of this type | IP address to reverse-look-up. | An IPv4 or IPv6 address in its usual text form. The resolver turns it into the reverse name itself, so pass the address and not the in-addr.arpa name. |
 
 ## Mapping intents
 

@@ -137,6 +137,25 @@ firewall {
 }
 ```
 
+### Tables another feature installs
+
+A `ze_` table is not always one the `firewall { }` section declared. A feature
+that needs kernel state of its own publishes a table through the same backend,
+so it appears beside yours in `show firewall ruleset <name>` and is withdrawn
+with the configuration that asked for it.
+
+One example: a BGP peer configured
+with `connection { ttl { max N; } }` (RFC 5082 GTSM) gets `ze_gtsm`, an input
+chain that drops an ICMP error which quotes that peer's BGP session and arrives
+below the peer's TTL floor. The chain names the session by the header the error
+quotes (the peer as the quoted destination, and the BGP port), whoever sent the
+error. Its terms therefore read the quoted header as a raw payload compare
+(`@th,192,32 0xc0000202` is 192.0.2.2) and carry no `ip saddr`.
+`show firewall ruleset gtsm` lists it, and removing
+the peer's `ttl` block removes it. The full list of table owners is in
+[table ownership](https://github.com/ze-software/ze/blob/main/docs/architecture/firewall/table-ownership-and-shutdown-flush.md).
+<!-- source: internal/component/gtsm/gtsm.go -- filterTables, peerTerms -->
+
 ### Table Families
 
 `inet` (dual-stack), `ip`, `ip6`, `arp`, `bridge`, `netdev`.
@@ -461,14 +480,26 @@ plugin process, and counts under the same metric's `panic` label. Alert on it:
 `error` and `empty` report an upstream condition, `panic` reports a defect in
 ze, and the cached prefixes stay in force until it is fixed.
 
-`show firewall irr` reports each entry as `ok`, `stale`, or `missing`, and gives
-`data-age-seconds` for cached entries and `stale-since` for stale ones.
-`ze doctor` reports the same condition with two codes:
+One firewall set holds 500000 prefixes, and each family has that bound of its
+own. A reference whose IPv4 or IPv6 list is longer is refused: the commit fails,
+the refresh fails, and the sets already programmed stay in force. Ze does not
+program a part of the list, because a set that holds part of it drops traffic an
+`accept` rule was written to pass, and passes traffic a `drop` rule was written
+to block. Narrow the reference, or clear it.
+
+An apply refused for that reason counts under the
+`ze_firewall_irr_refresh_outcomes_total` label `apply-failed`.
+
+`show firewall irr` reports each entry as `ok`, `stale`, `oversized`, or
+`missing`, and gives `data-age-seconds` for cached entries and `stale-since` for
+stale ones. `ze doctor` reports the same conditions with three codes:
 
 - `doctor-firewall-irr-stale-data`: a referenced entry is enforcing prefixes the
   IRR has stopped confirming.
 - `doctor-firewall-irr-no-data`: a referenced entry has no prefixes, so it
   filters nothing.
+- `doctor-firewall-irr-oversized-data`: a referenced entry is longer than a
+  firewall set holds, so the rules naming it are not programmed.
 
 Run `ze explain <code>` for the full description. `ze_firewall_irr_data_age_seconds` is the
 age of the oldest data being enforced, and

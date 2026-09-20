@@ -25,9 +25,9 @@ The name must match the cache key exactly, and a reverse lookup is held under it
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Record name to inspect. | The cache key, compared as an exact string. Each entry reported under it carries the name, the type, the records and the seconds of TTL left. |
 
 ## Mapping intents
 

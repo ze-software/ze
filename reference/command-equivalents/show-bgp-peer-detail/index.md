@@ -25,9 +25,9 @@ Each peer row carries the remote and local ASN, the router ID, the peer type, an
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, or * for every peer. Every command under 'show bgp peer' reads the peers it matches, except 'list', which reads every peer. |
 
 ## Mapping intents
 

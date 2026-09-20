@@ -25,9 +25,9 @@ The selector typed after bgp decides the scope: name a peer to withdraw only the
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, an AS pattern such as as65001, a glob, a comma-separated list of those, or * for every peer. The message goes to each session the selector matches. |
 
 ## Mapping intents
 

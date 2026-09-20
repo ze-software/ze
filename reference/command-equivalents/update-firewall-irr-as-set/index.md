@@ -25,9 +25,9 @@ Queries the IRR server and saves resolved prefixes to the zefs cache.
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `as-set` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `as-set` | string | yes | any value of this type | AS-SET name | The RPSL set name, for example AS-EXAMPLE or RIPE::AS-EXAMPLE. Letters, digits, hyphen, underscore, colon and period are accepted, and the name is the cache key. |
 
 ## Mapping intents
 

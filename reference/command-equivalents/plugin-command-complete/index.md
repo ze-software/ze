@@ -5,7 +5,7 @@ List the completion candidates for a partial plugin command.
 ## Ze command
 
 - Registry path: `plugin command complete`
-- Usage: `plugin command complete`
+- Usage: `plugin command complete <partial>`
 - Mode: Read-only
 - Wire method: `ze-plugin:command-complete`
 - Backends: any backend
@@ -25,7 +25,9 @@ The candidates come from the plugin registry only, and a command marked hidden i
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `partial` | string | yes | any value of this type | Partial command text | The text typed so far. The candidates match it on a case-insensitive prefix over the plugin command names. |
 
 ## Mapping intents
 

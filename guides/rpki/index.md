@@ -113,7 +113,14 @@ bgp {
 overrides with the source of each leaf (`peer-actions`). An entry names what it is: `"peer"`
 carries a remote address, and `"group"` carries a listen-range group's name and states what
 every session that group accepts inherits.
-<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions per-peer resolution, statusCommand -->
+
+`running` and `synced` are measured rather than asserted. `running` is the flag
+the per-prefix work reads, so it answers whether this daemon would consult the
+cache at all, and `synced` counts the cache servers that have delivered a set.
+`synced` false beside `running` true is the state an operator cannot otherwise
+see: validation is switched on and no cache has answered, so every route is
+Not-Found rather than validated.
+<!-- source: internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions per-peer resolution, statusCommand, validationEnabled -->
 
 #### Blackhole exemption
 
@@ -259,6 +266,12 @@ alias the plugin declares over its own command, and it answers the same record
 `show bgp rpki summary` answers. The seven counters are `vrp-count`,
 `validation-enabled`, `sessions-total`, `sessions-established`,
 `sessions-synced`, `aspa-enabled` and `aspa-records`.
+
+`validation-enabled` is derived from `sessions-synced`, not from whether the
+plugin is loaded: it answers true only while at least one cache server has
+delivered a set. A daemon carrying the plugin with no cache reachable therefore
+reports it false, which is the honest answer, because no route is being
+validated against anything.
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- summaryFieldNames, summaryAliasExpansion, appendSummaryFields -->
 
 A plugin's pipe alias lives in the daemon's registry. `ze cli` with no command

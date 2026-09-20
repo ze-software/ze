@@ -1,15 +1,15 @@
 # `request bgp rib fastpath`
 
-Enable/disable/report the zero-copy forward-handle fast path (rib-arch-6): <enable\|disable\|status>
+Switch or report the zero-copy forward-handle fast path.
 
 ## Ze command
 
 - Registry path: `request bgp rib fastpath`
-- Usage: `request bgp rib fastpath`
+- Usage: `request bgp rib fastpath <enable\|disable\|status>`
 - Mode: Daemon
-- Wire method: `not listed`
+- Wire method: `ze-rib-api:fastpath`
 - Backends: any backend
-- Task support: optional: the MCP call is synchronous, which is the default
+- Task support: forbidden: the MCP server never answers with a task handle
 - Subcommands: none: this command takes no subcommand
 - Answer shape: not declared
 - Address fields: none
@@ -21,9 +21,13 @@ Enable/disable/report the zero-copy forward-handle fast path (rib-arch-6): <enab
 - Command pipes: none
 - Pipe aliases: none
 
+The fast path hands a forward handle to the Loc-RIB consumer without copying the route. enable and disable switch it, and status reports the counters. Each of the three answers the same counter snapshot.
+
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `action` | enum | yes | `enable`, `disable`, `status` | enable, disable or status | One of the three words. Any other word is refused by name. |
 
 ## Mapping intents
 

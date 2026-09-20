@@ -240,47 +240,19 @@ identity is injected only by trusted transport wiring.</p>
 <h2 id="command-verb-taxonomy">Command Verb Taxonomy</h2>
 <p>Commands follow a <strong>verb-first</strong> convention: <code>&lt;action&gt; &lt;module&gt; [args...]</code>.
 The action verb determines the command's behavior; the module implements it.</p>
-<table>
-<thead>
-<tr>
-<th>Verb</th>
-<th>Purpose</th>
-<th>Examples</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>show</code></td>
-<td>Read-only display (returns data, exits)</td>
-<td><code>show bgp peer &lt;selector&gt; detail</code>, <code>show warnings</code></td>
-</tr>
-<tr>
-<td><code>set</code></td>
-<td>Create or modify</td>
-<td><code>set bgp peer X ...</code></td>
-</tr>
-<tr>
-<td><code>create</code></td>
-<td>Add to the running daemon</td>
-<td><code>create bgp peer X asn 65001</code></td>
-</tr>
-<tr>
-<td><code>delete</code></td>
-<td>Remove</td>
-<td><code>delete bgp peer X</code></td>
-</tr>
-<tr>
-<td><code>update</code></td>
-<td>Route operations (announce, withdraw, refresh), firmware, prefix data</td>
-<td><code>update system firmware check</code>, <code>update bgp peer * prefix</code></td>
-</tr>
-<tr>
-<td><code>monitor</code></td>
-<td>Long-running auto-refreshing display</td>
-<td><code>monitor bgp</code> (TUI dashboard)</td>
-</tr>
-</tbody>
-</table>
+<p><code>command.Verbs</code> is the vocabulary, and it gives each verb one of three roles:
+<code>RoleRead</code> for <code>show</code>, <code>monitor</code> and <code>resolve</code>, <code>RoleMutation</code> for <code>set</code> and
+<code>delete</code>, and <code>RoleAction</code> for every other verb. A token the map does not hold
+answers <code>RoleUnspecified</code>, which is what <code>IsVerb</code> reads.</p>
+<p>What each verb PROMISES an operator, which selector it takes, and what a new
+command under it must look like are one table on one page, and this page does
+not carry a second copy of it: <code>docs/architecture/cli/command-verbs.md</code>.</p>
+<p><code>IsReadOnlyPath</code> decides which authorization section a command lands in, and it
+asks <code>command.IsReadOnlyVerb</code> for the verb half rather than holding a list of
+read verbs. The five noun-first roots that predate the verb-first grammar are
+the rest of its answer.</p>
+<!-- source: internal/component/command/verbs.go -- Verbs, verbRole, IsVerb, IsReadOnlyVerb -->
+<!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath, legacyReadRoots -->
 <!-- source: internal/component/cmd/show/doc.go -- show verb -->
 <!-- source: internal/component/cmd/set/doc.go -- set verb -->
 <!-- source: internal/component/cmd/delete/doc.go -- delete verb -->
@@ -538,6 +510,11 @@ the bus from buggy or malicious producers.</p>
 <td><code>{"interfaces": [...], "count": N}</code> or single interface detail</td>
 </tr>
 <tr>
+<td><code>ze-show:mtu</code></td>
+<td><code>handleShowMTU</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/component/mtu/cmd/mtu.go</code></span></span></td>
+<td>one document: <code>status</code>, <code>measurements</code> (rows of <code>target</code>, <code>label</code>, <code>outcome</code>, <code>path-mtu</code>, <code>method</code>, <code>probes</code>, <code>lossy</code>, <code>prober</code>, <code>exchanges</code>, <code>ike-confirmed</code>, <code>ike-declined</code>, <code>caveats</code>, <code>cached-path-mtu</code>), <code>tunnels</code> (rows of <code>peer</code>, <code>remote</code>, <code>interface</code>, <code>mode</code>, <code>encapsulation</code>, <code>transform</code>, <code>path-mtu</code>, <code>assumed</code>, <code>current-mtu</code>, <code>ceiling</code>, <code>recommended</code>, <code>mss</code>, <code>verdict</code>, <code>octets</code>, <code>sized</code>, <code>reason</code>), <code>commands</code>, <code>notes</code>, <code>caveats</code>; <code>inventory</code>, <code>verdict</code>, <code>reference</code> on a run over the peers; <code>underlay</code> once read; <code>tcp-mtu-probing</code> once read. Keys and presence rules. <span class="ev-src"><span class="ev-ref"><code>docs/architecture/diagnostics/path-mtu.md</code></span></span></td>
+</tr>
+<tr>
 <td><code>ze-show:static</code></td>
 <td><code>forwardShowStatic</code> in. <span class="ev-src"><span class="ev-ref"><code>internal/plugins/static/cmd_show.go</code></span></span></td>
 <td>JSON array of configured static routes (proxy to static plugin)</td>
@@ -625,7 +602,7 @@ the bus from buggy or malicious producers.</p>
 <tr>
 <td><code>ze-show:traceroute</code></td>
 <td><code>handleTraceroute</code> in <code>traceroute.go</code></td>
-<td><code>{"target": "...", "hops": [{"hop": N, "addr": "...", "rtt-ms": N, "ttl": N}, ...]}</code></td>
+<td><code>{"target": ". ", "hops": [{"hop": N, "addr": ". ", "rtt-ms": N, "ttl": N}. ]}</code>. Under <code>do-not-fragment</code> a hop that refused the probe's size also carries <code>"next-hop-mtu-reported": bool</code> and, when true, <code>"next-hop-mtu": N</code>, and ends the trace. <span class="ev-src"><span class="ev-ref"><code>docs/architecture/diagnostics/active-probes.md</code></span></span></td>
 </tr>
 <tr>
 <td><code>ze-show:capture-interface</code></td>
@@ -1174,9 +1151,9 @@ system version api       # Show IPC protocol version
 system subsystem list    # List available subsystems
 system command list      # List all commands (builtin + plugin)
 system command list verbose  # List with source (builtin/process name)
-system command help "&lt;name&gt;" # Show command details
-system command complete "&lt;partial&gt;"  # Complete command names
-system command complete "&lt;cmd&gt;" args [&lt;completed&gt;...] "&lt;partial&gt;"  # Arg completion
+system command help name "&lt;name&gt;"    # Show command details; the bare "&lt;name&gt;" is accepted too
+system command complete partial "&lt;partial&gt;"  # Complete command names; the bare "&lt;partial&gt;" is accepted too
+system command complete args "&lt;cmd&gt;" [&lt;completed&gt;...] "&lt;partial&gt;"  # Arg completion
 </code></pre>
 <!-- source: internal/core/ipc/yang/ze-system-api.yang -- system RPCs -->
 <h3 id="process-lifecycle-commands_1">Process Lifecycle Commands</h3>
@@ -1445,6 +1422,7 @@ show bgp rib rpf &lt;family&gt; &lt;source-addr&gt;      # RPF lookup (longest-p
 </code></pre>
 <p>Generic pipes apply to the answer the command produced. The operator language has exactly one statement, <code>pipeCatalog</code>, and <a href="https://github.com/ze-software/ze/blob/main/docs/features/pipe-operators.generated.md" target="_blank" rel="noopener"><code>docs/features/pipe-operators.generated.md</code></a> is that table published; naming the operators here again is the drift this catalog exists to end. What a given command owes is published per command by <code>ze help command --json</code>, derived from the shape it declares, and an operator the shape cannot support is refused by name before the command runs.</p>
 <p>For a command the daemon serves, the DAEMON runs the chain. <code>execMiddleware</code> splits it off an SSH exec command and applies it, and <code>ze cli -c</code> sends the chain intact and prints what comes back. Only the daemon holds the configuration, so only the daemon can honor <code>environment cli format default</code>. A command the client serves in its own process through <code>RegisterLocalData</code> is the exception: <code>ServeLocal</code> runs the same chain over the local payload, before any daemon is contacted. <code>| save</code> is refused on every chain the daemon expands, because the file would be written on the daemon's filesystem with the daemon's privileges.</p>
+<p>A chain the answer's shape cannot support is refused AFTER the command has run, and the refusal then arrives as the answer itself, marked with <code>pipe error: </code>. <code>ze cli -c</code> reads that mark on the first bytes of the stream: the refusal goes to stderr and the client exits 1, so a script that redirects stdout collects no diagnostic and reads no success.</p>
 <!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog -->
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 <!-- source: internal/component/command/pipe_save.go -- validateSaveOps -->
@@ -1925,6 +1903,10 @@ update text nlri ipv4/flow del \
 <td>DSCP value</td>
 </tr>
 <tr>
+<td>traffic-class</td>
+<td>DSCP value, under the ExaBGP spelling</td>
+</tr>
+<tr>
 <td>packet-length</td>
 <td>Packet length</td>
 </tr>
@@ -2278,20 +2260,31 @@ definition's own message (<code>invalid value "not-an-ip", does not match expect
 nothing, so a missing mandatory argument is reported instead
 (<code>show policy test peer test-peer update &lt;hex&gt;</code> answers <code>required argument missing: direction</code>, and not a complaint about the <code>update</code> keyword the handler
 reads).</p>
-<p>A leaf's own <code>description</code> reaches no surface. <code>argDefFor</code>
+<p>A leaf's own <code>ze:help</code> and <code>description</code> travel with the argument. <code>argDefFor</code>
 (<code>config/yang/command.go</code>) reads the leaf's <code>type</code> and its <code>mandatory</code>
-statement, and <code>command.ArgDef</code> carries no description field. State what an
-argument means in the command's own <code>ze:help</code>.</p>
+statement, then fills <code>ShortHelp</code> from <code>GetHelpExtension</code> over the leaf's
+<code>ze:help</code> and <code>Description</code> from the entry's <code>Description</code>, the same two readers
+every carrier uses. Neither text is derived from the other, and a leaf that
+declares one leaves the other empty. A merged command node keeps the
+definitions of the first module that declared them, the first-wins case of
+<code>mergeHelpText</code>. Four readers print the pair: <code>ze help command --json</code> (<code>args</code>
+entries carry <code>short-help</code> and <code>description</code>, each when declared), the site
+command catalog and the wiki catalog (<code>args</code> entries carry the same two keys,
+and their pages print the summary and the explanation beside each argument),
+and the web admin command form (the summary beside each input, the
+explanation under it).</p>
 <pre><code class="language-go">type ArgDef struct {
-    Name       string         // YANG leaf name (kebab-case)
-    Kind       ArgKind        // ArgString, ArgEnum, ArgUint, ArgUnion
-    EnumValues []string       // Valid enum values
-    UintBits   int            // 8, 16, 32, or 64
-    Ranges     []UintRange    // Valid ranges (disjoint segments supported)
-    Pattern    *regexp.Regexp // Compiled XSD pattern for ArgString
-    UnionDefs  []ArgDef       // Member types for ArgUnion
-    Mandatory  bool           // True if YANG leaf has mandatory true
-    Anchor     string         // Path keyword this value follows; "" for a trailing value
+    Name        string         // YANG leaf name (kebab-case)
+    Kind        ArgKind        // ArgString, ArgEnum, ArgUint, ArgUnion
+    EnumValues  []string       // Valid enum values
+    UintBits    int            // 8, 16, 32, or 64
+    Ranges      []UintRange    // Valid ranges (disjoint segments supported)
+    Pattern     *regexp.Regexp // Compiled XSD pattern for ArgString
+    UnionDefs   []ArgDef       // Member types for ArgUnion
+    Mandatory   bool           // True if YANG leaf has mandatory true
+    ShortHelp   string         // The leaf's ze:help summary
+    Description string         // The leaf's description explanation
+    Anchor      string         // Path keyword this value follows; "" for a trailing value
 }
 </code></pre>
 <p>ArgDefs are extracted from YANG by <code>BuildCommandTree</code> (<code>config/yang/command.go</code>)
@@ -2306,8 +2299,13 @@ module is merged, with <code>Anchor</code> set to the container's name, and the 
 places the value right after that keyword. The command under such a container
 that acts on no single member of the set states <code>ze:inherit "none"</code>:
 <code>show bgp peer list</code> reads every peer, and <code>request interface migrate</code> names two
-interfaces of its own. Nothing binds a value by <code>Anchor</code>: a positional token
-still goes to the definition whose type constrains it most (<code>positionalDef</code>).</p>
+interfaces of its own. The dispatcher binds the bare token after the anchor
+keyword to the leaf anchored there (<code>anchoredDef</code>, <code>plugin/server/command.go</code>),
+and a surface that builds a command from a name-to-value map writes the value
+at that same place through <code>command.WriteInvocation</code> (<code>arguments.go</code>), which
+the web admin form and the MCP tool call share. A positional token after the
+command still goes to the definition whose type constrains it most
+(<code>positionalDef</code>).</p>
 <p>Runtime-dynamic hints (e.g., address families from plugin registry) remain as
 <code>ValueHints</code> callbacks. Static hints (log levels, FD limit "max") are
 YANG-declared and served through ArgDefs.</p>
@@ -2382,8 +2380,16 @@ no change to the barrier. <code>wait_for_ack</code> is now a thin, sleepless wra
 this barrier: the two BGP quiescers together cover the forward pool AND the
 per-peer initial-sync drain, so a route sent during establishment is on the wire
 (past its EOR) before the barrier returns.</p>
+<p><strong>What the barrier does NOT cover.</strong> A peer with no session, and a peer whose
+TCP connect has not completed, are both reported settled: neither has a
+counterparty, and a peer nobody is listening for waits in that state for the life
+of the process, so counting it would hang every quiesce behind it. A peer holding
+a LIVE handshake (OpenSent or OpenConfirm) is waited on, because the socket is up
+and the far end answered, so its whole initial routing update is owed. That arm
+was absent until 2026-09-19, and until then a caller could quiesce, be told
+"done", and shut the daemon down between the OPEN exchange and the End-of-RIB.</p>
 <!-- source: internal/component/plugin/server/quiesce.go -- Quiescer, QuiescerRegistry, quiesceAll, handleQuiesce, registerReactorQuiescer -->
-<!-- source: internal/component/bgp/reactor/reactor_api.go -- DrainPeerSync, peersSynced; peer.go PendingSync -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- DrainPeerSync, peersSynced; peer.go pendingSync, handshakeInFlight -->
 <!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request/quiesce -> ze-system:quiesce -->
 <h3 id="peer-selector-parsing">Peer Selector Parsing</h3>
 <pre><code class="language-go">type Selector struct {
@@ -2425,13 +2431,13 @@ same pair, in the declaration form their own registration uses.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>command.Node.Description</code></td>
-<td>the <code>description</code> statement</td>
+<td><code>command.Node.ShortHelp</code></td>
+<td>the <code>ze:help</code> extension</td>
 <td>the one-line SUMMARY</td>
 </tr>
 <tr>
-<td><code>command.Node.Help</code></td>
-<td>the <code>ze:help</code> extension</td>
+<td><code>command.Node.Description</code></td>
+<td>the <code>description</code> statement</td>
 <td>the LONG explanation of that one command</td>
 </tr>
 </tbody>
@@ -2443,46 +2449,53 @@ cuts it: every surface prints the summary whole.</p>
 <code>mergeHelpText</code> decides each field on its own when several modules contribute
 one command path. A collision leaves the first value in place and logs
 <code>YANG command help text mismatch</code> naming the field that collided.</p>
-<p>An empty <code>Help</code> is a command nobody has written an explanation for, and the
-help page prints its summary alone. An empty <code>Description</code> is a defect:
+<p>An empty <code>Description</code> is a command nobody has written an explanation for, and
+the help page prints its summary alone. An empty <code>ShortHelp</code> is a defect:
 <code>validateNode</code> names each one by path.</p>
 <p>An RPC carries the same two texts, in the same two YANG statements.
 <code>ExtractRPCs</code> (<code>internal/component/config/yang/rpc.go</code>) writes them to
-<code>RPCMeta.Description</code> and <code>RPCMeta.Help</code>. <code>GetHelpExtension</code> is the ONE reader
+<code>RPCMeta.ShortHelp</code> and <code>RPCMeta.Description</code>, and each input, output and
+notification leaf carries the same pair on <code>LeafMeta.ShortHelp</code> and
+<code>LeafMeta.Description</code> (<code>extractEntryLeaves</code>). The hub copies the leaf pair to
+<code>api.ParamMeta</code> and <code>mcp.ParamInfo</code>; <code>api.CommandSchema</code> and the MCP tool
+<code>inputSchema</code> write the summary as the property's JSON Schema <code>title</code> and the
+explanation as its <code>description</code>, each only when the leaf declares it; the
+gRPC <code>ParamInfo</code> message carries <code>short_help</code> and <code>description</code>; and
+<code>ze help ai --json</code> lists each rpc's <code>input</code> and <code>output</code> leaves and each
+notification's <code>leaves</code> with both keys. <code>GetHelpExtension</code> is the ONE reader
 of the extension for both carriers. A command container reaches it through
 <code>Entry.Exts</code>, and an rpc through <code>gyang.RPC.Exts()</code>.
 <code>./le docvalid help-shape</code> holds the two corpora to one shape.</p>
 <p>An RPC's pair reaches an agent through the machine-readable reference.
-<code>SchemaRegistry.RegisterRPCs</code> copies both to <code>RegisteredRPC.Description</code> and
-<code>RegisteredRPC.LongHelp</code>. <code>aihelp.Build</code> then publishes them under <code>description</code>
-and <code>long-help</code>, the two keys <code>ze help command --json</code> uses for a command.
+<code>SchemaRegistry.RegisterRPCs</code> copies both to <code>RegisteredRPC.ShortHelp</code> and
+<code>RegisteredRPC.Description</code>. <code>aihelp.Build</code> then publishes them under <code>short-help</code>
+and <code>description</code>, the two keys <code>ze help command --json</code> uses for a command.
 <code>ze help ai --json</code> and the MCP <code>ze_reference</code> tool read that one projection.
 The <code>show schema methods</code> and <code>ze schema methods</code> tables print one line for each
 RPC. Both read the summary alone, as every other one-line surface does.</p>
 <p>A PLUGIN command carries the same two texts, declared in its Stage 1 message as
-<code>description</code> and <code>long-help</code>. <code>VisibleCommandEntries</code> reads both off the
+<code>short-help</code> and <code>description</code>. <code>VisibleCommandEntries</code> reads both off the
 registry, and <code>MergeCommandPaths</code> fills each field of the tree on its own. A
 plugin that declares a summary and no explanation therefore fills the summary
-alone. The names cross at that call. The plugin server spells them
-<code>Description</code> and <code>LongHelp</code>, because <code>Help</code> already means the SUMMARY there,
-on <code>Completion</code> and on the dispatcher's builtin <code>Command</code>. The bound and the control-character
+alone. The plugin server spells them <code>ShortHelp</code> and <code>Description</code> too, on
+<code>Completion</code> and on the dispatcher's builtin <code>Command</code>. The bound and the control-character
 refusal on a declared text are in
 <code>docs/architecture/api/process-protocol.md</code>.</p>
-<p><code>command help "&lt;name&gt;"</code> answers with both, under the <code>description</code> and
-<code>long-help</code> keys, for a builtin and for a plugin command alike.</p>
-<p><code>system command list</code> carries both texts on every row too. The <code>help</code> key holds
-the summary, and <code>long-help</code> holds the explanation. That answer is the only
+<p><code>command help "&lt;name&gt;"</code> answers with both, under the <code>short-help</code> and
+<code>description</code> keys, for a builtin and for a plugin command alike.</p>
+<p><code>system command list</code> carries both texts on every row too. The <code>short-help</code> key
+holds the summary, and <code>description</code> holds the explanation. That answer is the only
 place the ATTACHED console of <code>ze start --cli</code> reads either text from. An
 explanation that does not travel here is one its <code>?</code> key cannot print.
 <code>commandRows</code> fills the pair for a builtin and for a registered plugin command
-alike. A command that declares no explanation yields a row with no <code>long-help</code>
+alike. A command that declares no explanation yields a row with no <code>description</code>
 key.</p>
 <p>On the client, <code>applyCommandText</code> writes the pair onto the node the row names,
 in ONE walk. <code>injectPluginCommands</code> carries the pair into a node the tree does
 not yet hold.</p>
 <p>An OFFLINE LOCAL command carries the same two texts in a <code>registry.Meta</code>,
-declared beside its handler in Go rather than in a YANG module. <code>Description</code> is
-the summary and <code>LongHelp</code> is the explanation, and the same empty-is-unwritten
+declared beside its handler in Go rather than in a YANG module. <code>ShortHelp</code> is
+the summary and <code>Description</code> is the explanation, and the same empty-is-unwritten
 rule holds for both. <code>collectCommands</code> (<code>cmd/ze/help_command.go</code>) merges these
 registrations into <code>ze help command --json</code> after the tree, and skips one whose
 path the tree already holds, so the catalog publishes the node's texts for such
@@ -2507,17 +2520,17 @@ surfaces.</p>
 <tr>
 <td>The per-command help page</td>
 <td><code>commandHelpPage</code>, rendered by <code>helpfmt.(*Page).WriteTo</code></td>
-<td><code>Description</code> on the header line, then <code>Help</code> in the body block, then the child rows. A node states its own two texts whether or not it has children</td>
+<td><code>ShortHelp</code> on the header line, then <code>Description</code> in the body block, then the child rows. A node states its own two texts whether or not it has children</td>
 </tr>
 <tr>
 <td>A help page's child rows</td>
 <td><code>command.HelpEntries</code></td>
-<td><code>Description</code></td>
+<td><code>ShortHelp</code></td>
 </tr>
 <tr>
 <td>A completion candidate</td>
 <td><code>command.TreeCompleter.matchChildren</code>, <code>choiceSuggestions</code></td>
-<td><code>Description</code></td>
+<td><code>ShortHelp</code>, copied to the candidate's <code>Suggestion.Description</code></td>
 </tr>
 <tr>
 <td>The interactive completion pane</td>
@@ -2527,82 +2540,82 @@ surfaces.</p>
 <tr>
 <td>The interactive message line</td>
 <td><code>internal/component/cli</code> <code>Model.warningText</code>, <code>Model.handleKeyMsg</code> (the <code>?</code> key), <code>Model.updateCompletions</code></td>
-<td><code>Description</code>, whole, for the candidate the menu has selected</td>
+<td><code>ShortHelp</code>, whole, for the candidate the menu has selected</td>
 </tr>
 <tr>
 <td>The interactive explanation box, which the <code>?</code> key opens</td>
 <td><code>internal/component/cli</code> <code>Model.renderExplanationBox</code>, answered by <code>command.TreeCompleter.Explain</code></td>
-<td><code>Help</code>, whole. The attached console reads it from the <code>long-help</code> key of <code>system command list</code></td>
+<td><code>Description</code>, whole. The attached console reads it from the <code>description</code> key of <code>system command list</code></td>
 </tr>
 <tr>
 <td>A shell-completion record</td>
 <td><code>internal/plugins/completion</code> <code>writeCompletionRecord</code></td>
-<td><code>Description</code></td>
+<td><code>ShortHelp</code>, read from the candidate's <code>Suggestion.Description</code></td>
 </tr>
 <tr>
 <td>The <code>ze help command</code> table row</td>
 <td><code>printCommandTable</code></td>
-<td><code>Description</code></td>
+<td><code>ShortHelp</code></td>
 </tr>
 <tr>
 <td><code>ze help command --verbose</code></td>
 <td><code>printCommandVerbose</code></td>
-<td><code>Description</code>, then <code>Help</code></td>
+<td><code>ShortHelp</code>, then <code>Description</code></td>
 </tr>
 <tr>
 <td><code>ze help command --json</code></td>
 <td><code>commandEntry</code></td>
-<td><code>description</code>, and <code>long-help</code></td>
+<td><code>short-help</code>, and <code>description</code></td>
 </tr>
 <tr>
 <td>The web admin command form</td>
 <td><code>buildAdminFragmentData</code>, rendered by the <code>commandForm</code> template</td>
-<td><code>Description</code> as the lede, <code>Help</code> as the body</td>
+<td><code>ShortHelp</code> as the lede, <code>Description</code> as the body</td>
 </tr>
 <tr>
 <td>The web completion dropdown</td>
 <td><code>HandleCLICompleteWithCommandCompleter</code></td>
-<td><code>Description</code>, in the JSON <code>description</code> key</td>
+<td><code>ShortHelp</code>, in the JSON <code>description</code> key</td>
 </tr>
 <tr>
 <td>An MCP tool's action enum</td>
 <td><code>buildToolDef</code></td>
-<td><code>Description</code>, one line for each action</td>
+<td><code>ShortHelp</code>, one line for each action</td>
 </tr>
 <tr>
 <td>An MCP tool's own description</td>
 <td><code>buildToolDef</code>, <code>commandText</code></td>
-<td><code>Description</code>, then a blank line, then <code>LongHelp</code></td>
+<td><code>ShortHelp</code>, then a blank line, then <code>Description</code></td>
 </tr>
 <tr>
 <td>The OpenAPI operation</td>
 <td><code>OpenAPISchema</code></td>
-<td><code>Description</code> as <code>summary</code>, <code>LongHelp</code> as <code>description</code></td>
+<td><code>ShortHelp</code> as <code>summary</code>, <code>Description</code> as <code>description</code></td>
 </tr>
 <tr>
 <td>The published wiki catalog</td>
 <td><code>wikicatalog.Render</code></td>
-<td><code>Description</code> in the summary table column, <code>LongHelp</code> in the <code>###</code> detail block</td>
+<td><code>ShortHelp</code> in the summary table column, <code>Description</code> in the <code>###</code> detail block</td>
 </tr>
 <tr>
 <td>The published CLI reference row</td>
 <td><code>internal/le/site</code> <code>writeCommandRow</code>, <code>commandMirrorDescription</code></td>
-<td><code>Description</code></td>
+<td><code>ShortHelp</code></td>
 </tr>
 <tr>
 <td>The published per-command detail page</td>
 <td><code>internal/le/site</code> <code>equivalentZeCard</code>, <code>equivalentDetailMirror</code></td>
-<td><code>Description</code> as the lede, <code>LongHelp</code> as the Description body</td>
+<td><code>ShortHelp</code> as the lede, <code>Description</code> as the Description body</td>
 </tr>
 <tr>
 <td>The <code>llms.txt</code> command line</td>
 <td><code>internal/le/site</code> <code>writeLLMSCommands</code></td>
-<td><code>Description</code>, whole and with no character budget</td>
+<td><code>ShortHelp</code>, whole and with no character budget</td>
 </tr>
 <tr>
 <td>An offline local command in any of the rows above</td>
 <td><code>registry.ListLocal</code>, merged by <code>collectCommands</code> and by <code>wikicatalog.Collect</code></td>
-<td><code>Meta.Description</code> and <code>Meta.LongHelp</code>, in place of the node's two texts</td>
+<td><code>Meta.ShortHelp</code> and <code>Meta.Description</code>, in place of the node's two texts</td>
 </tr>
 </tbody>
 </table>
@@ -3119,7 +3132,11 @@ have to supply a value? An alias takes no argument. Does the answer need data th
 parent's payload does not carry? An alias reshapes what was returned.</p>
 <p><code>show bgp rpki roa 192.0.2.0/24</code> fails both and stays a subcommand.
 <code>show bgp rpki cache</code> fails the second one: it reports <code>preference</code>,
-<code>session-id</code>, <code>serial</code> and three intervals that the bare answer does not carry.</p>
+<code>session-id</code>, <code>serial</code> and three intervals that the bare answer does not carry.
+<code>preference</code> is the cache the router connects to FIRST rather than a label:
+RFC 8210 Section 10 loads from the most preferred cache that answers, and the
+next one is contacted only when it does not, so the row says which cache the
+records in hand came from.</p>
 <!-- source: internal/component/bgp/plugins/rpki/rpki.go -- overviewCommand, appendSummaryFields, appendCacheServers, summaryFieldNames, buildSummaryAliasExpansion -->
 <h4 id="where-an-alias-resolves-and-where-it-does-not">Where an alias resolves, and where it does not</h4>
 <p>The chain is resolved in the process that parses it, and a plugin's alias lives
@@ -3700,7 +3717,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

@@ -91,6 +91,7 @@ No tracked gap in current source anchors.
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **18** | every gated MUST falls in exactly one bucket above |
 
 **Annotated instead of tested (18):** [`RFC4761-2.3-1`](#rfc4761-2.3-1), [`RFC4761-3.2.4-1`](#rfc4761-3.2.4-1), [`RFC4761-3.2.4-2`](#rfc4761-3.2.4-2), [`RFC4761-3.2.4-3`](#rfc4761-3.2.4-3), [`RFC4761-3.2.4-4`](#rfc4761-3.2.4-4), [`RFC4761-3.2.4-5`](#rfc4761-3.2.4-5), [`RFC4761-3.2.4-6`](#rfc4761-3.2.4-6), [`RFC4761-3.2.3-1`](#rfc4761-3.2.3-1), [`RFC4761-3.2.3-2`](#rfc4761-3.2.3-2), [`RFC4761-3.3-1`](#rfc4761-3.3-1), [`RFC4761-3.4.2-1`](#rfc4761-3.4.2-1), [`RFC4761-3.5-1`](#rfc4761-3.5-1), [`RFC4761-3.5-2`](#rfc4761-3.5-2), [`RFC4761-4.2.1-1`](#rfc4761-4.2.1-1), [`RFC4761-4.2.2-1`](#rfc4761-4.2.2-1), [`RFC4761-4.2.5-1`](#rfc4761-4.2.5-1), [`RFC4761-6-1`](#rfc4761-6-1), [`RFC4761-6-2`](#rfc4761-6-2)

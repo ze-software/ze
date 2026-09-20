@@ -91,6 +91,7 @@ No tracked gap in current source anchors.
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **22** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (6):** [`RFC4303-1-1`](#rfc4303-1-1), [`RFC4303-2-1`](#rfc4303-2-1), [`RFC4303-2.1-1`](#rfc4303-2.1-1), [`RFC4303-2.1-2`](#rfc4303-2.1-2), [`RFC4303-3.2-1`](#rfc4303-3.2-1), [`RFC4303-2.2.1-2`](#rfc4303-2.2.1-2)
@@ -102,9 +103,9 @@ No tracked gap in current source anchors.
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC4303-1-1` | Integrity-only ESP MUST be offered as a service selection option and MUST be configurable via management interfaces (§1) | MUST | 1 - Introduction | **positive:** `unit/verify` [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L127). **negative:** `unit/verify` [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L112) |
-| `RFC4303-2-1` | The outer protocol header that precedes the ESP header SHALL carry the value 50 in its Protocol or Next Header field (§2) | SHALL | 2 - Packet format | **positive:** `unit/verify` [`TestIPsecSAProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L290). **negative:** `unit/verify` [`TestIPsecSAProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L295) |
+| `RFC4303-2-1` | The outer protocol header that precedes the ESP header SHALL carry the value 50 in its Protocol or Next Header field (§2) | SHALL | 2 - Packet format | **positive:** `unit/verify` [`TestIPsecSAProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L362). **negative:** `unit/verify` [`TestIPsecSAProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L367) |
 | `RFC4303-2.1-1` | SPI value 0 MUST NOT appear on the wire (reserved for local use) (§2.1) | MUST NOT | 2.1 - Security Parameters Index | **positive:** `unit/verify` [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L250). **positive:** `unit/verify` [`TestIPsecSPIBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L192). **negative:** `unit/verify` [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L264). **negative:** `unit/verify` [`TestIPsecSPIBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L186) |
-| `RFC4303-2.1-2` | Whether source and destination address matching is required to map inbound traffic to an SA MUST be set by manual SA configuration or by SA management protocol negotiation (§2.1) | MUST | 2.1 - Security Parameters Index | **positive:** `unit/verify` [`TestIPsecSAAddressMatchIndication`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L320). **negative:** `unit/verify` [`TestIPsecSAAddressMatchIndication`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L326) |
+| `RFC4303-2.1-2` | Whether source and destination address matching is required to map inbound traffic to an SA MUST be set by manual SA configuration or by SA management protocol negotiation (§2.1) | MUST | 2.1 - Security Parameters Index | **positive:** `unit/verify` [`TestIPsecSAAddressMatchIndication`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L392). **negative:** `unit/verify` [`TestIPsecSAAddressMatchIndication`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L398) |
 | `RFC4303-2.2-1` | Sequence Number MUST be incremented for every transmitted packet (§2.2) | MUST | 2.2 - Sequence Number | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the per-SA sequence counter is kernel XFRM/ESP per-packet state; ze installs the SA but never touches sequence numbers (internal/component/ike/dataplane/dataplane.go:80-108 has no sequence field) |
 | `RFC4303-2.2-2` | Sender MUST NOT send a packet that would cause the sequence counter to cycle (overflow) (§2.2) | MUST NOT | 2.2 - Sequence Number | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** 32-bit counter overflow protection is enforced by the kernel XFRM datapath (it expires the state rather than wrapping); ze's control plane holds no per-packet counter |
 | `RFC4303-2.2-3` | Counter and receiver window MUST be reset before the 2^32nd packet on a non-ESN SA (§2.2) | MUST | 2.2 - Sequence Number | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the sequence counter and receive window are kernel per-packet SA state; the kernel enforces the 2^32 boundary and a fresh counter/window arises from installing a new SA |
@@ -169,8 +170,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestIPsecSAProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L295) | unit/verify | unproven |
-| positive | [`TestIPsecSAProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L290) | unit/verify | unproven |
+| negative | [`TestIPsecSAProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L367) | unit/verify | unproven |
+| positive | [`TestIPsecSAProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L362) | unit/verify | unproven |
 
 ### [`RFC4303-2.1-1`](#rfc4303-2.1-1)
 
@@ -193,8 +194,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestIPsecSAAddressMatchIndication`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L326) | unit/verify | unproven |
-| positive | [`TestIPsecSAAddressMatchIndication`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L320) | unit/verify | unproven |
+| negative | [`TestIPsecSAAddressMatchIndication`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L398) | unit/verify | unproven |
+| positive | [`TestIPsecSAAddressMatchIndication`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ipsec_install_test.go#L392) | unit/verify | unproven |
 
 ### [`RFC4303-2.2-1`](#rfc4303-2.2-1)
 

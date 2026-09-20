@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 1661 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 1661: The Point-to-Point Protocol (PPP). 66 gated MUST-level requirements, 24 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 1661: The Point-to-Point Protocol (PPP). 66 gated MUST-level requirements, 22 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 1661 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 1661: The Point-to-Point Protocol (PPP). 66 gated MUST-level requirements, 24 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 1661: The Point-to-Point Protocol (PPP). 66 gated MUST-level requirements, 22 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 1661 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 1661: The Point-to-Point Protocol (PPP). 66 gated MUST-level requirements, 24 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 1661: The Point-to-Point Protocol (PPP). 66 gated MUST-level requirements, 22 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -115,24 +116,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>39.4%</strong><b>26 of 66 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>12.1%</strong><b>8 of 66 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>43.9%</strong><b>29 of 66 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>13.6%</strong><b>9 of 66 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 66 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 91 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>8.9%</strong><b>9 of 101 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>66</strong><b>of 91 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>8</strong><b>of 66 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>12.1%</strong><b>8 of 66 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>6</strong><b>of 66 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>9.1%</strong><b>6 of 66 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 66 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 66 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>36.4%</strong><b>24 of 66 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>33.3%</strong><b>22 of 66 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 66 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -208,10 +209,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>66</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>8</td>
+<td>6</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>24</td>
+<td>22</td>
 </tr>
 <tr><td>Gated with no test</td>
 <td>0</td>
@@ -220,16 +221,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>91</td>
+<td>101</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>91</td>
+<td>101</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>0</td>
+<td>9</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc1661.md</code></td>
@@ -253,7 +254,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 The full ten-state RFC 1661 Section 4.1 option-negotiation automaton, LCP packet and option codecs, Configure-Request/Ack/Nak/Reject negotiation with Reject-over-Nak-over-Ack precedence and verbatim option echo, Terminate-Request/Ack, Code-Reject, Echo keepalive with Magic-Number, two-octet Protocol framing, and the common NCP structure reused by IPCP and IPv6CP under L2TP and PPPoE. Tests bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc1661.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc1661.md</code></a>.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc1661.md" target="_blank" rel="noopener"><code>rfc/short/rfc1661.md</code></a>: (1) no send-side clamp to a negotiated peer MRU, so frame and LCP Length bounds come from the fixed 1500-octet buffer (<a href="#rfc1661-2-2"><code>RFC1661-2-2</code></a>, 5-1, 5.6-3); (2) the frame dispatcher has no LCP-phase gate and buffers early NCP frames instead of discarding out-of-phase packets (<a href="#rfc1661-3.4-1"><code>RFC1661-3.4-1</code></a>, 3.5-4, 3.7-2); (3) no Protocol-Reject sender and no suppression of a packet type on RXJ+ (<a href="#rfc1661-3.6-3"><code>RFC1661-3.6-3</code></a>, 4.3-3, 5.7-1, 5.7-2); (4) Configure-Request carries a constant Identifier and ze keeps no record of its last transmitted request, so Configure-Ack/Nak/Reject Identifier and option matching are unchecked and a rejected MRU or Magic-Number option reappears (<a href="#rfc1661-5.1-3"><code>RFC1661-5.1-3</code></a>, 5.2-3, 5.2-4, 5.3-7, 5.4-3, 5.4-4, 5.4-5); (5) Code-Reject echoes the offending Identifier (<a href="#rfc1661-5.6-2"><code>RFC1661-5.6-2</code></a>); (6) a single-octet Protocol field is refused even with PFC negotiated (<a href="#rfc1661-6.5-3"><code>RFC1661-6.5-3</code></a>); (7) the Restart timer, Max-Terminate, Max-Configure and Max-Failure are not configurable and zrc is a no-op (<a href="#rfc1661-4.6-1"><code>RFC1661-4.6-1</code></a>, 4.6-2, 4.6-3, 4.6-4, 4.4-2).
+Carries the L2TP and PPPoE Partial status. Twenty-two MUST gaps gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc1661.md" target="_blank" rel="noopener"><code>rfc/short/rfc1661.md</code></a>: (1) no send-side clamp to a negotiated peer MRU, so frame and LCP Length bounds come from the fixed 1500-octet buffer (<a href="#rfc1661-2-2"><code>RFC1661-2-2</code></a>, 5-1, 5.6-3); (2) the frame dispatcher has no LCP-phase gate and buffers early NCP frames instead of discarding out-of-phase packets (<a href="#rfc1661-3.4-1"><code>RFC1661-3.4-1</code></a>, 3.5-4, 3.7-2); (3) a received Protocol-Reject suppresses no packet type on RXJ+ (<a href="#rfc1661-4.3-3"><code>RFC1661-4.3-3</code></a>, 5.7-2); (4) Configure-Request carries a constant Identifier and ze keeps no record of its last transmitted request, so Configure-Ack/Nak/Reject Identifier and option matching are unchecked and a rejected MRU or Magic-Number option reappears (<a href="#rfc1661-5.1-3"><code>RFC1661-5.1-3</code></a>, 5.2-3, 5.2-4, 5.3-7, 5.4-3, 5.4-4, 5.4-5); (5) Code-Reject echoes the offending Identifier (<a href="#rfc1661-5.6-2"><code>RFC1661-5.6-2</code></a>); (6) a single-octet Protocol field is refused even with PFC negotiated (<a href="#rfc1661-6.5-3"><code>RFC1661-6.5-3</code></a>); (7) the Restart timer, Max-Terminate, Max-Configure and Max-Failure are not configurable and zrc is a no-op (<a href="#rfc1661-4.6-1"><code>RFC1661-4.6-1</code></a>, 4.6-2, 4.6-3, 4.6-4, 4.4-2).
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -262,11 +263,11 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>26</strong></td>
+<td><strong>29</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>40</strong></td>
+<td><strong>37</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -281,12 +282,16 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
 <tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>66</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (26):</strong> <a href="#rfc1661-2-1"><code>RFC1661-2-1</code></a>, <a href="#rfc1661-6-2"><code>RFC1661-6-2</code></a>, <a href="#rfc1661-3.1-2"><code>RFC1661-3.1-2</code></a>, <a href="#rfc1661-3.5-1"><code>RFC1661-3.5-1</code></a>, <a href="#rfc1661-3.5-3"><code>RFC1661-3.5-3</code></a>, <a href="#rfc1661-3.6-1"><code>RFC1661-3.6-1</code></a>, <a href="#rfc1661-4.3-1"><code>RFC1661-4.3-1</code></a>, <a href="#rfc1661-5.1-1"><code>RFC1661-5.1-1</code></a>, <a href="#rfc1661-5.1-2"><code>RFC1661-5.1-2</code></a>, <a href="#rfc1661-5.2-1"><code>RFC1661-5.2-1</code></a>, <a href="#rfc1661-5.2-2"><code>RFC1661-5.2-2</code></a>, <a href="#rfc1661-5.3-1"><code>RFC1661-5.3-1</code></a>, <a href="#rfc1661-5.3-2"><code>RFC1661-5.3-2</code></a>, <a href="#rfc1661-5.3-3"><code>RFC1661-5.3-3</code></a>, <a href="#rfc1661-5.3-5"><code>RFC1661-5.3-5</code></a>, <a href="#rfc1661-5.3-6"><code>RFC1661-5.3-6</code></a>, <a href="#rfc1661-5.3-8"><code>RFC1661-5.3-8</code></a>, <a href="#rfc1661-5.4-1"><code>RFC1661-5.4-1</code></a>, <a href="#rfc1661-5.4-2"><code>RFC1661-5.4-2</code></a>, <a href="#rfc1661-5.5-1"><code>RFC1661-5.5-1</code></a>, <a href="#rfc1661-5.6-1"><code>RFC1661-5.6-1</code></a>, <a href="#rfc1661-5.8-1"><code>RFC1661-5.8-1</code></a>, <a href="#rfc1661-5.8-2"><code>RFC1661-5.8-2</code></a>, <a href="#rfc1661-6.4-1"><code>RFC1661-6.4-1</code></a>, <a href="#rfc1661-6.4-2"><code>RFC1661-6.4-2</code></a>, <a href="#rfc1661-6.4-3"><code>RFC1661-6.4-3</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (40):</strong> <a href="#rfc1661-2-2"><code>RFC1661-2-2</code></a>, <a href="#rfc1661-5-1"><code>RFC1661-5-1</code></a>, <a href="#rfc1661-3.1-1"><code>RFC1661-3.1-1</code></a>, <a href="#rfc1661-3.4-1"><code>RFC1661-3.4-1</code></a>, <a href="#rfc1661-3.5-2"><code>RFC1661-3.5-2</code></a>, <a href="#rfc1661-3.5-4"><code>RFC1661-3.5-4</code></a>, <a href="#rfc1661-3.6-2"><code>RFC1661-3.6-2</code></a>, <a href="#rfc1661-3.6-3"><code>RFC1661-3.6-3</code></a>, <a href="#rfc1661-3.7-1"><code>RFC1661-3.7-1</code></a>, <a href="#rfc1661-3.7-2"><code>RFC1661-3.7-2</code></a>, <a href="#rfc1661-4.3-2"><code>RFC1661-4.3-2</code></a>, <a href="#rfc1661-4.3-3"><code>RFC1661-4.3-3</code></a>, <a href="#rfc1661-5.1-3"><code>RFC1661-5.1-3</code></a>, <a href="#rfc1661-5.2-3"><code>RFC1661-5.2-3</code></a>, <a href="#rfc1661-5.2-4"><code>RFC1661-5.2-4</code></a>, <a href="#rfc1661-5.3-4"><code>RFC1661-5.3-4</code></a>, <a href="#rfc1661-5.3-7"><code>RFC1661-5.3-7</code></a>, <a href="#rfc1661-5.4-3"><code>RFC1661-5.4-3</code></a>, <a href="#rfc1661-5.4-4"><code>RFC1661-5.4-4</code></a>, <a href="#rfc1661-5.4-5"><code>RFC1661-5.4-5</code></a>, <a href="#rfc1661-5.6-2"><code>RFC1661-5.6-2</code></a>, <a href="#rfc1661-5.6-3"><code>RFC1661-5.6-3</code></a>, <a href="#rfc1661-5.7-1"><code>RFC1661-5.7-1</code></a>, <a href="#rfc1661-5.7-2"><code>RFC1661-5.7-2</code></a>, <a href="#rfc1661-5.7-3"><code>RFC1661-5.7-3</code></a>, <a href="#rfc1661-5.7-4"><code>RFC1661-5.7-4</code></a>, <a href="#rfc1661-5.9-1"><code>RFC1661-5.9-1</code></a>, <a href="#rfc1661-5.9-2"><code>RFC1661-5.9-2</code></a>, <a href="#rfc1661-6.2-1"><code>RFC1661-6.2-1</code></a>, <a href="#rfc1661-6.5-1"><code>RFC1661-6.5-1</code></a>, <a href="#rfc1661-6.5-2"><code>RFC1661-6.5-2</code></a>, <a href="#rfc1661-6.5-3"><code>RFC1661-6.5-3</code></a>, <a href="#rfc1661-6.6-1"><code>RFC1661-6.6-1</code></a>, <a href="#rfc1661-6.6-2"><code>RFC1661-6.6-2</code></a>, <a href="#rfc1661-4.6-1"><code>RFC1661-4.6-1</code></a>, <a href="#rfc1661-4.6-2"><code>RFC1661-4.6-2</code></a>, <a href="#rfc1661-4.6-3"><code>RFC1661-4.6-3</code></a>, <a href="#rfc1661-4.6-4"><code>RFC1661-4.6-4</code></a>, <a href="#rfc1661-4.4-1"><code>RFC1661-4.4-1</code></a>, <a href="#rfc1661-4.4-2"><code>RFC1661-4.4-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (29):</strong> <a href="#rfc1661-2-1"><code>RFC1661-2-1</code></a>, <a href="#rfc1661-6-2"><code>RFC1661-6-2</code></a>, <a href="#rfc1661-3.1-2"><code>RFC1661-3.1-2</code></a>, <a href="#rfc1661-3.5-1"><code>RFC1661-3.5-1</code></a>, <a href="#rfc1661-3.5-3"><code>RFC1661-3.5-3</code></a>, <a href="#rfc1661-3.6-1"><code>RFC1661-3.6-1</code></a>, <a href="#rfc1661-3.6-3"><code>RFC1661-3.6-3</code></a>, <a href="#rfc1661-4.3-1"><code>RFC1661-4.3-1</code></a>, <a href="#rfc1661-5.1-1"><code>RFC1661-5.1-1</code></a>, <a href="#rfc1661-5.1-2"><code>RFC1661-5.1-2</code></a>, <a href="#rfc1661-5.2-1"><code>RFC1661-5.2-1</code></a>, <a href="#rfc1661-5.2-2"><code>RFC1661-5.2-2</code></a>, <a href="#rfc1661-5.3-1"><code>RFC1661-5.3-1</code></a>, <a href="#rfc1661-5.3-2"><code>RFC1661-5.3-2</code></a>, <a href="#rfc1661-5.3-3"><code>RFC1661-5.3-3</code></a>, <a href="#rfc1661-5.3-5"><code>RFC1661-5.3-5</code></a>, <a href="#rfc1661-5.3-6"><code>RFC1661-5.3-6</code></a>, <a href="#rfc1661-5.3-8"><code>RFC1661-5.3-8</code></a>, <a href="#rfc1661-5.4-1"><code>RFC1661-5.4-1</code></a>, <a href="#rfc1661-5.4-2"><code>RFC1661-5.4-2</code></a>, <a href="#rfc1661-5.5-1"><code>RFC1661-5.5-1</code></a>, <a href="#rfc1661-5.6-1"><code>RFC1661-5.6-1</code></a>, <a href="#rfc1661-5.7-1"><code>RFC1661-5.7-1</code></a>, <a href="#rfc1661-5.7-4"><code>RFC1661-5.7-4</code></a>, <a href="#rfc1661-5.8-1"><code>RFC1661-5.8-1</code></a>, <a href="#rfc1661-5.8-2"><code>RFC1661-5.8-2</code></a>, <a href="#rfc1661-6.4-1"><code>RFC1661-6.4-1</code></a>, <a href="#rfc1661-6.4-2"><code>RFC1661-6.4-2</code></a>, <a href="#rfc1661-6.4-3"><code>RFC1661-6.4-3</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (37):</strong> <a href="#rfc1661-2-2"><code>RFC1661-2-2</code></a>, <a href="#rfc1661-5-1"><code>RFC1661-5-1</code></a>, <a href="#rfc1661-3.1-1"><code>RFC1661-3.1-1</code></a>, <a href="#rfc1661-3.4-1"><code>RFC1661-3.4-1</code></a>, <a href="#rfc1661-3.5-2"><code>RFC1661-3.5-2</code></a>, <a href="#rfc1661-3.5-4"><code>RFC1661-3.5-4</code></a>, <a href="#rfc1661-3.6-2"><code>RFC1661-3.6-2</code></a>, <a href="#rfc1661-3.7-1"><code>RFC1661-3.7-1</code></a>, <a href="#rfc1661-3.7-2"><code>RFC1661-3.7-2</code></a>, <a href="#rfc1661-4.3-2"><code>RFC1661-4.3-2</code></a>, <a href="#rfc1661-4.3-3"><code>RFC1661-4.3-3</code></a>, <a href="#rfc1661-5.1-3"><code>RFC1661-5.1-3</code></a>, <a href="#rfc1661-5.2-3"><code>RFC1661-5.2-3</code></a>, <a href="#rfc1661-5.2-4"><code>RFC1661-5.2-4</code></a>, <a href="#rfc1661-5.3-4"><code>RFC1661-5.3-4</code></a>, <a href="#rfc1661-5.3-7"><code>RFC1661-5.3-7</code></a>, <a href="#rfc1661-5.4-3"><code>RFC1661-5.4-3</code></a>, <a href="#rfc1661-5.4-4"><code>RFC1661-5.4-4</code></a>, <a href="#rfc1661-5.4-5"><code>RFC1661-5.4-5</code></a>, <a href="#rfc1661-5.6-2"><code>RFC1661-5.6-2</code></a>, <a href="#rfc1661-5.6-3"><code>RFC1661-5.6-3</code></a>, <a href="#rfc1661-5.7-2"><code>RFC1661-5.7-2</code></a>, <a href="#rfc1661-5.7-3"><code>RFC1661-5.7-3</code></a>, <a href="#rfc1661-5.9-1"><code>RFC1661-5.9-1</code></a>, <a href="#rfc1661-5.9-2"><code>RFC1661-5.9-2</code></a>, <a href="#rfc1661-6.2-1"><code>RFC1661-6.2-1</code></a>, <a href="#rfc1661-6.5-1"><code>RFC1661-6.5-1</code></a>, <a href="#rfc1661-6.5-2"><code>RFC1661-6.5-2</code></a>, <a href="#rfc1661-6.5-3"><code>RFC1661-6.5-3</code></a>, <a href="#rfc1661-6.6-1"><code>RFC1661-6.6-1</code></a>, <a href="#rfc1661-6.6-2"><code>RFC1661-6.6-2</code></a>, <a href="#rfc1661-4.6-1"><code>RFC1661-4.6-1</code></a>, <a href="#rfc1661-4.6-2"><code>RFC1661-4.6-2</code></a>, <a href="#rfc1661-4.6-3"><code>RFC1661-4.6-3</code></a>, <a href="#rfc1661-4.6-4"><code>RFC1661-4.6-4</code></a>, <a href="#rfc1661-4.4-1"><code>RFC1661-4.4-1</code></a>, <a href="#rfc1661-4.4-2"><code>RFC1661-4.4-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -298,8 +303,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L212" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661CompliantProtocolRecognized</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L187" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NonCompliantProtocolTreatedUnrecognized</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L223" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661CompliantProtocolRecognized</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L188" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NonCompliantProtocolTreatedUnrecognized</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-2-2">RFC1661-2-2</code></td><td colspan="3"><span class="rfc-subject">Information field plus Padding must fit within peer&#39;s MRU (default 1500) (Section 2)</span></td></tr>
@@ -360,7 +365,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L280" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661LCPPacketsSentFirst</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L291" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661LCPPacketsSentFirst</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> run (internal/component/l2tp/ppp/session_run.go:182-197) drives the synthetic Initial-&gt;Closed-&gt;ReqSent sequence whose scr action puts an LCP Configure-Request on the wire before any other traffic, and the sole branch that skips it is the RFC 2661 Section 18 proxy-LCP path where the LAC has already run LCP, so there is no case in which ze opens a link with LCP packets unsent</p></td>
 </tr>
@@ -369,8 +374,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-3.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L308" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPConfiguresEachFamilySeparately</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L347" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNCPPacketsWhenNoNetworkProtocol</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L319" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPConfiguresEachFamilySeparately</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L358" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNCPPacketsWhenNoNetworkProtocol</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-3.4-1">RFC1661-3.4-1</code></td><td colspan="3"><span class="rfc-subject">Non-LCP packets received during Link Establishment phase must be silently discarded (Section 3.4)</span></td></tr>
@@ -387,8 +392,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>3.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-3.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L409" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661AuthProtocolRequestedDuringEstablishment</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L440" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoAuthProtocolWhenNotDesired</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L430" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661AuthProtocolRequestedDuringEstablishment</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L461" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoAuthProtocolWhenNotDesired</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-3.5-2">RFC1661-3.5-2</code></td><td colspan="3"><span class="rfc-subject">Exchange of link quality determination packets must not delay authentication indefinitely (Section 3.5)</span></td></tr>
@@ -405,8 +410,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST NOT</td>
 <td>3.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-3.5-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L467" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNetworkPhaseUntilAuthCompletes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L500" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NetworkPhaseRunsAfterAuthCompletes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L488" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNetworkPhaseUntilAuthCompletes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L521" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NetworkPhaseRunsAfterAuthCompletes</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-3.5-4">RFC1661-3.5-4</code></td><td colspan="3"><span class="rfc-subject">All other packets during Authentication phase must be silently discarded (Section 3.5)</span></td></tr>
@@ -423,8 +428,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-3.6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L312" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPConfiguresEachFamilySeparately</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L364" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPStatesAreIndependent</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L323" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPConfiguresEachFamilySeparately</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L375" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPStatesAreIndependent</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-3.6-2">RFC1661-3.6-2</code></td><td colspan="3"><span class="rfc-subject">Network-layer packets received when corresponding NCP is not Opened must be silently discarded (Section 3.6)</span></td></tr>
@@ -432,25 +437,25 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-3.6-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L382" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L394" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{single-polarity}:</strong> handleFrame (internal/component/l2tp/ppp/session_run.go:637-683) dispatches only the three control protocols and drops IPv4 (0x0021) and IPv6 (0x0057) frames in every state, so no NCP state exists in which a network-layer packet is processed in userspace and there is no accepting counterpart to assert</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> handleFrame (internal/component/l2tp/ppp/session_run.go) dispatches only the three control protocols, and rejectUnsupportedProtocol discards an IPv4 (0x0021) or IPv6 (0x0057) frame whose NCP ze supports in every NCP state, so no state exists in which a network-layer packet is processed in userspace and there is no accepting counterpart to assert</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-3.6-3">RFC1661-3.6-3</code></td><td colspan="3"><span class="rfc-subject">Unsupported Protocol in Opened state must be returned in Protocol-Reject (Section 3.6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-3.6-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze has no Protocol-Reject sender. handleFrame (internal/component/l2tp/ppp/session_run.go:681-683) logs an unsupported PPP Protocol at debug level and drops the frame; LCPProtocolReject (internal/component/l2tp/ppp/lcp.go:25) appears only in LCPCodeName and in the receive-side codeToEvent mapping. Disclosed in docs/features/rfc-status.md</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L46" title="internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661UnsupportedProtocolRejectedInOpened</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L94" title="internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-3.7-1">RFC1661-3.7-1</code></td><td colspan="3"><span class="rfc-subject">Receiver of Terminate-Request must not disconnect until at least one Restart time after sending Terminate-Ack (Section 3.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-3.7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L532" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TerminateAckSentAndLinkHeld</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L553" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TerminateAckSentAndLinkHeld</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the Opened+RTR edge (internal/component/l2tp/ppp/ppp_fsm.go:393-394) lands in Stopping and handleLCPPacket emits EventSessionDown only for Closed or Stopped (internal/component/l2tp/ppp/session_run.go), so after sending a Terminate-Ack ze holds the link; there is no early-disconnect branch to assert</p></td>
 </tr>
@@ -468,8 +473,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-4.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L587" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661RenegotiateOnConfigureRequestInOpened</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L620" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoDoesNotRenegotiate</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L608" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661RenegotiateOnConfigureRequestInOpened</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L641" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoDoesNotRenegotiate</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-4.3-2">RFC1661-4.3-2</code></td><td colspan="3"><span class="rfc-subject">Implementation must be prepared to receive new Configure-Request without admin intervention after RTR (Section 4.3)</span></td></tr>
@@ -477,7 +482,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-4.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L640" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L661" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> every post-RTR state in LCPDoTransition accepts a fresh RCR+ (internal/component/l2tp/ppp/ppp_fsm.go:295-296, :327-328, :359-360) and no code path consults an administrative flag before doing so, so there is no refusing counterpart to assert</p></td>
 </tr>
@@ -495,8 +500,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L666" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661OpenTransmitsConfigureRequest</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L697" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661UpWithoutOpenSendsNoConfigureRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L687" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661OpenTransmitsConfigureRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L718" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661UpWithoutOpenSendsNoConfigureRequest</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.1-2">RFC1661-5.1-2</code></td><td colspan="3"><span class="rfc-subject">Upon reception of Configure-Request, an appropriate reply must be transmitted (Section 5.1)</span></td></tr>
@@ -504,8 +509,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L715" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckEchoesOptionsVerbatim</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L779" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L736" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckEchoesOptionsVerbatim</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L800" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.1-3">RFC1661-5.1-3</code></td><td colspan="3"><span class="rfc-subject">Identifier field must be changed whenever Options field changes or a valid reply is received (Section 5.1)</span></td></tr>
@@ -522,8 +527,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L719" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckEchoesOptionsVerbatim</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L783" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L740" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckEchoesOptionsVerbatim</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L804" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.2-2">RFC1661-5.2-2</code></td><td colspan="3"><span class="rfc-subject">Acknowledged Configuration Options must not be reordered or modified (Section 5.2)</span></td></tr>
@@ -531,8 +536,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L722" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckEchoesOptionsVerbatim</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L748" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckDoesNotReorderOptions</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L743" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckEchoesOptionsVerbatim</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L769" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckDoesNotReorderOptions</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.2-3">RFC1661-5.2-3</code></td><td colspan="3"><span class="rfc-subject">On reception of Configure-Ack, Identifier must match last transmitted Configure-Request (Section 5.2)</span></td></tr>
@@ -558,8 +563,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L869" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureNakSuggestsAcceptableValue</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L904" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNakForAcceptableValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L890" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureNakSuggestsAcceptableValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L925" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNakForAcceptableValue</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.3-2">RFC1661-5.3-2</code></td><td colspan="3"><span class="rfc-subject">Boolean options (no value) must use Configure-Reject instead of Configure-Nak (Section 5.3)</span></td></tr>
@@ -567,8 +572,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L934" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661BooleanOptionsUseRejectNotNak</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L956" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ValuedOptionUsesNak</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L955" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661BooleanOptionsUseRejectNotNak</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L977" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ValuedOptionUsesNak</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.3-3">RFC1661-5.3-3</code></td><td colspan="3"><span class="rfc-subject">Single-instance option in Nak must be modified to acceptable value (Section 5.3)</span></td></tr>
@@ -576,8 +581,9 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L873" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureNakSuggestsAcceptableValue</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L907" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNakForAcceptableValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L894" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureNakSuggestsAcceptableValue</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/lcp_test.go#L345" title="internal/component/l2tp/ppp/lcp_test.go" target="_blank" rel="noopener"><code>TestRFC1661RepeatedOptionDrawsOneNakEntry</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L928" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNakForAcceptableValue</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.3-4">RFC1661-5.3-4</code></td><td colspan="3"><span class="rfc-subject">Multi-instance option in Nak must list all acceptable values (Section 5.3)</span></td></tr>
@@ -594,8 +600,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.3-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L973" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakValueIsAcceptable</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L995" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661RejectedValueStaysUnacceptable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L994" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakValueIsAcceptable</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1016" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661RejectedValueStaysUnacceptable</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.3-6">RFC1661-5.3-6</code></td><td colspan="3"><span class="rfc-subject">Options from Configure-Request must not be reordered in Configure-Nak (Section 5.3)</span></td></tr>
@@ -603,8 +609,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.3-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1012" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakPreservesRequestOrder</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1031" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakOrderFollowsRequestNotAFixedOrder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1033" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakPreservesRequestOrder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1061" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakOrderFollowsRequestNotAFixedOrder</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.3-7">RFC1661-5.3-7</code></td><td colspan="3"><span class="rfc-subject">On reception of Configure-Nak, Identifier must match last transmitted Configure-Request (Section 5.3)</span></td></tr>
@@ -621,8 +627,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.3-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1049" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakHandlesDifferentOptionLength</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1071" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakTooShortOptionNotDecoded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1082" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakHandlesDifferentOptionLength</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1104" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakTooShortOptionNotDecoded</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.4-1">RFC1661-5.4-1</code></td><td colspan="3"><span class="rfc-subject">If options not recognized or not acceptable for negotiation, must transmit Configure-Reject (Section 5.4)</span></td></tr>
@@ -631,13 +637,13 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L197" title="internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go" target="_blank" rel="noopener"><code>TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L786" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L807" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L459" title="internal/component/l2tp/ppp/rfc1661_option_length_test.go" target="_blank" rel="noopener"><code>TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L526" title="internal/component/l2tp/ppp/rfc1661_option_length_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L354" title="internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go" target="_blank" rel="noopener"><code>TestRFC1661ClientAcceptsServerAuthProtocol</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L202" title="internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go" target="_blank" rel="noopener"><code>TestRFC1661ClientUnrecognizedTypeOutranksInvalidLength</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L531" title="internal/component/l2tp/ppp/rfc1661_option_length_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L817" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoConfigureRejectWhenAllOptionsRecognized</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L838" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoConfigureRejectWhenAllOptionsRecognized</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.4-2">RFC1661-5.4-2</code></td><td colspan="3"><span class="rfc-subject">Configure-Reject options must not be reordered or modified (Section 5.4)</span></td></tr>
@@ -646,10 +652,10 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>5.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L233" title="internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go" target="_blank" rel="noopener"><code>TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L789" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L810" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L808" title="internal/component/l2tp/ppp/rfc1661_option_length_test.go" target="_blank" rel="noopener"><code>TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L245" title="internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go" target="_blank" rel="noopener"><code>TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L835" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectDoesNotReorderOptions</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L856" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectDoesNotReorderOptions</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_option_length_test.go#L819" title="internal/component/l2tp/ppp/rfc1661_option_length_test.go" target="_blank" rel="noopener"><code>TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified</code></a></span></div>
 </div></td>
 </tr>
@@ -685,8 +691,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L537" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TerminateAckSentAndLinkHeld</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L566" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoTerminateAckForTerminateAck</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L558" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TerminateAckSentAndLinkHeld</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L587" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoTerminateAckForTerminateAck</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.6-1">RFC1661-5.6-1</code></td><td colspan="3"><span class="rfc-subject">Unknown code must be reported via Code-Reject (Section 5.6)</span></td></tr>
@@ -694,8 +700,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.6</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1093" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661CodeRejectForUnknownCode</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1125" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoCodeRejectForKnownCode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1126" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661CodeRejectForUnknownCode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1158" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoCodeRejectForKnownCode</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.6-2">RFC1661-5.6-2</code></td><td colspan="3"><span class="rfc-subject">Identifier must be changed for each Code-Reject sent (Section 5.6)</span></td></tr>
@@ -721,9 +727,9 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.7-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> ze has no Protocol-Reject sender. In the Opened state an unsupported PPP Protocol reaches the drop path in handleFrame (internal/component/l2tp/ppp/session_run.go:681-683); no code writes an LCPProtocolReject packet (internal/component/l2tp/ppp/lcp.go:25 is referenced only by LCPCodeName and codeToEvent). Disclosed in docs/features/rfc-status.md</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L40" title="internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661UnsupportedProtocolRejectedInOpened</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L89" title="internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.7-2">RFC1661-5.7-2</code></td><td colspan="3"><span class="rfc-subject">On reception of Protocol-Reject, must stop sending packets of indicated protocol (Section 5.7)</span></td></tr>
 <tr><td></td>
@@ -739,26 +745,26 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.7-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L137" title="internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661ProtocolRejectIdentifierChanges</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze never transmits a Protocol-Reject. A grep for LCPProtocolReject across internal/ matches only the constant (internal/component/l2tp/ppp/lcp.go:25), its name in LCPCodeName (internal/component/l2tp/ppp/lcp.go:119) and the receive-side codeToEvent mapping (internal/component/l2tp/ppp/session_run.go:703); no send path exists, so no Identifier is allocated for one</p></td>
+</div><p class="rfc-mark"><strong>{single-polarity}:</strong> sendProtocolReject (internal/component/l2tp/ppp/session_run.go) advances protocolRejectID before every packet it writes, and no input asks ze to hold the Identifier still, so the obligation has no refusing counterpart to assert</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.7-4">RFC1661-5.7-4</code></td><td colspan="3"><span class="rfc-subject">Rejected-Information in Protocol-Reject must be truncated to peer&#39;s MRU (Section 5.7)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.7</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.7-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze never transmits a Protocol-Reject, so no Rejected-Information field is built. A grep for LCPProtocolReject across internal/ matches only internal/component/l2tp/ppp/lcp.go:25, lcp.go:119 and the receive-side session_run.go:703</p></td>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L166" title="internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661ProtocolRejectInformationTruncatedToMRU</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L201" title="internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661ProtocolRejectInformationKeptWhenItFits</code></a></span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.8-1">RFC1661-5.8-1</code></td><td colspan="3"><span class="rfc-subject">On Echo-Request in Opened state, Echo-Reply must be transmitted (Section 5.8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>5.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.8-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1146" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyInOpened</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1187" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoEchoOutsideOpened</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1179" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyInOpened</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1220" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoEchoOutsideOpened</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.8-2">RFC1661-5.8-2</code></td><td colspan="3"><span class="rfc-subject">Echo-Request and Echo-Reply must only be sent in Opened state (Section 5.8)</span></td></tr>
@@ -766,8 +772,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.8</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.8-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1191" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoEchoOutsideOpened</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1149" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyInOpened</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1224" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoEchoOutsideOpened</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1182" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyInOpened</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-5.9-1">RFC1661-5.9-1</code></td><td colspan="3"><span class="rfc-subject">Discard-Request must only be sent in Opened state (Section 5.9)</span></td></tr>
@@ -784,7 +790,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>5.9</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-5.9-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1213" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661DiscardRequestSilentlyDiscarded</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1246" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661DiscardRequestSilentlyDiscarded</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the obligation covers ANY Discard-Request, so no conforming Discard-Request exists that must instead draw a reply, and no input can make the required silence wrong. The discrimination against a receiver that answers nothing at all is carried by TestRFC1661EchoReplyInOpened, which is tagged for the Echo requirements it actually drives (RFC1661-5.8-1, RFC1661-5.8-2), not for this one</p></td>
 </tr>
@@ -793,7 +799,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST NOT</td>
 <td>6.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-6.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1245" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661SingleAuthProtocolOptionInRequest</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1278" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661SingleAuthProtocolOptionInRequest</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> LCPOptions.AuthProto is a single uint16 (internal/component/l2tp/ppp/lcp_options.go) and BuildLocalConfigRequest appends the option once (internal/component/l2tp/ppp/lcp_options.go), so no input produces two Authentication-Protocol options and there is no violating case to assert</p></td>
 </tr>
@@ -802,8 +808,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST NOT</td>
 <td>6.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-6.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1323" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ZeroMagicNumberRefused</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1295" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661UnknownOptionRejectedWhileMagicIsNot</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1356" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ZeroMagicNumberRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1328" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661UnknownOptionRejectedWhileMagicIsNot</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-6.4-2">RFC1661-6.4-2</code></td><td colspan="3"><span class="rfc-subject">If Magic-Number negotiated, Echo/Discard packets must carry negotiated Magic-Number (Section 6.4)</span></td></tr>
@@ -811,8 +817,8 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>6.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-6.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1159" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyInOpened</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1362" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyDoesNotMirrorPeerMagic</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1192" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyInOpened</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1395" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyDoesNotMirrorPeerMagic</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-6.4-3">RFC1661-6.4-3</code></td><td colspan="3"><span class="rfc-subject">Magic-Number of zero must always be Nak&#39;d if not Rejected (Section 6.4)</span></td></tr>
@@ -820,10 +826,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>6.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-6.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L43" title="internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC1661ClientNaksZeroMagicInAWellFormedRequest</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L402" title="internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go" target="_blank" rel="noopener"><code>TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1315" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ZeroMagicNumberRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1348" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ZeroMagicNumberRefused</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L81" title="internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC1661ClientAcksANonZeroMagic</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go#L408" title="internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go" target="_blank" rel="noopener"><code>TestRFC1661ClientNaksZeroMagicWithAValueOfItsOwn</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1276" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661PeerMagicNumberAcked</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1309" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661PeerMagicNumberAcked</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1661-6.5-1">RFC1661-6.5-1</code></td><td colspan="3"><span class="rfc-subject">All implementations must transmit packets with two-octet PPP Protocol fields by default (Section 6.5)</span></td></tr>
@@ -831,7 +839,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST</td>
 <td>6.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-6.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L232" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TwoOctetProtocolField</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L243" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TwoOctetProtocolField</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> this is a transmit obligation and WriteFrame has no compressed branch at all -- WriteFrame always writes the Protocol with binary.BigEndian.PutUint16 (internal/component/l2tp/ppp/frame.go:81-85), so no configuration or negotiated option produces a single-octet transmit to assert against. The positive test drives both PFC settings to show the option cannot change the encoder; the receive-side refusal of a one-octet Protocol is the separate RFC1661-6.5-3</p></td>
 </tr>
@@ -840,7 +848,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>MUST NOT</td>
 <td>6.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1661-6.5-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L236" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TwoOctetProtocolField</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L247" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TwoOctetProtocolField</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> WriteFrame (internal/component/l2tp/ppp/frame.go:81-85) has no compressed-Protocol branch, so ze transmits an uncompressed Protocol field whether or not the option is negotiated and there is no compressed-transmit case to contrast</p></td>
 </tr>
@@ -1170,10 +1178,6 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>{gap}, no test</td>
 <td>during the authentication wait waitCHAPLike (internal/component/l2tp/ppp/auth.go:288-306) hands every non-auth frame to handleFrame, which has no phase gate (internal/component/l2tp/ppp/session_run.go:628-684), so an NCP frame received in the Authentication phase is buffered into earlyNCPFrames and replayed rather than silently discarded. Disclosed in docs/features/rfc-status.md</td>
 </tr>
-<tr><td><a href="#rfc1661-3.6-3"><code>RFC1661-3.6-3</code></a> Unsupported Protocol in Opened state must be returned in Protocol-Reject (Section 3.6)</td>
-<td>{gap}, no test</td>
-<td>ze has no Protocol-Reject sender. handleFrame (internal/component/l2tp/ppp/session_run.go:681-683) logs an unsupported PPP Protocol at debug level and drops the frame; LCPProtocolReject (internal/component/l2tp/ppp/lcp.go:25) appears only in LCPCodeName and in the receive-side codeToEvent mapping. Disclosed in docs/features/rfc-status.md</td>
-</tr>
 <tr><td><a href="#rfc1661-3.7-2"><code>RFC1661-3.7-2</code></a> Non-LCP packets during Link Termination phase must be silently discarded (Section 3.7)</td>
 <td>{gap}, no test</td>
 <td>handleFrame (internal/component/l2tp/ppp/session_run.go:637-680) carries no LCP-state guard, so an IPCP or IPv6CP packet arriving while LCP sits in Closing or Stopping is still passed to handleNCPPacket (internal/component/l2tp/ppp/ncp.go) rather than silently discarded. Disclosed in docs/features/rfc-status.md</td>
@@ -1222,21 +1226,9 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>{gap}, no test</td>
 <td>sendCodeReject (internal/component/l2tp/ppp/session_run.go) truncates the Rejected-Packet only against the fixed 1500-octet buffer from getFrameBuf (internal/component/l2tp/ppp/session_run.go:59-65) and never reads s.negotiatedMRU, so the copy is not bounded by a peer MRU negotiated below 1500. Disclosed in docs/features/rfc-status.md</td>
 </tr>
-<tr><td><a href="#rfc1661-5.7-1"><code>RFC1661-5.7-1</code></a> In Opened state, unsupported Protocol must be reported via Protocol-Reject (Section 5.7)</td>
-<td>{gap}, no test</td>
-<td>ze has no Protocol-Reject sender. In the Opened state an unsupported PPP Protocol reaches the drop path in handleFrame (internal/component/l2tp/ppp/session_run.go:681-683); no code writes an LCPProtocolReject packet (internal/component/l2tp/ppp/lcp.go:25 is referenced only by LCPCodeName and codeToEvent). Disclosed in docs/features/rfc-status.md</td>
-</tr>
 <tr><td><a href="#rfc1661-5.7-2"><code>RFC1661-5.7-2</code></a> On reception of Protocol-Reject, must stop sending packets of indicated protocol (Section 5.7)</td>
 <td>{gap}, no test</td>
 <td>codeToEvent (internal/component/l2tp/ppp/session_run.go:703-704) turns a received Protocol-Reject into RXJ+, whose FSM edge in Opened carries no action (internal/component/l2tp/ppp/ppp_fsm.go:399-400); ze records no rejected-protocol set, so it keeps sending packets of the indicated protocol. Disclosed in docs/features/rfc-status.md</td>
-</tr>
-<tr><td><a href="#rfc1661-5.7-3"><code>RFC1661-5.7-3</code></a> Identifier must be changed for each Protocol-Reject sent (Section 5.7)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze never transmits a Protocol-Reject. A grep for LCPProtocolReject across internal/ matches only the constant (internal/component/l2tp/ppp/lcp.go:25), its name in LCPCodeName (internal/component/l2tp/ppp/lcp.go:119) and the receive-side codeToEvent mapping (internal/component/l2tp/ppp/session_run.go:703); no send path exists, so no Identifier is allocated for one</td>
-</tr>
-<tr><td><a href="#rfc1661-5.7-4"><code>RFC1661-5.7-4</code></a> Rejected-Information in Protocol-Reject must be truncated to peer&#39;s MRU (Section 5.7)</td>
-<td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze never transmits a Protocol-Reject, so no Rejected-Information field is built. A grep for LCPProtocolReject across internal/ matches only internal/component/l2tp/ppp/lcp.go:25, lcp.go:119 and the receive-side session_run.go:703</td>
 </tr>
 <tr><td><a href="#rfc1661-5.9-1"><code>RFC1661-5.9-1</code></a> Discard-Request must only be sent in Opened state (Section 5.9)</td>
 <td>no test</td>
@@ -1292,12 +1284,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L187" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NonCompliantProtocolTreatedUnrecognized</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L188" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NonCompliantProtocolTreatedUnrecognized</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L212" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661CompliantProtocolRecognized</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L223" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661CompliantProtocolRecognized</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1445,7 +1437,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L280" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661LCPPacketsSentFirst</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L291" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661LCPPacketsSentFirst</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1460,12 +1452,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L347" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNCPPacketsWhenNoNetworkProtocol</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L358" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNCPPacketsWhenNoNetworkProtocol</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L308" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPConfiguresEachFamilySeparately</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L319" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPConfiguresEachFamilySeparately</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1484,12 +1476,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L440" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoAuthProtocolWhenNotDesired</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L461" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoAuthProtocolWhenNotDesired</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L409" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661AuthProtocolRequestedDuringEstablishment</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L430" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661AuthProtocolRequestedDuringEstablishment</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1508,12 +1500,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L500" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NetworkPhaseRunsAfterAuthCompletes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L521" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NetworkPhaseRunsAfterAuthCompletes</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L467" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNetworkPhaseUntilAuthCompletes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L488" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNetworkPhaseUntilAuthCompletes</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1532,12 +1524,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L364" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPStatesAreIndependent</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L375" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPStatesAreIndependent</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L312" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPConfiguresEachFamilySeparately</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L323" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NCPConfiguresEachFamilySeparately</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1552,9 +1544,9 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L382" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L394" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1562,7 +1554,23 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <h3><a href="#rfc1661-3.6-3"><code>RFC1661-3.6-3</code></a></h3>
 <p>Unsupported Protocol in Opened state must be returned in Protocol-Reject (Section 3.6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1661-3.6-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L94" title="internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L46" title="internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661UnsupportedProtocolRejectedInOpened</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1661-3.7-1"><code>RFC1661-3.7-1</code></a></h3>
 <p>Receiver of Terminate-Request must not disconnect until at least one Restart time after sending Terminate-Ack (Section 3.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1571,7 +1579,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L532" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TerminateAckSentAndLinkHeld</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L553" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TerminateAckSentAndLinkHeld</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1590,12 +1598,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L620" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoDoesNotRenegotiate</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L641" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoDoesNotRenegotiate</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L587" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661RenegotiateOnConfigureRequestInOpened</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L608" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661RenegotiateOnConfigureRequestInOpened</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1610,7 +1618,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L640" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L661" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NewConfigureRequestAcceptedAfterTerminateRequest</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1629,12 +1637,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L697" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661UpWithoutOpenSendsNoConfigureRequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L718" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661UpWithoutOpenSendsNoConfigureRequest</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L666" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661OpenTransmitsConfigureRequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L687" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661OpenTransmitsConfigureRequest</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1649,12 +1657,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L779" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L800" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L715" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckEchoesOptionsVerbatim</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L736" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckEchoesOptionsVerbatim</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1673,12 +1681,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L783" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L804" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L719" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckEchoesOptionsVerbatim</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L740" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckEchoesOptionsVerbatim</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1693,12 +1701,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L748" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckDoesNotReorderOptions</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L769" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckDoesNotReorderOptions</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L722" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckEchoesOptionsVerbatim</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L743" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureAckEchoesOptionsVerbatim</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1721,12 +1729,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L904" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNakForAcceptableValue</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L925" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNakForAcceptableValue</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L869" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureNakSuggestsAcceptableValue</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L890" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureNakSuggestsAcceptableValue</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1741,12 +1749,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L956" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ValuedOptionUsesNak</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L977" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ValuedOptionUsesNak</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L934" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661BooleanOptionsUseRejectNotNak</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L955" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661BooleanOptionsUseRejectNotNak</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1761,12 +1769,17 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L907" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNakForAcceptableValue</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L928" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoNakForAcceptableValue</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L873" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureNakSuggestsAcceptableValue</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/lcp_test.go#L345" title="internal/component/l2tp/ppp/lcp_test.go" target="_blank" rel="noopener"><code>TestRFC1661RepeatedOptionDrawsOneNakEntry</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L894" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureNakSuggestsAcceptableValue</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1785,12 +1798,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L995" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661RejectedValueStaysUnacceptable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1016" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661RejectedValueStaysUnacceptable</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L973" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakValueIsAcceptable</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L994" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakValueIsAcceptable</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1805,12 +1818,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1031" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakOrderFollowsRequestNotAFixedOrder</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1061" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakOrderFollowsRequestNotAFixedOrder</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1012" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakPreservesRequestOrder</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1033" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakPreservesRequestOrder</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1829,12 +1842,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1071" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakTooShortOptionNotDecoded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1104" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakTooShortOptionNotDecoded</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1049" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakHandlesDifferentOptionLength</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1082" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NakHandlesDifferentOptionLength</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1854,7 +1867,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L817" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoConfigureRejectWhenAllOptionsRecognized</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L838" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoConfigureRejectWhenAllOptionsRecognized</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1879,7 +1892,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L786" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L807" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1904,7 +1917,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L835" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectDoesNotReorderOptions</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L856" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectDoesNotReorderOptions</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1919,7 +1932,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L789" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L810" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ConfigureRejectForUnrecognizedOption</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1951,12 +1964,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L566" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoTerminateAckForTerminateAck</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L587" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoTerminateAckForTerminateAck</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L537" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TerminateAckSentAndLinkHeld</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L558" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TerminateAckSentAndLinkHeld</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1971,12 +1984,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1125" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoCodeRejectForKnownCode</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1158" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoCodeRejectForKnownCode</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1093" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661CodeRejectForUnknownCode</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1126" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661CodeRejectForUnknownCode</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -1994,7 +2007,23 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <h3><a href="#rfc1661-5.7-1"><code>RFC1661-5.7-1</code></a></h3>
 <p>In Opened state, unsupported Protocol must be reported via Protocol-Reject (Section 5.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1661-5.7-1, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L89" title="internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661UnsupportedProtocolNotRejectedBeforeOpened</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L40" title="internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661UnsupportedProtocolRejectedInOpened</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1661-5.7-2"><code>RFC1661-5.7-2</code></a></h3>
 <p>On reception of Protocol-Reject, must stop sending packets of indicated protocol (Section 5.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -2002,11 +2031,38 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <h3><a href="#rfc1661-5.7-3"><code>RFC1661-5.7-3</code></a></h3>
 <p>Identifier must be changed for each Protocol-Reject sent (Section 5.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1661-5.7-3, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L137" title="internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661ProtocolRejectIdentifierChanges</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1661-5.7-4"><code>RFC1661-5.7-4</code></a></h3>
 <p>Rejected-Information in Protocol-Reject must be truncated to peer&#39;s MRU (Section 5.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1661-5.7-4, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L201" title="internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661ProtocolRejectInformationKeptWhenItFits</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go#L166" title="internal/component/l2tp/ppp/rfc1661_protocol_reject_test.go" target="_blank" rel="noopener"><code>TestRFC1661ProtocolRejectInformationTruncatedToMRU</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc1661-5.8-1"><code>RFC1661-5.8-1</code></a></h3>
 <p>On Echo-Request in Opened state, Echo-Reply must be transmitted (Section 5.8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -2015,12 +2071,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1187" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoEchoOutsideOpened</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1220" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoEchoOutsideOpened</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1146" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyInOpened</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1179" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyInOpened</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2035,12 +2091,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1149" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyInOpened</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1182" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyInOpened</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1191" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoEchoOutsideOpened</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1224" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661NoEchoOutsideOpened</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2059,7 +2115,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1213" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661DiscardRequestSilentlyDiscarded</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1246" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661DiscardRequestSilentlyDiscarded</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2074,7 +2130,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1245" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661SingleAuthProtocolOptionInRequest</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1278" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661SingleAuthProtocolOptionInRequest</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2089,12 +2145,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1295" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661UnknownOptionRejectedWhileMagicIsNot</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1328" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661UnknownOptionRejectedWhileMagicIsNot</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1323" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ZeroMagicNumberRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1356" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ZeroMagicNumberRefused</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2109,12 +2165,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1362" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyDoesNotMirrorPeerMagic</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1395" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyDoesNotMirrorPeerMagic</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1159" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyInOpened</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1192" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661EchoReplyInOpened</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2129,7 +2185,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1276" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661PeerMagicNumberAcked</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1309" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661PeerMagicNumberAcked</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L81" title="internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC1661ClientAcksANonZeroMagic</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2139,7 +2200,12 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1315" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ZeroMagicNumberRefused</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L1348" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661ZeroMagicNumberRefused</code></a></td>
+<td>unit/verify</td>
+<td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L43" title="internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go" target="_blank" rel="noopener"><code>TestRFC1661ClientNaksZeroMagicInAWellFormedRequest</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2159,7 +2225,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L232" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TwoOctetProtocolField</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L243" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TwoOctetProtocolField</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2174,7 +2240,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L236" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TwoOctetProtocolField</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_test.go#L247" title="internal/component/l2tp/ppp/rfc1661_test.go" target="_blank" rel="noopener"><code>TestRFC1661TwoOctetProtocolField</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -2253,7 +2319,7 @@ Carries the L2TP and PPPoE Partial status. Twenty-four MUST gaps gated in <a hre
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

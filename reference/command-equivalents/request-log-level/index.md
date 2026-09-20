@@ -25,10 +25,10 @@ Takes effect immediately. Set to debug when troubleshooting, then back to info w
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `logger` | string | yes | any value of this type |
-| `target` | enum | yes | `disabled`, `debug`, `info`, `warn`, `err` |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `logger` | string | yes | any value of this type | Logger/subsystem name | The name of a registered logger, as 'show log levels' lists it. A name no logger registered is refused. |
+| `target` | enum | yes | `disabled`, `debug`, `info`, `warn`, `err` | Target log level | The level the logger writes at from now on. The value is matched without regard to case, and 'error' and 'warning' are accepted as spellings of err and warn. |
 
 ## Mapping intents
 

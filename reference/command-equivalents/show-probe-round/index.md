@@ -25,12 +25,12 @@ Sends all probes concurrently for faster results than sequential traceroute. Ret
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `dest` | string | no | any value of this type |
-| `probes` | uint | no | any value of this type |
-| `max-hops` | uint | no | any value of this type |
-| `timeout` | string | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `dest` | string | no | any value of this type | Target host or IP address. | The value is the first bare word of the command. A host name is resolved in either address family, and the family of the answer selects ICMPv4 or ICMPv6. |
+| `probes` | uint | no | any value of this type | Number of probes per hop. | The value is accepted in the range 1 to 10 and then not read: a probe round sends one probe at each time-to-live. |
+| `max-hops` | uint | no | any value of this type | Maximum number of hops. | The value is the largest time-to-live Ze probes, 1 to 64. Absent, or set to 30, the round probes 16 hops. |
+| `timeout` | string | no | any value of this type | Timeout duration. | The value is accepted in Go duration syntax, 1s to 30s, and then not read: a probe round waits one second for every answer. |
 
 ## Mapping intents
 

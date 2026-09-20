@@ -55,6 +55,7 @@ user-facing behaviour; the wire format is documented in
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#the-dynamic-hostname">The dynamic hostname</a></li>
+<li><a href="#changing-an-interface-parameter-on-a-running-router">Changing an interface parameter on a running router</a></li>
 <li><a href="#broadcast-lans-dis-election-and-pseudo-nodes">Broadcast LANs: DIS election and pseudo-nodes</a></li>
 <li><a href="#authentication">Authentication</a></li>
 <li><a href="#redistribution-mesh-with-bgp">Redistribution (mesh with BGP)</a></li>
@@ -138,6 +139,46 @@ this router.</p>
 <!-- source: internal/component/config/validators.go -- ISISHostnameValidator -->
 <!-- source: internal/plugins/isis/lsdb/encode.go -- hostnameTLV -->
 <!-- source: internal/plugins/isis/show.go -- sanitizeHostname -->
+<h2 id="changing-an-interface-parameter-on-a-running-router">Changing an interface parameter on a running router</h2>
+<p>A commit reaches the circuit that is already up. Ze does not wait for a link
+flap, a <code>disable</code>, or a restart.</p>
+<p>Most parameters are written into the running circuit and cost no adjacency:
+<code>metric</code>, <code>priority</code>, <code>hello-interval</code>, <code>hold-multiplier</code>, the same four under
+<code>level-1</code> and <code>level-2</code>, and the per-level <code>auth-key-chain</code>. A new hello
+interval takes effect with one IIH sent at the moment of the commit, before the
+new period starts. That IIH carries the new holding time, so the neighbor re-arms
+its adjacency timer from the new value: raising <code>hello-interval</code> from 3 to 30
+seconds keeps the adjacency up, where a silent 30-second gap after a 9-second
+holding time would have dropped it.</p>
+<p>Three parameters decide what the circuit IS rather than what it advertises, and
+changing one closes the circuit and opens it again. That FLAPS every adjacency
+on the link, so plan it like a link outage:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Why it cannot be changed in place</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>circuit-type</code></td>
+<td>Broadcast and point-to-point are different Hello PDUs, and only broadcast holds DIS state</td>
+</tr>
+<tr>
+<td><code>level</code></td>
+<td>The level set fixes which adjacencies the circuit forms and how many Hello timers it runs</td>
+</tr>
+<tr>
+<td><code>address-family</code></td>
+<td>The family set fixes the IPv6 link-local address the Hello carries</td>
+</tr>
+</tbody>
+</table>
+<p>Removing an interface from the config, or setting <code>enabled false</code> or
+<code>passive true</code> on it, closes its circuit. Adding one opens a circuit.</p>
+<!-- source: internal/plugins/isis/server.go -- reconcile, circuitNeedsRebuild -->
+<!-- source: internal/plugins/isis/circuits.go -- applyCircuitParams -->
 <h2 id="broadcast-lans-dis-election-and-pseudo-nodes">Broadcast LANs: DIS election and pseudo-nodes</h2>
 <p>On a broadcast (Ethernet, multi-access) circuit, IS-IS does not form a full mesh
 of adjacencies. Instead one router per level is elected the <strong>Designated IS</strong>
@@ -224,6 +265,9 @@ logs, or backups.</p>
       secret $9$....               # entered plaintext, stored $9$-encoded on commit
     }
   }
+  key-chains domain-key {
+    key 1 { algorithm hmac-sha-256  secret ... }
+  }
   key-chains iih-key {
     key 1 { algorithm hmac-sha-256  secret ... }
   }
@@ -248,6 +292,11 @@ the first whose <code>send-lifetime</code> is current; on receive, every key who
 <code>accept-lifetime</code> is current is tried. Configuring an overlap window (a new key
 accepted before it becomes the signing key, the old key accepted for a while after)
 lets you roll a key without dropping adjacencies.</p>
+<p><strong>A name that does not resolve is refused.</strong> An <code>auth-key-chain</code> leaf naming no
+<code>key-chains</code> entry is rejected at commit, and the error names the chain. A
+misspelled name would otherwise leave the circuit or the level running unsigned,
+which reads exactly like asking for no authentication. Naming no chain at all
+stays legitimate: that is how you run a circuit unauthenticated.</p>
 <p><strong>Enforcement.</strong> When a chain is configured for a PDU class, a PDU that arrives
 with no Authentication TLV, with the TLV not first, or with a digest no current key
 matches is <strong>rejected</strong> before it can form an adjacency, enter the database, or
@@ -508,7 +557,7 @@ System ID embedded in the first NET.</li>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -533,7 +582,7 @@ System ID embedded in the first NET.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

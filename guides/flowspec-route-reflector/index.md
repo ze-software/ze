@@ -23,9 +23,9 @@ This page uses these addresses:
 | `edge-a` | Ze or router client | `10.0.0.11` | `65000` |
 | `edge-b` | Ze or router client | `10.0.0.12` | `65000` |
 
-## 2. Update the active zefs config
+## 2. Update the active stored config
 
-Keep the active configuration in `database.zefs`. The commands below read the current active config, normalize it to set format, append the route-reflector settings, render the import file, validate the result, import it back into zefs, and reload the daemon. They do not create `/etc/ze/edge-01.conf`.
+Keep the active configuration in the `database/` store. The commands below read the current active config, normalize it to set format, append the route-reflector settings, render the import file, validate the result, import it back into the store, and reload the daemon. They do not create `/etc/ze/edge-01.conf`.
 
 ```bash
 set -euo pipefail

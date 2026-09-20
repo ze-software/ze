@@ -25,10 +25,10 @@ The peer name is the second value and is required. A second create of the same n
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
-| `peer` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Interface name | The name of the first end of the pair. A pair already present under that name is reported, and nothing changes. |
+| `peer` | string | yes | any value of this type | Peer interface name | The name of the second end. Both ends appear in the kernel after the one command. |
 
 ## Mapping intents
 

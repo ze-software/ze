@@ -25,10 +25,10 @@ Types: cpu (requires duration, e.g. 30s), heap, goroutine, allocs (instant snaps
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `type` | enum | no | `cpu`, `heap`, `goroutine`, `allocs` |
-| `duration` | string | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `type` | enum | no | `cpu`, `heap`, `goroutine`, `allocs` | Profile type. | The word is optional and the default is heap. Only cpu runs for a time and reads duration. The three others return at once. The response carries the pprof bytes as base64 in data, with format pprof-base64. |
+| `duration` | string | no | any value of this type | Profile duration. | The value is a Go duration with a unit, from 1s to 60s, and the default is 10s. Only a cpu profile reads it. A second cpu profile is refused while one runs. |
 
 ## Mapping intents
 

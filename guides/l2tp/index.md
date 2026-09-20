@@ -108,11 +108,18 @@ Capabilities AVP`. The reply goes out with Tunnel ID 0, because the peer
 supplied no tunnel id ze can address it by, and no tunnel entry is created for
 it.
 
+An SCCRQ carrying a vendor-specific AVP ze does not recognize with the M-bit
+set is answered on the same path, with Error Code 8 rather than 3: RFC 2661
+Section 4.4.2 gives that code to a "tunnel was shutdown due to receipt of an
+unknown AVP with the M-bit set", and Section 4.2 says the same AVP with the
+M-bit clear is ignored and the message accepted, which is what ze does. Each
+refusal states its own Error Code, so the code names the fault the peer has to
+correct.
+
 The reply is rate-bounded: one StopCCN per source-address slot per second, over
 a fixed 256-slot table. A spoofed SCCRQ flood therefore allocates nothing and
-draws at most 256 replies per second from the whole reactor. Every other
-malformed TunnelID=0 datagram keeps its silent drop, an unrecognized mandatory
-vendor AVP and a message type that is not SCCRQ among them.
+draws at most 256 replies per second from the whole reactor. A TunnelID=0
+datagram whose message type is not SCCRQ keeps its silent drop.
 <!-- source: internal/component/l2tp/reactor.go -- answerRefusedSCCRQ, sendUnassociatedStopCCN -->
 <!-- source: internal/component/l2tp/tunnel_fsm.go -- parseSCCRQ -->
 
@@ -304,7 +311,16 @@ Access-Reject, and the session is denied with `unsupported Service-Type`. The
 LNS provides framed PPP access and asks for it by name, so an Accept authorizing
 anything else authorizes a service ze cannot bring up (RFC 2865 Sections 5.6
 and 1.1).
-<!-- source: internal/component/l2tp/plugins/authradius/handler.go -- buildAuthAttrs, doRADIUS -->
+
+For MS-CHAPv2 the Accept must also carry a readable MS-CHAP2-Success, and one
+that does not is denied with `no MS-CHAP2-Success in Access-Accept`. RFC 2759
+completes the method with a 20-octet Authenticator Response the client checks,
+so an Accept without one authorizes a session neither end can finish. The
+attribute is not that value: RFC 2548 Section 2.3.3 defines it as an Ident
+octet followed by the string `S=` and the response as 40 hexadecimal digits, so
+ze strips the Ident and decodes the digits rather than passing the attribute
+through.
+<!-- source: internal/component/l2tp/plugins/authradius/handler.go -- buildAuthAttrs, doRADIUS, extractMSCHAP2Success, decodeMSCHAP2Success -->
 
 Every Accounting-Request carries Acct-Status-Type, Acct-Session-Id, Service-Type
 (Framed), Framed-Protocol (PPP), NAS-Port-Type (Virtual), NAS-Port and

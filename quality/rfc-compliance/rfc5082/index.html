@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5082 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5082: The Generalized TTL Security Mechanism (GTSM). 4 gated MUST-level requirements, 0 declared gaps, 1 with no test." />
+        <meta name="description" content="RFC 5082: The Generalized TTL Security Mechanism (GTSM). 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:title" content="RFC 5082 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5082: The Generalized TTL Security Mechanism (GTSM). 4 gated MUST-level requirements, 0 declared gaps, 1 with no test." />
+        <meta property="og:description" content="RFC 5082: The Generalized TTL Security Mechanism (GTSM). 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5082 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5082: The Generalized TTL Security Mechanism (GTSM). 4 gated MUST-level requirements, 0 declared gaps, 1 with no test." />
+        <meta name="twitter:description" content="RFC 5082: The Generalized TTL Security Mechanism (GTSM). 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -115,10 +116,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>75.0%</strong><b>3 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>4 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>6 of 6 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>100.0%</strong><b>15 of 15 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -128,11 +130,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-</div>
-<h3>Negative</h3>
-<p>what Ze owes</p>
-<div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>25.0%</strong><b>1 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -162,7 +159,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-bad"></span> bad</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -214,22 +211,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>1</td>
+<td>0</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>6</td>
+<td>15</td>
 </tr>
 <tr><td>Tagged units</td>
-<td>6</td>
+<td>15</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>0</td>
 </tr>
 <tr><td>Discrimination records</td>
-<td>6</td>
+<td>15</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5082.md</code></td>
@@ -245,15 +242,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Generalized TTL Security Mechanism (GTSM): four MUST-level requirements. Ze installs the socket options that make the Linux stack perform the check, so conformance is judged on the whole stack. RFC5082-3-1 (transmit TTL 255) is produced by network.setIPTTL (IP_TTL / IPV6_UNICAST_HOPS, internal/core/network/ttl_linux.go), driven for BGP by reactor.parseTTLSettings (`ttl max N` derives OutTTL=255) and reactor.tuneTCPConnectionForSettings, for the listen socket by Reactor.listenTTLForListener plus network.setListenIPTTL, and for BFD by transport.applySocketOptions / applySocketOptionsV6 (IP_TTL=255, IPV6_UNICAST_HOPS=255). RFC5082-3-3 (no decrement) holds because Linux does not decrement locally originated packets; the observable proof is a peer socket carrying IP_MINTTL=255 accepting the connection. RFC5082-3-4 (never drop Trusted or Unknown) holds because network.setIPMinTTL is applied only when a peer configures a floor, so a packet no GTSM session claims meets no TTL gate, and bfd/engine.passesTTLGate admits TTL &gt;= MinTTL. RFC5082-3-2 (the same TTL 255 rule for the related ICMP error messages) is produced by no layer: Linux emits ICMP errors from the IP stack with net.ipv4.ip_default_ttl, not with the socket IP_TTL, and no socket option gates the TTL of an inbound ICMP error. RFC5082-3-1, RFC5082-3-3 and RFC5082-3-4 are proven in both polarities by internal/core/network/ttl_gtsm_linux_test.go, each with a verified discrimination record in rfc/discrimination/rfc5082.json. RFC5082-3-2 carries no test: the behavior does not exist to test.</p>
+<p>Enrolled: Generalized TTL Security Mechanism (GTSM): four MUST-level requirements. Ze installs the socket options that make the Linux stack perform the check, so conformance is judged on the whole stack. RFC5082-3-1 (transmit TTL 255) is produced by network.setIPTTL (IP_TTL / IPV6_UNICAST_HOPS, internal/core/network/ttl_linux.go), driven for BGP by reactor.parseTTLSettings (`ttl max N` derives OutTTL=255) and reactor.tuneTCPConnectionForSettings, for the listen socket by Reactor.listenTTLForListener plus network.setListenIPTTL, and for BFD by transport.applySocketOptions / applySocketOptionsV6 (IP_TTL=255, IPV6_UNICAST_HOPS=255). RFC5082-3-3 (no decrement) holds because Linux does not decrement locally originated packets; the observable proof is a peer socket carrying IP_MINTTL=255 accepting the connection. RFC5082-3-4 (never drop Trusted or Unknown) holds because network.setIPMinTTL is applied only when a peer configures a floor, so a packet no GTSM session claims meets no TTL gate, and bfd/engine.passesTTLGate admits TTL &gt;= MinTTL. RFC5082-3-2 (the same TTL 255 rule for the related ICMP error messages) has a transmit half and a receive half in each family, and each cell is answered by a different kernel mechanism. Transmit, both families: a locally generated ICMP error takes its TTL from ip_select_ttl (net/ipv4/ip_output.c) and ip6_dst_hoplimit (net/ipv6/ip6_output.c), which read the RTAX_HOPLIMIT route metric before net.ipv4.ip_default_ttl and the interface hop limit, so gtsm.installHopLimitRoute (internal/component/gtsm/route_linux.go) installs a host route to each GTSM peer carrying that metric. Receive, IPv6: tcp_v6_err compares the hop limit of the ICMPv6 error itself against the IPV6_MINHOPCOUNT that network.setIPMinTTL installs (kernel 7.2, net/ipv6/tcp_ipv6.c, tcp_v6_err), so the socket option answers it. Receive, IPv4: tcp_v4_err compares IP_MINTTL against the TTL quoted inside the ICMP payload, a field the sender of the error chooses, because icmp_rcv has pulled skb-&gt;data to the quoted header of ze&#39;s own earlier packet (net/ipv4/tcp_ipv4.c, tcp_v4_err), so the socket option cannot answer it and gtsm.peerTerms publishes an nftables input table instead. Each term matches the quoted IPv4 header&#39;s destination (the peer) and the quoted TCP port on either side (the BGP port), reads no outer source, and drops the error below the peer&#39;s floor (peerTerms, internal/component/gtsm/gtsm.go, lowered by lowerICMPErrorQuotedDestinationMatch and lowerICMPErrorQuotedTCPPortMatch, internal/plugins/firewall/nft/lower_linux.go). The outer source is not read because any router on the path generates the error and a forged error carries whatever source its sender chose, while the kernel delivers it to the session by the header it quotes. All four requirements are proven in both polarities: RFC5082-3-1, RFC5082-3-3 and RFC5082-3-4 by internal/core/network/ttl_gtsm_linux_test.go, and RFC5082-3-2&#39;s four cells by internal/component/gtsm/gtsm_rfc5082_linux_test.go, each with a verified discrimination record in rfc/discrimination/rfc5082.json.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Supported on Linux</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
-Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <code>parseTTLSettings</code> derives an outgoing TTL of 255 and an inbound floor of 255-N+1 from <code>ttl max N</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/config.go</code></a>), <code>tuneTCPConnectionForSettings</code> installs IP_TTL / IPV6_UNICAST_HOPS and IP_MINTTL / IPV6_MINHOPCOUNT on the connected socket (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_connection.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/session_connection.go</code></a>, <a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_linux.go" target="_blank" rel="noopener"><code>internal/core/network/ttl_linux.go</code></a>), and <code>listenTTLForListener</code> carries the same outgoing TTL onto the listen socket so a GTSM peer that dials in does not drop the SYN-ACK (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/reactor.go</code></a>). BFD sets IP_TTL=255 and IPV6_UNICAST_HOPS=255 on transmit and gates the received TTL (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_linux.go" target="_blank" rel="noopener"><code>internal/component/bfd/transport/udp_linux.go</code></a>, <code>passesTTLGate</code> in <a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/loop.go" target="_blank" rel="noopener"><code>internal/component/bfd/engine/loop.go</code></a>). VRRP sends and requires TTL 255 (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/packet/validate.go</code></a>). Requirements bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc5082.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc5082.md</code></a>.
+Per-peer BGP GTSM through <code>connection { ttl { max; set; min } }</code>: <code>parseTTLSettings</code> derives an outgoing TTL of 255 and an inbound floor of 255-N+1 from <code>ttl max N</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/config.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/config.go</code></a>), <code>tuneTCPConnectionForSettings</code> installs IP_TTL / IPV6_UNICAST_HOPS and IP_MINTTL / IPV6_MINHOPCOUNT on the connected socket (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_connection.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/session_connection.go</code></a>, <a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_linux.go" target="_blank" rel="noopener"><code>internal/core/network/ttl_linux.go</code></a>), and <code>listenTTLForListener</code> carries the same outgoing TTL onto the listen socket so a GTSM peer that dials in does not drop the SYN-ACK (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/reactor.go</code></a>). BFD sets IP_TTL=255 and IPV6_UNICAST_HOPS=255 on transmit and gates the received TTL (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/udp_linux.go" target="_blank" rel="noopener"><code>internal/component/bfd/transport/udp_linux.go</code></a>, <code>passesTTLGate</code> in <a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/loop.go" target="_blank" rel="noopener"><code>internal/component/bfd/engine/loop.go</code></a>). VRRP sends and requires TTL 255 (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate.go" target="_blank" rel="noopener"><code>internal/plugins/vrrp/packet/validate.go</code></a>). The related ICMP error messages of a BGP GTSM peer are carried by <code>internal/component/gtsm</code>, which the reactor&#39;s peer reconcile publishes the peer set to (<code>Reactor.gtsmPeers</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/gtsm.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/gtsm.go</code></a>): a host route carrying RTAX_HOPLIMIT 255 for the transmit rule, and the <code>ze_gtsm</code> nftables input table for the IPv4 receive rule. Requirements bound per requirement in <a href="https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc5082.md" target="_blank" rel="noopener"><code>rfc/requirements/rfc5082.md</code></a>.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-The socket options are Linux-only: the non-Linux build returns an unsupported error and leaves the OS default (<a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_other.go" target="_blank" rel="noopener"><code>internal/core/network/ttl_other.go</code></a>). Dynamic GTSM capability negotiation is not offered. RFC 5082 Section 2.1 neither assumes nor defines one, ze configures GTSM statically per peer, and the obligation conditional on running such a negotiation is excluded as <code>feature-out-of-scope</code> in <a href="https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc5082.json" target="_blank" rel="noopener"><code>rfc/extraction/rfc5082.json</code></a>. That absent feature is an implementation gap a later scope decision can revisit, and not a conformance gap.
+<p class="rfc-prose"><strong>The socket options are Linux-only:</strong> the non-Linux build returns an unsupported error and leaves the OS default (<a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_other.go" target="_blank" rel="noopener"><code>internal/core/network/ttl_other.go</code></a>). Dynamic GTSM capability negotiation is not offered. RFC 5082 Section 2.1 neither assumes nor defines one, ze configures GTSM statically per peer, and the obligation conditional on running such a negotiation is excluded as <code>feature-out-of-scope</code> in <a href="https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc5082.json" target="_blank" rel="noopener"><code>rfc/extraction/rfc5082.json</code></a>. That absent feature is an implementation gap a later scope decision can revisit, and not a conformance gap. The related-message filter claims a BGP GTSM session: it associates an ICMP error with a session by the header the error quotes alone, the quoted IPv4 destination (the peer) and the quoted TCP port on either side (peerTerms, <a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm.go" target="_blank" rel="noopener"><code>internal/component/gtsm/gtsm.go</code></a>, and lowerICMPErrorQuotedDestinationMatch, <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/firewall/nft/lower_linux.go" target="_blank" rel="noopener"><code>internal/plugins/firewall/nft/lower_linux.go</code></a>), reads no outer source, and drops the error below the floor, so the related messages of a BFD or VRRP GTSM session, which quote no TCP header, are not claimed by it. The drop policy for a Dangerous related message is not configurable; ze applies the answer it already applies to a Dangerous main packet.</p>
+<p class="rfc-prose"><strong>Owner ruling, 2026-09-15:</strong> the Section 3 sentence &#34;are expected to be configurable&#34; is a suggestion outside the RFC 2119 vocabulary and not a requirement, so the drop stays fixed and no option is added.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -262,7 +260,7 @@ The socket options are Linux-only: the non-Linux build returns an unsupported er
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>3</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -274,19 +272,22 @@ The socket options are Linux-only: the non-Linux build returns an unsupported er
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>1</strong></td>
+<td><strong>0</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
 <tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>4</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc5082-3-1"><code>RFC5082-3-1</code></a>, <a href="#rfc5082-3-3"><code>RFC5082-3-3</code></a>, <a href="#rfc5082-3-4"><code>RFC5082-3-4</code></a></p>
-<p class="rfc-id-list"><strong>No test and no annotation (1):</strong> <a href="#rfc5082-3-2"><code>RFC5082-3-2</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (4):</strong> <a href="#rfc5082-3-1"><code>RFC5082-3-1</code></a>, <a href="#rfc5082-3-2"><code>RFC5082-3-2</code></a>, <a href="#rfc5082-3-3"><code>RFC5082-3-3</code></a>, <a href="#rfc5082-3-4"><code>RFC5082-3-4</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -307,8 +308,14 @@ The socket options are Linux-only: the non-Linux build returns an unsupported er
 <td>MUST</td>
 <td>3 - GTSM Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5082-3-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L194" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDropsADangerousQuotedICMPError</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L333" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMMinHopCountDropsALowHopLimitICMPv6Error</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L70" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPErrorCarriesTTL255</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L116" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L234" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDeliversAQuotedICMPErrorAtTTL255</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L92" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L134" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L359" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5082-3-3">RFC5082-3-3</code></td><td colspan="3"><span class="rfc-subject">The TTL of GTSM-enabled sessions MUST NOT be decremented by the forwarding plane (§3)</span></td></tr>
@@ -325,6 +332,7 @@ The socket options are Linux-only: the non-Linux build returns an unsupported er
 <td>MUST NOT</td>
 <td>3 - GTSM Procedure</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5082-3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L279" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDeliversAnICMPErrorNoSessionClaims</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L138" title="internal/core/network/ttl_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMFloorDeliversATrustedPacket</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L165" title="internal/core/network/ttl_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMNoFloorDeliversAnUnknownPacket</code></a></span></div>
 </div></td>
@@ -388,17 +396,7 @@ The socket options are Linux-only: the non-Linux build returns an unsupported er
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<div class="rfc-table-wrap">
-<table class="rfc-table">
-<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
-<tbody>
-<tr><td><a href="#rfc5082-3-2"><code>RFC5082-3-2</code></a> The TTL 255 transmit and verify rule also applies to the related ICMP error handling messages of a GTSM-enabled session (§3, restated §6.1)</td>
-<td>no test</td>
-<td>no test carries this requirement id</td>
-</tr>
-</tbody>
-</table>
-</div>
+<p>RFC 5082 declares no gap, and every gated MUST it carries has a test bound to it.</p>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
@@ -425,7 +423,53 @@ The socket options are Linux-only: the non-Linux build returns an unsupported er
 <h3><a href="#rfc5082-3-2"><code>RFC5082-3-2</code></a></h3>
 <p>The TTL 255 transmit and verify rule also applies to the related ICMP error handling messages of a GTSM-enabled session (§3, restated §6.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC5082-3-2, so no unit is bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<tbody>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L234" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDeliversAQuotedICMPErrorAtTTL255</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L92" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPErrorWithoutTheRouteMetricIsNot255</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L134" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPv6ErrorWithoutTheRouteMetricIsNot255</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L359" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMWithoutMinHopCountDeliversTheSameICMPv6Error</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L194" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDropsADangerousQuotedICMPError</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L333" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMMinHopCountDropsALowHopLimitICMPv6Error</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L70" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPErrorCarriesTTL255</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L116" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMTransmittedICMPv6ErrorCarriesHopLimit255</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+</tbody>
+</table>
+</div>
 <h3><a href="#rfc5082-3-3"><code>RFC5082-3-3</code></a></h3>
 <p>The TTL of GTSM-enabled sessions MUST NOT be decremented by the forwarding plane (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -455,6 +499,11 @@ The socket options are Linux-only: the non-Linux build returns an unsupported er
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/network/ttl_gtsm_linux_test.go#L165" title="internal/core/network/ttl_gtsm_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMNoFloorDeliversAnUnknownPacket</code></a></td>
+<td>unit/verify</td>
+<td>revert, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/gtsm/gtsm_rfc5082_linux_test.go#L279" title="internal/component/gtsm/gtsm_rfc5082_linux_test.go" target="_blank" rel="noopener"><code>TestGTSMDeliversAnICMPErrorNoSessionClaims</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -701,7 +750,7 @@ The socket options are Linux-only: the non-Linux build returns an unsupported er
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:58 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

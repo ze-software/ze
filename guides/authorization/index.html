@@ -110,18 +110,25 @@ sections:</p>
 <tbody>
 <tr>
 <td><code>run</code></td>
-<td>Operational (read-only) commands: <code>show</code>, <code>monitor</code>, <code>resolve</code>, <code>validate</code>, <code>help</code>, <code>event</code>, <code>subscribe</code></td>
+<td>Operational (read-only) commands: the read verbs <code>show</code>, <code>monitor</code> and <code>resolve</code>, plus the noun-first roots <code>validate</code>, <code>help</code>, <code>system</code>, <code>plugin</code> and <code>rib</code></td>
 <td><code>true</code></td>
 </tr>
 <tr>
 <td><code>edit</code></td>
-<td>Configuration (write) commands: <code>clear</code>, <code>set</code>, <code>request</code>, <code>commit</code>, <code>configure</code>, and everything else</td>
+<td>Configuration (write) commands: <code>clear</code>, <code>set</code>, <code>delete</code>, <code>request</code>, <code>commit</code>, <code>update</code>, <code>create</code>, <code>send</code>, <code>debug</code>, <code>cache</code>, and everything else</td>
 <td><code>false</code></td>
 </tr>
 </tbody>
 </table>
 <p>The dispatcher classifies commands automatically by their leading verb.
 You do not choose which section a command falls into.</p>
+<p>The read verbs are not listed twice. <code>IsReadOnlyPath</code> asks
+<code>command.IsReadOnlyVerb</code>, which reads the verb's role out of <code>command.Verbs</code>,
+so a verb whose role changes there changes the section its commands land in.
+The five noun-first roots predate the verb-first grammar and are the only names
+this decision holds of its own.</p>
+<!-- source: internal/component/command/verbs.go -- Verbs, verbRole, IsReadOnlyVerb -->
+<!-- source: internal/component/plugin/server/command.go -- IsReadOnlyPath, legacyReadRoots -->
 <h3 id="entries">Entries</h3>
 <p>Each section contains an ordered list of numbered entries. Each entry
 has:</p>
@@ -647,7 +654,7 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -672,7 +679,7 @@ profile "test" run: entry 10: invalid regex "[broken": error parsing regexp: mis
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

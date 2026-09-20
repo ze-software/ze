@@ -25,9 +25,9 @@ The query goes to an anycast service address, or to the given target. The exit c
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `target` | string | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `target` | string | no | any value of this type | Anycast service address to query. | An IP address, queried on port 53. When it is absent the query goes to the on-box loopback of the configured address family: 127.0.0.1, or ::1 when address-family is ipv6-only. |
 
 ## Mapping intents
 

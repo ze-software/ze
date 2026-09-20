@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -284,6 +285,10 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
 <tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>16</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
@@ -319,8 +324,8 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST</td>
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5838-2.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L150" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L149" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L156" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L155" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5838-2.4-2">RFC5838-2.4-2</code></td><td colspan="3"><span class="rfc-subject">For the Base IPv6 unicast AF the AF-bit check &#34;MUST NOT be done (for backward compatibility)&#34; (§2.4)</span></td></tr>
@@ -328,7 +333,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <td>MUST NOT</td>
 <td>2.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5838-2.4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L175" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitIgnoredDefaultAF</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L181" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitIgnoredDefaultAF</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the default IPv6-unicast AF has no reject path -- afBitAccepted at multiaf.go:181 returns true immediately for e.af.isDefault, so a base-AF Hello is never dropped for a missing AF-bit and there is no negative behavior to exercise</p></td>
 </tr>
@@ -626,12 +631,12 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L149" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L155" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L150" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L156" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitGatesFullNonDefault</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -646,7 +651,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L175" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitIgnoredDefaultAF</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/multiaf_engine_test.go#L181" title="internal/plugins/ospf/multiaf_engine_test.go" target="_blank" rel="noopener"><code>TestAFBitIgnoredDefaultAF</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -780,7 +785,7 @@ Eight MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/mai
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

@@ -67,8 +67,11 @@
 </dl>
 <h3>Description</h3><p>A retained entry is not evicted when it expires, so it stays listed until<br>&#39;release&#39; undoes the retain or &#39;expire&#39; removes it. The ID leaf accepts a<br>comma-separated list, and each ID is acted on in turn with a failure reported<br>per ID.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>id</code></td><td>string</td><td>yes</td><td>any value of this type</td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>id</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Cache entry ID, or a comma-separated list of IDs.</td><td>One decimal cache entry ID, as show cache lists it, or several joined
+by commas. A comma-separated value runs the action once for each ID and reports a
+failure for each ID that is not in the cache. A value that is not a decimal
+number is refused as an invalid cache id.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -132,7 +135,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

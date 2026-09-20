@@ -16,6 +16,9 @@ Address Family Identifier and Subsequent Address Family Identifier. Together the
 **AS path**  
 The sequence of autonomous systems a BGP route has traversed. Ze uses it for loop detection, policy, best-path selection, and topology display.
 
+**BART**  
+Balanced Routing Table, the `gaissmai/bart` library under Ze's prefix-keyed route store. It is Knuth's Allotment Routing Table (ART) laid out as a stride-8 multibit trie. It is unrelated to the Adaptive Radix Tree (Leis et al., 2013), which shares the ART acronym.
+
 **BGP Role**  
 An RFC 9234 relationship such as provider, customer, peer, route server, or route-server client. Roles help detect route leaks and control OTC processing.
 
@@ -93,7 +96,7 @@ A registered Ze extension. Plugins may run in process or as external programs an
 The authenticated transport and dispatch layer used by external plugins and managed components. It is separate from Fleet Management even when configuration shares a surrounding plugin block.
 
 **ZeFS**  
-Ze's blob storage format for configuration, credentials, revisions, and other registered data.
+Ze's blob artifact format (`.zefs`): a seed, a backup, or an import source carrying the same keys as the live `database/` store. It is never the live store.
 
 ## Operator surfaces
 

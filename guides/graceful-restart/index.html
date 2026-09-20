@@ -56,6 +56,8 @@
 </ol></li>
 <li><a href="#how-it-works">How It Works</a>
 <ol>
+<li><a href="#what-ze-advertises">What Ze Advertises</a></li>
+<li><a href="#the-two-bits-ze-sets-at-connection-time">The Two Bits Ze Sets at Connection Time</a></li>
 <li><a href="#normal-session">Normal Session</a></li>
 <li><a href="#peer-restarts">Peer Restarts</a></li>
 <li><a href="#restart-timer-expiry">Restart Timer Expiry</a></li>
@@ -128,21 +130,75 @@ bgp {
 <td>Seconds to hold stale routes during restart (0-4095)</td>
 </tr>
 <tr>
-<td><code>graceful-restart / mode</code></td>
-<td>enum</td>
+<td><code>graceful-restart / family / name</code></td>
+<td>leaf-list</td>
 <td>--</td>
-<td><code>require</code>: reject peers without GR capability</td>
-</tr>
-<tr>
-<td><code>graceful-restart / disable</code></td>
-<td>presence</td>
-<td>--</td>
-<td>Disable GR for this peer</td>
+<td>Address families the capability names. The container carries presence: absent, Ze names every family the peer carries; present and empty, Ze names none; present and filled, Ze names those</td>
 </tr>
 </tbody>
 </table>
 <!-- source: internal/component/bgp/plugins/gr/yang/ -- ze-graceful-restart YANG schema -->
 <h2 id="how-it-works">How It Works</h2>
+<h3 id="what-ze-advertises">What Ze Advertises</h3>
+<p>The code-64 capability Ze sends carries the Restart Time, then one
+<code>&lt;AFI, SAFI, Flags&gt;</code> tuple for each address family the peer carries. A peer
+configured for <code>ipv4/unicast</code> and <code>ipv6/unicast</code> with the default restart time
+receives <code>0078 00010100 00020100</code>. The family list is the peer's own <code>family</code>
+configuration, so the code-64 and the code-71 (LLGR) capabilities list the same
+families. RFC 9494 Section 4.2 reads a family that code 64 omits as a Restart
+Time of zero.</p>
+<p>The <code>graceful-restart family</code> container narrows that list, and it governs code
+64 alone:</p>
+<pre><code>capability {
+    graceful-restart {
+        family {
+            name ipv6/unicast
+        }
+    }
+}
+</code></pre>
+<p>That peer receives <code>0078 00020100</code>, whatever else its <code>family</code> configuration
+carries. Writing the container with no <code>name</code> in it makes Ze name no address
+family at all, which RFC 4724 Section 3 reads as a speaker that runs the
+Receiving Speaker procedures and preserves nothing of its own. Writing no
+container is the default, and the default names every family the peer carries.</p>
+<p>A <code>name</code> the peer's own <code>family</code> list does not carry is refused, because RFC
+4724 Section 3 scopes a tuple to routes "advertised with the same AFI and SAFI"
+and the session carries none of them. Ze names the family in the error. The
+refusal runs at <code>config commit</code>, so the commit fails and the running router is
+untouched; a configuration that reaches startup carrying one stops the daemon
+rather than leaving it running without Graceful Restart.</p>
+<p>The families the peer carries include the ones it inherits from its group, and
+exclude any entry written <code>mode disable</code>. Both are what the session really
+negotiates.</p>
+<p>Narrowing code 64 is how an operator asks for LLGR with no conventional GR
+phase. RFC 9494 Section 4.1: "the conventional GR phase can be skipped by
+omitting all AFIs/SAFIs from the GR Capability, advertising a Restart Time of
+zero, or both". So the container never touches the code-71 list.</p>
+<h3 id="the-two-bits-ze-sets-at-connection-time">The Two Bits Ze Sets at Connection Time</h3>
+<p>The payload above is built when the configuration is loaded, so it carries what
+the operator configured and nothing about a restart. Two bits say what happened
+to Ze, and both are written on the way to the OPEN.</p>
+<p>The Restart State bit says Ze has restarted. <code>ze signal restart</code> writes the
+restart marker, and the reactor sets the bit while that marker is live. Outside
+the window a new connection gets 0, which is a cold start.</p>
+<p>The Forwarding State bit of an address family says the routes of that family
+were still being forwarded while Ze was down. Ze sets it inside the same window,
+and only when the forwarding plane kept its routes. The kernel FIB does keep
+them by default: <code>fib { kernel { } }</code> leaves every route it installed in place
+as Ze stops, marks them on the way back up and removes only the ones that do not
+return (<code>flush-on-stop</code>, <code>sweep-delay</code>). Writing <code>flush-on-stop true</code>, or
+configuring no FIB at all, means nothing was preserved and the bit stays 0.</p>
+<p>The bit decides what the peer does the moment Ze comes back. RFC 4724 Section
+4.2: if it "is not set in the newly received Graceful Restart Capability ...
+then the Receiving Speaker MUST immediately remove all the stale routes from the
+peer that it is retaining for that address family". So a peer holds Ze's routes
+while the session is down either way, and a clear bit makes it drop them at
+re-establishment rather than waiting for Ze to re-advertise.</p>
+<!-- source: internal/component/bgp/plugins/gr/gr_capability.go -- parseGRCapValue, extractGRCapabilities -->
+<!-- source: internal/component/bgp/reactor/peer_gr_flags.go -- restartFlagsFor -->
+<!-- source: internal/component/bgp/grmarker/grmarker.go -- SetRBit, SetFBit -->
+<!-- source: internal/plugins/fib/kernel/register.go -- preservesForwardingState -->
 <h3 id="normal-session">Normal Session</h3>
 <ol>
 <li>Peer session establishes, GR capability negotiated in OPEN</li>
@@ -372,7 +428,7 @@ the child engine get that same treatment.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -397,7 +453,7 @@ the child engine get that same treatment.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

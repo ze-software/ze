@@ -25,10 +25,10 @@ Feed a hex-encoded BGP UPDATE through a peer's filter chain and see the accept/r
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `selector` | string | yes | any value of this type |
-| `direction` | enum | yes | `import`, `export` |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `selector` | string | yes | any value of this type | Peer selector | The value is an IP address, a peer name, or an AS pattern such as as65001. It MUST match exactly one peer: no match, and a match of several peers, are each refused. |
+| `direction` | enum | yes | `import`, `export` | Which half of the chain to test | The word is required, and a call without it is refused. It picks which of the peer's two chains the UPDATE is fed through. |
 
 ## Mapping intents
 

@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -271,6 +272,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
 <tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>9</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
@@ -288,13 +293,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>8.3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-8.3.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L891" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_HoldTimeRange</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L842" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_ValidatePattern</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L409" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_LengthViolation</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L308" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_PatternViolation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L893" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_HoldTimeRange</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L844" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_ValidatePattern</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L411" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_LengthViolation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L310" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_PatternViolation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L169" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_RangeViolation</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L892" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_HoldTimeRange</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L843" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_ValidatePattern</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L894" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_HoldTimeRange</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L845" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_ValidatePattern</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-9.6-1">RFC7950-9.6-1</code></td><td colspan="3"><span class="rfc-subject">An enumeration value must be one of the values specified in the type&#39;s enum statements (Section 9.6)</span></td></tr>
@@ -304,12 +309,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-9.6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/isis_auth_algorithm_enum_test.go#L64" title="internal/component/config/isis_auth_algorithm_enum_test.go" target="_blank" rel="noopener"><code>TestISISAuthAlgorithmEnumAcceptsAll</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/radius_auth_method_enum_test.go#L53" title="internal/component/config/radius_auth_method_enum_test.go" target="_blank" rel="noopener"><code>TestRadiusAuthMethodEnum</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L610" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_AddPathDirectionEnum</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L544" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_FamilyModeEnum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L612" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_AddPathDirectionEnum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L546" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_FamilyModeEnum</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/isis_auth_algorithm_enum_test.go#L81" title="internal/component/config/isis_auth_algorithm_enum_test.go" target="_blank" rel="noopener"><code>TestISISAuthAlgorithmEnumAcceptsAll</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/radius_auth_method_enum_test.go#L64" title="internal/component/config/radius_auth_method_enum_test.go" target="_blank" rel="noopener"><code>TestRadiusAuthMethodEnum</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L611" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_AddPathDirectionEnum</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L545" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_FamilyModeEnum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L613" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_AddPathDirectionEnum</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L547" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_FamilyModeEnum</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-9.12-1">RFC7950-9.12-1</code></td><td colspan="3"><span class="rfc-subject">A union value must match at least one member type (Section 9.12)</span></td></tr>
@@ -318,7 +323,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>9.12</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-9.12-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L46" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_ValidConfig</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L358" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_UnionViolation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L360" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_UnionViolation</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-7.6.5-1">RFC7950-7.6.5-1</code></td><td colspan="3"><span class="rfc-subject">If a mandatory node does not exist, server must reply with a missing-element error (Section 7.6.5)</span></td></tr>
@@ -326,9 +331,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>7.6.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7950-7.6.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L926" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_MandatoryField</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L330" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_MandatoryMissing</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L927" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_MandatoryField</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L928" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_MandatoryField</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L332" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_MandatoryMissing</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L929" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_MandatoryField</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7950-7.5.3-1">RFC7950-7.5.3-1</code></td><td colspan="3"><span class="rfc-subject">If a must expression evaluates to false, the data is not valid (Section 7.5.3)</span></td></tr>
@@ -428,12 +433,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L409" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_LengthViolation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L411" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_LengthViolation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L308" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_PatternViolation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L310" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_PatternViolation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -443,22 +448,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L892" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_HoldTimeRange</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L894" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_HoldTimeRange</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L843" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_ValidatePattern</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L845" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_ValidatePattern</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L891" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_HoldTimeRange</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L893" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_HoldTimeRange</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L842" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_ValidatePattern</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L844" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_ValidatePattern</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -483,12 +488,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L611" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_AddPathDirectionEnum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L613" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_AddPathDirectionEnum</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L545" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_FamilyModeEnum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L547" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_FamilyModeEnum</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -503,12 +508,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L610" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_AddPathDirectionEnum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L612" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_AddPathDirectionEnum</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L544" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_FamilyModeEnum</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L546" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_FamilyModeEnum</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -523,7 +528,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L358" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_UnionViolation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L360" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_UnionViolation</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -543,17 +548,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L330" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_MandatoryMissing</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L332" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidateTree_MandatoryMissing</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L927" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_MandatoryField</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L929" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_MandatoryField</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L926" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_MandatoryField</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/config/validator_yang_test.go#L928" title="internal/component/config/validator_yang_test.go" target="_blank" rel="noopener"><code>TestValidator_MandatoryField</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -616,7 +621,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 9 September 2026 09:59 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

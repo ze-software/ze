@@ -1,6 +1,6 @@
 # `show data cat`
 
-Print the raw content of a blob store entry.
+Print the value of a storage key.
 
 ## Ze command
 
@@ -21,13 +21,13 @@ Print the raw content of a blob store entry.
 - Command pipes: none
 - Pipe aliases: none
 
-Outputs the value for the given key, like 'cat' for ZeFS.
+Outputs the decoded value for the given storage key.
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `key` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `key` | string | yes | any value of this type | Storage key to print | The key of one entry, as show data list prints it. The bytes stored under it are written out unchanged, and a key the store does not hold is an error. |
 
 ## Mapping intents
 

@@ -788,7 +788,7 @@ test-setup bug rather than a real failure. Keep the failure list meaningful.</p>
 </tr>
 <tr>
 <td>Check that every <code>*_templ.go</code> matches its <code>.templ</code> source</td>
-<td><code>./le doc check templ-output</code>, and <code>./le repository generate</code> to bring it back in step. Both walk <code>internal/</code> only. Run neither templ command by hand, and switch off an editor's on-save templ integration. A bare <code>templ generate</code> walks from the repo root. It writes that root into every generated file, and it reds the gate</td>
+<td><code>./le doc check templ-output</code>. No action writes the output back (<code>./le repository generate</code> carries no templ stage), so bring it back in step with the checker's own invocation minus <code>-check</code>: <code>./le job run label templ-gen command go run -mod=vendor github.com/a-h/templ/cmd/templ generate -keep-orphaned-files -path "$PWD/internal"</code>. Both walk <code>internal/</code> only. Never run a bare <code>templ generate</code>, and switch off an editor's on-save templ integration: a bare run walks from the repo root, writes that root into every generated file, and reds the gate. <span class="ev-src"><span class="ev-ref"><code>./le</code></span></span></td>
 </tr>
 </tbody>
 </table>
@@ -802,7 +802,7 @@ test-setup bug rather than a real failure. Keep the failure list meaningful.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

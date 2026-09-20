@@ -241,7 +241,7 @@ a serial, command name, args, and peer address, and returns status, data, and er
     go func() {
         errCh &lt;- p.Run(ctx, sdk.Registration{
             Commands: []sdk.CommandDecl{
-                {Name: "show-status", Description: "Show health status"},
+                {Name: "show-status", ShortHelp: "Show health status"},
             },
         })
     }()
@@ -423,7 +423,7 @@ p.OnEvent(func(event string) error {
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

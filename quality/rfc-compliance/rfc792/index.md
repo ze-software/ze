@@ -68,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: ICMP Echo/Echo Reply, the only part of ICMP ze exercises (ping, show ping, ping-monitor). Gated obligations are the echo request's Type/Code/Checksum, which internal/core/probe BuildICMPEcho emits and the probe tests pin; the responder-only obligations (data returned unchanged, reply formation) are {not-applicable} because ze is the echo requester, never the echoer.
+Enrolled: ICMP Echo/Echo Reply, the only part of ICMP ze constructs (ping, show ping, ping-monitor); the error messages a probe provokes are read through the kernel error queue, not parsed by ze. Gated obligations are the echo request's Type/Code/Checksum, which internal/core/probe BuildICMPEcho emits and the probe tests pin; the responder-only obligations (data returned unchanged, reply formation) are {not-applicable} because ze is the echo requester, never the echoer.
 
 ## What the public ledger says
 
@@ -83,6 +83,7 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **6** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (1):** [`RFC792-Echo-3`](#rfc792-echo-3)

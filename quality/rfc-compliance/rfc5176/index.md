@@ -91,6 +91,7 @@ Scoped to subscriber access. Two OPTIONAL features of the RFC are out of scope, 
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **22** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (21):** [`RFC5176-3.5-1`](#rfc5176-3.5-1), [`RFC5176-3.5-2`](#rfc5176-3.5-2), [`RFC5176-3.3-1`](#rfc5176-3.3-1), [`RFC5176-3.5-4`](#rfc5176-3.5-4), [`RFC5176-2.3-1`](#rfc5176-2.3-1), [`RFC5176-2.3-2`](#rfc5176-2.3-2), [`RFC5176-2.3-3`](#rfc5176-2.3-3), [`RFC5176-2.3-4`](#rfc5176-2.3-4), [`RFC5176-2.3-5`](#rfc5176-2.3-5), [`RFC5176-2.3-6`](#rfc5176-2.3-6), [`RFC5176-2.3-7`](#rfc5176-2.3-7), [`RFC5176-3.1-1`](#rfc5176-3.1-1), [`RFC5176-3.2-1`](#rfc5176-3.2-1), [`RFC5176-3.3-2`](#rfc5176-3.3-2), [`RFC5176-3.4-1`](#rfc5176-3.4-1), [`RFC5176-3.4-2`](#rfc5176-3.4-2), [`RFC5176-3.4-3`](#rfc5176-3.4-3), [`RFC5176-3.5-5`](#rfc5176-3.5-5), [`RFC5176-3.6-1`](#rfc5176-3.6-1), [`RFC5176-6.1-1`](#rfc5176-6.1-1), [`RFC5176-6.3-1`](#rfc5176-6.3-1)

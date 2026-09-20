@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 33.3% | 2 of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 33.3% | 2 of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 7 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 42.9% | 3 of 7 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 28.6% | 2 of 7 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 7 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Proven by a recorded break | 36.4% | 4 of 11 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 6 | of 10 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 6 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 6 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 7 | of 11 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 7 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 7 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 7 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 7 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 33.3% | 2 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 28.6% | 2 of 7 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,31 +59,31 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Experimental |
 | Enrolment | Enrolled |
-| Requirements | 10 |
-| Gated MUST-level | 6 |
+| Requirements | 11 |
+| Gated MUST-level | 7 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 2 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 10 |
-| Tagged units | 7 |
+| Test tags | 15 |
+| Tagged units | 11 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 4 |
 | Summary | `rfc/short/rfc2205.md` |
 | Requirement shard | `rfc/requirements/rfc2205.md` |
 | RFC text | `rfc/full/rfc2205.txt` |
 
 ## Enrolment
 
-Enrolled: RSVP version 1 base protocol (codec shared by ze's RSVP-TE plugin): six MUST-level requirements. 3.1-1 (Version MUST be 1) is met with positive+negative tags (encode round-trip and bad-version decode reject, internal/plugins/rsvpte/wire.go). 3.1-2 (reserved octet 0 on send) and 3.1.2-1 (object length multiple of 4) are {single-polarity: positive} with send-side tests (wire.go and the object encoders). 3.10-1 (reject an unknown Class-Num of the form 0bbbbbbb) is met with positive+negative tags: DecodeMessage classifies by the high-order bit (classifyUnknownClass, wire.go) and engine.rejectUnknownObject answers a PATH with Error Code 13. 3.1-3 (verify checksum on receipt) and x-1 (IP Router Alert in PATH) are {gap}: ze's receive path (wire.go DecodeHeader) and raw-socket send (transport_linux.go) omit these. Disclosed in the docs/features/rfc-status.md RFC 2205 row.
+Enrolled: RSVP version 1 base protocol (codec shared by ze's RSVP-TE plugin): seven MUST-level requirements. 3.1-1 (Version MUST be 1) is met with positive+negative tags (encode round-trip and bad-version decode reject, internal/plugins/rsvpte/wire.go). 3.1-2 (reserved octet 0 on send) and 3.1.2-1 (object length multiple of 4) are {single-polarity: positive} with send-side tests (wire.go and the object encoders). 3.1.3-1 (a received message carries every object its BNF writes unbracketed) is met with positive+negative tags: checkMandatoryObjects (internal/plugins/rsvpte/mandatory.go) refuses a Path, Resv, PathTear or PathErr that omits one, and handlePacket drops it with a log line and no ERROR_SPEC. 3.10-1 (reject an unknown Class-Num of the form 0bbbbbbb) is met with positive+negative tags: DecodeMessage classifies by the high-order bit (classifyUnknownClass, wire.go) and engine.rejectUnknownObject answers a PATH with Error Code 13. 3.1-3 (verify checksum on receipt) and x-1 (IP Router Alert in PATH) are {gap}: ze's receive path (wire.go DecodeHeader) and raw-socket send (transport_linux.go) omit these. Disclosed in the docs/features/rfc-status.md RFC 2205 row.
 
 ## What the public ledger says
 
 **Status:** Experimental
 
-**What the ledger says is covered:**
+**What the ledger says is covered**
 
-- RSVP base common-header and object codec used by RSVP-TE: Version-1 header enforced on decode, reserved octet zeroed on send, every emitted object length a multiple of 4
+- RSVP base common-header and object codec used by RSVP-TE: Version-1 header enforced on decode, reserved octet zeroed on send, every emitted object length a multiple of 4, and a received Path, Resv, PathTear or PathErr dropped when it omits an object its Section 3.1 BNF writes unbracketed
 - tests bound per requirement in [`rfc/requirements/rfc2205.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc2205.md).
 
 
@@ -95,14 +95,15 @@ Two MUST gaps gated in [`rfc/short/rfc2205.md`](https://github.com/ze-software/z
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 2 | one part of the gated population |
+| Positive and negative tests | 3 | one part of the gated population |
 | Annotated instead of tested | 4 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
-| **Gated MUST-level requirements** | **6** | every gated MUST falls in exactly one bucket above |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
+| **Gated MUST-level requirements** | **7** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (2):** [`RFC2205-3.1-1`](#rfc2205-3.1-1), [`RFC2205-3.10-1`](#rfc2205-3.10-1)
+**Positive and negative tests (3):** [`RFC2205-3.1-1`](#rfc2205-3.1-1), [`RFC2205-3.1.3-1`](#rfc2205-3.1.3-1), [`RFC2205-3.10-1`](#rfc2205-3.10-1)
 
 **Annotated instead of tested (4):** [`RFC2205-3.1-2`](#rfc2205-3.1-2), [`RFC2205-3.1.2-1`](#rfc2205-3.1.2-1), [`RFC2205-3.1-3`](#rfc2205-3.1-3), [`RFC2205-x-1`](#rfc2205-x-1)
 
@@ -113,6 +114,7 @@ Two MUST gaps gated in [`rfc/short/rfc2205.md`](https://github.com/ze-software/z
 | `RFC2205-3.1-1` | Version field MUST be 1 (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRSVPHeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L405). **negative:** `unit/verify` [`TestRSVPDecodeHeaderBadVersion`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L439) |
 | `RFC2205-3.1-2` | Reserved field in common header MUST be zero (§3.1) | MUST | 3.1 | **positive:** `unit/verify` [`TestRSVPReservedByteZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L581). **negative:** no negative test. **{single-polarity}:** ze sets the reserved byte to 0 on send (internal/plugins/rsvpte/wire.go:177) and the RFC does not require receivers to reject a nonzero reserved field, so no negative case exists |
 | `RFC2205-3.1.2-1` | Object lengths MUST be a multiple of 4 (§3.1.2) | MUST | 3.1.2 | **positive:** `unit/verify` [`TestRSVPObjectLengthMultipleOfFour`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L602). **negative:** no negative test. **{single-polarity}:** every RSVP object encoder in internal/plugins/rsvpte/wire.go emits a length that is a multiple of 4; the receive path does not enforce %4, so the reject/negative polarity has no code path |
+| `RFC2205-3.1.3-1` | A received message MUST carry every object its Section 3.1 BNF writes unbracketed -- SESSION, RSVP_HOP and TIME_VALUES in a Path, those three plus STYLE in a Resv, SESSION and RSVP_HOP in a PathTear, SESSION and ERROR_SPEC in a PathErr: each node is required to verify the correct construction of each message it receives, and a malformed message is logged locally rather than reported in an ERROR_SPEC (Appendix B) (§3.1.3) | MUST | 3.1.3 | **positive:** `unit/verify` [`TestDecodeMandatoryObjects`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L83). **positive:** `unit/verify` [`TestEnginePathWithTimeValuesAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L131). **negative:** `unit/verify` [`TestDecodeMandatoryObjects`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L91). **negative:** `unit/verify` [`TestEnginePathWithoutTimeValuesDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L112) |
 | `RFC2205-3.1-3` | Checksum MUST be verified on receipt; drop messages with bad checksum (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze computes the RFC 2205 checksum on send (internal/plugins/rsvpte/build.go:48 internetChecksum) but the receive path (internal/plugins/rsvpte/wire.go:190 DecodeHeader / DecodeMessage) does not verify it or drop bad-checksum messages |
 | `RFC2205-x-1` | IP Router Alert option MUST be set in PATH messages (Transport) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze sends PATH over a raw protocol-46 socket (internal/plugins/rsvpte/transport_linux.go:35-69) and never sets the IP Router Alert option |
 | `RFC2205-3.10-1` | Unknown Class-Num of the form 0bbbbbbb: reject the entire message and return an "Unknown Object Class" error (§3.10) | MUST | 3.10 | **positive:** `unit/verify` [`TestDecodeUnknownObjectClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L718). **negative:** `unit/verify` [`TestDecodeUnknownObjectClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L725). **negative:** `unit/verify` [`TestEnginePathWithIgnorableObjectAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L935) |
@@ -162,6 +164,19 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestRSVPObjectLengthMultipleOfFour`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L602) | unit/verify | unproven |
+
+### [`RFC2205-3.1.3-1`](#rfc2205-3.1.3-1)
+
+A received message MUST carry every object its Section 3.1 BNF writes unbracketed -- SESSION, RSVP_HOP and TIME_VALUES in a Path, those three plus STYLE in a Resv, SESSION and RSVP_HOP in a PathTear, SESSION and ERROR_SPEC in a PathErr: each node is required to verify the correct construction of each message it receives, and a malformed message is logged locally rather than reported in an ERROR_SPEC (Appendix B) (§3.1.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestDecodeMandatoryObjects`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L91) | unit/verify | revert, verified |
+| negative | [`TestEnginePathWithoutTimeValuesDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L112) | unit/verify | revert, verified |
+| positive | [`TestDecodeMandatoryObjects`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L83) | unit/verify | revert, verified |
+| positive | [`TestEnginePathWithTimeValuesAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/mandatory_test.go#L131) | unit/verify | revert, verified |
 
 ### [`RFC2205-3.1-3`](#rfc2205-3.1-3)
 

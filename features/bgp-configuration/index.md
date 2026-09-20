@@ -149,7 +149,7 @@ Cluster ID defaults to Router ID per RFC 4456 Section 7.
 
 | Capability | Config Key | Values |
 |------------|-----------|--------|
-| 4-byte ASN | `asn4` | true / false |
+| 4-byte ASN | `asn4` | enable / disable / require / refuse (default enable) |
 | Route Refresh | `route-refresh` | true / false |
 | ADD-PATH | `add-path` | Per-family send/receive/both |
 | Extended Message | `extended-message` | true / false |

@@ -109,6 +109,7 @@ Fourteen MUST gaps, each annotated in [`rfc/short/rfc8665.md`](https://github.co
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **47** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (28):** [`RFC8665-3.1-1`](#rfc8665-3.1-1), [`RFC8665-3.1-3`](#rfc8665-3.1-3), [`RFC8665-3.2-1`](#rfc8665-3.2-1), [`RFC8665-3.2-2`](#rfc8665-3.2-2), [`RFC8665-3.2-3`](#rfc8665-3.2-3), [`RFC8665-3.2-6`](#rfc8665-3.2-6), [`RFC8665-3.2-7`](#rfc8665-3.2-7), [`RFC8665-3.3-1`](#rfc8665-3.3-1), [`RFC8665-3.3-2`](#rfc8665-3.3-2), [`RFC8665-3.3-3`](#rfc8665-3.3-3), [`RFC8665-3.3-4`](#rfc8665-3.3-4), [`RFC8665-3.4-1`](#rfc8665-3.4-1), [`RFC8665-5-1`](#rfc8665-5-1), [`RFC8665-5-2`](#rfc8665-5-2), [`RFC8665-5-3`](#rfc8665-5-3), [`RFC8665-5-4`](#rfc8665-5-4), [`RFC8665-5-5`](#rfc8665-5-5), [`RFC8665-5-6`](#rfc8665-5-6), [`RFC8665-5-7`](#rfc8665-5-7), [`RFC8665-5-10`](#rfc8665-5-10), [`RFC8665-5-11`](#rfc8665-5-11), [`RFC8665-5-12`](#rfc8665-5-12), [`RFC8665-5-13`](#rfc8665-5-13), [`RFC8665-6.1-1`](#rfc8665-6.1-1), [`RFC8665-7.4.1-1`](#rfc8665-7.4.1-1), [`RFC8665-10-1`](#rfc8665-10-1), [`RFC8665-9-1`](#rfc8665-9-1), [`RFC8665-3.1-7`](#rfc8665-3.1-7)

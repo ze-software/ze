@@ -100,6 +100,7 @@ One MUST gap gated in [`rfc/short/rfc5443.md`](https://github.com/ze-software/ze
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **8** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (5):** [`RFC5443-2-1`](#rfc5443-2-1), [`RFC5443-2-2`](#rfc5443-2-2), [`RFC5443-2-5`](#rfc5443-2-5), [`RFC5443-3-1`](#rfc5443-3-1), [`RFC5443-4-1`](#rfc5443-4-1)
@@ -110,14 +111,14 @@ One MUST gap gated in [`rfc/short/rfc5443.md`](https://github.com/ze-software/ze
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC5443-2-1` | While LDP is not fully operational on a link, the IGP advertises that link with maximum cost to avoid transit traffic ("when LDP is not 'fully operational' ... on a given link, the IGP will advertise the link with maximum cost to avoid any transit traffic over it") (§2) | MUST | 2 | **positive:** `unit/verify` [`TestLDPSyncForcesMaxMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L143). **negative:** `unit/verify` [`TestLDPSyncRestoresAfterHoldDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L186) |
-| `RFC5443-2-2` | In OSPF, the maximum cost advertised is LSInfinity, the 16-bit value `0xFFFF` ("In the case of OSPF, this cost is LSInfinity (16-bit value 0xFFFF), as proposed in [RFC3137]") (§2) | MUST | 2 | **positive:** `unit/verify` [`TestLDPSyncMaxMetricValue`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L156). **negative:** `unit/verify` [`TestLDPSyncDisabledIsNoOp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L292) |
+| `RFC5443-2-1` | While LDP is not fully operational on a link, the IGP advertises that link with maximum cost to avoid transit traffic ("when LDP is not 'fully operational' ... on a given link, the IGP will advertise the link with maximum cost to avoid any transit traffic over it") (§2) | MUST | 2 | **positive:** `unit/verify` [`TestLDPSyncForcesMaxMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L145). **negative:** `unit/verify` [`TestLDPSyncRestoresAfterHoldDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L188) |
+| `RFC5443-2-2` | In OSPF, the maximum cost advertised is LSInfinity, the 16-bit value `0xFFFF` ("In the case of OSPF, this cost is LSInfinity (16-bit value 0xFFFF), as proposed in [RFC3137]") (§2) | MUST | 2 | **positive:** `unit/verify` [`TestLDPSyncMaxMetricValue`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L158). **negative:** `unit/verify` [`TestLDPSyncDisabledIsNoOp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L294) |
 | `RFC5443-2-3` | In IS-IS, the maximum metric advertised is `2^24-2` (`0xFFFFFE`) ("In the case of ISIS, the maximum metric value is 2^24-2 (0xFFFFFE)") (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements RFC 5443 LDP-IGP sync only in OSPF (internal/plugins/ospf/ldp_sync.go); IS-IS has no LDP-IGP sync state machine, so there is no IS-IS 2^24-2 max-metric cost-out producer (internal/plugins/isis defines only the generic MaxMetric topology-removal value) |
 | `RFC5443-2-4` | Do not advertise the IS-IS link at `2^24-1` (the per-RFC-5305 maximum link metric), because that removes the link from the topology and loses the last-resort IP path ("if a link is configured with 2^24-1 ... then this link is not advertised in the topology. It is important to keep the link in the topology to allow IP traffic to use the link as a last resort") (§2) | MUST NOT | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze runs no IS-IS LDP-IGP sync (internal/plugins/isis has no sync state machine), so it never originates an LDP-sync-driven IS-IS metric and cannot misuse the 2^24-1 value |
-| `RFC5443-2-5` | Treat LDP as fully operational on a link only when all three conditions hold: an LDP hello adjacency exists, a suitable associated LDP session matching the hello adjacency's LDP Identifier is established to the peer at the other end of the link, and all label bindings have been exchanged over the session ("LDP is considered fully operational on a link when an LDP hello adjacency exists on it, a suitable associated LDP session ... is established ... and all label bindings have been exchanged over the session") (§2) | MUST | 2 | **positive:** `unit/verify` [`TestLDPSyncSubscribesSessionEvents`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L165). **negative:** `unit/verify` [`TestLDPSyncRestoresAfterHoldDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L188) |
+| `RFC5443-2-5` | Treat LDP as fully operational on a link only when all three conditions hold: an LDP hello adjacency exists, a suitable associated LDP session matching the hello adjacency's LDP Identifier is established to the peer at the other end of the link, and all label bindings have been exchanged over the session ("LDP is considered fully operational on a link when an LDP hello adjacency exists on it, a suitable associated LDP session ... is established ... and all label bindings have been exchanged over the session") (§2) | MUST | 2 | **positive:** `unit/verify` [`TestLDPSyncSubscribesSessionEvents`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L167). **negative:** `unit/verify` [`TestLDPSyncRestoresAfterHoldDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L190) |
 | `RFC5443-2-6` | When LDP End-of-LIB is implemented, consider the neighbor LDP session fully operational only upon receipt of the End-of-LIB notification message ("The neighbor LDP session is considered fully operational when the End-of-LIB notification message is received") (§2) | MUST | 2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the precondition is unmet -- ze's LDP (internal/plugins/ldp) implements no End-of-LIB notification, so ze uses the RFC 5443 hold-down-estimate alternative instead |
-| `RFC5443-3-1` | On broadcast links with more than one IGP/LDP peer, apply the cost-out procedure to the link as a whole, not to an individual peer ("the cost-out procedure can only be applied to the link as a whole and not to an individual peer") (§3) | MUST | 3 | **positive:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L370). **negative:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L373) |
-| `RFC5443-4-1` | Apply the cost-raising mechanism only to the IP link cost, not the TE link cost ("The mechanism described in this document should only be applied to the IP link cost to prevent unnecessary TE tunnel reroutes") (§4) | MUST | 4 | **positive:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L364). **negative:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L367) |
+| `RFC5443-3-1` | On broadcast links with more than one IGP/LDP peer, apply the cost-out procedure to the link as a whole, not to an individual peer ("the cost-out procedure can only be applied to the link as a whole and not to an individual peer") (§3) | MUST | 3 | **positive:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L372). **negative:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L375) |
+| `RFC5443-4-1` | Apply the cost-raising mechanism only to the IP link cost, not the TE link cost ("The mechanism described in this document should only be applied to the IP link cost to prevent unnecessary TE tunnel reroutes") (§4) | MUST | 4 | **positive:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L366). **negative:** `unit/verify` [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L369) |
 | `RFC5443-3-2` | When a genuine link problem (not merely link bring-up) causes the cost-out, the implementation should issue network management alerts so the operator can address the condition ("an implementation should issue network management alerts to report the error condition and enable the operator to address it") (§3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5443-5-1` | Follow current best security practice for MPLS/GMPLS networks ("implementors should follow the current best security practice [MPLS-GMPLS-Sec]") (§5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5443-2-7` | Use a configurable hold-down timer after LDP session establishment as the estimation strategy for "all label bindings exchanged" when End-of-LIB is not available ("A simple implementation strategy is to use a configurable hold-down timer to allow LDP session establishment before declaring LDP fully operational") (§2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
@@ -145,8 +146,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLDPSyncRestoresAfterHoldDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L186) | unit/verify | unproven |
-| positive | [`TestLDPSyncForcesMaxMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L143) | unit/verify | unproven |
+| negative | [`TestLDPSyncRestoresAfterHoldDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L188) | unit/verify | unproven |
+| positive | [`TestLDPSyncForcesMaxMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L145) | unit/verify | unproven |
 
 ### [`RFC5443-2-2`](#rfc5443-2-2)
 
@@ -156,8 +157,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLDPSyncDisabledIsNoOp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L292) | unit/verify | unproven |
-| positive | [`TestLDPSyncMaxMetricValue`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L156) | unit/verify | unproven |
+| negative | [`TestLDPSyncDisabledIsNoOp`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L294) | unit/verify | unproven |
+| positive | [`TestLDPSyncMaxMetricValue`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L158) | unit/verify | unproven |
 
 ### [`RFC5443-2-3`](#rfc5443-2-3)
 
@@ -183,8 +184,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLDPSyncRestoresAfterHoldDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L188) | unit/verify | unproven |
-| positive | [`TestLDPSyncSubscribesSessionEvents`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L165) | unit/verify | unproven |
+| negative | [`TestLDPSyncRestoresAfterHoldDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L190) | unit/verify | unproven |
+| positive | [`TestLDPSyncSubscribesSessionEvents`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L167) | unit/verify | unproven |
 
 ### [`RFC5443-2-6`](#rfc5443-2-6)
 
@@ -202,8 +203,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L373) | unit/verify | unproven |
-| positive | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L370) | unit/verify | unproven |
+| negative | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L375) | unit/verify | unproven |
+| positive | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L372) | unit/verify | unproven |
 
 ### [`RFC5443-4-1`](#rfc5443-4-1)
 
@@ -213,8 +214,8 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L367) | unit/verify | unproven |
-| positive | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L364) | unit/verify | unproven |
+| negative | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L369) | unit/verify | unproven |
+| positive | [`TestLDPSyncTECostUntouched`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/ldp_sync_test.go#L366) | unit/verify | unproven |
 
 ## Extraction sign-off
 

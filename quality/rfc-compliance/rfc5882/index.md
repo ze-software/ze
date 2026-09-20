@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 3 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 3 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 0.0% | 0 of 3 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 71.4% | 5 of 7 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 77.8% | 7 of 9 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -58,17 +58,17 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 7 |
-| Tagged units | 7 |
+| Test tags | 9 |
+| Tagged units | 9 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 5 |
+| Discrimination records | 7 |
 | Summary | `rfc/short/rfc5882.md` |
 | Requirement shard | `rfc/requirements/rfc5882.md` |
 | RFC text | `rfc/full/rfc5882.txt` |
 
 ## Enrolment
 
-Enrolled: Generic Application of BFD: three MUST-level requirements. RFC5882-4.4-1 (multiple control protocols wanting a BFD session to the same remote/data-protocol MUST share a single BFD session) is met for every configuration in which the clients reach one key, and PARTIALLY met otherwise, which is what docs/features/rfc-status.md publishes. The registry half is complete: EnsureSession (internal/component/bfd/engine/engine.go:344) is refcounted and path-keyed on api.Key{Peer,Local,Interface,VRF,Mode}, deliberately excluding timers (internal/component/bfd/api/events.go:155-156), and both polarities are proven by TestBFDSharedSessionSameKey (a second same-Key request bumps the refcount to 2 on ONE session, which survives until the last release) and TestBFDDistinctSessionsDifferentKey (two different remotes get two distinct sessions). The key half, api.SessionRequest.Canonical, completes what a client left out so OSPF, BGP and a pinned session reach the same key, and it REFUSES to derive where the answer is ambiguous: seven configurations, listed under "Multiple Control Protocols (Section 4.4)" on this page, leave two clients for one remote system with two sessions rather than one (and, until the interface-less first-packet lookup landed, left the single-hop four with two sessions NEITHER of which could be selected for a packet carrying no discriminator) (an IPv6 link-local peer, two links on one subnet, an off-link peer, no route, an egress interface with no or several addresses of the peer family, multi-hop in a non-default VRF, and any mode with no interface backend loaded). Each closes when the operator names the local address on both sides. RFC5882-4.1-1 (establishment allowed under AdminDown) is {not-applicable}: Ze never gates control-protocol establishment on BFD state -- the BFD client attaches only after the adjacency is up (BGP on StateEstablished, OSPF on Full) and is strictly additive, so no AdminDown session can block establishment. RFC5882-10.1.3-1 (OSPF virtual links MUST use RFC 5883 multihop) is {not-applicable}: Ze does not run BFD on OSPF virtual links (the BFD-for-OSPF client keys on per-interface config; a virtual link is a synthetic backbone link, not a configured interface, so it never gets a session). The SHOULD/SHOULD-NOT clauses (single session per path, hysteresis notify, AdminDown/bring-up connectivity semantics, GR fate-sharing, static-route withdrawal, planned-outage AdminDown, authentication) and the MAY clauses are not gated.
+Enrolled: Generic Application of BFD: three MUST-level requirements. RFC5882-4.4-1 (multiple control protocols wanting a BFD session to the same remote/data-protocol MUST share a single BFD session) is met for every configuration in which the clients reach one key, and PARTIALLY met otherwise, which is what docs/features/rfc-status.md publishes. The registry half is complete: EnsureSession (internal/component/bfd/engine/engine.go:344) is refcounted and path-keyed on api.Key{Peer,Local,Interface,VRF,Mode}, deliberately excluding timers (internal/component/bfd/api/events.go:155-156), and both polarities are proven by TestBFDSharedSessionSameKey (a second same-Key request bumps the refcount to 2 on ONE session, which survives until the last release) and TestBFDDistinctSessionsDifferentKey (two different remotes get two distinct sessions). The key half, api.SessionRequest.Canonical, completes what a client left out so OSPF, BGP and a pinned session reach the same key, and it REFUSES to derive where the answer is ambiguous: seven configurations, listed under "Multiple Control Protocols (Section 4.4)" on this page, leave two clients for one remote system with two sessions rather than one (and, until the interface-less first-packet lookup landed, left the single-hop four with two sessions NEITHER of which could be selected for a packet carrying no discriminator) (an IPv6 link-local peer, two links on one subnet, an off-link peer, no route, an egress interface with no or several addresses of the peer family, multi-hop in a non-default VRF, and any mode with no interface backend loaded). Each closes when the operator names the local address on both sides. RFC5882-4.1-1 (establishment allowed under AdminDown) is {not-applicable}: Ze never gates control-protocol establishment on BFD state -- the BFD client attaches only after the adjacency is up (BGP on StateEstablished, OSPF on Full) and is strictly additive, so no AdminDown session can block establishment. RFC5882-10.1.3-1 (OSPF virtual links MUST use RFC 5883 multihop) is {not-applicable}: Ze does not run BFD on OSPF virtual links (the BFD-for-OSPF client keys on per-interface config; a virtual link is a synthetic backbone link, not a configured interface, so it never gets a session). RFC5882-4.2-1 (no control protocol action on Up to AdminDown, or on Up to Down caused by the remote system's AdminDown) is MET, at the service boundary and at the client. api.StateChange.RemoteAdminDown carries the neighbor's AdminDown, which RFC 5880 Section 6.8.6 otherwise erases into a local Down with the same diagnostic a peer-signaled Down produces, and both polarities are proven by TestRFC5882RemoteAdminDownIsDistinguished and TestRFC5882NeighborDownIsNotRemoteAdminDown. Those two check what the event SAYS; Peer.runBFDSubscriber (internal/component/bgp/reactor/peer_bfd.go) then reads the field and raises no FSM event for that case, which is the "control protocol action" Section 4.2 names, and TestBFDRemoteAdminDownDoesNotTeardown checks what the client DOES with a control in the same body: the same local state and diagnostic with the neighbor not AdminDown is a path failure and still drops the session. The recording of state and time is deliberately left to run, because the OPEN rail reads it and bfdStrictHolds must still see a session that is not Up. Section 3.2 conditions the obligation on the client having "independent means of liveness detection", and BGP's hold timer is one. The other SHOULD/SHOULD-NOT clauses (single session per path, hysteresis notify, bring-up connectivity semantics, GR fate-sharing, static-route withdrawal, planned-outage AdminDown, authentication) and the MAY clauses are not gated.
 
 ## What the public ledger says
 
@@ -91,6 +91,7 @@ Same BFD partial status.
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **3** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (1):** [`RFC5882-4.4-1`](#rfc5882-4.4-1)
@@ -111,7 +112,7 @@ Same BFD partial status.
 | `RFC5882-3.3-1` | BFD state machine transitions during bring-up should not cause connectivity failure notification to clients (§3.3) | SHOULD NOT | 3.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5882-4.1-2` | Establishment of control protocol adjacencies should be blocked if both systems are willing to establish BFD but the session cannot be established (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5882-4.1-3` | Establishment of a control protocol adjacency should not be blocked if the peer is believed not to support BFD (§4.1) | SHOULD NOT | 4.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC5882-4.2-1` | If BFD session transitions from Up to AdminDown, or Down due to remote AdminDown, clients should not take control protocol action (§4.2) | SHOULD NOT | 4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5882-4.2-1` | If BFD session transitions from Up to AdminDown, or Down due to remote AdminDown, clients should not take control protocol action (§4.2) | SHOULD NOT | 4.2 | **positive:** `unit/verify` [`TestRFC5882RemoteAdminDownIsDistinguished`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_admindown_test.go#L70). **negative:** `unit/verify` [`TestRFC5882NeighborDownIsNotRemoteAdminDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_admindown_test.go#L97) |
 | `RFC5882-4.2.1-1` | When BFD session transitions from Up to Down, action should be taken in the control protocol to signal lack of connectivity (§4.2.1, §4.2.2.1, §4.2.2.2) | SHOULD | 4.2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5882-4.2.1-2` | If control protocol has an explicit path-state mechanism, use it rather than impacting control protocol connectivity (§4.2.1) | SHOULD | 4.2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5882-4.2.1-3` | If no explicit mechanism, emulate a control protocol timeout for the associated neighbor (§4.2.1) | SHOULD | 4.2.1 | **positive:** no positive test. **negative:** no negative test |
@@ -171,6 +172,17 @@ OSPF Virtual Links: the multihop mechanism (RFC 5883) must be used (§10.1.3)
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC5882-10.1.3-1, so no unit is bound to it.
+
+### [`RFC5882-4.2-1`](#rfc5882-4.2-1)
+
+If BFD session transitions from Up to AdminDown, or Down due to remote AdminDown, clients should not take control protocol action (§4.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC5882NeighborDownIsNotRemoteAdminDown`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_admindown_test.go#L97) | unit/verify | revert, verified |
+| positive | [`TestRFC5882RemoteAdminDownIsDistinguished`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_admindown_test.go#L70) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

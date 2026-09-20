@@ -49,7 +49,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="operator-access-with-ssh-and-rbac">Operator access with SSH and RBAC</h1>
-    <p>Use this when the box already has Ze installed and <code>database.zefs</code> created, and you want real operator accounts instead of a single bootstrap admin.</p>
+    <p>Use this when the box already has Ze installed and <code>ze init</code> has created the <code>database/</code> store, and you want real operator accounts instead of a single bootstrap admin.</p>
 </div>
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><h2 id="doc-toc-title">On this page</h2><ol>
 <li><a href="#1-start-from-the-ubuntu-install-page">1. Start from the Ubuntu install page</a></li>
@@ -76,7 +76,7 @@ RADIUS all map back to Ze authorization profiles, audit, and accounting.</p>
 <!-- source: internal/component/config/password_hash.go -- ApplyPasswordHashing, at commit and at config load -->
 <!-- source: docs/guide/tacacs.md -- TACACS+ fallback and profile mapping -->
 <h2 id="1-start-from-the-ubuntu-install-page">1. Start from the Ubuntu install page</h2>
-<p>Follow <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a> through <code>database.zefs</code> creation. The commands below assume:</p>
+<p>Follow <a href="../ubuntu-build-install/">Build and install Ze on Ubuntu</a> through <code>database/</code> creation. The commands below assume:</p>
 <table>
 <thead>
 <tr>
@@ -142,7 +142,7 @@ RADIUS all map back to Ze authorization profiles, audit, and accounting.</p>
 </table>
 <p>The entries use prefix matching. <code>match "debug"</code> matches <code>debug ospf ...</code>, but not <code>show debug ...</code>.</p>
 <h2 id="3-build-and-load-a-set-format-update">3. Build and load a set-format update</h2>
-<p>Use <code>ze passwd</code> before writing stored config values. This keeps plaintext out of shell history, process arguments, and the zefs command history.</p>
+<p>Use <code>ze passwd</code> before writing stored config values. This keeps plaintext out of shell history, process arguments, and the stored command history.</p>
 <p>The commands below read the current active config from zefs, convert it to set format, append the SSH and RBAC changes, render the import file, validate the result, then load it back into zefs with one <code>ze config import</code> command. Unrelated existing config sections stay in the candidate because they came from <code>ze config cat</code>.</p>
 <pre><code class="language-bash">set -euo pipefail
 
@@ -369,7 +369,7 @@ list, which never authenticated it.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -390,7 +390,7 @@ list, which never authenticated it.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

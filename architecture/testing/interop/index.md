@@ -109,7 +109,28 @@ opening this page.
 | pmacct `pmbmpd` | 172.30.0.13 | `ze-iop-pmacct-<pid>` |
 
 Container names include the runner PID as suffix, so concurrent runs do not conflict.
+
 <!-- source: internal/le/interoplab/bgp/prepare.go -- container naming, IP addresses -->
+
+The IPsec, L2TP, PPPoE and RADIUS labs mount only Ze's input configuration file
+read-only. Its parent `/etc/ze` belongs to the container and remains writable,
+so `start /etc/ze/ze.conf` creates its database tree there without writing to
+the scenario source directory. Each new container gets its own tree.
+<!-- source: internal/le/interoplab/ipsec/ipsec.go -- prepareScenario -->
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- zePeer -->
+<!-- source: internal/le/interoplab/pppoe/scenarios.go -- prepareZeClient, prepareZeAccessConcentrator -->
+<!-- source: internal/le/interoplab/radius/radius.go -- zePeerConfig -->
+
+The deployment L2TP PPP proof uses a private `/tmp` directory owned by its
+invoking user and writes Ze's explicit configuration beneath `ze/`. VPP stages
+each input from the host scratch mount into `/run/ze/<scenario-config>/` inside
+the container, where its explicit `ze.conf` and database tree live together.
+The root daemon cannot use a database directory beneath a mount owned by another
+user. A scenario's disable-and-restart check recopies the new input into the
+same private directory before each start.
+<!-- source: internal/le/deployment/l2tppppinputs.go -- writeInputs -->
+<!-- source: internal/le/deployment/vppiface.go -- writeScratch, stageConfig, daemonArgs -->
+<!-- source: internal/le/deployment/vppevidence.go -- writeConfig, evidenceDaemonArgs -->
 
 ### Scenario Structure
 
@@ -266,6 +287,40 @@ it makes a red transport scenario readable, because a broken topology reds it to
 Its selectors are INNER addresses the box never sees, which is the one selector pair
 in this lab a translation cannot move.
 
+Two more scenarios reuse the tunnel-control topology to drive `show mtu` across a
+real NAT. `mtu-tunnel-sizing-strongswan` binds the tunnel to an xfrm interface,
+clamps the route the box forwards over to 1400 (`ip route replace ... mtu 1400`,
+which Linux honors when it forwards), and requires the measured path, the derived
+ceiling over the negotiated transform behind UDP encapsulation, the recommended
+interface MTU and its command; an iputils `ping -M do` at the old size MUST lose
+every packet and one at the recommended size MUST lose none. `mtu-nat-installed-endpoint`
+requires the peer measurement and the tunnel row to target the box's face, the
+address the Child SA carries ESP to, and never the peer's real address, where no
+ESP arrives. The ze lab image installs `iputils` for `-M do`, so every IPsec
+scenario's ping is the iputils one.
+
+`ike-padded-probe-strongswan` reuses the sizing topology to drive the padded IKE
+path probe (`docs/architecture/diagnostics/path-mtu.md`, "The IKE prober") where
+ICMP cannot see the clamp. The checker keeps the 1400 clamp for UDP and ESP, routes
+ICMP past it through a policy-routing table (`exemptICMPFromClamp`, so an echo
+crosses at 1500), and drops every Fragmentation Needed the box would send Ze
+(`dropTooBigToward`). The ICMP search then measures 1500, the padded INFORMATIONAL
+asks 1500 on UDP/4500, its DF copy vanishes, its DF-clear retransmission crosses
+the box fragmented and strongSwan answers it, and the descent settles on 1400 with
+`prober: ike`. Each `show mtu` runs DETACHED (`zeShowMTUDetached`): a probe the
+peer never answers holds the request window for 30 s before the SA is deemed
+failed, longer than one docker exec is given, so the shell writes the document to
+a file and the checker polls for the marker. A second run races `swanctl --rekey`,
+and a third cuts strongSwan's reassembly memory (`dropFragmentsAtPeer`,
+`net.ipv4.ipfrag_high_thresh`) so no fragmented datagram is ever reassembled: an
+`iptables -f` rule matches nothing on either container, because conntrack
+defragments before any chain runs. The SA then fails exactly once and the row
+names `sa-failed` and the size.
+
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkMTUTunnelSizingStrongSwan, checkMTUNATInstalledEndpoint, checkIKEPaddedProbeStrongSwan, mtuClampedPath -->
+<!-- source: internal/le/interoplab/ipsec/helpers.go -- exemptICMPFromClamp, dropTooBigToward, dropFragmentsAtPeer, zeShowMTUDetached -->
+<!-- source: test/interop-ipsec/Dockerfile.ze -- iputils -->
+
 <!-- source: internal/le/interoplab/ipsec/nat.go -- readNATConfig, natSetupScript -->
 <!-- source: internal/le/interoplab/ipsec/checkers.go -- checkRealNATTransport, checkRealNATTunnelControl -->
 
@@ -291,6 +346,27 @@ MUST NOT set `bypass-lan` itself: `TestNoScenarioCarriesItsOwnBypassLanOverride`
 setting one value is a disagreement with nothing to arbitrate it.
 <!-- source: internal/le/interoplab/ipsec/ipsec.go -- prepareScenario mounts the lab drop-in -->
 <!-- source: test/interop-ipsec/strongswan-lab.conf -- the lab-wide charon settings -->
+
+### AES CCM on the strongSwan peer
+
+`ike-aes-ccm16` gives the IKE SA's Encrypted payload the transform RFC 5282
+Section 7.2 numbers 16, AES CCM with a 16-octet ICV, and takes the Child SA to
+AES GCM because Ze refuses AES CCM for ESP at config parse
+(`ipsec.EncryptionImplementedESP`). The checker reads charon's own
+`selected proposal: IKE:AES_CCM_16_256/` line, then Ze's `encryption` field, then
+ESP in both directions, so the agreement on the Transform ID and the verification
+of the encrypted ICV are separate observations.
+
+The lab image carries that transform although `/usr/lib/ipsec/plugins` holds no
+`libstrongswan-ccm.so`. Alpine 3.21 builds strongSwan 5.9.14 with no
+`--enable-ccm`, so the standalone ccm plugin is absent, and charon's openssl
+plugin registers the algorithm instead: `swanctl --list-algs` in
+`ze-ipsec-strongswan` answers `AES_CCM_16[openssl]`, `AES_CCM_12[openssl]` and
+`AES_CCM_8[openssl]` (measured 2026-09-14). The absent FILE is not an absent
+capability, and a source build of the ccm plugin would add a second provider of
+one algorithm and nothing else.
+<!-- source: test/interop-ipsec/scenarios/ike-aes-ccm16/ -- the AES CCM fixtures -->
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkIKEAESCCM16 -->
 
 ### The FreeRADIUS admin-login suite
 
@@ -516,7 +592,10 @@ VRF/Table Name TLV and reason code 6 on the Peer Down; `bmp-locrib-receiver-frr`
 turns the direction around, so FRR's `bmpd` drives Ze's BMP receiver and
 `show bmp peers` must report the third party's Loc-RIB peer and its address
 family), PATHS-LIMIT,
-max-prefix cease, GTSM, AS112, the RFC 7454 Section 9 transit leak
+max-prefix cease, GTSM (`bgp-gtsm-frr` for the session, and `gtsm-related-icmp-ttl`
+for RFC 5082 Section 3's related ICMP messages: FRR's kernel reads the hop limit of an
+ICMPv6 error ze's kernel generates about the session, and its TCPMinTTLDrop counter is
+what goes red when ze's host-route metric is absent), AS112, the RFC 7454 Section 9 transit leak
 (`bgp-path-asn-leak-frr` gives FRR two prefixes that differ only in their AS_PATH, and requires
 ze to drop the one reached through a listed transit ASN, keep the other, and keep the session),
 ADD-PATH re-advertisement (`bgp-addpath-readvertise-collision-frr`
@@ -676,15 +755,13 @@ The tell is `"peers": 0` from `show bgp rib status` while `show bgp peer list`
 reports both sessions Established. Ze also logs it at startup: *"the plugin
 declared events and no peer attaches it"*.
 
-#### Editing a config means recreating the container, not restarting it
+#### Explicit configuration is authoritative at every start
 
-Ze persists its configuration, so `docker restart` on a scenario container runs
-the peers of the FIRST boot and ignores the edited file the mount now carries.
-`docker exec ... cat /etc/ze/bgp.conf` shows the new text while `show bgp peer
-list` shows the old peers, which reads as a config that had no effect. Remove
-the container and start a new one instead. Every restart-based config
-experiment in a hand-built lab is void, and the harness is unaffected because it
-creates each container once.
+`ze start <file>` reads that file on every start, including a container restart.
+Persisted configuration from a previous run does not replace the explicit input.
+The labs mount individual configuration files, so replacing a source file by
+rename can leave an existing container's bind mount on the old inode. Recreating
+the container refreshes the mount; the harness creates each container once.
 
 For Ze's configuration syntax, see [docs/architecture/config/syntax.md](https://github.com/ze-software/ze/blob/main/docs/architecture/config/syntax.md).
 Copy an existing scenario's `ze.conf` as a starting point.

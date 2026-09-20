@@ -131,7 +131,7 @@ ze init --force                     # Replace existing database
 </code></pre>
 <h2 id="config-management">Config Management</h2>
 <p>On the hub, manage client configurations through the config editor. Stop the hub daemon
-first. Each of these commands opens the blob store in its own process. A running hub
+first. Each of these commands opens the <code>database/</code> store in its own process. A running hub
 answers every read from the tree it loaded at startup. An edit made behind it therefore
 changes nothing the hub serves.</p>
 <pre><code class="language-bash">ze config edit client-edge-01.conf         # Edit config for edge-01
@@ -191,7 +191,7 @@ from colliding with the hub's own config file.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -216,7 +216,7 @@ from colliding with the hub's own config file.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

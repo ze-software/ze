@@ -75,7 +75,7 @@ For a walk-through of the BGP state machine, see [bgp-fsm.md](https://github.com
 
 ## Configuration
 
-JUNOS-like hierarchical syntax: `{}` blocks, `;` terminators, `#` comments. YANG-driven parsing. Three-level inheritance: BGP globals, group defaults, peer overrides. Configuration is stored in ZeFS (a blob store with commit/rollback) and managed through an interactive editor accessible over SSH.
+JUNOS-like hierarchical syntax: `{}` blocks, `;` terminators, `#` comments. YANG-driven parsing. Three-level inheritance: BGP globals, group defaults, peer overrides. Configuration is stored in a managed `database/` tree (with commit/rollback) and managed through an interactive editor accessible over SSH.
 
 For the full config syntax reference, see [config-reference.md](https://github.com/ze-software/ze/blob/main/docs/config-reference.md).
 

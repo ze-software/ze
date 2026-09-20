@@ -79,6 +79,12 @@ feeds from routers) and as a <strong>sender</strong> (streaming state to collect
 </ol></li>
 <li><a href="#limitations">Limitations</a></li>
 </ol></nav>
+<p>Both halves follow a reload. A commit that adds, moves or disables a receiver
+listener rebinds it, and one that changes the sender bounces the collector
+sessions, so neither reports success over a change it did not make. A Peer Down
+carries the Data its reason code requires: RFC 7854 Section 4.9 draws the field
+as present for reasons 1, 2 and 3, so a session ze closed by NOTIFICATION
+carries that PDU and one closed without carries the two-octet FSM event code.</p>
 <h2 id="configuration">Configuration</h2>
 <p>BMP receiver is configured under <code>environment { bmp { ... } }</code> (like SSH,
 web, looking glass). Sender config lives under <code>bgp { bmp { ... } }</code>.</p>
@@ -571,7 +577,7 @@ forbids a RIB back-door for the full attribute set.</li>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -596,7 +602,7 @@ forbids a RIB back-door for the full attribute set.</li>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

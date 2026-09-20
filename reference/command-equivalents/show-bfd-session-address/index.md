@@ -25,9 +25,9 @@ Pass the peer address. Returns local/remote discriminators, negotiated timers, d
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `address` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `address` | string | yes | any value of this type | Peer address | An IPv4 or IPv6 address in its usual text form. A value that does not parse fails with bfd: invalid peer address before any lookup. |
 
 ## Mapping intents
 

@@ -98,6 +98,7 @@ Read-only TFTP server for PXE bootloader delivery.
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (1):** [`RFC1350-2-2`](#rfc1350-2-2)

@@ -868,6 +868,11 @@ on the heap and increments this counter. A public-internet corpus of 112M routes
 has a maximum of 10 attributes and 99.9% at 8 or fewer, so a steady rate here
 means either an unusual peer or an attribute set worth raising the inline size
 for.</p>
+<p>The count is taken over the attributes Ze publishes, not over the attributes the
+peer sent. Unrecognized non-transitive attributes are dropped first, as RFC 4271
+Section 5 requires, so a peer that sends nine attributes of which two Ze does not
+recognize and must not pass on never reaches the inline limit and never appears
+here.</p>
 <!-- source: internal/core/bgp/attribute/span.go -- SpanInline -->
 <!-- source: internal/component/bgp/reactor/session_validation.go -- publishBase -->
 <h4 id="egress-modification-failures">Egress Modification Failures</h4>
@@ -1088,7 +1093,7 @@ ze cli -c "show bgp rpki status"
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -1113,7 +1118,7 @@ ze cli -c "show bgp rpki status"
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

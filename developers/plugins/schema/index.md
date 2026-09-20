@@ -218,7 +218,7 @@ Ze validates that referenced values exist.
 ## Best Practices
 
 1. **Use meaningful namespaces** -- include your organization
-2. **Add descriptions** -- help users understand fields
+2. **Add both help texts** -- a `ze:help` one-line summary for the completion row, and a `description` paragraph for the `?` box
 3. **Set sensible defaults** -- reduce required config
 4. **Validate early** -- use YANG constraints, not just code
 5. **Use the `Handlers` field** -- list the config path prefixes your plugin manages
@@ -287,16 +287,19 @@ func main() {
 module acme-monitor {
     namespace "urn:acme:monitor";
     prefix acme;
+    import ze-extensions { prefix ze; }
 
     description "ACME endpoint monitoring plugin";
 
     container acme-monitor {
-        description "Monitor configuration";
+        ze:help "Monitor configuration.";
+        description "Every endpoint the plugin polls, and where it sends an alert.";
 
         leaf endpoint {
             type string;
             mandatory true;
-            description "HTTPS endpoint to monitor";
+            ze:help "HTTPS endpoint to monitor.";
+            description "The plugin issues one GET to this URL at every interval.";
         }
 
         leaf interval {
@@ -304,12 +307,14 @@ module acme-monitor {
                 range "10..3600";
             }
             default 60;
-            description "Check interval in seconds";
+            ze:help "Check interval in seconds.";
+            description "The pause between two polls of the endpoint, from 10 seconds to one hour.";
         }
 
         list alert {
             key "name";
-            description "Alert destinations";
+            ze:help "Alert destinations.";
+            description "One entry for each address that receives a failure notice.";
 
             leaf name {
                 type string {

@@ -25,9 +25,9 @@ The keyword types the value after it, so the reader of the command line knows th
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `path` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `path` | string | yes | any value of this type | Path of the config file whose plugin blocks are read | One filesystem path, or - for a config arriving on stdin. A path that names no readable file is refused before the read, and a second path after it is refused. |
 
 ## Mapping intents
 

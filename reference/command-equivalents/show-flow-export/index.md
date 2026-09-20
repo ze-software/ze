@@ -25,9 +25,9 @@ Without arguments, lists all configured collectors. With 'name <name>', shows de
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | no | any value of this type | Collector name (used with 'name <name>'). | The value is the key of a configured collector. Ze returns that one collector with its protocol counters and errors, and answers 'collector not found' for any other value. |
 
 ## Mapping intents
 

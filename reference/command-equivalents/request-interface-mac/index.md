@@ -25,10 +25,10 @@ The address is written as xx:xx:xx:xx:xx:xx. Ze checks that form before it calls
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | yes | any value of this type |
-| `address` | string | yes | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | yes | any value of this type | Interface name | The interface that up, down, mtu and mac act on. Each of those commands inherits it, and migrate names its own interfaces instead. |
+| `address` | string | yes | any value of this type | MAC address, as xx:xx:xx:xx:xx:xx | Six hexadecimal byte pairs separated by colons, in either case. The kernel device takes this address in place of the one it has. |
 
 ## Mapping intents
 

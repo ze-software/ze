@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -279,6 +280,10 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
 <tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>4</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
@@ -314,9 +319,9 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <td>MUST</td>
 <td>2.2 - Open Message Error Handling</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6286-2.2-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L95" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L105" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L445" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenValidateBGPIdentifier</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L153" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsBadBGPIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L163" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsBadBGPIdentifier</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L447" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenValidateBGPIdentifier</code></a></span></div>
 </div></td>
 </tr>
@@ -325,9 +330,9 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <td>MUST</td>
 <td>2.2 - Open Message Error Handling</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6286-2.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L97" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L107" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L449" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenValidateBGPIdentifier</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L99" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L109" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/open_test.go#L451" title="internal/component/bgp/message/open_test.go" target="_blank" rel="noopener"><code>TestOpenValidateBGPIdentifier</code></a></span></div>
 </div></td>
 </tr>
@@ -397,12 +402,12 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L95" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L105" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L153" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsBadBGPIdentifier</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L163" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsBadBGPIdentifier</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -422,7 +427,7 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L99" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L109" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -432,7 +437,7 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L97" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_open_validation_test.go#L107" title="internal/component/bgp/reactor/session_open_validation_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsBadBGPIdentifier</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -622,7 +627,7 @@ No tracked gap in current source anchors. Section 2.3 applies only where RFC 427
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 7 September 2026 12:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

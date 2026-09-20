@@ -331,7 +331,7 @@ unknown source under `doctor-redistribute-unknown-source`.
 ze doctor
 ```
 
-<!-- source: internal/component/doctor/checks_redistribute.go -- checkRedistributeRules -->
+<!-- source: internal/component/config/doctor_redistribute.go -- checkRedistributeRules -->
 <!-- source: internal/core/diagnostic/codes.go -- doctor-redistribute-unknown-source, doctor-redistribute-unknown-destination -->
 
 ### Counters

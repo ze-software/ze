@@ -1,13 +1,13 @@
 # `show bgp rib protocol`
 
-Show routes for a specific protocol: <protocol> [peer-selector] [pipeline-args...]
+Query the routes one protocol feeds into the RIB.
 
 ## Ze command
 
 - Registry path: `show bgp rib protocol`
-- Usage: `show bgp rib protocol`
+- Usage: `show bgp rib protocol <protocol>`
 - Mode: Read-only
-- Wire method: `not listed`
+- Wire method: `ze-rib-api:protocol`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,9 +21,13 @@ Show routes for a specific protocol: <protocol> [peer-selector] [pipeline-args..
 - Command pipes: `advertised`: Select advertised routes; `community <value>`: Filter by standard community; `count`: Count matching routes without serializing rows; `family <value>`: Filter by AFI/SAFI; `first <value>`: Take first N routes; `graph`: Render AS-path topology graph; `histogram`: Count routes by family and prefix length; `last <value>`: Take last N routes; `match <value>`: Cross-field structured match; `path <value>`: Filter by AS path; `peer <value>`: Filter by peer; `prefix <value>`: Filter by prefix; `received`: Select received routes
 - Pipe aliases: none
 
+Answers the same rows as show bgp rib, limited to the Adj-RIB-In tables one protocol feeds. bgp reads the BGP peers. Every other protocol, bmp for example, reads the tables its monitored peers fill. The pipeline words after the protocol are the ones show bgp rib takes: peer <selector> limits the answer to the matching peers, then filters, then one terminal.
+
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `protocol` | string | yes | any value of this type | Registered protocol name | The name of a registered protocol. The bgp-rib plugin refuses a name the protocol registry does not hold and names the registered ones. |
 
 ## Mapping intents
 

@@ -54,6 +54,8 @@
 <ol>
 <li><a href="#setup">Setup</a></li>
 <li><a href="#reinitializing">Reinitializing</a></li>
+<li><a href="#store-folder-and-ownership">Store folder and ownership</a></li>
+<li><a href="#offline-data-access">Offline data access</a></li>
 <li><a href="#connection">Connection</a></li>
 <li><a href="#override-hostport">Override Host/Port</a></li>
 </ol></li>
@@ -93,16 +95,141 @@
 <pre><code class="language-bash">ze init                        # interactive: prompts for username, password, host, port
 </code></pre>
 <p>Defaults: <code>127.0.0.1:2222</code>, ED25519 host key auto-generated.</p>
-<p>Credentials are stored in the ze database (<code>database.zefs</code>) with bcrypt-hashed passwords.</p>
-<!-- source: internal/plugins/init/main.go -- keyUsername/keyPassword/keyHost/keyPort, defaultHost, defaultPort -->
+<p>Credentials are stored under <code>database/</code> in the resolved configuration folder,
+with bcrypt-hashed passwords. Initialization seeds every key before publishing
+the directory, so an interrupted initialization cannot expose partial credentials.</p>
+<!-- source: internal/plugins/init/main.go -- Run, runInit -->
+<table>
+<thead>
+<tr>
+<th>Init flag</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--managed</code></td>
+<td>Enable managed fleet mode</td>
+</tr>
+<tr>
+<td><code>--force</code></td>
+<td>Replace an existing store, preserving a <code>.replaced-&lt;stamp&gt;</code> backup</td>
+</tr>
+<tr>
+<td><code>--yes</code></td>
+<td>Confirm <code>--force</code> without a terminal prompt</td>
+</tr>
+<tr>
+<td><code>--web-cert &lt;address&gt;</code></td>
+<td>Generate a web TLS certificate for the listen address</td>
+</tr>
+<tr>
+<td><code>--web-cert-name &lt;name&gt;</code></td>
+<td>Add a DNS name to the generated certificate</td>
+</tr>
+<tr>
+<td><code>--seed</code></td>
+<td>Build <code>database.zefs</code> as an appliance seed artifact, without build-host interface discovery</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/init/main.go -- Run -->
 <h3 id="reinitializing">Reinitializing</h3>
 <p>Running <code>ze init</code> a second time fails with <code>error: database already exists</code>. This is intentional -- it prevents accidental credential loss.</p>
 <p>To reinitialize:</p>
 <pre><code class="language-bash">ze signal stop                 # daemon must be stopped first
 ze init --force                # prompts for confirmation interactively
 </code></pre>
-<p><code>--force</code> moves the old database to <code>database.zefs.replaced-&lt;date&gt;</code> as a backup before creating a new one. The backup contains your previous SSH credentials and any stored configs. Non-interactive use (piped stdin) is rejected for safety -- <code>--force</code> requires interactive confirmation.</p>
-<!-- source: internal/plugins/init/main.go -- forceFlag -->
+<p><code>--force</code> stages the new store before moving the old tree to
+<code>database.replaced-&lt;stamp&gt;</code>. An existing blob is backed up as
+<code>database.zefs.replaced-&lt;stamp&gt;</code>. The backup retains the previous credentials
+and configs. Confirmation requires a terminal unless <code>--yes</code> is supplied.
+Replacement acquires the same ownership lock as the daemon and refuses while
+any process owns the store, including a web-only daemon. Changing the SSH target
+does not bypass this protection.</p>
+<!-- source: internal/plugins/init/main.go -- Run, runInit -->
+<h3 id="store-folder-and-ownership">Store folder and ownership</h3>
+<p>An explicit config path selects its parent folder. Without one, clients and
+daemons use <code>ze.config.dir</code>, then the binary's default configuration folder.
+<code>-</code> uses the same environment/default resolution. To reach credentials for a
+daemon started on a non-default folder, set <code>ZE_CONFIG_DIR</code> to that folder.</p>
+<!-- source: internal/core/resolve/resolve.go -- StoreDir -->
+<p><code>ze start &lt;file&gt;</code> creates <code>database/</code> when neither store shape exists and reads
+the explicit file on every start. Its daemon commits update that file and stored
+history. Bare <code>ze start</code> reads the stored active configuration. A <code>database.zefs</code>
+beside the live location is refused without conversion. The diagnostic names
+<code>ze init --from &lt;blob&gt;</code>, which imports a local blob; the URL form is storage-2.
+Appliance first boot already imports its seed explicitly.</p>
+<!-- source: cmd/ze/ze_core_start.go -- openExplicitStore, cmdStart -->
+<!-- source: internal/plugins/init/main.go -- Run -->
+<!-- source: cmd/ze/ze_core_autoinit.go -- gokrazyAutoInit -->
+<p>The tree root and every directory beneath it must be 0700, each frame file 0600,
+and all must belong to the caller. Symlinks and non-regular leaves are refused.
+Root has no ownership exception. Permission errors name the path and the repair.
+Only one process may own the store for writing. Read-only credential lookup and
+inspection remain available while that owner runs; offline writers such as
+<code>ze connect add</code>, <code>remove</code>, and <code>default</code> refuse until it stops.</p>
+<!-- source: internal/component/config/storage/open.go -- Open, OpenReadOnly, lockOwner -->
+<p>The owner holds <code>database.lock</code> until the store closes. The lock stays outside
+the replaceable tree. Removing this file would break writer exclusion.
+Initialization uses a private random staging directory and a no-replace rename.</p>
+<!-- source: internal/component/config/storage/open.go -- populateOwned, lockOwner -->
+<!-- source: internal/component/config/storage/tree.go -- makeStage -->
+<!-- source: internal/core/resolve/resolve.go -- StoreDir, StorageFor -->
+<!-- source: internal/component/cli/sshclient/client.go -- ResolveStoreDir, openStoreIfReadable -->
+<!-- source: internal/plugins/connect/main.go -- AddCredentials, RemoveCredentials, SetDefault -->
+<h3 id="offline-data-access">Offline data access</h3>
+<p><code>ze data --path &lt;folder&gt;/database</code> addresses a tree, while an explicit <code>.zefs</code>
+file addresses a blob artifact. Run mutating commands only after stopping the
+owning daemon and as the store owner. These commands expose decoded values,
+never the tree's framing bytes.</p>
+<table>
+<thead>
+<tr>
+<th>Command</th>
+<th>Effect</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ze data list</code></td>
+<td>List keys recursively</td>
+</tr>
+<tr>
+<td><code>ze data cat &lt;key&gt;</code></td>
+<td>Read a key</td>
+</tr>
+<tr>
+<td><code>ze data write &lt;key&gt; &lt;file&gt;</code></td>
+<td>Write a file's bytes into a raw key (<code>-</code> reads stdin)</td>
+</tr>
+<tr>
+<td><code>ze data import &lt;file&gt;...</code></td>
+<td>Import files as active configs</td>
+</tr>
+<tr>
+<td><code>ze data rm &lt;key&gt;</code></td>
+<td>Remove a key</td>
+</tr>
+<tr>
+<td><code>ze data registered</code></td>
+<td>Show registered key patterns</td>
+</tr>
+<tr>
+<td><code>ze data check</code></td>
+<td>Check integrity; exits 0 clean, 1 corrupt, 2 unreadable</td>
+</tr>
+<tr>
+<td><code>ze data repair --output &lt;path&gt;</code></td>
+<td>Copy recoverable keys into a new destination</td>
+</tr>
+<tr>
+<td><code>ze data encode [--crc|--header] [--cap N] &lt;string|-&gt;</code></td>
+<td>Encode a netcapstring for inspection</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/config/storage/cli/main.go -- subcommandHandlers -->
 <h3 id="connection">Connection</h3>
 <pre><code class="language-bash">ze cli                         # interactive CLI
 ze cli -c "show bgp peer list"  # single command
@@ -118,7 +245,7 @@ export ZE_SSH_PORT=2222
 # Per-command flags
 ze signal reload --host 10.0.0.1 --port 2222
 </code></pre>
-<!-- source: internal/core/ssh/client/client.go -- ze.ssh.host, ze.ssh.port env vars -->
+<!-- source: internal/component/cli/sshclient/client.go -- ze.ssh.host, ze.ssh.port env vars -->
 <h2 id="signals">Signals</h2>
 <h3 id="via-ssh-preferred">Via SSH (preferred)</h3>
 <table>
@@ -327,7 +454,7 @@ ze env get ze.log              # details for one var
 <tr>
 <td><code>ze.log.backend</code></td>
 <td><code>stderr</code></td>
-<td>Log output: stderr, stdout, syslog</td>
+<td>Log output: stderr, stdout, syslog, kmsg, or a comma-separated list of them</td>
 </tr>
 <tr>
 <td><code>ze.log.destination</code></td>
@@ -354,17 +481,10 @@ ze env get ze.log              # details for one var
 <td>--</td>
 <td>Override config directory</td>
 </tr>
-<tr>
-<td><code>ze.storage.blob</code></td>
-<td><code>true</code></td>
-<td>Use blob storage (false = filesystem)</td>
-</tr>
 </tbody>
 </table>
 <!-- source: internal/core/slogutil/slogutil.go -- ze.log registration -->
-<!-- source: internal/core/ssh/client/client.go -- ze.ssh.host/port -->
-<!-- source: cmd/ze/ze_core_dispatch.go -- ze.storage.blob registration -->
-<!-- source: internal/core/resolve/resolve.go -- ze.storage.blob lookup -->
+<!-- source: internal/component/cli/sshclient/client.go -- ze.ssh.host/port -->
 <!-- source: internal/core/paths/paths.go -- ze.config.dir -->
 <h2 id="cli-flags">CLI Flags</h2>
 <table>
@@ -380,8 +500,8 @@ ze env get ze.log              # details for one var
 <td>Enable debug logging (sets <code>ze.log=debug</code>)</td>
 </tr>
 <tr>
-<td><code>-f &lt;file&gt;</code></td>
-<td>Use filesystem storage (bypass blob database)</td>
+<td><code>ze config edit -f &lt;file&gt;</code></td>
+<td>Edit a loose file without opening its store</td>
 </tr>
 <tr>
 <td><code>--plugin &lt;name&gt;</code></td>
@@ -412,20 +532,27 @@ ze env get ze.log              # details for one var
 sudo ze install systemd --start
 </code></pre>
 <p>This writes <code>/etc/systemd/system/ze.service</code>, creates the <code>ze</code> user/group if
-missing, assigns ownership of the config directory and <code>database.zefs</code>, reloads
-systemd, enables the service, and starts it when <code>--start</code> is present.</p>
+missing, and transfers the complete store tree and its ownership lock to that
+account before enabling or starting the service. A running store owner refuses
+the transfer. Root performs the system changes; after transfer, storage
+maintenance runs as <code>ze</code>.</p>
 <p>Inspect the generated unit without writing anything:</p>
 <pre><code class="language-bash">ze install systemd --dry-run --config /etc/ze
 </code></pre>
 <p>Run doctor after installation to verify the service account and binary path:</p>
-<pre><code class="language-bash">ze doctor
+<pre><code class="language-bash">sudo -u ze env ZE_CONFIG_DIR=/etc/ze ze doctor
 </code></pre>
 <p>When <code>/etc/systemd/system/ze.service</code> exists, doctor checks that the unit's
 <code>ExecStart</code> binary exists and is executable, and that the configured <code>User</code> and
 <code>Group</code> exist on the host.</p>
 <p>The service runs with <code>XDG_RUNTIME_DIR=/run/ze</code>, so the daemon socket is
-<code>/run/ze/ze.socket</code>. Configure the same socket in ze config or export
-<code>XDG_RUNTIME_DIR=/run/ze</code> before running local operator CLI commands.</p>
+<code>/run/ze/ze.socket</code>. Local commands using stored credentials run as its owner:</p>
+<pre><code class="language-bash">sudo -u ze env ZE_CONFIG_DIR=/etc/ze XDG_RUNTIME_DIR=/run/ze ze cli
+</code></pre>
+<p>Other users can supply <code>--user</code>, <code>ze.ssh.password</code>, and an explicit remote
+address instead of reading the service account's credentials. Offline
+maintenance first stops <code>ze.service</code> as root, then runs the storage command
+with <code>sudo -u ze</code>; restarting the service is a root system operation.</p>
 <p>Remove only the service unit:</p>
 <pre><code class="language-bash">sudo ze uninstall systemd
 </code></pre>
@@ -659,7 +786,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -684,7 +811,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

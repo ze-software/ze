@@ -67,11 +67,18 @@
 </dl>
 <h3>Description</h3><p>Injects arbitrary bytes with no BGP framing and no validation. It is for<br>conformance testing and fuzzing only, and it will break the session if it is used<br>carelessly. With a type keyword ze writes the marker and the header, and the data carries<br>the message body alone. Without a type keyword the data carries the whole packet, marker<br>and header included.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th></tr></thead><tbody>
-<tr><td><code>selector</code></td><td>string</td><td>yes</td><td>any value of this type</td></tr>
-<tr><td><code>encoding</code></td><td>enum</td><td>yes</td><td><code>hex</code> <code>b64</code></td></tr>
-<tr><td><code>data</code></td><td>string</td><td>yes</td><td>any value of this type</td></tr>
-<tr><td><code>type</code></td><td>enum</td><td>no</td><td><code>open</code> <code>update</code> <code>notification</code> <code>keepalive</code> <code>route-refresh</code></td></tr>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>selector</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Peer selector</td><td>The value is an IP address, a peer name, an AS pattern such as as65001, a
+glob, a comma-separated list of those, or * for every peer. The message goes to each
+session the selector matches.</td></tr>
+<tr><td><code>encoding</code></td><td>enum</td><td>yes</td><td><code>hex</code> <code>b64</code></td><td>How the data below is encoded.</td><td>The word is required and it is typed before the data. Ze decodes the data
+with it, and data the decoder refuses is an error.</td></tr>
+<tr><td><code>data</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>The bytes to send, in the encoding above.</td><td>The value is one token, the octets in the encoding named before it. With
+a type keyword after it, the octets are the message body alone. Without one, they are the
+whole packet, marker and header included.</td></tr>
+<tr><td><code>type</code></td><td>enum</td><td>no</td><td><code>open</code> <code>update</code> <code>notification</code> <code>keepalive</code> <code>route-refresh</code></td><td>The BGP message type ze writes a header for.</td><td>The word is optional and any other word there is refused. With it, Ze
+writes the 16-byte marker and the length and type fields, and the data is the body. Absent,
+the data is sent as it is.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -135,7 +142,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
                 </div>
             </div>
         </footer>

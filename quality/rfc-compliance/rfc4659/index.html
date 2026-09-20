@@ -77,6 +77,7 @@
 .rfc-tape-not_applicable { background: var(--grape-chip); }
 .rfc-tape-feature_declined { background: var(--pink-chip); }
 .rfc-tape-lower_layer { background: var(--mint-chip); }
+.rfc-tape-rollup { background: var(--tangerine-chip); }
 .rfc-tape-gap { background: var(--gold-chip); }
 .rfc-tape-one_polarity_unexcused { background: var(--gold-base); }
 .rfc-tape-missing_unexcused { background: var(--danger-deep); }
@@ -279,6 +280,10 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <td><strong>0</strong></td>
 <td>an overlay: each of these is also counted by the part it falls in</td>
 </tr>
+<tr><td>Derived from other rows</td>
+<td><strong>0</strong></td>
+<td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
+</tr>
 <tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>16</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
@@ -297,7 +302,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4659-3.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/vpn/vpn_test.go#L47" title="internal/component/bgp/plugins/nlri/vpn/vpn_test.go" target="_blank" rel="noopener"><code>TestVPNv6WireRoundTrip</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/vpn/vpn_test.go#L81" title="internal/component/bgp/plugins/nlri/vpn/vpn_test.go" target="_blank" rel="noopener"><code>TestVPNv6RejectsLabellessEncode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/vpn/vpn_test.go#L83" title="internal/component/bgp/plugins/nlri/vpn/vpn_test.go" target="_blank" rel="noopener"><code>TestVPNv6RejectsLabellessEncode</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.2-2">RFC4659-3.2-2</code></td><td colspan="3"><span class="rfc-subject">AFI and SAFI fields MUST be set to AFI=2, SAFI=128 (Section 3.2)</span></td></tr>
@@ -560,7 +565,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/vpn/vpn_test.go#L81" title="internal/component/bgp/plugins/nlri/vpn/vpn_test.go" target="_blank" rel="noopener"><code>TestVPNv6RejectsLabellessEncode</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/vpn/vpn_test.go#L83" title="internal/component/bgp/plugins/nlri/vpn/vpn_test.go" target="_blank" rel="noopener"><code>TestVPNv6RejectsLabellessEncode</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
@@ -706,7 +711,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 12 September 2026 15:50 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

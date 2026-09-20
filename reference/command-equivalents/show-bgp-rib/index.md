@@ -10,7 +10,7 @@ Query routes in the BGP RIB.
 - Wire method: `ze-rib-api:routes`
 - Backends: any backend
 - Task support: required: the MCP server always answers with a task handle
-- Subcommands: `best`, `rpf`, `status`
+- Subcommands: `best`, `protocol`, `rpf`, `status`
 - Answer shape: tab
 - Address fields: peer, next-hop
 - Column order: peer, direction, family, prefix, next-hop, path-id, as-path, origin, local-pref, med, communities

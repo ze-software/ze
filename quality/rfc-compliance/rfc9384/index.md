@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 0 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 0 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 0.0% | 0 of 0 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 100.0% | 4 of 4 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 0 | of 0 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -59,10 +59,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 0 |
-| Tagged units | 0 |
+| Test tags | 4 |
+| Tagged units | 4 |
 | Recorded audit verdicts | 0 |
-| Discrimination records | 0 |
+| Discrimination records | 4 |
 | Summary | `rfc/short/rfc9384.md` |
 | Requirement shard | `rfc/requirements/rfc9384.md` |
 | RFC text | `rfc/full/rfc9384.txt` |
@@ -77,11 +77,11 @@ Not enrolled (non-normative, the document imposes no MUST-level obligation on an
 
 **What the ledger says is covered**
 
-The document allocates one registry value and states three SHOULD statements. It states no MUST-level obligation anywhere. [`rfc/extraction/rfc9384.json`](https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc9384.json) is the walk that bounds that claim, and [`rfc/short/rfc9384.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc9384.md) is the checklist. Section 3. `Peer.runBFDSubscriber` ([`internal/component/bgp/reactor/peer_bfd.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_bfd.go)) turns a BFD Down or AdminDown transition into `teardownAutomatic(message.NotifyCeaseBFDDown, ...)`. The session then ends with a Cease NOTIFICATION carrying subcode 10 rather than waiting for the hold timer. The subscriber runs only where the operator opted in with `bgp peer connection bfd`. `message.CeaseSubcodeString` ([`internal/component/bgp/message/notification.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification.go)) renders the value as "BFD Down" in the log and in the CLI. Section 4, first statement. `Peer.recordNotification` ([`internal/component/bgp/reactor/peer_stats.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_stats.go)) stores the code and subcode of a NOTIFICATION that reached the wire. It records one ze sent and one ze received alike. `lastErrorString` ([`internal/component/bgp/plugins/cmd/peer/summary.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/summary.go)) renders them as the `last-error` field of `show bgp peer`.
+The document allocates one registry value and states three SHOULD statements. It states no MUST-level obligation anywhere. [`rfc/extraction/rfc9384.json`](https://github.com/ze-software/ze/blob/main/rfc/extraction/rfc9384.json) is the walk that bounds that claim, and [`rfc/short/rfc9384.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc9384.md) is the checklist. Section 3. `Peer.runBFDSubscriber` ([`internal/component/bgp/reactor/peer_bfd.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_bfd.go)) turns a BFD Down or AdminDown transition into `teardownAutomatic(message.NotifyCeaseBFDDown, ...)`. The session then ends with a Cease NOTIFICATION carrying subcode 10 rather than waiting for the hold timer. The subscriber runs only where the operator opted in with `bgp peer connection bfd`. `message.CeaseSubcodeString` ([`internal/component/bgp/message/notification.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/notification.go)) renders the value as "BFD Down" in the log and in the CLI. Section 4, first statement. `Peer.recordNotification` ([`internal/component/bgp/reactor/peer_stats.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_stats.go)) stores the code and subcode of a NOTIFICATION that reached the wire. It records one ze sent and one ze received alike. `lastErrorString` ([`internal/component/bgp/plugins/cmd/peer/summary.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/summary.go)) renders them as the `last-error` field of `show bgp peer`. Since 2026-09-20 the record also covers the case Section 4 is written for. `sendNotificationWithin` ([`internal/component/bgp/reactor/session_write.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_write.go)) calls `onNotifSent` after every write attempt, delivered or not, and `Peer.recordNotificationSend` routes a refused write to `recordNotificationUnsent`, which stores the code and subcode under direction `send-failed`. `last-error` then reads "Cease/BFD Down (not sent)" and `show bgp peer <address>` carries `last-notification.direction`, so an operator reads the reason and can tell it from a reason the peer was told. [`RFC9384-4-1`](#rfc9384-4-1) is proven in both polarities: `TestNotificationRefusedBySocketStillRecordsTheReason` and `TestNotificationDeliveredIsNotRecordedAsUnsent` ([`internal/component/bgp/reactor/peer_last_error_test.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go)) and `TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell` ([`internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go)).
 
-**What the ledger says remains**
+**What the ledger says remains:**
 
-[`RFC9384-4-1`](#rfc9384-4-1) is met only where the NOTIFICATION reached the peer. `sendNotificationWithin` ([`internal/component/bgp/reactor/session_write.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_write.go)) calls `onNotifSent` after a successful write alone. A teardown whose NOTIFICATION never reached the wire therefore records the reason in the log and leaves `last-error` empty. Section 4 is written for exactly that case. [`RFC9384-4-2`](#rfc9384-4-2) is conditional on RFC 8538 Hard Reset procedures, and this page records RFC 8538 as Unsupported. So the condition that statement opens with does not arise. Both are SHOULD statements, so neither is a gap at MUST level.
+[`RFC9384-4-2`](#rfc9384-4-2) is conditional on RFC 8538 Hard Reset procedures, and this page records RFC 8538 as Unsupported. So the condition that statement opens with does not arise. Both are SHOULD statements, so neither is a gap at MUST level.
 
 ## Coverage
 
@@ -92,7 +92,7 @@ RFC 9384 declares no MUST-level requirement, so the gate counts nothing here.
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC9384-3-1` | When a BGP connection is terminated due to a BFD session going into the Down state, the BGP speaker SHOULD send a NOTIFICATION message with the error code "Cease" and the error subcode "BFD Down" (§3) | SHOULD | 3 - BFD Cease NOTIFICATION Subcode | **positive:** no positive test. **negative:** no negative test |
-| `RFC9384-4-1` | When there is a total loss of connectivity and the Cease NOTIFICATION message could not be sent, BGP speakers SHOULD provide this reason as part of their operational state (§4) | SHOULD | 4 - Operational Considerations | **positive:** no positive test. **negative:** no negative test |
+| `RFC9384-4-1` | When there is a total loss of connectivity and the Cease NOTIFICATION message could not be sent, BGP speakers SHOULD provide this reason as part of their operational state (§4) | SHOULD | 4 - Operational Considerations | **positive:** `unit/verify` [`TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go#L29). **positive:** `unit/verify` [`TestNotificationRefusedBySocketStillRecordsTheReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L59). **negative:** `unit/verify` [`TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go#L33). **negative:** `unit/verify` [`TestNotificationDeliveredIsNotRecordedAsUnsent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L96) |
 | `RFC9384-4-2` | When the procedures in [RFC8538] for sending a NOTIFICATION message with a "Cease" code and "Hard Reset" subcode are required, and the BGP connection is being terminated because BFD has gone into the Down state, the "BFD Down" subcode SHOULD be encapsulated in the Hard Reset's data portion of the NOTIFICATION message (§4) | SHOULD | 4 - Operational Considerations | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
@@ -101,7 +101,20 @@ RFC 9384 declares no gap, and every gated MUST it carries has a test bound to it
 
 ## Proof state
 
-RFC 9384 carries no gated, tagged or audited requirement, so there is no proof state to state.
+A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
+
+### [`RFC9384-4-1`](#rfc9384-4-1)
+
+When there is a total loss of connectivity and the Cease NOTIFICATION message could not be sent, BGP speakers SHOULD provide this reason as part of their operational state (§4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go#L33) | unit/verify | revert, verified |
+| negative | [`TestNotificationDeliveredIsNotRecordedAsUnsent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L96) | unit/verify | revert, verified |
+| positive | [`TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go#L29) | unit/verify | revert, verified |
+| positive | [`TestNotificationRefusedBySocketStillRecordsTheReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L59) | unit/verify | revert, verified |
 
 ## Extraction sign-off
 

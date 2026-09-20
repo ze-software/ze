@@ -25,12 +25,12 @@ Tries to open a TCP connection and reports success or failure with the connectio
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `host` | string | yes | any value of this type |
-| `port` | uint | yes | any value of this type |
-| `source` | string | no | any value of this type |
-| `timeout` | string | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `host` | string | yes | any value of this type | Target host. | An IP address or a DNS name of at most 253 characters, which the dialer resolves. The answer echoes it in the host key. |
+| `port` | uint | yes | any value of this type | Target port. | The TCP port to connect to, from 1 to 65535. Ze joins it to the host and dials that one endpoint. |
+| `source` | string | no | any value of this type | Source IP address. | A local IP address the connection binds to before it dials. An address the host does not hold makes the dial fail. Absent, the kernel picks the source. |
+| `timeout` | string | no | any value of this type | Connection timeout. | How long the dial waits before it reports timeout, from 1s to 30s. The default is 5s. |
 
 ## Mapping intents
 

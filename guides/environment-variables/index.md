@@ -75,8 +75,11 @@ and inspectable via `ze env get`.
 
 In the interactive CLI operational mode, `show env get` and
 `show env registered` also offer env-key completion through the
-shared command tree.
+shared command tree. `wireEnvHints` spells the `show` in those two paths
+as `command.VerbShow`, the verb registry's own constant, so renaming the
+read verb moves the completion paths with it.
 <!-- source: internal/component/command/valuehints.go -- wireEnvHints -->
+<!-- source: internal/component/command/verbs.go -- VerbShow -->
 
 ## Changes in 2026-04
 

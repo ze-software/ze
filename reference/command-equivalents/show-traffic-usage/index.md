@@ -25,9 +25,9 @@ Per destination/source port and protocol counters are always present; per-IP top
 
 ## Arguments
 
-| Name | Type | Required | Values |
-| --- | --- | --- | --- |
-| `name` | string | no | any value of this type |
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `name` | string | no | any value of this type | Interface name (used with 'name <interface>') | The kernel interface name, as configured under traffic usage. An interface the plugin does not monitor fails with interface not monitored. |
 
 ## Mapping intents
 

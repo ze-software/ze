@@ -107,7 +107,7 @@
 <tr>
 <td><code>certificate</code></td>
 <td>(empty)</td>
-<td>Name of a <code>pki { certificate &lt;name&gt; }</code> entry to serve. Empty means a self-signed certificate from blob storage (<code>ze init</code>).</td>
+<td>Name of a <code>pki { certificate &lt;name&gt; }</code> entry to serve. Empty selects a self-signed certificate in the live store.</td>
 </tr>
 <tr>
 <td><code>token</code></td>
@@ -123,10 +123,10 @@ it serves HTTPS unless you turn TLS off. Two rules apply:</p>
 <ul>
 <li>Write <code>tls false</code> (or set <code>ze.looking-glass.tls=false</code>) to serve plaintext,
 for example behind a proxy that terminates TLS.</li>
-<li>With no <code>certificate</code> and no blob storage there is no self-signed certificate
-to serve. If you wrote <code>tls true</code>, Ze reports the error and does not start the
-looking glass. If you wrote nothing and took the default, Ze serves plaintext
-and prints a warning that names <code>ze init</code> as the remedy.</li>
+<li>Without a live store or named certificate, Ze cannot persist a self-signed
+certificate. Explicit <code>tls true</code> refuses the looking-glass listener.
+With the default TLS setting, it serves plaintext and warns that <code>ze init</code>
+is required for persistence. An explicit-file start creates a live store.</li>
 </ul>
 <h3 id="serve-your-own-certificate">Serve your own certificate</h3>
 <p>A visitor to a public looking glass has not installed your root, so a
@@ -166,11 +166,11 @@ and every intermediate the entry holds:</p>
 </tr>
 <tr>
 <td>Plaintext by downgrade</td>
-<td>You took the <code>tls</code> default and have no blob store, so Ze dropped the looking glass to plaintext at start. A <code>certificate</code> name you add later changes nothing there. The reload is accepted and rotates nothing. Restart Ze to serve the named chain over TLS.</td>
+<td>A storeless stdin daemon took the TLS default and started the looking glass in plaintext. A later certificate name does not enable TLS; restart to serve the named chain.</td>
 </tr>
 <tr>
 <td class="cell-no">✕</td>
-<td>The material comes from the <code>pki {}</code> container, so a named certificate serves on a deployment that never ran <code>ze init</code>. The blob store holds the self-signed certificate only.</td>
+<td>A named certificate comes from the <code>pki {}</code> container. Only the self-signed certificate needs the live store.</td>
 </tr>
 <tr>
 <td>Name</td>
@@ -257,7 +257,7 @@ set <code>tls false</code>). No authentication is required unless you set <code>
 <tbody>
 <tr>
 <td><code>GET /api/looking-glass/status</code></td>
-<td>Router ID, version, uptime.</td>
+<td>Router ID, version, start time, and when the last config reload finished. It answers 502 when one of the four commands behind it fails, and never a status object with an empty router ID.</td>
 </tr>
 <tr>
 <td><code>GET /api/looking-glass/protocols/bgp</code></td>
@@ -341,7 +341,7 @@ serves a self-signed certificate when that leaf is unset.</p>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/ubuntu-build-install/">
                         <span class="page-sidebar-link-label">Build on Ubuntu</span>
-                        <small>Install Ze, create zefs, and start SSH.</small>
+                        <small>Install Ze, create the store, and start SSH.</small>
                     </a>
                     <a class="page-sidebar-link" href="../../guides/production-diagnostics/">
                         <span class="page-sidebar-link-label">Production diagnostics</span>
@@ -366,7 +366,7 @@ serves a self-signed certificate when that leaf is unset.</p>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 14 September 2026 09:55 UTC</span>
+                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
                 </div>
             </div>
         </footer>

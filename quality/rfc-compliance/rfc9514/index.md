@@ -98,6 +98,7 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
+| Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
 | **Gated MUST-level requirements** | **13** | every gated MUST falls in exactly one bucket above |
 
 **Annotated instead of tested (13):** [`RFC9514-3.1-1`](#rfc9514-3.1-1), [`RFC9514-3.1-2`](#rfc9514-3.1-2), [`RFC9514-4.1-1`](#rfc9514-4.1-1), [`RFC9514-4.2-1`](#rfc9514-4.2-1), [`RFC9514-5.1-1`](#rfc9514-5.1-1), [`RFC9514-6-1`](#rfc9514-6-1), [`RFC9514-7.1-1`](#rfc9514-7.1-1), [`RFC9514-7.1-2`](#rfc9514-7.1-2), [`RFC9514-7.1-3`](#rfc9514-7.1-3), [`RFC9514-7.2-1`](#rfc9514-7.2-1), [`RFC9514-7.2-2`](#rfc9514-7.2-2), [`RFC9514-7.2-3`](#rfc9514-7.2-3), [`RFC9514-8-1`](#rfc9514-8-1)
