@@ -58,13 +58,27 @@ func tryCandidate(dir string) bool {
 	return probeWritable(dir)
 }
 
+// probeWritable answers whether this process can create a file in dir.
+//
+// The probe file's name is UNIQUE per call. A fixed `.probe` made two ze
+// processes sharing one directory race each other: the first to finish removed
+// the file the second had just created, and the second then read its own
+// successful write as a failure and rejected a directory it could write to
+// perfectly well. Several ze daemons share a crash directory on every test run
+// and on any host that runs more than one.
+//
+// A leftover probe is possible when the process dies between the create and the
+// remove. It is a zero-length dotfile in a crash directory, which is the
+// cheapest failure available here: the alternative is a shared name, and that
+// one is wrong even when nothing dies.
 func probeWritable(dir string) bool {
-	probe := filepath.Join(dir, ".probe")
-	f, err := os.Create(probe) //nolint:gosec // probe file for writability check
+	f, err := os.CreateTemp(dir, ".probe-")
 	if err != nil {
 		return false
 	}
+	probe := f.Name()
 	if err := f.Close(); err != nil {
+		_ = os.Remove(probe)
 		return false
 	}
 	return os.Remove(probe) == nil

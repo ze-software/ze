@@ -866,6 +866,16 @@ func copyConfigDir(source, destination string) error {
 		return nil //nolint:nilerr // an absent shared store is a state ze can start from
 	}
 	return filepath.WalkDir(source, func(path string, entry fs.DirEntry, err error) error {
+		if errors.Is(err, fs.ErrNotExist) {
+			// The source is LIVE: other tests' daemons write into it while this
+			// walk runs, and one of them removes a file between the readdir that
+			// listed it and the stat that reads it. That is the directory
+			// behaving correctly, not a copy failure, so the entry is skipped.
+			// Treating it as fatal failed one case at random per exabgp run,
+			// always a different one, on the writability probe crashlog creates
+			// and deletes in the shared crash directory.
+			return nil
+		}
 		if err != nil {
 			return err
 		}
@@ -880,6 +890,11 @@ func copyConfigDir(source, destination string) error {
 			return nil
 		}
 		info, err := entry.Info()
+		if errors.Is(err, fs.ErrNotExist) {
+			// Same race, one step later: the entry was listed and is gone by
+			// the time its mode is read.
+			return nil
+		}
 		if err != nil {
 			return err
 		}
@@ -894,6 +909,9 @@ func copyConfigDir(source, destination string) error {
 			return fmt.Errorf("copy config dir: %s is not a regular file (mode %s): remove it from %s", relative, info.Mode(), source)
 		}
 		data, err := os.ReadFile(path) //nolint:gosec // the run's own config directory
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil
+		}
 		if err != nil {
 			return err
 		}
