@@ -12,6 +12,7 @@
 package bmp
 
 import (
+	"encoding/binary"
 	"hash/fnv"
 	"net/netip"
 	"time"
@@ -20,6 +21,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -27,11 +29,21 @@ import (
 
 // handleStructuredEvent processes a reactor event and forwards it to all sender sessions.
 func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
+	// cause is the Peer Down this event owes a collector, and only the down arm
+	// below can build it: RFC 7854 Section 4.9 makes the Data field the
+	// NOTIFICATION PDU that ended the session, and the same teardown drops that
+	// PDU from the cache. The down arm of the sender switch is its only reader,
+	// so the zero value this declaration holds for every other event is never
+	// looked at.
+	var cause peerDownCause
+
 	// Maintain internal state regardless of whether senders are connected.
 	// Peers may establish before any collector connects (AC-3).
-	switch se.EventType { //nolint:exhaustive // only open and state need pre-sender work
+	switch se.EventType { //nolint:exhaustive // only open, notification and state need pre-sender work
 	case rpc.EventKindOpen:
 		bp.cacheOpenPDU(se)
+	case rpc.EventKindNotification:
+		bp.cacheNotificationPDU(se)
 	case rpc.EventKindState:
 		switch se.State { //nolint:exhaustive // only up/down carry peer state
 		case rpc.SessionStateUp:
@@ -39,12 +51,7 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 			// connects later still has to be told this peer is up.
 			bp.recordPeerUp(se)
 		case rpc.SessionStateDown:
-			bp.mu.Lock()
-			delete(bp.openCache, se.PeerAddress)
-			delete(bp.dedupState, se.PeerAddress)
-			delete(bp.dedupCount, se.PeerAddress)
-			delete(bp.peerUps, se.PeerAddress)
-			bp.mu.Unlock()
+			cause = bp.clearPeerState(se)
 		}
 	}
 
@@ -77,7 +84,7 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 
 	switch se.EventType { //nolint:exhaustive // BMP handles state, update, open, notification, keepalive, refresh
 	case rpc.EventKindState:
-		bp.handleSenderState(se, senders)
+		bp.handleSenderState(se, senders, cause)
 	case rpc.EventKindOpen:
 		if mirroring {
 			bp.handleSenderMirror(se, senders)
@@ -94,6 +101,22 @@ func (bp *BMPPlugin) handleStructuredEvent(se *rpc.StructuredEvent) {
 	}
 }
 
+// bgpPDU builds a complete BGP message from a message body: the 16-byte
+// marker, the 2-byte length, the 1-byte type, then the body (RFC 4271 Section
+// 4.1). A StructuredEvent carries the body alone, and BMP asks for whole PDUs
+// inside a Peer Up (RFC 7854 Section 4.10) and inside a Peer Down (Section
+// 4.9), so both cache paths below build one here.
+func bgpPDU(msgType msgtype.MessageType, body []byte) []byte {
+	pduLen := message.HeaderLen + len(body)
+	pdu := make([]byte, pduLen)
+	copy(pdu, message.Marker[:])
+	pdu[message.MarkerLen] = byte(pduLen >> 8)     //nolint:gosec // pduLen bounded by maxBMPMsgSize
+	pdu[message.MarkerLen+1] = byte(pduLen & 0xFF) //nolint:gosec // pduLen bounded by maxBMPMsgSize
+	pdu[message.MarkerLen+2] = byte(msgType)
+	copy(pdu[message.HeaderLen:], body)
+	return pdu
+}
+
 // cacheOpenPDU caches a real BGP OPEN PDU from an OPEN message event.
 // RawMessage.RawBytes is the OPEN body (no 19-byte BGP header); we synthesize
 // the full BGP OPEN PDU (marker + length + type + body) for Peer Up.
@@ -106,14 +129,7 @@ func (bp *BMPPlugin) cacheOpenPDU(se *rpc.StructuredEvent) {
 	}
 
 	// RFC 7854 S4.10: Peer Up includes complete BGP OPEN messages.
-	// Build full PDU: 16-byte marker + 2-byte length + 1-byte type + body.
-	pduLen := message.HeaderLen + len(rawBytes)
-	pdu := make([]byte, pduLen)
-	copy(pdu, message.Marker[:])
-	pdu[message.MarkerLen] = byte(pduLen >> 8)     //nolint:gosec // pduLen bounded by maxBMPMsgSize
-	pdu[message.MarkerLen+1] = byte(pduLen & 0xFF) //nolint:gosec // pduLen bounded by maxBMPMsgSize
-	pdu[message.MarkerLen+2] = byte(msgtype.TypeOPEN)
-	copy(pdu[message.HeaderLen:], rawBytes)
+	pdu := bgpPDU(msgtype.TypeOPEN, rawBytes)
 
 	bp.mu.Lock()
 	pair, ok := bp.openCache[se.PeerAddress]
@@ -127,6 +143,113 @@ func (bp *BMPPlugin) cacheOpenPDU(se *rpc.StructuredEvent) {
 		pair.received = pdu
 	}
 	bp.mu.Unlock()
+}
+
+// cacheNotificationPDU caches the BGP NOTIFICATION PDU a peer exchanged, with
+// the direction it traveled in, so the peer-down event that follows can carry
+// it as the Data of its Peer Down.
+//
+// RFC 7854 Section 4.9: "Reason 1: The local system closed the session.
+// Following the Reason is a BGP PDU containing a BGP NOTIFICATION message that
+// would have been sent to the peer." A BGP PDU is the whole message, so the
+// 19-byte header StructuredEvent does not carry is synthesized here, exactly as
+// cacheOpenPDU does for the OPEN.
+//
+// The last NOTIFICATION wins. RFC 4271 Section 6 closes the connection as soon
+// as one is sent or received, so a second one only exists when the two crossed
+// on the wire, and the later event is the one that describes this teardown.
+func (bp *BMPPlugin) cacheNotificationPDU(se *rpc.StructuredEvent) {
+	rawBytes, msgType := rawUpdateBytes(se)
+	if rawBytes == nil || msgType != msgtype.TypeNOTIFICATION {
+		return
+	}
+
+	notify := &notifyPDU{
+		pdu:  bgpPDU(msgtype.TypeNOTIFICATION, rawBytes),
+		sent: se.Direction == rpc.DirectionSent,
+	}
+
+	bp.mu.Lock()
+	if bp.notifyCache == nil {
+		bp.notifyCache = make(map[string]*notifyPDU)
+	}
+	bp.notifyCache[se.PeerAddress] = notify
+	bp.mu.Unlock()
+}
+
+// peerDownCause is the RFC 7854 Section 4.9 Reason and the Data that reason
+// obliges, for one peer that has left Established.
+type peerDownCause struct {
+	reason uint8
+	data   []byte
+}
+
+// fsmEventNone is the Data of a reason 2 Peer Down.
+//
+// RFC 7854 Section 4.9: "Reason 2: The local system closed the session.  No
+// notification message was sent.  Following the reason code is a 2-byte field
+// containing the code corresponding to the Finite State Machine (FSM) Event
+// that caused the system to close the session (see Section 8.1 of [RFC4271]).
+// Two bytes both set to 0 are used to indicate that no relevant Event code is
+// defined."
+//
+// Ze reports the zero form because the close reason it is handed names no FSM
+// event: Peer.Run sends "session closed" or "connection lost"
+// (internal/component/bgp/reactor/peer_run.go), and neither is an RFC 4271
+// Section 8.1 event code. Reporting an event code ze did not observe would put
+// a number the collector can act on behind a guess.
+//
+// Read-only: writePeerDown copies it into the message buffer.
+var fsmEventNone = []byte{0, 0}
+
+// clearPeerState drops everything the plugin holds for a peer that has left
+// Established, and answers with the Peer Down that event owes the collectors.
+//
+// One function for the two jobs because they read one piece of state: the Data
+// of a reason 1 or reason 3 Peer Down is the NOTIFICATION PDU, and this
+// teardown is what removes it. Splitting them would leave the cache entry alive
+// for a peer with no collector attached, or make the Peer Down read a cache the
+// teardown had already emptied.
+func (bp *BMPPlugin) clearPeerState(se *rpc.StructuredEvent) peerDownCause {
+	bp.mu.Lock()
+	notify := bp.notifyCache[se.PeerAddress]
+	delete(bp.openCache, se.PeerAddress)
+	delete(bp.notifyCache, se.PeerAddress)
+	delete(bp.dedupState, se.PeerAddress)
+	delete(bp.dedupCount, se.PeerAddress)
+	delete(bp.peerUps, se.PeerAddress)
+	bp.mu.Unlock()
+
+	return peerDownFor(notify, se.Reason)
+}
+
+// peerDownFor chooses the RFC 7854 Section 4.9 Reason, and the Data that reason
+// makes mandatory, from what ze OBSERVED on the session.
+//
+// The NOTIFICATION decides, because the RFC ties the two together. Section 4.9
+// reason 1 is "The local system closed the session.  Following the Reason is a
+// BGP PDU containing a BGP NOTIFICATION message that would have been sent to
+// the peer", and reason 3 is the same sentence for one "as received from the
+// peer". A reason ze cannot supply the Data for is a reason ze must not send,
+// so the cached PDU is what makes reason 1 and reason 3 reachable at all.
+//
+// The close-reason string answers the one case no NOTIFICATION describes: a
+// peer the operator removed from the configuration. Reason 5 is "Information
+// for this peer will no longer be sent to the monitoring station for
+// configuration reasons", and the figure in the same section gives it no Data.
+//
+// Everything else is reason 2 with the two-byte zero event code (fsmEventNone).
+func peerDownFor(notify *notifyPDU, reason string) peerDownCause {
+	if notify != nil {
+		if notify.sent {
+			return peerDownCause{reason: PeerDownLocalNotify, data: notify.pdu}
+		}
+		return peerDownCause{reason: PeerDownRemoteNotify, data: notify.pdu}
+	}
+	if reason == rpc.ReasonPeerRemoved {
+		return peerDownCause{reason: PeerDownDeconfigured}
+	}
+	return peerDownCause{reason: PeerDownLocalNoNotify, data: fsmEventNone}
 }
 
 // recordPeerUp captures the Peer Up state of a peer that has just reached
@@ -295,7 +418,10 @@ func (bp *BMPPlugin) bounceMonitoredPeers(senders []*senderSession) {
 }
 
 // handleSenderState sends Peer Up or Peer Down to all collectors.
-func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*senderSession) {
+//
+// cause carries the Peer Down reason and its Data, built by clearPeerState for
+// this same event. It is read on the down arm alone.
+func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*senderSession, cause peerDownCause) {
 	peer := peerHeaderFromEvent(se)
 
 	switch se.State { //nolint:exhaustive // only up/down are actionable for BMP
@@ -318,9 +444,14 @@ func (bp *BMPPlugin) handleSenderState(se *rpc.StructuredEvent, senders []*sende
 			}
 		}
 	case rpc.SessionStateDown:
-		reason := peerDownReasonFromString(se.Reason)
+		// RFC 7854 Section 4.9: "Data (present if Reason = 1, 2 or 3)". The
+		// Data is not decoration: a collector that decodes to the figure reads
+		// the NOTIFICATION PDU, or the 2-byte FSM event code, straight after
+		// the reason byte, so a Peer Down that omits it for one of those three
+		// reasons runs the collector off the end of the message. peerDownFor
+		// pairs each reason with the Data it obliges.
 		for _, ss := range senders {
-			if err := ss.writePeerDown(peer, reason, nil); err != nil {
+			if err := ss.writePeerDown(peer, cause.reason, cause.data); err != nil {
 				logger().Debug("bmp: sender peer down failed", "collector", ss.name, "error", err)
 			}
 		}
@@ -390,7 +521,7 @@ func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*send
 	if rawBytes == nil {
 		return
 	}
-	if bp.duplicateUpdate(se.PeerAddress, received, rawBytes) {
+	if bp.duplicateUpdate(se.PeerAddress, received, withdrawsRoutes(rawBytes), rawBytes) {
 		return
 	}
 	if !stream {
@@ -405,10 +536,101 @@ func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*send
 	}
 }
 
+// withdrawsRoutes reports whether an UPDATE body retracts anything: a non-empty
+// Withdrawn Routes field, or an MP_UNREACH_NLRI attribute.
+//
+// RFC 4271 Section 4.3 fixes the body layout this walks: "Withdrawn Routes
+// Length: This 2-octet unsigned integer indicates the total length of the
+// Withdrawn Routes field in octets." RFC 4760 Section 3 gives the
+// multiprotocol form: "MP_UNREACH_NLRI (Type Code 15): This is an optional
+// non-transitive attribute that can be used for the purpose of withdrawing
+// multiple unfeasible routes from service."
+//
+// A body that does not parse answers TRUE rather than false. The answer gates
+// a dedup memo, and the two mistakes do not cost the same: forgetting a body ze
+// has seen costs one redundant Route Monitoring message, while keeping one
+// costs the collector a route it believes withdrawn (ai/rules/principles.md).
+// Nothing here indexes past len(body), so a hostile peer reaches an answer and
+// never a panic.
+func withdrawsRoutes(body []byte) bool {
+	// Withdrawn Routes Length (2) and Total Path Attribute Length (2).
+	if len(body) < 4 {
+		return true
+	}
+	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
+	if withdrawnLen > 0 {
+		return true
+	}
+
+	off := 2 + withdrawnLen
+	if off+2 > len(body) {
+		return true
+	}
+	end := off + 2 + int(binary.BigEndian.Uint16(body[off:off+2]))
+	off += 2
+	if end > len(body) {
+		return true
+	}
+
+	// RFC 4271 Section 4.3: each path attribute is "a triple <attribute type,
+	// attribute length, attribute value>", where the type is two octets and
+	// the Extended Length bit of the flags octet says whether the length is
+	// one octet or two.
+	for off < end {
+		if off+2 > end {
+			return true
+		}
+		extended := attribute.AttributeFlags(body[off])&attribute.FlagExtLength != 0
+		code := body[off+1]
+		off += 2
+
+		var length int
+		if extended {
+			if off+2 > end {
+				return true
+			}
+			length = int(binary.BigEndian.Uint16(body[off : off+2]))
+			off += 2
+		} else {
+			if off+1 > end {
+				return true
+			}
+			length = int(body[off])
+			off++
+		}
+
+		if code == byte(attribute.AttrMPUnreachNLRI) {
+			return true
+		}
+		off += length
+		if off > end {
+			return true
+		}
+	}
+	return false
+}
+
 // duplicateUpdate reports whether this peer already carried this UPDATE body in
 // this direction, and records the body when it did not. A duplicate in the
 // RECEIVED direction also increments the peer's RFC 7854 Section 4.8 Stat Type
 // 13 counter, "Number of duplicate update messages received".
+//
+// withdraws says this body retracts a route (withdrawsRoutes), and it is what
+// keeps the memo from outliving the state it describes. RFC 7854 Section 5:
+// "Ongoing monitoring is accomplished by propagating route changes in BGP
+// Update PDUs and forwarding those PDUs to the monitoring station." A
+// withdrawal contradicts every body the memo holds for that peer, so announce
+// P, withdraw P, re-announce the byte-identical P must reach the collector;
+// suppressing the third message leaves the collector holding the withdrawal
+// while ze advertises the route. A body that WITHDRAWS therefore empties the
+// peer's set before recording itself, which keeps the compression Section 4.6
+// permits ("Route monitoring messages are state-compressed") for the repeat of
+// the withdrawal itself and for any announcement that follows it.
+//
+// The set is emptied for both directions at once, because a peer's two
+// directions share one map (dedupSentSalt). That errs toward sending: the
+// Adj-RIB-Out stream loses some compression on a peer that withdraws, and no
+// stream loses a change.
 //
 // The two directions occupy one hash set per peer, separated by dedupSentSalt,
 // and that set is capped at maxDedupPerPeer entries. Past the cap a repeated
@@ -418,7 +640,7 @@ func (bp *BMPPlugin) handleSenderUpdate(se *rpc.StructuredEvent, senders []*send
 // Caller MUST NOT hold bp.mu. The hasher is reused without a lock because only
 // the plugin's one event-delivery goroutine reaches this function (BMPPlugin,
 // dedupHasher).
-func (bp *BMPPlugin) duplicateUpdate(address string, received bool, rawBytes []byte) bool {
+func (bp *BMPPlugin) duplicateUpdate(address string, received, withdraws bool, rawBytes []byte) bool {
 	if bp.dedupState == nil {
 		return false
 	}
@@ -445,6 +667,9 @@ func (bp *BMPPlugin) duplicateUpdate(address string, received bool, rawBytes []b
 			bp.dedupCount[address]++
 		}
 		return true
+	}
+	if withdraws {
+		clear(seen)
 	}
 	if len(seen) < maxDedupPerPeer {
 		seen[key] = struct{}{}
@@ -491,23 +716,6 @@ func parseIPInto(addr string, out *[16]byte) {
 		return
 	}
 	*out = parsed.As16()
-}
-
-// peerDownReasonFromString maps a ze close reason string to a BMP Peer Down reason code.
-func peerDownReasonFromString(reason string) uint8 {
-	switch reason {
-	case "notification":
-		return PeerDownLocalNotify
-	case "tcp-failure", "timer-expired":
-		return PeerDownLocalNoNotify
-	case "remote-notification":
-		return PeerDownRemoteNotify
-	case "remote-close":
-		return PeerDownRemoteNoData
-	case "config-changed", "deconfigured":
-		return PeerDownDeconfigured
-	}
-	return PeerDownLocalNoNotify // default for unknown reasons
 }
 
 // rawUpdateBytes returns the BGP message body bytes (without the 19-byte BGP

@@ -11,7 +11,6 @@ package bmp
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"hash"
@@ -146,6 +145,19 @@ type openPair struct {
 	received []byte // complete BGP OPEN (marker + length + type + body)
 }
 
+// notifyPDU caches the BGP NOTIFICATION PDU that ended a session, and the
+// direction it traveled in. Populated by notification message events, consumed
+// by the Peer Down on state change.
+//
+// RFC 7854 Section 4.9 makes the pair decide the Peer Down outright: sent is
+// reason 1 ("The local system closed the session.  Following the Reason is a
+// BGP PDU containing a BGP NOTIFICATION message that would have been sent to
+// the peer"), received is reason 3.
+type notifyPDU struct {
+	pdu  []byte // complete BGP NOTIFICATION (marker + length + type + body)
+	sent bool   // true when ze sent it, false when the peer did
+}
+
 // dumpScope marks a full-table Loc-RIB replay this plugin requested. session
 // names the one collector session the dump is for; nil session means every
 // connected session (the dump requested when Loc-RIB monitoring starts, which
@@ -227,9 +239,19 @@ type BMPPlugin struct {
 	mu     sync.RWMutex
 	state  *bmpState
 
-	// Receiver state.
-	listeners []net.Listener
+	// Receiver state. listeners is keyed by the CONFIGURED listen address
+	// (net.JoinHostPort of the `ip` and `port` leaves), not by what the socket
+	// reports back: the key has to match the configuration a reload is compared
+	// against, and a wildcard bind answers `[::]:11019` for `0.0.0.0:11019`.
+	// Protected by mu.
+	listeners map[string]net.Listener
 	sessions  sync.WaitGroup
+
+	// maxSessions is the `max-sessions` leaf, read by acceptLoop on each
+	// accept so a reload changes the cap without rebinding a socket. Atomic
+	// rather than under mu because the accept path must not wait on a config
+	// apply that is closing another listener.
+	maxSessions atomic.Uint32
 
 	// Sender state. All three are protected by mu: the sender set and the two
 	// config leaves are written on the configure path and read on the plugin's
@@ -268,6 +290,14 @@ type BMPPlugin struct {
 	// Key is peer address string. Populated by OPEN message events,
 	// consumed by state events. Protected by mu.
 	openCache map[string]*openPair
+
+	// notifyCache stores the last BGP NOTIFICATION PDU each peer exchanged and
+	// the direction it traveled in. Key is peer address string. Populated by
+	// notification message events, consumed and removed by the peer-down state
+	// event that follows (clearPeerState). It is what makes the Data field RFC
+	// 7854 Section 4.9 requires on a reason 1 or reason 3 Peer Down reachable.
+	// Protected by mu.
+	notifyCache map[string]*notifyPDU
 
 	// dumpScope describes the full-table Loc-RIB replay THIS plugin currently
 	// has in flight, published only for the duration of its replay-request Emit.
@@ -364,6 +394,7 @@ func runBMPPlugin(conn net.Conn) int {
 		plugin:      p,
 		state:       newBMPState(),
 		openCache:   make(map[string]*openPair),
+		notifyCache: make(map[string]*notifyPDU),
 		peerUps:     make(map[string]*peerUpState),
 		dedupState:  make(map[string]map[uint64]struct{}),
 		dedupCount:  make(map[string]uint32),
@@ -425,6 +456,12 @@ func (bp *BMPPlugin) registerCallbacks() {
 	currentSender := defaultSenderConfig()
 	var pendingSender, replacedSender *senderConfig
 
+	// The same three for the RECEIVER, which reloads on the `environment` root.
+	// currentReceiver starts empty because the plugin boots with no listener
+	// bound, so a rollback to it closes whatever the rolled-back apply opened.
+	currentReceiver := &receiverConfig{}
+	var pendingReceiver, replacedReceiver *receiverConfig
+
 	p.OnExecuteCommand(func(serial, command string, args []string, peer string) (string, any, error) {
 		return bp.handleCommand(command)
 	})
@@ -466,9 +503,8 @@ func (bp *BMPPlugin) registerCallbacks() {
 					logger().Error("bmp: receiver config parse failed", "error", err)
 					return err
 				}
-				if rcv.Enabled == yangTrue && len(rcv.Servers) > 0 {
-					bp.startReceiver(rcv)
-				}
+				bp.applyReceiverConfig(rcv)
+				currentReceiver = rcv
 			case configRootBGP:
 				snd, err := parseSenderConfig(section.Data)
 				if err != nil {
@@ -486,7 +522,11 @@ func (bp *BMPPlugin) registerCallbacks() {
 	// by serveOne in Plugin.Run, and its handler is never filed in the SDK's
 	// dispatch map (OnConfigure, pkg/plugin/sdk/sdk_callbacks.go). The reload
 	// rail is config-verify, config-apply and config-rollback, so all three are
-	// wired below and both rails end in applySenderConfig.
+	// wired below, and each one ends in the same two functions the Stage-2
+	// handler above ends in: applySenderConfig for the `bgp` root, and
+	// applyReceiverConfig for the `environment` root. Both roots, because the
+	// plugin asks for both (WantsConfig), and a root it is handed and does not
+	// re-apply is a reload that reports success and changes nothing.
 	//
 	// Registering them is what makes a reload reach the sender at all: the SDK
 	// answers each of the three with an accept-and-do-nothing default when no
@@ -500,16 +540,25 @@ func (bp *BMPPlugin) registerCallbacks() {
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		pendingSender = nil
 		replacedSender = nil
+		pendingReceiver = nil
+		replacedReceiver = nil
 		for _, section := range sections {
-			if section.Root != configRootBGP {
-				continue
+			switch section.Root {
+			case configRootBGP:
+				snd, err := parseSenderConfig(section.Data)
+				if err != nil {
+					logger().Error("bmp: sender config parse failed", "error", err)
+					return err
+				}
+				pendingSender = snd
+			case configRootEnvironment:
+				rcv, err := parseReceiverConfig(section.Data)
+				if err != nil {
+					logger().Error("bmp: receiver config parse failed", "error", err)
+					return err
+				}
+				pendingReceiver = rcv
 			}
-			snd, err := parseSenderConfig(section.Data)
-			if err != nil {
-				logger().Error("bmp: sender config parse failed", "error", err)
-				return err
-			}
-			pendingSender = snd
 		}
 		return nil
 	})
@@ -522,6 +571,12 @@ func (bp *BMPPlugin) registerCallbacks() {
 	// there. RFC 8671 Section 7.2 owes a bounce to a change in behavior, and
 	// most of what arrives here is not one.
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
+		if pendingReceiver != nil {
+			replacedReceiver = currentReceiver
+			currentReceiver = pendingReceiver
+			pendingReceiver = nil
+			bp.applyReceiverConfig(currentReceiver)
+		}
 		if pendingSender == nil {
 			return nil
 		}
@@ -540,6 +595,11 @@ func (bp *BMPPlugin) registerCallbacks() {
 	// transaction whose apply changed nothing restores the same configuration,
 	// which applySenderConfig reads as no change and acts on as one.
 	p.OnConfigRollback(func(_ string) error {
+		if replacedReceiver != nil {
+			currentReceiver = replacedReceiver
+			replacedReceiver = nil
+			bp.applyReceiverConfig(currentReceiver)
+		}
 		if replacedSender == nil {
 			return nil
 		}
@@ -555,88 +615,6 @@ func (bp *BMPPlugin) registerCallbacks() {
 func closeLog(c interface{ Close() error }, what string) {
 	if err := c.Close(); err != nil {
 		logger().Debug("bmp: close failed", "what", what, "error", err)
-	}
-}
-
-// parseReceiverConfig extracts BMP receiver config from the environment section JSON.
-// The JSON is {"environment": {"bmp": {...}}} (wrapped by ExtractConfigSubtree).
-func parseReceiverConfig(data string) (*receiverConfig, error) {
-	var sec environmentSection
-	if err := json.Unmarshal([]byte(data), &sec); err != nil {
-		return nil, fmt.Errorf("bmp receiver config: %w", err)
-	}
-	if sec.Environment == nil || sec.Environment.BMP == nil {
-		return &receiverConfig{}, nil
-	}
-	return sec.Environment.BMP, nil
-}
-
-// startReceiver starts TCP listeners for the BMP receiver.
-func (bp *BMPPlugin) startReceiver(cfg *receiverConfig) {
-	bp.mu.Lock()
-	defer bp.mu.Unlock()
-
-	if cfg.RouteAction == "redistribute" {
-		logger().Warn("bmp: route-action redistribute is not yet implemented, using monitor")
-	}
-	logger().Info("bmp: receiver route-action: monitor (BMP RIB for visibility)")
-	maxSess := parseUint16(cfg.MaxSessions, 100)
-	for _, srv := range cfg.Servers {
-		addr := net.JoinHostPort(srv.IP, srv.Port)
-		var lc net.ListenConfig
-		ln, err := lc.Listen(context.Background(), "tcp", addr)
-		if err != nil {
-			logger().Error("bmp: listener bind failed", "address", addr, "error", err)
-			continue
-		}
-		bp.listeners = append(bp.listeners, ln)
-		logger().Info("bmp: receiver listening", "address", addr)
-
-		bp.sessions.Go(func() {
-			bp.acceptLoop(ln, maxSess)
-		})
-	}
-}
-
-// stopListeners closes all receiver listeners.
-func (bp *BMPPlugin) stopListeners() {
-	bp.mu.Lock()
-	defer bp.mu.Unlock()
-
-	for _, ln := range bp.listeners {
-		if err := ln.Close(); err != nil {
-			logger().Debug("bmp: listener close", "error", err)
-		}
-	}
-	bp.listeners = nil
-}
-
-// acceptLoop accepts BMP connections on the listener until it is closed.
-func (bp *BMPPlugin) acceptLoop(ln net.Listener, maxSessions uint16) {
-	var active atomic.Int32
-
-	for {
-		conn, err := ln.Accept()
-		if err != nil {
-			if bp.isStopping() {
-				return
-			}
-			logger().Warn("bmp: accept failed", "error", err)
-			return
-		}
-
-		// Increment before goroutine spawn to avoid TOCTOU race at the limit.
-		if int(active.Add(1)) > int(maxSessions) {
-			active.Add(-1)
-			logger().Warn("bmp: max sessions reached, rejecting", "remote", conn.RemoteAddr())
-			closeLog(conn, "rejected-conn")
-			continue
-		}
-
-		bp.sessions.Go(func() {
-			defer active.Add(-1)
-			bp.handleSession(conn)
-		})
 	}
 }
 

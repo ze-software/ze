@@ -30,10 +30,11 @@ func TestBMPSessionAccepts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	bp.listeners = append(bp.listeners, ln)
+	bp.listeners = map[string]net.Listener{ln.Addr().String(): ln}
+	bp.maxSessions.Store(10)
 
 	bp.sessions.Go(func() {
-		bp.acceptLoop(ln, 10)
+		bp.acceptLoop(ln.Addr().String(), ln)
 	})
 
 	// Connect and send Initiation message.
@@ -86,10 +87,11 @@ func TestBMPMalformedHeaderDrops(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	bp.listeners = append(bp.listeners, ln)
+	bp.listeners = map[string]net.Listener{ln.Addr().String(): ln}
+	bp.maxSessions.Store(10)
 
 	bp.sessions.Go(func() {
-		bp.acceptLoop(ln, 10)
+		bp.acceptLoop(ln.Addr().String(), ln)
 	})
 
 	// Connect and send invalid BMP (version 2).
@@ -203,10 +205,11 @@ func TestBMPMaxSessionsRejects(t *testing.T) {
 	if err != nil {
 		t.Fatalf("listen: %v", err)
 	}
-	bp.listeners = append(bp.listeners, ln)
+	bp.listeners = map[string]net.Listener{ln.Addr().String(): ln}
+	bp.maxSessions.Store(1) // max 1 session
 
 	bp.sessions.Go(func() {
-		bp.acceptLoop(ln, 1) // max 1 session
+		bp.acceptLoop(ln.Addr().String(), ln)
 	})
 
 	// First connection: should be accepted.

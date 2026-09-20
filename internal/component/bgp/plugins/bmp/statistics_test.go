@@ -127,14 +127,14 @@ func awaitStatisticsReports(t *testing.T, conn net.Conn, want int, budget time.D
 func TestBMPDuplicateUpdateCountsReceivedRepeatsOnly(t *testing.T) {
 	bp := &BMPPlugin{dedupState: make(map[string]map[uint64]struct{}), stopCh: make(chan struct{})}
 
-	if bp.duplicateUpdate(statisticsPeer, true, statisticsUpdateBody) {
+	if bp.duplicateUpdate(statisticsPeer, true, false, statisticsUpdateBody) {
 		t.Fatal("the first received UPDATE was read as a duplicate")
 	}
 	if count := duplicateCount(bp); count != 0 {
 		t.Errorf("counter = %d after one received UPDATE, want 0", count)
 	}
 
-	if !bp.duplicateUpdate(statisticsPeer, true, statisticsUpdateBody) {
+	if !bp.duplicateUpdate(statisticsPeer, true, false, statisticsUpdateBody) {
 		t.Fatal("the same body received twice was not read as a duplicate")
 	}
 	if count := duplicateCount(bp); count != 1 {
@@ -143,7 +143,7 @@ func TestBMPDuplicateUpdateCountsReceivedRepeatsOnly(t *testing.T) {
 
 	// A different body is not a repeat, so a detector that answered
 	// "duplicate" for everything fails here rather than passing the line above.
-	if bp.duplicateUpdate(statisticsPeer, true, statisticsUpdateOther) {
+	if bp.duplicateUpdate(statisticsPeer, true, false, statisticsUpdateOther) {
 		t.Error("a body with different NLRI was read as a duplicate")
 	}
 	if count := duplicateCount(bp); count != 1 {
@@ -152,10 +152,10 @@ func TestBMPDuplicateUpdateCountsReceivedRepeatsOnly(t *testing.T) {
 
 	// The SENT direction keeps its own hash set, so the body ze already
 	// RECEIVED is new on the way out, and its repeat counts nothing.
-	if bp.duplicateUpdate(statisticsPeer, false, statisticsUpdateBody) {
+	if bp.duplicateUpdate(statisticsPeer, false, false, statisticsUpdateBody) {
 		t.Error("a body ze received was read as a duplicate of itself on the way out")
 	}
-	if !bp.duplicateUpdate(statisticsPeer, false, statisticsUpdateBody) {
+	if !bp.duplicateUpdate(statisticsPeer, false, false, statisticsUpdateBody) {
 		t.Error("the same body sent twice was not read as a duplicate")
 	}
 	if count := duplicateCount(bp); count != 1 {
@@ -566,5 +566,44 @@ func TestRFC8671StatisticsReportOnTheWireClearsTheOFlag(t *testing.T) {
 	}
 	if sr.Peer.Flags&PeerFlagL == 0 {
 		t.Errorf("per-peer flags = %#x, clearing the O flag must leave the L flag alone", sr.Peer.Flags)
+	}
+}
+
+// TestBMPWithdrawnPrefixCanBeAnnouncedAgain holds the dedup memo to what it is
+// for: suppressing a REPEAT, not suppressing a change.
+//
+// VALIDATES: announce P, withdraw P, announce P again with identical bytes
+//
+//	reaches the collector all three times.
+//
+// PREVENTS: the collector holding the withdrawal for as long as the session
+// lives. The memo was cleared only on session down, so the third message
+// hashed to a body already seen and was dropped, and the collector's view of
+// the RIB then disagreed with ze's for every prefix that ever flapped.
+// RFC 7854 Section 5: Route Monitoring "provide[s] an initial dump of all
+// routes received from a peer, as well as an ongoing mechanism that sends the
+// incremental routes advertised and withdrawn by a peer to a monitoring
+// station", so a re-advertisement is one of the changes it exists to carry.
+func TestBMPWithdrawnPrefixCanBeAnnouncedAgain(t *testing.T) {
+	bp := &BMPPlugin{dedupState: make(map[string]map[uint64]struct{}), stopCh: make(chan struct{})}
+
+	if bp.duplicateUpdate(statisticsPeer, true, false, statisticsUpdateBody) {
+		t.Fatal("the first announcement was read as a duplicate")
+	}
+	// The withdrawal carries different bytes and clears what the peer held.
+	if bp.duplicateUpdate(statisticsPeer, true, true, statisticsUpdateOther) {
+		t.Fatal("the withdrawal was read as a duplicate")
+	}
+	if bp.duplicateUpdate(statisticsPeer, true, false, statisticsUpdateBody) {
+		t.Fatal("the re-announcement of a withdrawn prefix was read as a duplicate, " +
+			"so the collector keeps the withdrawal and ze keeps the route")
+	}
+	if count := duplicateCount(bp); count != 0 {
+		t.Errorf("counter = %d, want 0: none of the three messages is a repeat", count)
+	}
+
+	// The memo still works: an immediate repeat of the re-announcement is one.
+	if !bp.duplicateUpdate(statisticsPeer, true, false, statisticsUpdateBody) {
+		t.Error("clearing on a withdrawal disabled the memo for everything after it")
 	}
 }

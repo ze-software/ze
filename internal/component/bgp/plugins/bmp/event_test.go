@@ -100,25 +100,34 @@ func TestPeerHeaderFromEventAdjRIBIn(t *testing.T) {
 	}
 }
 
+// TestPeerDownReasonMapping holds peerDownFor to the pairing RFC 7854
+// Section 4.9 fixes between a reason and its Data. The goal is that no reason
+// can be chosen without the Data that reason obliges, so each case asserts
+// both halves.
 func TestPeerDownReasonMapping(t *testing.T) {
+	pdu := []byte{0xde, 0xad}
+
 	tests := []struct {
-		reason string
-		want   uint8
+		name       string
+		notify     *notifyPDU
+		closeText  string
+		wantReason uint8
+		wantData   []byte
 	}{
-		{"notification", PeerDownLocalNotify},
-		{"tcp-failure", PeerDownLocalNoNotify},
-		{"timer-expired", PeerDownLocalNoNotify},
-		{"remote-notification", PeerDownRemoteNotify},
-		{"remote-close", PeerDownRemoteNoData},
-		{"config-changed", PeerDownDeconfigured},
-		{"deconfigured", PeerDownDeconfigured},
-		{"unknown", PeerDownLocalNoNotify},
+		{"ze sent a notification", &notifyPDU{pdu: pdu, sent: true}, "session closed", PeerDownLocalNotify, pdu},
+		{"the peer sent a notification", &notifyPDU{pdu: pdu}, "connection lost", PeerDownRemoteNotify, pdu},
+		{"the peer was removed", nil, rpc.ReasonPeerRemoved, PeerDownDeconfigured, nil},
+		{"no notification, session closed", nil, "session closed", PeerDownLocalNoNotify, []byte{0, 0}},
+		{"no notification, connection lost", nil, "connection lost", PeerDownLocalNoNotify, []byte{0, 0}},
 	}
 	for _, tt := range tests {
-		t.Run(tt.reason, func(t *testing.T) {
-			got := peerDownReasonFromString(tt.reason)
-			if got != tt.want {
-				t.Errorf("peerDownReasonFromString(%q) = %d, want %d", tt.reason, got, tt.want)
+		t.Run(tt.name, func(t *testing.T) {
+			got := peerDownFor(tt.notify, tt.closeText)
+			if got.reason != tt.wantReason {
+				t.Errorf("reason = %d, want %d", got.reason, tt.wantReason)
+			}
+			if !bytes.Equal(got.data, tt.wantData) {
+				t.Errorf("data = %x, want %x", got.data, tt.wantData)
 			}
 		})
 	}
@@ -286,8 +295,11 @@ func TestBMPPeerUpSkippedOnCacheMiss(t *testing.T) {
 	bp.handleStructuredEvent(se)
 }
 
-// RFC requirement: RFC7854-x-10 positive -- Peer Down carries a Reason code:
-// the emitted PeerDown maps the close cause to PeerDownLocalNotify.
+// RFC requirement: RFC7854-x-10 positive -- Peer Down carries a Reason code and
+// the Data its own row requires: RFC 7854 Section 4.9 draws the field as "Data
+// (present if Reason = 1, 2 or 3)", so a teardown ze closed by NOTIFICATION is
+// reason 1 carrying that PDU, and one with no NOTIFICATION to send is reason 2
+// carrying the two-octet FSM event code, never reason 1 with nothing behind it.
 func TestHandleSenderStatePeerDown(t *testing.T) {
 	// VALIDATES: AC-27 -- peer down event triggers BMP Peer Down to collectors
 
@@ -326,8 +338,70 @@ func TestHandleSenderStatePeerDown(t *testing.T) {
 	if !ok {
 		t.Fatalf("expected *PeerDown, got %T", r.msg)
 	}
+	// Nothing cached a NOTIFICATION for this peer, so there is no PDU to put
+	// behind reason 1. Reason 2 is the honest answer and it carries the FSM
+	// event code the same Section 4.9 row requires.
+	if pd.Reason != PeerDownLocalNoNotify {
+		t.Errorf("reason = %d, want %d: no NOTIFICATION was cached, so reason 1 would announce a PDU that is not there",
+			pd.Reason, PeerDownLocalNoNotify)
+	}
+	if len(pd.Data) != 2 {
+		t.Errorf("reason 2 carries %d octets of Data, want the 2-octet FSM event code", len(pd.Data))
+	}
+}
+
+// TestHandleSenderStatePeerDownCarriesTheNotificationZeSent is the other half of
+// the same Section 4.9 row: where a NOTIFICATION exists, reason 1 is correct AND
+// the PDU rides behind it.
+func TestHandleSenderStatePeerDownCarriesTheNotificationZeSent(t *testing.T) {
+	server, client := net.Pipe()
+	defer closeLog(server, "server")
+	defer closeLog(client, "client")
+
+	bp := &BMPPlugin{
+		state:     newBMPState(),
+		openCache: make(map[string]*openPair),
+		stopCh:    make(chan struct{}),
+		senders: []*senderSession{{
+			name:   "test",
+			conn:   client,
+			stopCh: make(chan struct{}),
+		}},
+	}
+
+	// A Cease ze SENT, which is what makes the teardown reason 1 rather than 3.
+	notification := []byte{6, 4}
+	bp.cacheNotificationPDU(&rpc.StructuredEvent{
+		PeerAddress: "10.0.0.1",
+		Direction:   rpc.DirectionSent,
+		RawMessage:  &bgptypes.RawMessage{Type: msgtype.TypeNOTIFICATION, RawBytes: notification},
+	})
+
+	result := asyncRead(server)
+	bp.handleStructuredEvent(&rpc.StructuredEvent{
+		PeerAddress: "10.0.0.1",
+		PeerAS:      65001,
+		EventType:   rpc.EventKindState,
+		State:       rpc.SessionStateDown,
+		Reason:      "notification",
+	})
+
+	r := <-result
+	if r.err != nil {
+		t.Fatalf("read: %v", r.err)
+	}
+	pd, ok := r.msg.(*PeerDown)
+	if !ok {
+		t.Fatalf("expected *PeerDown, got %T", r.msg)
+	}
 	if pd.Reason != PeerDownLocalNotify {
-		t.Errorf("reason = %d, want %d", pd.Reason, PeerDownLocalNotify)
+		t.Fatalf("reason = %d, want %d for a session ze closed by NOTIFICATION", pd.Reason, PeerDownLocalNotify)
+	}
+	if len(pd.Data) == 0 {
+		t.Fatal("reason 1 carries no Data, so the collector reads past the message")
+	}
+	if !bytes.HasSuffix(pd.Data, notification) {
+		t.Errorf("Data % x does not end in the NOTIFICATION ze sent (% x)", pd.Data, notification)
 	}
 }
 
