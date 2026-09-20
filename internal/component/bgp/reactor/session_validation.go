@@ -356,6 +356,25 @@ func (s *Session) publishBase(wu *wireu.WireUpdate) *wireu.WireUpdate {
 		attrs := sections.Attrs(wu.Payload())
 		attribute.SetPartialOnUnrecognizedTransitive(attrs)
 
+		// RFC 4271 Section 4.3, the requirement the stamp above does not answer:
+		// "For well-known attributes and for optional non-transitive attributes,
+		// the Partial bit MUST be set to 0." RFC 7606 Section 3(c) is why such an
+		// octet reaches ze at all -- it narrows the receive check to "the value of
+		// either the Optional or Transitive bits", so an ORIGIN arriving as 0x60 is
+		// not malformed and is not withdrawn. Without this clear, the route-server
+		// and stored-route relays copy that octet onward byte for byte
+		// (relay_payload.go, writeRelayPayload) and ze puts it back on the wire.
+		//
+		// It belongs here for the same reason the stamp does: these bytes are the
+		// bytes the RIB retains, the bytes a route server relays zero-copy, and the
+		// bytes every rebuild copies the untouched attributes out of.
+		//
+		// The clear and the stamp act on disjoint classes -- an attribute that is
+		// both Optional and Transitive is the stamp's alone -- so no ordering of
+		// the two can undo the other, and the Section 5 bit a previous AS set on an
+		// optional transitive attribute survives both.
+		attribute.ClearPartialOnWellKnownAndNonTransitive(attrs)
+
 		// RFC 4271 Section 5, the other half of the same sentence: "Unrecognized
 		// non-transitive optional attributes MUST be quietly ignored and not passed
 		// along to other BGP peers." Section 9 repeats it. Without this ze relays a

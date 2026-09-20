@@ -5,6 +5,74 @@
 
 package attribute
 
+// ClearPartialOnWellKnownAndNonTransitive clears the Partial bit on every
+// well-known attribute and every optional non-transitive attribute of a
+// path-attribute section, in place, and reports how many attributes it cleared.
+//
+// RFC 4271 Section 4.3: "For well-known attributes and for optional
+// non-transitive attributes, the Partial bit MUST be set to 0."
+//
+// It is the exact complement of SetPartialOnUnrecognizedTransitive, and the two
+// act on disjoint classes, so their order is free. The stamp acts only where the
+// Optional AND Transitive bits are both 1; this walk acts only where at least one
+// of them is 0. No attribute can be in both sets.
+//
+// The two class questions are answered from the flags octet the sender wrote,
+// because Section 4.3 defines both classes out of that same octet: the Optional
+// bit "defines whether the attribute is optional (if set to 1) or well-known (if
+// set to 0)", and the Transitive bit "defines whether an optional attribute is
+// transitive (if set to 1) or non-transitive (if set to 0)". Ze holds no table of
+// the specified flags for each type code, and a plugin registers codes ze knows
+// nothing else about, so a table would be a second declaration of a fact only the
+// attribute's own definition holds.
+//
+// One class is deliberately left alone, and leaving it alone is its own
+// requirement. An OPTIONAL TRANSITIVE attribute keeps whatever Partial bit
+// arrived. RFC 4271 Section 5: a Partial bit "set to 1 by some previous AS ...
+// MUST NOT be set back to 0 by the current AS", and Section 9 requires ze to SET
+// that bit on an unrecognized one. Clearing it there would undo both.
+//
+// It writes only bit 0x20 of a flags octet, so it changes no attribute's code,
+// length, header size or value, and an index built over the same bytes stays
+// valid. It allocates nothing.
+//
+// A section that stops parsing (a header or a value running past the end) clears
+// what it read and returns, for the same reason the stamp does: this runs on the
+// receive path AFTER RFC 7606 validation has accepted the UPDATE, and the early
+// return exists so an in-process caller handing over malformed bytes cannot walk
+// off the end.
+func ClearPartialOnWellKnownAndNonTransitive(section []byte) int {
+	const optionalTransitive = FlagOptional | FlagTransitive
+
+	cleared := 0
+	for pos := 0; pos+3 <= len(section); {
+		flags := AttributeFlags(section[pos])
+
+		hdrLen, valLen := 3, int(section[pos+2])
+		if flags.IsExtLength() {
+			if pos+4 > len(section) {
+				return cleared
+			}
+			hdrLen, valLen = 4, int(section[pos+2])<<8|int(section[pos+3])
+		}
+		if pos+hdrLen+valLen > len(section) {
+			return cleared
+		}
+
+		// Partial set, on an attribute that is not optional transitive. The mask
+		// comparison is the negation of the stamp's: there, all of Optional,
+		// Transitive and a clear Partial had to hold; here it is enough that
+		// Optional and Transitive are not both set.
+		if flags&FlagPartial != 0 && flags&optionalTransitive != optionalTransitive {
+			section[pos] = byte(flags &^ FlagPartial)
+			cleared++
+		}
+
+		pos += hdrLen + valLen
+	}
+	return cleared
+}
+
 // SetPartialOnUnrecognizedTransitive sets the Partial bit on every unrecognized
 // transitive optional attribute of a path-attribute section, in place, and
 // reports how many attributes it stamped.

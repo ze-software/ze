@@ -3,6 +3,17 @@
   "records": [
     {
       "rid": "RFC4271-4.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_relay_partial_test.go::TestRFC4271PartialClearedOnTheRelayedWire",
+      "unit-sha": "2bb87a33c5e0bbcf",
+      "claim-sha": "4ee1ccb23011dd99",
+      "route": "revert",
+      "producer": "internal/core/bgp/attribute/partial.go::ClearPartialOnWellKnownAndNonTransitive",
+      "producer-sha": "4f5ecaa367c3b95c",
+      "break": "body of ClearPartialOnWellKnownAndNonTransitive replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-4.3-2",
       "polarity": "negative",
       "unit": "internal/component/bgp/rib/rfc4271_partial_test.go::TestRFC4271PartialClearedWhenTheRailReadvertises",
       "unit-sha": "a307744d73773bde",
