@@ -315,16 +315,13 @@ func pastTimeOfDay(now time.Time, timeOfDay string) bool {
 	if timeOfDay == "" {
 		return true
 	}
-	if len(timeOfDay) != 5 || timeOfDay[2] != ':' {
-		return true
-	}
-	if !isDigit(timeOfDay[0]) || !isDigit(timeOfDay[1]) || !isDigit(timeOfDay[3]) || !isDigit(timeOfDay[4]) {
-		return true
-	}
-	hh := int(timeOfDay[0]-'0')*10 + int(timeOfDay[1]-'0')
-	mm := int(timeOfDay[3]-'0')*10 + int(timeOfDay[4]-'0')
-	if hh > 23 || mm > 59 {
-		return true
+	hh, mm, ok := clockOf(timeOfDay)
+	if !ok {
+		// Same division as matchesDay: the empty string above is the guard for
+		// "no time configured", and a string this cannot read is a different
+		// fact that used to share its answer. ValidSelfTestTime makes it
+		// unreachable from config.
+		return false
 	}
 	h, m, _ := now.Clock()
 	return h > hh || (h == hh && m >= mm)
@@ -339,9 +336,66 @@ func matchesDay(now time.Time, day string) bool {
 	}
 	wd, ok := weekdayNamed(day)
 	if !ok {
-		return true
+		// An unreadable day is NOT every day. The empty string above is the
+		// guard that means "no day configured"; a word this function cannot
+		// read is a different fact, and sharing that branch with the guard ran
+		// the extended self-test daily on a disk whose operator had asked for
+		// it weekly (plan/journal/silent-fall-through.md).
+		//
+		// ValidSelfTestDay makes this unreachable from config, because the
+		// reader refuses the word and keeps the default. It answers false
+		// rather than true for the case it cannot be reached by: a schedule
+		// that does not fire is visible in the last-test time, and one that
+		// fires every day wears the disk while looking like the schedule the
+		// operator wrote.
+		return false
 	}
 	return now.Weekday() == wd
+}
+
+// ValidSelfTestDay answers whether day names a weekday this schedule can use.
+// An empty string is valid and means every day.
+//
+// It is exported for the config reader (cmd/ze/hub, systemStorageConfig), so
+// the refusal happens where the operator's word arrives rather than in the
+// scheduler, which has no way to tell anybody.
+func ValidSelfTestDay(day string) bool {
+	if day == "" {
+		return true
+	}
+	_, ok := weekdayNamed(day)
+	return ok
+}
+
+// ValidSelfTestTime answers whether timeOfDay is an HH:MM this schedule can
+// use. An empty string is valid and means any time.
+//
+// Exported for the same reason as ValidSelfTestDay, and it reads the same
+// shape pastTimeOfDay does, so the two cannot disagree about what parses.
+func ValidSelfTestTime(timeOfDay string) bool {
+	if timeOfDay == "" {
+		return true
+	}
+	_, _, ok := clockOf(timeOfDay)
+	return ok
+}
+
+// clockOf reads an HH:MM, and is the one place that decides what a time of day
+// looks like. pastTimeOfDay and ValidSelfTestTime both ask it, so a string the
+// validator accepts is a string the scheduler can read.
+func clockOf(timeOfDay string) (hours, minutes int, ok bool) {
+	if len(timeOfDay) != 5 || timeOfDay[2] != ':' {
+		return 0, 0, false
+	}
+	if !isDigit(timeOfDay[0]) || !isDigit(timeOfDay[1]) || !isDigit(timeOfDay[3]) || !isDigit(timeOfDay[4]) {
+		return 0, 0, false
+	}
+	hours = int(timeOfDay[0]-'0')*10 + int(timeOfDay[1]-'0')
+	minutes = int(timeOfDay[3]-'0')*10 + int(timeOfDay[4]-'0')
+	if hours > 23 || minutes > 59 {
+		return 0, 0, false
+	}
+	return hours, minutes, true
 }
 
 func isDigit(b byte) bool {

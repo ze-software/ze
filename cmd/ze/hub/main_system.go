@@ -542,7 +542,11 @@ func extractSmartConfig(tree *zeconfig.Tree) *zestorage.Config {
 				}
 			}
 			if v, ok := shortCfg.Get("time"); ok {
-				cfg.SelfTest.Short.TimeOfDay = v
+				if zestorage.ValidSelfTestTime(v) {
+					cfg.SelfTest.Short.TimeOfDay = v
+				} else {
+					logger.Warn("invalid short self-test time, using default", "value", v)
+				}
 			}
 		}
 		if longCfg := stCfg.GetContainer("long"); longCfg != nil {
@@ -554,10 +558,18 @@ func extractSmartConfig(tree *zeconfig.Tree) *zestorage.Config {
 				}
 			}
 			if v, ok := longCfg.Get("time"); ok {
-				cfg.SelfTest.Long.TimeOfDay = v
+				if zestorage.ValidSelfTestTime(v) {
+					cfg.SelfTest.Long.TimeOfDay = v
+				} else {
+					logger.Warn("invalid long self-test time, using default", "value", v)
+				}
 			}
 			if v, ok := longCfg.Get("day"); ok {
-				cfg.SelfTest.Long.Day = v
+				if zestorage.ValidSelfTestDay(v) {
+					cfg.SelfTest.Long.Day = v
+				} else {
+					logger.Warn("invalid long self-test day, using default", "value", v)
+				}
 			}
 		}
 	}

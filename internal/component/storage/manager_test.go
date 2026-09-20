@@ -197,10 +197,14 @@ func TestPastTimeOfDay(t *testing.T) {
 		{at(1, 59), "02:00", false},
 		{at(3, 0), "02:00", true},
 		{at(0, 0), "", true},
-		{at(0, 0), "invalid", true},
-		{at(0, 0), "ab:cd", true},
-		{at(0, 0), "25:00", true},
-		{at(0, 0), "00:60", true},
+		// A string the scheduler cannot read is NOT "any time". These four
+		// asserted true until 2026-09-20, which pinned the fail-open as the
+		// contract: a malformed HH:MM started the self-test at whatever moment
+		// the poll happened to run (plan/journal/silent-fall-through.md).
+		{at(0, 0), "invalid", false},
+		{at(0, 0), "ab:cd", false},
+		{at(0, 0), "25:00", false},
+		{at(0, 0), "00:60", false},
 		{at(23, 59), "23:59", true},
 		{at(23, 58), "23:59", false},
 	}
@@ -229,7 +233,9 @@ func TestMatchesDay(t *testing.T) {
 		{monday, "monday", true},
 		{wednesday, "wednesday", true},
 		{wednesday, "", true},
-		{wednesday, "foobar", true},
+		// Same correction: a word the scheduler cannot read is not every day.
+		// This asserted true, which is the defect the fix removes.
+		{wednesday, "foobar", false},
 	}
 	for _, tt := range tests {
 		got := matchesDay(tt.now, tt.day)
@@ -364,3 +370,87 @@ func (f *fakeSmartInfo) toInfo() *smartInfo {
 }
 
 type smartInfo = smart.Info
+
+// TestAnUnreadableScheduleWordDoesNotMeanEveryDay pins the division between the
+// two facts that used to share one answer.
+//
+// VALIDATES: an empty day still means every day; a word the scheduler cannot
+// read does not.
+// PREVENTS: the fail-open measured in plan/journal/silent-fall-through.md. An
+// operator who wrote `day sundy` got the EXTENDED self-test started on every
+// poll, on every disk, because `weekdayNamed` answered !ok and matchesDay read
+// that as the same "no day configured" the empty string means. An extended
+// SMART self-test is hours of disk activity; running it daily instead of
+// weekly is wear the operator asked not to have.
+func TestAnUnreadableScheduleWordDoesNotMeanEveryDay(t *testing.T) {
+	// A Wednesday, so a schedule naming Sunday must not fire.
+	now := time.Date(2026, 9, 16, 4, 0, 0, 0, time.UTC)
+
+	if !matchesDay(now, "") {
+		t.Error("an unset day must still mean every day; that guard is what the fix had to keep")
+	}
+	if matchesDay(now, "sunday") {
+		t.Error("a Wednesday matched a schedule naming sunday")
+	}
+	if !matchesDay(now, "wednesday") {
+		t.Error("a Wednesday did not match a schedule naming wednesday")
+	}
+	if matchesDay(now, "sundy") {
+		t.Error("a day the scheduler cannot read was treated as every day, so the extended self-test runs daily")
+	}
+}
+
+// TestAnUnreadableTimeOfDayIsNotAnyTime is the same division for the clock.
+//
+// VALIDATES: an empty time still means any time; an unreadable one does not.
+// PREVENTS: the same fail-open in pastTimeOfDay, which answered true for a
+// malformed HH:MM and so started the self-test at whatever moment the poll
+// happened to run.
+func TestAnUnreadableTimeOfDayIsNotAnyTime(t *testing.T) {
+	now := time.Date(2026, 9, 16, 4, 0, 0, 0, time.UTC)
+
+	if !pastTimeOfDay(now, "") {
+		t.Error("an unset time must still mean any time")
+	}
+	if !pastTimeOfDay(now, "03:00") {
+		t.Error("04:00 is past 03:00")
+	}
+	if pastTimeOfDay(now, "05:00") {
+		t.Error("04:00 is not past 05:00")
+	}
+	if pastTimeOfDay(now, "25:99") {
+		t.Error("a time outside the clock was treated as any time")
+	}
+	if pastTimeOfDay(now, "3am") {
+		t.Error("a time the scheduler cannot read was treated as any time")
+	}
+}
+
+// TestTheConfigValidatorsAgreeWithTheScheduler pins the pair the config reader
+// relies on.
+//
+// VALIDATES: a value ValidSelfTestDay or ValidSelfTestTime accepts is one the
+// scheduler can read, and the reader's refusal is what keeps the branches above
+// unreachable from config.
+// PREVENTS: the validator and the scheduler drifting into two opinions about
+// what parses, which would put the fail-open back by another route
+// (ai/rules/principles.md: one declaration, every other surface derives).
+func TestTheConfigValidatorsAgreeWithTheScheduler(t *testing.T) {
+	for _, day := range []string{"", "sunday", "MONDAY", "sundy", "8", "sun day"} {
+		if valid := ValidSelfTestDay(day); valid != (day == "" || matchesDayReadable(day)) {
+			t.Errorf("ValidSelfTestDay(%q) = %v, but the scheduler disagrees", day, valid)
+		}
+	}
+	for _, clock := range []string{"", "00:00", "23:59", "24:00", "3am", "03:0"} {
+		_, _, readable := clockOf(clock)
+		if valid := ValidSelfTestTime(clock); valid != (clock == "" || readable) {
+			t.Errorf("ValidSelfTestTime(%q) = %v, but the scheduler disagrees", clock, valid)
+		}
+	}
+}
+
+// matchesDayReadable answers whether the scheduler can read this day name.
+func matchesDayReadable(day string) bool {
+	_, ok := weekdayNamed(day)
+	return ok
+}
