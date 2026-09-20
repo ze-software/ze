@@ -143,6 +143,12 @@ traffic-rate-bytes, traffic-rate-packets and traffic-marking. It does not
 perform rt-redirect (Section 7.4), traffic-action (Section 7.3), or the
 redirect-to-nexthop pair of draft-ietf-idr-flowspec-redirect-ip.
 
+Section 7.4 gives rt-redirect three encodings: a two-octet AS, an IPv4 address,
+and a four-octet AS. Ze refuses all three alike. A four-byte-ASN peer therefore
+gets the same answer as a two-byte-ASN peer.
+
+<!-- source: internal/plugins/flowspec-firewall/translate.go -- unperformableAction -->
+
 A route carrying one of those is REFUSED as a whole, logged with the community
 that caused the refusal, and counted in `ze_flowspec_rules_refused_total` under
 the reason `unsupported-action`. Ze does not install the part of the route it
