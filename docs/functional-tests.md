@@ -825,8 +825,13 @@ harness cannot see is fixed first. `ParallelTimeoutHeadroom` widens every budget
 the runner measures a child against, and it cannot reach a deadline the child
 enforces INSIDE its own binary: `ze-test mcp` waited a fixed 10s for the daemon's
 listener, and six of one 32-way run's failures were that one message. The runner
-publishes `ze.test.parallel-factor` into every `cmd=` child's environment so such
-a deadline scales from the same source of truth.
+publishes two values into every `cmd=` child's environment so such a deadline
+scales from the same source of truth. `ze.test.parallel-factor` is the multiplier
+for a child that owns the duration it is scaling. `ze.test.budget` is the resolved
+per-test budget, headroom included, for a child that has no duration of its own to
+scale: a compiled fixture asks `WaitBudget` for a percentage of it rather than
+writing a constant, so the fixture and its `.ci` can no longer disagree about how
+long the daemon has.
 
 The runner does NOT read the job-admission budget. `defaultSlots`
 (`internal/le/job/job.go`) gives the machine one job slot for each core share it
@@ -837,7 +842,8 @@ count, and no code does that today.
 
 <!-- source: internal/le/functional/budget.go -- Parallel, cores, ParallelFloor -->
 <!-- source: internal/le/job/job.go -- defaultSlots -->
-<!-- source: internal/test/runner/parallel.go -- SuiteConcurrencyFloor, DefaultSuiteConcurrency, ParallelTimeoutHeadroom, ParallelFactorEnv -->
+<!-- source: internal/test/runner/parallel.go -- SuiteConcurrencyFloor, DefaultSuiteConcurrency, ParallelTimeoutHeadroom, ParallelFactorEnv, TestBudgetEnv, ChildTestBudget -->
+<!-- source: internal/test/fixture/budget.go -- WaitBudget, WaitAttempts -->
 <!-- source: internal/test/cli/cmd_bgp.go -- the bgp runner's -p default -->
 <!-- source: internal/test/cli/cmd_vpp.go -- the vpp suite's -p default of 1 -->
 <!-- source: internal/test/cli/cmd_mcp.go -- the MCP readiness deadline, scaled by ChildParallelFactor -->

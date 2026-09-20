@@ -54,8 +54,13 @@ func storageEmptyTree(_ context.Context, _ []string) error {
 }
 
 // storageCommand runs the actual daemon binary selected by the functional runner.
+//
+// The deadline is a share of the test's own budget, never a constant. At 25s it
+// decided every case here while the .ci files declared `option=timeout:value=90s`,
+// so the authored budget was inert and a command slowed by contention failed on a
+// number nobody wrote.
 func storageCommand(ctx context.Context, input string, args ...string) ([]byte, error) {
-	deadline, cancel := context.WithTimeout(ctx, 25*time.Second)
+	deadline, cancel := context.WithTimeout(ctx, WaitBudget(75, 25*time.Second))
 	defer cancel()
 	command := exec.CommandContext(deadline, "ze", args...) //nolint:gosec // the fixture chooses the program and its arguments
 	command.Stdin = strings.NewReader(input)

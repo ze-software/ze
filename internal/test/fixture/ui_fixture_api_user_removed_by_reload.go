@@ -19,6 +19,11 @@ import (
 
 const apiUserRemovedByReloadName = "ui/api-user-removed-by-reload"
 
+// uiApiUserRemovedByReloadPollDelay is the cadence of the daemon readiness poll.
+// The COUNT of attempts comes from WaitAttempts, so the wait ends inside the
+// budget the .ci declared rather than after a number written here.
+const uiApiUserRemovedByReloadPollDelay = 100 * time.Millisecond
+
 func init() {
 	Register(apiUserRemovedByReloadName, uiDriver(runAPIUserRemovedByReload))
 }
@@ -385,12 +390,12 @@ func (f *apiUserReloadFixture) startDaemon(stage, logName, configDir string) err
 	}
 
 	ready := false
-	for range 300 {
+	for range WaitAttempts(50, uiApiUserRemovedByReloadPollDelay, 300) {
 		if uiApiUserRemovedByReloadFileExists(readyPath) {
 			ready = true
 			break
 		}
-		if !uiApiUserRemovedByReloadSleepContext(f.ctx, 100*time.Millisecond) {
+		if !uiApiUserRemovedByReloadSleepContext(f.ctx, uiApiUserRemovedByReloadPollDelay) {
 			return f.ctx.Err()
 		}
 	}

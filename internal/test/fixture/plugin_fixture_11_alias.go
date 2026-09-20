@@ -133,18 +133,24 @@ func pipeAnswer(kind, rowsKey string) map[string]any {
 	return map[string]any{fieldKind: kind, fieldVRPCount: 7, rowsKey: pipeRows()}
 }
 
-// daemonReadyAttempts bounds the wait for a fixture daemon's ready file, at one
-// attempt every 100ms, so 450 is 45 seconds.
+// daemonReadyDelay is the cadence of the wait for a fixture daemon's ready file.
+// The COUNT comes from WaitAttempts, so the wait is 75% of the budget the .ci
+// declared, and the fallback 450 is the 45 seconds this constant held when it
+// was written by hand.
 //
-// It was 300 (30 seconds), which is generous on an idle machine and not enough
-// on a loaded one: `./le stress-repro run suite "bgp plugin --draft" test
-// command-catalog-plugin-shape any-failure iterations 80` reproduced "daemon
-// did not become ready" on invocation 49 at 64 burners and 16 parallel, with an
-// empty daemon stderr, so the daemon was still starting when the wait gave up.
-// 45 seconds stays inside the 60-second budget every .ci using this helper
-// declares, which keeps this message the one a starved start reports rather
-// than the runner's timeout.
-const daemonReadyAttempts = 450
+// It was a bare 450, and before that 300 (30 seconds), which is generous on an
+// idle machine and not enough on a loaded one: `./le stress-repro run suite
+// "bgp plugin --draft" test command-catalog-plugin-shape any-failure iterations
+// 80` reproduced "daemon did not become ready" on invocation 49 at 64 burners
+// and 16 parallel, with an empty daemon stderr, so the daemon was still starting
+// when the wait gave up. 45 seconds was then chosen to stay inside the 60-second
+// budget those .ci files declare. That reasoning is the derivation this helper
+// now performs: it kept the two numbers in step by hand, and either one could
+// move without the other.
+const (
+	daemonReadyDelay    = 100 * time.Millisecond
+	daemonReadyFallback = 450
+)
 
 type fixtureDaemon struct {
 	command *exec.Cmd
@@ -198,7 +204,7 @@ func startFixtureDaemon(ctx context.Context, config string) (*fixtureDaemon, []s
 		close(daemon.done)
 	}()
 	readyOK := false
-	for range daemonReadyAttempts {
+	for range WaitAttempts(75, daemonReadyDelay, daemonReadyFallback) {
 		_, addressErr := os.Stat(sshAddr)
 		_, readyErr := os.Stat(ready)
 		if addressErr == nil && readyErr == nil {
@@ -211,7 +217,7 @@ func startFixtureDaemon(ctx context.Context, config string) (*fixtureDaemon, []s
 		case <-ctx.Done():
 			_ = daemon.stop()
 			return nil, nil, ctx.Err()
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(daemonReadyDelay):
 		}
 	}
 	if !readyOK {

@@ -154,10 +154,7 @@ func p12RouteServerReplay(plugin *sdk.Plugin) p12Scenario {
 	})
 
 	return func(ctx context.Context, _ *sdk.Plugin) error {
-		idleWindow := 30 * time.Second
-		if budget, err := time.ParseDuration(os.Getenv("ze_test_budget")); err == nil && budget > 0 {
-			idleWindow = time.Duration(float64(budget) * 0.60)
-		}
+		idleWindow := WaitBudget(60, 30*time.Second)
 		idle := time.NewTimer(idleWindow)
 		defer idle.Stop()
 		hard := time.NewTimer(idleWindow * 8)

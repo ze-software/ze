@@ -19,6 +19,11 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+// plugin15PollDelay is the cadence of every readiness poll in this fixture. The
+// COUNT of attempts comes from WaitAttempts, so the wait ends inside the budget
+// the .ci declared rather than after a number written here.
+const plugin15PollDelay = 100 * time.Millisecond
+
 func plugin15FreePort() (int, error) {
 	// The listener closes on return, so there is nothing to cancel.
 	listener, err := (&net.ListenConfig{}).Listen(context.Background(), "tcp", "127.0.0.1:0")
@@ -137,7 +142,7 @@ system {
 
 	ready := false
 	var host, port string
-	for range 300 {
+	for range WaitAttempts(50, plugin15PollDelay, 300) {
 		select {
 		case waitErr := <-waitCh:
 			exited = true
@@ -156,7 +161,7 @@ system {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(plugin15PollDelay):
 		}
 	}
 	if !ready {
@@ -173,7 +178,7 @@ system {
 		return plugin15RunCommand(ctx, cliEnv, "", "cli", "-c", command)
 	}
 	answered := false
-	for range 200 {
+	for range WaitAttempts(25, plugin15PollDelay, 200) {
 		code, out, stderr, runErr := cli("show bgp rpki | json")
 		if runErr == nil && code == 0 && strings.Contains(out, "vrp-count") {
 			answered = true
@@ -183,7 +188,7 @@ system {
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-time.After(100 * time.Millisecond):
+		case <-time.After(plugin15PollDelay):
 		}
 	}
 	if !answered {

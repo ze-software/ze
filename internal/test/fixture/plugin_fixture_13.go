@@ -379,14 +379,7 @@ func resolvePing13(ctx context.Context, args []string) error {
 }
 
 func replayIdleTimeout13() time.Duration {
-	for _, key := range []string{envTestBudgetDotted, envTestBudgetLower, envTestBudgetUpper} {
-		if raw := os.Getenv(key); raw != "" {
-			if budget, err := time.ParseDuration(raw); err == nil {
-				return budget * 60 / 100
-			}
-		}
-	}
-	return 30 * time.Second
+	return WaitBudget(60, 30*time.Second)
 }
 
 func emptyNLRI13(value any) bool {

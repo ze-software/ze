@@ -197,7 +197,7 @@ func childEnv(extra ...string) []string {
 // itself.
 func (r *Runner) testBudgetEnv(testBudget time.Duration) string {
 	var tb textbuf.Buffer
-	return tb.Str("ze_test_budget=").
+	return tb.Str(TestBudgetEnv).Byte('=').
 		Str(r.withParallelHeadroom(testBudget).String()).
 		String()
 }

@@ -15,14 +15,7 @@ import (
 )
 
 func observerBudgets02() (time.Duration, time.Duration) {
-	for _, key := range []string{envTestBudgetDotted, envTestBudgetLower, envTestBudgetUpper} {
-		if raw := os.Getenv(key); raw != "" {
-			if budget, err := time.ParseDuration(raw); err == nil && budget > 0 {
-				return time.Duration(float64(budget) * 0.60), time.Duration(float64(budget) * 0.25)
-			}
-		}
-	}
-	return 30 * time.Second, 15 * time.Second
+	return WaitBudget(60, 30*time.Second), WaitBudget(25, 15*time.Second)
 }
 
 func routeServerObserver02(name string, expectedPeers int, forwardPrefix string) Driver {

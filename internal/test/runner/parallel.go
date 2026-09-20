@@ -99,6 +99,43 @@ func ChildParallelFactor() int {
 	return max(1, env.GetInt(ParallelFactorEnv, 1))
 }
 
+// TestBudgetEnv carries the wall clock the runner measures one test against,
+// so a child can size the deadlines it enforces inside its own binary against
+// the budget its .ci declared rather than against a constant of its own.
+//
+// The value is already contention-derived: (*Runner).testBudgetEnv writes it
+// through withParallelHeadroom, which is the single place a run's concurrency
+// enters any deadline. A fixture therefore scales with the load the run is
+// under by asking for this value, and it never has to see the factor.
+//
+// One spelling, registered, because internal/core/env reads a dot and an
+// underscore as one separator and is case-insensitive. Four fixtures each
+// carried their own three-spelling os.Getenv loop before this entry existed.
+const TestBudgetEnv = "ze.test.budget"
+
+var _ = env.MustRegister(env.EnvEntry{
+	Key:         TestBudgetEnv,
+	Type:        "duration",
+	Default:     "0",
+	Description: "Set by the functional test runner: the wall clock this test is measured against, contention included",
+	Private:     true,
+})
+
+// ChildTestBudget reports the wall clock the runner gave the test this process
+// is part of. It is 0 when no runner published one, which a caller MUST read as
+// "unknown" rather than "no time": a fixture started by hand has no authored
+// budget to derive from and keeps its own fallback.
+func ChildTestBudget() time.Duration {
+	budget, err := time.ParseDuration(env.Get(TestBudgetEnv))
+	if err != nil {
+		return 0
+	}
+	if budget < 0 {
+		return 0
+	}
+	return budget
+}
+
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.verify.mode", Type: "bool", Description: "Set by the verify runner; suites emit machine-readable failure groups"})
 
 func verifyModeEnabled() bool {

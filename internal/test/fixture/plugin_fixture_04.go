@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
 	"time"
 
@@ -185,15 +184,4 @@ func waitPeerEOR04(ctx context.Context, p *sdk.Plugin) error {
 		return status == statusDone && peer != nil && number04(peer["eor-sent"]) >= 1
 	})
 	return err
-}
-
-func testBudgetDuration04(fallback time.Duration, share float64) time.Duration {
-	for _, key := range []string{envTestBudgetDotted, envTestBudgetLower, envTestBudgetUpper} {
-		if raw := os.Getenv(key); raw != "" {
-			if budget, err := time.ParseDuration(raw); err == nil {
-				return time.Duration(float64(budget) * share)
-			}
-		}
-	}
-	return fallback
 }

@@ -149,7 +149,7 @@ func rsObserver04(expected int, prefix string, requireReplay bool) Driver {
 		result := make(chan error, 1)
 		p.OnAllPluginsReady(func() error {
 			go func() {
-				idleTimeout := testBudgetDuration04(30*time.Second, 0.60)
+				idleTimeout := WaitBudget(60, 30*time.Second)
 				idleDeadline := time.Now().Add(idleTimeout)
 				hardDeadline := time.Now().Add(idleTimeout * 8)
 				needEOR := expected
@@ -233,7 +233,7 @@ func rsObserver04(expected int, prefix string, requireReplay bool) Driver {
 				if requireReplay && (len(eorPeers) < needEOR || !forwardSeen) {
 					scenarioErr = fmt.Errorf("route server did not replay (EOR peers=%d/%d, forward=%t)", len(eorPeers), needEOR, forwardSeen)
 				}
-				shutdownCtx, cancel := context.WithTimeout(context.Background(), testBudgetDuration04(15*time.Second, 0.25))
+				shutdownCtx, cancel := context.WithTimeout(context.Background(), WaitBudget(25, 15*time.Second))
 				defer cancel()
 				_, _, _ = p.DispatchCommand(shutdownCtx, "request shutdown")
 				result <- scenarioErr
