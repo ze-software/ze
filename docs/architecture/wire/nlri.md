@@ -590,6 +590,24 @@ A core family takes the same route to the same answer. `INET` records the flag
 family and renders `{"prefix": ..., "path-id": 0}` rather than a bare prefix
 string when the session carried a Path Identifier of zero.
 
+Two plugin types parse the octets themselves and record the same flag on their
+own value: `VPN` (`hasPath`, set by `ParseVPN` from the negotiation it was
+handed) and `LabeledUnicast` (`hasPath`, set by the caller of
+`NewLabeledUnicast`). Both publish it as `HasPathID()`, which is what
+`vpnToJSON` and the two `String()` renderings read. A reader comparing the
+identifier against zero cannot tell a route that carried one from a route that
+carried none, so no surface does.
+
+The registry ENCODE path carries the same fact the other way. A registered
+encoder answers with the NLRI payload alone -- `vpn.EncodeNLRIHex` and
+`labeled.EncodeNLRIHex` each return the type's `Bytes()`, which excludes the
+identifier by contract -- so `encodeViaRegistry`
+(`internal/component/bgp/plugins/cmd/update/update_text_nlri.go`) prepends the
+four octets itself when the operator wrote `path-information`, and the flag it
+hands `NewWireNLRI` describes the bytes it built. Handing that constructor the
+encoder's bytes under a true flag made `WireNLRI` read the first four octets of
+the payload as the identifier, and `WriteTo` then dropped them.
+
 <!-- source: internal/core/bgp/nlri/nlri.go -- AddPathAware, SplitPathID -->
 <!-- source: internal/component/bgp/format/text_json.go -- appendNLRIJSONValue -->
 <!-- source: internal/component/plugin/registry/registry.go -- DecodeNLRIByFamily -->

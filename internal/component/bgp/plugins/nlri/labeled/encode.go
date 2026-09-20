@@ -144,6 +144,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 	var prefix netip.Prefix
 	var labels []uint32
 	var pathID uint32
+	var hasPathID bool
 	var hasPrefix bool
 
 	for i := 0; i < len(args); i++ {
@@ -179,6 +180,10 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 				return "", fmt.Errorf("invalid path-id: %w", err)
 			}
 			pathID = uint32(v) //nolint:gosec // validated by ParseUint with bitSize 32
+			// RFC 7911 Section 3 reserves no Path Identifier value, so the
+			// keyword is what says one was given. `path-id 0` is a route with
+			// identifier zero, not a route without one.
+			hasPathID = true
 		default:
 			return "", fmt.Errorf("unknown labeled unicast keyword: %s", args[i])
 		}
@@ -191,7 +196,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 		return "", errLabelRequiredForLabeledUnicast
 	}
 
-	n := NewLabeledUnicast(fam, prefix, labels, pathID)
+	n := NewLabeledUnicast(fam, prefix, labels, pathID, hasPathID)
 	nlriBytes := n.Bytes()
 
 	return textbuf.StringHexUpper(nlriBytes), nil
@@ -239,7 +244,9 @@ func EncodeRoute(routeCmd, famName string, localAS uint32, isIBGP, asn4, addPath
 	if len(labels) == 0 {
 		labels = []uint32{0}
 	}
-	labeledNLRI := NewLabeledUnicast(fam, parsed.Prefix, labels, parsed.PathID)
+	// addPath is the session's ADD-PATH negotiation, which is what decides
+	// whether this NLRI carries a Path Identifier at all (RFC 7911 Section 3).
+	labeledNLRI := NewLabeledUnicast(fam, parsed.Prefix, labels, parsed.PathID, addPath)
 	nlriBytes := labeledNLRI.Bytes()
 
 	return updateBody, nlriBytes, nil

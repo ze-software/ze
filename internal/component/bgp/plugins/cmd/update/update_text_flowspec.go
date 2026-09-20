@@ -140,7 +140,7 @@ func parseFlowSpecComponents(args []string, fam family.Family) (nlri.NLRI, int, 
 
 	// Call encoder via registry (in-process fast path).
 	// FlowSpec doesn't support ADD-PATH per RFC 8955.
-	wire, err := encodeViaRegistry(fam, pluginArgs, false)
+	wire, err := encodeViaRegistry(fam, pluginArgs, 0, false)
 	if err != nil {
 		return nil, 0, err
 	}

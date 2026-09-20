@@ -22,7 +22,7 @@ func TestVPNv4WireRoundTrip(t *testing.T) {
 	rd, err := ParseRDString("1:1")
 	require.NoError(t, err)
 
-	original := NewVPN(IPv4VPN, rd, []uint32{100}, netip.MustParsePrefix("10.0.0.0/24"), 0)
+	original := NewVPN(IPv4VPN, rd, []uint32{100}, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 
 	// Encode to wire
 	wireBytes := original.Bytes()
@@ -51,7 +51,7 @@ func TestVPNv6WireRoundTrip(t *testing.T) {
 	rd, err := ParseRDString("2:65000:1")
 	require.NoError(t, err)
 
-	original := NewVPN(IPv6VPN, rd, []uint32{200}, netip.MustParsePrefix("2001:db8::/32"), 0)
+	original := NewVPN(IPv6VPN, rd, []uint32{200}, netip.MustParsePrefix("2001:db8::/32"), 0, false)
 
 	// Encode to wire
 	wireBytes := original.Bytes()
@@ -117,7 +117,7 @@ func TestVPNAllRDTypes(t *testing.T) {
 			rd, err := ParseRDString(tt.rdStr)
 			require.NoError(t, err)
 
-			original := NewVPN(IPv4VPN, rd, []uint32{100}, netip.MustParsePrefix(tt.prefix), 0)
+			original := NewVPN(IPv4VPN, rd, []uint32{100}, netip.MustParsePrefix(tt.prefix), 0, false)
 			wireBytes := original.Bytes()
 
 			parsed, _, err := ParseVPN(AFIIPv4, SAFIVPN, wireBytes, false)
@@ -140,7 +140,7 @@ func TestVPNLabelStack(t *testing.T) {
 
 	// Multiple labels (label stack)
 	labels := []uint32{100, 200, 300}
-	original := NewVPN(IPv4VPN, rd, labels, netip.MustParsePrefix("10.0.0.0/24"), 0)
+	original := NewVPN(IPv4VPN, rd, labels, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 
 	wireBytes := original.Bytes()
 	parsed, _, err := ParseVPN(AFIIPv4, SAFIVPN, wireBytes, false)
@@ -158,7 +158,7 @@ func TestVPNDecodeMode(t *testing.T) {
 	// Build real wire bytes from a VPN struct
 	rd, err := ParseRDString("1:1")
 	require.NoError(t, err)
-	v := NewVPN(IPv4VPN, rd, []uint32{100}, netip.MustParsePrefix("10.0.0.0/24"), 0)
+	v := NewVPN(IPv4VPN, rd, []uint32{100}, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 	hexData := hex.EncodeToString(v.Bytes())
 
 	input := "decode nlri ipv4/mpls-vpn " + hexData + "\n"
@@ -181,7 +181,7 @@ func TestVPNJSONOutput(t *testing.T) {
 	rd, err := ParseRDString("1:1")
 	require.NoError(t, err)
 
-	v := NewVPN(IPv4VPN, rd, []uint32{100}, netip.MustParsePrefix("10.0.0.0/24"), 0)
+	v := NewVPN(IPv4VPN, rd, []uint32{100}, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 	result := vpnToJSON(v)
 
 	assert.Equal(t, "0:1:1", result["rd"])
@@ -236,7 +236,7 @@ func TestVPNBoundaryPrefixLen(t *testing.T) {
 				fam = IPv6VPN
 			}
 
-			original := NewVPN(fam, rd, []uint32{100}, netip.MustParsePrefix(tt.prefix), 0)
+			original := NewVPN(fam, rd, []uint32{100}, netip.MustParsePrefix(tt.prefix), 0, false)
 			wireBytes := original.Bytes()
 
 			parsed, _, err := ParseVPN(tt.afi, SAFIVPN, wireBytes, false)
@@ -268,7 +268,7 @@ func TestVPNBoundaryLabel(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			original := NewVPN(IPv4VPN, rd, []uint32{tt.label}, netip.MustParsePrefix("10.0.0.0/24"), 0)
+			original := NewVPN(IPv4VPN, rd, []uint32{tt.label}, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 			wireBytes := original.Bytes()
 
 			parsed, _, err := ParseVPN(AFIIPv4, SAFIVPN, wireBytes, false)
@@ -288,7 +288,7 @@ func TestRunCLIDecode(t *testing.T) {
 	// Build wire bytes for a simple VPNv4
 	rd, err := ParseRDString("1:1")
 	require.NoError(t, err)
-	v := NewVPN(IPv4VPN, rd, []uint32{100}, netip.MustParsePrefix("10.0.0.0/24"), 0)
+	v := NewVPN(IPv4VPN, rd, []uint32{100}, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 	hexData := hex.EncodeToString(v.Bytes())
 
 	output := &bytes.Buffer{}
@@ -337,7 +337,7 @@ func TestVPNString(t *testing.T) {
 	rd, err := ParseRDString("1:1")
 	require.NoError(t, err)
 
-	v := NewVPN(IPv4VPN, rd, []uint32{100, 200}, netip.MustParsePrefix("10.0.0.0/24"), 0)
+	v := NewVPN(IPv4VPN, rd, []uint32{100, 200}, netip.MustParsePrefix("10.0.0.0/24"), 0, false)
 	s := v.String()
 
 	assert.Contains(t, s, "rd 0:1:1")
@@ -354,7 +354,7 @@ func TestVPNWithPathID(t *testing.T) {
 	rd, err := ParseRDString("1:1")
 	require.NoError(t, err)
 
-	v := NewVPN(IPv4VPN, rd, []uint32{100}, netip.MustParsePrefix("10.0.0.0/24"), 42)
+	v := NewVPN(IPv4VPN, rd, []uint32{100}, netip.MustParsePrefix("10.0.0.0/24"), 42, true)
 	assert.Equal(t, uint32(42), v.PathID())
 	assert.True(t, v.HasPathID())
 	assert.True(t, v.SupportsAddPath())

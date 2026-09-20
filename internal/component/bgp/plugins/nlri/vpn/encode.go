@@ -64,7 +64,9 @@ func EncodeRoute(routeCmd, family string, localAS uint32, isIBGP, asn4, addPath 
 	if len(parsed.Labels) > 0 {
 		label = parsed.Labels[0]
 	}
-	vpnNLRI := NewVPN(fam, rd, []uint32{label}, parsed.Prefix, 0)
+	// addPath is the session's ADD-PATH negotiation, which is what decides
+	// whether this NLRI carries a Path Identifier at all (RFC 7911 Section 3).
+	vpnNLRI := NewVPN(fam, rd, []uint32{label}, parsed.Prefix, 0, addPath)
 	nlriBytes := vpnNLRI.Bytes()
 
 	return updateBody, nlriBytes, nil

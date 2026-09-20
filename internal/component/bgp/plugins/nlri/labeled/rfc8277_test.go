@@ -16,7 +16,7 @@ import (
 func ipv4Labeled(prefix string, labels []uint32) []byte {
 	return NewLabeledUnicast(
 		Family{AFI: family.AFIIPv4, SAFI: SAFIMPLSLabel},
-		netip.MustParsePrefix(prefix), labels, 0,
+		netip.MustParsePrefix(prefix), labels, 0, false,
 	).Bytes()
 }
 
@@ -121,7 +121,7 @@ func TestLabeledNLRILengthOctetOverflowGap(t *testing.T) {
 	lu := NewLabeledUnicast(
 		Family{AFI: family.AFIIPv6, SAFI: SAFIMPLSLabel},
 		netip.MustParsePrefix("2001:db8::1/128"),
-		[]uint32{1, 2, 3, 4, 5, 6}, 0,
+		[]uint32{1, 2, 3, 4, 5, 6}, 0, false,
 	)
 	got := lu.Bytes()
 

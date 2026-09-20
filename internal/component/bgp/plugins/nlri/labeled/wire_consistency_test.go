@@ -96,7 +96,7 @@ func TestLabeledUnicastWireConsistency(t *testing.T) {
 			if tt.prefix.Addr().Is6() {
 				fam.AFI = family.AFIIPv6
 			}
-			n := labeled.NewLabeledUnicast(fam, tt.prefix, []uint32{tt.label}, tt.pathID)
+			n := labeled.NewLabeledUnicast(fam, tt.prefix, []uint32{tt.label}, tt.pathID, tt.pathID != 0)
 			actual := func() []byte {
 				b := make([]byte, nlri.LenWithContext(n, tt.addPath))
 				nlri.WriteNLRI(n, b, 0, tt.addPath)
@@ -128,7 +128,7 @@ func TestLabeledUnicastWireConsistency_AddPathZero(t *testing.T) {
 	builderBytes := ub.BuildLabeledUnicastNLRIBytes(&params)
 
 	fam := family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIMPLSLabel}
-	n := labeled.NewLabeledUnicast(fam, prefix, []uint32{label}, pathID)
+	n := labeled.NewLabeledUnicast(fam, prefix, []uint32{label}, pathID, pathID != 0)
 	nlriBytes := func() []byte {
 		b := make([]byte, nlri.LenWithContext(n, true))
 		nlri.WriteNLRI(n, b, 0, true)

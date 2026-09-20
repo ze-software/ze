@@ -1215,7 +1215,7 @@ func TestJSONEncoderRDTypes(t *testing.T) {
 				rd,
 				[]uint32{100}, // label
 				netip.MustParsePrefix("10.0.0.0/24"),
-				0, // no path-id
+				0, false, // no path-id
 			)
 
 			// Format using formatNLRIJSONValue (registry-based decode)
@@ -1362,6 +1362,7 @@ func TestJSONEncoderLabeledUnicast(t *testing.T) {
 				netip.MustParsePrefix(tt.prefix),
 				tt.labels,
 				tt.pathID,
+				tt.pathID != 0,
 			)
 
 			// Format using formatNLRIJSONValue (routes through registry decoder)
@@ -1512,6 +1513,7 @@ func TestJSONEncoderMPLSVPN(t *testing.T) {
 				tt.labels,
 				netip.MustParsePrefix(tt.prefix),
 				tt.pathID,
+				tt.pathID != 0,
 			)
 
 			// Format using formatNLRIJSONValue (registry-based decode)

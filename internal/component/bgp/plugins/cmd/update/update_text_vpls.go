@@ -158,7 +158,7 @@ func parseVPLSSection(args []string, fam family.Family, _ nlriAccum) (nlriParseR
 		"label-base", strconv.FormatUint(uint64(labelBase), 10),
 	}
 
-	vplsNLRI, err := encodeViaRegistry(fam, encodeArgs, false)
+	vplsNLRI, err := encodeViaRegistry(fam, encodeArgs, 0, false)
 	if err != nil {
 		return nlriParseResult{}, err
 	}

@@ -322,7 +322,9 @@ The member is written for every route the session carried a Path Identifier for,
 and RFC 7911 Section 3 reserves no value, so an identifier of zero renders as
 `"path-information": "0.0.0.0"`. `PathID()` returns the value alone, so a reader
 deciding whether the member is owed asks `HasAddPath()` instead of comparing
-that value against zero.
+that value against zero. The plugin types spell the same question
+`HasPathID()`: `VPN` and `LabeledUnicast` each hold a `hasPath` flag beside the
+identifier, and `ParseVPN` sets it from the ADD-PATH negotiation it was handed.
 
 <!-- source: internal/core/bgp/nlri/nlri.go -- WriteNLRI, LenWithContext -->
 <!-- source: internal/core/bgp/nlri/base.go -- PrefixNLRI.PathID -->

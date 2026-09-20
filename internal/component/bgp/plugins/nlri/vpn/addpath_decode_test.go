@@ -100,3 +100,66 @@ func TestDecodeNLRIHexRefusesATruncatedPathIdentifier(t *testing.T) {
 		t.Errorf("want no path-id from a truncated identifier, got %v", route["path-id"])
 	}
 }
+
+// vpnZeroPathHex is the same VPN NLRI under a Path Identifier of zero.
+//
+//	00 00 00 00     Path Identifier 0    (RFC 7911 Section 3)
+//	70              112 bits follow: 24 label + 64 RD + 24 prefix
+//	04 e3 01        label 20012, stack entry 320193, bottom of stack set
+//	00 00 00 64 00 00 00 64   RD type 0, 100:100 (RFC 4364 Section 4.2)
+//	0a 00 00        10.0.0.0/24
+const vpnZeroPathHex = "00000000" + "70" + "04E301" + "0000006400000064" + "0A0000"
+
+// TestDecodeNLRIHexPublishesAPathIdentifierOfZero pins that identifier zero is
+// published like any other identifier.
+//
+// RFC 7911 Section 3 gives the Path Identifier four octets and reserves no
+// value, so zero is an identifier a peer can legitimately send. vpnToJSON
+// decided the member from `v.pathID != 0`, so a peer sending zero was published
+// as a route that carried none, and a script could not tell the two apart.
+//
+// VALIDATES: an ADD-PATH VPN route with identifier zero carries "path-id": 0.
+// PREVENTS: the zero identifier disappearing from the JSON a script reads.
+func TestDecodeNLRIHexPublishesAPathIdentifierOfZero(t *testing.T) {
+	decoded, err := DecodeNLRIHex("ipv4/mpls-vpn", vpnZeroPathHex, true)
+	if err != nil {
+		t.Fatalf("decode ADD-PATH mpls-vpn NLRI: %v", err)
+	}
+
+	route, isObject := decoded.(map[string]any)
+	if !isObject {
+		t.Fatalf("want one decoded route, got %T (%v)", decoded, decoded)
+	}
+	if route["prefix"] != "10.0.0.0/24" {
+		t.Errorf("prefix = %v, want 10.0.0.0/24", route["prefix"])
+	}
+	pathID, held := route["path-id"].(uint32)
+	if !held {
+		t.Fatalf("path-id = %v (%T), want the uint32 0", route["path-id"], route["path-id"])
+	}
+	if pathID != 0 {
+		t.Errorf("path-id = %d, want 0", pathID)
+	}
+}
+
+// TestDecodeNLRIHexWithoutAddPathOmitsTheZeroIdentifier is the other polarity:
+// the same payload read without the negotiation carries no identifier at all,
+// so no "path-id" member is published.
+//
+// VALIDATES: the member is absent when the section carried no identifier.
+// PREVENTS: a route with no Path Identifier publishing "path-id": 0, which
+// would be indistinguishable from a real identifier of zero.
+func TestDecodeNLRIHexWithoutAddPathOmitsTheZeroIdentifier(t *testing.T) {
+	decoded, err := DecodeNLRIHex("ipv4/mpls-vpn", vpnPlainHex, false)
+	if err != nil {
+		t.Fatalf("decode mpls-vpn NLRI: %v", err)
+	}
+
+	route, isObject := decoded.(map[string]any)
+	if !isObject {
+		t.Fatalf("want one decoded route, got %T (%v)", decoded, decoded)
+	}
+	if _, held := route["path-id"]; held {
+		t.Errorf("path-id = %v, want no member at all", route["path-id"])
+	}
+}

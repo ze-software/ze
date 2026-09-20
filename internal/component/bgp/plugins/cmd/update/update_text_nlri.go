@@ -6,6 +6,7 @@
 package update
 
 import (
+	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -99,6 +100,7 @@ func parseNLRISection(args []string, accum nlriAccum) (nlriParseResult, error) {
 				return nlriParseResult{}, fmt.Errorf("invalid path-information: %w", err)
 			}
 			accum.PathID = uint32(id) //nolint:gosec // G115: bounded by ParseUint 32-bit
+			accum.HasPathID = true
 			i += 2
 			consumed += 2
 			continue
@@ -294,11 +296,11 @@ func parseVPNNLRI(token string, fam family.Family, accum nlriAccum) (nlri.NLRI, 
 		encodeArgs = append(encodeArgs, "label", strconv.FormatUint(uint64(l), 10))
 	}
 	encodeArgs = append(encodeArgs, "prefix", prefix.String())
-	if accum.PathID != 0 {
+	if accum.HasPathID {
 		encodeArgs = append(encodeArgs, "path-id", strconv.FormatUint(uint64(accum.PathID), 10))
 	}
 
-	wire, err := encodeViaRegistry(fam, encodeArgs, accum.PathID != 0)
+	wire, err := encodeViaRegistry(fam, encodeArgs, accum.PathID, accum.HasPathID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -333,11 +335,11 @@ func parseLabeledNLRI(token string, fam family.Family, accum nlriAccum) (nlri.NL
 	for _, l := range accum.Labels {
 		encodeArgs = append(encodeArgs, "label", strconv.FormatUint(uint64(l), 10))
 	}
-	if accum.PathID != 0 {
+	if accum.HasPathID {
 		encodeArgs = append(encodeArgs, "path-id", strconv.FormatUint(uint64(accum.PathID), 10))
 	}
 
-	wire, err := encodeViaRegistry(fam, encodeArgs, accum.PathID != 0)
+	wire, err := encodeViaRegistry(fam, encodeArgs, accum.PathID, accum.HasPathID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -346,16 +348,36 @@ func parseLabeledNLRI(token string, fam family.Family, accum nlriAccum) (nlri.NL
 
 // encodeViaRegistry encodes NLRI args via the plugin registry and wraps as WireNLRI.
 // Common encode tail for all family-specific section parsers.
-func encodeViaRegistry(fam family.Family, args []string, hasAddPath bool) (nlri.NLRI, error) {
+//
+// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
+// message, the NLRI encoding MUST be extended by prepending the Path Identifier
+// field, which is of four octets."
+//
+// A registered encoder answers with the NLRI payload alone: vpn.EncodeNLRIHex
+// and labeled.EncodeNLRIHex each return the type's Bytes(), which excludes the
+// identifier by contract. So the four octets are prepended here, and the flag
+// handed to NewWireNLRI describes the bytes this function built rather than the
+// bytes the encoder returned.
+//
+// hasPathID is the operator's keyword, not a test on pathID. The field reserves
+// no value, so `path-information 0` names identifier zero and a route written
+// with it MUST reach the peer carrying four zero octets.
+func encodeViaRegistry(fam family.Family, args []string, pathID uint32, hasPathID bool) (nlri.NLRI, error) {
 	hexStr, err := registry.EncodeNLRIByFamily(fam.String(), args)
 	if err != nil {
 		return nil, fmt.Errorf("%s encode: %w", fam, err)
 	}
-	wireBytes, err := hex.DecodeString(strings.ToLower(hexStr))
+	payload, err := hex.DecodeString(strings.ToLower(hexStr))
 	if err != nil {
 		return nil, fmt.Errorf("%s hex decode: %w", fam, err)
 	}
-	return nlri.NewWireNLRI(fam, wireBytes, hasAddPath)
+	if !hasPathID {
+		return nlri.NewWireNLRI(fam, payload, false)
+	}
+	wireBytes := make([]byte, 4+len(payload)) // command path: result owned by the NLRI
+	binary.BigEndian.PutUint32(wireBytes, pathID)
+	copy(wireBytes[4:], payload)
+	return nlri.NewWireNLRI(fam, wireBytes, true)
 }
 
 // buildNLRIResult constructs a section parse result with empty-check validation.
@@ -456,7 +478,7 @@ func parseRegistryNLRISection(args []string, fam family.Family, accum nlriAccum)
 		return nlriParseResult{}, route.ErrEmptyNLRISection
 	}
 
-	encoded, err := encodeViaRegistry(fam, args[start:i], accum.PathID != 0)
+	encoded, err := encodeViaRegistry(fam, args[start:i], accum.PathID, accum.HasPathID)
 	if err != nil {
 		return nlriParseResult{}, err
 	}

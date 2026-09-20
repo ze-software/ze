@@ -636,6 +636,14 @@ request bgp watchdog withdraw <name>   # withdraw all routes in pool from peers
 | `label` | `<label>` or `[ <label>... ]` | `*-vpn`, `*-labeled` families | All others |
 | `path-information` | `<uint32>` | Any (if ADD-PATH negotiated) | Ignored if not negotiated |
 
+RFC 7911 Section 3 gives the Path Identifier four octets and reserves no value,
+so `path-information 0` names the identifier zero and is not a way to say that
+no identifier was written. The keyword's presence is what the parser records
+(`nlriAccum.HasPathID`), and `encodeViaRegistry` prepends the four octets for
+the families a plugin encodes, whose encoders answer with the payload alone.
+Whether those octets reach the wire is still the session's ADD-PATH
+negotiation, which `WriteNLRI` reads.
+
 All three are accepted in TWO positions, before the first `nlri` section and
 inside one, and they mean the same thing in both. `path-information` used to be
 accepted inside a section only, so a command that wrote all three together had

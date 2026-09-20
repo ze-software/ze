@@ -116,7 +116,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 	var labels []uint32
 	var prefix netip.Prefix
 	var pathID uint32
-	var hasRD, hasPrefix bool
+	var hasRD, hasPrefix, hasPathID bool
 
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
@@ -162,6 +162,10 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 				return "", fmt.Errorf("invalid path-id: %w", err)
 			}
 			pathID = uint32(v)
+			// RFC 7911 Section 3 reserves no Path Identifier value, so the
+			// keyword is what says one was given. `path-id 0` is a route with
+			// identifier zero, not a route without one.
+			hasPathID = true
 		}
 	}
 
@@ -175,7 +179,7 @@ func EncodeNLRIHex(famName string, args []string) (string, error) {
 		return "", errPrefixRequiredForVpn
 	}
 
-	v := NewVPN(fam, rd, labels, prefix, pathID)
+	v := NewVPN(fam, rd, labels, prefix, pathID, hasPathID)
 	nlriBytes := v.Bytes()
 
 	return textbuf.StringHexUpper(nlriBytes), nil
@@ -423,14 +427,7 @@ func decodeVPNNLRI(family string, data []byte, addPath bool) []map[string]any {
 			})
 			break
 		}
-		route := vpnToJSON(v)
-		if addPath {
-			// RFC 7911 Section 3 gives the Path Identifier four octets and
-			// reserves no value, so zero is an identifier rather than its
-			// absence. Publish it whenever ADD-PATH put one on the wire.
-			route["path-id"] = v.PathID()
-		}
-		results = append(results, route)
+		results = append(results, vpnToJSON(v))
 		remaining = rest
 	}
 
@@ -458,7 +455,10 @@ func vpnToJSON(v *VPN) map[string]any {
 		result["labels"] = labels
 	}
 
-	if v.pathID != 0 {
+	// RFC 7911 Section 3 gives the Path Identifier four octets and reserves no
+	// value, so zero is an identifier rather than its absence. The parse-time
+	// flag is what says one arrived, and it is published whenever it did.
+	if v.hasPath {
 		result["path-id"] = v.pathID
 	}
 
@@ -494,7 +494,9 @@ func formatVPNTextSingle(result map[string]any) string {
 			}
 		}
 	}
-	if v, ok := result["path-id"].(uint32); ok && v != 0 {
+	// The member is present only when the route carried a Path Identifier
+	// (vpnToJSON), so zero is printed like any other identifier.
+	if v, ok := result["path-id"].(uint32); ok {
 		b.Str(" path-id=").Uint32(v)
 	}
 

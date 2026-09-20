@@ -153,7 +153,14 @@ func formatNLRIAsPrefix(fam family.Family, nlriBytes []byte, addPath ...bool) st
 		var tb textbuf.Buffer
 		return tb.Reset().Str("hex:").Hex(nlriBytes).String()
 	}
-	if ap && pathID != 0 {
+	// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
+	// message, the NLRI encoding MUST be extended by prepending the Path
+	// Identifier field, which is of four octets."
+	//
+	// The field reserves no value, so zero is an identifier and not its absence.
+	// ap is the negotiated layout these octets were read under, which is the
+	// only fact that says whether one is there, so it alone decides.
+	if ap {
 		var tb textbuf.Buffer
 		return tb.Reset().Str(prefix).Str(" [pathID=").Uint32(pathID).Byte(']').String()
 	}

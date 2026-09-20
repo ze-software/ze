@@ -278,7 +278,7 @@ func parseEVPNSection(args []string, fam family.Family, _ nlriAccum) (nlriParseR
 			"ip", originatorIP.String())
 	}
 
-	evpnNLRI, err := encodeViaRegistry(fam, encodeArgs, false)
+	evpnNLRI, err := encodeViaRegistry(fam, encodeArgs, 0, false)
 	if err != nil {
 		return nlriParseResult{}, err
 	}

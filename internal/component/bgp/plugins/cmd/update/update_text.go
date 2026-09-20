@@ -186,13 +186,21 @@ type parsedAttrs struct {
 	RD     nlri.RouteDistinguisher // Route Distinguisher for VPN families.
 	Labels []uint32                // MPLS labels for VPN/labeled families.
 	PathID uint32                  // ADD-PATH path identifier (RFC 7911 Section 3).
+	// HasPathID records that the operator wrote `path-information`. RFC 7911
+	// Section 3 reserves no Path Identifier value, so `path-information 0`
+	// names identifier zero and PathID alone cannot say one was written.
+	HasPathID bool
 }
 
 // nlriAccum holds VPN/labeled NLRI accumulator values for snapshot.
 type nlriAccum struct {
 	PathID uint32
-	RD     nlri.RouteDistinguisher
-	Labels []uint32
+	// HasPathID records that a `path-information` keyword set PathID, whether
+	// at the top level or inside the nlri section. RFC 7911 Section 3 gives the
+	// Path Identifier no absent value, so zero is an identifier.
+	HasPathID bool
+	RD        nlri.RouteDistinguisher
+	Labels    []uint32
 }
 
 // nlriParseResult holds the return values from NLRI section parsing.
@@ -274,7 +282,7 @@ func (a *parsedAttrs) snapshot() (*attribute.AttributesWire, bgptypes.RouteNextH
 		labels = make([]uint32, len(a.Labels))
 		copy(labels, a.Labels)
 	}
-	return wire, nh, nlriAccum{PathID: a.PathID, RD: a.RD, Labels: labels}
+	return wire, nh, nlriAccum{PathID: a.PathID, HasPathID: a.HasPathID, RD: a.RD, Labels: labels}
 }
 
 // parseCommonAttributeText parses a common BGP attribute by keyword into parsedAttrs.
@@ -898,6 +906,7 @@ func parsePathInfoFlat(args []string, accum *parsedAttrs) (int, error) {
 		return 0, fmt.Errorf("invalid path-information %q: expected 0..4294967295", args[1])
 	}
 	accum.PathID = uint32(id) //nolint:gosec // G115: bounded by ParseUint bitSize 32
+	accum.HasPathID = true
 	return 2, nil
 }
 

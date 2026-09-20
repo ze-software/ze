@@ -51,10 +51,11 @@ var (
 // Path ID is stored but NOT included in Len()/Bytes()/WriteTo().
 // Use WriteNLRI() for ADD-PATH aware encoding.
 type LabeledUnicast struct {
-	family Family
-	prefix netip.Prefix
-	pathID uint32   // RFC 7911: 0 means no path ID
-	labels []uint32 // RFC 8277 Section 2.1 stack ENTRIES: label + traffic class + S
+	family  Family
+	prefix  netip.Prefix
+	pathID  uint32   // RFC 7911: the Path Identifier, which has no absent value
+	hasPath bool     // RFC 7911: true when this NLRI carries a Path Identifier
+	labels  []uint32 // RFC 8277 Section 2.1 stack ENTRIES: label + traffic class + S
 }
 
 // NewLabeledUnicast creates a new labeled unicast NLRI.
@@ -62,15 +63,20 @@ type LabeledUnicast struct {
 // RFC 8277: Labels are encoded per RFC 3032: 20-bit label + 3-bit TC + 1-bit S.
 // The last label has S=1 (Bottom of Stack).
 //
-// pathID=0 means no path identifier; pathID>0 stores the path ID.
-// Use WriteNLRI() with addPath=true to encode with path ID.
+// RFC 7911 Section 3 gives the Path Identifier four octets and reserves no
+// value, so zero is an identifier like any other and cannot say that none is
+// carried. hasPath is that fact, and the caller states it: a route built with
+// hasPath false has no Path Identifier whatever pathID holds.
+//
+// Use WriteNLRI() with addPath=true to encode the identifier.
 // The family's SAFI is overridden to SAFIMPLSLabel (4) regardless of input.
-func NewLabeledUnicast(fam Family, prefix netip.Prefix, labels []uint32, pathID uint32) *LabeledUnicast {
+func NewLabeledUnicast(fam Family, prefix netip.Prefix, labels []uint32, pathID uint32, hasPath bool) *LabeledUnicast {
 	return &LabeledUnicast{
-		family: Family{AFI: fam.AFI, SAFI: SAFIMPLSLabel},
-		prefix: prefix,
-		pathID: pathID,
-		labels: nlri.LabelEntriesFor(labels),
+		family:  Family{AFI: fam.AFI, SAFI: SAFIMPLSLabel},
+		prefix:  prefix,
+		pathID:  pathID,
+		hasPath: hasPath,
+		labels:  nlri.LabelEntriesFor(labels),
 	}
 }
 
@@ -80,11 +86,20 @@ func (l *LabeledUnicast) Family() Family { return l.family }
 // Prefix returns the IP prefix.
 func (l *LabeledUnicast) Prefix() netip.Prefix { return l.prefix }
 
-// PathID returns the ADD-PATH path identifier (0 if none).
+// PathID returns the ADD-PATH path identifier. Zero is an identifier like any
+// other, so a caller that needs to know whether one is carried asks HasPathID
+// rather than comparing this value against zero.
 func (l *LabeledUnicast) PathID() uint32 { return l.pathID }
 
-// HasPathID returns true if a path ID is set.
-func (l *LabeledUnicast) HasPathID() bool { return l.pathID != 0 }
+// HasPathID reports whether this NLRI carries an RFC 7911 Path Identifier.
+//
+// RFC 7911 Section 3: "In order to carry the Path Identifier in an UPDATE
+// message, the NLRI encoding MUST be extended by prepending the Path Identifier
+// field, which is of four octets."
+//
+// The field has no reserved or absent value, so an identifier of zero is a real
+// identifier and PathID alone cannot say whether one is there.
+func (l *LabeledUnicast) HasPathID() bool { return l.hasPath }
 
 // SupportsAddPath returns true - labeled unicast supports ADD-PATH per RFC 7911.
 func (l *LabeledUnicast) SupportsAddPath() bool { return true }
@@ -164,7 +179,7 @@ func (l *LabeledUnicast) String() string {
 			fmt.Fprintf(&sb, "%d", nlri.LabelValue(entry)) //nolint:errcheck // buffer output
 		}
 	}
-	if l.pathID != 0 {
+	if l.hasPath {
 		sb.Str(" path-id ")
 		fmt.Fprintf(&sb, "%d", l.pathID) //nolint:errcheck // buffer output
 	}
