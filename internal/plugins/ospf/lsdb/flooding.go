@@ -162,6 +162,12 @@ func (d *LSDB) ReceiveUpdate(in ReceiveInput) string {
 			if !ok {
 				return "lsdb-reject"
 			}
+			// RFC 2328 Section 13 step 5a: "If there is already a database copy, and if the
+			// database copy was received via flooding and installed less than MinLSArrival
+			// seconds ago, discard the new LSA (without acknowledging it)".
+			if res.TooSoon {
+				continue
+			}
 			switch res.Freshness {
 			case Newer:
 				d.removeFromAllRetransmit(in.AreaID, lsa.Header.Key())
@@ -199,6 +205,12 @@ func (d *LSDB) ReceiveUpdate(in ReceiveInput) string {
 		res, ok := d.install(in.AreaID, lsa, false, true)
 		if !ok {
 			return "lsdb-reject"
+		}
+		// RFC 2328 Section 13 step 5a: "If there is already a database copy, and if the
+		// database copy was received via flooding and installed less than MinLSArrival
+		// seconds ago, discard the new LSA (without acknowledging it)".
+		if res.TooSoon {
+			continue
 		}
 		switch res.Freshness {
 		case Newer:

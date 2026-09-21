@@ -67,7 +67,7 @@ func (d *LSDB) installLinkLocked(iface string, area types.AreaID, raw []byte, h 
 			return installResult{Freshness: fr, Entry: existing, Previous: existing}, true
 		}
 		if enforceMinArrival && d.arrivedTooSoonLinkLocked(iface, key, now) {
-			return installResult{Freshness: Equal, Entry: existing, Previous: existing}, true
+			return installResult{Freshness: Equal, Entry: existing, Previous: existing, TooSoon: true}, true
 		}
 		entry := newEntry(h, raw, now, self)
 		store.entries[key] = entry
@@ -78,7 +78,7 @@ func (d *LSDB) installLinkLocked(iface string, area types.AreaID, raw []byte, h 
 		return installResult{Freshness: Older}, false
 	}
 	if enforceMinArrival && d.arrivedTooSoonLinkLocked(iface, key, now) {
-		return installResult{Freshness: Equal}, true
+		return installResult{Freshness: Equal, TooSoon: true}, true
 	}
 	entry := newEntry(h, raw, now, self)
 	store.entries[key] = entry

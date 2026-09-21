@@ -371,6 +371,11 @@ type installResult struct {
 	Stored    bool
 	Entry     *Entry
 	Previous  *Entry
+	// TooSoon is true when a newer instance arrived inside MinLSArrival of the last
+	// flooded install and was discarded. RFC 2328 Section 13 step 5a: "discard the new
+	// LSA (without acknowledging it)", so the receive path treats it as neither a
+	// duplicate (no direct ack) nor a newer instance (no flood).
+	TooSoon bool
 }
 
 func (d *LSDB) install(area types.AreaID, lsa packet.LSA, self, enforceMinArrival bool) (installResult, bool) {
@@ -399,7 +404,7 @@ func (d *LSDB) installLocked(area types.AreaID, raw []byte, h packet.LSAHeader, 
 			return installResult{Freshness: fr, Entry: existing, Previous: existing}, true
 		}
 		if enforceMinArrival && d.arrivedTooSoonLocked(area, key, now) {
-			return installResult{Freshness: Equal, Entry: existing, Previous: existing}, true
+			return installResult{Freshness: Equal, Entry: existing, Previous: existing, TooSoon: true}, true
 		}
 		entry := newEntry(h, raw, now, self)
 		store.entries[key] = entry
@@ -417,7 +422,7 @@ func (d *LSDB) installLocked(area types.AreaID, raw []byte, h packet.LSAHeader, 
 		return installResult{Freshness: Older}, false
 	}
 	if enforceMinArrival && d.arrivedTooSoonLocked(area, key, now) {
-		return installResult{Freshness: Equal}, true
+		return installResult{Freshness: Equal, TooSoon: true}, true
 	}
 	entry := newEntry(h, raw, now, self)
 	store.entries[key] = entry
