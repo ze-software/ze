@@ -383,6 +383,12 @@ func (f *Flooder) buildPSNP(cid CircuitID, level Level, srcID types.SourceID) []
 		return nil
 	}
 
+	// RFC 1195 Annex B.3 and B.4 (LSP Entries): "The entries shall be sorted into
+	// ascending LSPID order (the LSP number octet of the LSPID is the least
+	// significant octet)." Each list above is sorted on its own, but the PDU
+	// carries their concatenation, so the merged list is sorted once here.
+	sort.Slice(entries, func(i, j int) bool { return entries[i].LSPID.Less(entries[j].LSPID) })
+
 	pt := packet.PDUTypeL1PSNP
 	if level == Level2 {
 		pt = packet.PDUTypeL2PSNP
