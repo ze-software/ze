@@ -2,6 +2,17 @@
   "rfc": "rfc4301",
   "records": [
     {
+      "rid": "RFC4301-3.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_esp_test.go::TestRFC4301ChildSAIsInstalledAsESP",
+      "unit-sha": "b3fd04e3080b22f4",
+      "claim-sha": "8123e74c331388cf",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::installChildSA",
+      "producer-sha": "d0f3810a89c0fb77",
+      "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4301-4.1-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecSAPerDestinationWithOSPFSelector",
@@ -35,6 +46,94 @@
       "break": "body of validate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4301-4.4.1-6",
+      "polarity": "positive",
+      "unit": "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDPermitsEachDispositionInEachDatabase",
+      "unit-sha": "4251c262c662103d",
+      "claim-sha": "2909da084ec657e1",
+      "route": "revert",
+      "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
+      "producer-sha": "633e57f6c14caa5b",
+      "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.1-6",
+      "polarity": "negative",
+      "unit": "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDRefusesADispositionItDoesNotCarry",
+      "unit-sha": "b64768ac797ba66a",
+      "claim-sha": "1d0a3f77fd9bcfa4",
+      "route": "revert",
+      "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
+      "producer-sha": "633e57f6c14caa5b",
+      "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.1-7",
+      "polarity": "negative",
+      "unit": "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDInterfaceRefusesWhatItCannotProgram",
+      "unit-sha": "5a8efc2ab0455043",
+      "claim-sha": "e981c0ae72f5e983",
+      "route": "revert",
+      "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
+      "producer-sha": "633e57f6c14caa5b",
+      "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.1-7",
+      "polarity": "positive",
+      "unit": "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301SPDIsManagedThroughTheConfiguration",
+      "unit-sha": "9c701d7ef1abe2b7",
+      "claim-sha": "23f1818d3c289953",
+      "route": "revert",
+      "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
+      "producer-sha": "633e57f6c14caa5b",
+      "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.3.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_pad_exact_test.go::TestRFC4301PadOtherIDTypeAdmitsAnExactMatch",
+      "unit-sha": "33aef00f80c64347",
+      "claim-sha": "ce0ab0bb2a2e1702",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/remote_id.go::remoteIDMatches",
+      "producer-sha": "d8b5dcb593a62198",
+      "break": "body of remoteIDMatches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.3.1-3",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_pad_exact_test.go::TestRFC4301PadOtherIDTypeRefusesEverythingButExact",
+      "unit-sha": "66abecffbd5fe717",
+      "claim-sha": "eddaf33d35a8755e",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/remote_id.go::remoteIDMatches",
+      "producer-sha": "d8b5dcb593a62198",
+      "break": "body of remoteIDMatches replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.3.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_pad_exact_test.go::TestRFC4301PadRefusesACertificateWithoutTheIKEID",
+      "unit-sha": "0cff0209d65c5ac4",
+      "claim-sha": "8f09a5c5ba0973e0",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/remote_id.go::certificateCarriesIdentity",
+      "producer-sha": "2c601c2ceb898a98",
+      "break": "body of certificateCarriesIdentity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.4.3.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_pad_exact_test.go::TestRFC4301PadRequiresTheCertificateToCarryTheIKEID",
+      "unit-sha": "eaf331db68332362",
+      "claim-sha": "4544a2ad8ad322db",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/remote_id.go::certificateCarriesIdentity",
+      "producer-sha": "2c601c2ceb898a98",
+      "break": "body of certificateCarriesIdentity replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4301-4.5-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/ipsec_install_test.go::TestIPsecInstallOnInterfaceUp",
@@ -44,6 +143,182 @@
       "producer": "internal/plugins/ospf/ipsec_install.go::setConfig",
       "producer-sha": "105a438ab75af3a8",
       "break": "line 243: \"ic.IPsec != nil\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC4301-4.5.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/crypto/rfc4301_keymat_test.go::TestRFC4301KeymatEncryptionKeysLeadEachSA",
+      "unit-sha": "eba7d59cf6796a60",
+      "claim-sha": "c9d9fa6e9a96eff4",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/keys.go::DeriveChildSAKeys",
+      "producer-sha": "027acb09a8edc598",
+      "break": "body of DeriveChildSAKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.5.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/crypto/rfc4301_keymat_test.go::TestRFC4301KeymatIntegrityKeysNeverLead",
+      "unit-sha": "21eb6e761968798e",
+      "claim-sha": "303a8d26e507f631",
+      "route": "revert",
+      "producer": "internal/component/ike/crypto/keys.go::DeriveChildSAKeys",
+      "producer-sha": "027acb09a8edc598",
+      "break": "body of DeriveChildSAKeys replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.5.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/ipsec/rfc4301_gateway_test.go::TestRFC4301GatewayIsConfiguredForDestinationRanges",
+      "unit-sha": "77cacf2d50815c2d",
+      "claim-sha": "9fe6235926926052",
+      "route": "revert",
+      "producer": "internal/component/ike/ipsec/config.go::parseSiteToSitePeer",
+      "producer-sha": "8eec10e9213897ec",
+      "break": "body of parseSiteToSitePeer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-4.5.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/ipsec/rfc4301_gateway_test.go::TestRFC4301GatewayRefusesAMalformedDestinationRange",
+      "unit-sha": "2e6d31182e3acaab",
+      "claim-sha": "3f6c4b16aaf51153",
+      "route": "revert",
+      "producer": "internal/component/ike/ipsec/traffic_selector.go::parseTrafficSelectors",
+      "producer-sha": "2a125741dca0542d",
+      "break": "body of parseTrafficSelectors replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-5.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassReturnTrafficHasAnSPDIEntry",
+      "unit-sha": "7ca1f4ac7e328f04",
+      "claim-sha": "d669ac0489028a8c",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
+      "producer-sha": "3f1463ff71f043fe",
+      "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-5.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDIEntryIsNeverAnUnmirroredCopy",
+      "unit-sha": "37a06fb6c9aa44c0",
+      "claim-sha": "83d80b7323c0946c",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
+      "producer-sha": "3f1463ff71f043fe",
+      "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-5.2-4",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_ike_bypass_test.go::TestRFC4301IKEBypassIsNeverAProtectOrAWildcard",
+      "unit-sha": "f9a6c521753a89a1",
+      "claim-sha": "a38f91b8b9e371ba",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/bypass.go::ikeBypassPolicies",
+      "producer-sha": "45908ec464ffd0cf",
+      "break": "body of ikeBypassPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-5.2-4",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_ike_bypass_test.go::TestRFC4301IKETrafficHasAnExplicitBypassEntry",
+      "unit-sha": "14baba40790b0ed1",
+      "claim-sha": "167bcfb86a40653f",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/bypass.go::ikeBypassPolicies",
+      "producer-sha": "45908ec464ffd0cf",
+      "break": "body of ikeBypassPolicies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-5.2-5",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301BypassSPDOEntryIsNeverAnUnmirroredCopy",
+      "unit-sha": "68114f67c5c72b6c",
+      "claim-sha": "decc63bcb5d79fd7",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
+      "producer-sha": "3f1463ff71f043fe",
+      "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-5.2-5",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_bypass_return_test.go::TestRFC4301InboundBypassReturnTrafficHasAnSPDOEntry",
+      "unit-sha": "586560ff89bde9d7",
+      "claim-sha": "70d93476896249b7",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/spd_policy.go::spdPolicyParams",
+      "producer-sha": "3f1463ff71f043fe",
+      "break": "body of spdPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301PortScopedSAIsNeverInstalledAsAnyPort",
+      "unit-sha": "63a6985682a25113",
+      "claim-sha": "ec1b93bba0690840",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::selectorPort",
+      "producer-sha": "b968de2dacf2c91e",
+      "break": "body of selectorPort replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301TunnelSAPassesTrafficWithoutRegardToPorts",
+      "unit-sha": "6431829003c5af78",
+      "claim-sha": "4f43c93e6fb42447",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::childPolicyParams",
+      "producer-sha": "96cd5283ad39b417",
+      "break": "body of childPolicyParams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301AnyPortFormNeverLeaksAPortNumber",
+      "unit-sha": "26c3383131179e16",
+      "claim-sha": "1abf1ad06b90ad71",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::selectorPort",
+      "producer-sha": "b968de2dacf2c91e",
+      "break": "body of selectorPort replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc4301_portless_test.go::TestRFC4301ProtocolScopedSASpecifiesPortsAsAny",
+      "unit-sha": "26a1437d57e98cd2",
+      "claim-sha": "972632628cfa08cb",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/child.go::selectorPort",
+      "producer-sha": "b968de2dacf2c91e",
+      "break": "body of selectorPort replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryCarriesAnyPorts",
+      "unit-sha": "fe0c4014f89ebad8",
+      "claim-sha": "24ab698889eebb3e",
+      "route": "revert",
+      "producer": "internal/component/ike/ipsec/spd_policy.go::parseSPDPolicy",
+      "producer-sha": "633e57f6c14caa5b",
+      "break": "body of parseSPDPolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4301-7.1-3",
+      "polarity": "negative",
+      "unit": "internal/component/ike/ipsec/rfc4301_spd_management_test.go::TestRFC4301ProtocolAnyEntryRefusesAPort",
+      "unit-sha": "f96a80fc730e8766",
+      "claim-sha": "9548a2a28abac864",
+      "route": "revert",
+      "producer": "internal/component/ike/ipsec/spd_policy.go::protocolCarriesPorts",
+      "producer-sha": "e0f46cd44b20a965",
+      "break": "body of protocolCarriesPorts replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4301-7.4-1",
