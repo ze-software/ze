@@ -374,6 +374,9 @@ If the RPKI validation does not arrive within the timeout (2 seconds), the event
 
 ASPA (Autonomous System Provider Authorization) verifies that AS_PATH hops are authorized by provider-customer relationships. ASPA records are distributed via RTR v2 (RFC 9582) alongside VRPs. Ze implements the verification algorithm from draft-ietf-sidrops-aspa-verification Section 6.
 
+Verification runs on IPv4 unicast and IPv6 unicast routes only, as draft-ietf-sidrops-aspa-verification Section 6.2 requires. A route of any other address family carries no ASPA state, is not tracked for re-validation, and no ASPA action excludes it.
+<!-- source: internal/component/bgp/plugins/rpki/aspa_verify.go -- aspaAppliesTo -->
+
 ASPA is opt-in. Enable it under the `rpki { aspa { ... } }` block. By default ASPA results are informational (included in the RPKI event JSON as `"aspa-state"`). Configure policy actions in the same block to enforce ASPA verification by rejecting routes with Invalid or Unknown paths.
 
 ### Configuration

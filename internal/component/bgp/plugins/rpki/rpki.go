@@ -562,11 +562,19 @@ func (rp *rPKIPlugin) handleStructuredUpdate(se *rpc.StructuredEvent) {
 		nlriBytes := mpReach.NLRIBytes()
 		if len(nlriBytes) > 0 {
 			addPath := ctx != nil && ctx.AddPath(fam)
+			// draft-ietf-sidrops-aspa-verification Section 6.2: only IPv4 and IPv6
+			// unicast are verified; every other family carries no ASPA state
+			// (aspaAppliesTo). The plain-NLRI branch above is IPv4 unicast by
+			// construction, so only this MP_REACH branch needs the gate.
+			mpASPAState, mpNormalizedPath := aspaState, normalizedPath
+			if !aspaAppliesTo(fam) {
+				mpASPAState, mpNormalizedPath = aspaStateNone, nil
+			}
 			rp.validateNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, fam.String(),
-				nlriBytes, addPath, fam.AFI == 2, originAS, cacheEmpty, aspaState, carriesBlackhole)
-			if aspaState != aspaStateNone {
+				nlriBytes, addPath, fam.AFI == 2, originAS, cacheEmpty, mpASPAState, carriesBlackhole)
+			if mpASPAState != aspaStateNone {
 				rp.trackNLRIs(peerAddr, peerName, peerGroup, peerASN, msgID, fam.String(),
-					nlriBytes, addPath, fam.AFI == 2, normalizedPath, aspaState)
+					nlriBytes, addPath, fam.AFI == 2, mpNormalizedPath, mpASPAState)
 			}
 		}
 	}

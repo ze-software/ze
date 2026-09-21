@@ -3,7 +3,10 @@
 // Related: aspa_cache.go -- ASPA cache providing check_pair lookups
 package rpki
 
-import "github.com/ze-software/ze/internal/core/bgp/attribute"
+import (
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	"github.com/ze-software/ze/internal/core/family"
+)
 
 // ASPA validation states.
 // draft-ietf-sidrops-aspa-verification Section 6.
@@ -102,6 +105,21 @@ func verifyASPA(cache *aSPACache, path []uint32) uint8 {
 		return ASPAUnknown
 	}
 	return ASPAValid
+}
+
+// aspaAppliesTo reports whether ASPA verification runs on routes of fam.
+//
+// draft-ietf-sidrops-aspa-verification Section 6.2: "The verification procedures
+// described in this document MUST be applied to BGP routes with {AFI, SAFI}
+// combinations {AFI 1 (IPv4), SAFI 1} and {AFI 2 (IPv6), SAFI 1}" and "The
+// procedures MUST NOT be applied to other address families by default." So a
+// route of any other family carries aspaStateNone: it is neither verified nor
+// tracked for re-validation, and no ASPA policy action can exclude it.
+func aspaAppliesTo(fam family.Family) bool {
+	if fam.SAFI != family.SAFIUnicast {
+		return false
+	}
+	return fam.AFI == family.AFIIPv4 || fam.AFI == family.AFIIPv6
 }
 
 // aspaStateForPath maps a received route's AS_PATH segments to an ASPA validation state.
