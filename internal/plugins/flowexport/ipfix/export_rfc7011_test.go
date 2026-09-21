@@ -87,7 +87,7 @@ func mixedFlows() []flowexport.ConntrackFlow {
 // RFC requirement: RFC7011-3.3.1-3 positive -- a batch holding one IPv4 and one
 // IPv6 flow leaves EncodeFlows as two messages, Set 257 whose length is exactly
 // one 53-octet IPv4 record plus header and padding, and Set 258 whose length is
-// exactly one 77-octet IPv6 record plus header and padding
+// exactly one 77-octet IPv6 record plus header and padding.
 func TestRFC7011OneRecordTypePerSet(t *testing.T) {
 	s, pc := captureSender(t)
 	enc := NewFlowEncoder(1)
@@ -119,7 +119,7 @@ func TestRFC7011OneRecordTypePerSet(t *testing.T) {
 // RFC requirement: RFC7011-3.3.1-3 negative -- the IPv6 flow's 16-octet source
 // address never appears inside Set 257, and the IPv4 flow's 4-octet source
 // address never appears inside Set 258, so neither Set carries the other
-// template's record type
+// template's record type.
 func TestRFC7011RecordTypesNotMixedInSet(t *testing.T) {
 	s, pc := captureSender(t)
 	enc := NewFlowEncoder(1)
@@ -162,7 +162,7 @@ func oneFlow() []FlowRecord {
 // RFC requirement: RFC7011-6.1.1-1 positive -- the unsigned16 ports, unsigned8
 // protocol, unsigned64 counters and timestamps, and unsigned32 AS numbers of a
 // flow record are written most significant octet first, so the record's tail
-// after the two addresses is the big-endian concatenation of its fields
+// after the two addresses is the big-endian concatenation of its fields.
 func TestRFC7011IntegralNetworkByteOrder(t *testing.T) {
 	var buf [256]byte
 	n, count := WriteFlowDataSet(buf[:], 0, oneFlow(), FlowTemplateID)
@@ -185,7 +185,7 @@ func TestRFC7011IntegralNetworkByteOrder(t *testing.T) {
 
 // RFC requirement: RFC7011-6.1.1-1 negative -- no integral field of the record
 // appears in little-endian order: the byte-reversed sourceTransportPort and the
-// byte-reversed octetDeltaCount are both absent from the encoded record
+// byte-reversed octetDeltaCount are both absent from the encoded record.
 func TestRFC7011IntegralNeverLittleEndian(t *testing.T) {
 	var buf [256]byte
 	n, _ := WriteFlowDataSet(buf[:], 0, oneFlow(), FlowTemplateID)
@@ -200,7 +200,7 @@ func TestRFC7011IntegralNeverLittleEndian(t *testing.T) {
 
 // RFC requirement: RFC7011-6.1.2-1 positive -- an IPv4 record opens with the
 // 4-octet source and destination addresses and an IPv6 record with the 16-octet
-// ones, each in network byte order, matching the 4 and 16 the templates declare
+// ones, each in network byte order, matching the 4 and 16 the templates declare.
 func TestRFC7011AddressOctetsNetworkByteOrder(t *testing.T) {
 	var buf [256]byte
 	n, _ := WriteFlowDataSet(buf[:], 0, oneFlow(), FlowTemplateID)
@@ -229,7 +229,7 @@ func TestRFC7011AddressOctetsNetworkByteOrder(t *testing.T) {
 
 // RFC requirement: RFC7011-6.1.2-1 negative -- an IPv4 flow is never widened to
 // a 16-octet address: its record is 53 octets, not 77, and the IPv4-mapped form
-// ::ffff:10.1.2.3 does not appear in the Set
+// ::ffff:10.1.2.3 does not appear in the Set.
 func TestRFC7011IPv4NeverWidenedToSixteenOctets(t *testing.T) {
 	var buf [256]byte
 	n, _ := WriteFlowDataSet(buf[:], 0, oneFlow(), FlowTemplateID)
@@ -244,7 +244,7 @@ func TestRFC7011IPv4NeverWidenedToSixteenOctets(t *testing.T) {
 
 // RFC requirement: RFC7011-8.2-1 positive -- each Template message carries the
 // wall-clock second of its send as Export Time, so the collector can order
-// Template actions by it
+// Template actions by it.
 func TestRFC7011TemplateExportTimeIsSendTime(t *testing.T) {
 	s, pc := captureSender(t)
 	enc := NewFlowEncoder(1)
@@ -263,7 +263,7 @@ func TestRFC7011TemplateExportTimeIsSendTime(t *testing.T) {
 
 // RFC requirement: RFC7011-8.2-1 negative -- a later Template message never
 // carries an Export Time earlier than the one before it, so the sequence of
-// Template actions cannot invert
+// Template actions cannot invert.
 func TestRFC7011TemplateExportTimeNeverRegresses(t *testing.T) {
 	s, pc := captureSender(t)
 	enc := NewFlowEncoder(1)
@@ -284,7 +284,7 @@ func TestRFC7011TemplateExportTimeNeverRegresses(t *testing.T) {
 
 // RFC requirement: RFC7011-8.2-2 positive -- a counter snapshot taken at the
 // Template's own second is exported with an Export Time equal to the Template
-// message's Export Time, never before it
+// message's Export Time, never before it.
 func TestRFC7011DataExportTimeNotBeforeTemplate(t *testing.T) {
 	s, pc := captureSender(t)
 	enc := NewCounterEncoder(1)
@@ -307,7 +307,7 @@ func TestRFC7011DataExportTimeNotBeforeTemplate(t *testing.T) {
 // RFC requirement: RFC7011-8.2-2 negative -- a snapshot whose time sits five
 // seconds before the Template message is not exported at that earlier time: the
 // Data message's Export Time is clamped to the Template's, so no Data Set is
-// ever stamped before the Template describing it
+// ever stamped before the Template describing it.
 func TestRFC7011StaleSnapshotClampedToTemplateTime(t *testing.T) {
 	s, pc := captureSender(t)
 	enc := NewCounterEncoder(1)
@@ -333,7 +333,7 @@ func TestRFC7011StaleSnapshotClampedToTemplateTime(t *testing.T) {
 
 // RFC requirement: RFC7011-8.2-3 positive -- a message built with its Template
 // carries the Template Set (ID 2) as the first Set and the Data Set (ID 256)
-// as the second, so the Template precedes the Data Set that references it
+// as the second, so the Template precedes the Data Set that references it.
 func TestRFC7011TemplateSetPrecedesDataSet(t *testing.T) {
 	ifaces := []flowexport.InterfaceCounters{{IfIndex: 1}}
 	var buf [1400]byte
@@ -350,7 +350,7 @@ func TestRFC7011TemplateSetPrecedesDataSet(t *testing.T) {
 
 // RFC requirement: RFC7011-8.2-3 negative -- when the Template rides in the
 // message, the Data Set (ID 256) is never the first Set: the octets at the
-// first Set position are the Template Set header, not a Data Set header
+// first Set position are the Template Set header, not a Data Set header.
 func TestRFC7011DataSetNeverPrecedesTemplate(t *testing.T) {
 	ifaces := []flowexport.InterfaceCounters{{IfIndex: 1}}
 	var buf [1400]byte

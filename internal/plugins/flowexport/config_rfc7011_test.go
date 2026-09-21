@@ -20,7 +20,7 @@ import (
 // RFC requirement: RFC7011-10.1-1 positive -- a collector configured with
 // port 4739 parses to CollectorConfig.Port 4739 rather than the 6343 default,
 // and a Sender built from a parsed non-default port delivers its datagram to
-// that port
+// that port.
 func TestRFC7011CollectorPortConfigurable(t *testing.T) {
 	cfg, err := ParseConfig(`{"flow-export":{"collector":[{"name":"c1","address":"127.0.0.1","port":4739,"protocol":"ipfix"}]}}`)
 	if err != nil {
@@ -73,7 +73,7 @@ func TestRFC7011CollectorPortConfigurable(t *testing.T) {
 
 // RFC requirement: RFC7011-10.1-1 negative -- a collector port of 0 or 65536
 // is refused by Validate, so a port outside the configurable range never
-// reaches NewSender
+// reaches NewSender.
 func TestRFC7011CollectorPortOutOfRangeRefused(t *testing.T) {
 	for _, port := range []int{0, 65536} {
 		cfg := &Config{Collectors: []CollectorConfig{
