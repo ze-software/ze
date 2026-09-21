@@ -218,14 +218,17 @@ func writeICRQBody(buf []byte, localSID uint16, callSerial, bearerType uint32, c
 	off += WriteAVPUint16(buf, off, true, AVPMessageType, uint16(MsgICRQ))
 	off += WriteAVPUint16(buf, off, true, AVPAssignedSessionID, localSID)
 	off += WriteAVPUint32(buf, off, true, AVPCallSerialNumber, callSerial)
+	// RFC 2661 Section 4.4.4 fixes the M-bit of Bearer Type, Called Number
+	// and Calling Number at 1 ("The M-bit for this AVP MUST be set to 1"):
+	// presence is optional, the flag on a present AVP is not.
 	if bearerType != 0 {
-		off += WriteAVPUint32(buf, off, false, AVPBearerType, bearerType)
+		off += WriteAVPUint32(buf, off, true, AVPBearerType, bearerType)
 	}
 	if calledNumber != "" {
-		off += WriteAVPString(buf, off, false, AVPCalledNumber, calledNumber)
+		off += WriteAVPString(buf, off, true, AVPCalledNumber, calledNumber)
 	}
 	if callingNumber != "" {
-		off += WriteAVPString(buf, off, false, AVPCallingNumber, callingNumber)
+		off += WriteAVPString(buf, off, true, AVPCallingNumber, callingNumber)
 	}
 	return off
 }

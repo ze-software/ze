@@ -34,6 +34,9 @@ func buildSCCRQAtVersion(t *testing.T, ver, rev byte, peerTID uint16, hostName s
 	return pkt
 }
 
+// RFC requirement: RFC2661-7.2.1-1 positive -- an SCCRQ announcing a version
+// ze does not speak (0.0, 1.1, 3.0) is answered with a StopCCN carrying
+// Result Code 5 and the version ze speaks, and no tunnel is allocated.
 // VALIDATES: an SCCRQ announcing a protocol version ze does not speak is
 //
 //	answered with StopCCN Result Code 5 carrying the version ze does speak,
@@ -87,6 +90,8 @@ func TestSCCRQAtAnUnsupportedProtocolVersionIsRefused(t *testing.T) {
 	}
 }
 
+// RFC requirement: RFC2661-7.2.1-1 negative -- an SCCRQ at the supported
+// version 1.0 is answered with an SCCRP, not a StopCCN, and a tunnel exists.
 // VALIDATES: an SCCRQ at version 1 revision 0 still establishes, so the
 //
 //	refusal above is keyed on the value and does not refuse every peer.
