@@ -137,13 +137,12 @@ const s5SourceNextHop = "192.0.2.10"
 func s5Payload(nextHop string) []byte {
 	addr := netip.MustParseAddr(nextHop).As4()
 	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN igp
-	attrs = append(attrs, 0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xfd, 0xe9)
-	attrs = append(attrs, 0x40, 0x03, 0x04)
+	attrs = append(attrs, 0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xfd, 0xe9, 0x40, 0x03, 0x04)
 	attrs = append(attrs, addr[:]...)
 	return buildUpdatePayload(attrs, nhAnnouncedPrefix)
 }
 
-// RFC requirement: RFC4271-5-8 positive — after the next-hop-self rewrite and the local-AS prepend, the UPDATE written for the external destination carries NEXT_HOP 10.0.0.254 and an AS_PATH that starts with the local AS 65000 ahead of the received 65001
+// RFC requirement: RFC4271-5-8 positive — after the next-hop-self rewrite and the local-AS prepend, the UPDATE written for the external destination carries NEXT_HOP 10.0.0.254 and an AS_PATH that starts with the local AS 65000 ahead of the received 65001.
 func TestForwardTransmitsUpdatedWellKnownAttributes(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, err := bgpctx.Registry.Register(ctx)
@@ -164,7 +163,7 @@ func TestForwardTransmitsUpdatedWellKnownAttributes(t *testing.T) {
 		"AS_PATH on the wire does not carry the local AS ahead of the received path: % x", attrs)
 }
 
-// RFC requirement: RFC4271-5-8 negative — the received NEXT_HOP 192.0.2.10 and the received AS_PATH of 65001 alone never reach the wire for a destination whose attributes Ze updated; the transmitted UPDATE carries no stale copy beside the updated one
+// RFC requirement: RFC4271-5-8 negative — the received NEXT_HOP 192.0.2.10 and the received AS_PATH of 65001 alone never reach the wire for a destination whose attributes Ze updated; the transmitted UPDATE carries no stale copy beside the updated one.
 func TestForwardNeverTransmitsTheSupersededWellKnownAttributes(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, err := bgpctx.Registry.Register(ctx)

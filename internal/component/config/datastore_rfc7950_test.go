@@ -32,7 +32,7 @@ const validRunningConfig = `interface {
 
 // RFC requirement: RFC7950-8.1-2 positive — a config every constraint accepts loads to the tree the daemon runs, so the running datastore receives a valid config
 // RFC requirement: RFC7950-8.3-1 positive — a config valid in the parse window and in the whole-tree window loads; neither window refuses a conforming value
-// RFC requirement: RFC7950-8.3.3-1 positive — when LoadConfig completes, the final tree carries the section it was given and obeys every constraint both windows checked
+// RFC requirement: RFC7950-8.3.3-1 positive — when LoadConfig completes, the final tree carries the section it was given and obeys every constraint both windows checked.
 func TestRFC7950RunningDatastoreAcceptsAValidConfig(t *testing.T) {
 	result, err := LoadConfig(validRunningConfig, "test.conf", nil)
 	if err != nil {
@@ -50,7 +50,7 @@ func TestRFC7950RunningDatastoreAcceptsAValidConfig(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC7950-8.3-1 negative — a value outside its YANG range (mtu 20 against "68..16000") is refused in the parse window: LoadConfig returns no tree and the error names the range
+// RFC requirement: RFC7950-8.3-1 negative — a value outside its YANG range (mtu 20 against "68..16000") is refused in the parse window: LoadConfig returns no tree and the error names the range.
 func TestRFC7950RunningDatastoreRefusesAViolationAtParse(t *testing.T) {
 	const src = `interface {
 	backend netlink;
@@ -76,7 +76,7 @@ func TestRFC7950RunningDatastoreRefusesAViolationAtParse(t *testing.T) {
 
 // RFC requirement: RFC7950-8.1-2 negative — a config a registered ze:validate rule refuses never becomes the running tree: LoadConfig returns ErrCustomValidation and no tree
 // RFC requirement: RFC7950-8.3-1 negative — a value the parser accepts but a ze:validate rule refuses is caught in the whole-tree window after parsing, so a violation the first window cannot see is still refused
-// RFC requirement: RFC7950-8.3.3-1 negative — a tree that violates a constraint at the end of processing is refused as a whole; no partial tree is returned beside the error
+// RFC requirement: RFC7950-8.3.3-1 negative — a tree that violates a constraint at the end of processing is refused as a whole; no partial tree is returned beside the error.
 func TestRFC7950RunningDatastoreRefusesAViolationAfterParse(t *testing.T) {
 	// `plugin/internal/use` is `type string { length "1..64" }`, so this name
 	// passes the parse window and only InternalPluginNameValidator refuses it.

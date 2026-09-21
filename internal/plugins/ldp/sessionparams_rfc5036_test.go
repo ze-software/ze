@@ -26,14 +26,15 @@ import (
 )
 
 // encodeInitPDURaw builds a complete Initialization PDU whose Common Session
-// Parameters carry the flags octet, the PVLim octet and the Max PDU Length exactly
-// as given, so a test can set bits the encoder never sets.
-func encodeInitPDURaw(flags, pvlim uint8, keepalive, maxPDU uint16) []byte {
+// Parameters carry the flags octet and the Max PDU Length exactly as given, so
+// a test can set bits the encoder never sets. The PVLim octet is 0: no test
+// here proposes loop detection.
+func encodeInitPDURaw(flags uint8, keepalive, maxPDU uint16) []byte {
 	var value [14]byte
 	binary.BigEndian.PutUint16(value[0:2], ldpVersion)
 	binary.BigEndian.PutUint16(value[2:4], keepalive)
 	value[4] = flags
-	value[5] = pvlim
+	value[5] = 0
 	binary.BigEndian.PutUint16(value[6:8], maxPDU)
 	copy(value[8:12], []byte{10, 0, 0, 1})
 	var buf [128]byte
@@ -125,7 +126,7 @@ func TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited(t *testing.T) {
 	rx := rfcTestSession(local)
 	rx.state = StateOpenSent
 
-	pdu := encodeInitPDURaw(initFlagOnDemand, 0, 30, 4096)
+	pdu := encodeInitPDURaw(initFlagOnDemand, 30, 4096)
 	msg, err := DecodeInit(7, pdu[ldpHeaderLen+ldpMsgHdrLen:])
 	if err != nil {
 		t.Fatalf("DecodeInit: %v", err)
@@ -232,7 +233,7 @@ func TestRFC5036InitReservedBitsIgnoredOnReceipt(t *testing.T) {
 	defer func() { _ = remote.Close() }()
 
 	const reservedBits = ^(initFlagOnDemand | initFlagLoopDetection)
-	pdu := encodeInitPDURaw(reservedBits, 0, 30, 4096)
+	pdu := encodeInitPDURaw(reservedBits, 30, 4096)
 	msg, err := DecodeInit(7, pdu[ldpHeaderLen+ldpMsgHdrLen:])
 	if err != nil {
 		t.Fatalf("DecodeInit: %v", err)
@@ -281,7 +282,7 @@ func TestRFC5036InitMaxPDULengthTakesTheSmallerProposal(t *testing.T) {
 
 			rx := rfcTestSession(local)
 			rx.state = StateOpenSent
-			pdu := encodeInitPDURaw(0, 0, 30, tc.peer)
+			pdu := encodeInitPDURaw(0, 30, tc.peer)
 			if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil); err != nil {
 				t.Fatalf("processMessages: %v", err)
 			}
@@ -304,7 +305,7 @@ func TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal(t *testing.T) {
 
 	rx := rfcTestSession(local)
 	rx.state = StateOpenSent
-	pdu := encodeInitPDURaw(0, 0, 30, 8000)
+	pdu := encodeInitPDURaw(0, 30, 8000)
 	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil); err != nil {
 		t.Fatalf("processMessages: %v", err)
 	}
@@ -414,7 +415,7 @@ func TestRFC5036KeepalivePacingFollowsNegotiatedTime(t *testing.T) {
 	readLDPPDU(t, remote)
 
 	// The peer's Initialization proposes 1s; the negotiation takes the smaller.
-	pdu := encodeInitPDURaw(0, 0, 1, 4096)
+	pdu := encodeInitPDURaw(0, 1, 4096)
 	if _, err := remote.Write(pdu); err != nil {
 		t.Fatalf("write Initialization: %v", err)
 	}
@@ -439,7 +440,11 @@ func TestRFC5036KeepalivePacingFollowsNegotiatedTime(t *testing.T) {
 // the transport address the Hello carries.
 func helloTransportAddr(t *testing.T, src, dst *net.UDPConn, cfg ldpConfig) netip.Addr {
 	t.Helper()
-	sendHello(src, dst.LocalAddr().(*net.UDPAddr), [4]byte{10, 0, 0, 1}, cfg, slogutil.DiscardLogger())
+	dstAddr, isUDP := dst.LocalAddr().(*net.UDPAddr)
+	if !isUDP {
+		t.Fatalf("dst.LocalAddr() = %T, want *net.UDPAddr", dst.LocalAddr())
+	}
+	sendHello(src, dstAddr, [4]byte{10, 0, 0, 1}, cfg, slogutil.DiscardLogger())
 	if err := dst.SetReadDeadline(time.Now().Add(ldpReadTimeout)); err != nil {
 		t.Fatalf("SetReadDeadline: %v", err)
 	}

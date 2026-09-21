@@ -249,8 +249,7 @@ func TestRFC8414MetadataFetchRefusesUntrustedCertificate(t *testing.T) {
 	if err == nil {
 		t.Fatalf("fetchASMetadata accepted an untrusted certificate: %+v", md)
 	}
-	var unknownCA x509.UnknownAuthorityError
-	if !errors.As(err, &unknownCA) {
+	if _, isUnknownCA := errors.AsType[x509.UnknownAuthorityError](err); !isUnknownCA {
 		t.Fatalf("error = %v, want x509.UnknownAuthorityError", err)
 	}
 	if md.Issuer != "" {

@@ -86,13 +86,11 @@ func authTestLSP(level lsdbLevel) []byte {
 	return buf[:l.WriteTo(buf, 0)]
 }
 
-func authTestLANHello(level lsdbLevel) []byte {
-	pt := packet.PDUTypeL1LANHello
-	if level == levelTwo {
-		pt = packet.PDUTypeL2LANHello
-	}
+// authTestLANHello builds the Level 1 LAN Hello every authentication test
+// signs and verifies.
+func authTestLANHello() []byte {
 	h := packet.LANHello{
-		PDUType:     pt,
+		PDUType:     packet.PDUTypeL1LANHello,
 		CircuitType: packet.CircuitL1L2,
 		SystemID:    types.SystemID{0, 0, 0, 0, 0, 8},
 		HoldingTime: types.HoldingTime(30),
@@ -159,7 +157,7 @@ func TestISISAuthReject(t *testing.T) {
 	// Authentication string (the per-interface IIH chain, HMAC-SHA-256/CRYPTO_AUTH type
 	// 3) verifies; IS-IS HELLO PDUs use the Link Level Authentication string
 	// (RFC 5310 sec 3.2).
-	signedHello := e.signHelloPDU("eth0", adjacency.Level1, authTestLANHello(levelOne))
+	signedHello := e.signHelloPDU("eth0", adjacency.Level1, authTestLANHello())
 	if !e.verifyFrame(transport.RawFrame{IfIndex: 10, PDU: signedHello}) {
 		t.Fatal("correctly signed IIH rejected")
 	}
@@ -170,13 +168,13 @@ func TestISISAuthReject(t *testing.T) {
 	// RFC requirement: RFC5310-3.2-3 negative -- an IIH lacking the Link Level
 	// Authentication string (no TLV 10) is rejected under configured CRYPTO_AUTH
 	// (RFC 5310 sec 3.2).
-	if e.verifyFrame(transport.RawFrame{IfIndex: 10, PDU: authTestLANHello(levelOne)}) {
+	if e.verifyFrame(transport.RawFrame{IfIndex: 10, PDU: authTestLANHello()}) {
 		t.Fatal("unauthenticated IIH accepted under configured auth")
 	}
 
 	// Negative case (AC-2): an IIH signed with the wrong key is rejected.
 	wrong := packet.Key{Algorithm: packet.AuthAlgoHMACSHA256, Secret: []byte("nope"), KeyID: 3}
-	badHello, _ := packet.SignPDU(authTestLANHello(levelOne), wrong)
+	badHello, _ := packet.SignPDU(authTestLANHello(), wrong)
 	if e.verifyFrame(transport.RawFrame{IfIndex: 10, PDU: badHello}) {
 		t.Fatal("wrong-key IIH accepted")
 	}

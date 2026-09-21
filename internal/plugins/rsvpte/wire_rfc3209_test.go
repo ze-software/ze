@@ -9,6 +9,7 @@ package rsvpte
 import (
 	"encoding/binary"
 	"net/netip"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,7 +46,7 @@ func objectBodies(t *testing.T, raw []byte) []objectHeader {
 	return objs
 }
 
-// RFC requirement: RFC3209-4.2.1-1 positive — encodeLabelRequest writes the two reserved octets of a C-Type 1 LABEL_REQUEST as zero over a buffer that held 0xFF, with the L3PID in the last two octets
+// RFC requirement: RFC3209-4.2.1-1 positive — encodeLabelRequest writes the two reserved octets of a C-Type 1 LABEL_REQUEST as zero over a buffer that held 0xFF, with the L3PID in the last two octets.
 func TestRFC3209LabelRequestReservedZeroOnSend(t *testing.T) {
 	buf := make([]byte, 16)
 	for i := range buf {
@@ -58,7 +59,7 @@ func TestRFC3209LabelRequestReservedZeroOnSend(t *testing.T) {
 	assert.Equal(t, uint16(0x86DD), binary.BigEndian.Uint16(buf[6:8]))
 }
 
-// RFC requirement: RFC3209-4.2.1-1 negative — a LABEL_REQUEST whose reserved octets are non-zero on receipt is not refused: decodeLabelRequest returns the L3PID and no error
+// RFC requirement: RFC3209-4.2.1-1 negative — a LABEL_REQUEST whose reserved octets are non-zero on receipt is not refused: decodeLabelRequest returns the L3PID and no error.
 func TestRFC3209LabelRequestReservedIgnoredOnReceipt(t *testing.T) {
 	body := []byte{0xFF, 0xFF, 0x08, 0x00}
 	lr, err := decodeLabelRequest(body)
@@ -66,7 +67,7 @@ func TestRFC3209LabelRequestReservedIgnoredOnReceipt(t *testing.T) {
 	assert.Equal(t, labelRequest{L3PID: 0x0800}, lr)
 }
 
-// RFC requirement: RFC3209-4.3.3-1 positive — every EXPLICIT_ROUTE subobject encodeERO writes has a Length of 8 (IPv4 prefix) or 20 (IPv6 prefix), each at least 4 and a multiple of 4
+// RFC requirement: RFC3209-4.3.3-1 positive — every EXPLICIT_ROUTE subobject encodeERO writes has a Length of 8 (IPv4 prefix) or 20 (IPv6 prefix), each at least 4 and a multiple of 4.
 func TestRFC3209EROSubobjectLengthOnSend(t *testing.T) {
 	hops := []eroHop{
 		{Address: netip.MustParsePrefix("10.0.0.5/32")},
@@ -83,7 +84,7 @@ func TestRFC3209EROSubobjectLengthOnSend(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC3209-4.3.3-1 negative — an EXPLICIT_ROUTE subobject whose Length is 3 (below the minimum of 4) is refused by decodeERO with errShortERO
+// RFC requirement: RFC3209-4.3.3-1 negative — an EXPLICIT_ROUTE subobject whose Length is 3 (below the minimum of 4) is refused by decodeERO with errShortERO.
 func TestRFC3209EROSubobjectLengthShortRefused(t *testing.T) {
 	// One well-formed IPv4 subobject followed by a Length 3 subobject.
 	body := []byte{
@@ -95,7 +96,7 @@ func TestRFC3209EROSubobjectLengthShortRefused(t *testing.T) {
 	assert.Len(t, hops, 1, "the subobjects before the bad one are returned with the error")
 }
 
-// RFC requirement: RFC3209-4.4.1-1 positive — every RECORD_ROUTE subobject encodeRRO writes has a Length of 8 (IPv4, Label) or 20 (IPv6), each at least 4 and a multiple of 4
+// RFC requirement: RFC3209-4.4.1-1 positive — every RECORD_ROUTE subobject encodeRRO writes has a Length of 8 (IPv4, Label) or 20 (IPv6), each at least 4 and a multiple of 4.
 func TestRFC3209RROSubobjectLengthOnSend(t *testing.T) {
 	entries := []rroEntry{
 		{Type: RROSubIPv4, Address: netip.MustParseAddr("10.0.0.5")},
@@ -112,7 +113,7 @@ func TestRFC3209RROSubobjectLengthOnSend(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC3209-4.4.1-1 negative — a RECORD_ROUTE subobject whose Length is 3 (below the minimum of 4) is refused by decodeRRO with errShortRRO
+// RFC requirement: RFC3209-4.4.1-1 negative — a RECORD_ROUTE subobject whose Length is 3 (below the minimum of 4) is refused by decodeRRO with errShortRRO.
 func TestRFC3209RROSubobjectLengthShortRefused(t *testing.T) {
 	body := []byte{
 		RROSubIPv4, 8, 10, 0, 0, 5, 32, 0,
@@ -123,7 +124,7 @@ func TestRFC3209RROSubobjectLengthShortRefused(t *testing.T) {
 	assert.Len(t, entries, 1)
 }
 
-// RFC requirement: RFC3209-4.7.3-1 positive — encodeSessionAttr writes a Length that is a multiple of 4 and at least 8 for Session Names of 0 to 5 octets, and the header Length equals the bytes written
+// RFC requirement: RFC3209-4.7.3-1 positive — encodeSessionAttr writes a Length that is a multiple of 4 and at least 8 for Session Names of 0 to 5 octets, and the header Length equals the bytes written.
 func TestRFC3209SessionAttributeLengthOnSend(t *testing.T) {
 	for _, name := range []string{"", "a", "ab", "abc", "abcd", "abcde"} {
 		buf := make([]byte, 64)
@@ -137,7 +138,7 @@ func TestRFC3209SessionAttributeLengthOnSend(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC3209-4.7.3-1 negative — a SESSION_ATTRIBUTE whose body is shorter than the four fixed octets (object Length below 8) is refused by decodeSessionAttr with errShortObject
+// RFC requirement: RFC3209-4.7.3-1 negative — a SESSION_ATTRIBUTE whose body is shorter than the four fixed octets (object Length below 8) is refused by decodeSessionAttr with errShortObject.
 func TestRFC3209SessionAttributeLengthShortRefused(t *testing.T) {
 	_, err := decodeSessionAttr([]byte{7, 7, 0}, CTypeSessionAttr)
 	require.ErrorIs(t, err, errShortObject)
@@ -145,7 +146,7 @@ func TestRFC3209SessionAttributeLengthShortRefused(t *testing.T) {
 	require.ErrorIs(t, err, errShortObject, "C-Type 1 adds 12 octets of affinities before the same four")
 }
 
-// RFC requirement: RFC3209-3-2 positive — a RESV whose objects are reversed on the wire decodes through DecodeMessage to the same SESSION, STYLE, FLOWSPEC, sender and LABEL as the canonical order
+// RFC requirement: RFC3209-3-2 positive — a RESV whose objects are reversed on the wire decodes through DecodeMessage to the same SESSION, STYLE, FLOWSPEC, sender and LABEL as the canonical order.
 func TestRFC3209ObjectsAcceptedInAnyOrder(t *testing.T) {
 	rsb := &resvStateBlock{
 		Session:  sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 42, ExtTunnelID: 0x0a000001},
@@ -164,8 +165,8 @@ func TestRFC3209ObjectsAcceptedInAnyOrder(t *testing.T) {
 	reversed := make([]byte, 0, len(canonical))
 	reversed = append(reversed, canonical[:rsvpHdrLen]...)
 	end := len(canonical)
-	for i := len(objs) - 1; i >= 0; i-- {
-		start := end - int(objs[i].Length)
+	for _, obj := range slices.Backward(objs) {
+		start := end - int(obj.Length)
 		reversed = append(reversed, canonical[start:end]...)
 		end = start
 	}

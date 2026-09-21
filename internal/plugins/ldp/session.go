@@ -56,8 +56,8 @@ const (
 	DefaultKeepaliveTime = 60 * time.Second
 	DefaultMaxPDULength  = 4096
 	// maxPDULengthDefaultThreshold is the largest Max PDU Length proposal that
-	// means "the default": RFC 5036 Section 3.5.3, "A value of 255 or less
-	// specifies the default maximum length of 4096 octets."
+	// means "the default". RFC 5036 Section 3.5.3: "A value of 255 or less
+	// specifies the default maximum length of 4096 octets".
 	maxPDULengthDefaultThreshold = 255
 )
 
@@ -209,7 +209,7 @@ func (s *Session) currentHoldTime() time.Duration {
 	return s.holdTime
 }
 
-// KeepaliveChanged is signalled once each time handleInit changes the negotiated
+// KeepaliveChanged is signaled once each time handleInit changes the negotiated
 // KeepAlive Time. The KeepAlive sender selects on it beside its period timer.
 func (s *Session) KeepaliveChanged() <-chan struct{} {
 	return s.keepaliveChanged

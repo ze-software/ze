@@ -33,9 +33,9 @@ func receiveOnEth0(t *testing.T, db *LSDB, lsa packet.LSA) {
 
 func ackPackets(tx *txRecorder) []sentPacket {
 	var acks []sentPacket
-	for _, s := range tx.sends {
-		if s.pkt.LSAck != nil {
-			acks = append(acks, s)
+	for i := range tx.sends {
+		if tx.sends[i].pkt.LSAck != nil {
+			acks = append(acks, tx.sends[i])
 		}
 	}
 	return acks
@@ -185,8 +185,10 @@ func TestRFC2328LookupNeedsFullTriple(t *testing.T) {
 	}
 }
 
-func summaryKey(lsidText string) types.LSAKey {
-	return types.LSAKey{Type: types.LSTypeSummaryNetwork, LinkStateID: lsid(lsidText), AdvertisingRouter: rid("1.1.1.1")}
+// summaryKey is the key of the one summary LSA the flush tests originate,
+// for 192.0.2.0 from router 1.1.1.1.
+func summaryKey() types.LSAKey {
+	return types.LSAKey{Type: types.LSTypeSummaryNetwork, LinkStateID: lsid("192.0.2.0"), AdvertisingRouter: rid("1.1.1.1")}
 }
 
 // RFC requirement: RFC2328-12.1.6-1 negative -- while the MaxAge flush of an LSA whose sequence reached MaxSequenceNumber is not yet acknowledged by every adjacent neighbor, a re-origination does not produce a new instance at InitialSequenceNumber: it re-issues the MaxAge instance at MaxSequenceNumber (nextOwnSequenceForce, origination.go).
@@ -197,7 +199,7 @@ func TestRFC2328SequenceWrapWaitsForAck(t *testing.T) {
 	db.SetTx(tx.Send)
 	db.SetTopology(floodTopology)
 	a := area("0.0.0.0")
-	key := summaryKey("192.0.2.0")
+	key := summaryKey()
 	db.mu.Lock()
 	db.own[a] = map[types.LSAKey]ownRecord{key: {sequence: types.MaxSequenceNumber}}
 	db.mu.Unlock()
@@ -220,7 +222,7 @@ func TestRFC2328SequenceWrapRestartsAfterAck(t *testing.T) {
 	db.SetTx(tx.Send)
 	db.SetTopology(floodTopology)
 	a := area("0.0.0.0")
-	key := summaryKey("192.0.2.0")
+	key := summaryKey()
 	db.mu.Lock()
 	db.own[a] = map[types.LSAKey]ownRecord{key: {sequence: types.MaxSequenceNumber}}
 	db.mu.Unlock()
@@ -252,7 +254,7 @@ func TestRFC2328WithdrawnSummaryFlushedAtMaxAge(t *testing.T) {
 	db.SetTx(tx.Send)
 	db.SetTopology(floodTopology)
 	a := area("0.0.0.0")
-	key := summaryKey("192.0.2.0")
+	key := summaryKey()
 	if _, ok := db.OriginateSummary(a, rid("1.1.1.1"), types.OptionE, types.LSTypeSummaryNetwork, key.LinkStateID, ip4("255.255.255.0"), 10); !ok {
 		t.Fatal("OriginateSummary refused")
 	}
@@ -289,7 +291,7 @@ func TestRFC2328AdvertisedSummaryNotFlushed(t *testing.T) {
 	db.SetTx(tx.Send)
 	db.SetTopology(floodTopology)
 	a := area("0.0.0.0")
-	key := summaryKey("192.0.2.0")
+	key := summaryKey()
 	if _, ok := db.OriginateSummary(a, rid("1.1.1.1"), types.OptionE, types.LSTypeSummaryNetwork, key.LinkStateID, ip4("255.255.255.0"), 10); !ok {
 		t.Fatal("OriginateSummary refused")
 	}

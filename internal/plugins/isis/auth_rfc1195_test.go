@@ -101,7 +101,7 @@ func TestRFC1195PDUClassSignedWithItsScope(t *testing.T) {
 	e.setKeyStore(authTestConfig())
 	ks := e.keystore
 
-	hello := e.signHelloPDU("eth0", adjacency.Level1, authTestLANHello(levelOne))
+	hello := e.signHelloPDU("eth0", adjacency.Level1, authTestLANHello())
 	if err := packet.VerifyPDU(hello, chainKeys(ks, ks.helloChain("eth0", levelOne))); err != nil {
 		t.Fatalf("hello does not verify under the per-link password: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestRFC1195PDUClassRefusedUnderOtherScopes(t *testing.T) {
 	area := ks.levelChain(levelOne)
 	domain := ks.levelChain(levelTwo)
 
-	hello := e.signHelloPDU("eth0", adjacency.Level1, authTestLANHello(levelOne))
+	hello := e.signHelloPDU("eth0", adjacency.Level1, authTestLANHello())
 	l1lsp := e.signLevelPDU(authTestLSP(levelOne))
 	l2csnp := e.signLevelPDU(authTestSNP(levelTwo, true))
 

@@ -297,7 +297,13 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// value, and whichever of us commits into this package next re-seals over
 	// the other's bytes -- which is the note two paragraphs up saying the same
 	// thing about a different pair.
-	const want = "895dd4d35eea14517867219a1223f20adde87bcf28791fad6c805d7fd4cab336"
+	// Re-sealed 2026-09-21 for 84263332c9, which spells "analyzed" in
+	// render.go where misspell (locale US) read "analysed". Three comment and
+	// string bytes moved and no verdict, check or vocabulary did. The value
+	// was already red at HEAD before that commit, for commits other sessions
+	// landed on this package without re-sealing; this seal absorbs those
+	// bytes and does not vouch for them, as the paragraphs above say.
+	const want = "8df713aa841fd73fd1cde944e8a270e1c85f49cee4e48d0ba498f5049745886b"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

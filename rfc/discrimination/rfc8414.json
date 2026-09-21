@@ -148,7 +148,7 @@
       "rid": "RFC8414-6.1-3",
       "polarity": "negative",
       "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchRefusesUntrustedCertificate",
-      "unit-sha": "dafff0448941f301",
+      "unit-sha": "b643ddd018fa1919",
       "claim-sha": "ebb2210c9db11837",
       "route": "revert",
       "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",

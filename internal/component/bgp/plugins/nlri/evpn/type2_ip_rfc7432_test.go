@@ -23,7 +23,7 @@ const type2IPFieldOffset = 2 + 8 + 10 + 4 + 1 + 6
 // a decoder reading a different octet count than the address family needs,
 // which would shift the label that follows.
 //
-// RFC requirement: RFC7432-9.2.1-6 positive -- an IPv4 address encodes as exactly 4 octets and an IPv6 address as exactly 16 octets after the IP Address Length byte, the label follows immediately, the NLRI Length counts them, and the decoder reads the same 4 or 16 octets back
+// RFC requirement: RFC7432-9.2.1-6 positive -- an IPv4 address encodes as exactly 4 octets and an IPv6 address as exactly 16 octets after the IP Address Length byte, the label follows immediately, the NLRI Length counts them, and the decoder reads the same 4 or 16 octets back.
 func TestRFC7432Type2IPAddressOctets(t *testing.T) {
 	t.Parallel()
 
@@ -85,7 +85,7 @@ func TestRFC7432Type2IPAddressOctets(t *testing.T) {
 // PREVENTS: A short IP Address field being accepted, with the missing octets
 // read from the label stack or from the next NLRI.
 //
-// RFC requirement: RFC7432-9.2.1-6 negative -- an IP Address Length of 32 followed by fewer than 4 octets, or of 128 followed by fewer than 16 octets, is rejected with ErrEVPNTruncated and yields no route
+// RFC requirement: RFC7432-9.2.1-6 negative -- an IP Address Length of 32 followed by fewer than 4 octets, or of 128 followed by fewer than 16 octets, is rejected with ErrEVPNTruncated and yields no route.
 func TestRFC7432Type2IPAddressOctetsShort(t *testing.T) {
 	t.Parallel()
 
