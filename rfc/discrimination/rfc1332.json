@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc1332",
+  "records": [
+    {
+      "rid": "RFC1332-3.3-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestIPCPNakCarriesTheAssignedRemoteAddress",
+      "unit-sha": "58b5e087161cd585",
+      "claim-sha": "6670184cee0389b0",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::buildNakOrReject",
+      "producer-sha": "9e1dec809fbb215c",
+      "break": "body of buildNakOrReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1332-3.3-2",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestIPCPNakNeverCarriesAnUnacceptableAddress",
+      "unit-sha": "51e050c823bc7927",
+      "claim-sha": "1da74c9cb76868a7",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/ncp.go::buildNakOrReject",
+      "producer-sha": "9e1dec809fbb215c",
+      "break": "body of buildNakOrReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
