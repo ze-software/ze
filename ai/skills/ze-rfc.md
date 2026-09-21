@@ -301,7 +301,9 @@ safe only while no test tags it (a dangling tag fails the gate, which is the bac
 Lowering a row's level out of the MUST-level set (`MUST`, `MUST NOT`, `SHALL`,
 `SHALL NOT`, `REQUIRED`) removes every coverage obligation attached to it, and the row
 keeps its id and its tests, so no other ratchet can see it happen. `check_level_ratchet`
-refuses it unless the same summary carries the authorisation, as a paragraph:
+refuses it unless `rfc/corrections/<stem>.md` carries the authorisation, as a paragraph.
+The record lives there and never in the summary, because a summary is the working
+reference an implementer opens to learn what the RFC obliges:
 
 ```
 Correction 2026-08-15: `RFC7296-2.8-1` was extracted at MUST strength. §2.8.1 states the
@@ -311,6 +313,7 @@ that created it". Same requirement id, corrected text and level.
 
 | Part | Requirement |
 |------|-------------|
+| Where | `rfc/corrections/<stem>.md`. `rfc/corrections/README.md` states the format |
 | Opener | `Correction <YYYY-MM-DD>:`, first line of the paragraph. A leading `>` is allowed |
 | The row | The id in backticks. A paragraph naming a neighbour does not authorise this row |
 | The proof | At least 24 characters in double quotes, appearing VERBATIM in `rfc/full/<stem>.txt` or `rfc/drafts/<stem>.txt`. Line wrapping is ignored; the words are compared |

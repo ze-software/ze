@@ -218,6 +218,31 @@ func checkRetiredRequirements(requirements []Requirement, enrolled, baselineIDs,
 	return errs
 }
 
+// correctionRel is where a level correction is RECORDED, beside the audit
+// verdicts and the extraction sign-offs rather than inside the summary.
+//
+// A summary is a working reference: an implementer opens it to learn what the
+// RFC obliges, and every line that instead narrates what this repository once
+// got wrong is a line they have to read past (owner directive, 2026-09-21).
+// The record still has to exist, because a row leaving the gated population
+// with nothing recorded is the silent loss checkLevelRatchet exists to catch.
+// So it moves rather than going away.
+const correctionRel = "rfc/corrections"
+
+// loadCorrections reads one RFC's correction record.
+//
+// An absent file is not an error: most RFCs have never had a level corrected,
+// and the ratchet's own refusal is what reports a correction that is owed.
+func loadCorrections(tree, stem string) []correction {
+	var tb textbuf.Buffer
+	path := treePath(tree, correctionRel, tb.Str(stem).Str(".md").String())
+	text, err := os.ReadFile(path) // #nosec G304 -- a record under the checkout
+	if err != nil {
+		return nil
+	}
+	return parseCorrections(string(text))
+}
+
 func parseCorrections(text string) []correction {
 	lines := strings.Split(text, "\n")
 	var out []correction
@@ -288,8 +313,7 @@ func checkLevelRatchet(tree string, requirements []Requirement, enrolled map[str
 		}
 		seen[req.RID] = true
 		if _, loaded := corrections[req.RFC]; !loaded {
-			text, _ := os.ReadFile(treePath(tree, summaryRelOf(req.RFC))) // #nosec G304 -- a summary under the checkout
-			corrections[req.RFC] = parseCorrections(string(text))
+			corrections[req.RFC] = loadCorrections(tree, req.RFC)
 			sources[req.RFC], _ = SourceText(tree, req.RFC)
 		}
 		var tb textbuf.Buffer
@@ -308,7 +332,7 @@ func checkLevelRatchet(tree string, requirements []Requirement, enrolled map[str
 		}
 		errs = append(errs, tb.Reset().Str(requirementWhere(req)).Str(": ").Str(req.RID).Str(" (").Str(section).
 			Str(") moved [").Str(was).Str("] -> [").Str(req.Level).
-			Str("] and left the gated MUST-level population with nothing recorded. Gating is monotonic: the row keeps its id and its tests, so no other ratchet sees the loss, while every coverage obligation attached to it disappears. Record the correction in rfc/short/").Str(req.RFC).
+			Str("] and left the gated MUST-level population with nothing recorded. Gating is monotonic: the row keeps its id and its tests, so no other ratchet sees the loss, while every coverage obligation attached to it disappears. Record the correction in ").Str(correctionRel).Str("/").Str(req.RFC).
 			Str(".md as a paragraph opening 'Correction <YYYY-MM-DD>:', naming `").Str(req.RID).
 			Str("` and quoting, in double quotes, at least 24 characters of the RFC sentence that states the lower strength. If the RFC does say MUST, restore the level instead").String())
 	}
