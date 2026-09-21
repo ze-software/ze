@@ -1298,6 +1298,41 @@ func rfcBindingOf(snapshot *rfcCompliance) rfcBinding {
 // WHY that rule existed, so `Gated MUSTs` is labeled as scale, carries the
 // neutral tone and the sentence saying a population is not a result, and the
 // coverage shares sit in the same grid immediately after it.
+// rfcWalkBound says how many gated documents have been read against their own
+// text, in the same note as the population it bounds.
+//
+// Every check behind these figures compares a requirement LIST to the tests,
+// and none reads the RFC, so a count over unwalked summaries measures the list.
+// On 2026-09-21 this page published 3,058 gated MUSTs while 125 of 184
+// documents had never been compared to their standard; the walks that followed
+// found 882 obligations the RFCs state and no summary carried. A reader cannot
+// act on the number without this sentence, so the two travel together
+// (ai/rules/rfc-compliance.md).
+func rfcWalkBound(ledger rfcLedger) string {
+	gated, walked := 0, 0
+	for index := range ledger.Stems {
+		stem := &ledger.Stems[index]
+		if !stem.Enrolled {
+			continue
+		}
+		gated++
+		if stem.Extraction != nil {
+			walked++
+		}
+	}
+	if gated == 0 {
+		return ""
+	}
+	if walked == gated {
+		return "All " + groupThousands(gated) + " have been read against their own text, so " +
+			"this population is bounded by what the RFCs state rather than by what a summary lists."
+	}
+	return "Only " + groupThousands(walked) + " of " + groupThousands(gated) +
+		" have been read against their own text: for the rest, an obligation the RFC " +
+		"states and the summary omits is counted nowhere, so this population measures " +
+		"the list rather than the software."
+}
+
 func rfcComplianceCards(snapshot *rfcCompliance, ledger rfcLedger) []rfcCard {
 	totals := rfcTotalsOf(ledger)
 	split := rfcBindingOf(snapshot)
@@ -1310,7 +1345,8 @@ func rfcComplianceCards(snapshot *rfcCompliance, ledger rfcLedger) []rfcCard {
 				groupThousands(snapshot.Share.RFCs) + " RFCs Ze implements, out of " +
 				groupThousands(snapshot.Share.GatedInspected) + " across the " +
 				groupThousands(snapshot.Share.Inspected) + " RFCs inspected. A population, not " +
-				"a result: the shares beside it are what says how Ze stands",
+				"a result: the shares beside it are what says how Ze stands. " +
+				rfcWalkBound(ledger),
 			Tone: rfcToneNeutral,
 			Rule: "no color: a population is a scale, and a larger one is neither good news " +
 				"nor bad. It is the accounting total"},

@@ -14,6 +14,7 @@
 package rfc
 
 import (
+	"os"
 	"slices"
 	"sort"
 	"strings"
@@ -442,6 +443,49 @@ func shardRow(row RequirementRow) string {
 		Str(" | ").Str(row.NoteCell()).Str(" |").String()
 }
 
+// extractionBoundSentence states what bounds the counts beside it: how many of
+// the gated documents have been read against their own text.
+//
+// DERIVED from the artifacts on disk, never asserted. A summary with no
+// sign-off has had its requirement list compared to the tests and to nothing
+// else, so an obligation it never wrote down is invisible to every check in
+// this package. The sentence says which of the two situations the reader is in
+// and, where any document is unwalked, refuses to let the figure stand alone.
+func extractionBoundSentence(in RenderInput) string {
+	enrolled, walked := 0, 0
+	for stem := range in.Metas {
+		if meta := in.Metas[stem]; !meta.Enrolled() {
+			continue
+		}
+		enrolled++
+		if _, err := os.Stat(treePath(in.Tree, correctionExtractionRel(stem))); err == nil {
+			walked++
+		}
+	}
+	var tb textbuf.Buffer
+	if enrolled == 0 {
+		return ""
+	}
+	if walked == enrolled {
+		return tb.Str("Every one of the ").Int(int64(enrolled)).
+			Str(" gated documents has been read against its own text, so the counts above are ").
+			Str("bounded by what each RFC states rather than by what a summary happens to list.").String()
+	}
+	return tb.Str("READ THIS BEFORE QUOTING THE FIGURES ABOVE: only ").Int(int64(walked)).
+		Str(" of the ").Int(int64(enrolled)).
+		Str(" gated documents have been read against their own text. For the other ").
+		Int(int64(enrolled - walked)).
+		Str(", nothing has ever compared the requirement list to the RFC, so an obligation the ").
+		Str("document states and the list omits is counted nowhere and the figures above ").
+		Str("measure the list rather than the software.").String()
+}
+
+// correctionExtractionRel answers where one stem's sign-off lives.
+func correctionExtractionRel(stem string) string {
+	var tb textbuf.Buffer
+	return tb.Str(extractionRel).Byte('/').Str(stem).Str(".json").String()
+}
+
 // orDashes answers the empty-cell marker for a polarity with no citation.
 func orDashes(cell string) string {
 	if cell == "" {
@@ -478,11 +522,24 @@ func RenderIndex(in RenderInput) (string, error) {
 			"`RFC requirement:` tags in the tests themselves (`ai/rules/evidence.md`).",
 		"",
 	}
+	// The count and the BOUND on it are one sentence, and they are one sentence
+	// on purpose.
+	//
+	// Every check in this package compares the requirement LIST to the tests,
+	// and none of them reads the RFC, so a figure taken over unwalked summaries
+	// measures the list rather than the software. On 2026-09-21 that figure was
+	// published as a conformance measure while 125 of 184 documents had never
+	// been read against their own text, and the walks that followed found 882
+	// MUST-level obligations the RFCs state and no summary carried. The caveat
+	// existed, three paragraphs below, and it did not stop the number being
+	// quoted alone. So the bound now travels inside the sentence a reader
+	// copies (ai/rules/rfc-compliance.md).
 	var counts textbuf.Buffer
 	out = append(out, counts.Int(int64(len(in.Requirements))).Str(" requirements across ").
 		Int(int64(len(byRFC))).Str(" summaries. ").Int(int64(total)).
 		Str(" are MUST-level; ").Int(int64(gatedTotal)).
-		Str(" of those are enrolled and gated by `./le rfc check`.").String(), "")
+		Str(" of those are enrolled and gated by `./le rfc check`. ").
+		Str(extractionBoundSentence(in)).String(), "")
 
 	stems := ShardStems(in.Requirements)
 	if len(stems) > 0 {
