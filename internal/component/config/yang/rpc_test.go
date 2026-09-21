@@ -183,3 +183,50 @@ module ze-leaftexts-api {
 	assert.Equal(t, "Why the socket closed", notifs[0].Leaves[0].ShortHelp)
 	assert.Empty(t, notifs[0].Leaves[0].Description, "no description statement means no explanation")
 }
+
+// TestRPCInputKeepsTheOrderTheModuleDeclared pins the order an RPC's
+// parameters come back in.
+//
+// VALIDATES: the leaves arrive in source order, and a leaf reached through a
+// `uses` arrives after them by name rather than wherever a map put it.
+// PREVENTS: an order decided by Go's map seed. Entry.Dir is a map, and ranging
+// it was the whole source of this order, so the same schema described its own
+// arguments differently on each process: the MCP tool's parameter list and the
+// generated command help both read it. It also made a test of the first
+// parameter pass or fail on the toss of that seed, which is how this was found
+// (cmd/ze/hub, TestBuildParamMetaCarriesBothLeafTexts).
+//
+// The four declared names are in neither sorted nor reverse-sorted order, so a
+// map iteration agreeing with the assertion by chance is a 1-in-24 event, and
+// the loop repeats it until that is not worth arguing about.
+func TestRPCInputKeepsTheOrderTheModuleDeclared(t *testing.T) {
+	const module = `module ze-order-api {
+  namespace "urn:ze:order"; prefix zo;
+  grouping shared { leaf alpha { type string; } }
+  rpc show-order {
+    input {
+      leaf zulu { type string; mandatory true; }
+      leaf mike { type uint16; }
+      leaf bravo { type string; }
+      uses shared;
+    }
+  }
+}
+`
+	want := []string{"zulu", "mike", "bravo", "alpha"}
+	for range 20 {
+		loader := NewLoader()
+		require.NoError(t, loader.AddModuleFromText("ze-order-api", module))
+		require.NoError(t, loader.Resolve())
+
+		rpcs := ExtractRPCs(loader, "ze-order-api")
+		require.Len(t, rpcs, 1, "the module declares one rpc")
+
+		got := make([]string, 0, len(rpcs[0].Input))
+		for _, leaf := range rpcs[0].Input {
+			got = append(got, leaf.Name)
+		}
+		require.Equal(t, want, got,
+			"declared order first, then what only the entry tree holds, by name")
+	}
+}

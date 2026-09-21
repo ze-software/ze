@@ -3,6 +3,7 @@
 package yang
 
 import (
+	"slices"
 	"strings"
 
 	gyang "github.com/openconfig/goyang/pkg/yang"
@@ -66,8 +67,8 @@ func ExtractRPCs(loader *Loader, moduleName string) []RPCMeta {
 		// Extract input/output from entry tree (has resolved types)
 		if entry != nil {
 			if rpcEntry, ok := entry.Dir[rpc.Name]; ok && rpcEntry.RPC != nil {
-				meta.Input = extractEntryLeaves(rpcEntry.RPC.Input)
-				meta.Output = extractEntryLeaves(rpcEntry.RPC.Output)
+				meta.Input = extractEntryLeaves(rpcEntry.RPC.Input, inputOrder(rpc.Input))
+				meta.Output = extractEntryLeaves(rpcEntry.RPC.Output, outputOrder(rpc.Output))
 			}
 		}
 
@@ -98,7 +99,7 @@ func ExtractNotifications(loader *Loader, moduleName string) []NotificationMeta 
 		// Extract leaves from entry tree
 		if entry != nil {
 			if notifEntry, ok := entry.Dir[notif.Name]; ok {
-				meta.Leaves = extractEntryLeaves(notifEntry)
+				meta.Leaves = extractEntryLeaves(notifEntry, declaredOrder(notif.Leaf))
 			}
 		}
 
@@ -120,16 +121,71 @@ func WireModule(moduleName string) string {
 	return moduleName
 }
 
-// extractEntryLeaves extracts leaf metadata from an Entry's direct children.
+// inputOrder and outputOrder answer the declaration order of an RPC's two
+// halves. An RPC that declares neither has a nil statement and no order, which
+// leaves the entry tree's own leaves to be sorted by name.
+func inputOrder(in *gyang.Input) []string {
+	if in == nil {
+		return nil
+	}
+
+	return declaredOrder(in.Leaf)
+}
+
+func outputOrder(out *gyang.Output) []string {
+	if out == nil {
+		return nil
+	}
+
+	return declaredOrder(out.Leaf)
+}
+
+// declaredOrder answers the names a YANG statement declares, in the order the
+// module wrote them. A `uses` of a grouping declares none of its leaves here,
+// which is why the caller treats this as an ordering hint rather than as the
+// population.
+func declaredOrder(declared []*gyang.Leaf) []string {
+	names := make([]string, 0, len(declared))
+	for _, leaf := range declared {
+		names = append(names, leaf.Name)
+	}
+
+	return names
+}
+
+// extractEntryLeaves extracts leaf metadata from an Entry's direct children,
+// in the order the module declared them.
 // Used for RPC input/output sections and notification bodies.
-func extractEntryLeaves(parent *gyang.Entry) []LeafMeta {
+//
+// The ORDER is load-bearing and the entry tree does not hold it: Entry.Dir is a
+// map, so ranging it answers a different order on every process. That order
+// reaches an operator -- it is the parameter list of an MCP tool and of the
+// generated command help -- so the same schema described its own arguments
+// differently on each start, and a test asserting the first parameter passed or
+// failed on the toss of Go's map seed.
+//
+// The declared names come from the AST, which keeps them in source order. They
+// are an ordering HINT and never the population: a leaf reached through a `uses`
+// is in the entry tree and in no AST list, so what the hint does not name is
+// appended by name. Sorting the whole set instead would be deterministic and
+// wrong, because a YANG author writes the mandatory argument first.
+func extractEntryLeaves(parent *gyang.Entry, declared []string) []LeafMeta {
 	if parent == nil || parent.Dir == nil {
 		return nil
 	}
 
-	var leaves []LeafMeta
+	rest := make([]string, 0, len(parent.Dir))
 	for name, child := range parent.Dir {
-		if child.Kind != gyang.LeafEntry {
+		if child.Kind == gyang.LeafEntry && !slices.Contains(declared, name) {
+			rest = append(rest, name)
+		}
+	}
+	slices.Sort(rest)
+
+	var leaves []LeafMeta
+	for _, name := range slices.Concat(declared, rest) {
+		child, held := parent.Dir[name]
+		if !held || child.Kind != gyang.LeafEntry {
 			continue
 		}
 		leaf := LeafMeta{
