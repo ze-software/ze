@@ -12,6 +12,50 @@
       "producer-sha": "2caeeeab51b10bd9",
       "break": "body of buildMPReachPlugin replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "RFC 8955 Section 4"
+    },
+    {
+      "rid": "RFC8955-8-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNNLRIStructure",
+      "unit-sha": "354a0484ebff712e",
+      "claim-sha": "619539e073ac74b6",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/flowspec/types_vpn.go::ParseFlowSpecVPN",
+      "producer-sha": "2473fdbeb312fb88",
+      "break": "body of ParseFlowSpecVPN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-8-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNNLRIStructure",
+      "unit-sha": "354a0484ebff712e",
+      "claim-sha": "7afc17e82d0f4a96",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/flowspec/types_vpn.go::ParseFlowSpecVPN",
+      "producer-sha": "2473fdbeb312fb88",
+      "break": "body of ParseFlowSpecVPN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-8-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNLengthCoversRD",
+      "unit-sha": "58f10164df717240",
+      "claim-sha": "26357dde6e5e9fcf",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/flowspec/types_vpn.go::ParseFlowSpecVPN",
+      "producer-sha": "2473fdbeb312fb88",
+      "break": "body of ParseFlowSpecVPN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-8-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNLengthCoversRD",
+      "unit-sha": "58f10164df717240",
+      "claim-sha": "ab7f6fef3545f368",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/flowspec/types_vpn.go::ParseFlowSpecVPN",
+      "producer-sha": "2473fdbeb312fb88",
+      "break": "body of ParseFlowSpecVPN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
