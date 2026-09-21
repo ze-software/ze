@@ -17,7 +17,7 @@
       "polarity": "negative",
       "unit": "internal/plugins/dhcpserver/nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent",
       "unit-sha": "1680e32bae82e472",
-      "claim-sha": "134b3e675aa74be6",
+      "claim-sha": "cefb4b1bf09107ca",
       "route": "revert",
       "producer": "internal/plugins/dhcpserver/register.go::responseAddr",
       "producer-sha": "ebd7b65ed5b8f243",

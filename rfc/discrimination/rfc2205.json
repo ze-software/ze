@@ -53,7 +53,7 @@
       "claim-sha": "1c26c68040b2519f",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/build.go::buildPath",
-      "producer-sha": "a689efd07795f99d",
+      "producer-sha": "4471ce901c54bb60",
       "break": "body of buildPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "9d49134fa66f001b",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handlePath",
-      "producer-sha": "0e2ae923285e91de",
+      "producer-sha": "a40c21de87f7931d",
       "break": "body of handlePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "10d16971e312c68d",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/build.go::buildPath",
-      "producer-sha": "a689efd07795f99d",
+      "producer-sha": "4471ce901c54bb60",
       "break": "body of buildPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "1d506439935efab1",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/wire.go::classKnownUnprocessed",
-      "producer-sha": "e7e2b7293ba97825",
+      "producer-sha": "85f1136d481b9cbe",
       "break": "body of classKnownUnprocessed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
