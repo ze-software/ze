@@ -284,7 +284,20 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// which the vocabulary does not know. The value was computed over the blobs
 	// this commit seals, which the package's own status showed were this
 	// session's files and nothing else.
-	const want = "e2d3b24211551d204176cfd65ed05623e958104661746b5a1defeef741b09d5d"
+	// Re-sealed 2026-09-21 for fixture.go, which adds no behavior and moves the
+	// digest because the digest covers the package's FILES. Three packages
+	// drove the RFC gate over a synthetic tree and each spelled the same
+	// summary itself; when `Implementation` became a required Meta row all
+	// three went red on one sentence, so FixtureFiles is now the one
+	// declaration and they read it. No verdict, check or vocabulary moved, and
+	// the summary it holds is byte-identical to the copies it replaces.
+	//
+	// This seal was taken while another session had render.go and two
+	// extraction files open. Those are not in HEAD, so they are not in this
+	// value, and whichever of us commits into this package next re-seals over
+	// the other's bytes -- which is the note two paragraphs up saying the same
+	// thing about a different pair.
+	const want = "895dd4d35eea14517867219a1223f20adde87bcf28791fad6c805d7fd4cab336"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

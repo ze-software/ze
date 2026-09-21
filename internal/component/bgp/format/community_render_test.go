@@ -132,18 +132,18 @@ func TestReceivedCommunitiesRenderDecoded(t *testing.T) {
 	// (docs/architecture/api/text-format.md).
 	extHex := hex.EncodeToString(fixtureExtCommunity)
 
-	// IPV6_EXTENDED_COMMUNITIES has a vocabulary of its OWN, because RFC 5701
-	// Section 2 puts a 16-octet IPv6 global administrator where RFC 4360
-	// Section 3.1 puts a 2-octet AS, so every field offset the 8-octet names
-	// read points at something else.
+	// IPV6_EXTENDED_COMMUNITIES takes the SAME sub-type vocabulary, which is
+	// what RFC 5701 Section 2 says: "The sub-types are the same as for the IPv4
+	// Address Specific Extended Community." Its first octet carries
+	// transitivity rather than an address family, and Section 3 assigns 0x0002
+	// to the IPv6 address specific Route Target.
 	//
-	// This fixture is an IPv6 Route Target, which neither Ze nor ExaBGP has a
-	// spelling for and neither can produce, so it keeps its octets under the
-	// fallback shape the 8-octet renderer also uses. The one sub-type that IS
-	// named is draft-ietf-idr-flowspec-redirect-ip's redirect-to-IP, which Ze
-	// writes from a `redirect-to-nexthop <IPv6>` in config and could not read
-	// back until 2026-09-20 (IPv6ExtendedCommunity.AppendDecoded).
-	ipv6ExtName := "0x0002:" + hex.EncodeToString(fixtureIPv6ExtCommunity[2:])
+	// This fixture is one, and it had kept its octets under the fallback shape
+	// until 2026-09-21: the comment here said Ze had no spelling for it, which
+	// named the gap rather than a property of the document. The address is
+	// bracketed because it carries colons of its own, which is the one place
+	// this shape differs from the 8-octet one above.
+	ipv6ExtName := "target:[2001:db8::]:1"
 
 	tests := []struct {
 		name     string
