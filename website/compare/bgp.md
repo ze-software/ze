@@ -322,16 +322,17 @@ daemon was run, and no cell here claims interop.
 OSPFv3 Segment Routing is defined over the Extended LSAs. Neither FRR nor BIRD
 implements either, so this is the one part of the table where Ze is alone.
 
-**A caveat on RFC 8362, stated because the row above would otherwise mislead.**
-Ze's Extended LSAs carry the U-bit clear. RFC 8362 Section 2 requires it set, "so
-that the LSAs will be flooded by OSPFv3 routers that do not understand them". The
-same section assigns LS types 0xA021 through 0xA029, and Ze declares those types
-less 0x8000.
+**A note on RFC 8362, because the row above says less than it looks.**
+Ze's Extended LSAs carry the U-bit and the scope bits RFC 8362 Section 2 assigns,
+0xA021 through 0xA029, with E-AS-External at AS scope (0xC025) and E-Link at
+link-local scope (0x8028). RFC 8362 Section 2 wants the U-bit set "so that the
+LSAs will be flooded by OSPFv3 routers that do not understand them", and that is
+what Ze now sends. Until 2026-09-17 Ze declared those types less 0x8000, so RFC
+5340 Section 4.4.1 held every one of them to the link and Ze's Prefix-SIDs
+stopped at the first router in a mixed area that did not support them.
 
-With the U-bit clear, RFC 5340 Section 4.4.1 confines an unrecognized LSA to
-link-local scope. Ze's Prefix-SIDs therefore stop at the first router in a mixed
-area that does not support them. Having the feature and having it interoperate
-are different claims. Only the first is true today.
+Ze originates 3 of the 7 Extended LSA types: E-Router, E-Intra-Area-Prefix and
+E-Inter-Area-Prefix, the three OSPFv3 Segment Routing rides on.
 
 ## BNG Capabilities
 
@@ -351,7 +352,7 @@ The detail tables above are useful. The gaps also need to be visible without
 reading thirteen tables.
 
 - **OSPF as PE/CE (RFC 4577) is absent.** No DN-bit originator, no VRF, and no sham link. FRR has none of it either; BIRD has the DN bit alone.
-- **OSPFv3 Extended LSAs (RFC 8362) do not interoperate.** Ze builds 3 of the 7 LSA types and sets the U-bit wrong on all of them, so they stop at the first OSPFv3 router that does not support them. Neither FRR nor BIRD implements RFC 8362 at all.
+- **OSPFv3 Extended LSAs (RFC 8362) are partial.** Ze builds 3 of the 7 LSA types. They carry the U-bit and their assigned scope since 2026-09-17, so a router that does not understand them floods them on. Neither FRR nor BIRD implements RFC 8362 at all.
 - **BGP confederations (RFC 5065) are missing.** BIRD 3, bio-rd (partial), FRR, GoBGP, BIRD 2, and freeRtr support them.
 - **Privilege separation is missing.** At least one other implementation in this table has it.
 - **BFD integration is partial.** Several other implementations here have full support. Ze does carry BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode, capability 74), which holds a BGP session out of Established until the BFD session is Up.
