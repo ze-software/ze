@@ -1,3 +1,13 @@
+// Design: docs/architecture/testing/interop.md -- the mock ExaBGP speaker
+// Related: exabgp_server_nobgp.go -- what the personality answers without the gate
+//
+// The personality renders each UPDATE it receives as ExaBGP JSON, through
+// bridge.WireUpdateToExabgpJSON, which reads the message with the BGP engine's
+// own types. Those live behind ze_bgp (feature-gates.txt), so this file does
+// too and a build without BGP keeps the stub beside it.
+
+//go:build ze_bgp
+
 package bgp
 
 import (

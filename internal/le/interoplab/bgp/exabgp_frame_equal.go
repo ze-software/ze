@@ -14,6 +14,8 @@
 // exactly, and so must the withdrawn-routes and NLRI fields. A frame that differs
 // in any byte other than the order of whole attributes still fails.
 
+//go:build ze_bgp
+
 package bgp
 
 import (

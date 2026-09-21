@@ -1,3 +1,5 @@
+//go:build ze_bgp
+
 package bridge
 
 import (

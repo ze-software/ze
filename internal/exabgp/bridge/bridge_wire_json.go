@@ -1,5 +1,12 @@
 // Design: docs/architecture/exabgp-bridge.md -- the ExaBGP JSON the bridge writes
 // Related: bridge_event.go -- ZebgpToExabgpJSON, which this feeds
+//
+// The file carries the BGP gate because it is the one place the bridge reads an
+// UPDATE's own octets: it names internal/component/bgp/types, and that package
+// is listed under ze_bgp so an always-on importer cannot pin the BGP engine
+// into a build compiled without it (feature-gates.txt, the ze_bgp section).
+
+//go:build ze_bgp
 
 package bridge
 
