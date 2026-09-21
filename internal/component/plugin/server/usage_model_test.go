@@ -616,7 +616,7 @@ func TestModifierGroupsLeaveDispatchUntouched(t *testing.T) {
 // `send bgp flowspec help` prints, which is the line that replaced the last
 // authored `Usage:` sentence in the tree.
 //
-// VALIDATES: the whole grammar comes from the model. The seventeen components
+// VALIDATES: the whole grammar comes from the model. The eighteen components
 // are declared by ze-flowspec-cmd.yang and arrive through an augment, the
 // action and the two options are declared by ze-cli-announce-cmd.yang, and one
 // line carries both modules' words.
@@ -639,6 +639,7 @@ func TestAnnounceFlowspecUsageStatesTheComponents(t *testing.T) {
 		"[next-header <value> ...] [packet-length <value> ...] [port <value> ...] " +
 		"[protocol <value> ...] [rd <value>] [source-ipv4 <prefix> ...] " +
 		"[source-ipv6 <prefix> ...] [source-port <value> ...] [tcp-flags <value> ...] " +
+		"[traffic-class <value> ...] " +
 		"(community <value>|rate-limit <bytes-per-second>|discard) " +
 		"[tag <key> <value>] [for <duration>]"
 

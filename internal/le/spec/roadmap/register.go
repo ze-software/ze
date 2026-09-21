@@ -37,7 +37,11 @@ var actions = leaction.New(area,
 )
 
 func init() {
-	leroot.Register(area, leroot.GroupReport, Answer, registry.Meta{
+	// GroupGenerate rather than GroupReport: plan/roadmap.md is this area's
+	// product, and indexCurrent compares it against the tree, which is rung 1
+	// of the ladder in leroot/group.go. A report gates nothing AND writes
+	// nothing, and `update` writes.
+	leroot.Register(area, leroot.GroupGenerate, Answer, registry.Meta{
 		ShortHelp: "committed release inventory, repository index, and endpoint changes",
 		Mode:      "offline", Section: registry.SectionTest, SubsFunc: actions.Subs,
 	})
