@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc2131",
+  "records": [
+    {
+      "rid": "RFC2131-3.2-4",
+      "polarity": "positive",
+      "unit": "internal/plugins/dhcpserver/nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent",
+      "unit-sha": "1680e32bae82e472",
+      "claim-sha": "6e1d7c3cb6ca6422",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/register.go::responseAddr",
+      "producer-sha": "ebd7b65ed5b8f243",
+      "break": "body of responseAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2131-3.2-4",
+      "polarity": "negative",
+      "unit": "internal/plugins/dhcpserver/nak_relay_rfc2131_test.go::TestNakDeliveredToRelayAgent",
+      "unit-sha": "1680e32bae82e472",
+      "claim-sha": "134b3e675aa74be6",
+      "route": "revert",
+      "producer": "internal/plugins/dhcpserver/register.go::responseAddr",
+      "producer-sha": "ebd7b65ed5b8f243",
+      "break": "body of responseAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
