@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc8665",
+  "records": [
+    {
+      "rid": "RFC8665-3.2-14",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/sr/reserved_rfc8665_test.go::TestRFC8665NonReservedOctetIsRead",
+      "unit-sha": "24e6c401a3016646",
+      "claim-sha": "5dfb3d5d1538c82d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr/codec.go::DecodeRangeValue",
+      "producer-sha": "2313dfdd9596b723",
+      "break": "body of DecodeRangeValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8665-3.2-14",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/sr/reserved_rfc8665_test.go::TestRFC8665ReservedFieldIgnoredOnReception",
+      "unit-sha": "b2a695a46099939f",
+      "claim-sha": "fe197fb4810f3887",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/sr/codec.go::DecodeRangeValue",
+      "producer-sha": "2313dfdd9596b723",
+      "break": "body of DecodeRangeValue replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
