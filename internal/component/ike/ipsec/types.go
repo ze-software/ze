@@ -8,6 +8,8 @@ package ipsec
 import (
 	"net/netip"
 	"reflect"
+
+	"github.com/ze-software/ze/internal/component/ike/dataplane"
 )
 
 const unknownEnum = "unknown"
@@ -714,6 +716,14 @@ type IPsecConfig struct {
 	// what every configuration written before the list existed carries, and it
 	// installs nothing (spd_policy.go).
 	Policies map[string]SPDPolicy
+
+	// Unmatched is the disposition of the catch-all entry installed LAST in the
+	// SPD, so that a packet no other entry names still meets one (RFC 4301 Section
+	// 5: "If no policy is found in the SPD that matches a packet ... the packet MUST
+	// be discarded"). It is SPActionDiscard or SPActionBypass. The parser writes
+	// SPActionBypass for an absent leaf, so the SPAction zero value (PROTECT) never
+	// reads as a disposition the operator did not write (ai/rules/principles.md).
+	Unmatched dataplane.SPAction
 }
 
 // Changed returns the peer names whose configuration differs between

@@ -136,6 +136,12 @@ const (
 	// PriorityChildSA ranks a negotiated Child SA policy. It is deliberately worse
 	// than PriorityIKEBypass and deliberately non-zero.
 	PriorityChildSA = 2000
+	// PriorityUnmatched ranks the SPD catch-all entry (engine/unmatched.go) LAST:
+	// it is the largest value the kernel's u32 priority holds, so every operator
+	// entry (order at most 2147483647) and every Child SA policy is searched before
+	// it. RFC 4301 Section 5 makes the catch-all the entry a packet meets when
+	// "no policy is found in the SPD that matches" it.
+	PriorityUnmatched = 1<<32 - 1
 )
 
 // kernelXFRMMode converts a Ze dataplane mode to the kernel XFRM mode number.

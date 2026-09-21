@@ -90,6 +90,17 @@ non-initial-fragment bypass from the absence of fragment state in Ze. The final
 kernel and VPP reassembly and policy-check behaviour before treating it as a
 vulnerability or selecting the Section 7.4 enforcement mechanism.
 
+**Requirement ids this spec owes (owner ruling, 2026-09-21).** Every MUST is a
+requirement; each row below carries `{gap: ...; plan/immediate/spec-rfc4301-architecture-gaps.md}`
+in `rfc/short/rfc4301.md` until its phase lands a tagged pair.
+
+| Phase | Requirement ids | Producer or absence |
+|---|---|---|
+| 3, Section 6 ICMP | RFC4301-6-1, RFC4301-6.1.1-1, RFC4301-6.1.1-2, RFC4301-6.1.2-1, RFC4301-6.2-1, RFC4301-6.2-2, RFC4301-6.2-3, RFC4301-6.2-4, RFC4301-6.2-5 | No ICMP control in `internal/component/ike/ipsec`; the operator list accepts a `protocol 1` or `58` entry with no type or code. Whether the kernel maps an outbound ICMP error to the return SA (6.2-3) is unverified and is this phase's first lab step |
+| 4, Section 4.4.1.1 ICMP type/code selectors | RFC4301-4.4.1.1-4 | `dataplane.SPParams` carries no ICMP type or code field |
+| 7, Section 8 DF bit and PMTU | RFC4301-8.1-1, RFC4301-8.1-2, RFC4301-8.2.1-1, RFC4301-8.2.2-1, RFC4301-5.1-3 | `dataplane/xfrm_linux.go::xfrmStateFromParams` sets no DF flag; `dataplane.SAParams` holds no PMTU |
+| 8, Section 5.1.2.1 outer-header DSCP | RFC4301-5.1.2.1-1 | `xfrmStateFromParams` sets no DSCP mapping |
+
 **Why the block list is not the whole RFC.** Two blocks the walk touched are homed
 elsewhere and are NOT re-implemented here. The Section 4.4.2.1 byte-count SAD lifetime is
 designed in `plan/spec-ipsec-lifetime-volume.md`, which this spec depends on. The

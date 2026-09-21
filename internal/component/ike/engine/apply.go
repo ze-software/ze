@@ -267,6 +267,10 @@ func (s *ikeEngineState) applyConfig(cfg *ipsec.IPsecConfig, phase applyPhase) e
 	// (installSPDPolicies, spd_policy.go).
 	installSPDPolicies(dataplane.Get(), s.installedSPD, cfg.Policies, s.log)
 	s.installedSPD = cfg.Policies
+	// The catch-all is re-asserted on every apply, because the backend upserts a
+	// template-free policy, so a changed disposition replaces the entry in place
+	// (installUnmatched, unmatched.go).
+	installUnmatched(dataplane.Get(), cfg.Unmatched, s.log)
 
 	// The listen host of BOTH sockets. It is computed once, and from the ONE interface
 	// lookup above, because the engine listens at one address and its two sockets must

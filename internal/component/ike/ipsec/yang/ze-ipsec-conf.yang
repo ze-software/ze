@@ -91,6 +91,33 @@ module ze-ipsec-conf {
                     "Number of half-open IKE SAs tolerated before a COOKIE challenge.";
             }
 
+            leaf unmatched {
+                type enumeration {
+                    enum discard {
+                        ze:help "Discard traffic no SPD entry matches (RFC 4301 Section 5).";
+                    }
+                    enum bypass {
+                        ze:help "Pass traffic no SPD entry matches in the clear.";
+                    }
+                }
+                default bypass;
+                description "The disposition of the catch-all entry Ze installs last in the
+                             Security Policy Database, in every direction and for both address
+                             families. RFC 4301 Section 5: 'If no policy is found in the SPD
+                             that matches a packet (for either inbound or outbound traffic),
+                             the packet MUST be discarded.' The catch-all is that policy, so
+                             a packet no other entry names always meets one.
+
+                             The default is bypass, because a router's own control plane
+                             (BGP, SSH, DNS) crosses the IPsec boundary in the clear, and a
+                             default of discard would stop it the moment vpn ipsec was
+                             configured. Set discard to get the disposition the RFC names,
+                             and write a bypass entry under policy for every flow that must
+                             still cross in the clear. The IKE control plane keeps its own
+                             bypass at order 100 either way.";
+                ze:help "Disposition of traffic no SPD entry matches: discard or bypass.";
+            }
+
             list policy {
                 key "name";
                 description "An entry of the Security Policy Database that Ze installs directly,

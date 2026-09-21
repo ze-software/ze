@@ -810,6 +810,35 @@ Ze installs these entries when the configuration is applied and removes them
 when the entry leaves the configuration or the engine stops. They need no peer,
 no key and no negotiation, so they are in force whether or not any tunnel is up.
 
+### The catch-all entry
+
+RFC 4301 Section 5: "If no policy is found in the SPD that matches a packet
+(for either inbound or outbound traffic), the packet MUST be discarded." The
+Linux kernel does the opposite with no matching policy: it passes the packet in
+the clear. So Ze installs a last entry itself, a wildcard selector in every
+direction (in, out and forward) for IPv4 and IPv6, at the largest priority the
+kernel holds, so every entry above is searched first. Its disposition is one
+leaf:
+
+```
+set vpn ipsec unmatched discard
+```
+
+| Value | Meaning |
+|---|---|
+| `bypass` (default) | Traffic no entry matches crosses the boundary in the clear, which is what the kernel did before the entry existed |
+| `discard` | Traffic no entry matches is dropped, the disposition Section 5 names |
+
+The default is `bypass` because a router's own control plane (BGP, SSH, DNS)
+crosses the IPsec boundary in the clear, and a default of `discard` would stop
+it the moment `vpn ipsec` was configured. With `discard`, write a `bypass`
+entry under `policy` for every flow that must still cross in the clear. The IKE
+control-plane bypass at order 100 is installed either way, so the tunnels can
+still be negotiated. The entry is re-asserted on every apply and removed when
+the engine stops.
+
+<!-- source: internal/component/ike/ipsec/config.go -- parseUnmatched -->
+<!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched -->
 <!-- source: internal/component/ike/ipsec/spd_policy.go -- SPDPolicy, parseSPDPolicy, ValidateSPDPolicies -->
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, installSPDPolicies -->
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyAction -->

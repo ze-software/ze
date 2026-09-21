@@ -72,7 +72,30 @@ func emptyConfig() *IPsecConfig {
 		ESPGroups: make(map[string]ESPGroup),
 		IKEGroups: make(map[string]IKEGroup),
 		Peers:     make(map[string]SiteToSitePeer),
+		Unmatched: dataplane.SPActionBypass,
 	}
+}
+
+// parseUnmatched reads the disposition of the SPD catch-all entry.
+//
+// An absent leaf is the YANG default, bypass, written here explicitly rather than
+// left to the SPAction zero value: that zero is PROTECT, and a catch-all PROTECT
+// would hand every unmatched packet to a transform that does not exist.
+func parseUnmatched(t *config.Tree) (dataplane.SPAction, error) {
+	v, ok := t.Get("unmatched")
+	if !ok {
+		return dataplane.SPActionBypass, nil
+	}
+	switch v {
+	case "discard":
+		// RFC 4301 Section 5: "If no policy is found in the SPD that matches a
+		// packet (for either inbound or outbound traffic), the packet MUST be
+		// discarded."
+		return dataplane.SPActionDiscard, nil
+	case "bypass":
+		return dataplane.SPActionBypass, nil
+	}
+	return 0, fmt.Errorf("ipsec unmatched %q: want discard or bypass", v)
 }
 
 // ParseIPsecConfig extracts IPsec configuration from the parsed config tree.
@@ -97,6 +120,12 @@ func ParseIPsecConfig(tree *config.Tree) (*IPsecConfig, error) {
 		IKEGroups: make(map[string]IKEGroup),
 		Peers:     make(map[string]SiteToSitePeer),
 	}
+
+	unmatched, err := parseUnmatched(ipsecRoot)
+	if err != nil {
+		return nil, err
+	}
+	cfg.Unmatched = unmatched
 
 	if v, ok := ipsecRoot.Get("interface"); ok {
 		cfg.Interface = v

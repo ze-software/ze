@@ -15,6 +15,14 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 Make an exact match on port 0 expressible in the Linux XFRM policy selector. Ze can then
 program the OPAQUE traffic selector of RFC 7296 Section 3.13.1 instead of refusing it.
 
+Requirement id this spec owes (owner ruling, 2026-09-21): RFC4301-4.4.1.1-2, "thus, a
+value of OPAQUE also MUST be supported." (RFC 4301 Section 4.4.1.1). The negotiated
+path maps OPAQUE (`internal/component/ike/engine/child.go::selectorPort`, port 0 mask
+0xffff), `internal/component/ike/dataplane/xfrm_linux.go::xfrmSelectorPort` refuses
+that mask, and the operator list refuses the word
+(`internal/component/ike/ipsec/spd_policy.go::parseSPDPort`). Both refusals are what
+this spec relaxes, and the operator list takes `opaque` beside `any` in the same change.
+
 **Ze is conformant today.** RFC 7296 Section 3.13.1 states, at
 `rfc/full/rfc7296.txt:6074-6079`:
 

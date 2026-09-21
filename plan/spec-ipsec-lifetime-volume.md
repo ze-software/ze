@@ -25,6 +25,12 @@ top); the citations below are now updated in-body -- `softBytes`/`byteCount`
 
 ## Task
 
+Requirement id this spec owes (owner ruling, 2026-09-21): RFC4301-4.4.2.1-2, "A
+compliant implementation MUST support both types of lifetimes, and MUST support a
+simultaneous use of both." (RFC 4301 Section 4.4.2.1).
+`internal/component/ike/engine/rekey.go::newLifetimeState` sets a time lifetime only
+and never assigns `softBytes`.
+
 Ze rekeys ESP (child) SAs only on a time-based lifetime. It cannot rekey by volume,
 a byte count (`life-bytes`) or packet count (`life-packets`). High-throughput
 tunnels reach cryptographic volume limits long before a time lifetime expires;

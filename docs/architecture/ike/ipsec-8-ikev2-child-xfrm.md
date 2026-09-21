@@ -187,8 +187,16 @@ traffic in the clear.
 | Disposition | Producer | Linux XFRM | VPP |
 |---|---|---|---|
 | PROTECT | `childPolicyParams`, from a negotiated Child SA | `allow` with a template | `IPSEC_API_SPD_ACTION_PROTECT` |
-| BYPASS | `ikeBypassPolicies`, and the operator `vpn ipsec policy` list | `allow` with no template | `IPSEC_API_SPD_ACTION_BYPASS` |
-| DISCARD | the operator `vpn ipsec policy` list | `block` | `IPSEC_API_SPD_ACTION_DISCARD` |
+| BYPASS | `ikeBypassPolicies`, the operator `vpn ipsec policy` list, and `unmatchedPolicies` under `vpn ipsec unmatched bypass` | `allow` with no template | `IPSEC_API_SPD_ACTION_BYPASS` |
+| DISCARD | the operator `vpn ipsec policy` list, and `unmatchedPolicies` under `vpn ipsec unmatched discard` | `block` | `IPSEC_API_SPD_ACTION_DISCARD` |
+
+`unmatchedPolicies` (`engine/unmatched.go`) is the catch-all of RFC 4301 Section
+5: a wildcard selector in, out and fwd for both families at
+`PriorityUnmatched`, the largest u32 the kernel holds, so it is searched last.
+The kernel passes an unmatched packet with no policy at all, so the discard the
+section mandates is an entry Ze installs rather than a default it inherits. VPP
+refuses the fwd direction (`vppBackend.spdEntry`), and that refusal is logged
+as a fail-open.
 
 BYPASS and DISCARD are TEMPLATE-FREE: neither hands traffic to a transform, so
 neither names a mode, a tunnel endpoint pair or a reqid, and both are built
@@ -212,6 +220,7 @@ it is being dropped.
 <!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmPolicyAction, xfrmPolicyFromParams, policyInfoFromKernel -->
 <!-- source: internal/component/ike/dataplane/vpp_policy.go -- vppSPDAction -->
 <!-- source: internal/component/ike/engine/spd_policy.go -- spdPolicyParams, installSPDPolicies -->
+<!-- source: internal/component/ike/engine/unmatched.go -- unmatchedPolicies, installUnmatched -->
 
 ## Policy ownership
 

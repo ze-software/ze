@@ -401,6 +401,7 @@ func runEngine(conn net.Conn) int {
 		// DISCARD that outlives the process keeps dropping traffic for a daemon that
 		// is no longer running (removeSPDPolicies, spd_policy.go).
 		removeSPDPolicies(dataplane.Get(), state.installedSPD, log)
+		removeUnmatched(dataplane.Get(), log)
 		if err := dataplane.CloseBackend(); err != nil {
 			log.Warn("ike: dataplane close error", "error", err)
 		}
