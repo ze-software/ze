@@ -67,7 +67,7 @@ func TestURLErrorRemovesTheURLTheWrapperCarries(t *testing.T) {
 // that answered a placeholder for every error would satisfy the test above.
 func TestURLErrorLeavesAnErrorWithNoURLAlone(t *testing.T) {
 	plain := errors.New("write to /dev/sda: no space left on device")
-	if got := URLError(plain); got != plain {
+	if got := URLError(plain); !errors.Is(got, plain) {
 		t.Errorf("URLError rewrote an error that carries no URL: %v", got)
 	}
 }

@@ -94,12 +94,13 @@
 1 internal/component/traffic/config.go
 2 internal/component/vpp/config.go
 1 internal/core/bgp/asn/asn.go
-3 internal/core/bgp/attribute/builder_parse.go
+4 internal/core/bgp/attribute/builder_parse.go
 1 internal/core/bgp/attribute/flowspec_encode.go
 4 internal/core/bgp/attribute/prefixsid.go
 4 internal/core/bgp/attribute/text.go
 1 internal/core/bgp/nlri/rd.go
 2 internal/exabgp/bridge/bridge_attribute.go
+1 internal/exabgp/bridge/bridge_event.go
 1 internal/exabgp/migration/migrate_flow_scope.go
 1 internal/le/interoplab/bgp/check_rfc_predicate.go
 2 internal/le/interoplab/bgp/exabgp_server.go

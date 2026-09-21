@@ -145,5 +145,7 @@ func TestCredentialBearingMethodStillReachesTheServer(t *testing.T) {
 	if !result.Handled {
 		t.Fatalf("a CHAP session was answered locally (%+v); its CHAP-Password is what RFC 2865 Section 4.1 asks an Access-Request to carry", result)
 	}
-	var _ l2tp.AuthResult = result
+	// The explicit type is the point: it pins handle's return type, so a change
+	// to it fails here rather than silently changing what Handled means.
+	var _ l2tp.AuthResult = result //nolint:staticcheck // QF1011: the type is the assertion
 }

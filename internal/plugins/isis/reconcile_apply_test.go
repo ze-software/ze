@@ -52,16 +52,19 @@ func reconcileTo(t *testing.T, eng *engine, data string) reconcileResult {
 	return eng.reconcile(cfg)
 }
 
+// reconcileCircuit is the one interface every case in this file configures.
+const reconcileCircuit = "eth0"
+
 // liveCircuitPeriods reports the Hello period the running circuit publishes for
 // each level. It reads the circuit the engine is sending from, which is the only
 // thing that answers whether the operator's value reached the wire.
-func liveCircuitPeriods(t *testing.T, eng *engine, name string) map[adjacency.Level]time.Duration {
+func liveCircuitPeriods(t *testing.T, eng *engine) map[adjacency.Level]time.Duration {
 	t.Helper()
 	eng.circuitsMu.RLock()
-	c := eng.circuitByName[name]
+	c := eng.circuitByName[reconcileCircuit]
 	eng.circuitsMu.RUnlock()
 	if c == nil {
-		t.Fatalf("no live circuit for %s", name)
+		t.Fatalf("no live circuit for %s", reconcileCircuit)
 	}
 	out := make(map[adjacency.Level]time.Duration)
 	for _, s := range c.HelloSchedules() {
@@ -114,7 +117,7 @@ func TestISISReconcileAppliesTimerChangeToTheRunningCircuit(t *testing.T) {
 
 	eng, fb := runningEngine(t, before)
 
-	got := liveCircuitPeriods(t, eng, "eth0")
+	got := liveCircuitPeriods(t, eng)
 	for _, level := range []adjacency.Level{adjacency.Level1, adjacency.Level2} {
 		if got[level] != 3*time.Second {
 			t.Fatalf("before reconcile: %v period = %v, want 3s", level, got[level])
@@ -129,7 +132,7 @@ func TestISISReconcileAppliesTimerChangeToTheRunningCircuit(t *testing.T) {
 		t.Errorf("a timer change rebuilt the circuit (%v), which flaps every adjacency on it", res.rebuilt)
 	}
 
-	got = liveCircuitPeriods(t, eng, "eth0")
+	got = liveCircuitPeriods(t, eng)
 	for _, level := range []adjacency.Level{adjacency.Level1, adjacency.Level2} {
 		if got[level] != 30*time.Second {
 			t.Errorf("after reconcile: live circuit %v period = %v, want 30s", level, got[level])
@@ -156,7 +159,7 @@ func TestISISReconcileRebuildsOnCircuitTypeChange(t *testing.T) {
 		`{"level":"l1-l2","circuit-type":"point-to-point"}}}}}`
 
 	eng, _ := runningEngine(t, before)
-	if n := len(liveCircuitPeriods(t, eng, "eth0")); n != 2 {
+	if n := len(liveCircuitPeriods(t, eng)); n != 2 {
 		t.Fatalf("before reconcile: %d hello schedules, want 2 (a broadcast L1L2 circuit)", n)
 	}
 
@@ -164,7 +167,7 @@ func TestISISReconcileRebuildsOnCircuitTypeChange(t *testing.T) {
 	if len(res.rebuilt) != 1 || res.rebuilt[0] != "eth0" {
 		t.Fatalf("reconcile rebuilt = %v, want [eth0]", res.rebuilt)
 	}
-	if n := len(liveCircuitPeriods(t, eng, "eth0")); n != 1 {
+	if n := len(liveCircuitPeriods(t, eng)); n != 1 {
 		t.Errorf("after reconcile: %d hello schedules, want 1 (a point-to-point circuit sends one IIH)", n)
 	}
 }

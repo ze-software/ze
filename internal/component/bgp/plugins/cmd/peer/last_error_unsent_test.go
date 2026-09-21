@@ -20,7 +20,7 @@ import (
 // the peer" from "we could not tell the peer".
 // PREVENTS: two failures at once. A peer whose Cease was refused reporting a
 // blank last-error, which is the answer a healthy peer gives, and a peer whose
-// Cease was delivered being labelled undelivered.
+// Cease was delivered being labeled undelivered.
 //
 // The field is also birdwatcher's `last_error` on the public looking glass
 // (internal/component/lg/handler_api.go), whose schema holds one string, which

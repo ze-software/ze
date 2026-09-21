@@ -38,6 +38,7 @@ func newIPCPSession(t *testing.T) (*pppSession, *frameRecorder) {
 // transmitted Configure-Request. Invalid packets are silently discarded." RFC
 // 1661 Section 4.3 says the same of the event it raises: "An out of sequence
 // or otherwise invalid packet is silently discarded."
+// So the session stays up and the negotiation keeps the state it already had.
 func TestNCPInvalidConfigureRejectIsSilentlyDiscarded(t *testing.T) {
 	s, rec := newIPCPSession(t)
 
@@ -86,6 +87,7 @@ func TestNCPValidConfigureRejectOfIPAddressStillFails(t *testing.T) {
 // RFC 1661 Section 5.3 says of a received Configure-Nak: "On reception of a
 // Configure-Nak, the Identifier field MUST match that of the last transmitted
 // Configure-Request. Invalid packets are silently discarded."
+// So the RCN event never runs and the negotiation is not restarted.
 func TestNCPInvalidConfigureNakIsSilentlyDiscarded(t *testing.T) {
 	s, rec := newIPCPSession(t)
 

@@ -98,6 +98,7 @@ func readPeerDown(t *testing.T, bp *BMPPlugin, server net.Conn, events ...*rpc.S
 // code corresponding to the Finite State Machine (FSM) Event that caused the
 // system to close the session ... Two bytes both set to 0 are used to indicate
 // that no relevant Event code is defined."
+// So reasons 1 and 3 owe the whole NOTIFICATION PDU and reason 2 owes two octets.
 func TestRFC7854PeerDownCarriesTheDataItsReasonRequires(t *testing.T) {
 	body := []byte{6, 2} // Cease / Administrative Shutdown
 

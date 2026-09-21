@@ -189,13 +189,13 @@ func addDummyLink(t *testing.T, name string) {
 func sendLoopbackPackets(t *testing.T, count int) {
 	t.Helper()
 
-	receiver, err := net.ListenPacket("udp4", "127.0.0.1:0")
+	receiver, err := new(net.ListenConfig).ListenPacket(t.Context(), "udp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen on 127.0.0.1: %v", err)
 	}
 	defer receiver.Close() //nolint:errcheck // the namespace goes away with the test
 
-	sender, err := net.Dial("udp4", receiver.LocalAddr().String())
+	sender, err := new(net.Dialer).DialContext(t.Context(), "udp4", receiver.LocalAddr().String())
 	if err != nil {
 		t.Fatalf("dial %v: %v", receiver.LocalAddr(), err)
 	}

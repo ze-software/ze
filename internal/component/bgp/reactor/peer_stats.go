@@ -315,6 +315,7 @@ func (p *Peer) recordNotification(code, subcode uint8, direction plugin.NotifDir
 // BGP speakers, it may not have been possible for the Cease NOTIFICATION
 // message to have been sent.  Even so, BGP speakers SHOULD provide this reason
 // as part of their operational state."
+// So a NOTIFICATION that never left counts as a reason and not as a message.
 func (p *Peer) recordNotificationSend(code, subcode uint8, delivered bool) {
 	if delivered {
 		p.incrNotificationSent(code, subcode)

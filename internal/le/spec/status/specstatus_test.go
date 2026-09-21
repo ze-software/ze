@@ -93,8 +93,8 @@ func collect(t *testing.T, root string, now time.Time) (Inventory, []string) {
 // byName indexes the records so a case can assert about one spec.
 func byName(in Inventory) map[string]Spec {
 	m := make(map[string]Spec, len(in))
-	for _, s := range in {
-		m[s.Name] = s
+	for i := range in {
+		m[in[i].Name] = in[i]
 	}
 	return m
 }
