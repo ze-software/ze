@@ -246,6 +246,50 @@
       "break": "body of writeSCCRQBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2661-4.4.3-3",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/tiebreaker_rfc2661_test.go::TestTieBreakerLoserDiscardsItsTunnel",
+      "unit-sha": "0bfbdd3ecb040351",
+      "claim-sha": "b53407a43cbb31fb",
+      "route": "revert",
+      "producer": "internal/component/l2tp/reactor.go::resolveTieBreakerLocked",
+      "producer-sha": "3cc30f05131ba203",
+      "break": "body of resolveTieBreakerLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2661-4.4.3-3",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/tiebreaker_rfc2661_test.go::TestTieBreakerWinnerKeepsItsTunnel",
+      "unit-sha": "41042899715e5ff7",
+      "claim-sha": "7c3abf03236b951f",
+      "route": "revert",
+      "producer": "internal/component/l2tp/reactor.go::resolveTieBreakerLocked",
+      "producer-sha": "3cc30f05131ba203",
+      "break": "body of resolveTieBreakerLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2661-4.4.3-4",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/tiebreaker_rfc2661_test.go::TestTieBreakerEqualDiscardsBoth",
+      "unit-sha": "b55ee22b9e748fc0",
+      "claim-sha": "cadf35ee1a7002d9",
+      "route": "revert",
+      "producer": "internal/component/l2tp/reactor.go::resolveTieBreakerLocked",
+      "producer-sha": "3cc30f05131ba203",
+      "break": "body of resolveTieBreakerLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2661-4.4.3-4",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/tiebreaker_rfc2661_test.go::TestTieBreakerUnequalKeepsOneTunnel",
+      "unit-sha": "7874aab284389838",
+      "claim-sha": "d1139f21979387a4",
+      "route": "revert",
+      "producer": "internal/component/l2tp/reactor.go::resolveTieBreakerLocked",
+      "producer-sha": "3cc30f05131ba203",
+      "break": "body of resolveTieBreakerLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2661-4.4.3-5",
       "polarity": "positive",
       "unit": "internal/component/l2tp/message_rfc2661_test.go::TestRFC2661HostNameAtLeastOneOctet",
