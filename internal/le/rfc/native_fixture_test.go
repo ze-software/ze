@@ -284,7 +284,7 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// which the vocabulary does not know. The value was computed over the blobs
 	// this commit seals, which the package's own status showed were this
 	// session's files and nothing else.
-	const want = "b2e7b4d2670c506f0419a680c0fbbe186b5059110784049ddd89cbfbcf76ec4a"
+	const want = "e2d3b24211551d204176cfd65ed05623e958104661746b5a1defeef741b09d5d"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

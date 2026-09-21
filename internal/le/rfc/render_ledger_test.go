@@ -349,8 +349,18 @@ func TestGapCountPopulationSurvivesTheMove(t *testing.T) {
 	// the same rows it judges. The cost is this two-sided edit, and
 	// plan/journal/hardcoded-count-in-test.md records that the cost has now
 	// been paid several times across the repository.
-	if counted != 57 {
-		t.Errorf("checkGapCountAgreement reads a gap count from %d of %d row(s), want 57",
+	// 53 since 2026-09-21, when every enrolled RFC was walked against its own
+	// text for the first time and 882 MUST-level obligations the standards state
+	// and no summary carried joined the ledger. Six rows left the population and
+	// two joined it, all for one reason: a walk that adds rows makes the old
+	// Remaining cell false, so the cell was rewritten, and the new prose states
+	// what is untested rather than spelling a number immediately before MUST.
+	// rfc2328, rfc3209, rfc5036, rfc5216, rfc7011 and rfc8414 left that way;
+	// rfc2516 and rfc7474 joined it, their rewritten cells now spelling a count.
+	// The shrink is argued rather than absorbed, which is what this number is
+	// for: none of the six lost a gap, they lost a SPELLING the check can read.
+	if counted != 53 {
+		t.Errorf("checkGapCountAgreement reads a gap count from %d of %d row(s), want 53",
 			counted, len(rows))
 	}
 }
