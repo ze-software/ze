@@ -18,6 +18,11 @@ func newEstablishedTunnel(t *testing.T, maxSessions uint16) *L2TPTunnel {
 		logger, time.Now())
 	tun.state = L2TPTunnelEstablished
 	tun.maxSessions = maxSessions
+	// The peer advertised both framings and both bearers when the tunnel
+	// established, so a call of any type can be placed on it (RFC 2661
+	// Sections 4.4.3 and 6.9).
+	tun.peerFraming = 0x3
+	tun.peerBearer = 0x3
 	return tun
 }
 

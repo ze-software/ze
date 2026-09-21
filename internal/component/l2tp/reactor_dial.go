@@ -29,7 +29,7 @@ var ErrCallTimeout = errors.New("l2tp: outgoing call timed out")
 // Failure-outcome causes surfaced to a blocking placeOutgoingCallSync when a
 // call cannot complete. These distinguish the reasons an operator sees.
 var (
-	errCallPlacementRefused  = errors.New("l2tp: outgoing call refused (max sessions or tunnel not established)")
+	errCallPlacementRefused  = errors.New("l2tp: call refused (max sessions, tunnel not established, or a capability the peer did not advertise)")
 	errCallTunnelAuthFailed  = errors.New("l2tp: outgoing call failed: tunnel authentication rejected")
 	errCallTunnelSetupFailed = errors.New("l2tp: outgoing call failed: tunnel did not establish")
 	errCallTornDown          = errors.New("l2tp: outgoing call torn down before it established")

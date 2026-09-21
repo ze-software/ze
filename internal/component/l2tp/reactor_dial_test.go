@@ -26,7 +26,7 @@ func buildSCCRPForSCCRQ(t *testing.T, sccrq []byte, peerAssignedTID uint16) []by
 	zeTID := uint16(zeTIDBytes[0])<<8 | uint16(zeTIDBytes[1])
 
 	body := make([]byte, 512)
-	n := writeSCCRPBody(body, peerAssignedTID, TunnelDefaults{HostName: "peer-lns", FramingCapabilities: 0x3, RecvWindow: 8}, nil, nil)
+	n := writeSCCRPBody(body, peerAssignedTID, TunnelDefaults{HostName: "peer-lns", FramingCapabilities: 0x3, BearerCapabilities: 0x3, RecvWindow: 8}, nil, nil)
 	pkt := make([]byte, ControlHeaderLen+n)
 	WriteControlHeader(pkt, 0, uint16(ControlHeaderLen+n), zeTID, 0, 0, 1)
 	copy(pkt[ControlHeaderLen:], body[:n])

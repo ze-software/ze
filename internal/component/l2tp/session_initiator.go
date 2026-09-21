@@ -55,6 +55,9 @@ func (p callParams) framingOrDefault() uint32 {
 // the session in wait-reply, and sends the ICRQ. The ICCN that follows the
 // peer's ICRP echoes the Tx Connect Speed / Framing Type captured here.
 func (t *L2TPTunnel) placeIncomingCall(now time.Time, p callParams, logger *slog.Logger) (uint16, []sendRequest) {
+	if !t.peerFramingAllows(p.framingOrDefault(), logger) {
+		return 0, nil
+	}
 	sess, ok := t.newInitiatorSession(now, false, p, logger)
 	if !ok {
 		return 0, nil
@@ -78,6 +81,29 @@ func (t *L2TPTunnel) placeIncomingCall(now time.Time, p callParams, logger *slog
 // the session in wait-reply with lnsMode true (ze is the LNS end), and sends
 // the OCRQ. OCRP moves it to wait-connect; OCCN establishes it.
 func (t *L2TPTunnel) placeOutgoingCall(now time.Time, p callParams, logger *slog.Logger) (uint16, []sendRequest) {
+	// RFC 2661 Section 6.9: "An LNS MUST have received a Bearer Capabilities
+	// AVP during tunnel establishment from an LAC in order to request an
+	// outgoing call to that LAC." A peer whose mask is empty advertised no
+	// bearer it can place a call on, whether it sent the AVP as 0 or not at
+	// all, so no Bearer Type bit could ever be set for it.
+	if t.peerBearer == 0 {
+		logger.Warn("l2tp: outgoing call refused; peer advertised no bearer capability",
+			"peer-tid", t.remoteTID)
+		return 0, nil
+	}
+	// RFC 2661 Section 4.4.4 (Bearer Type): "Bits in the Value field of this
+	// AVP MUST only be set by the LNS for an OCRQ if it was set in the Bearer
+	// Capabilities AVP received from the LAC during control connection
+	// establishment."
+	if p.bearerType&^t.peerBearer != 0 {
+		logger.Warn("l2tp: outgoing call refused; bearer type not in the peer's Bearer Capabilities",
+			"bearer-type", fmt.Sprintf("0x%08x", p.bearerType),
+			"peer-bearer", fmt.Sprintf("0x%08x", t.peerBearer))
+		return 0, nil
+	}
+	if !t.peerFramingAllows(p.framingOrDefault(), logger) {
+		return 0, nil
+	}
 	sess, ok := t.newInitiatorSession(now, true, p, logger)
 	if !ok {
 		return 0, nil
@@ -95,6 +121,27 @@ func (t *L2TPTunnel) placeOutgoingCall(now time.Time, p callParams, logger *slog
 	logger.Info("l2tp: OCRQ sent; session wait-reply (LNS outgoing)",
 		"local-sid", sess.localSID, "called", p.calledNumber)
 	return sess.localSID, []sendRequest{{to: t.peerAddr, bytes: wire}}
+}
+
+// peerFramingAllows reports whether every bit of framingType was advertised by
+// the peer's Framing Capabilities AVP, and logs the refusal when one was not.
+//
+// RFC 2661 Section 4.4.3 (Framing Capabilities): "A peer MUST NOT request an
+// incoming or outgoing call with a Framing Type AVP specifying a value not
+// advertised in the Framing Capabilities AVP it received during control
+// connection establishment." RFC 2661 Section 4.4.4 (Framing Type) restates
+// it for the OCRQ: "Bits in the Value field of this AVP MUST only be set by
+// the LNS for an OCRQ if it was set in the Framing Capabilities AVP received
+// from the LAC during control connection establishment." A refused call is
+// reported to a blocking caller as errCallPlacementRefused (reactor_dial.go).
+func (t *L2TPTunnel) peerFramingAllows(framingType uint32, logger *slog.Logger) bool {
+	if framingType&^t.peerFraming == 0 {
+		return true
+	}
+	logger.Warn("l2tp: call refused; framing type not in the peer's Framing Capabilities",
+		"framing-type", fmt.Sprintf("0x%08x", framingType),
+		"peer-framing", fmt.Sprintf("0x%08x", t.peerFraming))
+	return false
 }
 
 // newInitiatorSession is the shared allocation path for placeIncomingCall and

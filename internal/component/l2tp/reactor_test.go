@@ -1314,6 +1314,9 @@ func TestDeadPeerKeepaliveTeardownWithdrawsRoute(t *testing.T) {
 	require.Contains(t, logs.String(), "dead peer; keepalive timeout teardown")
 }
 
+// RFC requirement: RFC2661-6.5-1 positive -- a peer that never sends a HELLO
+// and only ZLB-acknowledges Ze's own keepalives is not torn down after more
+// than HelloRetries times HelloInterval has elapsed since establishment.
 // TestDeadPeerZLBAckKeepsTunnelUp -- spec-l2tp-dead-peer-detection AC-2.
 //
 // VALIDATES: an idle-but-alive peer that answers every HELLO with a ZLB ACK
