@@ -190,6 +190,18 @@ func (e *engine) handlePath(src netip.Addr, msg *ParsedMessage) {
 		e.log.Warn("rsvp-te: PATH missing SESSION/SENDER_TEMPLATE", "src", src)
 		return
 	}
+	// RFC 2205 Section 2: "A Path message is required to carry a Sender Tspec,
+	// which defines the traffic characteristics of the data flow that the
+	// sender will generate." Section 3.1.3 writes it unbracketed beside the
+	// template, "<sender descriptor> ::= <SENDER_TEMPLATE> <SENDER_TSPEC>", so
+	// a PATH naming a sender and no traffic is malformed. Appendix B says what
+	// a malformed message gets, and it is not a PathErr: "the error is simply
+	// logged locally". Admitting it would reserve at a token rate of zero, a
+	// value the sender never asked for.
+	if !msg.HasSenderTSpec {
+		e.log.Warn("rsvp-te: PATH missing SENDER_TSPEC", "src", src)
+		return
+	}
 	if msg.Session.TunnelEndpoint == e.cfg().RouterID {
 		e.handlePathEgress(src, msg)
 		return

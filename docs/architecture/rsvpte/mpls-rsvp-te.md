@@ -40,11 +40,14 @@ Value, `10bbbbbb` is ignored, and `11bbbbbb` is ignored but forwarded unexamined
 ze forwards no object it did not decode, so the last two forms both ignore.
 
 The rule covers a class the node does not KNOW. A short list of classes ze knows
-and reads no body for is exempt from it: INTEGRITY, SCOPE, ADSPEC, POLICY_DATA
-and RESV_CONFIRM. RFC 2205 Sections 3.1.3 and 3.1.4 make each one optional in a
-Path or a Resv, so rejecting them would refuse a message a conformant peer is
-entitled to send. Every one of them has a Class-Num whose high-order bit is zero,
-which is why the exemption has to be written down.
+and reads no body for is exempt from it: NULL, INTEGRITY, SCOPE, ADSPEC,
+POLICY_DATA and RESV_CONFIRM. NULL (Class-Num 0) heads the list of classes RFC
+2205 Section 3.1 says an implementation must recognize: it "may appear anywhere
+in a sequence of objects, and its contents will be ignored by the receiver". RFC
+2205 Sections 3.1.3 and 3.1.4 make each of the other five optional in a Path or a
+Resv, so rejecting them would refuse a message a conformant peer is entitled to
+send. Every one of them has a Class-Num whose high-order bit is zero, which is
+why the exemption has to be written down.
 
 RFC 4090 Section 4.2 is what the reject arm is for today. An LSR that does not
 support the DETOUR object (Class-Num 63) MUST reject a Path carrying one and
@@ -66,7 +69,12 @@ marks an optional object. Everything unbracketed is mandatory: SESSION, RSVP_HOP
 and TIME_VALUES in a Path, those three plus STYLE in a Resv, SESSION and RSVP_HOP
 in a PathTear, SESSION and ERROR_SPEC in a PathErr. `DecodeMessage` refuses a
 message that omits one, and the sender descriptor is bracketed everywhere, so
-SENDER_TEMPLATE is never required there.
+SENDER_TEMPLATE is never required there. Inside the descriptor SENDER_TSPEC is
+unbracketed, `<sender descriptor> ::= <SENDER_TEMPLATE> <SENDER_TSPEC>`, and
+Section 2 says the same in prose: "A Path message is required to carry a Sender
+Tspec". `handlePath` drops a PATH that names a sender and carries no
+SENDER_TSPEC, with the same local log line and no PathErr, because admitting it
+would reserve at a token rate of zero the sender never asked for.
 
 No error message answers it. RFC 2205 Appendix B: "each node is required to
 verify the correct construction of each RSVP message it receives", and a
@@ -81,6 +89,7 @@ the period the sender refreshes at, so a PATH accepted without one took the
 the state between two of that sender's refreshes.
 
 <!-- source: internal/plugins/rsvpte/mandatory.go -- checkMandatoryObjects -->
+<!-- source: internal/plugins/rsvpte/engine.go -- handlePath -->
 
 ## Decision: link failure comes from the interface component
 

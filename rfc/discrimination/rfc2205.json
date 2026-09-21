@@ -79,6 +79,17 @@
       "break": "body of buildPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC2205-2-4",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205PathWithoutSenderTSpecDropped",
+      "unit-sha": "040b64989223f7f9",
+      "claim-sha": "e48a4a38a2305aa8",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/engine.go::handlePath",
+      "producer-sha": "a40c21de87f7931d",
+      "break": "body of handlePath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC2205-2-7",
       "polarity": "negative",
       "unit": "internal/plugins/rsvpte/engine_rfc2205_test.go::TestRFC2205PathTearWithoutStateNotRelayed",
@@ -99,6 +110,28 @@
       "producer": "internal/plugins/rsvpte/engine.go::handlePathTear",
       "producer-sha": "303ef2848339fb28",
       "break": "body of handlePathTear replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectNotRejected",
+      "unit-sha": "43330b0c3dffc3cb",
+      "claim-sha": "e752d8d58a2c80fc",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/wire.go::classKnownUnprocessed",
+      "producer-sha": "85f1136d481b9cbe",
+      "break": "body of classKnownUnprocessed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2205-3-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/repairs_rfc2205_test.go::TestRFC2205NullObjectRecognized",
+      "unit-sha": "983a343e75ed0ef8",
+      "claim-sha": "f0a8bc5b36f09743",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/wire.go::classKnownUnprocessed",
+      "producer-sha": "85f1136d481b9cbe",
+      "break": "body of classKnownUnprocessed replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC2205-3-1",

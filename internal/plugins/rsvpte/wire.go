@@ -66,7 +66,14 @@ const (
 // carries it, so a conformant peer can send it at any time. Their Class-Num
 // high-order bit is zero, which is why they are named here: without this list
 // classifyUnknownClass would reject them as unknown and refuse a legal message.
+//
+// NULL heads the list. RFC 2205 Section 3.1: "An RSVP implementation must
+// recognize the following classes: NULL. A NULL object has a Class-Num of zero,
+// and its C-Type is ignored. Its length must be at least 4, but can be any
+// multiple of 4. A NULL object may appear anywhere in a sequence of objects,
+// and its contents will be ignored by the receiver.".
 const (
+	ClassNull        uint8 = 0  // RFC 2205 Section 3.1: padding; its contents are ignored.
 	ClassIntegrity   uint8 = 4  // RFC 2205 Section A.3: ze implements no RSVP authentication.
 	ClassScope       uint8 = 7  // RFC 2205 Section A.6: WF style only; ze signals FF and SE LSPs.
 	ClassAdspec      uint8 = 13 // RFC 2205 Section A.12: Int-Serv advertisement; label signaling does not read it.
@@ -285,10 +292,40 @@ type senderTemplateIPv4 struct {
 	LSPID      uint16
 }
 
-// encodeSenderTemplate writes a SENDER_TEMPLATE object. Returns bytes written.
+// encodeSenderTemplate writes a SENDER_TEMPLATE object (Class-Num 11), the
+// sender identity a Path, PathTear or PathErr carries. Returns bytes written.
 func encodeSenderTemplate(buf []byte, st senderTemplateIPv4) int {
+	return encodeSenderIdentity(buf, ClassSenderTemplate, st)
+}
+
+// encodeFilterSpec writes a FILTER_SPEC object (Class-Num 10), the sender
+// identity a Resv carries. Returns bytes written.
+//
+// RFC 2205 Section 3.1.4 writes the FF flow descriptor as "<FLOWSPEC>
+// <FILTER_SPEC>", and RFC 3209 Section 3 places the LABEL by it: "In Resv
+// messages they MUST appear after the associated FILTER_SPEC and prior to any
+// subsequent FILTER_SPEC." RFC 3209 Section 4.6.3.1 gives the object its
+// C-Type, "Class = FILTER SPECIFICATION, LSP_TUNNEL_IPv4 C-Type = 7", and its
+// body: "The format of the LSP_TUNNEL_IPv4 FILTER_SPEC object is identical to
+// the LSP_TUNNEL_IPv4 SENDER_TEMPLATE object." So the two encoders share one
+// body and differ in the Class-Num only.
+func encodeFilterSpec(buf []byte, st senderTemplateIPv4) int {
+	return encodeSenderIdentity(buf, ClassFilterSpec, st)
+}
+
+// encodeSenderIdentity writes the LSP_TUNNEL_IPv4 body RFC 3209 Section 4.6.2.1
+// defines under the given Class-Num:
+//
+//	0                   1                   2                   3
+//	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|                   IPv4 tunnel sender address                  |  body 0-3
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  MUST be zero                 |            LSP ID             |  body 4-7
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+func encodeSenderIdentity(buf []byte, classNum uint8, st senderTemplateIPv4) int {
 	objLen := uint16(objHdrLen + 8)
-	encodeObjectHeader(buf, objectHeader{Length: objLen, ClassNum: ClassSenderTemplate, CType: CTypeLSPTunnelIPv4})
+	encodeObjectHeader(buf, objectHeader{Length: objLen, ClassNum: classNum, CType: CTypeLSPTunnelIPv4})
 	addr := st.SenderAddr.As4()
 	copy(buf[4:8], addr[:])
 	buf[8] = 0
@@ -297,7 +334,9 @@ func encodeSenderTemplate(buf []byte, st senderTemplateIPv4) int {
 	return int(objLen)
 }
 
-// decodeSenderTemplate reads a SENDER_TEMPLATE object body.
+// decodeSenderTemplate reads a SENDER_TEMPLATE or a FILTER_SPEC object body.
+// RFC 3209 Section 4.6.3.1: "The format of the LSP_TUNNEL_IPv4 FILTER_SPEC
+// object is identical to the LSP_TUNNEL_IPv4 SENDER_TEMPLATE object.".
 func decodeSenderTemplate(body []byte) (senderTemplateIPv4, error) {
 	if len(body) < 8 {
 		return senderTemplateIPv4{}, errShortObject
@@ -773,7 +812,7 @@ func classifyUnknownClass(classNum uint8) bool {
 // permit a conformant peer to send.
 func classKnownUnprocessed(classNum uint8) bool {
 	switch classNum {
-	case ClassIntegrity, ClassScope, ClassAdspec, ClassPolicyData, ClassResvConfirm:
+	case ClassNull, ClassIntegrity, ClassScope, ClassAdspec, ClassPolicyData, ClassResvConfirm:
 		return true
 	}
 	return false
@@ -811,6 +850,15 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 			}
 			msg.Session = s
 			msg.HasSession = true
+		// The two classes carry one body (RFC 3209 Section 4.6.3.1) and one
+		// meaning, the sender the message is about, so ze reads the identity
+		// from whichever arrives. A Resv naming it as SENDER_TEMPLATE or a Path
+		// naming it as FILTER_SPEC breaks the Section 3.1 BNF, and RFC 2205
+		// Appendix B leaves that detection to the implementation: "The choice
+		// of message formatting errors that an RSVP may detect and log locally
+		// is implementation-specific". ze does not detect this one. The
+		// encoders are strict: buildResv writes FILTER_SPEC and the Path family
+		// writes SENDER_TEMPLATE.
 		case ClassSenderTemplate, ClassFilterSpec:
 			st, err := decodeSenderTemplate(body)
 			if err != nil {

@@ -110,9 +110,13 @@ func buildPath(psb *pathStateBlock, hop netip.Addr, ttl uint8) []byte {
 	return encodeMessage(MsgTypePath, ttl, encoders)
 }
 
-// buildResv encodes a RESV message from reservation state. RFC 3209 Section 2:
-// object order is SESSION, RSVP_HOP, TIME_VALUES, STYLE, FLOWSPEC, FILTER_SPEC,
-// LABEL, [RRO]. The filter spec identifies the sender being reserved for.
+// buildResv encodes a RESV message from reservation state. RFC 3209 Section
+// 3.2: object order is SESSION, RSVP_HOP, TIME_VALUES, STYLE, FLOWSPEC,
+// FILTER_SPEC, LABEL, [RRO]. The FILTER_SPEC identifies the sender being
+// reserved for, and RFC 3209 Section 3 binds the two objects after it to it:
+// "The LABEL and RECORD_ROUTE objects, are sender specific. In Resv messages
+// they MUST appear after the associated FILTER_SPEC and prior to any subsequent
+// FILTER_SPEC."
 // A RESV travels one hop upstream toward the PHOP and is not per-hop TTL-stepped,
 // so it always uses defaultIPTTL (unlike buildPath, which decrements at transit).
 func buildResv(rsb *resvStateBlock, filter senderTemplateIPv4, refresh time.Duration, hop netip.Addr) []byte {
@@ -126,7 +130,7 @@ func buildResv(rsb *resvStateBlock, filter senderTemplateIPv4, refresh time.Dura
 		func(b []byte) int { return encodeTimeValues(b, timeValues{RefreshPeriod: refreshMillis(refresh)}) },
 		func(b []byte) int { return encodeStyle(b, style) },
 		func(b []byte) int { return encodeFlowSpec(b, ClassFlowSpec, rsb.FlowSpec) },
-		func(b []byte) int { return encodeSenderTemplate(b, filter) },
+		func(b []byte) int { return encodeFilterSpec(b, filter) },
 		func(b []byte) int { return encodeLabelObject(b, rsb.Label) },
 	}
 	if len(rsb.RRO) > 0 {

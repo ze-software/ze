@@ -33,7 +33,9 @@ import "fmt"
 //
 // The sender descriptor is bracketed in every message below, so SENDER_TEMPLATE
 // is never required here. The handlers that cannot work without it check it
-// themselves (handlePath, handlePathTear in engine.go).
+// themselves (handlePath, handlePathTear in engine.go), and handlePath also
+// requires the SENDER_TSPEC that Section 3.1.3 writes unbracketed inside the
+// descriptor.
 func checkMandatoryObjects(msg *ParsedMessage) error {
 	var required []uint8
 	switch msg.Header.MsgType {
