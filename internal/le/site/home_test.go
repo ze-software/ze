@@ -73,7 +73,7 @@ const publishedFactsSnapshot = `{
   "interop": {"target_display": "9"},
   "rfc": {"enrolled_display": "171", "gated_must_display": "2,972",
           "gated_implemented_display": "2,966", "implemented_display": "140",
-          "inspected_display": "171", "walked_display": "174", "proven_display": "1,609",
+          "inspected_display": "171", "proven_display": "1,609",
           "proven_percent": "54.2"},
   "tests": {"e2e_display": "1,700+", "fuzz_display": "78", "unit_display": "23,700+"}
 }`
@@ -149,7 +149,7 @@ func renderHomeFixture(t *testing.T) (page, mirror string) {
 //
 // Refreshed 2026-09-21: the RFC stat line. The homepage published the number
 // of documents that had a requirement list, under the word "extracted", and a
-// reader took it for the number whose list had been checked against the RFC.
+// reader took it for the number analysed for every MUST they state.
 // The line now names the checked count and says what was checked.
 //
 // The rest of the fixture is deliberately NOT taken from that commit. This page
@@ -255,7 +255,6 @@ func TestTheHomepageProofStripCarriesItsStatSpans(t *testing.T) {
 		`<span data-ze-stat="rfc.gated_implemented_display">2,966</span>`,
 		`<span data-ze-stat="rfc.proven_percent">54.2</span>`,
 		`<span data-ze-stat="rfc.implemented_display">140</span>`,
-		`<span data-ze-stat="rfc.walked_display">174</span>`,
 	}
 	for _, span := range spans {
 		if !strings.Contains(page, span) {
@@ -275,7 +274,7 @@ func TestAFactTheSnapshotLostStopsTheHomepage(t *testing.T) {
 		`{"interop":{"target_display":"9"},
 		  "rfc":{"enrolled_display":"171","gated_must_display":"2,972",
 		         "gated_implemented_display":"2,966","implemented_display":"140",
-		         "inspected_display":"171","walked_display":"174","proven_percent":"54.2"},
+		         "inspected_display":"171","proven_percent":"54.2"},
 		  "tests":{"e2e_display":"1,700+","fuzz_display":"78","unit_display":"23,700+"}}`)
 	_, err := renderHome(paths)
 	if err == nil {

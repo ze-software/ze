@@ -388,7 +388,7 @@ var Gating = []string{suiteParse, suiteUI}
 		Enrolment: dispositionOutOfScope, EnrolmentReason: "declined 2026-09-01 by the owner",
 		Support: "bgp-base", Status: "Partial",
 	}, 1)
-	emptyEnrolment := checkEnrolment(root, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{})
+	emptyEnrolment := checkEnrolment(root, map[string]bool{}, map[string]bool{}, map[string]bool{}, map[string]bool{})
 
 	return []leroot.SelftestResult{
 		selftestResult("baseline/head-suite-parser", strings.Join(suites, ",") == "parse,ui",

@@ -444,7 +444,7 @@ func shardRow(row RequirementRow) string {
 }
 
 // extractionBoundSentence states what bounds the counts beside it: how many of
-// the gated documents have had their requirement list checked against the RFC.
+// the gated RFCs were analysed for every MUST they state.
 //
 // DERIVED from the artifacts on disk, never asserted. A summary with no
 // sign-off has had its requirement list compared to the tests and to nothing
@@ -467,17 +467,14 @@ func extractionBoundSentence(in RenderInput) string {
 		return ""
 	}
 	if walked == enrolled {
-		return tb.Str("Every one of the ").Int(int64(enrolled)).
-			Str(" gated documents has had its requirement list checked against the RFC itself, ").
-			Str("so the counts above cannot be missing an obligation an RFC states.").String()
+		return tb.Str("All ").Int(int64(enrolled)).
+			Str(" RFCs were analysed for every MUST they state, so the counts above ").
+			Str("cannot be short.").String()
 	}
-	return tb.Str("READ THIS BEFORE QUOTING THE FIGURES ABOVE: only ").Int(int64(walked)).
+	return tb.Str("THE GATE IS RED: ").Int(int64(enrolled - walked)).
 		Str(" of the ").Int(int64(enrolled)).
-		Str(" gated documents have had their requirement list checked against the RFC ").
-		Str("itself. For the other ").Int(int64(enrolled - walked)).
-		Str(", nothing has confirmed the list is right, so a requirement an RFC states and ").
-		Str("the list leaves out is counted nowhere and the figures above count the list ").
-		Str("rather than the standard.").String()
+		Str(" RFCs carry no sign-off, so a MUST they state can be absent from the ").
+		Str("counts above altogether. `./le rfc check` names them.").String()
 }
 
 // correctionExtractionRel answers where one stem's sign-off lives.
@@ -529,7 +526,7 @@ func RenderIndex(in RenderInput) (string, error) {
 	// and none of them reads the RFC, so a figure taken over unwalked summaries
 	// measures the list rather than the software. On 2026-09-21 that figure was
 	// published as a conformance measure while 125 of 184 documents had never
-	// had their requirement list checked against the RFC, and the walks that
+	// been analysed for the MUSTs they state, and the walks that
 	// followed found 882 MUST-level obligations the RFCs state and no summary
 	// carried. The caveat existed, three paragraphs below, and it did not stop
 	// the number being quoted alone. So the bound now travels inside the

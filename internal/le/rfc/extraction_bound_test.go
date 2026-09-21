@@ -1,5 +1,5 @@
 // VALIDATES: the ledger's headline counts carry, in the same sentence, how many
-// requirement lists have been checked against the RFC they claim to summarize.
+// RFCs have been analysed for every MUST they state.
 // PREVENTS: the failure of 2026-09-21. The weekly update published "3,322
 // checked, 228 owing" as a conformance measure while 125 of 184 documents had
 // never been compared to their RFC. The walks that followed found 882
@@ -45,10 +45,10 @@ func boundFixture(t *testing.T, enrolled, walked int) RenderInput {
 func TestTheHeadlineCountsCarryTheirOwnBound(t *testing.T) {
 	t.Run("every document walked", func(t *testing.T) {
 		got := extractionBoundSentence(boundFixture(t, 4, 4))
-		if !strings.Contains(got, "Every one of the 4 gated documents") {
+		if !strings.Contains(got, "All 4 RFCs were analysed") {
 			t.Fatalf("a fully walked corpus says: %q", got)
 		}
-		if strings.Contains(got, "count the list") {
+		if strings.Contains(got, "can be absent") {
 			t.Errorf("a fully walked corpus warns anyway: %q", got)
 		}
 	})
@@ -56,9 +56,9 @@ func TestTheHeadlineCountsCarryTheirOwnBound(t *testing.T) {
 	t.Run("some unwalked", func(t *testing.T) {
 		got := extractionBoundSentence(boundFixture(t, 4, 1))
 		for _, want := range []string{
-			"READ THIS BEFORE QUOTING THE FIGURES ABOVE",
-			"only 1 of the 4 gated documents",
-			"count the list rather than the standard",
+			"THE GATE IS RED",
+			"3 of the 4 RFCs carry no sign-off",
+			"can be absent from the",
 		} {
 			if !strings.Contains(got, want) {
 				t.Errorf("the bound does not say %q:\n%s", want, got)

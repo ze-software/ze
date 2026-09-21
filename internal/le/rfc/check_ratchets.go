@@ -73,7 +73,7 @@ func checkIDAllocation(requirements []Requirement, baseline map[string]bool) []s
 	return errs
 }
 
-func checkEnrolment(tree string, current, baseline, summaries, newly, signed map[string]bool) []string {
+func checkEnrolment(tree string, current, baseline, summaries, signed map[string]bool) []string {
 	var errs []string
 	if len(current) == 0 {
 		errs = append(errs, "nothing is enrolled: no summary under rfc/short/ declares `| Enrolment | enrolled |`. The gate refuses to report clean while enforcing nothing (ai/rules/evidence.md)")
@@ -95,14 +95,18 @@ func checkEnrolment(tree string, current, baseline, summaries, newly, signed map
 			Str(".txt or rfc/drafts/").Str(rfc).Str(".txt -- without it the summary is validated only against itself, so a requirement the RFC does not contain cannot be caught and a requirement it does contain can be missing invisibly. Fetch the source (https://www.rfc-editor.org/rfc/").Str(rfc).
 			Str(".txt for an RFC; the datatracker archive for a draft) before enrolling").String())
 	}
-	for _, rfc := range sortedSet(newly) {
+	// Every enrolled RFC owes a sign-off, not only the ones this commit
+	// enrolled. The clause said "newly" until 2026-09-21 and grandfathered the
+	// rest, which is how 125 documents came to be gated on a requirement list
+	// nobody had read against the RFC (owner directive, 2026-09-21).
+	for _, rfc := range sortedSet(current) {
 		if signed[rfc] {
 			continue
 		}
 		var tb textbuf.Buffer
-		errs = append(errs, tb.Str(rfc).Str(" is newly enrolled with no valid extraction sign-off at rfc/extraction/").Str(rfc).
+		errs = append(errs, tb.Str(rfc).Str(" is enrolled with no valid extraction sign-off at rfc/extraction/").Str(rfc).
 			Str(".json. Enrolling gates the requirements the summary LISTS; nothing bounds what it MISSED until the source text has been walked site by site (ai/rules/rfc-compliance.md, Extraction Completeness). Run: ./le rfc extraction-create stem ").Str(rfc).
-			Str(", then classify every site and section. RFCs enrolled before this gate existed are grandfathered and unaffected").String())
+			Str(", then classify every site and section").String())
 	}
 	return errs
 }

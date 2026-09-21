@@ -294,7 +294,6 @@ func homeProofStats(facts *siteFacts) (map[string]string, error) {
 		"{rfc_gated_implemented}": {"rfc.gated_implemented_display", facts.RFC.GatedImplementedDisplay},
 		"{rfc_proven_percent}":    {"rfc.proven_percent", facts.RFC.ProvenPercent},
 		"{rfc_implemented}":       {"rfc.implemented_display", facts.RFC.ImplementedDisplay},
-		"{rfc_walked}":            {"rfc.walked_display", facts.RFC.WalkedDisplay},
 	}
 	spans := make(map[string]string, len(values))
 	for slot, stat := range values {

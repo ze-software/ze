@@ -1324,13 +1324,12 @@ func rfcWalkBound(ledger rfcLedger) string {
 		return ""
 	}
 	if walked == gated {
-		return "All " + groupThousands(gated) + " have had their requirement list checked " +
-			"against the RFC itself, so this population cannot be missing an obligation an RFC states."
+		return "All " + groupThousands(gated) + " were analysed for every MUST they state, " +
+			"so this population cannot be short."
 	}
-	return "Only " + groupThousands(walked) + " of " + groupThousands(gated) +
-		" have had their requirement list checked against the RFC itself. For the rest, " +
-		"a requirement an RFC states and the list leaves out is counted nowhere, so this " +
-		"population counts the list rather than the standard."
+	return "THE GATE IS RED: " + groupThousands(gated-walked) + " of " + groupThousands(gated) +
+		" carry no sign-off, so a MUST they state can be absent from this population " +
+		"altogether."
 }
 
 func rfcComplianceCards(snapshot *rfcCompliance, ledger rfcLedger) []rfcCard {

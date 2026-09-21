@@ -165,13 +165,13 @@ const homeTemplate = `            <section class="hero" aria-labelledby="hero-ti
                     </a>
                     <a class="proof" href="quality/rfc-compliance/">
                         <strong
-                            >{rfc_proven}
-                            <span class="label">of {rfc_gated_implemented} RFC MUSTs</span></strong
+                            >{rfc_implemented}
+                            <span class="label">RFCs supported</span></strong
                         >
                         <ul>
-                            <li>{rfc_proven_percent}% tested</li>
-                            <li>{rfc_implemented} RFCs Ze claims support for</li>
-                            <li>{rfc_walked} requirement lists checked against the RFC</li>
+                            <li>{rfc_gated_implemented} MUSTs to test</li>
+                            <li>{rfc_proven} checked with a test</li>
+                            <li>{rfc_proven_percent}% done</li>
                         </ul>
                         <span class="proof-check">RFC requirement ledger.</span>
                     </a>
