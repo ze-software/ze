@@ -1324,7 +1324,7 @@ func rfcWalkBound(ledger rfcLedger) string {
 		return ""
 	}
 	if walked == gated {
-		return "All " + groupThousands(gated) + " were analysed for every MUST they state, " +
+		return "All " + groupThousands(gated) + " were analyzed for every MUST they state, " +
 			"so this population cannot be short."
 	}
 	return "THE GATE IS RED: " + groupThousands(gated-walked) + " of " + groupThousands(gated) +

@@ -149,7 +149,7 @@ func renderHomeFixture(t *testing.T) (page, mirror string) {
 //
 // Refreshed 2026-09-21: the RFC stat line. The homepage published the number
 // of documents that had a requirement list, under the word "extracted", and a
-// reader took it for the number analysed for every MUST they state.
+// reader took it for the number analyzed for every MUST they state.
 // The line now names the checked count and says what was checked.
 //
 // The rest of the fixture is deliberately NOT taken from that commit. This page

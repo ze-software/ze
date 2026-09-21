@@ -1,5 +1,5 @@
 // VALIDATES: the ledger's headline counts carry, in the same sentence, how many
-// RFCs have been analysed for every MUST they state.
+// RFCs have been analyzed for every MUST they state.
 // PREVENTS: the failure of 2026-09-21. The weekly update published "3,322
 // checked, 228 owing" as a conformance measure while 125 of 184 documents had
 // never been compared to their RFC. The walks that followed found 882
@@ -45,7 +45,7 @@ func boundFixture(t *testing.T, enrolled, walked int) RenderInput {
 func TestTheHeadlineCountsCarryTheirOwnBound(t *testing.T) {
 	t.Run("every document walked", func(t *testing.T) {
 		got := extractionBoundSentence(boundFixture(t, 4, 4))
-		if !strings.Contains(got, "All 4 RFCs were analysed") {
+		if !strings.Contains(got, "All 4 RFCs were analyzed") {
 			t.Fatalf("a fully walked corpus says: %q", got)
 		}
 		if strings.Contains(got, "can be absent") {
