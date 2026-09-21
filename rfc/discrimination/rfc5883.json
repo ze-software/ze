@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc5883",
+  "records": [
+    {
+      "rid": "RFC5883-4.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bfd/engine/multihop_pair_rfc5883_test.go::TestRFC5883MultihopSessionsNeedDistinctEndpoint",
+      "unit-sha": "ec1d4b7b08bf26e5",
+      "claim-sha": "b12f5f724699c691",
+      "route": "revert",
+      "producer": "internal/component/bfd/api/events.go::Key",
+      "producer-sha": "c74d9afe0c996b38",
+      "break": "body of Key replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5883-4.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bfd/engine/multihop_pair_rfc5883_test.go::TestRFC5883MultihopSessionsNeedDistinctEndpoint",
+      "unit-sha": "ec1d4b7b08bf26e5",
+      "claim-sha": "70b7780e33bbe93c",
+      "route": "revert",
+      "producer": "internal/component/bfd/api/events.go::Key",
+      "producer-sha": "c74d9afe0c996b38",
+      "break": "body of Key replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
