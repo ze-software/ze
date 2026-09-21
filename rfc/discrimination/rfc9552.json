@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc9552",
+  "records": [
+    {
+      "rid": "RFC9552-5.3.1.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go::TestRFC9552NodeFlagBitsUndefinedBitsIgnored",
+      "unit-sha": "0183ead828f2a4e3",
+      "claim-sha": "38c11acda771fc99",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr_node.go::decodeNodeFlagBits",
+      "producer-sha": "2c70f79952a1eaa6",
+      "break": "body of decodeNodeFlagBits replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9552-5.3.3.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go::TestRFC9552IGPFlagsUndefinedBitsIgnored",
+      "unit-sha": "155888ed07678afe",
+      "claim-sha": "9cc53e7c5735691e",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr_prefix.go::decodeIGPFlags",
+      "producer-sha": "31fb1603fe79b867",
+      "break": "body of decodeIGPFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
