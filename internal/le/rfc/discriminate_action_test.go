@@ -92,3 +92,40 @@ func Name(raw string) string {
 		t.Errorf("a file with nothing to prune was rewritten:\n%s", pruned)
 	}
 }
+
+// TestDropOrphanedImportsIgnoresAFieldNamedLikeAPackage feeds a file whose only
+// call through `bytes` sat in the disabled body while a struct field is also
+// named `bytes`, and asserts the import goes: a field is never a package use.
+//
+// VALIDATES: the prune counts only the left side of a selector.
+// PREVENTS: the refusal measured 2026-09-21 on
+// internal/component/l2tp/reactor.go::resolveTieBreakerLocked, where
+// `pkt.bytes` kept "bytes" imported and unused and the overlay failed to build.
+func TestDropOrphanedImportsIgnoresAFieldNamedLikeAPackage(t *testing.T) {
+	source := `package l2tp
+
+import (
+	"bytes"
+)
+
+type packet struct {
+	bytes []byte
+}
+
+func compare(pkt packet) int {
+	panic("BUG: disabled")
+}
+
+func size(pkt packet) int {
+	return len(pkt.bytes)
+}
+`
+	pruned := dropOrphanedImports("reactor.go", source)
+
+	if strings.Contains(pruned, `"bytes"`) {
+		t.Errorf("bytes survived the prune on the strength of the field pkt.bytes:\n%s", pruned)
+	}
+	if !strings.Contains(pruned, "len(pkt.bytes)") {
+		t.Errorf("the field read was rewritten:\n%s", pruned)
+	}
+}

@@ -554,7 +554,14 @@ func dropOrphanedImports(rel, broken string) string {
 	return out.String()
 }
 
-// fileNames answers every identifier the file uses outside its import block.
+// fileNames answers every identifier the file reaches a package through outside
+// its import block: the left side of a selector, `bytes` in `bytes.Compare`.
+//
+// Only that position can name a package, which is the test the compiler applies.
+// A field, a method or a local named like a package (`pkt.bytes`) is not a use of
+// the import, and counting it kept `bytes` alive in a file whose only call through
+// it sat in the disabled body, so the overlay failed to build (measured 2026-09-21
+// on internal/component/l2tp/reactor.go::resolveTieBreakerLocked).
 //
 // The import block is skipped so an import does not keep itself alive: the name
 // in `import "fmt"` is the path, but an explicitly named one declares an
@@ -566,7 +573,11 @@ func fileNames(file *ast.File) map[string]bool {
 			continue
 		}
 		ast.Inspect(decl, func(node ast.Node) bool {
-			if ident, isIdent := node.(*ast.Ident); isIdent {
+			selector, isSelector := node.(*ast.SelectorExpr)
+			if !isSelector {
+				return true
+			}
+			if ident, isIdent := selector.X.(*ast.Ident); isIdent {
 				used[ident.Name] = true
 			}
 			return true
