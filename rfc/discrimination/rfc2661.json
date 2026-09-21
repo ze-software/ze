@@ -33,7 +33,7 @@
       "claim-sha": "721ed73309b98d91",
       "route": "revert",
       "producer": "internal/component/l2tp/reactor.go::sendUnassociatedStopCCN",
-      "producer-sha": "a1dfde0bbf13820c",
+      "producer-sha": "5a1a354cc4ce5400",
       "break": "body of sendUnassociatedStopCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -60,18 +60,6 @@
     },
     {
       "rid": "RFC2661-6.1-1",
-      "polarity": "negative",
-      "unit": "test/l2tp/rfc2661-sccrq-mandatory-avp.ci",
-      "unit-sha": "7f15a716fd694568",
-      "claim-sha": "70e2a021fac3ba59",
-      "route": "revert",
-      "producer": "internal/component/l2tp/reactor.go::sendUnassociatedStopCCN",
-      "producer-sha": "a1dfde0bbf13820c",
-      "break": "body of sendUnassociatedStopCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
-      "citation": "expect=stderr:contains=malformed SCCRQ answered with StopCCN"
-    },
-    {
-      "rid": "RFC2661-6.1-1",
       "polarity": "positive",
       "unit": "test/l2tp/rfc2661-sccrq-mandatory-avp.ci",
       "unit-sha": "7f15a716fd694568",
@@ -81,6 +69,18 @@
       "producer-sha": "306c6aefbc6060ab",
       "break": "body of handleSCCRQ replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
       "citation": "expect=stderr:contains=new tunnel created from SCCRQ"
+    },
+    {
+      "rid": "RFC2661-6.1-1",
+      "polarity": "negative",
+      "unit": "test/l2tp/rfc2661-sccrq-mandatory-avp.ci",
+      "unit-sha": "7f15a716fd694568",
+      "claim-sha": "70e2a021fac3ba59",
+      "route": "revert",
+      "producer": "internal/component/l2tp/reactor.go::sendUnassociatedStopCCN",
+      "producer-sha": "5a1a354cc4ce5400",
+      "break": "body of sendUnassociatedStopCCN replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+      "citation": "expect=stderr:contains=malformed SCCRQ answered with StopCCN"
     },
     {
       "rid": "RFC2661-6.2-1",

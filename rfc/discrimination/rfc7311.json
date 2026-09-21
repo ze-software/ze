@@ -9,7 +9,7 @@
       "claim-sha": "84088e2ea7c172ac",
       "route": "revert",
       "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
-      "producer-sha": "a1a2b50e77e289ce",
+      "producer-sha": "473336292a0cad0a",
       "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -20,7 +20,7 @@
       "claim-sha": "df9d51bd54eee73b",
       "route": "revert",
       "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
-      "producer-sha": "a1a2b50e77e289ce",
+      "producer-sha": "473336292a0cad0a",
       "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -31,7 +31,7 @@
       "claim-sha": "85dc6b61c58a2ccd",
       "route": "revert",
       "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
-      "producer-sha": "a1a2b50e77e289ce",
+      "producer-sha": "473336292a0cad0a",
       "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +42,7 @@
       "claim-sha": "cf20566592369205",
       "route": "revert",
       "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
-      "producer-sha": "a1a2b50e77e289ce",
+      "producer-sha": "473336292a0cad0a",
       "break": "body of validateAttributeFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
