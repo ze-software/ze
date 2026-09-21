@@ -2,6 +2,72 @@
   "rfc": "rfc7950",
   "records": [
     {
+      "rid": "RFC7950-7.6.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultNotUsedWhenSet",
+      "unit-sha": "919be8d87803c327",
+      "claim-sha": "8f79c7b41d3c0cda",
+      "route": "revert",
+      "producer": "internal/component/config/schema_defaults.go::applyChildDefault",
+      "producer-sha": "8594dcb2349828bf",
+      "break": "body of applyChildDefault replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-7.6.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/config/schema_defaults_rfc7950_test.go::TestRFC7950LeafDefaultUsedWhenAbsent",
+      "unit-sha": "9f84e201990da820",
+      "claim-sha": "53790471658cb142",
+      "route": "revert",
+      "producer": "internal/component/config/schema_defaults.go::applyChildDefault",
+      "producer-sha": "8594dcb2349828bf",
+      "break": "body of applyChildDefault replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-7.7.5-1",
+      "polarity": "positive",
+      "unit": "internal/component/config/yang/validator_rfc7950_test.go::TestRFC7950MinElementsMet",
+      "unit-sha": "844ac353b128b572",
+      "claim-sha": "bb85d26dd1ec7da8",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator.go::checkCardinality",
+      "producer-sha": "dc715436c49df95b",
+      "break": "body of checkCardinality replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-7.7.5-1",
+      "polarity": "negative",
+      "unit": "internal/component/config/yang/validator_rfc7950_test.go::TestRFC7950MinElementsViolated",
+      "unit-sha": "2195a4ae0182f3d8",
+      "claim-sha": "374ac128473743bb",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator.go::checkCardinality",
+      "producer-sha": "dc715436c49df95b",
+      "break": "body of checkCardinality replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-9.5.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/config/yang/validator_rfc7950_test.go::TestRFC7950BooleanLowercaseAccepted",
+      "unit-sha": "4b14240abf1323ab",
+      "claim-sha": "24cfde7a8d8b1f1d",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator.go::validateBoolean",
+      "producer-sha": "da9f2db58ab0223a",
+      "break": "body of validateBoolean replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-9.5.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/config/yang/validator_rfc7950_test.go::TestRFC7950BooleanNotLowercaseRefused",
+      "unit-sha": "b3d91db4ed76b69f",
+      "claim-sha": "d1b74347e96f54ce",
+      "route": "revert",
+      "producer": "internal/component/config/yang/validator.go::validateBoolean",
+      "producer-sha": "da9f2db58ab0223a",
+      "break": "body of validateBoolean replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7950-9.6-1",
       "polarity": "positive",
       "unit": "internal/component/config/radius_auth_method_enum_test.go::TestRadiusAuthMethodEnum",
