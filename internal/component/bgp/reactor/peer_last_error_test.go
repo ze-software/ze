@@ -74,7 +74,7 @@ func TestNotificationRefusedBySocketStillRecordsTheReason(t *testing.T) {
 	stats := peer.Stats()
 	assert.Equal(t, plugin.NotifSendFailed, stats.LastNotifDirection)
 	assert.Equal(t, uint8(message.NotifyCease), stats.LastNotifCode)
-	assert.Equal(t, uint8(message.NotifyCeaseBFDDown), stats.LastNotifSubcode)
+	assert.Equal(t, message.NotifyCeaseBFDDown, stats.LastNotifSubcode)
 	assert.False(t, stats.LastNotifTime.IsZero())
 
 	// Nothing reached the peer, so nothing counts as sent, and the flag that
@@ -114,7 +114,7 @@ func TestNotificationDeliveredIsNotRecordedAsUnsent(t *testing.T) {
 	stats = peer.Stats()
 	assert.Equal(t, plugin.NotifSent, stats.LastNotifDirection)
 	assert.Equal(t, uint8(message.NotifyCease), stats.LastNotifCode)
-	assert.Equal(t, uint8(message.NotifyCeaseBFDDown), stats.LastNotifSubcode)
+	assert.Equal(t, message.NotifyCeaseBFDDown, stats.LastNotifSubcode)
 	assert.Equal(t, uint32(1), stats.NotificationsSent)
 	assert.True(t, peer.notificationExchanged.Load())
 }
