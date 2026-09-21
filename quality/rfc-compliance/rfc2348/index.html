@@ -438,7 +438,75 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 2348, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc2348.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>5603bbee0abe1b05</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc2348.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>2</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>2</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:3</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Description, not an obligation: the sentence sits in the Proof of Concept section explaining why measured transfer time falls as blocksize rises. &#39;the data transmitter must wait for an ACK&#39; describes the lock-step behavior RFC 1350 already defines, and imposes nothing on an implementation of this option.</td>
+<td>For example, by increasing the blocksize from 512 octets to 1024 octets, not only are the number of data packets halved, but the number of acknowledgement packets is also halved (along with the number of times the data transmitter must wait for an ACK).</td>
+</tr>
+<tr><td><code>front:4</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Boilerplate: the sentence is part of the RFC&#39;s Full Copyright Statement and constrains redistribution of the document, not the behavior of a TFTP implementation.</td>
+<td>However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 2348, so its obligations are stated where they were written.</p>
@@ -472,7 +540,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

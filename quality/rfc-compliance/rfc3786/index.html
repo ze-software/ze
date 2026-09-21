@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3786 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3786: Extending the Number of Intermediate System to Intermediate System (IS-IS) Link State PDU (LSP) Fragments Beyond the 256 Limit. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 3786: Extending the Number of Intermediate System to Intermediate System (IS-IS) Link State PDU (LSP) Fragments Beyond the 256 Limit. 7 gated MUST-level requirements, 0 declared gaps, 3 with no test." />
         <meta property="og:title" content="RFC 3786 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3786: Extending the Number of Intermediate System to Intermediate System (IS-IS) Link State PDU (LSP) Fragments Beyond the 256 Limit. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 3786: Extending the Number of Intermediate System to Intermediate System (IS-IS) Link State PDU (LSP) Fragments Beyond the 256 Limit. 7 gated MUST-level requirements, 0 declared gaps, 3 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3786 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3786: Extending the Number of Intermediate System to Intermediate System (IS-IS) Link State PDU (LSP) Fragments Beyond the 256 Limit. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 3786: Extending the Number of Intermediate System to Intermediate System (IS-IS) Link State PDU (LSP) Fragments Beyond the 256 Limit. 7 gated MUST-level requirements, 0 declared gaps, 3 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,22 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>4</strong><b>of 7 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>4</strong><b>of 4 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>100.0%</strong><b>4 of 4 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>7</strong><b>of 10 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>4</strong><b>of 7 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>57.1%</strong><b>4 of 7 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>42.9%</strong><b>3 of 7 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -159,7 +163,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -199,10 +203,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>7</td>
+<td>10</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>4</td>
+<td>7</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>4</td>
@@ -211,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>3</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -242,7 +246,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Extending the Number of IS-IS LSP Fragments Beyond the 256 Limit: four MUST-level requirements, all {not-applicable} to Ze. Ze does not implement the RFC 3786 extended-LSP-fragment mechanism -- its IS-IS codec recognizes no IS Alias ID TLV (type 24) and originates no extended LSP sets or virtual system (recognized TLV set 1/2/6/8/9/10/22/129/132/135/137/232/236/240 in internal/plugins/isis/packet/tlv.go), running only standard ISO/IEC 10589 LSPs bounded by the 256-fragment limit. RFC3786-2-1 (IS Alias ID TLV in fragment 0) and RFC3786-3.1-1 (generate extended fragment zero) have no extended-LSP origination path; RFC3786-5-1 (SPF exclusion of an expired extended fragment 0 set) governs extended sets Ze does not have (its SPF operates only on standard LSPs); RFC3786-x-2 (Mode 1 Originating-to-Virtual adjacency zero metric) governs a virtual-system model Ze does not implement. No SHOULD/MAY requirements are gated.</p>
+<p>Enrolled: Extending the Number of IS-IS LSP Fragments Beyond the 256 Limit: seven MUST-level requirements after the 2026-09-21 extraction walk. Four are {not-applicable} to Ze; the three the walk added carry no test and no annotation: RFC3786-1.3-1 (all LSPs in one SPF instance use the same Mode, §1.3), RFC3786-3.2-1 (a Mode 1 Extended LSP names the Normal system-id as a neighbor, §3.2) and RFC3786-6-1 (an IS uses the system-id of the LSP that will include a neighbor when forming an adjacency with it, §6). Ze does not implement the RFC 3786 extended-LSP-fragment mechanism -- its IS-IS codec recognizes no IS Alias ID TLV (type 24) and originates no extended LSP sets or virtual system (recognized TLV set 1/2/6/8/9/10/22/129/132/135/137/232/236/240 in internal/plugins/isis/packet/tlv.go), running only standard ISO/IEC 10589 LSPs bounded by the 256-fragment limit. RFC3786-2-1 (IS Alias ID TLV in fragment 0) and RFC3786-3.1-1 (generate extended fragment zero) have no extended-LSP origination path; RFC3786-5-1 (SPF exclusion of an expired extended fragment 0 set) governs extended sets Ze does not have (its SPF operates only on standard LSPs); RFC3786-x-2 (Mode 1 Originating-to-Virtual adjacency zero metric) governs a virtual-system model Ze does not implement. No SHOULD/MAY requirements are gated.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 3786.</p>
@@ -265,7 +269,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -276,11 +280,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>4</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>7</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Annotated instead of tested (4):</strong> <a href="#rfc3786-2-1"><code>RFC3786-2-1</code></a>, <a href="#rfc3786-3.1-1"><code>RFC3786-3.1-1</code></a>, <a href="#rfc3786-5-1"><code>RFC3786-5-1</code></a>, <a href="#rfc3786-x-2"><code>RFC3786-x-2</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (3):</strong> <a href="#rfc3786-1.3-1"><code>RFC3786-1.3-1</code></a>, <a href="#rfc3786-3.2-1"><code>RFC3786-3.2-1</code></a>, <a href="#rfc3786-6-1"><code>RFC3786-6-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -341,6 +346,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> Mode 1 (the virtual-system model with Originating-to-Virtual adjacencies in Extended LSPs) is part of the RFC 3786 extended-fragment mechanism Ze does not implement -- Ze has no virtual system, no extended LSP, and no IS Alias ID TLV (type 24) origination (internal/plugins/isis/packet/tlv.go), so there is no Originating-to-Virtual adjacency to assign a zero metric to.</p></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3786-1.3-1">RFC3786-1.3-1</code></td><td colspan="3"><span class="rfc-subject">&#34;These modes are configured on a per-level and area basis.  That is, all LSPs considered in the same SPF instance MUST use the same Mode&#34; (Section 1.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>1.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3786-1.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3786-3.2-1">RFC3786-3.2-1</code></td><td colspan="3"><span class="rfc-subject">In Mode 1, &#34;the Extended LSP MUST specify the Normal system-id as a neighbor.  The metric SHOULD be set to MaxLinkMetric - 1 ... This in order to satisfy the two-way connectivity check on other routers&#34; (Section 3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3786-3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3786-6-1">RFC3786-6-1</code></td><td colspan="3"><span class="rfc-subject">&#34;It should be noted, that an IS MUST use the system-id of the LSP that will include a neighbor, when forming an adjacency with that neighbor&#34;, regardless of the Operational Mode (Section 6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3786-6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3786-7-1">RFC3786-7-1</code></td><td colspan="3"><span class="rfc-subject">Provide a config parameter for LSP origination behavior, defaulting to ISO/IEC 10589 behavior with neither mode enabled (Section 7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
@@ -375,6 +407,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: Mode 1 (the virtual-system model with Originating-to-Virtual adjacencies in Extended LSPs) is part of the RFC 3786 extended-fragment mechanism Ze does not implement -- Ze has no virtual system, no extended LSP, and no IS Alias ID TLV (type 24) origination (internal/plugins/isis/packet/tlv.go), so there is no Originating-to-Virtual adjacency to assign a zero metric to.</td>
 </tr>
+<tr><td><a href="#rfc3786-1.3-1"><code>RFC3786-1.3-1</code></a> &#34;These modes are configured on a per-level and area basis.  That is, all LSPs considered in the same SPF instance MUST use the same Mode&#34; (Section 1.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc3786-3.2-1"><code>RFC3786-3.2-1</code></a> In Mode 1, &#34;the Extended LSP MUST specify the Normal system-id as a neighbor.  The metric SHOULD be set to MaxLinkMetric - 1 ... This in order to satisfy the two-way connectivity check on other routers&#34; (Section 3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc3786-6-1"><code>RFC3786-6-1</code></a> &#34;It should be noted, that an IS MUST use the system-id of the LSP that will include a neighbor, when forming an adjacency with that neighbor&#34;, regardless of the Operational Mode (Section 6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -397,9 +441,251 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>In Mode 1, metric for Originating-to-Virtual adjacencies is zero and no other neighbors are specified in an Extended LSP (Sections 3.2, 3.2.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC3786-x-2, so no unit is bound to it.</p>
+<h3><a href="#rfc3786-1.3-1"><code>RFC3786-1.3-1</code></a></h3>
+<p>&#34;These modes are configured on a per-level and area basis.  That is, all LSPs considered in the same SPF instance MUST use the same Mode&#34; (Section 1.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3786-1.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc3786-3.2-1"><code>RFC3786-3.2-1</code></a></h3>
+<p>In Mode 1, &#34;the Extended LSP MUST specify the Normal system-id as a neighbor.  The metric SHOULD be set to MaxLinkMetric - 1 ... This in order to satisfy the two-way connectivity check on other routers&#34; (Section 3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3786-3.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc3786-6-1"><code>RFC3786-6-1</code></a></h3>
+<p>&#34;It should be noted, that an IS MUST use the system-id of the LSP that will include a neighbor, when forming an adjacency with that neighbor&#34;, regardless of the Operational Mode (Section 6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3786-6-1, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 3786, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc3786.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>cd5d17df37dc7f90</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc3786.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>9</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>2</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1.5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>12</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>3.1:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 3.1 states the binding obligation in the abstract and the same paragraph names the carrier: &#39;Under both modes, the Originating System MUST include information binding the Original LSP and the Extended ones. ... This binding is advertised via a new IS Alias ID TLV, which is advertised in all fragment 0 of Original and Extended LSPs.&#39; Site 2:1 states that same obligation concretely, &#39;This TLV MUST be included in fragment 0 of every LSP set belonging to an Originating System running in either Mode 1 or Mode 2&#39;, and maps to RFC3786-2-1.</td>
+<td>Under both modes, the Originating System MUST include information binding the Original LSP and the Extended ones.</td>
+</tr>
+<tr><td><code>3.2:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Restates, for the moment an Extended LSP is first created, the zero-metric Originating-to-Virtual adjacency that site 3.2:1 states in its own right: &#39;The metric for these connections MUST be zero&#39; (Section 3.2) against &#39;When an Extended LSP belonging to Additional system-id S&#39; is first created, the Original LSP MUST specify S&#39; as a neighbor, with metric set to zero.&#39; Both sentences describe the one adjacency RFC3786-x-2 carries, and the sentence after this one gives the same reason: &#39;This is in order to consider the cost of reaching the Virtual System S&#39; the same as the cost of reaching its Originating System.&#39;</td>
+<td>When an Extended LSP belonging to Additional system-id S&#39; is first created, the Original LSP MUST specify S&#39; as a neighbor, with metric set to zero.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 3786, so its obligations are stated where they were written.</p>
@@ -433,7 +719,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

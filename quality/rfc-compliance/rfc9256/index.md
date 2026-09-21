@@ -391,7 +391,85 @@ No test carries RFC9256-7-1, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 9256, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc9256.txt |
+| Source fingerprint | 765585ef86ff8d01 |
+| Record | rfc/extraction/rfc9256.json |
+| Mapped sentences | 22 |
+| Declined as scope | 0 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 3 | walked | not stated |
+| `2.2` | not stated | 3 | walked | not stated |
+| `2.3` | not stated | 0 | walked | not stated |
+| `2.4` | not stated | 2 | walked | not stated |
+| `2.5` | not stated | 0 | walked | not stated |
+| `2.6` | not stated | 2 | walked | not stated |
+| `2.7` | not stated | 0 | walked | not stated |
+| `2.8` | not stated | 0 | walked | not stated |
+| `2.9` | not stated | 1 | walked | not stated |
+| `2.10` | not stated | 0 | walked | not stated |
+| `2.11` | not stated | 1 | walked | not stated |
+| `2.12` | not stated | 0 | walked | not stated |
+| `2.13` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `4` | not stated | 1 | walked | not stated |
+| `4.1` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 3 | walked | not stated |
+| `5.2` | not stated | 1 | walked | not stated |
+| `5.3` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 1 | walked | not stated |
+| `6.2` | not stated | 1 | walked | not stated |
+| `6.2.1` | not stated | 0 | walked | not stated |
+| `6.2.2` | not stated | 0 | walked | not stated |
+| `6.2.3` | not stated | 2 | walked | not stated |
+| `6.3` | not stated | 0 | walked | not stated |
+| `6.4` | not stated | 0 | walked | not stated |
+| `7` | not stated | 1 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.2` | not stated | 0 | walked | not stated |
+| `8.3` | not stated | 0 | walked | not stated |
+| `8.4` | not stated | 0 | walked | not stated |
+| `8.4.1` | not stated | 0 | walked | not stated |
+| `8.5` | not stated | 0 | walked | not stated |
+| `8.5.1` | not stated | 0 | walked | not stated |
+| `8.6` | not stated | 0 | walked | not stated |
+| `8.7` | not stated | 0 | walked | not stated |
+| `8.8` | not stated | 0 | walked | not stated |
+| `8.8.1` | not stated | 0 | walked | not stated |
+| `8.8.2` | not stated | 0 | walked | not stated |
+| `8.8.3` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+| `9.3` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `12.1` | not stated | 0 | walked | not stated |
+| `13` | not stated | 0 | walked | not stated |
+| `13.1` | not stated | 0 | walked | not stated |
+| `13.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+The walk over RFC 9256 declined no sentence: every site it found is mapped to a requirement.
 
 ## Superseded
 

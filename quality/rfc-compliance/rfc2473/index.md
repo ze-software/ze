@@ -22,7 +22,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| MUSTs declared | 11 | of 21 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
+| MUSTs declared | 11 | of 21 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (third-party), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 11 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 11 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -51,7 +51,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Not enrolled (enrolled) |
+| Enrolment | Not enrolled (third-party) |
 | Requirements | 21 |
 | Gated MUST-level | 11 |
 | Not applicable, so out of scope | 11 |
@@ -68,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Not enrolled (enrolled, a disposition this page has no published meaning for): Generic Packet Tunneling in IPv6 (tunnel datapath delegated to kernel ip6_tunnel / VPP; ze configures netdevs only)
+Not enrolled (third-party, a layer under or beside Ze performs the document and Ze holds no Go code for it, so the reason beside this kind names the component that does): The Linux ip6_tunnel module builds the outer IPv6 header and handles the Encapsulation Limit option. Ze only builds the netlink link descriptor, internal/plugins/iface/netlink/tunnel_linux.go::buildIp6tnl.
 
 ## What the public ledger says
 
@@ -224,7 +224,67 @@ No test carries RFC2473-8-1, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 2473, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc2473.txt |
+| Source fingerprint | 59956643eb9ece1a |
+| Record | rfc/extraction/rfc2473.json |
+| Mapped sentences | 7 |
+| Declined as scope | 5 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 1 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `3.4` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 0 | walked | not stated |
+| `4.1.1` | not stated | 4 | walked | not stated |
+| `4.1.2` | not stated | 1 | walked | not stated |
+| `4.1.3` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+| `6.3` | not stated | 0 | walked | not stated |
+| `6.4` | not stated | 0 | walked | not stated |
+| `6.5` | not stated | 0 | walked | not stated |
+| `6.6` | not stated | 0 | walked | not stated |
+| `6.7` | not stated | 0 | walked | not stated |
+| `7` | not stated | 3 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `7.2` | not stated | 0 | walked | not stated |
+| `8` | not stated | 1 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.2` | not stated | 1 | walked | not stated |
+| `8.3` | not stated | 0 | walked | not stated |
+| `8.4` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `11` | not stated | 1 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | the RFC 2119 boilerplate sentence that defines the keywords; it states no obligation of this protocol | The keywords MUST, MUST NOT, MAY, OPTIONAL, REQUIRED, RECOMMENDED, SHALL, SHALL NOT, SHOULD, SHOULD NOT are to be interpreted as defined in RFC 2119. |
+| `4.1.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | the lead-in that introduces the enumerated procedure (a) to (e); the obligations are the steps themselves, carried by sites 4.1.1:2 to 4.1.1:4 and by the section's unsourced id RFC2473-4.1.1-1 for step (b) | A tunnel entry-point node is required to execute the following procedure for every packet entering a tunnel at that node: |
+| `7:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | descriptive prose explaining why anycast destinations are unsuitable: "a requirement that is not necessarily satisfied by packets sent to an anycast address". It describes the reassembly property of IPv6 fragmentation, and imposes nothing on a tunnel node | The problem, which is similar to that of original fragmented IPv6 packets destined to nodes identified by an anycast address, is that all the fragments of a packet must arrive at the same destination node for that node to be able to perform a successful reassembly, a requirement that is not necessarily satisfied by packets sent to an anycast address. |
+| `8.2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | the keyword sits inside the noun phrase "the minimum link MTU size required for IPv6 [IPv6-Spec]", which names a constant; the sentence itself restates the rule of section 7.1 in indicative prose | According to the general rules described in 7.1, an ICMP "packet too big" message is sent to the source of the original packet only if the original packet size is larger than the minimum link MTU size required for IPv6 [IPv6-Spec]. |
+| `11:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | the Internet Society copyright notice; its "must" binds anyone republishing the document, not an implementation | However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English. |
 
 ## Superseded
 

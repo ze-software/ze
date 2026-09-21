@@ -433,7 +433,60 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 9494, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc9494.txt |
+| Source fingerprint | c6e4d6c4836c4b4e |
+| Record | rfc/extraction/rfc9494.json |
+| Mapped sentences | 25 |
+| Declined as scope | 3 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 0 | walked | not stated |
+| `2.3` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 2 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `4` | not stated | 1 | walked | not stated |
+| `4.1` | not stated | 2 | walked | not stated |
+| `4.2` | not stated | 12 | walked | not stated |
+| `4.3` | not stated | 2 | walked | not stated |
+| `4.4` | not stated | 1 | walked | not stated |
+| `4.5` | not stated | 1 | walked | not stated |
+| `4.6` | not stated | 3 | walked | not stated |
+| `4.7` | not stated | 0 | walked | not stated |
+| `4.7.1` | not stated | 0 | walked | not stated |
+| `4.7.2` | not stated | 2 | walked | not stated |
+| `5` | not stated | 2 | walked | not stated |
+| `5.1` | not stated | 0 | walked | not stated |
+| `5.2` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `4.1:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.1 restates the Section 3.1 obligation verbatim; site 3.1:1 carries it and cites Section 4.1 itself ("see Section 4.1"). | If the LLGR Capability is advertised, the Graceful Restart capability MUST also be advertised. |
+| `4.2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | A quotation of superseded RFC 4724 text, introduced by "The following text in Section 4.2 of [RFC4724] no longer applies" and followed by "and the following procedures are specified instead". The block is set off with change bars and states no obligation of this document. | \| If the session does not get re-established within the "Restart \| Time" that the peer advertised previously, the Receiving Speaker \| MUST delete all the stale routes from the peer that it is \| retaining. |
+| `4.2:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The chapeau introducing the LLGR-period bullet list. Each enumerated procedure carries its own MUST and is mapped separately (sites 4.2:4 through 4.2:8); the chapeau's own content, that the procedures begin once the Restart Time period ends, is carried in RFC9494-4.2-2. | Once the Restart Time period ends (including the case in which the Restart Time is zero), the LLGR period is said to have begun and the following procedures MUST be performed: |
 
 ## Superseded
 

@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 23.4% | 15 of 64 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 6.2% | 4 of 64 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 64 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 23.1% | 15 of 65 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 6.2% | 4 of 65 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 65 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 0.0% | 0 of 34 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 64 | of 101 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 27 | of 64 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 42.2% | 27 of 64 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 64 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 64 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 65 | of 102 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 27 | of 65 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 41.5% | 27 of 65 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 65 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 65 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 28.1% | 18 of 64 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 29.2% | 19 of 65 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 64 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 65 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 101 |
-| Gated MUST-level | 64 |
+| Requirements | 102 |
+| Gated MUST-level | 65 |
 | Not applicable, so out of scope | 27 |
 | Declared gaps | 18 |
-| Gated with no test | 0 |
+| Gated with no test | 1 |
 | Nightly-only evidence | 0 |
 | Test tags | 34 |
 | Tagged units | 34 |
@@ -99,14 +99,16 @@ Eighteen MUST gaps, each annotated in [`rfc/short/rfc2131.md`](https://github.co
 | Positive and negative tests | 15 | one part of the gated population |
 | Annotated instead of tested | 49 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 1 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **64** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **65** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (15):** [`RFC2131-4.3-4`](#rfc2131-4.3-4), [`RFC2131-4.3-5`](#rfc2131-4.3-5), [`RFC2131-4.3-6`](#rfc2131-4.3-6), [`RFC2131-4.3-7`](#rfc2131-4.3-7), [`RFC2131-4.3-8`](#rfc2131-4.3-8), [`RFC2131-4.3-9`](#rfc2131-4.3-9), [`RFC2131-4.2-2`](#rfc2131-4.2-2), [`RFC2131-3-1`](#rfc2131-3-1), [`RFC2131-4.1-3`](#rfc2131-4.1-3), [`RFC2131-4.1-6`](#rfc2131-4.1-6), [`RFC2131-2-3`](#rfc2131-2-3), [`RFC2131-4.4.5-2`](#rfc2131-4.4.5-2), [`RFC2131-4.4.5-3`](#rfc2131-4.4.5-3), [`RFC2131-4.3.1-4`](#rfc2131-4.3.1-4), [`RFC2131-4.3.1-6`](#rfc2131-4.3.1-6)
 
 **Annotated instead of tested (49):** [`RFC2131-4.3-1`](#rfc2131-4.3-1), [`RFC2131-4.3-2`](#rfc2131-4.3-2), [`RFC2131-4.3-3`](#rfc2131-4.3-3), [`RFC2131-4.3.5-1`](#rfc2131-4.3.5-1), [`RFC2131-4.3.2-1`](#rfc2131-4.3.2-1), [`RFC2131-4.3.2-2`](#rfc2131-4.3.2-2), [`RFC2131-4.3.2-3`](#rfc2131-4.3.2-3), [`RFC2131-4.3.3-1`](#rfc2131-4.3.3-1), [`RFC2131-4.1-1`](#rfc2131-4.1-1), [`RFC2131-4.1-2`](#rfc2131-4.1-2), [`RFC2131-4.2-1`](#rfc2131-4.2-1), [`RFC2131-2-1`](#rfc2131-2-1), [`RFC2131-2-2`](#rfc2131-2-2), [`RFC2131-3.1-1`](#rfc2131-3.1-1), [`RFC2131-3.1-2`](#rfc2131-3.1-2), [`RFC2131-3.1-3`](#rfc2131-3.1-3), [`RFC2131-3.1-4`](#rfc2131-3.1-4), [`RFC2131-3.1-5`](#rfc2131-3.1-5), [`RFC2131-3.2-1`](#rfc2131-3.2-1), [`RFC2131-3.1-6`](#rfc2131-3.1-6), [`RFC2131-3.1-7`](#rfc2131-3.1-7), [`RFC2131-4.4.5-1`](#rfc2131-4.4.5-1), [`RFC2131-4.1-4`](#rfc2131-4.1-4), [`RFC2131-4.1-5`](#rfc2131-4.1-5), [`RFC2131-4.1-7`](#rfc2131-4.1-7), [`RFC2131-4.1-8`](#rfc2131-4.1-8), [`RFC2131-4.1-9`](#rfc2131-4.1-9), [`RFC2131-4.1-10`](#rfc2131-4.1-10), [`RFC2131-3.4-1`](#rfc2131-3.4-1), [`RFC2131-2-4`](#rfc2131-2-4), [`RFC2131-3.5-1`](#rfc2131-3.5-1), [`RFC2131-3.1-8`](#rfc2131-3.1-8), [`RFC2131-4.3.1-1`](#rfc2131-4.3.1-1), [`RFC2131-4.3.1-2`](#rfc2131-4.3.1-2), [`RFC2131-4.3.1-3`](#rfc2131-4.3.1-3), [`RFC2131-4.3.1-5`](#rfc2131-4.3.1-5), [`RFC2131-4.3.1-7`](#rfc2131-4.3.1-7), [`RFC2131-4.4.1-1`](#rfc2131-4.4.1-1), [`RFC2131-4.4.2-1`](#rfc2131-4.4.2-1), [`RFC2131-4.4.2-2`](#rfc2131-4.4.2-2), [`RFC2131-4.4.3-1`](#rfc2131-4.4.3-1), [`RFC2131-4.3.2-5`](#rfc2131-4.3.2-5), [`RFC2131-4.4.5-5`](#rfc2131-4.4.5-5), [`RFC2131-4.4.5-6`](#rfc2131-4.4.5-6), [`RFC2131-4.4.5-7`](#rfc2131-4.4.5-7), [`RFC2131-3.2-3`](#rfc2131-3.2-3), [`RFC2131-4.4-1`](#rfc2131-4.4-1), [`RFC2131-4.4-2`](#rfc2131-4.4-2), [`RFC2131-4.4-3`](#rfc2131-4.4-3)
+
+**No test and no annotation (1):** [`RFC2131-3.2-4`](#rfc2131-3.2-4)
 
 ## Requirements
 
@@ -124,6 +126,7 @@ Eighteen MUST gaps, each annotated in [`rfc/short/rfc2131.md`](https://github.co
 | `RFC2131-4.3.5-1` | Server MUST NOT send lease expiration time for DHCPINFORM (§4.3.5) | MUST NOT | 4.3.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze answers no DHCPINFORM at all -- the message-type switch in handle (internal/plugins/dhcpserver/handler.go:121-134) dispatches DISCOVER, REQUEST, RELEASE and DECLINE, and every other type including msgInform (handler.go:37) falls to the default branch that returns nil, so ze builds no DHCPINFORM response at all |
 | `RFC2131-4.3.2-1` | When giaddr is 0x0, server MUST broadcast DHCPNAK to 0xFFFFFFFF (§4.3.2, §3.2) | MUST | 4.3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** with giaddr zero the delivery path unicasts a DHCPNAK to a non-zero ciaddr instead of broadcasting -- responseAddr tests giaddr, then ciaddr, before it ever reaches the broadcast decision (internal/plugins/dhcpserver/register.go:275-298) and never special-cases the NAK message type, so a REQUEST whose ciaddr is on-subnet and whose requested address is off-subnet is NAKed to ciaddr:68 |
 | `RFC2131-4.3.2-2` | When giaddr is set in DHCPNAK, server MUST set the broadcast bit (§4.3.2) | MUST | 4.3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** buildNak copies the client's flags word verbatim (internal/plugins/dhcpserver/handler.go:339) and never forces the BROADCAST bit, so a DHCPNAK relayed through a non-zero giaddr leaves the server with the broadcast bit clear whenever the client left it clear |
+| `RFC2131-3.2-4` | When giaddr is non-zero, server MUST send the DHCPNAK to the IP address of the BOOTP relay agent recorded in 'giaddr' (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2131-4.3.2-3` | If server has no record of client in INIT-REBOOT, server MUST remain silent (§4.3.2) | MUST | 4.3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the INIT-REBOOT branch commits a binding for any in-subnet requested address without consulting the lease table (handleRequest internal/plugins/dhcpserver/handler.go:178-183 calls commitBinding at handler.go:194), so a client the server holds no record of draws a DHCPACK rather than silence |
 | `RFC2131-4.3.3-1` | Server MUST mark the network address as unavailable on DHCPDECLINE (§4.3.3) | MUST | 4.3.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** markUnavailable sets the pool bit and the static set for the declined address (internal/plugins/dhcpserver/pool.go:144-163), but the declining client's MAC-to-address cache entry survives -- pool.release returns early for a staticSet address (pool.go:174-177) -- so pool.allocate hands that same declined address back to that client on its next DISCOVER (pool.go:68-72) |
 | `RFC2131-4.1-1` | A server with multiple network addresses MUST be prepared to accept any of its addresses as identifying that server (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** each handler accepts exactly one address as its server identifier -- handleRequest discards a REQUEST whose option 54 differs from its own serverIP (internal/plugins/dhcpserver/handler.go:167-169) -- and that address is the single per-subnet value derived at register.go:93-101, so a REQUEST naming another of the server's own addresses is silently dropped |
@@ -221,6 +224,7 @@ Eighteen MUST gaps, each annotated in [`rfc/short/rfc2131.md`](https://github.co
 | [`RFC2131-4.3.5-1`](#rfc2131-4.3.5-1) Server MUST NOT send lease expiration time for DHCPINFORM (§4.3.5) | no test | no test carries this requirement id; annotated {not-applicable}: ze answers no DHCPINFORM at all -- the message-type switch in handle (internal/plugins/dhcpserver/handler.go:121-134) dispatches DISCOVER, REQUEST, RELEASE and DECLINE, and every other type including msgInform (handler.go:37) falls to the default branch that returns nil, so ze builds no DHCPINFORM response at all |
 | [`RFC2131-4.3.2-1`](#rfc2131-4.3.2-1) When giaddr is 0x0, server MUST broadcast DHCPNAK to 0xFFFFFFFF (§4.3.2, §3.2) | {gap}, no test | with giaddr zero the delivery path unicasts a DHCPNAK to a non-zero ciaddr instead of broadcasting -- responseAddr tests giaddr, then ciaddr, before it ever reaches the broadcast decision (internal/plugins/dhcpserver/register.go:275-298) and never special-cases the NAK message type, so a REQUEST whose ciaddr is on-subnet and whose requested address is off-subnet is NAKed to ciaddr:68 |
 | [`RFC2131-4.3.2-2`](#rfc2131-4.3.2-2) When giaddr is set in DHCPNAK, server MUST set the broadcast bit (§4.3.2) | {gap}, no test | buildNak copies the client's flags word verbatim (internal/plugins/dhcpserver/handler.go:339) and never forces the BROADCAST bit, so a DHCPNAK relayed through a non-zero giaddr leaves the server with the broadcast bit clear whenever the client left it clear |
+| [`RFC2131-3.2-4`](#rfc2131-3.2-4) When giaddr is non-zero, server MUST send the DHCPNAK to the IP address of the BOOTP relay agent recorded in 'giaddr' (§3.2) | no test | no test carries this requirement id |
 | [`RFC2131-4.3.2-3`](#rfc2131-4.3.2-3) If server has no record of client in INIT-REBOOT, server MUST remain silent (§4.3.2) | {gap}, no test | the INIT-REBOOT branch commits a binding for any in-subnet requested address without consulting the lease table (handleRequest internal/plugins/dhcpserver/handler.go:178-183 calls commitBinding at handler.go:194), so a client the server holds no record of draws a DHCPACK rather than silence |
 | [`RFC2131-4.3.3-1`](#rfc2131-4.3.3-1) Server MUST mark the network address as unavailable on DHCPDECLINE (§4.3.3) | {gap}, no test | markUnavailable sets the pool bit and the static set for the declined address (internal/plugins/dhcpserver/pool.go:144-163), but the declining client's MAC-to-address cache entry survives -- pool.release returns early for a staticSet address (pool.go:174-177) -- so pool.allocate hands that same declined address back to that client on its next DISCOVER (pool.go:68-72) |
 | [`RFC2131-4.1-1`](#rfc2131-4.1-1) A server with multiple network addresses MUST be prepared to accept any of its addresses as identifying that server (§4.1) | {gap}, no test | each handler accepts exactly one address as its server identifier -- handleRequest discards a REQUEST whose option 54 differs from its own serverIP (internal/plugins/dhcpserver/handler.go:167-169) -- and that address is the single per-subnet value derived at register.go:93-101, so a REQUEST naming another of the server's own addresses is silently dropped |
@@ -387,6 +391,14 @@ When giaddr is set in DHCPNAK, server MUST set the broadcast bit (§4.3.2)
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC2131-4.3.2-2, so no unit is bound to it.
+
+### [`RFC2131-3.2-4`](#rfc2131-3.2-4)
+
+When giaddr is non-zero, server MUST send the DHCPNAK to the IP address of the BOOTP relay agent recorded in 'giaddr' (§3.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2131-3.2-4, so no unit is bound to it.
 
 ### [`RFC2131-4.3.2-3`](#rfc2131-4.3.2-3)
 
@@ -835,7 +847,85 @@ No test carries RFC2131-4.4-3, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 2131, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc2131.txt |
+| Source fingerprint | 034052024822fc6a |
+| Record | rfc/extraction/rfc2131.json |
+| Mapped sentences | 49 |
+| Declined as scope | 16 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `1.2` | not stated | 0 | walked | not stated |
+| `1.3` | not stated | 0 | walked | not stated |
+| `1.4` | not stated | 3 | walked | not stated |
+| `1.5` | not stated | 0 | walked | not stated |
+| `1.6` | not stated | 0 | walked | not stated |
+| `2` | not stated | 4 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 5 | walked | not stated |
+| `3.2` | not stated | 5 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `3.4` | not stated | 1 | walked | not stated |
+| `3.5` | not stated | 1 | walked | not stated |
+| `3.6` | not stated | 0 | walked | not stated |
+| `3.7` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 11 | walked | not stated |
+| `4.2` | not stated | 2 | walked | not stated |
+| `4.3` | not stated | 0 | walked | not stated |
+| `4.3.1` | not stated | 8 | walked | not stated |
+| `4.3.2` | not stated | 10 | walked | not stated |
+| `4.3.3` | not stated | 1 | walked | not stated |
+| `4.3.4` | not stated | 0 | walked | not stated |
+| `4.3.5` | not stated | 1 | walked | not stated |
+| `4.3.6` | not stated | 1 | walked | not stated |
+| `4.4` | not stated | 0 | walked | not stated |
+| `4.4.1` | not stated | 4 | walked | not stated |
+| `4.4.2` | not stated | 2 | walked | not stated |
+| `4.4.3` | not stated | 1 | walked | not stated |
+| `4.4.4` | not stated | 0 | walked | not stated |
+| `4.4.5` | not stated | 5 | walked | not stated |
+| `4.4.6` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `A` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `1.4:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | the bullet heading of the RFC 2119 keyword glossary, quoting the word itself rather than stating an obligation | o "MUST" |
+| `1.4:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | RFC 2119 boilerplate defining what the word MUST means in this document | This word or the adjective "REQUIRED" means that the item is an absolute requirement of this specification. |
+| `1.4:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | the bullet heading of the RFC 2119 keyword glossary, quoting the words MUST NOT rather than stating an obligation | o "MUST NOT" |
+| `2:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the figure legend for the 'flags' field restates the same obligation as the section 2 sentence 'They MUST be set to zero by clients and ignored by servers and relay agents' | MBZ: MUST BE ZERO (reserved for future use) |
+| `3.2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | section 3.2 restates for the INIT-REBOOT DHCPREQUEST the section 2 obligation that a client which uses a 'client identifier' in one message uses that same identifier in all subsequent messages | If the client used a 'client identifier' to obtain its address, the client MUST use the same 'client identifier' in the DHCPREQUEST message. |
+| `3.2:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | section 3.2 and section 4.3.2 carry the same sentence word for word; site 4.3.2:6 maps it | The server MUST broadcast the DHCPNAK message to the 0xffffffff broadcast address because the client may not have a correct network address or subnet mask, and the client may not be answering ARP requests. |
+| `3.2:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | section 3.2 restates the section 3.1 obligation to send a DHCPDECLINE when the client detects the assigned address is already in use; site 3.1:4 maps it | If the client detects that the IP address in the DHCPACK message is already in use, the client MUST send a DHCPDECLINE message to the server and restarts the configuration process by requesting a new network address. |
+| `4.1:9` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the same interpretation-order sentence the previous site states; site 4.1:8 maps it | The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field. |
+| `4.3.1:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | 'The server MUST return to the client:' is the lead-in to the ordered selection rules the previous sentence already binds; site 4.3.1:2 maps it | The server MUST return to the client: |
+| `4.3.2:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | section 4.3.2 restates the section 2 'same client identifier in all subsequent messages' obligation; site 2:2 maps it | If the client uses a 'client identifier' in a DHCPREQUEST message, it MUST use that same 'client identifier' in all subsequent messages. |
+| `4.3.2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | section 4.3.2 restates the section 3.5 obligation to carry the requested-parameter list into subsequent messages; site 3.5:1 maps it | If the client included a list of requested parameters in a DHCPDISCOVER message, it MUST include that list in all subsequent messages. |
+| `4.3.2:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the SELECTING row of the section 4.3.2 field list restates Table 4, whose SELECTING obligations RFC2131-3.1-1 and RFC2131-3.1-2 already carry, and whose 'ciaddr MUST be zero' clause RFC2131-3.2-1 carries | Client inserts the address of the selected server in 'server identifier', 'ciaddr' MUST be zero, 'requested IP address' MUST be filled in with the yiaddr value from the chosen DHCPOFFER. |
+| `4.3.2:9` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the REBINDING row repeats the RENEWING row word for word; site 4.3.2:8 maps it | 'server identifier' MUST NOT be filled in, 'requested IP address' option MUST NOT be filled in, 'ciaddr' MUST be filled in with client's IP address. |
+| `4.3.6:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Table 4 itself, whose per-state obligations RFC2131-3.1-1 through RFC2131-3.1-5 already carry | --------------------------------------------------------------------- \| \|INIT-REBOOT \|SELECTING \|RENEWING \|REBINDING \| --------------------------------------------------------------------- \|broad/unicast \|broadcast \|broadcast \|unicast \|broadcast \| \|server-ip \|MUST NOT \|MUST \|MUST NOT \|MUST NOT \| \|requested-ip \|MUST \|MUST \|MUST NOT \|MUST NOT \| \|ciaddr \|zero \|zero \|IP address \|IP address\| --------------------------------------------------------------------- |
+| `4.4.1:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | section 4.4.1 restates the section 3.5 obligation to carry the requested-parameter list into subsequent messages; site 3.5:1 maps it | If the client included a list of requested parameters in a DHCPDISCOVER message, it MUST include that list in all subsequent messages. |
+| `4.4.1:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | section 4.4.1 restates the section 3.1 obligation to send a DHCPDECLINE when the address appears to be in use; site 3.1:4 maps it | If the network address appears to be in use, the client MUST send a DHCPDECLINE message to the server. |
 
 ## Superseded
 

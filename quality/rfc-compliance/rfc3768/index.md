@@ -10,10 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 79.5% | 31 of 39 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 12.8% | 5 of 39 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 39 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 39 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Tested both ways | 77.5% | 31 of 40 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 12.5% | 5 of 40 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 40 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 2.9% | 2 of 69 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -22,13 +21,21 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 39 | of 50 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 3 | of 39 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 7.7% | 3 of 39 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 39 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 39 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 40 | of 51 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 3 | of 40 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 7.5% | 3 of 40 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 40 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 40 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 39 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| No test at all | 2.5% | 1 of 40 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+
+The 7 shares marked as a part above are the whole of the 40 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -39,7 +46,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -52,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Experimental |
 | Enrolment | Enrolled |
-| Requirements | 50 |
-| Gated MUST-level | 39 |
+| Requirements | 51 |
+| Gated MUST-level | 40 |
 | Not applicable, so out of scope | 3 |
 | Declared gaps | 0 |
-| Gated with no test | 0 |
+| Gated with no test | 1 |
 | Nightly-only evidence | 0 |
 | Test tags | 69 |
 | Tagged units | 69 |
@@ -68,7 +75,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: Virtual Router Redundancy Protocol v2 / VRRP (RFC 3768): 30 MET (advertisement format, priority/master election, skew time, virtual MAC, gratuitous ARP, adoption) + 5 single-polarity positive + 1 gap (accept-mode) + 3 not-applicable (deprecated authentication)
+Enrolled: Virtual Router Redundancy Protocol v2 / VRRP (RFC 3768): 30 MET (advertisement format, priority/master election, skew time, virtual MAC, gratuitous ARP, adoption) + 5 single-polarity positive + 1 gap (accept-mode) + 3 not-applicable (deprecated authentication) + RFC3768-8.1-1, added 2026-09-21 from the Section 8.1 ICMP redirect sentence the checklist had not carried, and carrying no test
 
 ## What the public ledger says
 
@@ -78,9 +85,9 @@ Enrolled: Virtual Router Redundancy Protocol v2 / VRRP (RFC 3768): 30 MET (adver
 
 Opt-in via `version 2`. Whole-second Advertisement_Interval encoding, v2 advert format, the v2 receive-validation ladder (version, complete-packet, checksum, VRID, Auth Type 0, interval-mismatch discard, address-list discard), the Section 6.4 state machine (priority/master election, skew time, preemption, silent losing-advert discard), virtual-MAC ownership of the VIP via a per-group macvlan, and the v2 rejection rules (no accept-mode, no IPv6).
 
-**What the ledger says remains:**
+**What the ledger says remains**
 
-No gap gated in [`rfc/short/rfc3768.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc3768.md). RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section 9 removed them as providing no real security. Same VRRP experimental status.
+[`RFC3768-8.1-1`](#rfc3768-8.1-1), added 2026-09-21, carries no test: Section 8.1 states that a VRRP router acting as Master for virtual routers containing addresses it does not own "must determine which virtual router the packet was sent to when selecting the redirect source address", and the VRRP plugin sends no ICMP redirects. RFC 3768 authentication types are deliberately not implemented: RFC 9568 Section 9 removed them as providing no real security. Same VRRP experimental status.
 
 ## Coverage
 
@@ -89,14 +96,16 @@ No gap gated in [`rfc/short/rfc3768.md`](https://github.com/ze-software/ze/blob/
 | Positive and negative tests | 31 | one part of the gated population |
 | Annotated instead of tested | 8 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 1 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **39** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **40** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (31):** [`RFC3768-5.2.3-2`](#rfc3768-5.2.3-2), [`RFC3768-5.3.2-1`](#rfc3768-5.3.2-1), [`RFC3768-5.3.4-1`](#rfc3768-5.3.4-1), [`RFC3768-5.3.4-2`](#rfc3768-5.3.4-2), [`RFC3768-5.3.6-1`](#rfc3768-5.3.6-1), [`RFC3768-6.4.2-1`](#rfc3768-6.4.2-1), [`RFC3768-6.4.2-2`](#rfc3768-6.4.2-2), [`RFC3768-6.4.2-3`](#rfc3768-6.4.2-3), [`RFC3768-6.4.2-4`](#rfc3768-6.4.2-4), [`RFC3768-6.4.2-5`](#rfc3768-6.4.2-5), [`RFC3768-6.4.2-6`](#rfc3768-6.4.2-6), [`RFC3768-6.4.2-7`](#rfc3768-6.4.2-7), [`RFC3768-6.4.2-8`](#rfc3768-6.4.2-8), [`RFC3768-6.4.3-1`](#rfc3768-6.4.3-1), [`RFC3768-6.4.3-2`](#rfc3768-6.4.3-2), [`RFC3768-6.4.3-3`](#rfc3768-6.4.3-3), [`RFC3768-6.4.3-4`](#rfc3768-6.4.3-4), [`RFC3768-6.4.3-5`](#rfc3768-6.4.3-5), [`RFC3768-6.4.3-6`](#rfc3768-6.4.3-6), [`RFC3768-6.4.3-7`](#rfc3768-6.4.3-7), [`RFC3768-6.4.3-8`](#rfc3768-6.4.3-8), [`RFC3768-6.4.3-9`](#rfc3768-6.4.3-9), [`RFC3768-7.1-1`](#rfc3768-7.1-1), [`RFC3768-7.1-2`](#rfc3768-7.1-2), [`RFC3768-7.1-3`](#rfc3768-7.1-3), [`RFC3768-7.1-4`](#rfc3768-7.1-4), [`RFC3768-7.1-5`](#rfc3768-7.1-5), [`RFC3768-7.1-6`](#rfc3768-7.1-6), [`RFC3768-7.1-7`](#rfc3768-7.1-7), [`RFC3768-7.1-8`](#rfc3768-7.1-8), [`RFC3768-8.2-1`](#rfc3768-8.2-1)
 
 **Annotated instead of tested (8):** [`RFC3768-5.2.2-1`](#rfc3768-5.2.2-1), [`RFC3768-5.2.3-1`](#rfc3768-5.2.3-1), [`RFC3768-7.2-1`](#rfc3768-7.2-1), [`RFC3768-7.2-2`](#rfc3768-7.2-2), [`RFC3768-7.2-3`](#rfc3768-7.2-3), [`RFC3768-7.2-4`](#rfc3768-7.2-4), [`RFC3768-8.3-1`](#rfc3768-8.3-1), [`RFC3768-9.2-1`](#rfc3768-9.2-1)
+
+**No test and no annotation (1):** [`RFC3768-8.1-1`](#rfc3768-8.1-1)
 
 ## Requirements
 
@@ -138,6 +147,7 @@ No gap gated in [`rfc/short/rfc3768.md`](https://github.com/ze-software/ze/blob/
 | `RFC3768-7.2-2` | Tx: set the source MAC address to the virtual router MAC address (§7.2) | MUST | 7.2 | **positive:** `unit/verify` [`TestConstants`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L386). **negative:** no negative test. **{single-polarity}:** the source MAC is the virtual-router MAC from packet.VirtualMAC internal/plugins/vrrp/packet/packet.go:97 egressed by binding the tx socket to the vMAC macvlan internal/plugins/vrrp/transport/backend_linux.go:133, a deterministic derivation with no input that yields a different MAC |
 | `RFC3768-7.2-3` | Tx: set the source IP address to the interface primary IP address (§7.2) | MUST | 7.2 | **positive:** `unit/verify` [`TestSendAdvertUsesParentPrimaryV4Source`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L208). **negative:** no negative test. **{single-polarity}:** the source IP is the parent unit primary IPv4 from resolveParentPrimaryV4 internal/plugins/vrrp/transport/transport.go:573, a deterministic selection re-resolved on address change, with no input that yields a wrong-source advert |
 | `RFC3768-7.2-4` | Tx: set the IP protocol to VRRP (112) and send to the VRRP IP multicast group 224.0.0.18 (§7.2) | MUST | 7.2 | **positive:** `unit/verify` [`TestSendAdvertIPv4HeaderTTLProtoDst`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L267). **negative:** no negative test. **{single-polarity}:** buildIPv4Header sets IP protocol 112 at internal/plugins/vrrp/transport/transport.go:563 and SendAdvert targets 224.0.0.18 at internal/plugins/vrrp/transport/backend_linux.go:256, both constants with no input that changes them |
+| `RFC3768-8.1-1` | Master: when acting for virtual router(s) containing addresses it does not own, determine which virtual router the packet was sent to when selecting the ICMP redirect source address (§8.1; lowercase "must" in the RFC) | MUST | 8.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC3768-8.2-1` | Master: never respond to host ARP requests for virtual addresses with the physical MAC address (§8.2) | MUST NOT | 8.2 | **positive:** `unit/verify` [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L62). **negative:** `unit/verify` [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L123) |
 | `RFC3768-8.3-1` | Advertise the virtual router MAC address in Proxy ARP messages sent on behalf of VRRP-protected addresses (§8.3; lowercase "must" in the RFC) | MUST | 8.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze performs no proxy ARP for virtual addresses -- the per-group virtual-MAC macvlan answers ARP for the VIP directly (createMacvlan internal/plugins/vrrp/register.go:329 plus the sole-responder sysctl recipe internal/plugins/vrrp/dataplane_linux.go:64), and no proxy-ARP path exists |
 | `RFC3768-9.2-1` | Token ring: implement the functional-address mode of operation when supporting VRRP on token ring (§9.2) | MUST | 9.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze supports only Ethernet-family parents (ethernet, veth, bridge, dummy -- internal/plugins/vrrp/groups.go:76) over AF_PACKET macvlan transport internal/plugins/vrrp/transport/backend_linux.go, with no token-ring transport, so the functional-address mode has no applicable code path |
@@ -158,6 +168,7 @@ No gap gated in [`rfc/short/rfc3768.md`](https://github.com/ze-software/ze/blob/
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC3768-5.2.2-1`](#rfc3768-5.2.2-1) Never forward a datagram destined to 224.0.0.18, regardless of its TTL (§5.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: the VRRP plugin performs no IP datagram forwarding -- instance.onPacket internal/plugins/vrrp/instance.go:453 consumes each received advert into the FSM and never re-emits it, and tx scopes adverts to link-local multicast with IP_MULTICAST_LOOP 0 at internal/plugins/vrrp/transport/backend_linux.go:143 |
+| [`RFC3768-8.1-1`](#rfc3768-8.1-1) Master: when acting for virtual router(s) containing addresses it does not own, determine which virtual router the packet was sent to when selecting the ICMP redirect source address (§8.1; lowercase "must" in the RFC) | no test | no test carries this requirement id |
 | [`RFC3768-8.3-1`](#rfc3768-8.3-1) Advertise the virtual router MAC address in Proxy ARP messages sent on behalf of VRRP-protected addresses (§8.3; lowercase "must" in the RFC) | no test | no test carries this requirement id; annotated {not-applicable}: ze performs no proxy ARP for virtual addresses -- the per-group virtual-MAC macvlan answers ARP for the VIP directly (createMacvlan internal/plugins/vrrp/register.go:329 plus the sole-responder sysctl recipe internal/plugins/vrrp/dataplane_linux.go:64), and no proxy-ARP path exists |
 | [`RFC3768-9.2-1`](#rfc3768-9.2-1) Token ring: implement the functional-address mode of operation when supporting VRRP on token ring (§9.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze supports only Ethernet-family parents (ethernet, veth, bridge, dummy -- internal/plugins/vrrp/groups.go:76) over AF_PACKET macvlan transport internal/plugins/vrrp/transport/backend_linux.go, with no token-ring transport, so the functional-address mode has no applicable code path |
 
@@ -555,6 +566,14 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | positive | [`TestSendAdvertIPv4HeaderTTLProtoDst`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L267) | unit/verify | unproven |
 
+### [`RFC3768-8.1-1`](#rfc3768-8.1-1)
+
+Master: when acting for virtual router(s) containing addresses it does not own, determine which virtual router the packet was sent to when selecting the ICMP redirect source address (§8.1; lowercase "must" in the RFC)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC3768-8.1-1, so no unit is bound to it.
+
 ### [`RFC3768-8.2-1`](#rfc3768-8.2-1)
 
 Master: never respond to host ARP requests for virtual addresses with the physical MAC address (§8.2)
@@ -584,7 +603,101 @@ No test carries RFC3768-9.2-1, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 3768, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc3768.txt |
+| Source fingerprint | 47afb9c05728468f |
+| Record | rfc/extraction/rfc3768.json |
+| Mapped sentences | 25 |
+| Declined as scope | 9 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 1 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `1.2` | not stated | 0 | walked | not stated |
+| `1.3` | not stated | 0 | walked | not stated |
+| `2` | not stated | 1 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 0 | walked | not stated |
+| `2.3` | not stated | 0 | walked | not stated |
+| `2.4` | not stated | 0 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 1 | walked | not stated |
+| `4.2` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 0 | walked | not stated |
+| `5.2` | not stated | 0 | walked | not stated |
+| `5.2.1` | not stated | 0 | walked | not stated |
+| `5.2.2` | not stated | 1 | walked | not stated |
+| `5.2.3` | not stated | 2 | walked | not stated |
+| `5.2.4` | not stated | 0 | walked | not stated |
+| `5.3` | not stated | 0 | walked | not stated |
+| `5.3.1` | not stated | 0 | walked | not stated |
+| `5.3.2` | not stated | 1 | walked | not stated |
+| `5.3.3` | not stated | 0 | walked | not stated |
+| `5.3.4` | not stated | 2 | walked | not stated |
+| `5.3.5` | not stated | 0 | walked | not stated |
+| `5.3.6` | not stated | 1 | walked | not stated |
+| `5.3.6.1` | not stated | 0 | walked | not stated |
+| `5.3.6.2` | not stated | 0 | walked | not stated |
+| `5.3.6.3` | not stated | 0 | walked | not stated |
+| `5.3.7` | not stated | 0 | walked | not stated |
+| `5.3.8` | not stated | 0 | walked | not stated |
+| `5.3.9` | not stated | 0 | walked | not stated |
+| `5.3.10` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+| `6.3` | not stated | 0 | walked | not stated |
+| `6.4` | not stated | 0 | walked | not stated |
+| `6.4.1` | not stated | 0 | walked | not stated |
+| `6.4.2` | not stated | 4 | walked | not stated |
+| `6.4.3` | not stated | 5 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 5 | walked | not stated |
+| `7.2` | not stated | 1 | walked | not stated |
+| `7.3` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 1 | walked | not stated |
+| `8.2` | not stated | 2 | walked | not stated |
+| `8.3` | not stated | 1 | walked | not stated |
+| `8.4` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 2 | walked | not stated |
+| `9.3` | not stated | 0 | walked | not stated |
+| `10` | not stated | 1 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `12.1` | not stated | 0 | walked | not stated |
+| `12.2` | not stated | 0 | walked | not stated |
+| `13` | not stated | 0 | walked | not stated |
+| `14` | not stated | 0 | walked | not stated |
+| `15` | not stated | 1 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Table of contents line; the word Required is the title of Section 2.1, not an obligation. | Required Features . . . . . . . . . . . . . . . . . . . . . . 5 2.1. |
+| `2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section heading 'Required Features'; a heading states no obligation. | Required Features |
+| `3:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Overview prose with a lowercase must describing operator configuration across a LAN, not an implementation obligation: the sentence sits between 'A VRRP router may associate a virtual router with its real addresses' and 'However, there is no restriction against reusing a VRID with a different address mapping on different LANs.' | The mapping between VRID and addresses must be coordinated among all VRRP routers on a LAN. |
+| `4.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 4.1 is 'Sample Configuration 1'; the lowercase must describes what the example deployment does, not what an implementation owes. | In order to backup IP B, a second virtual router must be configured. |
+| `7.1:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the discard half of the Adver Interval check mapped at site 7.1:4, which RFC3768-7.1-8 already carries ('discard the packet on mismatch'). | If the above check fails, the receiver MUST discard the packet, SHOULD log the event and MAY indicate via network management that a misconfiguration was detected. |
+| `8.2:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the Master ARP obligation mapped at site 6.4.3:2; RFC3768-6.4.3-1 cites both Section 6.4.3 and Section 8.2. | When a host sends an ARP request for one of the virtual router IP addresses, the Master virtual router MUST respond to the ARP request with the virtual MAC address for the virtual router. |
+| `9.2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Descriptive prose about source route bridges with a lowercase 'required'; it states that a mechanism is needed, names none, and the token ring obligation itself is site 9.2:2. | - In order to switch to a new master located on a different bridge token ring segment from the previous master when using source route bridges, a mechanism is required to update cached source route information. |
+| `10:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Security Considerations prose stating the negative, that no information in VRRP messages must be kept secret; lowercase must inside a denial of a requirement. | Confidentiality is not necessary for the correct operation of VRRP and there is no information in the VRRP messages that must be kept secret from other nodes on the LAN. |
+| `15:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF Intellectual Property Statement boilerplate. | The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard. |
 
 ## Superseded
 

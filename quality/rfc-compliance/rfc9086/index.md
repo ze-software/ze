@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 16.7% | 2 of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 0.0% | 0 of 2 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 0.0% | 0 of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 9.1% | 1 of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Proven by a recorded break | 0.0% | 0 of 1 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 12 | of 21 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 12 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 12 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 12 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 12 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 11 | of 20 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 83.3% | 10 of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 90.9% | 10 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,14 +59,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 21 |
-| Gated MUST-level | 12 |
+| Requirements | 20 |
+| Gated MUST-level | 11 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 10 |
-| Gated with no test | 0 |
+| Declared gaps | 9 |
+| Gated with no test | 1 |
 | Nightly-only evidence | 0 |
-| Test tags | 2 |
-| Tagged units | 2 |
+| Test tags | 1 |
+| Tagged units | 1 |
 | Recorded audit verdicts | 0 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc9086.md` |
@@ -96,14 +96,16 @@ EPE SID origination is not implemented: no code instantiates PeerNode/Adj/Set SI
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 0 | one part of the gated population |
-| Annotated instead of tested | 12 | one part of the gated population |
+| Annotated instead of tested | 10 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 1 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **12** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
 
-**Annotated instead of tested (12):** [`RFC9086-3-1`](#rfc9086-3-1), [`RFC9086-3-2`](#rfc9086-3-2), [`RFC9086-4.2-1`](#rfc9086-4.2-1), [`RFC9086-4.2-2`](#rfc9086-4.2-2), [`RFC9086-5-1`](#rfc9086-5-1), [`RFC9086-5.2-1`](#rfc9086-5.2-1), [`RFC9086-5-2`](#rfc9086-5-2), [`RFC9086-5-3`](#rfc9086-5-3), [`RFC9086-5-4`](#rfc9086-5-4), [`RFC9086-7-1`](#rfc9086-7-1), [`RFC9086-5-5`](#rfc9086-5-5), [`RFC9086-5-6`](#rfc9086-5-6)
+**Annotated instead of tested (10):** [`RFC9086-3-1`](#rfc9086-3-1), [`RFC9086-3-2`](#rfc9086-3-2), [`RFC9086-4.2-1`](#rfc9086-4.2-1), [`RFC9086-4.2-2`](#rfc9086-4.2-2), [`RFC9086-5-1`](#rfc9086-5-1), [`RFC9086-5.2-1`](#rfc9086-5.2-1), [`RFC9086-5-2`](#rfc9086-5-2), [`RFC9086-5-3`](#rfc9086-5-3), [`RFC9086-7-1`](#rfc9086-7-1), [`RFC9086-5-5`](#rfc9086-5-5)
+
+**No test and no annotation (1):** [`RFC9086-5-10`](#rfc9086-5-10)
 
 ## Requirements
 
@@ -117,10 +119,9 @@ EPE SID origination is not implemented: no code instantiates PeerNode/Adj/Set SI
 | `RFC9086-5.2-1` | Link Local/Remote Identifiers (TLV 258) MUST be included in Link Descriptors for PeerAdj SID (S5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** LinkDescriptor.WriteTo emits TLV 258 but no origination path builds a PeerAdj SID advertisement (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:203-206) |
 | `RFC9086-5-2` | V-Flag and L-Flag MUST be SET for 3-octet local label encoding (S5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder writes the Flags byte verbatim and never originates a label-encoded SID, so no path sets V/L (internal/component/bgp/plugins/nlri/ls/attr_link.go:521) |
 | `RFC9086-5-3` | Reserved bits in Flags MUST be zero when originated (S5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no production path originates Peer SIDs and the encoder writes Flags unmasked (internal/component/bgp/plugins/nlri/ls/attr_link.go:521) |
-| `RFC9086-5-4` | Reserved field (2 octets) MUST be set to 0 on transmit (S5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder hardcodes the reserved octets to 0 but ze transmits no Peer SIDs in production (internal/component/bgp/plugins/nlri/ls/attr_link.go:523-524) |
+| `RFC9086-5-10` | When the SID/Index/Label field carries a 4-octet index into the Segment Routing Global Block, "the SRGB MUST be advertised using the extensions defined in [RFC9085]" (S5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9086-7-1` | Operator MUST be provided with options to configure, enable, and disable the advertisement (S7) | MUST | 7 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the BGP-LS plugin augments no config schema; no YANG or CLI surface enables or disables EPE advertisement (internal/component/bgp/plugins/nlri/ls/plugin.go:94-96) |
-| `RFC9086-5-5` | Reserved bits in Flags ignored when received (S5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC9086PeerSIDIgnoresReservedFields`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L852). **negative:** no negative test. **{single-polarity}:** decodePeerSID reads Flags without branching on reserved bits and never rejects on them, so only a positive test is meaningful (internal/component/bgp/plugins/nlri/ls/attr_link.go:559-572) |
-| `RFC9086-5-6` | Reserved field (2 octets) ignored on receipt (S5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC9086PeerSIDIgnoresReservedFields`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L856). **negative:** no negative test. **{single-polarity}:** decodePeerSID reads data[0]/data[1] then jumps to data[4:] for the SID, never inspecting the reserved octets, so it inherently ignores them (internal/component/bgp/plugins/nlri/ls/attr_link.go:559-570) |
+| `RFC9086-5-5` | Reserved bits in Flags ignored when received (S5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC9086PeerSIDIgnoresReservedFields`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L854). **negative:** no negative test. **{single-polarity}:** decodePeerSID reads Flags without branching on reserved bits and never rejects on them, so only a positive test is meaningful (internal/component/bgp/plugins/nlri/ls/attr_link.go:559-572) |
 | `RFC9086-5-7` | PeerNode SID, PeerAdj SID, PeerSet SID values SHOULD be persistent across router restart (S5) | SHOULD | 5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9086-3-3` | BGP router SHOULD NOT instantiate BGP Peering SID for IBGP sessions to route reflectors not in forwarding path (S3) | SHOULD NOT | 3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9086-3-4` | PeerAdj SID MAY be instantiated for underlying link(s) to directly connected BGP peer (S3) | MAY | 3 | **positive:** no positive test. **negative:** no negative test |
@@ -143,7 +144,7 @@ EPE SID origination is not implemented: no code instantiates PeerNode/Adj/Set SI
 | [`RFC9086-5.2-1`](#rfc9086-5.2-1) Link Local/Remote Identifiers (TLV 258) MUST be included in Link Descriptors for PeerAdj SID (S5.2) | {gap}, no test | LinkDescriptor.WriteTo emits TLV 258 but no origination path builds a PeerAdj SID advertisement (internal/component/bgp/plugins/nlri/ls/types_descriptor.go:203-206) |
 | [`RFC9086-5-2`](#rfc9086-5-2) V-Flag and L-Flag MUST be SET for 3-octet local label encoding (S5) | {gap}, no test | the encoder writes the Flags byte verbatim and never originates a label-encoded SID, so no path sets V/L (internal/component/bgp/plugins/nlri/ls/attr_link.go:521) |
 | [`RFC9086-5-3`](#rfc9086-5-3) Reserved bits in Flags MUST be zero when originated (S5) | {gap}, no test | no production path originates Peer SIDs and the encoder writes Flags unmasked (internal/component/bgp/plugins/nlri/ls/attr_link.go:521) |
-| [`RFC9086-5-4`](#rfc9086-5-4) Reserved field (2 octets) MUST be set to 0 on transmit (S5) | {gap}, no test | the encoder hardcodes the reserved octets to 0 but ze transmits no Peer SIDs in production (internal/component/bgp/plugins/nlri/ls/attr_link.go:523-524) |
+| [`RFC9086-5-10`](#rfc9086-5-10) When the SID/Index/Label field carries a 4-octet index into the Segment Routing Global Block, "the SRGB MUST be advertised using the extensions defined in [RFC9085]" (S5) | no test | no test carries this requirement id |
 | [`RFC9086-7-1`](#rfc9086-7-1) Operator MUST be provided with options to configure, enable, and disable the advertisement (S7) | {gap}, no test | the BGP-LS plugin augments no config schema; no YANG or CLI surface enables or disables EPE advertisement (internal/component/bgp/plugins/nlri/ls/plugin.go:94-96) |
 
 ## Proof state
@@ -214,13 +215,13 @@ Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC9086-5-3, so no unit is bound to it.
 
-### [`RFC9086-5-4`](#rfc9086-5-4)
+### [`RFC9086-5-10`](#rfc9086-5-10)
 
-Reserved field (2 octets) MUST be set to 0 on transmit (S5)
+When the SID/Index/Label field carries a 4-octet index into the Segment Routing Global Block, "the SRGB MUST be advertised using the extensions defined in [RFC9085]" (S5)
 
 Audit verdict: not audited: no reader has judged these tests
 
-No test carries RFC9086-5-4, so no unit is bound to it.
+No test carries RFC9086-5-10, so no unit is bound to it.
 
 ### [`RFC9086-7-1`](#rfc9086-7-1)
 
@@ -238,21 +239,55 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC9086PeerSIDIgnoresReservedFields`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L852) | unit/verify | unproven |
-
-### [`RFC9086-5-6`](#rfc9086-5-6)
-
-Reserved field (2 octets) ignored on receipt (S5)
-
-Audit verdict: not audited: no reader has judged these tests
-
-| Polarity | Test | Kind and tier | Proof state |
-|---|---|---|---|
-| positive | [`TestRFC9086PeerSIDIgnoresReservedFields`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L856) | unit/verify | unproven |
+| positive | [`TestRFC9086PeerSIDIgnoresReservedFields`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L854) | unit/verify | unproven |
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 9086, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc9086.txt |
+| Source fingerprint | 0e661e69fa88a113 |
+| Record | rfc/extraction/rfc9086.json |
+| Mapped sentences | 10 |
+| Declined as scope | 3 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 1 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 2 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 0 | walked | not stated |
+| `4.2` | not stated | 2 | walked | not stated |
+| `4.3` | not stated | 0 | walked | not stated |
+| `5` | not stated | 4 | walked | not stated |
+| `5.1` | not stated | 0 | walked | not stated |
+| `5.2` | not stated | 1 | walked | not stated |
+| `5.3` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+| `7` | not stated | 2 | walked | not stated |
+| `8` | not stated | 1 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF Trust boilerplate on the Simplified BSD License for extracted Code Components; it binds republication of the document, not any protocol behaviour. | Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License. |
+| `7:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | A comparative remark closing the operator-control paragraph: 'what is required by a BGP speaker' is lowercase and states that this control is nothing new, imposing no behaviour of its own. | This is not different from what is required by a BGP speaker in terms of information origination and advertisement. |
+| `8:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Security Considerations prose: 'is also required to ensure' is lowercase and describes a deployment expectation about session isolation that RFC 7752 Section 8 defines, not an obligation this document places on the encoder or decoder. | The isolation of BGP-LS peering sessions is also required to ensure that BGP-LS topology information (including the newly added BGP peering topology) is not advertised to an external BGP peering session outside an administrative domain. |
 
 ## Superseded
 

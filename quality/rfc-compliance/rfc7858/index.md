@@ -345,7 +345,49 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 7858, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc7858.txt |
+| Source fingerprint | 2a80bd8127e3e113 |
+| Record | rfc/extraction/rfc7858.json |
+| Mapped sentences | 17 |
+| Declined as scope | 2 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 1 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 6 | walked | not stated |
+| `3.2` | not stated | 1 | walked | not stated |
+| `3.3` | not stated | 3 | walked | not stated |
+| `3.4` | not stated | 3 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 0 | walked | not stated |
+| `4.2` | not stated | 4 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 1 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+| `A` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF Trust Legal Provisions boilerplate in the front matter, not a protocol obligation: the lowercase 'must' governs republication of code components under the Simplified BSD License. | Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License. |
+| `3.2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Descriptive narration of the handshake sequence with no RFC 2119 keyword; the sentence after it says 'This document does not propose new ideas for authentication', and the authentication policy is set by the privacy profile in Section 4. | The client will then authenticate the server, if required. |
 
 ## Superseded
 

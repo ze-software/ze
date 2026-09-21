@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 14.3% | 8 of 56 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 7.1% | 4 of 56 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 56 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 13.3% | 8 of 60 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 6.7% | 4 of 60 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 60 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 0.0% | 0 of 21 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 56 | of 80 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 32 | of 56 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 57.1% | 32 of 56 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 56 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 56 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 60 | of 84 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 32 | of 60 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 53.3% | 32 of 60 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 60 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 60 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 21.4% | 12 of 56 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 26.7% | 16 of 60 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 56 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 60 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 80 |
-| Gated MUST-level | 56 |
+| Requirements | 84 |
+| Gated MUST-level | 60 |
 | Not applicable, so out of scope | 32 |
 | Declared gaps | 12 |
-| Gated with no test | 0 |
+| Gated with no test | 4 |
 | Nightly-only evidence | 0 |
 | Test tags | 23 |
 | Tagged units | 21 |
@@ -87,7 +87,7 @@ ze is the RTR router (client). It opens every connection with a Reset or Serial 
 
 **What the ledger says remains**
 
-Twelve MUST-level gaps, each annotated in [`rfc/short/rfc8210.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc8210.md): [`RFC8210-5.1-3`](#rfc8210-5.1-3), [`RFC8210-5.1-4`](#rfc8210-5.1-4) -- no Session ID mismatch detection, no Error Report code 0, no cache flush (rtr_session.go adopts the Session ID unconditionally); [`RFC8210-5.1-5`](#rfc8210-5.1-5) -- a version downgrade reuses the previous version's Session ID and serial (rtr_session.go); [`RFC8210-7-3`](#rfc8210-7-3), [`RFC8210-7-4`](#rfc8210-7-4), [`RFC8210-7-7`](#rfc8210-7-7) -- handlePDU never reads hdr.Version (rtr_session.go), so no received-version check, downgrade or session drop happens; [`RFC8210-12-1`](#rfc8210-12-1) -- Error Code 4 is excluded from isFatalError (rtr_pdu.go) and at rtrVersionMin the session survives it (rtr_session.go); [`RFC8210-5.10-2`](#rfc8210-5.10-2) -- Router Key PDUs are discarded (rtr_session.go), so no Subject Public Key comparison exists; [`RFC8210-6-2`](#rfc8210-6-2) -- VRPs outlive the Expire Interval (ROACache.Clear, roa_cache.go, has no production caller); [`RFC8210-4-1`](#rfc8210-4-1) -- no most-preferred-cache selection (rpki.go runs every configured cache concurrently); [`RFC8210-10-2`](#rfc8210-10-2) -- VRPs are not marked by source cache (rpki.go, roa_cache.go); [`RFC8210-9-3`](#rfc8210-9-3) -- no protected RTR transport (rtr_session.go dials only unprotected TCP).
+Twelve MUST-level gaps, each annotated in [`rfc/short/rfc8210.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc8210.md): [`RFC8210-5.1-3`](#rfc8210-5.1-3), [`RFC8210-5.1-4`](#rfc8210-5.1-4) -- no Session ID mismatch detection, no Error Report code 0, no cache flush (rtr_session.go adopts the Session ID unconditionally); [`RFC8210-5.1-5`](#rfc8210-5.1-5) -- a version downgrade reuses the previous version's Session ID and serial (rtr_session.go); [`RFC8210-7-3`](#rfc8210-7-3), [`RFC8210-7-4`](#rfc8210-7-4), [`RFC8210-7-7`](#rfc8210-7-7) -- handlePDU never reads hdr.Version (rtr_session.go), so no received-version check, downgrade or session drop happens; [`RFC8210-12-1`](#rfc8210-12-1) -- Error Code 4 is excluded from isFatalError (rtr_pdu.go) and at rtrVersionMin the session survives it (rtr_session.go); [`RFC8210-5.10-2`](#rfc8210-5.10-2) -- Router Key PDUs are discarded (rtr_session.go), so no Subject Public Key comparison exists; [`RFC8210-6-2`](#rfc8210-6-2) -- VRPs outlive the Expire Interval (ROACache.Clear, roa_cache.go, has no production caller); [`RFC8210-4-1`](#rfc8210-4-1) -- no most-preferred-cache selection (rpki.go runs every configured cache concurrently); [`RFC8210-10-2`](#rfc8210-10-2) -- VRPs are not marked by source cache (rpki.go, roa_cache.go); [`RFC8210-9-3`](#rfc8210-9-3) -- no protected RTR transport (rtr_session.go dials only unprotected TCP). Four further obligations were added by the 2026-09-21 extraction walk and carry no test: [`RFC8210-2-1`](#rfc8210-2-1) (a cache holds new data back until the fetch completes) and [`RFC8210-9.2-11`](#rfc8210-9.2-11) (DNS-ID support in a TLS implementation) reach no ze code path, [`RFC8210-3-1`](#rfc8210-3-1) (a trusted transport channel to the cache) is the same absence as [`RFC8210-9-3`](#rfc8210-9-3), and [`RFC8210-8.1-3`](#rfc8210-8.1-3) (fall back to a Reset Query when fast resynchronization is impossible) is the untested half of the Reset-or-Serial choice at rtr_session.go:165-176.
 
 ## Coverage
 
@@ -96,14 +96,16 @@ Twelve MUST-level gaps, each annotated in [`rfc/short/rfc8210.md`](https://githu
 | Positive and negative tests | 8 | one part of the gated population |
 | Annotated instead of tested | 48 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 4 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **56** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **60** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (8):** [`RFC8210-5-1`](#rfc8210-5-1), [`RFC8210-5.1-1`](#rfc8210-5.1-1), [`RFC8210-5.1-2`](#rfc8210-5.1-2), [`RFC8210-5.2-1`](#rfc8210-5.2-1), [`RFC8210-8.3-1`](#rfc8210-8.3-1), [`RFC8210-10-1`](#rfc8210-10-1), [`RFC8210-7-8`](#rfc8210-7-8), [`RFC8210-8.4-1`](#rfc8210-8.4-1)
 
 **Annotated instead of tested (48):** [`RFC8210-5.1-3`](#rfc8210-5.1-3), [`RFC8210-5.1-4`](#rfc8210-5.1-4), [`RFC8210-5.1-5`](#rfc8210-5.1-5), [`RFC8210-5.3-1`](#rfc8210-5.3-1), [`RFC8210-5.3-2`](#rfc8210-5.3-2), [`RFC8210-5.5-1`](#rfc8210-5.5-1), [`RFC8210-5.6-1`](#rfc8210-5.6-1), [`RFC8210-5.10-1`](#rfc8210-5.10-1), [`RFC8210-5.10-2`](#rfc8210-5.10-2), [`RFC8210-5.8-1`](#rfc8210-5.8-1), [`RFC8210-5.11-1`](#rfc8210-5.11-1), [`RFC8210-5.11-2`](#rfc8210-5.11-2), [`RFC8210-5.11-3`](#rfc8210-5.11-3), [`RFC8210-5.11-4`](#rfc8210-5.11-4), [`RFC8210-6-1`](#rfc8210-6-1), [`RFC8210-6-2`](#rfc8210-6-2), [`RFC8210-7-1`](#rfc8210-7-1), [`RFC8210-7-2`](#rfc8210-7-2), [`RFC8210-7-3`](#rfc8210-7-3), [`RFC8210-7-4`](#rfc8210-7-4), [`RFC8210-4-1`](#rfc8210-4-1), [`RFC8210-8.1-1`](#rfc8210-8.1-1), [`RFC8210-12-1`](#rfc8210-12-1), [`RFC8210-8.2-1`](#rfc8210-8.2-1), [`RFC8210-9-1`](#rfc8210-9-1), [`RFC8210-9-2`](#rfc8210-9-2), [`RFC8210-9-3`](#rfc8210-9-3), [`RFC8210-9.1-1`](#rfc8210-9.1-1), [`RFC8210-9.1-2`](#rfc8210-9.1-2), [`RFC8210-9.2-1`](#rfc8210-9.2-1), [`RFC8210-9.2-2`](#rfc8210-9.2-2), [`RFC8210-9.2-3`](#rfc8210-9.2-3), [`RFC8210-9.2-4`](#rfc8210-9.2-4), [`RFC8210-9.2-5`](#rfc8210-9.2-5), [`RFC8210-9.2-6`](#rfc8210-9.2-6), [`RFC8210-9.3-1`](#rfc8210-9.3-1), [`RFC8210-9.4-1`](#rfc8210-9.4-1), [`RFC8210-4-2`](#rfc8210-4-2), [`RFC8210-4-3`](#rfc8210-4-3), [`RFC8210-7-7`](#rfc8210-7-7), [`RFC8210-9.2-8`](#rfc8210-9.2-8), [`RFC8210-10-2`](#rfc8210-10-2), [`RFC8210-9.3-2`](#rfc8210-9.3-2), [`RFC8210-9.4-2`](#rfc8210-9.4-2), [`RFC8210-9.4-3`](#rfc8210-9.4-3), [`RFC8210-9.2-9`](#rfc8210-9.2-9), [`RFC8210-9.2-10`](#rfc8210-9.2-10), [`RFC8210-8.1-2`](#rfc8210-8.1-2)
+
+**No test and no annotation (4):** [`RFC8210-2-1`](#rfc8210-2-1), [`RFC8210-3-1`](#rfc8210-3-1), [`RFC8210-8.1-3`](#rfc8210-8.1-3), [`RFC8210-9.2-11`](#rfc8210-9.2-11)
 
 ## Requirements
 
@@ -182,6 +184,10 @@ Twelve MUST-level gaps, each annotated in [`rfc/short/rfc8210.md`](https://githu
 | `RFC8210-9.2-10` | CN field in TLS certificate MUST NOT be used for authentication (§9.2) | MUST NOT | 9.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** TLS-transport obligation -- ze has no rpki-rtr TLS implementation (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it reads no certificate CN field for authentication |
 | `RFC8210-8.1-2` | When transport first established, router MUST send Reset Query or Serial Query (§8.1) | MUST | 8.1 | **positive:** `unit/verify` [`TestFirstPDUOnConnectionIsAQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L310). **negative:** no negative test. **{single-polarity}:** the first bytes connectAndSync writes on a freshly established transport are a Reset Query when the serial is 0 and a Serial Query otherwise (internal/component/bgp/plugins/rpki/rtr_session.go:165-176); no received input can produce a connection that carries no opening query, so there is no negative case |
 | `RFC8210-8.4-1` | If cache cannot supply update and no other caches available, router MUST issue periodic Reset Queries (§8.4) | MUST | 8.4 | **positive:** `unit/verify` [`TestNoDataAvailableKeepsResetQueryMode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L165). **negative:** `unit/verify` [`TestNoDataAvailableKeepsResetQueryMode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L184) |
+| `RFC8210-2-1` | While a cache is receiving updates, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete (§2) | MUST NOT | 2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8210-3-1` | A Relying Party MUST have a trust relationship with, and a trusted transport channel to, any cache(s) it uses (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8210-8.1-3` | A router that lacks the data needed for fast resynchronization MUST fall back to a Reset Query (§8.1) | MUST | 8.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8210-9.2-11` | Support for the DNS-ID identifier type is REQUIRED in rpki-rtr server and client implementations which use TLS (§9.2) | REQUIRED | 9.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8210-7-9` | Party dropping session after version mismatch SHOULD send Error Report with error code 8 (§7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8210-10-3` | Client SHOULD attempt to maintain at least one set of data regardless of cache changes (§10) | SHOULD | 10 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8210-10-4` | Client switching to new cache SHOULD retain data from previous cache until fully synced (§10) | SHOULD | 10 | **positive:** no positive test. **negative:** no negative test |
@@ -238,6 +244,10 @@ Twelve MUST-level gaps, each annotated in [`rfc/short/rfc8210.md`](https://githu
 | [`RFC8210-9.4-3`](#rfc8210-9.4-3) The cryptographic algorithms and associated parameters described in RFC 5926 MUST be supported for TCP-AO (§9.4) | no test | no test carries this requirement id; annotated {not-applicable}: TCP-AO transport obligation -- ze implements no TCP-AO for RTR (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it supports no RFC 5926 algorithms |
 | [`RFC8210-9.2-9`](#rfc8210-9.2-9) CAs issuing rpki-rtr server certificates MUST support the DNS-ID identifier type (§9.2) | no test | no test carries this requirement id; annotated {not-applicable}: certification-authority obligation -- ze issues no rpki-rtr server certificates and runs no TLS RTR transport (internal/component/bgp/plugins/rpki/rtr_session.go:127 dials plain TCP) |
 | [`RFC8210-9.2-10`](#rfc8210-9.2-10) CN field in TLS certificate MUST NOT be used for authentication (§9.2) | no test | no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze has no rpki-rtr TLS implementation (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it reads no certificate CN field for authentication |
+| [`RFC8210-2-1`](#rfc8210-2-1) While a cache is receiving updates, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete (§2) | no test | no test carries this requirement id |
+| [`RFC8210-3-1`](#rfc8210-3-1) A Relying Party MUST have a trust relationship with, and a trusted transport channel to, any cache(s) it uses (§3) | no test | no test carries this requirement id |
+| [`RFC8210-8.1-3`](#rfc8210-8.1-3) A router that lacks the data needed for fast resynchronization MUST fall back to a Reset Query (§8.1) | no test | no test carries this requirement id |
+| [`RFC8210-9.2-11`](#rfc8210-9.2-11) Support for the DNS-ID identifier type is REQUIRED in rpki-rtr server and client implementations which use TLS (§9.2) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -724,9 +734,105 @@ Audit verdict: not audited: no reader has judged these tests
 | negative | [`TestNoDataAvailableKeepsResetQueryMode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L184) | unit/verify | unproven |
 | positive | [`TestNoDataAvailableKeepsResetQueryMode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L165) | unit/verify | unproven |
 
+### [`RFC8210-2-1`](#rfc8210-2-1)
+
+While a cache is receiving updates, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete (§2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC8210-2-1, so no unit is bound to it.
+
+### [`RFC8210-3-1`](#rfc8210-3-1)
+
+A Relying Party MUST have a trust relationship with, and a trusted transport channel to, any cache(s) it uses (§3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC8210-3-1, so no unit is bound to it.
+
+### [`RFC8210-8.1-3`](#rfc8210-8.1-3)
+
+A router that lacks the data needed for fast resynchronization MUST fall back to a Reset Query (§8.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC8210-8.1-3, so no unit is bound to it.
+
+### [`RFC8210-9.2-11`](#rfc8210-9.2-11)
+
+Support for the DNS-ID identifier type is REQUIRED in rpki-rtr server and client implementations which use TLS (§9.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC8210-9.2-11, so no unit is bound to it.
+
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 8210, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc8210.txt |
+| Source fingerprint | d55f8b529fb430bf |
+| Record | rfc/extraction/rfc8210.json |
+| Mapped sentences | 56 |
+| Declined as scope | 4 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `1.2` | not stated | 0 | walked | not stated |
+| `2` | not stated | 1 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `4` | not stated | 3 | walked | not stated |
+| `5` | not stated | 1 | walked | not stated |
+| `5.1` | not stated | 4 | walked | not stated |
+| `5.2` | not stated | 1 | walked | not stated |
+| `5.3` | not stated | 2 | walked | not stated |
+| `5.4` | not stated | 0 | walked | not stated |
+| `5.5` | not stated | 1 | walked | not stated |
+| `5.6` | not stated | 1 | walked | not stated |
+| `5.7` | not stated | 0 | walked | not stated |
+| `5.8` | not stated | 1 | walked | not stated |
+| `5.9` | not stated | 0 | walked | not stated |
+| `5.10` | not stated | 2 | walked | not stated |
+| `5.11` | not stated | 4 | walked | not stated |
+| `6` | not stated | 2 | walked | not stated |
+| `7` | not stated | 7 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 3 | walked | not stated |
+| `8.2` | not stated | 2 | walked | not stated |
+| `8.3` | not stated | 1 | walked | not stated |
+| `8.4` | not stated | 1 | walked | not stated |
+| `9` | not stated | 3 | walked | not stated |
+| `9.1` | not stated | 2 | walked | not stated |
+| `9.2` | not stated | 7 | walked | not stated |
+| `9.3` | not stated | 2 | walked | not stated |
+| `9.4` | not stated | 4 | walked | not stated |
+| `10` | not stated | 2 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `12` | not stated | 1 | walked | not stated |
+| `13` | not stated | 1 | walked | not stated |
+| `14` | not stated | 0 | walked | not stated |
+| `15` | not stated | 0 | walked | not stated |
+| `15.1` | not stated | 0 | walked | not stated |
+| `15.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `7:6` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | restates the ignore-Serial-Notify-before-negotiation obligation already mapped at site 7:5, adding only the backwards-compatibility reason | Routers, however, MUST handle such notifications (by ignoring them) for backwards compatibility with caches serving protocol version 0. |
+| `8.2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | restates the periodic Serial-or-Reset Query obligation already mapped at site 8.1:3, here for the old-withdraw case | To limit the length of time a cache must keep old withdraws, a router MUST send either a Serial Query or a Reset Query periodically. |
+| `9.4:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the MAC-length half of the TCP-AO support obligation the row already states: "key lengths of at least 80 printable ASCII bytes and MAC lengths of at least 96 bits" | Message Authentication Code (MAC) lengths of at least 96 bits MUST be supported, per Section 5.1 of [RFC5925]. |
+| `13:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the Security Considerations restatement of the section 9 rule that an unprotected TCP transport puts the router and cache on the same trusted, controlled network | Protocols which provide integrity and authenticity SHOULD be used, and if they cannot, i.e., TCP is used as the transport, the router and cache MUST be on the same trusted, controlled network. |
 
 ## Superseded
 

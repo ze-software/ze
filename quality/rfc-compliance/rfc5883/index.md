@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 75.0% | 6 of 8 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 8 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 8 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 66.7% | 6 of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 0.0% | 0 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 8 | of 9 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 8 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 8 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 8 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 8 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 9 | of 10 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 9 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 25.0% | 2 of 8 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 33.3% | 3 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 9 |
-| Gated MUST-level | 8 |
+| Requirements | 10 |
+| Gated MUST-level | 9 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 2 |
-| Gated with no test | 0 |
+| Gated with no test | 1 |
 | Nightly-only evidence | 0 |
 | Test tags | 12 |
 | Tagged units | 12 |
@@ -75,7 +75,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: BFD for Multihop Paths: eight MUST-level requirements. Six are met with new positive+negative tests in internal/component/bfd asserting producer decisions: 5-1 (multihop uses UDP destination port 4784), 5-2 (single-hop 3784 and multihop 4784 use separate ports), 4.3-1 (a default session takes the Active role and arms its transmit timer), 4.3-2 (a Passive session stays silent until it receives a packet), and 3-1 / x-1 (BFD Echo is rejected on a multihop path). 7-1 and 7-2 (congestion detection and congestion-triggered transmit-rate reduction) are {gap}: ze has no BFD congestion-control code path (only slow-start and jitter). Disclosed in the docs/features/rfc-status.md RFC 5883 row.
+Enrolled: BFD for Multihop Paths: nine MUST-level requirements after the 2026-09-21 extraction walk, which added RFC5883-4.1-1 (two sessions between the same pair of systems have at least one endpoint address distinct from one another, §4.1) with no test and no annotation. Six of the other eight are met with new positive+negative tests in internal/component/bfd asserting producer decisions: 5-1 (multihop uses UDP destination port 4784), 5-2 (single-hop 3784 and multihop 4784 use separate ports), 4.3-1 (a default session takes the Active role and arms its transmit timer), 4.3-2 (a Passive session stays silent until it receives a packet), and 3-1 / x-1 (BFD Echo is rejected on a multihop path). 7-1 and 7-2 (congestion detection and congestion-triggered transmit-rate reduction) are {gap}: ze has no BFD congestion-control code path (only slow-start and jitter). Disclosed in the docs/features/rfc-status.md RFC 5883 row.
 
 ## What the public ledger says
 
@@ -87,9 +87,9 @@ Enrolled: BFD for Multihop Paths: eight MUST-level requirements. Six are met wit
 - tests bound per requirement in [`rfc/requirements/rfc5883.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc5883.md).
 
 
-**What the ledger says remains:**
+**What the ledger says remains**
 
-No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5883 / RFC 5880 Section 7); IPv6 dual-bind and wider deployment proof are tracked with BFD.
+No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5883 / RFC 5880 Section 7); IPv6 dual-bind and wider deployment proof are tracked with BFD. [`RFC5883-4.1-1`](#rfc5883-4.1-1), the distinct-endpoint rule for two sessions between the same pair of systems, was added by the 2026-09-21 extraction walk and carries no test.
 
 ## Coverage
 
@@ -98,20 +98,23 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 | Positive and negative tests | 6 | one part of the gated population |
 | Annotated instead of tested | 2 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 1 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **8** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **9** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (6):** [`RFC5883-3-1`](#rfc5883-3-1), [`RFC5883-4.3-1`](#rfc5883-4.3-1), [`RFC5883-4.3-2`](#rfc5883-4.3-2), [`RFC5883-5-1`](#rfc5883-5-1), [`RFC5883-5-2`](#rfc5883-5-2), [`RFC5883-x-1`](#rfc5883-x-1)
 
 **Annotated instead of tested (2):** [`RFC5883-7-1`](#rfc5883-7-1), [`RFC5883-7-2`](#rfc5883-7-2)
+
+**No test and no annotation (1):** [`RFC5883-4.1-1`](#rfc5883-4.1-1)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
 | `RFC5883-3-1` | Echo function must not be used over multihop paths (§3) | MUST NOT | 3 | **positive:** `unit/verify` [`TestRFC5883SingleHopEchoAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L114). **negative:** `unit/verify` [`TestRFC5883MultiHopEchoRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L100) |
+| `RFC5883-4.1-1` | Multiple sessions between the same pair of systems must have at least one endpoint address distinct from one another (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5883-4.3-1` | Unidirectional Sender must operate in the Active role (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC5883DefaultSessionActiveArmsTx`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5883_test.go#L39). **negative:** `unit/verify` [`TestRFC5883PassiveSessionDoesNotArmTx`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5883_test.go#L53) |
 | `RFC5883-4.3-2` | Unidirectional Receiver must operate in the Passive role (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC5883PassiveSessionSilentUntilRx`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5883_test.go#L68). **negative:** `unit/verify` [`TestRFC5883PassiveSessionTransmitsAfterRx`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5883_test.go#L79) |
 | `RFC5883-5-1` | UDP destination port must be 4784 for multihop BFD Control packets (§5) | MUST | 5 | **positive:** `unit/verify` [`TestRFC5883MultiHopControlPort`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L20). **negative:** `unit/verify` [`TestRFC5883MultiHopControlPortNotSingleHop`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L35) |
@@ -125,6 +128,7 @@ No BFD congestion control or congestion-triggered transmit-rate reduction (RFC 5
 
 | Requirement | State | Reason |
 |---|---|---|
+| [`RFC5883-4.1-1`](#rfc5883-4.1-1) Multiple sessions between the same pair of systems must have at least one endpoint address distinct from one another (§4.1) | no test | no test carries this requirement id |
 | [`RFC5883-7-1`](#rfc5883-7-1) Congestion control must be implemented for multihop deployments (§7 of RFC 5880, referenced in Interop) | {gap}, no test | ze implements no BFD congestion detection or congestion-triggered transmit-rate reduction (internal/component/bfd/ has only slow-start and jitter); the RFC 5883 / RFC 5880 Section 7 congestion-control obligation is unmet |
 | [`RFC5883-7-2`](#rfc5883-7-2) When congestion is detected, TX rate must be reduced (§7 of RFC 5880, referenced in Interop) | {gap}, no test | ze implements no BFD congestion detection or congestion-triggered transmit-rate reduction (internal/component/bfd/ has only slow-start and jitter); the RFC 5883 / RFC 5880 Section 7 congestion-control obligation is unmet |
 
@@ -142,6 +146,14 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | negative | [`TestRFC5883MultiHopEchoRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L100) | unit/verify | unproven |
 | positive | [`TestRFC5883SingleHopEchoAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5883_test.go#L114) | unit/verify | unproven |
+
+### [`RFC5883-4.1-1`](#rfc5883-4.1-1)
+
+Multiple sessions between the same pair of systems must have at least one endpoint address distinct from one another (§4.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC5883-4.1-1, so no unit is bound to it.
 
 ### [`RFC5883-4.3-1`](#rfc5883-4.3-1)
 
@@ -216,7 +228,46 @@ No test carries RFC5883-7-2, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 5883, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc5883.txt |
+| Source fingerprint | edbd101dc21d89ad |
+| Record | rfc/extraction/rfc5883.json |
+| Mapped sentences | 4 |
+| Declined as scope | 2 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 1 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 1 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 1 | walked | not stated |
+| `4.2` | not stated | 0 | walked | not stated |
+| `4.3` | not stated | 1 | walked | not stated |
+| `5` | not stated | 1 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF Trust copyright boilerplate in the Status of This Memo section: it binds the extraction of code components from the document, not a BFD speaker, and the keyword is lowercase 'must'. | Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License. |
+| `2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 2 Applicability is descriptive deployment guidance addressed to the operator ('it is required that the operator correctly provision the rates'), with a lowercase keyword and no obligation on a BFD implementation. The implementation-side congestion obligation lives in RFC 5880 Section 7, which the summary already carries as RFC5883-7-1 and RFC5883-7-2. | In these scenarios it is required that the operator correctly provision the rates at which BFD is transmitted to avoid congestion (e.g link, I/O, CPU) and false failure detection. |
 
 ## Superseded
 

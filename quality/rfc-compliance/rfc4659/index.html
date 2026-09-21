@@ -440,9 +440,9 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the same missing IPv4-mapped-IPv6 next-hop construction as RFC4659-3.2.1.2-1; ze never emits a zero-RD + ::ffff:a.b.c.d VPNv6 next-hop (internal/component/bgp/message/update_build_vpn.go:246; no IPv4-mapped VPNv6 next-hop producer)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.2.1.1-2">RFC4659-3.2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">Remove link-local from Next Hop when advertising to internal peer not on a common subnet (Section 3.2.1.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-3.2.1.1-2">RFC4659-3.2.1.1-2</code></td><td colspan="3"><span class="rfc-subject">&#34;As a consequence, a BGP speaker that advertises a route to an internal peer may modify the Network Address of Next Hop field by removing the link-local IPv6 address of the next hop&#34; (Section 3.2.1.1)</span></td></tr>
 <tr><td></td>
-<td>SHOULD</td>
+<td>MAY</td>
 <td>3.2.1.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4659-3.2.1.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
@@ -677,7 +677,209 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
 <p>No test carries RFC4659-8-4, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 4659, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc4659.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>675026b53c92cac3</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc4659.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>16</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>0</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2.1.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2.1.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.4</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>7</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>12</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>13</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>14</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>15</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>16</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>16.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>16.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<p>The walk over RFC 4659 declined no sentence: every site it found is mapped to a requirement.</p>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 4659, so its obligations are stated where they were written.</p>
@@ -711,7 +913,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport (<a href="#rfc4659-3.2.1.2-1"><c
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

@@ -273,7 +273,67 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 5392, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc5392.txt |
+| Source fingerprint | 0833ca775f7d650c |
+| Record | rfc/extraction/rfc5392.json |
+| Mapped sentences | 10 |
+| Declined as scope | 10 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 2 | walked | not stated |
+| `2.3` | not stated | 4 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.1.1` | not stated | 0 | walked | not stated |
+| `3.1.2` | not stated | 1 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.2.1` | not stated | 2 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `3.3.1` | not stated | 2 | walked | not stated |
+| `3.3.2` | not stated | 2 | walked | not stated |
+| `3.3.3` | not stated | 2 | walked | not stated |
+| `4` | not stated | 3 | walked | not stated |
+| `4.1` | not stated | 1 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `6.1.1` | not stated | 0 | walked | not stated |
+| `6.1.2` | not stated | 0 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `2.2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 2.2 walks a worked example of a path computation across AS1/AS2/AS3; the lowercase 'must' describes what router R5 in the example has to work out, not an obligation on an implementation. | The next hop in the ERO shows AS3, and R5 must determine a path segment across AS2 to reach AS3. |
+| `2.2:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Descriptive sentence about GMPLS networks ('further information may also be required'), lowercase and referring the reader to [GMPLS-TE]. | In GMPLS networks, further information may also be required to select the correct TE links as defined in [GMPLS-TE]. |
+| `2.3:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Definition of what a BRPC tree of paths consists of; a description of the PCE algorithm, not an obligation. | Each tree consists of the set of paths from all Boundary Nodes located in domain(i) to the destination where each path satisfies the set of required constraints for the TE LSP (bandwidth, affinities, etc.). |
+| `2.3:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Motivational prose stating what a PCE needs to know to correlate trees; lowercase 'must know', describing the information requirement this document exists to satisfy. | In order that the tree of paths provided by one PCE to its neighbor can be correlated, the identities of the ASBRs for each path need to be referenced, so the PCE must know the identities of the ASBRs in the remote AS reached by any inter-AS TE link, and, in order that it provides only suitable paths in the tree, the PCE must know the TE properties of the inter-AS TE links. |
+| `2.3:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Same BRPC motivation paragraph: lowercase 'must determine' / 'must know' describing the PCE's input needs, not a normative rule. | But, to provide suitable path segments, PCE3 must determine which entry boundary nodes provide connectivity to its upstream neighbor AS (identified by its AS number), and must know the TE properties of the inter-AS TE links. |
+| `2.3:4` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Concluding sentence of the BRPC motivation ('the same information listed in Section 2.2 is required'); it states no obligation of its own. | Thus, to support Backward Recursive Path Computation the same information listed in Section 2.2 is required. |
+| `3:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Rationale for carrying all TE information in this mechanism rather than depending on other protocols; 'needed'/'required' are descriptive. | While some of the TE information of an inter-AS TE link may be available within the AS from other protocols, in order to avoid any dependency on where such protocols are processed, this mechanism carries all the information needed for the required TE operations. |
+| `3.3.1:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 3.3.1 restates as REQUIRED the Remote-AS-Number sub-TLV inclusion that Section 3.2.1 states as MUST; RFC5392-3.2.1-4 cites both sections. | The Remote AS Number sub-TLV is REQUIRED in a Link TLV that advertises an inter-AS TE link. |
+| `4:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Explains why two LSAs per TE link exist in normal OSPF-TE ('This enables CSPF to do a two-way check'); it is the rationale for the proxy advertisement, not a rule. | This enables Constrained Shortest Path First (CSPF) to do a two-way check on the link when performing path computation and eliminate it from consideration unless both directions of the link satisfy the required constraints. |
+| `4.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 4.1 is an observation that BGP can supply some of the configuration ('it is possible, and may be operationally advantageous'); no keyword and no obligation. | We note further that it is possible, and may be operationally advantageous, to obtain some of the required configuration information from BGP. |
 
 ## Superseded
 

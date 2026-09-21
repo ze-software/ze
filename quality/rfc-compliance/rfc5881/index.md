@@ -390,7 +390,44 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 5881, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc5881.txt |
+| Source fingerprint | 68a1ce86b6d3d042 |
+| Record | rfc/extraction/rfc5881.json |
+| Mapped sentences | 22 |
+| Declined as scope | 2 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 1 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 5 | walked | not stated |
+| `3` | not stated | 2 | walked | not stated |
+| `4` | not stated | 8 | walked | not stated |
+| `5` | not stated | 3 | walked | not stated |
+| `6` | not stated | 5 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `10.1` | not stated | 0 | walked | not stated |
+| `10.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF Trust copyright boilerplate in the Status of This Memo section: it binds the extraction of code components from the document, not a BFD speaker, and the keyword is lowercase 'must'. | Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License. |
+| `2:5` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 2 Applicability is descriptive deployment guidance addressed to the operator ('it is required that the operator correctly provision the rates'), with a lowercase keyword and no obligation on a BFD implementation; the implementation-side congestion obligation is RFC 5880 Section 7. | In these scenarios it is required that the operator correctly provision the rates at which BFD is transmitted to avoid congestion (e.g link, I/O, CPU) and false failure detection. |
 
 ## Superseded
 

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7474 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7474: Security Extensions for OSPFv2 when Using Manual Key Management. 10 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 7474: Security Extensions for OSPFv2 when Using Manual Key Management. 12 gated MUST-level requirements, 0 declared gaps, 2 with no test." />
         <meta property="og:title" content="RFC 7474 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7474: Security Extensions for OSPFv2 when Using Manual Key Management. 10 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 7474: Security Extensions for OSPFv2 when Using Manual Key Management. 12 gated MUST-level requirements, 0 declared gaps, 2 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7474 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7474: Security Extensions for OSPFv2 when Using Manual Key Management. 10 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 7474: Security Extensions for OSPFv2 when Using Manual Key Management. 12 gated MUST-level requirements, 0 declared gaps, 2 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,22 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>70.0%</strong><b>7 of 10 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>30.0%</strong><b>3 of 10 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>58.3%</strong><b>7 of 12 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>25.0%</strong><b>3 of 12 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>10.5%</strong><b>2 of 19 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>10</strong><b>of 14 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 10 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>12</strong><b>of 16 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 12 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>16.7%</strong><b>2 of 12 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -159,7 +163,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -199,10 +203,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>14</td>
+<td>16</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>10</td>
+<td>12</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -211,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -242,14 +246,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: OSPFv2 manual-key security extension (AuType 3 extended 64-bit crypto sequence): 10 MUSTs, 7 met + 3 single-polarity, wired end-to-end</p>
+<p>Enrolled: OSPFv2 manual-key security extension (AuType 3 extended 64-bit crypto sequence): 12 MUSTs after the 2026-09-21 extraction walk. 10 are wired end-to-end, 7 with both polarities and 3 single-polarity. The walk added 2 with no test and no annotation: RFC7474-6-2 (Ko is padded with zeros to the length of Ipad or Opad before the XOR, §6) and RFC7474-8-1 (the authentication keys are changed when non-volatile storage loses its contents or the router is replaced, §8).</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Experimental</p>
 <p><strong>What the ledger says is covered:</strong></p>
 Cryptographic authentication with per-packet-type replay protection (RFC 7474 defines no OSPFv2 authentication trailer; that construct is OSPFv3/RFC 7166).
-<p><strong>What the ledger says remains:</strong></p>
-Same OSPF experimental status.
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Same OSPF experimental status. Two MUST rows the 2026-09-21 extraction walk added carry no test: <a href="#rfc7474-6-2"><code>RFC7474-6-2</code></a> (zero-pad Ko to the Ipad/Opad length, §6) and <a href="#rfc7474-8-1"><code>RFC7474-8-1</code></a> (change the keys after non-volatile storage is lost or the router is replaced, §8).
+</details>
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -269,7 +274,7 @@ Same OSPF experimental status.
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>2</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -280,12 +285,13 @@ Same OSPF experimental status.
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>10</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>12</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc7474-2-1"><code>RFC7474-2-1</code></a>, <a href="#rfc7474-2-5"><code>RFC7474-2-5</code></a>, <a href="#rfc7474-2-6"><code>RFC7474-2-6</code></a>, <a href="#rfc7474-3-1"><code>RFC7474-3-1</code></a>, <a href="#rfc7474-5-1"><code>RFC7474-5-1</code></a>, <a href="#rfc7474-5-2"><code>RFC7474-5-2</code></a>, <a href="#rfc7474-6-1"><code>RFC7474-6-1</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (3):</strong> <a href="#rfc7474-2-2"><code>RFC7474-2-2</code></a>, <a href="#rfc7474-2-3"><code>RFC7474-2-3</code></a>, <a href="#rfc7474-2-4"><code>RFC7474-2-4</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (2):</strong> <a href="#rfc7474-6-2"><code>RFC7474-6-2</code></a>, <a href="#rfc7474-8-1"><code>RFC7474-8-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -382,6 +388,24 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L320" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3RequiresProtocolIDSuffix</code></a></span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7474-6-2">RFC7474-6-2</code></td><td colspan="3"><span class="rfc-subject">When XORing Ko and Ipad of Opad, Ko MUST be padded with zeros to the length of Ipad or Opad (§6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-6-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7474-8-1">RFC7474-8-1</code></td><td colspan="3"><span class="rfc-subject">If the non-volatile storage is ever repaired or upgraded such that the contents are lost or the OSPFv2 router is replaced, the authentication keys MUST be changed to prevent replay attacks (§8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7474-8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7474-4-1">RFC7474-4-1</code></td><td colspan="3"><span class="rfc-subject">On receive, use a key only while &#34;the key validity interval as defined by AcceptLifetimeStart and AcceptLifetimeEnd&#34; includes the current time (§4)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
@@ -423,7 +447,21 @@ Same OSPF experimental status.
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<p>RFC 7474 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc7474-6-2"><code>RFC7474-6-2</code></a> When XORing Ko and Ipad of Opad, Ko MUST be padded with zeros to the length of Ipad or Opad (§6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7474-8-1"><code>RFC7474-8-1</code></a> If the non-volatile storage is ever repaired or upgraded such that the contents are lost or the OSPFv2 router is replaced, the authentication keys MUST be changed to prevent replay attacks (§8)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
@@ -612,6 +650,14 @@ Same OSPF experimental status.
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc7474-6-2"><code>RFC7474-6-2</code></a></h3>
+<p>When XORing Ko and Ipad of Opad, Ko MUST be padded with zeros to the length of Ipad or Opad (§6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7474-6-2, so no unit is bound to it.</p>
+<h3><a href="#rfc7474-8-1"><code>RFC7474-8-1</code></a></h3>
+<p>If the non-volatile storage is ever repaired or upgraded such that the contents are lost or the OSPFv2 router is replaced, the authentication keys MUST be changed to prevent replay attacks (§8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7474-8-1, so no unit is bound to it.</p>
 <h3><a href="#rfc7474-4-1"><code>RFC7474-4-1</code></a></h3>
 <p>On receive, use a key only while &#34;the key validity interval as defined by AcceptLifetimeStart and AcceptLifetimeEnd&#34; includes the current time (§4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -634,7 +680,206 @@ Same OSPF experimental status.
 </div>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 7474, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc7474.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>c360bb0c18ef9cb4</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc7474.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>8</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>9</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>IETF Trust Legal Provisions boilerplate in the front matter. It binds the extractor of code components to a licence text and carries no protocol obligation.</td>
+<td>Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</td>
+</tr>
+<tr><td><code>1:1</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The sentence quotes RFC 2328, which it cites: the keyed MD5 obligation belongs to RFC 2328 Appendix D. RFC 7474 reports it as background for the replay problem it goes on to fix.</td>
+<td>[RFC2328] states that implementations MUST offer keyed MD5 authentication.</td>
+</tr>
+<tr><td><code>1:2</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The algorithm requirement belongs to RFC 6094, which the sentence cites; RFC 7474 only predicts that MD5 will be deprecated in favour of the RFC 5709 algorithms.</td>
+<td>It is likely that this will be deprecated in favor of the stronger algorithms described in [RFC5709] and required in [RFC6094].</td>
+</tr>
+<tr><td><code>2:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Restates in lowercase the boot-count mechanism of the MUST at site 2:5. The same section says of that MUST: &#39;This is achieved by maintaining a boot count in non-volatile storage and incrementing it each time the OSPF router loses its prior sequence number state.&#39;</td>
+<td>OSPFv2 implementations are required to retain the boot count in non-volatile storage for the deployment life of the OSPF router.</td>
+</tr>
+<tr><td><code>4:1</code></td>
+<td><code>advisory-in-context</code><br /><strong>never bound Ze</strong><br />the sentence advises on applying a rule stated elsewhere and adds no obligation of its own</td>
+<td>The send-lifetime bullet sits inside the advisory list opened by &#39;Generally, a key used for OSPFv2 packet authentication should satisfy the following requirements:&#39;. The enclosing construction is a SHOULD, and the receive half of the same list is recorded as RFC7474-4-1.</td>
+<td>o For packet transmission, the key validity interval as defined by SendLifetimeStart and SendLifetimeEnd must include the current time.</td>
+</tr>
+<tr><td><code>4.1:1</code></td>
+<td><code>advisory-in-context</code><br /><strong>never bound Ze</strong><br />the sentence advises on applying a rule stated elsewhere and adds no obligation of its own</td>
+<td>A lead-in to the virtual-link key-selection list, which the same paragraph opens as &#39;Hence, the key should satisfy the following requirements:&#39;. The obligation is carried by that SHOULD list, whose Peers-field bullet names the transit area ID and the virtual endpoint&#39;s router ID.</td>
+<td>When R1 and R2 are connected to a virtual link, the Peers field must identify the virtual endpoint rather than the virtual link.</td>
+</tr>
+<tr><td><code>4.1:2</code></td>
+<td><code>advisory-in-context</code><br /><strong>never bound Ze</strong><br />the sentence advises on applying a rule stated elsewhere and adds no obligation of its own</td>
+<td>The second half of the same lead-in, inside the same construction: &#39;Hence, the key should satisfy the following requirements:&#39;. The transit area ID requirement is stated by the Peers-field bullet of that SHOULD list.</td>
+<td>Since there may be virtual links to the same router, the transit area ID must be part of the identifier.</td>
+</tr>
+<tr><td><code>5:1</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The computation obligation belongs to RFC 5709 Section 3.3, which the sentence cites. RFC 7474 changes only what this section then lists: the 64-bit sequence number in the First-Hash and the Apad value.</td>
+<td>RFC 5709, Section 3.3 describes how the cryptographic authentication must be computed.</td>
+</tr>
+<tr><td><code>5:3</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The receive-side half of the Apad initialization the send-side sentence at site 5:2 already states. RFC7474-5-2 declares one obligation for both directions: initialize the first 4 octets of Apad to the packet&#39;s IP source address on send and on receive.</td>
+<td>When an OSPF packet is received, implementations MUST initialize the first 4 octets of Apad to the IP source address from the IP header of the incoming OSPFv2 packet.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 7474, so its obligations are stated where they were written.</p>
@@ -668,7 +913,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

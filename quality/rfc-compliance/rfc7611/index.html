@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7611 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7611: BGP ACCEPT_OWN Community Attribute. 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 7611: BGP ACCEPT_OWN Community Attribute. 5 gated MUST-level requirements, 0 declared gaps, 4 with no test." />
         <meta property="og:title" content="RFC 7611 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7611: BGP ACCEPT_OWN Community Attribute. 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 7611: BGP ACCEPT_OWN Community Attribute. 5 gated MUST-level requirements, 0 declared gaps, 4 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7611 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7611: BGP ACCEPT_OWN Community Attribute. 5 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 7611: BGP ACCEPT_OWN Community Attribute. 5 gated MUST-level requirements, 0 declared gaps, 4 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -119,17 +119,21 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>5</strong><b>of 6 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>5</strong><b>of 5 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>100.0%</strong><b>5 of 5 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>5</strong><b>of 8 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 5 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>20.0%</strong><b>1 of 5 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>80.0%</strong><b>4 of 5 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
 <p>The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
@@ -159,7 +163,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -199,19 +203,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>6</td>
+<td>8</td>
 </tr>
 <tr><td>Gated MUST-level</td>
 <td>5</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>5</td>
+<td>1</td>
 </tr>
 <tr><td>Declared gaps</td>
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>4</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -242,7 +246,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: BGP ACCEPT_OWN Community Attribute: five MUST-level requirements, all {not-applicable} to Ze. Ze does not implement the RFC 7611 ACCEPT_OWN mechanism -- it recognizes the ACCEPT_OWN community value only for text display (internal/core/bgp/attribute/community.go:59-61,112 CommunityAcceptOwn = 0xFFFF0001) and has no L3VPN VRF-import code path that would honor it. RFC7611-3-1 (all honoring conditions), RFC7611-3-2 (honor only on iBGP), RFC7611-3-3 (MUST NOT accept from eBGP): no honoring/VRF-import code path exists. RFC7611-3-4 (remove before re-advertising to eBGP): Ze neither sets nor honors ACCEPT_OWN, so it does not participate in the mechanism that requires stripping. RFC7611-3-5 (RR propagates unchanged): Ze RR forwards communities verbatim (generic transparency already gated under RFC 4456 / RFC 7947), with no ACCEPT_OWN-specific handling. The 5-1 SHOULD is not gated.</p>
+<p>Enrolled: BGP ACCEPT_OWN Community Attribute: five MUST-level rows after the 2026-09-21 extraction walk. One is annotated: RFC7611-3-1, the §3 extra decision-process step, is {not-applicable} because Ze does not implement the ACCEPT_OWN mechanism -- it recognizes the community value only for text display (internal/core/bgp/attribute/community.go:59-61,112 CommunityAcceptOwn = 0xFFFF0001) and has no L3VPN VRF-import code path that would honor it. The four rows this reason used to name (3-2 honor only on iBGP, 3-3 MUST NOT accept from eBGP, 3-4 remove before re-advertising to eBGP, 3-5 route reflectors propagate unchanged) state obligations RFC 7611 does not contain, and the walk deleted them; RFC7611-3-1 itself was re-texted, because the &#34;all conditions MUST hold&#34; row it used to carry is a MAY in §2.1 (&#34;A router MAY accept a route whose ORIGINATOR_ID or NEXT_HOP value matches that of the receiving speaker if all of the following are true&#34;). The walk added four MUST-level rows from the document&#39;s own text, none of them tested: 2.1-1 (a route MUST NOT ever be accepted back into its source VRF), 2.2-1 (discard the community when the address family does not allow the source VRF to be looked up), 2.3-1 (if controlled by configuration it MUST default to disabled) and 2.3-2 (when disabled, MUST NOT apply the §2.1 acceptance rules). The 2-1 and 5-1 SHOULDs and the 2.2-2 SHOULD NOT are not gated.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 7611.</p>
@@ -257,7 +261,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>5</strong></td>
+<td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -265,7 +269,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -280,59 +284,78 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Annotated instead of tested (5):</strong> <a href="#rfc7611-3-1"><code>RFC7611-3-1</code></a>, <a href="#rfc7611-3-2"><code>RFC7611-3-2</code></a>, <a href="#rfc7611-3-3"><code>RFC7611-3-3</code></a>, <a href="#rfc7611-3-4"><code>RFC7611-3-4</code></a>, <a href="#rfc7611-3-5"><code>RFC7611-3-5</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc7611-3-1"><code>RFC7611-3-1</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (4):</strong> <a href="#rfc7611-2.1-1"><code>RFC7611-2.1-1</code></a>, <a href="#rfc7611-2.2-1"><code>RFC7611-2.2-1</code></a>, <a href="#rfc7611-2.3-1"><code>RFC7611-2.3-1</code></a>, <a href="#rfc7611-2.3-2"><code>RFC7611-2.3-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>Level</th><th>Section</th><th>Tests</th></tr></thead>
 <tbody>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7611-3-1">RFC7611-3-1</code></td><td colspan="3"><span class="rfc-subject">All conditions MUST hold for ACCEPT_OWN to be honored: community present, received from iBGP, own AS in AS_PATH, VPN route, targets different VRF (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7611-2.1-1">RFC7611-2.1-1</code></td><td colspan="3"><span class="rfc-subject">A route MUST NOT ever be accepted back into its source VRF, even if it carries one or more RTs that match that VRF (§2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7611-2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7611-2.2-1">RFC7611-2.2-1</code></td><td colspan="3"><span class="rfc-subject">If a route carrying the ACCEPT_OWN community is received in an address family that does not allow the source VRF to be looked up, the ACCEPT_OWN community MUST be discarded (§2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7611-2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7611-2.2-2">RFC7611-2.2-2</code></td><td colspan="3"><span class="rfc-subject">When propagating routes into a VRF, the ACCEPT_OWN community SHOULD NOT be propagated, and it SHOULD NOT be attached to any routes that cannot be associated with a source VRF (§2.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7611-2.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7611-2.3-1">RFC7611-2.3-1</code></td><td colspan="3"><span class="rfc-subject">ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled (§2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7611-2.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7611-2.3-2">RFC7611-2.3-2</code></td><td colspan="3"><span class="rfc-subject">When ACCEPT_OWN is disabled by configuration, either explicitly or by default, the router MUST NOT apply the special route acceptance rules detailed in Section 2.1 (§2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7611-2.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7611-3-1">RFC7611-3-1</code></td><td colspan="3"><span class="rfc-subject">The extra decision-process step MUST only be invoked during the best path selection process of VPN-IP routes, and MUST NOT be invoked for the best path selection of imported IP routes in a VRF (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7611-3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not implement the RFC 7611 ACCEPT_OWN mechanism. It recognizes the ACCEPT_OWN community value only for text display (internal/core/bgp/attribute/community.go:59-61,112 CommunityAcceptOwn = 0xFFFF0001) and has no L3VPN VRF-import code path that would honor it (no import of a self-originated VPN route into a different VRF; grep across internal/component/bgp/ and internal/core/bgp/ finds only the name definition), so none of the honoring conditions is ever evaluated.</p></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not implement the RFC 7611 ACCEPT_OWN mechanism and has no VPN-IP decision-process step to invoke. It recognizes the ACCEPT_OWN community value only for text display (internal/core/bgp/attribute/community.go:59-61,112 CommunityAcceptOwn = 0xFFFF0001), and no L3VPN VRF-import path exists that would insert the extra step after the LOCAL_PREF comparison.</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7611-3-2">RFC7611-3-2</code></td><td colspan="3"><span class="rfc-subject">ACCEPT_OWN MUST only be honored on routes received from iBGP peers (§3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7611-2-1">RFC7611-2-1</code></td><td colspan="3"><span class="rfc-subject">Processing of the ACCEPT_OWN community SHOULD be controlled by configuration, and the functionality SHOULD default to being disabled (§2)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
-<td>3</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7611-3-2">
+<td>SHOULD</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7611-2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> The &#34;honored only on iBGP routes&#34; restriction governs a router that honors ACCEPT_OWN via VRF import, which Ze does not implement (community.go:59-61 defines the value for display only; there is no VRF-import honoring path).</p></td>
+</div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7611-3-3">RFC7611-3-3</code></td><td colspan="3"><span class="rfc-subject">ACCEPT_OWN MUST NOT be accepted from eBGP peers (§3)</span></td></tr>
-<tr><td></td>
-<td>MUST NOT</td>
-<td>3</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7611-3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze never honors ACCEPT_OWN from any peer (it has no VRF-import mechanism), so the &#34;MUST NOT accept from eBGP&#34; restriction has no applicable honoring code path -- the community is recognized only as a named value for display (community.go:112).</p></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7611-3-4">RFC7611-3-4</code></td><td colspan="3"><span class="rfc-subject">ACCEPT_OWN community MUST be removed before re-advertising to eBGP peers (§3)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>3</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7611-3-4">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze does not participate in the ACCEPT_OWN VPN mechanism -- it neither sets ACCEPT_OWN on VRF export nor honors it on import (community.go:59-61 is display-only) -- so the &#34;remove before re-advertising to eBGP&#34; obligation, which prevents a participating router from leaking the VPN-internal ACCEPT_OWN signal, has no applicable code path.</p></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7611-3-5">RFC7611-3-5</code></td><td colspan="3"><span class="rfc-subject">Route reflectors MUST propagate the ACCEPT_OWN community unchanged (§3)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>3</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7611-3-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> Ze&#39;s route reflector forwards route communities verbatim and does not special-case ACCEPT_OWN, so a received ACCEPT_OWN would be reflected unchanged as a side effect of the generic community-transparent forwarding already gated under RFC 4456 / RFC 7947; Ze implements no ACCEPT_OWN VPN mechanism (community.go:59-61 is display-only), so this RR requirement has no ACCEPT_OWN-specific code path.</p></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7611-5-1">RFC7611-5-1</code></td><td colspan="3"><span class="rfc-subject">ACCEPT_OWN SHOULD be used with explicit configuration, not enabled by default (§5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7611-5-1">RFC7611-5-1</code></td><td colspan="3"><span class="rfc-subject">Where a BGP speaker maintains multiple routing contexts by an approach other than RFC 4364, &#34;VRF&#34; should be understood to mean whatever construct provides a routing context, &#34;Route Distinguisher&#34; whatever construct allows a route&#39;s originator to associate that route with its source context, and &#34;Route Target&#34; whatever construct allows a route to be targeted for import into a context other than its source (§5)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>5</td>
@@ -350,25 +373,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
-<tr><td><a href="#rfc7611-3-1"><code>RFC7611-3-1</code></a> All conditions MUST hold for ACCEPT_OWN to be honored: community present, received from iBGP, own AS in AS_PATH, VPN route, targets different VRF (§3)</td>
+<tr><td><a href="#rfc7611-2.1-1"><code>RFC7611-2.1-1</code></a> A route MUST NOT ever be accepted back into its source VRF, even if it carries one or more RTs that match that VRF (§2.1)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 7611 ACCEPT_OWN mechanism. It recognizes the ACCEPT_OWN community value only for text display (internal/core/bgp/attribute/community.go:59-61,112 CommunityAcceptOwn = 0xFFFF0001) and has no L3VPN VRF-import code path that would honor it (no import of a self-originated VPN route into a different VRF; grep across internal/component/bgp/ and internal/core/bgp/ finds only the name definition), so none of the honoring conditions is ever evaluated.</td>
+<td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7611-3-2"><code>RFC7611-3-2</code></a> ACCEPT_OWN MUST only be honored on routes received from iBGP peers (§3)</td>
+<tr><td><a href="#rfc7611-2.2-1"><code>RFC7611-2.2-1</code></a> If a route carrying the ACCEPT_OWN community is received in an address family that does not allow the source VRF to be looked up, the ACCEPT_OWN community MUST be discarded (§2.2)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: The &#34;honored only on iBGP routes&#34; restriction governs a router that honors ACCEPT_OWN via VRF import, which Ze does not implement (community.go:59-61 defines the value for display only; there is no VRF-import honoring path).</td>
+<td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7611-3-3"><code>RFC7611-3-3</code></a> ACCEPT_OWN MUST NOT be accepted from eBGP peers (§3)</td>
+<tr><td><a href="#rfc7611-2.3-1"><code>RFC7611-2.3-1</code></a> ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled (§2.3)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: Ze never honors ACCEPT_OWN from any peer (it has no VRF-import mechanism), so the &#34;MUST NOT accept from eBGP&#34; restriction has no applicable honoring code path -- the community is recognized only as a named value for display (community.go:112).</td>
+<td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7611-3-4"><code>RFC7611-3-4</code></a> ACCEPT_OWN community MUST be removed before re-advertising to eBGP peers (§3)</td>
+<tr><td><a href="#rfc7611-2.3-2"><code>RFC7611-2.3-2</code></a> When ACCEPT_OWN is disabled by configuration, either explicitly or by default, the router MUST NOT apply the special route acceptance rules detailed in Section 2.1 (§2.3)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: Ze does not participate in the ACCEPT_OWN VPN mechanism -- it neither sets ACCEPT_OWN on VRF export nor honors it on import (community.go:59-61 is display-only) -- so the &#34;remove before re-advertising to eBGP&#34; obligation, which prevents a participating router from leaking the VPN-internal ACCEPT_OWN signal, has no applicable code path.</td>
+<td>no test carries this requirement id</td>
 </tr>
-<tr><td><a href="#rfc7611-3-5"><code>RFC7611-3-5</code></a> Route reflectors MUST propagate the ACCEPT_OWN community unchanged (§3)</td>
+<tr><td><a href="#rfc7611-3-1"><code>RFC7611-3-1</code></a> The extra decision-process step MUST only be invoked during the best path selection process of VPN-IP routes, and MUST NOT be invoked for the best path selection of imported IP routes in a VRF (§3)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: Ze&#39;s route reflector forwards route communities verbatim and does not special-case ACCEPT_OWN, so a received ACCEPT_OWN would be reflected unchanged as a side effect of the generic community-transparent forwarding already gated under RFC 4456 / RFC 7947; Ze implements no ACCEPT_OWN VPN mechanism (community.go:59-61 is display-only), so this RR requirement has no ACCEPT_OWN-specific code path.</td>
+<td>no test carries this requirement id; annotated {not-applicable}: Ze does not implement the RFC 7611 ACCEPT_OWN mechanism and has no VPN-IP decision-process step to invoke. It recognizes the ACCEPT_OWN community value only for text display (internal/core/bgp/attribute/community.go:59-61,112 CommunityAcceptOwn = 0xFFFF0001), and no L3VPN VRF-import path exists that would insert the extra step after the LOCAL_PREF comparison.</td>
 </tr>
 </tbody>
 </table>
@@ -376,29 +399,171 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
+<h3><a href="#rfc7611-2.1-1"><code>RFC7611-2.1-1</code></a></h3>
+<p>A route MUST NOT ever be accepted back into its source VRF, even if it carries one or more RTs that match that VRF (§2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7611-2.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc7611-2.2-1"><code>RFC7611-2.2-1</code></a></h3>
+<p>If a route carrying the ACCEPT_OWN community is received in an address family that does not allow the source VRF to be looked up, the ACCEPT_OWN community MUST be discarded (§2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7611-2.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc7611-2.3-1"><code>RFC7611-2.3-1</code></a></h3>
+<p>ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled (§2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7611-2.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc7611-2.3-2"><code>RFC7611-2.3-2</code></a></h3>
+<p>When ACCEPT_OWN is disabled by configuration, either explicitly or by default, the router MUST NOT apply the special route acceptance rules detailed in Section 2.1 (§2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7611-2.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc7611-3-1"><code>RFC7611-3-1</code></a></h3>
-<p>All conditions MUST hold for ACCEPT_OWN to be honored: community present, received from iBGP, own AS in AS_PATH, VPN route, targets different VRF (§3)</p>
+<p>The extra decision-process step MUST only be invoked during the best path selection process of VPN-IP routes, and MUST NOT be invoked for the best path selection of imported IP routes in a VRF (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7611-3-1, so no unit is bound to it.</p>
-<h3><a href="#rfc7611-3-2"><code>RFC7611-3-2</code></a></h3>
-<p>ACCEPT_OWN MUST only be honored on routes received from iBGP peers (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7611-3-2, so no unit is bound to it.</p>
-<h3><a href="#rfc7611-3-3"><code>RFC7611-3-3</code></a></h3>
-<p>ACCEPT_OWN MUST NOT be accepted from eBGP peers (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7611-3-3, so no unit is bound to it.</p>
-<h3><a href="#rfc7611-3-4"><code>RFC7611-3-4</code></a></h3>
-<p>ACCEPT_OWN community MUST be removed before re-advertising to eBGP peers (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7611-3-4, so no unit is bound to it.</p>
-<h3><a href="#rfc7611-3-5"><code>RFC7611-3-5</code></a></h3>
-<p>Route reflectors MUST propagate the ACCEPT_OWN community unchanged (§3)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC7611-3-5, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 7611, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc7611.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>63f038bbea1c9b4f</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc7611.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>5</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>0</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.3</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<p>The walk over RFC 7611 declined no sentence: every site it found is mapped to a requirement.</p>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 7611, so its obligations are stated where they were written.</p>
@@ -432,7 +597,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

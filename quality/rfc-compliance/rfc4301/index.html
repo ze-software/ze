@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4301 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4301: Security Architecture for the Internet Protocol. 20 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4301: Security Architecture for the Internet Protocol. 78 gated MUST-level requirements, 1 declared gaps, 58 with no test." />
         <meta property="og:title" content="RFC 4301 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4301: Security Architecture for the Internet Protocol. 20 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4301: Security Architecture for the Internet Protocol. 78 gated MUST-level requirements, 1 declared gaps, 58 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4301 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4301: Security Architecture for the Internet Protocol. 20 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4301: Security Architecture for the Internet Protocol. 78 gated MUST-level requirements, 1 declared gaps, 58 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,26 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>30.0%</strong><b>6 of 20 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>35.0%</strong><b>7 of 20 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>7.7%</strong><b>6 of 78 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>9.0%</strong><b>7 of 78 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 78 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>38.9%</strong><b>14 of 36 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>20</strong><b>of 23 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>6</strong><b>of 20 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>30.0%</strong><b>6 of 20 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>78</strong><b>of 81 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>6</strong><b>of 78 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>7.7%</strong><b>6 of 78 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 78 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 78 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>5.0%</strong><b>1 of 20 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>75.6%</strong><b>59 of 78 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 20 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 78 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -203,10 +203,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>23</td>
+<td>81</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>20</td>
+<td>78</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>6</td>
@@ -215,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>1</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>58</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -246,17 +246,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Security Architecture for IP (RFC 4301): native control-plane SPD/SAD projected to kernel XFRM; 1 MET (no null-enc/no-integrity ESP) + 7 single-polarity positive (tunnel/transport modes, SPD present, negotiated selectors, manual+automated keying) + 1 gap (port/ICMP selectors) + 6 not-applicable (per-packet datapath kernel-delegated)</p>
+<p>Enrolled: Security Architecture for IP (RFC 4301): native control-plane SPD/SAD projected to kernel XFRM. The extraction walk of 2026-09-21 read all 89 normative sites in `rfc/full/rfc4301.txt` and grew the checklist from 24 rows to 81 (72 MUST, 6 MUST NOT, 2 SHOULD, 1 MAY). 14 rows carry an annotation from the 2026-08-30 pass: 1 gap (port/ICMP selectors), 7 single-polarity positive (tunnel/transport modes, SPD present, negotiated selectors, manual+automated keying), 6 not-applicable (per-packet datapath kernel-delegated). The 57 rows added on 2026-09-21 carry no annotation and no test, so they read as untested obligations on the ledger.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
-Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all three dispositions of Section 4.4.1: a negotiated Child SA produces the PROTECT entries, and the operator <code>vpn ipsec policy</code> list produces the BYPASS and DISCARD entries, each with a selector, a direction and a total order. A selector holds the local and remote prefixes, the next-layer protocol, and a local and a remote port as an any-or-one-exact value. IKEv2 Child SAs install tunnel mode, or transport mode when USE_TRANSPORT_MODE is negotiated and echoed, and the RFC 4552 OSPFv3 path installs manual transport-mode ESP or AH. SAD entries carry the SPI, the address pair, the mode, the protocol, the algorithms, the replay window and a time-based lifetime. Per-packet SPD and SAD processing is kernel-delegated to XFRM.
+Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all three dispositions of Section 4.4.1: a negotiated Child SA produces the PROTECT entries, and the operator <code>vpn ipsec policy</code> list produces the BYPASS and DISCARD entries, each with a selector, a direction and a total order. A selector holds the local and remote prefixes, the next-layer protocol, and a local and a remote port as an any-or-one-exact value. IKEv2 Child SAs install tunnel mode, or transport mode when USE_TRANSPORT_MODE is negotiated and echoed, and the RFC 4552 OSPFv3 path installs manual transport-mode ESP or AH. SAD entries carry the SPI, the address pair, the mode, the protocol, the algorithms, the replay window and a time-based lifetime. Per-packet SPD and SAD processing is kernel-delegated to XFRM. The 2026-09-21 walk widened the checklist to the whole document, so this paragraph now describes the covered part of a much larger row set rather than most of it.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
 <p>Lowered from <code>Supported</code> on 2026-08-30, after an extraction walk of <a href="https://github.com/ze-software/ze/blob/main/rfc/full/rfc4301.txt" target="_blank" rel="noopener"><code>rfc/full/rfc4301.txt</code></a> found architecture obligations Ze does not meet. The implementation work is <a href="https://github.com/ze-software/ze/blob/main/plan/immediate/spec-rfc4301-architecture-gaps.md" target="_blank" rel="noopener"><code>plan/immediate/spec-rfc4301-architecture-gaps.md</code></a>, one phase per block.</p>
 <p class="rfc-prose"><strong>Section 6, ICMP processing:</strong> no control lets an administrator accept or reject unauthenticated ICMP error messages per ICMP type, and no check compares a protected transit ICMP error message payload header against the traffic selectors of the SA that carried it.</p>
-<p class="rfc-prose"><strong>Section 8, DF bit and PMTU:</strong> the DF treatment of a tunnel-mode SA is not configurable, and no per-SA PMTU value is held or aged. Section 4.4.2.1, SAD lifetimes: <code>newLifetimeState</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/rekey.go</code></a>) assigns a time lifetime only, <code>softBytes</code> is never assigned, and the byte-count arm of <code>softExpired</code> is unreachable in a running daemon; <a href="https://github.com/ze-software/ze/blob/main/plan/spec-ipsec-lifetime-volume.md" target="_blank" rel="noopener"><code>plan/spec-ipsec-lifetime-volume.md</code></a> designs the byte-count lifetime. Section 5.1.2.1, outer header: the DSCP value of the outer tunnel header is not mapped for the domain the packet enters. Section 4.4.1.1, selectors: a port selector holds any port or one exact port rather than the range the section defines, and <code>SPParams</code> carries no ICMP type or code field. Only that last item is gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc4301.md" target="_blank" rel="noopener"><code>rfc/short/rfc4301.md</code></a>, as <a href="#rfc4301-4.4.1.1-1"><code>RFC4301-4.4.1.1-1</code></a>, and its reason text is stale about ports.</p>
+<p class="rfc-prose"><strong>Section 8, DF bit and PMTU:</strong> the DF treatment of a tunnel-mode SA is not configurable, and no per-SA PMTU value is held or aged. Section 4.4.2.1, SAD lifetimes: <code>newLifetimeState</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rekey.go" target="_blank" rel="noopener"><code>internal/component/ike/engine/rekey.go</code></a>) assigns a time lifetime only, <code>softBytes</code> is never assigned, and the byte-count arm of <code>softExpired</code> is unreachable in a running daemon; <a href="https://github.com/ze-software/ze/blob/main/plan/spec-ipsec-lifetime-volume.md" target="_blank" rel="noopener"><code>plan/spec-ipsec-lifetime-volume.md</code></a> designs the byte-count lifetime. Section 5.1.2.1, outer header: the DSCP value of the outer tunnel header is not mapped for the domain the packet enters. Section 4.4.1.1, selectors: a port selector holds any port or one exact port rather than the range the section defines, and <code>SPParams</code> carries no ICMP type or code field. Each of those blocks is now gated by a checklist row of its own, added by the 2026-09-21 extraction walk: <a href="#rfc4301-6.1.1-1"><code>RFC4301-6.1.1-1</code></a> and <a href="#rfc4301-6.1.1-2"><code>RFC4301-6.1.1-2</code></a> for the unauthenticated-ICMP control, <a href="#rfc4301-6.2-1"><code>RFC4301-6.2-1</code></a> for the ICMP error payload check, <a href="#rfc4301-8.1-1"><code>RFC4301-8.1-1</code></a> and <a href="#rfc4301-8.1-2"><code>RFC4301-8.1-2</code></a> for the DF bit, <a href="#rfc4301-8.2.2-1"><code>RFC4301-8.2.2-1</code></a> for PMTU ageing, <a href="#rfc4301-4.4.2.1-2"><code>RFC4301-4.4.2.1-2</code></a> for the byte-count lifetime, and <a href="#rfc4301-5.1.2.1-1"><code>RFC4301-5.1.2.1-1</code></a> for the outer-header DSCP mapping. <a href="#rfc4301-4.4.1.1-1"><code>RFC4301-4.4.1.1-1</code></a> remains the gated selector row and its reason text is stale about ports. The same walk added 49 further rows, for obligations no earlier pass had recorded at all: the Section 3 connectivity and ESP-support rows, the Section 4.4.1 SPD management interface and decorrelation rows, the Section 4.4.1.1 OPAQUE and ICMP-range selector rows, the Section 4.4.2.1 SAD data items, the Section 4.4.3 PAD rows, the Section 4.5.2 key-splitting rule, the Section 5 processing-step rows, and the Section 7 fragment-handling rows. None of them carries a test.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -277,7 +277,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>58</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -288,12 +288,13 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>20</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>78</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc4301-4.2-1"><code>RFC4301-4.2-1</code></a>, <a href="#rfc4301-4.4.3.1-1"><code>RFC4301-4.4.3.1-1</code></a>, <a href="#rfc4301-4.4.3.1-2"><code>RFC4301-4.4.3.1-2</code></a>, <a href="#rfc4301-4.4.1-4"><code>RFC4301-4.4.1-4</code></a>, <a href="#rfc4301-7.4-1"><code>RFC4301-7.4-1</code></a>, <a href="#rfc4301-7.4-2"><code>RFC4301-7.4-2</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (14):</strong> <a href="#rfc4301-4.1-1"><code>RFC4301-4.1-1</code></a>, <a href="#rfc4301-4.1-2"><code>RFC4301-4.1-2</code></a>, <a href="#rfc4301-4.1-3"><code>RFC4301-4.1-3</code></a>, <a href="#rfc4301-4.1-4"><code>RFC4301-4.1-4</code></a>, <a href="#rfc4301-4.1-5"><code>RFC4301-4.1-5</code></a>, <a href="#rfc4301-4.4.1-1"><code>RFC4301-4.4.1-1</code></a>, <a href="#rfc4301-4.4.1-2"><code>RFC4301-4.4.1-2</code></a>, <a href="#rfc4301-4.4.1.1-1"><code>RFC4301-4.4.1.1-1</code></a>, <a href="#rfc4301-4.4.2-1"><code>RFC4301-4.4.2-1</code></a>, <a href="#rfc4301-4.5-1"><code>RFC4301-4.5-1</code></a>, <a href="#rfc4301-5.2-1"><code>RFC4301-5.2-1</code></a>, <a href="#rfc4301-5.2-2"><code>RFC4301-5.2-2</code></a>, <a href="#rfc4301-4.1-6"><code>RFC4301-4.1-6</code></a>, <a href="#rfc4301-7-1"><code>RFC4301-7-1</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (58):</strong> <a href="#rfc4301-3.1-1"><code>RFC4301-3.1-1</code></a>, <a href="#rfc4301-3.2-1"><code>RFC4301-3.2-1</code></a>, <a href="#rfc4301-4-1"><code>RFC4301-4-1</code></a>, <a href="#rfc4301-4.1-8"><code>RFC4301-4.1-8</code></a>, <a href="#rfc4301-4.1-9"><code>RFC4301-4.1-9</code></a>, <a href="#rfc4301-4.1-10"><code>RFC4301-4.1-10</code></a>, <a href="#rfc4301-4.1-11"><code>RFC4301-4.1-11</code></a>, <a href="#rfc4301-4.4-1"><code>RFC4301-4.4-1</code></a>, <a href="#rfc4301-4.4.1-5"><code>RFC4301-4.4.1-5</code></a>, <a href="#rfc4301-4.4.1-6"><code>RFC4301-4.4.1-6</code></a>, <a href="#rfc4301-4.4.1-7"><code>RFC4301-4.4.1-7</code></a>, <a href="#rfc4301-4.4.1-8"><code>RFC4301-4.4.1-8</code></a>, <a href="#rfc4301-4.4.1-9"><code>RFC4301-4.4.1-9</code></a>, <a href="#rfc4301-4.4.1-10"><code>RFC4301-4.4.1-10</code></a>, <a href="#rfc4301-4.4.1.1-2"><code>RFC4301-4.4.1.1-2</code></a>, <a href="#rfc4301-4.4.1.1-3"><code>RFC4301-4.4.1.1-3</code></a>, <a href="#rfc4301-4.4.1.1-4"><code>RFC4301-4.4.1.1-4</code></a>, <a href="#rfc4301-4.4.1.1-5"><code>RFC4301-4.4.1.1-5</code></a>, <a href="#rfc4301-4.4.1.2-1"><code>RFC4301-4.4.1.2-1</code></a>, <a href="#rfc4301-4.4.2.1-1"><code>RFC4301-4.4.2.1-1</code></a>, <a href="#rfc4301-4.4.2.1-2"><code>RFC4301-4.4.2.1-2</code></a>, <a href="#rfc4301-4.4.2.1-3"><code>RFC4301-4.4.2.1-3</code></a>, <a href="#rfc4301-4.4.3.1-3"><code>RFC4301-4.4.3.1-3</code></a>, <a href="#rfc4301-4.4.3.2-1"><code>RFC4301-4.4.3.2-1</code></a>, <a href="#rfc4301-4.4.3.3-1"><code>RFC4301-4.4.3.3-1</code></a>, <a href="#rfc4301-4.5.2-1"><code>RFC4301-4.5.2-1</code></a>, <a href="#rfc4301-4.5.3-1"><code>RFC4301-4.5.3-1</code></a>, <a href="#rfc4301-5-1"><code>RFC4301-5-1</code></a>, <a href="#rfc4301-5.1-1"><code>RFC4301-5.1-1</code></a>, <a href="#rfc4301-5.1-2"><code>RFC4301-5.1-2</code></a>, <a href="#rfc4301-5.1-3"><code>RFC4301-5.1-3</code></a>, <a href="#rfc4301-5.1.2.1-1"><code>RFC4301-5.1.2.1-1</code></a>, <a href="#rfc4301-5.2-3"><code>RFC4301-5.2-3</code></a>, <a href="#rfc4301-5.2-4"><code>RFC4301-5.2-4</code></a>, <a href="#rfc4301-5.2-5"><code>RFC4301-5.2-5</code></a>, <a href="#rfc4301-6-1"><code>RFC4301-6-1</code></a>, <a href="#rfc4301-6.1.1-1"><code>RFC4301-6.1.1-1</code></a>, <a href="#rfc4301-6.1.1-2"><code>RFC4301-6.1.1-2</code></a>, <a href="#rfc4301-6.1.2-1"><code>RFC4301-6.1.2-1</code></a>, <a href="#rfc4301-6.2-1"><code>RFC4301-6.2-1</code></a>, <a href="#rfc4301-6.2-2"><code>RFC4301-6.2-2</code></a>, <a href="#rfc4301-6.2-3"><code>RFC4301-6.2-3</code></a>, <a href="#rfc4301-6.2-4"><code>RFC4301-6.2-4</code></a>, <a href="#rfc4301-6.2-5"><code>RFC4301-6.2-5</code></a>, <a href="#rfc4301-7.1-1"><code>RFC4301-7.1-1</code></a>, <a href="#rfc4301-7.1-2"><code>RFC4301-7.1-2</code></a>, <a href="#rfc4301-7.1-3"><code>RFC4301-7.1-3</code></a>, <a href="#rfc4301-7.2-1"><code>RFC4301-7.2-1</code></a>, <a href="#rfc4301-7.2-2"><code>RFC4301-7.2-2</code></a>, <a href="#rfc4301-7.3-1"><code>RFC4301-7.3-1</code></a>, <a href="#rfc4301-7.3-2"><code>RFC4301-7.3-2</code></a>, <a href="#rfc4301-7.3-3"><code>RFC4301-7.3-3</code></a>, <a href="#rfc4301-7.3-4"><code>RFC4301-7.3-4</code></a>, <a href="#rfc4301-7.3-5"><code>RFC4301-7.3-5</code></a>, <a href="#rfc4301-8.1-1"><code>RFC4301-8.1-1</code></a>, <a href="#rfc4301-8.1-2"><code>RFC4301-8.1-2</code></a>, <a href="#rfc4301-8.2.1-1"><code>RFC4301-8.2.1-1</code></a>, <a href="#rfc4301-8.2.2-1"><code>RFC4301-8.2.2-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -328,7 +329,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the IKE child-SA path hardcodes tunnel mode for every peer SA, so a peer SA can never be transport (internal/component/ike/engine/child.go:40, :224, :253)</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.1-4">RFC4301-4.1-4</code></td><td colspan="3"><span class="rfc-subject">IKE-created SA pairs MUST use the same mode (both tunnel or both transport) (§4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.1-4">RFC4301-4.1-4</code></td><td colspan="3"><span class="rfc-subject">IKE-created SA pairs MUST use the same mode (both tunnel or both transport) (§4.1). The source sentence is indicative: &#34;IKE creates pairs of SAs, so for simplicity, we choose to require that both SAs in a pair be of the same mode, transport or tunnel.&#34;</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.1</td>
@@ -429,7 +430,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> the three-step inbound SAD lookup (SPI+dst+src / SPI+dst / SPI) is a per-packet kernel XFRM function; ze performs no inbound SAD lookups</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7-1">RFC4301-7-1</code></td><td colspan="3"><span class="rfc-subject">AH/ESP MUST NOT be applied in transport mode to IPv4 fragments; use tunnel mode (§7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7-1">RFC4301-7-1</code></td><td colspan="3"><span class="rfc-subject">AH/ESP MUST NOT be applied in transport mode to IPv4 fragments; use tunnel mode (§7). The obligation is stated indicatively and the cited section only restates it: Section 4.1 says &#34;AH and ESP cannot be applied using transport mode to IPv4 packets that are fragments. Only tunnel mode can be employed in such cases&#34;, and Section 7 recalls it as &#34;In Section 4.1, transport mode SAs have been defined to not carry fragments (IPv4 or IPv6)&#34;</span></td></tr>
 <tr><td></td>
 <td>MUST NOT</td>
 <td>7</td>
@@ -447,7 +448,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7-2">RFC4301-7-2</code></td><td colspan="3"><span class="rfc-subject">Encapsulator SHOULD perform Path MTU Discovery and adjust tunnel MTU (§7)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7-2">RFC4301-7-2</code></td><td colspan="3"><span class="rfc-subject">Encapsulator SHOULD perform Path MTU Discovery and adjust tunnel MTU (§7). The sentence behind this row is in Section 8.2.2 of RFC 4301, not in Section 7 of it: &#34;Implementations SHOULD use the approach described in the Path MTU Discovery document ..., which suggests periodically resetting the PMTU to the first-hop data-link MTU and then letting the normal PMTU Discovery processes update the PMTU as necessary. The period SHOULD be configurable.&#34; (§7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>7</td>
@@ -524,6 +525,528 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_fragment_test.go#L133" title="internal/component/ike/engine/rfc4301_fragment_test.go" target="_blank" rel="noopener"><code>TestIKEBypassIsPortScopedSoSection74Binds</code></a></span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-3.1-1">RFC4301-3.1-1</code></td><td colspan="3"><span class="rfc-subject">A compliant host implementation MUST support (a) and (c) and a compliant security gateway must support all three of these forms of connectivity, since under certain circumstances a security gateway acts as a host (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-3.2-1">RFC4301-3.2-1</code></td><td colspan="3"><span class="rfc-subject">IPsec implementations MUST support ESP and MAY support AH (§3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4-1">RFC4301-4-1</code></td><td colspan="3"><span class="rfc-subject">All implementations of AH or ESP MUST support the concept of an SA as described below (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.1-8">RFC4301-4.1-8</code></td><td colspan="3"><span class="rfc-subject">The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or GDOI (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.1-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.1-9">RFC4301-4.1-9</code></td><td colspan="3"><span class="rfc-subject">The receiver MUST process the packets from the different SAs (multiple SAs with the same selectors) without prejudice (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.1-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.1-10">RFC4301-4.1-10</code></td><td colspan="3"><span class="rfc-subject">The DSCP value MUST NOT be checked as part of SA/packet validation, because it is not employed for SA selection and can change en route in transport mode (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.1-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.1-11">RFC4301-4.1-11</code></td><td colspan="3"><span class="rfc-subject">In IPv6 the security protocol header MUST appear before next layer protocols (e.g., TCP, UDP, SCTP) (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.1-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4-1">RFC4301-4.4-1</code></td><td colspan="3"><span class="rfc-subject">The external behavior of implementations MUST correspond to the externally observable characteristics of the processing model of Section 4.4 in order to be compliant (§4.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-5">RFC4301-4.4.1-5</code></td><td colspan="3"><span class="rfc-subject">If an implementation supports multiple SPDs, then it MUST include an explicit SPD selection function that is invoked to select the appropriate SPD for outbound traffic processing (§4.4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-6">RFC4301-4.4.1-6</code></td><td colspan="3"><span class="rfc-subject">The SPD MUST permit a user or administrator to specify policy entries as SPD-I, SPD-O and SPD-S, covering the DISCARD, BYPASS and PROTECT dispositions (§4.4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-7">RFC4301-4.4.1-7</code></td><td colspan="3"><span class="rfc-subject">For every IPsec implementation, there MUST be a management interface that allows a user or system administrator to manage the SPD (§4.4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-8">RFC4301-4.4.1-8</code></td><td colspan="3"><span class="rfc-subject">The system administrator MUST be able to specify whether or not a user or application can override (default) system policies (§4.4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-9">RFC4301-4.4.1-9</code></td><td colspan="3"><span class="rfc-subject">When an SPD entry is decorrelated all the resulting entries MUST be linked together, so that all members of the group derived from an individual SPD entry can all be placed into caches and into the SAD at the same time (§4.4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1-10">RFC4301-4.4.1-10</code></td><td colspan="3"><span class="rfc-subject">If the SPD is not decorrelated, caching is not allowed and an ordered search of the SPD MUST be performed to verify that inbound traffic arriving on an SA is consistent with the access control policy expressed in the SPD (§4.4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1.1-2">RFC4301-4.4.1.1-2</code></td><td colspan="3"><span class="rfc-subject">A value of OPAQUE also MUST be supported for the Local and Remote port selectors, because ports may be unavailable on a fragment or encrypted by IPsec (§4.4.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1.1-3">RFC4301-4.4.1.1-3</code></td><td colspan="3"><span class="rfc-subject">If the SA requires a port value other than ANY or OPAQUE, an arriving fragment without ports MUST be discarded (§4.4.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1.1-4">RFC4301-4.4.1.1-4</code></td><td colspan="3"><span class="rfc-subject">Given a policy entry with a range of ICMP Types and a range of Codes, an implementation MUST test for a match using the Type and Code of the arriving ICMP packet as the stated composite comparison (§4.4.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1.1-5">RFC4301-4.4.1.1-5</code></td><td colspan="3"><span class="rfc-subject">All IPsec implementations MUST support the use of names (DNS name, RFC 822 address, X.500 distinguished name, other ID type) as a Local or Remote identity selector (§4.4.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.1.2-1">RFC4301-4.4.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Until IKE provides a facility that conveys the semantics expressed in the SPD via selector sets, users MUST NOT include multiple selector sets in a single SPD entry unless the access control intent aligns with the IKE &#34;mix and match&#34; semantics (§4.4.1.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.4.1.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.1.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.2.1-1">RFC4301-4.4.2.1-1</code></td><td colspan="3"><span class="rfc-subject">The data items listed in Section 4.4.2.1 (SPI, sequence number counter, anti-replay window, AH and ESP algorithm state, lifetime, mode, tunnel header, PMTU) MUST be in the SAD (§4.4.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.2.1-2">RFC4301-4.4.2.1-2</code></td><td colspan="3"><span class="rfc-subject">A compliant implementation MUST support both types of SA lifetime (time and byte count) and MUST support a simultaneous use of both (§4.4.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.2.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.2.1-3">RFC4301-4.4.2.1-3</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST be able to handle having the counters at the ends of an SA get out of synch, e.g., because of packet loss (§4.4.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.2.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.3.1-3">RFC4301-4.4.3.1-3</code></td><td colspan="3"><span class="rfc-subject">For the &#34;other ID type&#34; PAD name type, only exact-match syntax MUST be supported, since there is no explicit structure for this ID type (§4.4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.3.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.3.2-1">RFC4301-4.4.3.2-1</code></td><td colspan="3"><span class="rfc-subject">Implementations MUST provide a means for an administrator to require a match between an asserted IKE ID and the subject name or subject alt name in a certificate (§4.4.3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.4.3.3-1">RFC4301-4.4.3.3-1</code></td><td colspan="3"><span class="rfc-subject">A peer may be authorized for both address types, so there MUST be provision for both a v4 and a v6 address range in the PAD child SA authorization data (§4.4.3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4.3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.4.3.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.5.2-1">RFC4301-4.5.2-1</code></td><td colspan="3"><span class="rfc-subject">The encryption keys MUST be taken from the first (left-most, high-order) bits of the keying material string and the integrity keys MUST be taken from the remaining bits (§4.5.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.5.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.5.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-4.5.3-1">RFC4301-4.5.3-1</code></td><td colspan="3"><span class="rfc-subject">An IPsec-supporting host or security gateway MUST have an administrative interface that allows the user/administrator to configure the address of one or more security gateways for ranges of destination addresses that require its use (§4.5.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.5.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-4.5.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5-1">RFC4301-5-1</code></td><td colspan="3"><span class="rfc-subject">If no policy is found in the SPD that matches a packet (for either inbound or outbound traffic), the packet MUST be discarded (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5.1-1">RFC4301-5.1-1</code></td><td colspan="3"><span class="rfc-subject">IPsec MUST perform the steps of Section 5.1 when processing outbound packets (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-5.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5.1-2">RFC4301-5.1-2</code></td><td colspan="3"><span class="rfc-subject">For an outbound packet matched to a BYPASS entry whose return traffic must also bypass, there MUST be an entry in the SPD-I database that permits inbound bypassing of the packet, otherwise the packet will be discarded (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-5.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5.1-3">RFC4301-5.1-3</code></td><td colspan="3"><span class="rfc-subject">With regard to determining and enforcing the PMTU of an SA, the IPsec system MUST follow the steps described in Section 8.2 (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-5.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5.1.2.1-1">RFC4301-5.1.2.1-1</code></td><td colspan="3"><span class="rfc-subject">If the packet will immediately enter a domain for which the DSCP value in the outer header is not appropriate, that value MUST be mapped to an appropriate value for the domain (§5.1.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-5.1.2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5.2-3">RFC4301-5.2-3</code></td><td colspan="3"><span class="rfc-subject">IPsec MUST perform the steps of Section 5.2 when processing inbound packets (§5.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-5.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5.2-4">RFC4301-5.2-4</code></td><td colspan="3"><span class="rfc-subject">IKE traffic MUST have an explicit BYPASS entry in the SPD (§5.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-5.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-5.2-5">RFC4301-5.2-5</code></td><td colspan="3"><span class="rfc-subject">As with all outbound traffic that is to be bypassed, an inbound-bypassed packet whose return traffic is also bypassed MUST be matched against an SPD-O entry (§5.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-5.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-6-1">RFC4301-6-1</code></td><td colspan="3"><span class="rfc-subject">Disposition of non-error ICMP messages that are not addressed to the IPsec implementation itself MUST be explicitly accounted for using SPD entries (§6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-6.1.1-1">RFC4301-6.1.1-1</code></td><td colspan="3"><span class="rfc-subject">A compliant IPsec implementation MUST permit a local administrator to configure it to accept or reject unauthenticated ICMP traffic (§6.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-6.1.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-6.1.1-2">RFC4301-6.1.1-2</code></td><td colspan="3"><span class="rfc-subject">That accept/reject control MUST be at the granularity of ICMP type and MAY be at the granularity of ICMP type and code (§6.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-6.1.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-6.1.2-1">RFC4301-6.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Implementers MUST provide controls to allow local administrators to constrain the processing of ICMP error messages received on the protected side of the boundary and directed to the IPsec implementation (§6.1.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.1.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-6.1.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-6.2-1">RFC4301-6.2-1</code></td><td colspan="3"><span class="rfc-subject">An IPsec implementation MUST be configurable to check that the ICMP error message payload header information is consistent with the SA via which it arrives (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-6.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-6.2-2">RFC4301-6.2-2</code></td><td colspan="3"><span class="rfc-subject">IPsec senders and receivers MUST support the Section 6.2 processing for ICMP error messages that are sent and received via SAs (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-6.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-6.2-3">RFC4301-6.2-3</code></td><td colspan="3"><span class="rfc-subject">If no SA and no SPD entry would carry an outbound ICMP error message, an IPsec implementation MUST map the message to the SA that would carry the return traffic associated with the packet that triggered it (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-6.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-6.2-4">RFC4301-6.2-4</code></td><td colspan="3"><span class="rfc-subject">If an inbound ICMP error message arrives on an SA and its IP and ICMP headers do not match the traffic selectors for that SA, the receiver MUST process the received message in the special fashion Section 6.2 describes (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-6.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-6.2-5">RFC4301-6.2-5</code></td><td colspan="3"><span class="rfc-subject">If the ICMP error message payload check fails, the IPsec implementation MUST NOT forward the ICMP message to the destination (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-6.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7.1-1">RFC4301-7.1-1</code></td><td colspan="3"><span class="rfc-subject">All implementations MUST support tunnel mode SAs that are configured to pass traffic without regard to port field (or ICMP type/code or Mobility Header type) values (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-7.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7.1-2">RFC4301-7.1-2</code></td><td colspan="3"><span class="rfc-subject">If such an SA will carry traffic for specified protocols, the selector set for the SA MUST specify the port fields (or ICMP type/code or Mobility Header type) as ANY (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-7.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7.1-3">RFC4301-7.1-3</code></td><td colspan="3"><span class="rfc-subject">If such an SA will carry traffic without regard to a specific protocol value, the port field values are undefined and MUST be set to ANY as well (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-7.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7.2-1">RFC4301-7.2-1</code></td><td colspan="3"><span class="rfc-subject">Receivers MUST perform a minimum offset check on IPv4 non-initial fragments to protect against overlapping fragment attacks when separate tunnel mode SAs for non-initial fragments are employed (§7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-7.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7.2-2">RFC4301-7.2-2</code></td><td colspan="3"><span class="rfc-subject">These separate fragment-carrying SAs MUST have non-trivial protocol selector values, otherwise approach #1 (Section 7.1) MUST be used (§7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-7.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7.3-1">RFC4301-7.3-1</code></td><td colspan="3"><span class="rfc-subject">Implementations that will transmit non-initial fragments on a tunnel mode SA that makes use of non-trivial port (or ICMP type/code or MH type) selectors MUST notify a peer via the IKE NOTIFY NON_FIRST_FRAGMENTS_ALSO payload (§7.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-7.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7.3-2">RFC4301-7.3-2</code></td><td colspan="3"><span class="rfc-subject">The peer MUST reject the NON_FIRST_FRAGMENTS_ALSO proposal if it will not accept non-initial fragments in this context (§7.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-7.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7.3-3">RFC4301-7.3-3</code></td><td colspan="3"><span class="rfc-subject">If an implementation does not successfully negotiate transmission of non-initial fragments for such an SA, it MUST NOT send such fragments over the SA (§7.3)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-7.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7.3-4">RFC4301-7.3-4</code></td><td colspan="3"><span class="rfc-subject">A receiver MUST discard non-initial fragments that arrive on an SA with non-trivial port (or ICMP type/code or MH type) selector values unless this feature has been negotiated (§7.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-7.3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-7.3-5">RFC4301-7.3-5</code></td><td colspan="3"><span class="rfc-subject">The receiver MUST discard non-initial fragments that do not comply with the security policy applied to the overall packet (§7.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-7.3-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-8.1-1">RFC4301-8.1-1</code></td><td colspan="3"><span class="rfc-subject">All IPsec implementations MUST support the option of copying the DF bit from an outbound packet to the tunnel mode header that it emits, when traffic is carried via a tunnel mode SA (§8.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-8.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-8.1-2">RFC4301-8.1-2</code></td><td colspan="3"><span class="rfc-subject">It MUST be possible to configure the implementation&#39;s treatment of the DF bit (set, clear, copy from inner header) for each SA (§8.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-8.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-8.2.1-1">RFC4301-8.2.1-1</code></td><td colspan="3"><span class="rfc-subject">When traffic arrives that would exceed the updated PMTU value, the traffic MUST be handled as Section 8.2.1 describes (fragment before or after IPsec, or discard and send a PMTU ICMP message, per the DF bit) (§8.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-8.2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4301-8.2.2-1">RFC4301-8.2.2-1</code></td><td colspan="3"><span class="rfc-subject">In all IPsec implementations, the PMTU associated with an SA MUST be &#34;aged&#34; and some mechanism is required to update the PMTU in a timely manner (§8.2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4301-8.2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -557,9 +1080,241 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: the three-step inbound SAD lookup (SPI+dst+src / SPI+dst / SPI) is a per-packet kernel XFRM function; ze performs no inbound SAD lookups</td>
 </tr>
-<tr><td><a href="#rfc4301-7-1"><code>RFC4301-7-1</code></a> AH/ESP MUST NOT be applied in transport mode to IPv4 fragments; use tunnel mode (§7)</td>
+<tr><td><a href="#rfc4301-7-1"><code>RFC4301-7-1</code></a> AH/ESP MUST NOT be applied in transport mode to IPv4 fragments; use tunnel mode (§7). The obligation is stated indicatively and the cited section only restates it: Section 4.1 says &#34;AH and ESP cannot be applied using transport mode to IPv4 packets that are fragments. Only tunnel mode can be employed in such cases&#34;, and Section 7 recalls it as &#34;In Section 4.1, transport mode SAs have been defined to not carry fragments (IPv4 or IPv6)&#34;</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze applies transport mode only to IPv6 OSPFv3 traffic (IPv4-family IPsec is rejected at config), so transport-mode IPsec on an IPv4 fragment structurally cannot arise, and per-packet fragment handling is kernel-delegated (internal/plugins/ospf/config_ipsec.go:21-22)</td>
+</tr>
+<tr><td><a href="#rfc4301-3.1-1"><code>RFC4301-3.1-1</code></a> A compliant host implementation MUST support (a) and (c) and a compliant security gateway must support all three of these forms of connectivity, since under certain circumstances a security gateway acts as a host (§3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-3.2-1"><code>RFC4301-3.2-1</code></a> IPsec implementations MUST support ESP and MAY support AH (§3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4-1"><code>RFC4301-4-1</code></a> All implementations of AH or ESP MUST support the concept of an SA as described below (§4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.1-8"><code>RFC4301-4.1-8</code></a> The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or GDOI (§4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.1-9"><code>RFC4301-4.1-9</code></a> The receiver MUST process the packets from the different SAs (multiple SAs with the same selectors) without prejudice (§4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.1-10"><code>RFC4301-4.1-10</code></a> The DSCP value MUST NOT be checked as part of SA/packet validation, because it is not employed for SA selection and can change en route in transport mode (§4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.1-11"><code>RFC4301-4.1-11</code></a> In IPv6 the security protocol header MUST appear before next layer protocols (e.g., TCP, UDP, SCTP) (§4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4-1"><code>RFC4301-4.4-1</code></a> The external behavior of implementations MUST correspond to the externally observable characteristics of the processing model of Section 4.4 in order to be compliant (§4.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.1-5"><code>RFC4301-4.4.1-5</code></a> If an implementation supports multiple SPDs, then it MUST include an explicit SPD selection function that is invoked to select the appropriate SPD for outbound traffic processing (§4.4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.1-6"><code>RFC4301-4.4.1-6</code></a> The SPD MUST permit a user or administrator to specify policy entries as SPD-I, SPD-O and SPD-S, covering the DISCARD, BYPASS and PROTECT dispositions (§4.4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.1-7"><code>RFC4301-4.4.1-7</code></a> For every IPsec implementation, there MUST be a management interface that allows a user or system administrator to manage the SPD (§4.4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.1-8"><code>RFC4301-4.4.1-8</code></a> The system administrator MUST be able to specify whether or not a user or application can override (default) system policies (§4.4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.1-9"><code>RFC4301-4.4.1-9</code></a> When an SPD entry is decorrelated all the resulting entries MUST be linked together, so that all members of the group derived from an individual SPD entry can all be placed into caches and into the SAD at the same time (§4.4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.1-10"><code>RFC4301-4.4.1-10</code></a> If the SPD is not decorrelated, caching is not allowed and an ordered search of the SPD MUST be performed to verify that inbound traffic arriving on an SA is consistent with the access control policy expressed in the SPD (§4.4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.1.1-2"><code>RFC4301-4.4.1.1-2</code></a> A value of OPAQUE also MUST be supported for the Local and Remote port selectors, because ports may be unavailable on a fragment or encrypted by IPsec (§4.4.1.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.1.1-3"><code>RFC4301-4.4.1.1-3</code></a> If the SA requires a port value other than ANY or OPAQUE, an arriving fragment without ports MUST be discarded (§4.4.1.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.1.1-4"><code>RFC4301-4.4.1.1-4</code></a> Given a policy entry with a range of ICMP Types and a range of Codes, an implementation MUST test for a match using the Type and Code of the arriving ICMP packet as the stated composite comparison (§4.4.1.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.1.1-5"><code>RFC4301-4.4.1.1-5</code></a> All IPsec implementations MUST support the use of names (DNS name, RFC 822 address, X.500 distinguished name, other ID type) as a Local or Remote identity selector (§4.4.1.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.1.2-1"><code>RFC4301-4.4.1.2-1</code></a> Until IKE provides a facility that conveys the semantics expressed in the SPD via selector sets, users MUST NOT include multiple selector sets in a single SPD entry unless the access control intent aligns with the IKE &#34;mix and match&#34; semantics (§4.4.1.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.2.1-1"><code>RFC4301-4.4.2.1-1</code></a> The data items listed in Section 4.4.2.1 (SPI, sequence number counter, anti-replay window, AH and ESP algorithm state, lifetime, mode, tunnel header, PMTU) MUST be in the SAD (§4.4.2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.2.1-2"><code>RFC4301-4.4.2.1-2</code></a> A compliant implementation MUST support both types of SA lifetime (time and byte count) and MUST support a simultaneous use of both (§4.4.2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.2.1-3"><code>RFC4301-4.4.2.1-3</code></a> Implementations MUST be able to handle having the counters at the ends of an SA get out of synch, e.g., because of packet loss (§4.4.2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.3.1-3"><code>RFC4301-4.4.3.1-3</code></a> For the &#34;other ID type&#34; PAD name type, only exact-match syntax MUST be supported, since there is no explicit structure for this ID type (§4.4.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.3.2-1"><code>RFC4301-4.4.3.2-1</code></a> Implementations MUST provide a means for an administrator to require a match between an asserted IKE ID and the subject name or subject alt name in a certificate (§4.4.3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.4.3.3-1"><code>RFC4301-4.4.3.3-1</code></a> A peer may be authorized for both address types, so there MUST be provision for both a v4 and a v6 address range in the PAD child SA authorization data (§4.4.3.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.5.2-1"><code>RFC4301-4.5.2-1</code></a> The encryption keys MUST be taken from the first (left-most, high-order) bits of the keying material string and the integrity keys MUST be taken from the remaining bits (§4.5.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-4.5.3-1"><code>RFC4301-4.5.3-1</code></a> An IPsec-supporting host or security gateway MUST have an administrative interface that allows the user/administrator to configure the address of one or more security gateways for ranges of destination addresses that require its use (§4.5.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-5-1"><code>RFC4301-5-1</code></a> If no policy is found in the SPD that matches a packet (for either inbound or outbound traffic), the packet MUST be discarded (§5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-5.1-1"><code>RFC4301-5.1-1</code></a> IPsec MUST perform the steps of Section 5.1 when processing outbound packets (§5.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-5.1-2"><code>RFC4301-5.1-2</code></a> For an outbound packet matched to a BYPASS entry whose return traffic must also bypass, there MUST be an entry in the SPD-I database that permits inbound bypassing of the packet, otherwise the packet will be discarded (§5.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-5.1-3"><code>RFC4301-5.1-3</code></a> With regard to determining and enforcing the PMTU of an SA, the IPsec system MUST follow the steps described in Section 8.2 (§5.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-5.1.2.1-1"><code>RFC4301-5.1.2.1-1</code></a> If the packet will immediately enter a domain for which the DSCP value in the outer header is not appropriate, that value MUST be mapped to an appropriate value for the domain (§5.1.2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-5.2-3"><code>RFC4301-5.2-3</code></a> IPsec MUST perform the steps of Section 5.2 when processing inbound packets (§5.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-5.2-4"><code>RFC4301-5.2-4</code></a> IKE traffic MUST have an explicit BYPASS entry in the SPD (§5.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-5.2-5"><code>RFC4301-5.2-5</code></a> As with all outbound traffic that is to be bypassed, an inbound-bypassed packet whose return traffic is also bypassed MUST be matched against an SPD-O entry (§5.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-6-1"><code>RFC4301-6-1</code></a> Disposition of non-error ICMP messages that are not addressed to the IPsec implementation itself MUST be explicitly accounted for using SPD entries (§6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-6.1.1-1"><code>RFC4301-6.1.1-1</code></a> A compliant IPsec implementation MUST permit a local administrator to configure it to accept or reject unauthenticated ICMP traffic (§6.1.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-6.1.1-2"><code>RFC4301-6.1.1-2</code></a> That accept/reject control MUST be at the granularity of ICMP type and MAY be at the granularity of ICMP type and code (§6.1.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-6.1.2-1"><code>RFC4301-6.1.2-1</code></a> Implementers MUST provide controls to allow local administrators to constrain the processing of ICMP error messages received on the protected side of the boundary and directed to the IPsec implementation (§6.1.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-6.2-1"><code>RFC4301-6.2-1</code></a> An IPsec implementation MUST be configurable to check that the ICMP error message payload header information is consistent with the SA via which it arrives (§6.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-6.2-2"><code>RFC4301-6.2-2</code></a> IPsec senders and receivers MUST support the Section 6.2 processing for ICMP error messages that are sent and received via SAs (§6.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-6.2-3"><code>RFC4301-6.2-3</code></a> If no SA and no SPD entry would carry an outbound ICMP error message, an IPsec implementation MUST map the message to the SA that would carry the return traffic associated with the packet that triggered it (§6.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-6.2-4"><code>RFC4301-6.2-4</code></a> If an inbound ICMP error message arrives on an SA and its IP and ICMP headers do not match the traffic selectors for that SA, the receiver MUST process the received message in the special fashion Section 6.2 describes (§6.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-6.2-5"><code>RFC4301-6.2-5</code></a> If the ICMP error message payload check fails, the IPsec implementation MUST NOT forward the ICMP message to the destination (§6.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-7.1-1"><code>RFC4301-7.1-1</code></a> All implementations MUST support tunnel mode SAs that are configured to pass traffic without regard to port field (or ICMP type/code or Mobility Header type) values (§7.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-7.1-2"><code>RFC4301-7.1-2</code></a> If such an SA will carry traffic for specified protocols, the selector set for the SA MUST specify the port fields (or ICMP type/code or Mobility Header type) as ANY (§7.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-7.1-3"><code>RFC4301-7.1-3</code></a> If such an SA will carry traffic without regard to a specific protocol value, the port field values are undefined and MUST be set to ANY as well (§7.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-7.2-1"><code>RFC4301-7.2-1</code></a> Receivers MUST perform a minimum offset check on IPv4 non-initial fragments to protect against overlapping fragment attacks when separate tunnel mode SAs for non-initial fragments are employed (§7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-7.2-2"><code>RFC4301-7.2-2</code></a> These separate fragment-carrying SAs MUST have non-trivial protocol selector values, otherwise approach #1 (Section 7.1) MUST be used (§7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-7.3-1"><code>RFC4301-7.3-1</code></a> Implementations that will transmit non-initial fragments on a tunnel mode SA that makes use of non-trivial port (or ICMP type/code or MH type) selectors MUST notify a peer via the IKE NOTIFY NON_FIRST_FRAGMENTS_ALSO payload (§7.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-7.3-2"><code>RFC4301-7.3-2</code></a> The peer MUST reject the NON_FIRST_FRAGMENTS_ALSO proposal if it will not accept non-initial fragments in this context (§7.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-7.3-3"><code>RFC4301-7.3-3</code></a> If an implementation does not successfully negotiate transmission of non-initial fragments for such an SA, it MUST NOT send such fragments over the SA (§7.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-7.3-4"><code>RFC4301-7.3-4</code></a> A receiver MUST discard non-initial fragments that arrive on an SA with non-trivial port (or ICMP type/code or MH type) selector values unless this feature has been negotiated (§7.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-7.3-5"><code>RFC4301-7.3-5</code></a> The receiver MUST discard non-initial fragments that do not comply with the security policy applied to the overall packet (§7.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-8.1-1"><code>RFC4301-8.1-1</code></a> All IPsec implementations MUST support the option of copying the DF bit from an outbound packet to the tunnel mode header that it emits, when traffic is carried via a tunnel mode SA (§8.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-8.1-2"><code>RFC4301-8.1-2</code></a> It MUST be possible to configure the implementation&#39;s treatment of the DF bit (set, clear, copy from inner header) for each SA (§8.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-8.2.1-1"><code>RFC4301-8.2.1-1</code></a> When traffic arrives that would exceed the updated PMTU value, the traffic MUST be handled as Section 8.2.1 describes (fragment before or after IPsec, or discard and send a PMTU ICMP message, per the DF bit) (§8.2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4301-8.2.2-1"><code>RFC4301-8.2.2-1</code></a> In all IPsec implementations, the PMTU associated with an SA MUST be &#34;aged&#34; and some mechanism is required to update the PMTU in a timely manner (§8.2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
 </tr>
 </tbody>
 </table>
@@ -618,7 +1373,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </table>
 </div>
 <h3><a href="#rfc4301-4.1-4"><code>RFC4301-4.1-4</code></a></h3>
-<p>IKE-created SA pairs MUST use the same mode (both tunnel or both transport) (§4.1)</p>
+<p>IKE-created SA pairs MUST use the same mode (both tunnel or both transport) (§4.1). The source sentence is indicative: &#34;IKE creates pairs of SAs, so for simplicity, we choose to require that both SAs in a pair be of the same mode, transport or tunnel.&#34;</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -732,7 +1487,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-4.1-6, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-7-1"><code>RFC4301-7-1</code></a></h3>
-<p>AH/ESP MUST NOT be applied in transport mode to IPv4 fragments; use tunnel mode (§7)</p>
+<p>AH/ESP MUST NOT be applied in transport mode to IPv4 fragments; use tunnel mode (§7). The obligation is stated indicatively and the cited section only restates it: Section 4.1 says &#34;AH and ESP cannot be applied using transport mode to IPv4 packets that are fragments. Only tunnel mode can be employed in such cases&#34;, and Section 7 recalls it as &#34;In Section 4.1, transport mode SAs have been defined to not carry fragments (IPv4 or IPv6)&#34;</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC4301-7-1, so no unit is bound to it.</p>
 <h3><a href="#rfc4301-4.4.3.1-1"><code>RFC4301-4.4.3.1-1</code></a></h3>
@@ -905,9 +1660,779 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc4301-3.1-1"><code>RFC4301-3.1-1</code></a></h3>
+<p>A compliant host implementation MUST support (a) and (c) and a compliant security gateway must support all three of these forms of connectivity, since under certain circumstances a security gateway acts as a host (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-3.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-3.2-1"><code>RFC4301-3.2-1</code></a></h3>
+<p>IPsec implementations MUST support ESP and MAY support AH (§3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-3.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4-1"><code>RFC4301-4-1</code></a></h3>
+<p>All implementations of AH or ESP MUST support the concept of an SA as described below (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.1-8"><code>RFC4301-4.1-8</code></a></h3>
+<p>The indication of whether source and destination address matching is required to map inbound IPsec traffic to SAs MUST be set either as a side effect of manual SA configuration or via negotiation using an SA management protocol, e.g., IKE or GDOI (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.1-8, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.1-9"><code>RFC4301-4.1-9</code></a></h3>
+<p>The receiver MUST process the packets from the different SAs (multiple SAs with the same selectors) without prejudice (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.1-9, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.1-10"><code>RFC4301-4.1-10</code></a></h3>
+<p>The DSCP value MUST NOT be checked as part of SA/packet validation, because it is not employed for SA selection and can change en route in transport mode (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.1-10, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.1-11"><code>RFC4301-4.1-11</code></a></h3>
+<p>In IPv6 the security protocol header MUST appear before next layer protocols (e.g., TCP, UDP, SCTP) (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.1-11, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4-1"><code>RFC4301-4.4-1</code></a></h3>
+<p>The external behavior of implementations MUST correspond to the externally observable characteristics of the processing model of Section 4.4 in order to be compliant (§4.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.1-5"><code>RFC4301-4.4.1-5</code></a></h3>
+<p>If an implementation supports multiple SPDs, then it MUST include an explicit SPD selection function that is invoked to select the appropriate SPD for outbound traffic processing (§4.4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.1-5, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.1-6"><code>RFC4301-4.4.1-6</code></a></h3>
+<p>The SPD MUST permit a user or administrator to specify policy entries as SPD-I, SPD-O and SPD-S, covering the DISCARD, BYPASS and PROTECT dispositions (§4.4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.1-6, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.1-7"><code>RFC4301-4.4.1-7</code></a></h3>
+<p>For every IPsec implementation, there MUST be a management interface that allows a user or system administrator to manage the SPD (§4.4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.1-7, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.1-8"><code>RFC4301-4.4.1-8</code></a></h3>
+<p>The system administrator MUST be able to specify whether or not a user or application can override (default) system policies (§4.4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.1-8, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.1-9"><code>RFC4301-4.4.1-9</code></a></h3>
+<p>When an SPD entry is decorrelated all the resulting entries MUST be linked together, so that all members of the group derived from an individual SPD entry can all be placed into caches and into the SAD at the same time (§4.4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.1-9, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.1-10"><code>RFC4301-4.4.1-10</code></a></h3>
+<p>If the SPD is not decorrelated, caching is not allowed and an ordered search of the SPD MUST be performed to verify that inbound traffic arriving on an SA is consistent with the access control policy expressed in the SPD (§4.4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.1-10, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.1.1-2"><code>RFC4301-4.4.1.1-2</code></a></h3>
+<p>A value of OPAQUE also MUST be supported for the Local and Remote port selectors, because ports may be unavailable on a fragment or encrypted by IPsec (§4.4.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.1.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.1.1-3"><code>RFC4301-4.4.1.1-3</code></a></h3>
+<p>If the SA requires a port value other than ANY or OPAQUE, an arriving fragment without ports MUST be discarded (§4.4.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.1.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.1.1-4"><code>RFC4301-4.4.1.1-4</code></a></h3>
+<p>Given a policy entry with a range of ICMP Types and a range of Codes, an implementation MUST test for a match using the Type and Code of the arriving ICMP packet as the stated composite comparison (§4.4.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.1.1-4, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.1.1-5"><code>RFC4301-4.4.1.1-5</code></a></h3>
+<p>All IPsec implementations MUST support the use of names (DNS name, RFC 822 address, X.500 distinguished name, other ID type) as a Local or Remote identity selector (§4.4.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.1.1-5, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.1.2-1"><code>RFC4301-4.4.1.2-1</code></a></h3>
+<p>Until IKE provides a facility that conveys the semantics expressed in the SPD via selector sets, users MUST NOT include multiple selector sets in a single SPD entry unless the access control intent aligns with the IKE &#34;mix and match&#34; semantics (§4.4.1.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.1.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.2.1-1"><code>RFC4301-4.4.2.1-1</code></a></h3>
+<p>The data items listed in Section 4.4.2.1 (SPI, sequence number counter, anti-replay window, AH and ESP algorithm state, lifetime, mode, tunnel header, PMTU) MUST be in the SAD (§4.4.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.2.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.2.1-2"><code>RFC4301-4.4.2.1-2</code></a></h3>
+<p>A compliant implementation MUST support both types of SA lifetime (time and byte count) and MUST support a simultaneous use of both (§4.4.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.2.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.2.1-3"><code>RFC4301-4.4.2.1-3</code></a></h3>
+<p>Implementations MUST be able to handle having the counters at the ends of an SA get out of synch, e.g., because of packet loss (§4.4.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.2.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.3.1-3"><code>RFC4301-4.4.3.1-3</code></a></h3>
+<p>For the &#34;other ID type&#34; PAD name type, only exact-match syntax MUST be supported, since there is no explicit structure for this ID type (§4.4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.3.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.3.2-1"><code>RFC4301-4.4.3.2-1</code></a></h3>
+<p>Implementations MUST provide a means for an administrator to require a match between an asserted IKE ID and the subject name or subject alt name in a certificate (§4.4.3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.3.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.4.3.3-1"><code>RFC4301-4.4.3.3-1</code></a></h3>
+<p>A peer may be authorized for both address types, so there MUST be provision for both a v4 and a v6 address range in the PAD child SA authorization data (§4.4.3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.4.3.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.5.2-1"><code>RFC4301-4.5.2-1</code></a></h3>
+<p>The encryption keys MUST be taken from the first (left-most, high-order) bits of the keying material string and the integrity keys MUST be taken from the remaining bits (§4.5.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.5.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-4.5.3-1"><code>RFC4301-4.5.3-1</code></a></h3>
+<p>An IPsec-supporting host or security gateway MUST have an administrative interface that allows the user/administrator to configure the address of one or more security gateways for ranges of destination addresses that require its use (§4.5.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-4.5.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-5-1"><code>RFC4301-5-1</code></a></h3>
+<p>If no policy is found in the SPD that matches a packet (for either inbound or outbound traffic), the packet MUST be discarded (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-5.1-1"><code>RFC4301-5.1-1</code></a></h3>
+<p>IPsec MUST perform the steps of Section 5.1 when processing outbound packets (§5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-5.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-5.1-2"><code>RFC4301-5.1-2</code></a></h3>
+<p>For an outbound packet matched to a BYPASS entry whose return traffic must also bypass, there MUST be an entry in the SPD-I database that permits inbound bypassing of the packet, otherwise the packet will be discarded (§5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-5.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-5.1-3"><code>RFC4301-5.1-3</code></a></h3>
+<p>With regard to determining and enforcing the PMTU of an SA, the IPsec system MUST follow the steps described in Section 8.2 (§5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-5.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-5.1.2.1-1"><code>RFC4301-5.1.2.1-1</code></a></h3>
+<p>If the packet will immediately enter a domain for which the DSCP value in the outer header is not appropriate, that value MUST be mapped to an appropriate value for the domain (§5.1.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-5.1.2.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-5.2-3"><code>RFC4301-5.2-3</code></a></h3>
+<p>IPsec MUST perform the steps of Section 5.2 when processing inbound packets (§5.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-5.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-5.2-4"><code>RFC4301-5.2-4</code></a></h3>
+<p>IKE traffic MUST have an explicit BYPASS entry in the SPD (§5.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-5.2-4, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-5.2-5"><code>RFC4301-5.2-5</code></a></h3>
+<p>As with all outbound traffic that is to be bypassed, an inbound-bypassed packet whose return traffic is also bypassed MUST be matched against an SPD-O entry (§5.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-5.2-5, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-6-1"><code>RFC4301-6-1</code></a></h3>
+<p>Disposition of non-error ICMP messages that are not addressed to the IPsec implementation itself MUST be explicitly accounted for using SPD entries (§6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-6.1.1-1"><code>RFC4301-6.1.1-1</code></a></h3>
+<p>A compliant IPsec implementation MUST permit a local administrator to configure it to accept or reject unauthenticated ICMP traffic (§6.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-6.1.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-6.1.1-2"><code>RFC4301-6.1.1-2</code></a></h3>
+<p>That accept/reject control MUST be at the granularity of ICMP type and MAY be at the granularity of ICMP type and code (§6.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-6.1.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-6.1.2-1"><code>RFC4301-6.1.2-1</code></a></h3>
+<p>Implementers MUST provide controls to allow local administrators to constrain the processing of ICMP error messages received on the protected side of the boundary and directed to the IPsec implementation (§6.1.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-6.1.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-6.2-1"><code>RFC4301-6.2-1</code></a></h3>
+<p>An IPsec implementation MUST be configurable to check that the ICMP error message payload header information is consistent with the SA via which it arrives (§6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-6.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-6.2-2"><code>RFC4301-6.2-2</code></a></h3>
+<p>IPsec senders and receivers MUST support the Section 6.2 processing for ICMP error messages that are sent and received via SAs (§6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-6.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-6.2-3"><code>RFC4301-6.2-3</code></a></h3>
+<p>If no SA and no SPD entry would carry an outbound ICMP error message, an IPsec implementation MUST map the message to the SA that would carry the return traffic associated with the packet that triggered it (§6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-6.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-6.2-4"><code>RFC4301-6.2-4</code></a></h3>
+<p>If an inbound ICMP error message arrives on an SA and its IP and ICMP headers do not match the traffic selectors for that SA, the receiver MUST process the received message in the special fashion Section 6.2 describes (§6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-6.2-4, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-6.2-5"><code>RFC4301-6.2-5</code></a></h3>
+<p>If the ICMP error message payload check fails, the IPsec implementation MUST NOT forward the ICMP message to the destination (§6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-6.2-5, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-7.1-1"><code>RFC4301-7.1-1</code></a></h3>
+<p>All implementations MUST support tunnel mode SAs that are configured to pass traffic without regard to port field (or ICMP type/code or Mobility Header type) values (§7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-7.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-7.1-2"><code>RFC4301-7.1-2</code></a></h3>
+<p>If such an SA will carry traffic for specified protocols, the selector set for the SA MUST specify the port fields (or ICMP type/code or Mobility Header type) as ANY (§7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-7.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-7.1-3"><code>RFC4301-7.1-3</code></a></h3>
+<p>If such an SA will carry traffic without regard to a specific protocol value, the port field values are undefined and MUST be set to ANY as well (§7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-7.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-7.2-1"><code>RFC4301-7.2-1</code></a></h3>
+<p>Receivers MUST perform a minimum offset check on IPv4 non-initial fragments to protect against overlapping fragment attacks when separate tunnel mode SAs for non-initial fragments are employed (§7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-7.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-7.2-2"><code>RFC4301-7.2-2</code></a></h3>
+<p>These separate fragment-carrying SAs MUST have non-trivial protocol selector values, otherwise approach #1 (Section 7.1) MUST be used (§7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-7.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-7.3-1"><code>RFC4301-7.3-1</code></a></h3>
+<p>Implementations that will transmit non-initial fragments on a tunnel mode SA that makes use of non-trivial port (or ICMP type/code or MH type) selectors MUST notify a peer via the IKE NOTIFY NON_FIRST_FRAGMENTS_ALSO payload (§7.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-7.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-7.3-2"><code>RFC4301-7.3-2</code></a></h3>
+<p>The peer MUST reject the NON_FIRST_FRAGMENTS_ALSO proposal if it will not accept non-initial fragments in this context (§7.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-7.3-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-7.3-3"><code>RFC4301-7.3-3</code></a></h3>
+<p>If an implementation does not successfully negotiate transmission of non-initial fragments for such an SA, it MUST NOT send such fragments over the SA (§7.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-7.3-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-7.3-4"><code>RFC4301-7.3-4</code></a></h3>
+<p>A receiver MUST discard non-initial fragments that arrive on an SA with non-trivial port (or ICMP type/code or MH type) selector values unless this feature has been negotiated (§7.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-7.3-4, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-7.3-5"><code>RFC4301-7.3-5</code></a></h3>
+<p>The receiver MUST discard non-initial fragments that do not comply with the security policy applied to the overall packet (§7.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-7.3-5, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-8.1-1"><code>RFC4301-8.1-1</code></a></h3>
+<p>All IPsec implementations MUST support the option of copying the DF bit from an outbound packet to the tunnel mode header that it emits, when traffic is carried via a tunnel mode SA (§8.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-8.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-8.1-2"><code>RFC4301-8.1-2</code></a></h3>
+<p>It MUST be possible to configure the implementation&#39;s treatment of the DF bit (set, clear, copy from inner header) for each SA (§8.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-8.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-8.2.1-1"><code>RFC4301-8.2.1-1</code></a></h3>
+<p>When traffic arrives that would exceed the updated PMTU value, the traffic MUST be handled as Section 8.2.1 describes (fragment before or after IPsec, or discard and send a PMTU ICMP message, per the DF bit) (§8.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-8.2.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4301-8.2.2-1"><code>RFC4301-8.2.2-1</code></a></h3>
+<p>In all IPsec implementations, the PMTU associated with an SA MUST be &#34;aged&#34; and some mechanism is required to update the PMTU in a timely manner (§8.2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4301-8.2.2-1, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 4301, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc4301.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>263fd9a78175c888</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc4301.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>77</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>12</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>the RFC title block, status-of-memo and copyright notice</td>
+<td>0</td>
+<td>skipped (front-matter)</td>
+<td>the RFC title block, status-of-memo and copyright notice</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>11</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.1</code></td>
+<td>not stated</td>
+<td>11</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.1.1</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.1.2</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.1.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.2</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.2.1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.2.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.3.1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.3.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.3.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.3.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.5</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.5.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.5.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.5.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.2.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.2.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.2</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.1.1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.1.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.2</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.3</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.4</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>12</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (iana)</td>
+<td>IANA Considerations: the section assigns no obligation to an implementation</td>
+</tr>
+<tr><td><code>13</code></td>
+<td>Normative References</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Normative References</td>
+</tr>
+<tr><td><code>14</code></td>
+<td>Informative References</td>
+<td>0</td>
+<td>skipped (references)</td>
+<td>Informative References</td>
+</tr>
+<tr><td><code>B.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (appendix-non-normative)</td>
+<td>Appendix B is the decorrelation algorithm, presented as an example implementation aid</td>
+</tr>
+<tr><td><code>D.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>skipped (appendix-non-normative)</td>
+<td>Appendix D is &#39;Fragment Handling Rationale&#39;; D.1 states the problem and imposes nothing</td>
+</tr>
+<tr><td><code>D.2</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>D.3</code></td>
+<td>fragment-handling rationale</td>
+<td>0</td>
+<td>skipped (appendix-non-normative)</td>
+<td>fragment-handling rationale</td>
+</tr>
+<tr><td><code>D.4</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>D.5</code></td>
+<td>fragment-handling rationale</td>
+<td>0</td>
+<td>skipped (appendix-non-normative)</td>
+<td>fragment-handling rationale</td>
+</tr>
+<tr><td><code>D.6</code></td>
+<td>fragment-handling rationale</td>
+<td>0</td>
+<td>skipped (appendix-non-normative)</td>
+<td>fragment-handling rationale</td>
+</tr>
+<tr><td><code>D.7</code></td>
+<td>fragment-handling rationale</td>
+<td>0</td>
+<td>skipped (appendix-non-normative)</td>
+<td>fragment-handling rationale</td>
+</tr>
+<tr><td><code>D.8</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>4.1:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>restates the multicast inbound SA de-multiplexing obligation that site 4.1:1 maps: the SPI-collision sentence is the same three-step lookup stated from the receiver&#39;s side</td>
+<td>A multicast-capable IPsec implementation MUST correctly de-multiplex inbound traffic even in the context of SPI collisions.</td>
+</tr>
+<tr><td><code>4.1:3</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>restates the same three-step SAD search as an externally-observable-behavior clause; the obligation is the ordering site 4.1:1 maps</td>
+<td>In practice, an implementation may choose any method (or none at all) to accelerate this search, although its externally visible behavior MUST be functionally equivalent to having searched the SAD in the above order.</td>
+</tr>
+<tr><td><code>4.4.1:9</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>a pointer sentence: it announces that the SPD elements enumerated in this section are mandatory, which is the obligation site 4.4.1:5 maps</td>
+<td>However, this document does specify a standard set of SPD elements that all IPsec implementations MUST support.</td>
+</tr>
+<tr><td><code>4.4.1.2:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the sentence defers to Section 4.4.1.1 &#39;Name&#39; for the forms that must be supported, which is the name-selector obligation site 4.4.1.1:5 maps</td>
+<td>The forms that MUST be supported are described above in Section 4.4.1.1 under &#34;Name&#34;. o PFP flags -- one per traffic selector.</td>
+</tr>
+<tr><td><code>4.4.2:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>a parenthetical cross-reference to the Section 4.1 inbound SA mapping algorithm that site 4.1:1 maps</td>
+<td>(See Section 4.1 for details on the algorithm that MUST be used for mapping inbound IPsec datagrams to SAs.) The following parameters are associated with each entry in the SAD.</td>
+</tr>
+<tr><td><code>10:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>a blanket conformance statement: &#39;All IPv4 IPsec implementations MUST comply with all requirements of this document&#39; adds no obligation beyond the requirements the rest of the document states</td>
+<td>All IPv4 IPsec implementations MUST comply with all requirements of this document.</td>
+</tr>
+<tr><td><code>10:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>the same blanket conformance statement for IPv6; boilerplate that names no distinct behavior</td>
+<td>All IPv6 implementations MUST comply with all requirements of this document.</td>
+</tr>
+<tr><td><code>D.2:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Appendix D.2 is fragment-handling rationale restating the Section 7.1 rule that undefined port selectors are set to ANY</td>
+<td>Accordingly, if a specific protocol value is used as a selector, and if that protocol has no port fields, then the port field selectors are to be ignored and ANY MUST be specified as the value for the port fields.</td>
+</tr>
+<tr><td><code>D.2:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the same rationale sentence for the ANY protocol case, restating the Section 7.1 rule site 7.1:3 maps</td>
+<td>(In this context, ICMP TYPE and CODE values are lumped together as a single port field (for IKEv2 negotiation), as is the IPv6 Mobility Header TYPE value.) If the protocol selector is ANY, then this should be treated as equivalent to specifying a protocol for which no port fields are defined, and thus the port selectors should be ignored, and MUST be set to ANY.</td>
+</tr>
+<tr><td><code>D.4:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Appendix D.4 says &#39;this document says that implementations MUST support fragment reassembly for BYPASS/DISCARD traffic when port fields are specified&#39;, an explicit restatement of the Section 7.4 stateful fragment checking obligation</td>
+<td>To that end, this document says that implementations MUST support fragment reassembly for BYPASS/DISCARD traffic when port fields are specified.</td>
+</tr>
+<tr><td><code>D.4:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>restates the Section 7.4 obligation to accept or reject such traffic through the ordinary SPD BYPASS/DISCARD conventions</td>
+<td>An implementation also MUST permit a user or administrator to accept such traffic or reject such traffic using the SPD conventions described in Section 4.4.1.</td>
+</tr>
+<tr><td><code>D.8:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>a description of the document&#39;s own structure (&#39;this document offers 3 choices -- one MUST and two MAYs&#39;), not an obligation on an implementation</td>
+<td>Thus, this document offers 3 choices -- one MUST and two MAYs.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 4301, so its obligations are stated where they were written.</p>
@@ -941,7 +2466,7 @@ Native control-plane SPD/SAD model projected to kernel XFRM. The SPD carries all
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

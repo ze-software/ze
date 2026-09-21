@@ -181,7 +181,35 @@ No test carries RFC2782-Notes-3, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 2782, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc2782.txt |
+| Source fingerprint | 4fd63a129dc9b1d6 |
+| Record | rfc/extraction/rfc2782.json |
+| Mapped sentences | 6 |
+| Declined as scope | 6 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 12 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Introduction prose describing the state of the art before SRV; the lowercase 'must' states what a client is forced to do today, and RFC 2782's Definitions names only the capitalised spellings as BCP 14 keywords. | Currently, one must either know the exact address of a server to contact it, or broadcast a question. |
+| `front:6` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | The sentence says the Additional Data behaviour is urged 'but not required', so it states no obligation on a server or a client. | Implementors are urged, but not required, to return the address record(s) in the Additional Data section. |
+| `front:7` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Lowercase 'must' in the Fallback deployment notes, a bullet list of advice to domain administrators alongside 'it probably shouldn't be listed' and 'domain administrators are strongly advised'; RFC 2782's Definitions binds only the capitalised spellings to BCP 14. | - Hosts that are referenced by backup address records must use the port number specified in Assigned Numbers for the service. |
+| `front:8` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The truncated-response rules the sentence invokes are RFC 2181's, which the sentence cites; the obligation lives in that document. | - If a truncated response comes back from an SRV query, the rules described in [RFC 2181] shall apply. |
+| `front:11` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IANA Considerations statement that no further IANA action is needed; it records an absence rather than an obligation. | No other IANA services are required by this document. |
+| `front:12` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Full Copyright Statement boilerplate governing reproduction of the document itself, not protocol behaviour. | However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English. |
 
 ## Superseded
 

@@ -125,7 +125,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>13</strong><b>of 36 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces</p></article>
+<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>13</strong><b>of 37 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (third-party), so every share below reads what the summary records rather than what the gate enforces</p></article>
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>13</strong><b>of 13 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>100.0%</strong><b>13 of 13 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
@@ -196,10 +196,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>No row in the public ledger</td>
 </tr>
 <tr><td>Enrolment</td>
-<td>Not enrolled (enrolled)</td>
+<td>Not enrolled (third-party)</td>
 </tr>
 <tr><td>Requirements</td>
-<td>36</td>
+<td>37</td>
 </tr>
 <tr><td>Gated MUST-level</td>
 <td>13</td>
@@ -242,7 +242,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Not enrolled (enrolled, a disposition this page has no published meaning for): IP Encapsulation within IP (IP-in-IP, protocol 4): thirteen MUST-level requirements, all {not-applicable}. ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go setting IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go). The kernel ipip module and the VPP dataplane own the outer-header construction (Don&#39;t-Fragment copy, TTL-zero encap guard), decapsulation (inner-TTL-zero discard), source-address loop prevention, the ICMP relay/suppression rules, the Time-Exceeded-to-Host-Unreachable mapping, and path-MTU soft state. This is the same delegation rationale as the enrolled RFC 2784 and RFC 2890 (GRE).</p>
+<p>Not enrolled (third-party, a layer under or beside Ze performs the document and Ze holds no Go code for it, so the reason beside this kind names the component that does): The Linux ipip module builds and parses every outer header. Ze only builds the netlink link descriptor, internal/plugins/iface/netlink/tunnel_linux.go::buildIptun.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 2003.</p>
@@ -611,6 +611,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2003-5.1-5">RFC2003-5.1-5</code></td><td colspan="3"><span class="rfc-subject">The encapsulator MAY be configured for certain types of datagrams not to set the &#34;Don&#39;t Fragment&#34; bit when the original sender of the unencapsulated datagram has not set it (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2003-5.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -732,7 +741,173 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC2003-5.1-1, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 2003, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc2003.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>89b0add22ddc2311</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc2003.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>13</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>0</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.5</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<p>The walk over RFC 2003 declined no sentence: every site it found is mapped to a requirement.</p>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 2003, so its obligations are stated where they were written.</p>
@@ -766,7 +941,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 00:48 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

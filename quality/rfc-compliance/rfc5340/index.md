@@ -407,7 +407,138 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 5340, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc5340.txt |
+| Source fingerprint | 6bec6b95b48aaca3 |
+| Record | rfc/extraction/rfc5340.json |
+| Mapped sentences | 22 |
+| Declined as scope | 5 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `1.2` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 0 | walked | not stated |
+| `2.3` | not stated | 0 | walked | not stated |
+| `2.4` | not stated | 0 | walked | not stated |
+| `2.5` | not stated | 2 | walked | not stated |
+| `2.6` | not stated | 0 | walked | not stated |
+| `2.7` | not stated | 0 | walked | not stated |
+| `2.8` | not stated | 2 | walked | not stated |
+| `2.9` | not stated | 0 | walked | not stated |
+| `2.10` | not stated | 0 | walked | not stated |
+| `2.11` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `3.4` | not stated | 0 | walked | not stated |
+| `3.5` | not stated | 0 | walked | not stated |
+| `3.6` | not stated | 0 | walked | not stated |
+| `3.7` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 0 | walked | not stated |
+| `4.1.1` | not stated | 0 | walked | not stated |
+| `4.1.2` | not stated | 1 | walked | not stated |
+| `4.1.3` | not stated | 0 | walked | not stated |
+| `4.2` | not stated | 0 | walked | not stated |
+| `4.2.1` | not stated | 0 | walked | not stated |
+| `4.2.1.1` | not stated | 2 | walked | not stated |
+| `4.2.1.2` | not stated | 1 | walked | not stated |
+| `4.2.2` | not stated | 4 | walked | not stated |
+| `4.2.2.1` | not stated | 0 | walked | not stated |
+| `4.3` | not stated | 0 | walked | not stated |
+| `4.3.1` | not stated | 0 | walked | not stated |
+| `4.4` | not stated | 0 | walked | not stated |
+| `4.4.1` | not stated | 0 | walked | not stated |
+| `4.4.2` | not stated | 0 | walked | not stated |
+| `4.4.3` | not stated | 0 | walked | not stated |
+| `4.4.3.1` | not stated | 0 | walked | not stated |
+| `4.4.3.2` | not stated | 0 | walked | not stated |
+| `4.4.3.3` | not stated | 0 | walked | not stated |
+| `4.4.3.4` | not stated | 1 | walked | not stated |
+| `4.4.3.5` | not stated | 0 | walked | not stated |
+| `4.4.3.6` | not stated | 0 | walked | not stated |
+| `4.4.3.7` | not stated | 0 | walked | not stated |
+| `4.4.3.8` | not stated | 0 | walked | not stated |
+| `4.4.3.9` | not stated | 0 | walked | not stated |
+| `4.4.4` | not stated | 0 | walked | not stated |
+| `4.5` | not stated | 0 | walked | not stated |
+| `4.5.1` | not stated | 0 | walked | not stated |
+| `4.5.2` | not stated | 0 | walked | not stated |
+| `4.5.3` | not stated | 0 | walked | not stated |
+| `4.6` | not stated | 0 | walked | not stated |
+| `4.7` | not stated | 1 | walked | not stated |
+| `4.8` | not stated | 1 | walked | not stated |
+| `4.8.1` | not stated | 2 | walked | not stated |
+| `4.8.2` | not stated | 0 | walked | not stated |
+| `4.8.3` | not stated | 0 | walked | not stated |
+| `4.8.4` | not stated | 0 | walked | not stated |
+| `4.8.5` | not stated | 0 | walked | not stated |
+| `4.9` | not stated | 2 | walked | not stated |
+| `4.9.1` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+| `A` | not stated | 0 | walked | not stated |
+| `A.1` | not stated | 0 | walked | not stated |
+| `A.2` | not stated | 0 | walked | not stated |
+| `A.3` | not stated | 0 | walked | not stated |
+| `A.3.1` | not stated | 1 | walked | not stated |
+| `A.3.2` | not stated | 0 | walked | not stated |
+| `A.3.3` | not stated | 0 | walked | not stated |
+| `A.3.4` | not stated | 0 | walked | not stated |
+| `A.3.5` | not stated | 0 | walked | not stated |
+| `A.3.6` | not stated | 0 | walked | not stated |
+| `A.4` | not stated | 0 | walked | not stated |
+| `A.4.1` | not stated | 0 | walked | not stated |
+| `A.4.1.1` | not stated | 0 | walked | not stated |
+| `A.4.2` | not stated | 0 | walked | not stated |
+| `A.4.2.1` | not stated | 0 | walked | not stated |
+| `A.4.3` | not stated | 0 | walked | not stated |
+| `A.4.4` | not stated | 0 | walked | not stated |
+| `A.4.5` | not stated | 0 | walked | not stated |
+| `A.4.6` | not stated | 0 | walked | not stated |
+| `A.4.7` | not stated | 2 | walked | not stated |
+| `A.4.8` | not stated | 1 | walked | not stated |
+| `A.4.9` | not stated | 0 | walked | not stated |
+| `A.4.10` | not stated | 0 | walked | not stated |
+| `B` | not stated | 0 | walked | not stated |
+| `C` | not stated | 0 | walked | not stated |
+| `C.1` | not stated | 0 | walked | not stated |
+| `C.2` | not stated | 0 | walked | not stated |
+| `C.3` | not stated | 4 | walked | not stated |
+| `C.4` | not stated | 0 | walked | not stated |
+| `C.5` | not stated | 0 | walked | not stated |
+| `C.6` | not stated | 0 | walked | not stated |
+| `C.7` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `4.4.3.4:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the link-local advertisement ban restated for inter-area-prefix-LSAs, which the row already names as its Section 4.4.3.4 restatement | o The NU-bit in the PrefixOptions field should be clear. o Link-local addresses MUST never be advertised in inter-area- prefix-LSAs. |
+| `4.7:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the virtual link global-scope address rule restated in the virtual links section, which the row already names | o The IPv6 interface address of a virtual link MUST be an IPv6 address having global scope, instead of the link-local addresses used by other interface types. |
+| `4.8:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the aggregate router-LSA rule restated for the shortest-path calculation, which the row already names as its Section 4.8 reaffirmation | These router-LSAs MUST be treated as a single aggregate by the area's shortest-path calculation (see Section 4.8.1). |
+| `4.8.1:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the aggregate router-LSA rule restated in the SPF step for vertex V, which the row already names as its Section 4.8.1 reaffirmation | All router-LSAs with the Advertising Router set to V's OSPF Router ID MUST be processed as an aggregate, treating them as fragments of a single large router-LSA. |
+| `4.8.1:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the same aggregate router-LSA rule stated again for vertex W in the same SPF step | All router-LSAs with the Advertising Router set to W's OSPF Router ID MUST be processed as an aggregate, treating them as fragments of a single large router- LSA. |
 
 ## Superseded
 

@@ -122,7 +122,7 @@ Five MUST gaps annotated in [`rfc/short/rfc9136.md`](https://github.com/ze-softw
 | `RFC9136-3.2-2` | If no IGP or BGP route to BGP next hop of RT-5, MUST NOT install even if Overlay Index resolves (S3.2) | MUST NOT | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never installs RT-5 into a FIB/IP-VRF, so a next-hop-reachability install gate binds a role it does not play (internal/component/sysrib and internal/plugins/fib carry no EVPN handling) |
 | `RFC9136-3-1` | NVEs attached to different BDs of same tenant MUST support RT-5 for proper inter-subnet forwarding (S3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the requirement binds NVEs performing inter-subnet forwarding between broadcast domains; ze supports RT-5 on the wire but performs no such forwarding (internal/component/bgp/plugins/nlri/evpn/types.go:743) |
 | `RFC9136-3.2-3` | MAC address encoding MUST be 6-octet MAC address per IEEE 802.1Q (S3.2, Table 1) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this constrains the MAC inside the EVPN Router's MAC Extended Community (the optional MAC overlay-index feature), which ze does not implement or interpret |
-| `RFC9136-3.2-4` | Route MUST be treat as withdraw if MAC address is broadcast or multicast (S3.2, Table 1) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** detecting a broadcast/multicast MAC requires interpreting the Router's MAC Extended Community, an optional feature ze neither parses nor validates |
+| `RFC9136-3.2-4` | The route MUST be treat as withdraw in case of an invalid MAC address; broadcast and multicast MAC addresses are the examples the RFC gives (S3.2, Table 1) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** detecting an invalid MAC requires interpreting the Router's MAC Extended Community, an optional feature ze neither parses nor validates |
 | `RFC9136-3.1-10` | Label value SHOULD be zero if recursive resolution via Overlay Index is used (S3.1) | SHOULD | 3.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9136-3.2-5` | Route with non-zero GW IP and non-zero ESI simultaneously SHOULD be treat as withdraw (S3.2) | SHOULD | 3.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9136-3.2-6` | Route where ESI, GW IP, MAC, and Label are all zero SHOULD be treat as withdraw (S3.2) | SHOULD | 3.2 | **positive:** no positive test. **negative:** no negative test |
@@ -143,7 +143,7 @@ Five MUST gaps annotated in [`rfc/short/rfc9136.md`](https://github.com/ze-softw
 | [`RFC9136-3.2-2`](#rfc9136-3.2-2) If no IGP or BGP route to BGP next hop of RT-5, MUST NOT install even if Overlay Index resolves (S3.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never installs RT-5 into a FIB/IP-VRF, so a next-hop-reachability install gate binds a role it does not play (internal/component/sysrib and internal/plugins/fib carry no EVPN handling) |
 | [`RFC9136-3-1`](#rfc9136-3-1) NVEs attached to different BDs of same tenant MUST support RT-5 for proper inter-subnet forwarding (S3) | no test | no test carries this requirement id; annotated {not-applicable}: the requirement binds NVEs performing inter-subnet forwarding between broadcast domains; ze supports RT-5 on the wire but performs no such forwarding (internal/component/bgp/plugins/nlri/evpn/types.go:743) |
 | [`RFC9136-3.2-3`](#rfc9136-3.2-3) MAC address encoding MUST be 6-octet MAC address per IEEE 802.1Q (S3.2, Table 1) | no test | no test carries this requirement id; annotated {not-applicable}: this constrains the MAC inside the EVPN Router's MAC Extended Community (the optional MAC overlay-index feature), which ze does not implement or interpret |
-| [`RFC9136-3.2-4`](#rfc9136-3.2-4) Route MUST be treat as withdraw if MAC address is broadcast or multicast (S3.2, Table 1) | no test | no test carries this requirement id; annotated {not-applicable}: detecting a broadcast/multicast MAC requires interpreting the Router's MAC Extended Community, an optional feature ze neither parses nor validates |
+| [`RFC9136-3.2-4`](#rfc9136-3.2-4) The route MUST be treat as withdraw in case of an invalid MAC address; broadcast and multicast MAC addresses are the examples the RFC gives (S3.2, Table 1) | no test | no test carries this requirement id; annotated {not-applicable}: detecting an invalid MAC requires interpreting the Router's MAC Extended Community, an optional feature ze neither parses nor validates |
 
 ## Proof state
 
@@ -268,7 +268,7 @@ No test carries RFC9136-3.2-3, so no unit is bound to it.
 
 ### [`RFC9136-3.2-4`](#rfc9136-3.2-4)
 
-Route MUST be treat as withdraw if MAC address is broadcast or multicast (S3.2, Table 1)
+The route MUST be treat as withdraw in case of an invalid MAC address; broadcast and multicast MAC addresses are the examples the RFC gives (S3.2, Table 1)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -276,7 +276,51 @@ No test carries RFC9136-3.2-4, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 9136, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc9136.txt |
+| Source fingerprint | 3cd1f114ac072151 |
+| Record | rfc/extraction/rfc9136.json |
+| Mapped sentences | 13 |
+| Declined as scope | 1 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `3.1` | not stated | 9 | walked | not stated |
+| `3.2` | not stated | 4 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 0 | walked | not stated |
+| `4.2` | not stated | 0 | walked | not stated |
+| `4.3` | not stated | 0 | walked | not stated |
+| `4.4` | not stated | 0 | walked | not stated |
+| `4.4.1` | not stated | 0 | walked | not stated |
+| `4.4.2` | not stated | 0 | walked | not stated |
+| `4.4.3` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `7.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `3.1:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the all-zero-otherwise half of the ESI constraint the row already states: "ESI MUST be a non-zero 10-octet identifier if used as Overlay Index; MUST be all zeros otherwise" | It MUST be all bytes zero otherwise. |
 
 ## Superseded
 

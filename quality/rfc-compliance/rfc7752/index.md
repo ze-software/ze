@@ -425,7 +425,99 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 7752, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc7752.txt |
+| Source fingerprint | 6245dec342b27f9d |
+| Record | rfc/extraction/rfc7752.json |
+| Mapped sentences | 26 |
+| Declined as scope | 0 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 3 | walked | not stated |
+| `3.2` | not stated | 6 | walked | not stated |
+| `3.2.1` | not stated | 1 | walked | not stated |
+| `3.2.1.1` | not stated | 2 | walked | not stated |
+| `3.2.1.2` | not stated | 0 | walked | not stated |
+| `3.2.1.3` | not stated | 0 | walked | not stated |
+| `3.2.1.4` | not stated | 3 | walked | not stated |
+| `3.2.1.5` | not stated | 1 | walked | not stated |
+| `3.2.2` | not stated | 0 | walked | not stated |
+| `3.2.3` | not stated | 0 | walked | not stated |
+| `3.2.3.1` | not stated | 0 | walked | not stated |
+| `3.2.3.2` | not stated | 0 | walked | not stated |
+| `3.3` | not stated | 1 | walked | not stated |
+| `3.3.1` | not stated | 0 | walked | not stated |
+| `3.3.1.1` | not stated | 0 | walked | not stated |
+| `3.3.1.2` | not stated | 0 | walked | not stated |
+| `3.3.1.3` | not stated | 0 | walked | not stated |
+| `3.3.1.4` | not stated | 0 | walked | not stated |
+| `3.3.1.5` | not stated | 0 | walked | not stated |
+| `3.3.2` | not stated | 0 | walked | not stated |
+| `3.3.2.1` | not stated | 1 | walked | not stated |
+| `3.3.2.2` | not stated | 1 | walked | not stated |
+| `3.3.2.3` | not stated | 1 | walked | not stated |
+| `3.3.2.4` | not stated | 0 | walked | not stated |
+| `3.3.2.5` | not stated | 0 | walked | not stated |
+| `3.3.2.6` | not stated | 0 | walked | not stated |
+| `3.3.2.7` | not stated | 0 | walked | not stated |
+| `3.3.3` | not stated | 1 | walked | not stated |
+| `3.3.3.1` | not stated | 0 | walked | not stated |
+| `3.3.3.2` | not stated | 0 | walked | not stated |
+| `3.3.3.3` | not stated | 0 | walked | not stated |
+| `3.3.3.4` | not stated | 0 | walked | not stated |
+| `3.3.3.5` | not stated | 0 | walked | not stated |
+| `3.3.3.6` | not stated | 0 | walked | not stated |
+| `3.4` | not stated | 1 | walked | not stated |
+| `3.5` | not stated | 0 | walked | not stated |
+| `3.6` | not stated | 0 | walked | not stated |
+| `3.7` | not stated | 0 | walked | not stated |
+| `3.8` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 0 | walked | not stated |
+| `4.2` | not stated | 0 | walked | not stated |
+| `4.3` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `6.1.1` | not stated | 0 | walked | not stated |
+| `6.1.2` | not stated | 0 | walked | not stated |
+| `6.1.3` | not stated | 0 | walked | not stated |
+| `6.1.4` | not stated | 0 | walked | not stated |
+| `6.1.5` | not stated | 0 | walked | not stated |
+| `6.1.6` | not stated | 0 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+| `6.2.1` | not stated | 0 | walked | not stated |
+| `6.2.2` | not stated | 2 | walked | not stated |
+| `6.2.3` | not stated | 0 | walked | not stated |
+| `6.2.4` | not stated | 0 | walked | not stated |
+| `6.2.5` | not stated | 0 | walked | not stated |
+| `6.2.6` | not stated | 1 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 1 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+The walk over RFC 7752 declined no sentence: every site it found is mapped to a requirement.
 
 ## Superseded
 

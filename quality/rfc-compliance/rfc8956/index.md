@@ -219,7 +219,60 @@ No test carries RFC8956-5-1, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 8956, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc8956.txt |
+| Source fingerprint | 68a638fb8b5a0b2b |
+| Record | rfc/extraction/rfc8956.json |
+| Mapped sentences | 6 |
+| Declined as scope | 5 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 1 | walked | not stated |
+| `1` | not stated | 1 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 2 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 4 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `3.4` | not stated | 0 | walked | not stated |
+| `3.5` | not stated | 0 | walked | not stated |
+| `3.6` | not stated | 2 | walked | not stated |
+| `3.7` | not stated | 0 | walked | not stated |
+| `3.8` | not stated | 0 | walked | not stated |
+| `3.8.1` | not stated | 0 | walked | not stated |
+| `3.8.2` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `7` | not stated | 1 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.1.1` | not stated | 0 | walked | not stated |
+| `8.1.2` | not stated | 0 | walked | not stated |
+| `8.2` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `A` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF Trust boilerplate on the Simplified BSD License for extracted Code Components; it binds republication of the document, not any protocol behaviour. | Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License. |
+| `1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Scope statement in the Introduction. 'the delta changes required to support IPv6' is lowercase and describes what this document contains, not an obligation on an implementation. | It only defines the delta changes required to support IPv6, while all other definitions and operation mechanisms of "Dissemination of Flow Specification Rules" will remain in the main specification and will not be repeated here. |
+| `3.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Rationale for the offset field: 'where one is required to skip over the first N bits' is lowercase and explains why the field exists. | The offset has been defined to allow for flexible matching to portions of an IPv6 address where one is required to skip over the first N bits of the address. |
+| `3.1:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Field definition of 'padding' in the Section 3.1 encoding list: it states how many bits the field holds. The obligation on those bits is the next sentence, site 3.1:3. | padding: This contains the minimum number of bits required to pad the component to an octet boundary. |
+| `7:1` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The 'first fragment must include the upper-layer header' obligation is Section 4.5 of RFC 8200, addressed to the packet's source. RFC 8956 cites it only to explain why a Type 3 component cannot be enforced on malformed packets. | [RFC7112] describes the impact of oversized IPv6 header chains when trying to match on the transport header; Section 4.5 of [RFC8200] also requires that the first fragment must include the upper-layer header, but there could be wrongly formatted packets not respecting [RFC8200]. |
 
 ## Superseded
 

@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 43.9% | 29 of 66 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 13.6% | 9 of 66 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 66 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 38.7% | 29 of 75 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 12.0% | 9 of 75 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 75 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 8.9% | 9 of 101 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 66 | of 91 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 6 | of 66 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 9.1% | 6 of 66 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 66 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 66 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 75 | of 100 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 6 | of 75 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 8.0% | 6 of 75 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 75 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 75 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 33.3% | 22 of 66 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 41.3% | 31 of 75 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 66 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 75 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 91 |
-| Gated MUST-level | 66 |
+| Requirements | 100 |
+| Gated MUST-level | 75 |
 | Not applicable, so out of scope | 6 |
 | Declared gaps | 22 |
-| Gated with no test | 0 |
+| Gated with no test | 9 |
 | Nightly-only evidence | 0 |
 | Test tags | 101 |
 | Tagged units | 101 |
@@ -75,7 +75,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: PPP LCP (RFC 1661): 27 MET (Protocol-field parity, LCP-first bring-up, per-family NCP configuration, auth requested in Link Establishment, no network phase before auth completes, Configure-Request replies, verbatim Configure-Ack echo, Nak value substitution and ordering, Configure-Reject contents and ordering, differing Nak option length, Terminate-Ack, Code-Reject, Echo-Reply only in Opened, silent Discard-Request, Magic-Number accept/zero-refuse/echo, two-octet Protocol field) + 6 single-polarity positive (LCP sent first, network-layer packets dropped before the NCP opens, no disconnect after Terminate-Ack, new Configure-Request accepted after RTR, one Auth-Protocol option, never compresses the Protocol field) + 24 gap (no send-side negotiated-MRU clamp, no LCP-phase gate on the frame dispatcher, no Protocol-Reject sender or RXJ+ suppression, constant Configure-Request Identifier and no last-sent-request record so Ack/Nak/Reject Identifier and option matching are unchecked, Code-Reject Identifier echoed, no single-octet Protocol parsing, no configurable Restart timer / Max-Terminate / Max-Configure / Max-Failure, zrc no-op) + 8 not-applicable (no link-quality protocol, no multi-instance LCP option, no Protocol-Reject or Discard-Request sender, no HDLC Address/Control framing, no Restart-timer backoff)
+Enrolled: PPP LCP (RFC 1661): 27 MET (Protocol-field parity, LCP-first bring-up, per-family NCP configuration, auth requested in Link Establishment, no network phase before auth completes, Configure-Request replies, verbatim Configure-Ack echo, Nak value substitution and ordering, Configure-Reject contents and ordering, differing Nak option length, Terminate-Ack, Code-Reject, Echo-Reply only in Opened, silent Discard-Request, Magic-Number accept/zero-refuse/echo, two-octet Protocol field) + 6 single-polarity positive (LCP sent first, network-layer packets dropped before the NCP opens, no disconnect after Terminate-Ack, new Configure-Request accepted after RTR, one Auth-Protocol option, never compresses the Protocol field) + 24 gap (no send-side negotiated-MRU clamp, no LCP-phase gate on the frame dispatcher, no Protocol-Reject sender or RXJ+ suppression, constant Configure-Request Identifier and no last-sent-request record so Ack/Nak/Reject Identifier and option matching are unchecked, Code-Reject Identifier echoed, no single-octet Protocol parsing, no configurable Restart timer / Max-Terminate / Max-Configure / Max-Failure, zrc no-op) + 8 not-applicable (no link-quality protocol, no multi-instance LCP option, no Protocol-Reject or Discard-Request sender, no HDLC Address/Control framing, no Restart-timer backoff) + 9 added by the 2026-09-21 extraction walk from sentences this summary did not carry, none of them tested (Terminate and Echo Identifier change RFC1661-5.5-2 and 5.8-4, the zero Magic-Number before negotiation RFC1661-5.8-5, the Discard-Request Identifier RFC1661-5.9-3, the 1500-octet receive floor RFC1661-6.1-1, and the four Magic-Number obligations RFC1661-6.4-5 through 6.4-8)
 
 ## What the public ledger says
 
@@ -87,7 +87,7 @@ The full ten-state RFC 1661 Section 4.1 option-negotiation automaton, LCP packet
 
 **What the ledger says remains**
 
-Carries the L2TP and PPPoE Partial status. Twenty-two MUST gaps gated in [`rfc/short/rfc1661.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc1661.md): (1) no send-side clamp to a negotiated peer MRU, so frame and LCP Length bounds come from the fixed 1500-octet buffer ([`RFC1661-2-2`](#rfc1661-2-2), 5-1, 5.6-3); (2) the frame dispatcher has no LCP-phase gate and buffers early NCP frames instead of discarding out-of-phase packets ([`RFC1661-3.4-1`](#rfc1661-3.4-1), 3.5-4, 3.7-2); (3) a received Protocol-Reject suppresses no packet type on RXJ+ ([`RFC1661-4.3-3`](#rfc1661-4.3-3), 5.7-2); (4) Configure-Request carries a constant Identifier and ze keeps no record of its last transmitted request, so Configure-Ack/Nak/Reject Identifier and option matching are unchecked and a rejected MRU or Magic-Number option reappears ([`RFC1661-5.1-3`](#rfc1661-5.1-3), 5.2-3, 5.2-4, 5.3-7, 5.4-3, 5.4-4, 5.4-5); (5) Code-Reject echoes the offending Identifier ([`RFC1661-5.6-2`](#rfc1661-5.6-2)); (6) a single-octet Protocol field is refused even with PFC negotiated ([`RFC1661-6.5-3`](#rfc1661-6.5-3)); (7) the Restart timer, Max-Terminate, Max-Configure and Max-Failure are not configurable and zrc is a no-op ([`RFC1661-4.6-1`](#rfc1661-4.6-1), 4.6-2, 4.6-3, 4.6-4, 4.4-2).
+Carries the L2TP and PPPoE Partial status. Twenty-two MUST gaps gated in [`rfc/short/rfc1661.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc1661.md): (1) no send-side clamp to a negotiated peer MRU, so frame and LCP Length bounds come from the fixed 1500-octet buffer ([`RFC1661-2-2`](#rfc1661-2-2), 5-1, 5.6-3); (2) the frame dispatcher has no LCP-phase gate and buffers early NCP frames instead of discarding out-of-phase packets ([`RFC1661-3.4-1`](#rfc1661-3.4-1), 3.5-4, 3.7-2); (3) a received Protocol-Reject suppresses no packet type on RXJ+ ([`RFC1661-4.3-3`](#rfc1661-4.3-3), 5.7-2); (4) Configure-Request carries a constant Identifier and ze keeps no record of its last transmitted request, so Configure-Ack/Nak/Reject Identifier and option matching are unchecked and a rejected MRU or Magic-Number option reappears ([`RFC1661-5.1-3`](#rfc1661-5.1-3), 5.2-3, 5.2-4, 5.3-7, 5.4-3, 5.4-4, 5.4-5); (5) Code-Reject echoes the offending Identifier ([`RFC1661-5.6-2`](#rfc1661-5.6-2)); (6) a single-octet Protocol field is refused even with PFC negotiated ([`RFC1661-6.5-3`](#rfc1661-6.5-3)); (7) the Restart timer, Max-Terminate, Max-Configure and Max-Failure are not configurable and zrc is a no-op ([`RFC1661-4.6-1`](#rfc1661-4.6-1), 4.6-2, 4.6-3, 4.6-4, 4.4-2). Nine further MUST rows were added by the 2026-09-21 extraction walk and none is tested: the Identifier-change rule on Terminate, Echo and Discard packets ([`RFC1661-5.5-2`](#rfc1661-5.5-2), 5.8-4, 5.9-3), the zero Magic-Number required before the option is negotiated ([`RFC1661-5.8-5`](#rfc1661-5.8-5)), the obligation to receive a full 1500-octet information field whatever MRU was requested ([`RFC1661-6.1-1`](#rfc1661-6.1-1)), and the Magic-Number choice, loopback Configure-Nak, re-choice and received-value rules ([`RFC1661-6.4-5`](#rfc1661-6.4-5), 6.4-6, 6.4-7, 6.4-8).
 
 ## Coverage
 
@@ -96,14 +96,16 @@ Carries the L2TP and PPPoE Partial status. Twenty-two MUST gaps gated in [`rfc/s
 | Positive and negative tests | 29 | one part of the gated population |
 | Annotated instead of tested | 37 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 9 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **66** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **75** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (29):** [`RFC1661-2-1`](#rfc1661-2-1), [`RFC1661-6-2`](#rfc1661-6-2), [`RFC1661-3.1-2`](#rfc1661-3.1-2), [`RFC1661-3.5-1`](#rfc1661-3.5-1), [`RFC1661-3.5-3`](#rfc1661-3.5-3), [`RFC1661-3.6-1`](#rfc1661-3.6-1), [`RFC1661-3.6-3`](#rfc1661-3.6-3), [`RFC1661-4.3-1`](#rfc1661-4.3-1), [`RFC1661-5.1-1`](#rfc1661-5.1-1), [`RFC1661-5.1-2`](#rfc1661-5.1-2), [`RFC1661-5.2-1`](#rfc1661-5.2-1), [`RFC1661-5.2-2`](#rfc1661-5.2-2), [`RFC1661-5.3-1`](#rfc1661-5.3-1), [`RFC1661-5.3-2`](#rfc1661-5.3-2), [`RFC1661-5.3-3`](#rfc1661-5.3-3), [`RFC1661-5.3-5`](#rfc1661-5.3-5), [`RFC1661-5.3-6`](#rfc1661-5.3-6), [`RFC1661-5.3-8`](#rfc1661-5.3-8), [`RFC1661-5.4-1`](#rfc1661-5.4-1), [`RFC1661-5.4-2`](#rfc1661-5.4-2), [`RFC1661-5.5-1`](#rfc1661-5.5-1), [`RFC1661-5.6-1`](#rfc1661-5.6-1), [`RFC1661-5.7-1`](#rfc1661-5.7-1), [`RFC1661-5.7-4`](#rfc1661-5.7-4), [`RFC1661-5.8-1`](#rfc1661-5.8-1), [`RFC1661-5.8-2`](#rfc1661-5.8-2), [`RFC1661-6.4-1`](#rfc1661-6.4-1), [`RFC1661-6.4-2`](#rfc1661-6.4-2), [`RFC1661-6.4-3`](#rfc1661-6.4-3)
 
 **Annotated instead of tested (37):** [`RFC1661-2-2`](#rfc1661-2-2), [`RFC1661-5-1`](#rfc1661-5-1), [`RFC1661-3.1-1`](#rfc1661-3.1-1), [`RFC1661-3.4-1`](#rfc1661-3.4-1), [`RFC1661-3.5-2`](#rfc1661-3.5-2), [`RFC1661-3.5-4`](#rfc1661-3.5-4), [`RFC1661-3.6-2`](#rfc1661-3.6-2), [`RFC1661-3.7-1`](#rfc1661-3.7-1), [`RFC1661-3.7-2`](#rfc1661-3.7-2), [`RFC1661-4.3-2`](#rfc1661-4.3-2), [`RFC1661-4.3-3`](#rfc1661-4.3-3), [`RFC1661-5.1-3`](#rfc1661-5.1-3), [`RFC1661-5.2-3`](#rfc1661-5.2-3), [`RFC1661-5.2-4`](#rfc1661-5.2-4), [`RFC1661-5.3-4`](#rfc1661-5.3-4), [`RFC1661-5.3-7`](#rfc1661-5.3-7), [`RFC1661-5.4-3`](#rfc1661-5.4-3), [`RFC1661-5.4-4`](#rfc1661-5.4-4), [`RFC1661-5.4-5`](#rfc1661-5.4-5), [`RFC1661-5.6-2`](#rfc1661-5.6-2), [`RFC1661-5.6-3`](#rfc1661-5.6-3), [`RFC1661-5.7-2`](#rfc1661-5.7-2), [`RFC1661-5.7-3`](#rfc1661-5.7-3), [`RFC1661-5.9-1`](#rfc1661-5.9-1), [`RFC1661-5.9-2`](#rfc1661-5.9-2), [`RFC1661-6.2-1`](#rfc1661-6.2-1), [`RFC1661-6.5-1`](#rfc1661-6.5-1), [`RFC1661-6.5-2`](#rfc1661-6.5-2), [`RFC1661-6.5-3`](#rfc1661-6.5-3), [`RFC1661-6.6-1`](#rfc1661-6.6-1), [`RFC1661-6.6-2`](#rfc1661-6.6-2), [`RFC1661-4.6-1`](#rfc1661-4.6-1), [`RFC1661-4.6-2`](#rfc1661-4.6-2), [`RFC1661-4.6-3`](#rfc1661-4.6-3), [`RFC1661-4.6-4`](#rfc1661-4.6-4), [`RFC1661-4.4-1`](#rfc1661-4.4-1), [`RFC1661-4.4-2`](#rfc1661-4.4-2)
+
+**No test and no annotation (9):** [`RFC1661-5.5-2`](#rfc1661-5.5-2), [`RFC1661-5.8-4`](#rfc1661-5.8-4), [`RFC1661-5.8-5`](#rfc1661-5.8-5), [`RFC1661-5.9-3`](#rfc1661-5.9-3), [`RFC1661-6.1-1`](#rfc1661-6.1-1), [`RFC1661-6.4-5`](#rfc1661-6.4-5), [`RFC1661-6.4-6`](#rfc1661-6.4-6), [`RFC1661-6.4-7`](#rfc1661-6.4-7), [`RFC1661-6.4-8`](#rfc1661-6.4-8)
 
 ## Requirements
 
@@ -176,6 +178,15 @@ Carries the L2TP and PPPoE Partial status. Twenty-two MUST gaps gated in [`rfc/s
 | `RFC1661-4.6-4` | Max-Failure must be configurable (Section 4.6) | MUST | 4.6 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze counts no Configure-Naks sent; sendConfigureNakOrReject (internal/component/l2tp/ppp/session_run.go) picks Nak or Reject from the LCPNakOrReject verdict over NegotiatePeerOptions output on each request, so there is no Max-Failure value to configure and no threshold that converts a Nak into a Reject. Disclosed in docs/features/rfc-status.md |
 | `RFC1661-4.4-1` | On irc action, timeout period must be reset to initial value when backoff is used (Section 4.4) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze applies no Restart timer backoff. The retransmission timer is a fixed-interval ticker, time.NewTicker(3 * time.Second) at internal/component/l2tp/ppp/session_run.go:217, with no growing timeout value, so the condition "when Restart timer backoff is used" never holds |
 | `RFC1661-4.4-2` | On zrc action, timeout period must be set to appropriate value (Section 4.4) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** performAction treats LCPActZRC as a no-op (internal/component/l2tp/ppp/session_run.go), so the Opened+RTR edge that prescribes zrc (internal/component/l2tp/ppp/ppp_fsm.go:393-394) neither zeroes a Restart counter nor sets a timeout period. Disclosed in docs/features/rfc-status.md |
+| `RFC1661-5.5-2` | On transmission of a Terminate-Request or Terminate-Ack, "the Identifier field MUST be changed whenever the content of the Data field changes, and whenever a valid reply has been received for a previous request" (Section 5.5) | MUST | 5.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1661-5.8-4` | On transmission of an Echo-Request or Echo-Reply, "the Identifier field MUST be changed whenever the content of the Data field changes, and whenever a valid reply has been received for a previous request" (Section 5.8) | MUST | 5.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1661-5.8-5` | In Echo-Request, Echo-Reply and Discard-Request packets, "Until the Magic-Number Configuration Option has been successfully negotiated, the Magic-Number MUST be transmitted as zero" (Section 5.8) | MUST | 5.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1661-5.9-3` | "The Identifier field MUST be changed for each Discard-Request sent." (Section 5.9) | MUST | 5.9 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1661-6.1-1` | "If smaller packets are requested, an implementation MUST still be able to receive the full 1500 octet information field in case link synchronization is lost." (Section 6.1) | MUST | 6.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1661-6.4-5` | "Before this Configuration Option is requested, an implementation MUST choose its Magic-Number." (Section 6.4) | MUST | 6.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1661-6.4-6` | When a Configure-Request carries a Magic-Number equal to the one last sent to the peer, "a Configure-Nak MUST be sent specifying a different Magic-Number value" (Section 6.4) | MUST | 6.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1661-6.4-7` | "If the Magic-Number is equal to the one sent in the last Configure-Nak, the possibility of a looped-back link is increased, and a new Magic-Number MUST be chosen." (Section 6.4) | MUST | 6.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1661-6.4-8` | "All received Magic-Number fields MUST be equal to either zero or the peer's unique Magic-Number, depending on whether or not the peer negotiated a Magic-Number." (Section 6.4) | MUST | 6.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC1661-4.6-5` | Restart timer should default to 3 seconds (Section 4.6) | SHOULD | 4.6 | **positive:** no positive test. **negative:** no negative test |
 | `RFC1661-4.6-6` | Max-Terminate should default to 2 transmissions (Section 4.6) | SHOULD | 4.6 | **positive:** no positive test. **negative:** no negative test |
 | `RFC1661-4.6-7` | Max-Configure should default to 10 transmissions (Section 4.6) | SHOULD | 4.6 | **positive:** no positive test. **negative:** no negative test |
@@ -233,6 +244,15 @@ Carries the L2TP and PPPoE Partial status. Twenty-two MUST gaps gated in [`rfc/s
 | [`RFC1661-4.6-4`](#rfc1661-4.6-4) Max-Failure must be configurable (Section 4.6) | {gap}, no test | ze counts no Configure-Naks sent; sendConfigureNakOrReject (internal/component/l2tp/ppp/session_run.go) picks Nak or Reject from the LCPNakOrReject verdict over NegotiatePeerOptions output on each request, so there is no Max-Failure value to configure and no threshold that converts a Nak into a Reject. Disclosed in docs/features/rfc-status.md |
 | [`RFC1661-4.4-1`](#rfc1661-4.4-1) On irc action, timeout period must be reset to initial value when backoff is used (Section 4.4) | no test | no test carries this requirement id; annotated {not-applicable}: ze applies no Restart timer backoff. The retransmission timer is a fixed-interval ticker, time.NewTicker(3 * time.Second) at internal/component/l2tp/ppp/session_run.go:217, with no growing timeout value, so the condition "when Restart timer backoff is used" never holds |
 | [`RFC1661-4.4-2`](#rfc1661-4.4-2) On zrc action, timeout period must be set to appropriate value (Section 4.4) | {gap}, no test | performAction treats LCPActZRC as a no-op (internal/component/l2tp/ppp/session_run.go), so the Opened+RTR edge that prescribes zrc (internal/component/l2tp/ppp/ppp_fsm.go:393-394) neither zeroes a Restart counter nor sets a timeout period. Disclosed in docs/features/rfc-status.md |
+| [`RFC1661-5.5-2`](#rfc1661-5.5-2) On transmission of a Terminate-Request or Terminate-Ack, "the Identifier field MUST be changed whenever the content of the Data field changes, and whenever a valid reply has been received for a previous request" (Section 5.5) | no test | no test carries this requirement id |
+| [`RFC1661-5.8-4`](#rfc1661-5.8-4) On transmission of an Echo-Request or Echo-Reply, "the Identifier field MUST be changed whenever the content of the Data field changes, and whenever a valid reply has been received for a previous request" (Section 5.8) | no test | no test carries this requirement id |
+| [`RFC1661-5.8-5`](#rfc1661-5.8-5) In Echo-Request, Echo-Reply and Discard-Request packets, "Until the Magic-Number Configuration Option has been successfully negotiated, the Magic-Number MUST be transmitted as zero" (Section 5.8) | no test | no test carries this requirement id |
+| [`RFC1661-5.9-3`](#rfc1661-5.9-3) "The Identifier field MUST be changed for each Discard-Request sent." (Section 5.9) | no test | no test carries this requirement id |
+| [`RFC1661-6.1-1`](#rfc1661-6.1-1) "If smaller packets are requested, an implementation MUST still be able to receive the full 1500 octet information field in case link synchronization is lost." (Section 6.1) | no test | no test carries this requirement id |
+| [`RFC1661-6.4-5`](#rfc1661-6.4-5) "Before this Configuration Option is requested, an implementation MUST choose its Magic-Number." (Section 6.4) | no test | no test carries this requirement id |
+| [`RFC1661-6.4-6`](#rfc1661-6.4-6) When a Configure-Request carries a Magic-Number equal to the one last sent to the peer, "a Configure-Nak MUST be sent specifying a different Magic-Number value" (Section 6.4) | no test | no test carries this requirement id |
+| [`RFC1661-6.4-7`](#rfc1661-6.4-7) "If the Magic-Number is equal to the one sent in the last Configure-Nak, the possibility of a looped-back link is increased, and a new Magic-Number MUST be chosen." (Section 6.4) | no test | no test carries this requirement id |
+| [`RFC1661-6.4-8`](#rfc1661-6.4-8) "All received Magic-Number fields MUST be equal to either zero or the peer's unique Magic-Number, depending on whether or not the peer negotiated a Magic-Number." (Section 6.4) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -914,9 +934,148 @@ Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC1661-4.4-2, so no unit is bound to it.
 
+### [`RFC1661-5.5-2`](#rfc1661-5.5-2)
+
+On transmission of a Terminate-Request or Terminate-Ack, "the Identifier field MUST be changed whenever the content of the Data field changes, and whenever a valid reply has been received for a previous request" (Section 5.5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC1661-5.5-2, so no unit is bound to it.
+
+### [`RFC1661-5.8-4`](#rfc1661-5.8-4)
+
+On transmission of an Echo-Request or Echo-Reply, "the Identifier field MUST be changed whenever the content of the Data field changes, and whenever a valid reply has been received for a previous request" (Section 5.8)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC1661-5.8-4, so no unit is bound to it.
+
+### [`RFC1661-5.8-5`](#rfc1661-5.8-5)
+
+In Echo-Request, Echo-Reply and Discard-Request packets, "Until the Magic-Number Configuration Option has been successfully negotiated, the Magic-Number MUST be transmitted as zero" (Section 5.8)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC1661-5.8-5, so no unit is bound to it.
+
+### [`RFC1661-5.9-3`](#rfc1661-5.9-3)
+
+"The Identifier field MUST be changed for each Discard-Request sent." (Section 5.9)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC1661-5.9-3, so no unit is bound to it.
+
+### [`RFC1661-6.1-1`](#rfc1661-6.1-1)
+
+"If smaller packets are requested, an implementation MUST still be able to receive the full 1500 octet information field in case link synchronization is lost." (Section 6.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC1661-6.1-1, so no unit is bound to it.
+
+### [`RFC1661-6.4-5`](#rfc1661-6.4-5)
+
+"Before this Configuration Option is requested, an implementation MUST choose its Magic-Number." (Section 6.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC1661-6.4-5, so no unit is bound to it.
+
+### [`RFC1661-6.4-6`](#rfc1661-6.4-6)
+
+When a Configure-Request carries a Magic-Number equal to the one last sent to the peer, "a Configure-Nak MUST be sent specifying a different Magic-Number value" (Section 6.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC1661-6.4-6, so no unit is bound to it.
+
+### [`RFC1661-6.4-7`](#rfc1661-6.4-7)
+
+"If the Magic-Number is equal to the one sent in the last Configure-Nak, the possibility of a looped-back link is increased, and a new Magic-Number MUST be chosen." (Section 6.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC1661-6.4-7, so no unit is bound to it.
+
+### [`RFC1661-6.4-8`](#rfc1661-6.4-8)
+
+"All received Magic-Number fields MUST be equal to either zero or the peer's unique Magic-Number, depending on whether or not the peer negotiated a Magic-Number." (Section 6.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC1661-6.4-8, so no unit is bound to it.
+
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 1661, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc1661.txt |
+| Source fingerprint | 2547412836baf372 |
+| Record | rfc/extraction/rfc1661.json |
+| Mapped sentences | 73 |
+| Declined as scope | 9 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 3 | walked | not stated |
+| `1.2` | not stated | 0 | walked | not stated |
+| `2` | not stated | 4 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 2 | walked | not stated |
+| `3.2` | not stated | 1 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `3.4` | not stated | 1 | walked | not stated |
+| `3.5` | not stated | 4 | walked | not stated |
+| `3.6` | not stated | 3 | walked | not stated |
+| `3.7` | not stated | 2 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 0 | walked | not stated |
+| `4.2` | not stated | 0 | walked | not stated |
+| `4.3` | not stated | 3 | walked | not stated |
+| `4.4` | not stated | 2 | walked | not stated |
+| `4.5` | not stated | 0 | walked | not stated |
+| `4.6` | not stated | 4 | walked | not stated |
+| `5` | not stated | 1 | walked | not stated |
+| `5.1` | not stated | 3 | walked | not stated |
+| `5.2` | not stated | 4 | walked | not stated |
+| `5.3` | not stated | 8 | walked | not stated |
+| `5.4` | not stated | 5 | walked | not stated |
+| `5.5` | not stated | 2 | walked | not stated |
+| `5.6` | not stated | 3 | walked | not stated |
+| `5.7` | not stated | 4 | walked | not stated |
+| `5.8` | not stated | 4 | walked | not stated |
+| `5.9` | not stated | 4 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 1 | walked | not stated |
+| `6.2` | not stated | 1 | walked | not stated |
+| `6.3` | not stated | 0 | walked | not stated |
+| `6.4` | not stated | 8 | walked | not stated |
+| `6.5` | not stated | 3 | walked | not stated |
+| `6.6` | not stated | 2 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `1.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 1.1 'Specification of Requirements' defines the keyword MUST itself. The capitalised word is the term being defined, not an obligation on an implementation. | MUST This word, or the adjective "required", means that the definition is an absolute requirement of the specification. |
+| `1.1:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 1.1 'Specification of Requirements' defines the phrase MUST NOT itself. The capitalised words are the term being defined, not an obligation on an implementation. | MUST NOT This phrase means that the definition is an absolute prohibition of the specification. |
+| `1.1:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Part of the Section 1.1 definition of MAY: it states what the word 'optional' means for a reader of this document. The interoperation obligation it describes is discharged by the option-by-option rows, not by this definition. | An implementation which does not include this option MUST be prepared to interoperate with another implementation which does include the option. |
+| `2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The second half of the same Protocol-field parity rule, which the mapped row states in full: odd least-significant octet, even most-significant octet. | Also, all Protocols MUST be assigned such that the least significant bit of the most significant octet equals "0". |
+| `2:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The receive-side consequence of the same parity rule, which the mapped row carries: a frame failing the rule is treated as an unrecognized Protocol. | Frames received which don't comply with these rules MUST be treated as having an unrecognized Protocol. |
+| `2:4` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Addressed to whoever defines a NEW PPP protocol number, as a registration action with IANA. Ze defines no new PPP protocol: internal/component/l2tp/pppoe and the LCP code speak the numbers this document and its successors already assign. The producer would be the developer of a new PPP protocol, who registers with IANA and is not a Ze code path. | Developers of new protocols MUST obtain a number from the Internet Assigned Numbers Authority (IANA), at IANA@isi.edu. |
+| `3.2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Introduces the phase descriptions that follow ('Not all transitions are specified in this diagram. The following semantics MUST be followed.'). It states no obligation of its own; every phase obligation is carried at its own site in Sections 3.4 to 3.7. | The following semantics MUST be followed. |
+| `5.9:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The identical sentence appears under Echo-Request/Echo-Reply and under Discard-Request; the mapped row covers all three packet types. | Until the Magic-Number Configuration Option has been successfully negotiated, the Magic- Number MUST be transmitted as zero. |
+| `6.4:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the preceding sentence: an implementation that uses Magic Numbers must let its peer use them, which is the ban on Configure-Reject the mapped row carries. | That is, if an implementation desires to use Magic Numbers, then it MUST also allow its peer to do so. |
 
 ## Superseded
 

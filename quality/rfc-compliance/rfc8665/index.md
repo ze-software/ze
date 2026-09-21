@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 59.6% | 28 of 47 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 10.6% | 5 of 47 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 47 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 58.3% | 28 of 48 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 10.4% | 5 of 48 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 48 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 0.0% | 0 of 61 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 47 | of 82 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 47 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 47 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 47 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 47 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 48 | of 83 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 48 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 48 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 48 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 48 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 29.8% | 14 of 47 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 31.2% | 15 of 48 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 47 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 48 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 82 |
-| Gated MUST-level | 47 |
+| Requirements | 83 |
+| Gated MUST-level | 48 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 14 |
-| Gated with no test | 0 |
+| Gated with no test | 1 |
 | Nightly-only evidence | 0 |
 | Test tags | 61 |
 | Tagged units | 61 |
@@ -98,7 +98,7 @@ Fourteen MUST gaps, each annotated in [`rfc/short/rfc8665.md`](https://github.co
 
 - **Multi-LSA capability resolution:** [`RFC8665-3.1-4`](#rfc8665-3.1-4), 3.1-5, 3.4-2, 3.4-3 (no flooding-scope or Instance-ID tie-break across RI LSAs; the last LSA read wins, [`internal/plugins/ospf/sr_install.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_install.go), and the received SRMS preference is decoded but unused).
 - **Overlapping received ranges:** [`RFC8665-3.2-8`](#rfc8665-3.2-8) (concatenated with no overlap detection, [`internal/plugins/ospf/sr.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr.go)).
-- **SR Mapping Server and prefix ranges:** [`RFC8665-4-1`](#rfc8665-4-1), 4-2, 4-3, 7.1-1, 7.1-2, 7.1-3 (ze originates no IPv4 Extended Prefix Range TLV; the value encoder at [`internal/plugins/ospf/sr/codec.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/codec.go) has no ABR caller, so the IA-Flag is never set and the Range Size capacity rule is unenforced). ABR / ASBR Prefix-SID flags and inter-area propagation: [`RFC8665-5-8`](#rfc8665-5-8), 5-9, 7.2-1 (the IPv4 Prefix-SID builder copies the configured NP/E flags and advertises only locally configured prefixes, [`internal/plugins/ospf/sr.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr.go); the equivalent rules exist only for IPv6 at [`internal/plugins/ospf/sr_interarea_v6.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_interarea_v6.go)). The feature also remains pre-production pending hardening and deployment evidence.
+- **SR Mapping Server and prefix ranges:** [`RFC8665-4-1`](#rfc8665-4-1), 4-2, 4-3, 7.1-1, 7.1-2, 7.1-3 (ze originates no IPv4 Extended Prefix Range TLV; the value encoder at [`internal/plugins/ospf/sr/codec.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/codec.go) has no ABR caller, so the IA-Flag is never set and the Range Size capacity rule is unenforced). ABR / ASBR Prefix-SID flags and inter-area propagation: [`RFC8665-5-8`](#rfc8665-5-8), 5-9, 7.2-1 (the IPv4 Prefix-SID builder copies the configured NP/E flags and advertises only locally configured prefixes, [`internal/plugins/ospf/sr.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr.go); the equivalent rules exist only for IPv6 at [`internal/plugins/ospf/sr_interarea_v6.go`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr_interarea_v6.go)). The feature also remains pre-production pending hardening and deployment evidence. The 2026-09-21 extraction walk added [`RFC8665-3.2-14`](#rfc8665-3.2-14), the reception half of the seven "Reserved: SHOULD be set to 0 on transmission and MUST be ignored on reception" field descriptions, which the checklist had carried only as the transmission-side SHOULD ([`RFC8665-3.2-9`](#rfc8665-3.2-9)); that MUST carries no test yet and is unannotated, because an annotation on a row is the owner's to write.
 
 ## Coverage
 
@@ -107,14 +107,16 @@ Fourteen MUST gaps, each annotated in [`rfc/short/rfc8665.md`](https://github.co
 | Positive and negative tests | 28 | one part of the gated population |
 | Annotated instead of tested | 19 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 1 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **47** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **48** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (28):** [`RFC8665-3.1-1`](#rfc8665-3.1-1), [`RFC8665-3.1-3`](#rfc8665-3.1-3), [`RFC8665-3.2-1`](#rfc8665-3.2-1), [`RFC8665-3.2-2`](#rfc8665-3.2-2), [`RFC8665-3.2-3`](#rfc8665-3.2-3), [`RFC8665-3.2-6`](#rfc8665-3.2-6), [`RFC8665-3.2-7`](#rfc8665-3.2-7), [`RFC8665-3.3-1`](#rfc8665-3.3-1), [`RFC8665-3.3-2`](#rfc8665-3.3-2), [`RFC8665-3.3-3`](#rfc8665-3.3-3), [`RFC8665-3.3-4`](#rfc8665-3.3-4), [`RFC8665-3.4-1`](#rfc8665-3.4-1), [`RFC8665-5-1`](#rfc8665-5-1), [`RFC8665-5-2`](#rfc8665-5-2), [`RFC8665-5-3`](#rfc8665-5-3), [`RFC8665-5-4`](#rfc8665-5-4), [`RFC8665-5-5`](#rfc8665-5-5), [`RFC8665-5-6`](#rfc8665-5-6), [`RFC8665-5-7`](#rfc8665-5-7), [`RFC8665-5-10`](#rfc8665-5-10), [`RFC8665-5-11`](#rfc8665-5-11), [`RFC8665-5-12`](#rfc8665-5-12), [`RFC8665-5-13`](#rfc8665-5-13), [`RFC8665-6.1-1`](#rfc8665-6.1-1), [`RFC8665-7.4.1-1`](#rfc8665-7.4.1-1), [`RFC8665-10-1`](#rfc8665-10-1), [`RFC8665-9-1`](#rfc8665-9-1), [`RFC8665-3.1-7`](#rfc8665-3.1-7)
 
 **Annotated instead of tested (19):** [`RFC8665-3.1-2`](#rfc8665-3.1-2), [`RFC8665-3.1-4`](#rfc8665-3.1-4), [`RFC8665-3.1-5`](#rfc8665-3.1-5), [`RFC8665-3.2-4`](#rfc8665-3.2-4), [`RFC8665-3.2-5`](#rfc8665-3.2-5), [`RFC8665-3.2-8`](#rfc8665-3.2-8), [`RFC8665-3.4-2`](#rfc8665-3.4-2), [`RFC8665-3.4-3`](#rfc8665-3.4-3), [`RFC8665-4-1`](#rfc8665-4-1), [`RFC8665-4-2`](#rfc8665-4-2), [`RFC8665-4-3`](#rfc8665-4-3), [`RFC8665-5-8`](#rfc8665-5-8), [`RFC8665-5-9`](#rfc8665-5-9), [`RFC8665-6.1-2`](#rfc8665-6.1-2), [`RFC8665-6.2-1`](#rfc8665-6.2-1), [`RFC8665-7.1-1`](#rfc8665-7.1-1), [`RFC8665-7.1-2`](#rfc8665-7.1-2), [`RFC8665-7.1-3`](#rfc8665-7.1-3), [`RFC8665-7.2-1`](#rfc8665-7.2-1)
+
+**No test and no annotation (1):** [`RFC8665-3.2-14`](#rfc8665-3.2-14)
 
 ## Requirements
 
@@ -133,6 +135,7 @@ Fourteen MUST gaps, each annotated in [`rfc/short/rfc8665.md`](https://github.co
 | `RFC8665-3.2-6` | The receiving router MUST adhere to the advertised range order when calculating a SID/Label from a SID index (§3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestRFC8665SRGBIndexUsesAdvertisedOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L124). **negative:** `unit/verify` [`TestRFC8665SRGBIndexOutOfRangeAndOrderSensitivity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L142) |
 | `RFC8665-3.2-7` | The originating router MUST NOT advertise overlapping ranges (SID/Label Range TLV) (§3.2) | MUST NOT | 3.2 | **positive:** `unit/verify` [`TestRFC8665NonOverlappingRangesAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L159). **negative:** `unit/verify` [`TestRFC8665OverlappingRangesRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L175) |
 | `RFC8665-3.2-8` | When a router receives multiple overlapping ranges, it MUST conform to RFC 8660 (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the receive path appends every decoded SID/Label Range to the originator SRGB with no overlap detection, srDecodeRemoteCapabilities internal/plugins/ospf/sr.go:337-342, and SRGB.Label maps an index by plain concatenation in advertised order, internal/plugins/ospf/sr/srgb.go:93-105, so overlapping received ranges are concatenated rather than resolved per RFC 8660. The non-overlap check covers only this router's own configured ranges, internal/plugins/ospf/sr/config.go:116-121. Disclosed in docs/features/rfc-status.md RFC 8665 row |
+| `RFC8665-3.2-14` | The Reserved field MUST be ignored on reception (SID/Label Range, SRLB, SRMS Preference, Extended Prefix Range, Prefix-SID, Adj-SID, LAN Adj-SID) (§3.2, §3.3, §3.4, §4, §5, §6.1, §6.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8665-3.3-1` | Range Size in the SRLB TLV MUST be greater than 0 (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestRFC8665RangeTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L24). **negative:** `unit/verify` [`TestRFC8665RangeSizeZeroRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L58) |
 | `RFC8665-3.3-2` | The SID/Label Sub-TLV MUST be included in the SRLB TLV (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestRFC8665RangeTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L30). **negative:** `unit/verify` [`TestRFC8665RangeWithoutSIDLabelSubTLVRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L84) |
 | `RFC8665-3.3-3` | If more than one SID/Label Sub-TLV is present in the SRLB TLV, the SRLB TLV MUST be ignored (§3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestRFC8665RangeWithSingleSIDLabelAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L98). **negative:** `unit/verify` [`TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L110) |
@@ -210,6 +213,7 @@ Fourteen MUST gaps, each annotated in [`rfc/short/rfc8665.md`](https://github.co
 | [`RFC8665-3.1-4`](#rfc8665-3.1-4) If the SR-Algorithm TLV appears in RI Opaque LSAs with different flooding scopes, use the one in the area-scoped LSA (§3.1) | {gap}, no test | the SR capability read walks every RI Opaque LSA in the LSDB and assigns the per-router entry from whichever view it reaches last, with no flooding-scope comparison -- srRemoteCapabilities iterates e.lsdb.OpaqueLSAsByType at internal/plugins/ospf/sr_install.go:238-241 and its record closure assigns caps[router] and algos[router] at internal/plugins/ospf/sr_install.go:222-229 -- so an AS-scoped RI LSA can override the area-scoped one. Disclosed in docs/features/rfc-status.md RFC 8665 row |
 | [`RFC8665-3.1-5`](#rfc8665-3.1-5) If the SR-Algorithm TLV appears in RI Opaque LSAs with the same flooding scope, use the one with the numerically smallest Instance ID and ignore subsequent instances (§3.1) | {gap}, no test | the SR capability read compares no Instance ID. The opaque view carries OpaqueID, the RFC 7770 Instance ID, but srRemoteCapabilities ignores it and the last view processed wins, internal/plugins/ospf/sr_install.go:238-241 with the assignment at internal/plugins/ospf/sr_install.go:222-229. Disclosed in docs/features/rfc-status.md RFC 8665 row |
 | [`RFC8665-3.2-8`](#rfc8665-3.2-8) When a router receives multiple overlapping ranges, it MUST conform to RFC 8660 (§3.2) | {gap}, no test | the receive path appends every decoded SID/Label Range to the originator SRGB with no overlap detection, srDecodeRemoteCapabilities internal/plugins/ospf/sr.go:337-342, and SRGB.Label maps an index by plain concatenation in advertised order, internal/plugins/ospf/sr/srgb.go:93-105, so overlapping received ranges are concatenated rather than resolved per RFC 8660. The non-overlap check covers only this router's own configured ranges, internal/plugins/ospf/sr/config.go:116-121. Disclosed in docs/features/rfc-status.md RFC 8665 row |
+| [`RFC8665-3.2-14`](#rfc8665-3.2-14) The Reserved field MUST be ignored on reception (SID/Label Range, SRLB, SRMS Preference, Extended Prefix Range, Prefix-SID, Adj-SID, LAN Adj-SID) (§3.2, §3.3, §3.4, §4, §5, §6.1, §6.2) | no test | no test carries this requirement id |
 | [`RFC8665-3.4-2`](#rfc8665-3.4-2) If the SRMS Preference TLV appears in RI Opaque LSAs with different flooding scopes, use the one with the narrowest flooding scope (§3.4) | {gap}, no test | the received SRMS preference is decoded into srRemoteCapabilities.SRMSPref, internal/plugins/ospf/sr.go:349-358, and nothing consumes it: srRemoteCapabilities keeps only the SRGB and the algorithm list, internal/plugins/ospf/sr_install.go:222-229, so no narrowest-flooding-scope selection exists. Disclosed in docs/features/rfc-status.md RFC 8665 row |
 | [`RFC8665-3.4-3`](#rfc8665-3.4-3) If the SRMS Preference TLV appears in RI Opaque LSAs with the same flooding scope, use the one with the numerically smallest Instance ID and ignore subsequent instances (§3.4) | {gap}, no test | the decode keeps the first SRMS Preference TLV within one LSA body, internal/plugins/ospf/sr.go:349-358, but nothing compares instances across LSAs and the preference is never consumed, internal/plugins/ospf/sr_install.go:222-229, so there is no smallest-Instance-ID tie-break. Disclosed in docs/features/rfc-status.md RFC 8665 row |
 | [`RFC8665-4-1`](#rfc8665-4-1) All prefix ranges in a single OSPF Extended Prefix Opaque LSA MUST have the same flooding scope (§4) | {gap}, no test | ze originates no OSPF Extended Prefix Range TLV for IPv4. extPrefixOnOriginate builds one Extended Prefix Opaque LSA per advertised prefix carrying a single Extended Prefix TLV, internal/plugins/ospf/ext_prefix.go:61-80, and never populates ExtPrefixLSA.Ranges; the range value encoder exists at internal/plugins/ospf/sr/codec.go:482-494 with no caller outside tests, so no code assigns a flooding scope to a prefix range or keeps the ranges in one LSA scope-uniform. Disclosed in docs/features/rfc-status.md RFC 8665 row |
@@ -356,6 +360,14 @@ When a router receives multiple overlapping ranges, it MUST conform to RFC 8660 
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC8665-3.2-8, so no unit is bound to it.
+
+### [`RFC8665-3.2-14`](#rfc8665-3.2-14)
+
+The Reserved field MUST be ignored on reception (SID/Label Range, SRLB, SRMS Preference, Extended Prefix Range, Prefix-SID, Adj-SID, LAN Adj-SID) (§3.2, §3.3, §3.4, §4, §5, §6.1, §6.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC8665-3.2-14, so no unit is bound to it.
 
 ### [`RFC8665-3.3-1`](#rfc8665-3.3-1)
 
@@ -698,7 +710,63 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 8665, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc8665.txt |
+| Source fingerprint | 3023d4a3ef8b8441 |
+| Record | rfc/extraction/rfc8665.json |
+| Mapped sentences | 56 |
+| Declined as scope | 2 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 6 | walked | not stated |
+| `3.2` | not stated | 10 | walked | not stated |
+| `3.3` | not stated | 6 | walked | not stated |
+| `3.4` | not stated | 4 | walked | not stated |
+| `4` | not stated | 4 | walked | not stated |
+| `5` | not stated | 15 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 3 | walked | not stated |
+| `6.2` | not stated | 2 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 3 | walked | not stated |
+| `7.2` | not stated | 1 | walked | not stated |
+| `7.3` | not stated | 0 | walked | not stated |
+| `7.4` | not stated | 0 | walked | not stated |
+| `7.4.1` | not stated | 1 | walked | not stated |
+| `7.4.2` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.2` | not stated | 0 | walked | not stated |
+| `8.3` | not stated | 0 | walked | not stated |
+| `8.4` | not stated | 0 | walked | not stated |
+| `8.5` | not stated | 1 | walked | not stated |
+| `9` | not stated | 1 | walked | not stated |
+| `10` | not stated | 1 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `11.1` | not stated | 0 | walked | not stated |
+| `11.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `5:9` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The second sentence of the same paragraph, qualifying the obligation site 5:8 carries; row RFC8665-5-7 states the qualification in its own text ("regardless of whether it contributes to the best path"). | This MUST be done regardless of whether the next-hop router contributes to the best path to the prefix. |
+| `8.5:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The IANA "OSPF Segment Routing Algorithms" registry table in Section 8.5, whose Description column reproduces the Section 3.1 sentence about Algorithm 1 word for word; row RFC8665-3.1-2 cites both sections. | The algorithm is \| document \| \| \| identical to Algorithm 0, but Algorithm 1 \| \| \| \| requires that all nodes along the path \| \| \| \| will honor the SPF routing decision. \| \| \| \| Local policy at the node claiming support \| \| \| \| for Algorithm 1 MUST NOT alter the SPF \| \| \| \| paths computed by Algorithm 1. \| \| +-------+--------------------------------------------+-----------+ |
 
 ## Superseded
 

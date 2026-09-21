@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4577 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 36 gated MUST-level requirements, 20 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 46 gated MUST-level requirements, 20 declared gaps, 10 with no test." />
         <meta property="og:title" content="RFC 4577 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 36 gated MUST-level requirements, 20 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 46 gated MUST-level requirements, 20 declared gaps, 10 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4577 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 36 gated MUST-level requirements, 20 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4577: OSPF as the Provider/Customer Edge Protocol for BGP/MPLS IP Virtual Private Networks (VPNs). 46 gated MUST-level requirements, 20 declared gaps, 10 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,26 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>5.6%</strong><b>2 of 36 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 36 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 36 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>4.3%</strong><b>2 of 46 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 46 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 46 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 6 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>36</strong><b>of 56 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>18</strong><b>of 36 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>50.0%</strong><b>18 of 36 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 36 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 36 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>46</strong><b>of 66 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>18</strong><b>of 46 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>39.1%</strong><b>18 of 46 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 46 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 46 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>44.4%</strong><b>16 of 36 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>56.5%</strong><b>26 of 46 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 36 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 46 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -203,10 +203,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>56</td>
+<td>66</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>36</td>
+<td>46</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>18</td>
@@ -215,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>20</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>10</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -275,7 +275,7 @@ Twenty gaps, annotated in <a href="https://github.com/ze-software/ze/blob/main/r
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>10</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -286,12 +286,13 @@ Twenty gaps, annotated in <a href="https://github.com/ze-software/ze/blob/main/r
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>36</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>46</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc4577-4.2.6-5"><code>RFC4577-4.2.6-5</code></a>, <a href="#rfc4577-6-1"><code>RFC4577-6-1</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (34):</strong> <a href="#rfc4577-4.1.1-1"><code>RFC4577-4.1.1-1</code></a>, <a href="#rfc4577-4.2.1-1"><code>RFC4577-4.2.1-1</code></a>, <a href="#rfc4577-4.2.1-2"><code>RFC4577-4.2.1-2</code></a>, <a href="#rfc4577-4.1.1-2"><code>RFC4577-4.1.1-2</code></a>, <a href="#rfc4577-4.2.4-1"><code>RFC4577-4.2.4-1</code></a>, <a href="#rfc4577-4.2.4-2"><code>RFC4577-4.2.4-2</code></a>, <a href="#rfc4577-4.2.4-3"><code>RFC4577-4.2.4-3</code></a>, <a href="#rfc4577-4.2.4-4"><code>RFC4577-4.2.4-4</code></a>, <a href="#rfc4577-4.2.4-5"><code>RFC4577-4.2.4-5</code></a>, <a href="#rfc4577-4.2.6-1"><code>RFC4577-4.2.6-1</code></a>, <a href="#rfc4577-4.2.6-2"><code>RFC4577-4.2.6-2</code></a>, <a href="#rfc4577-4.2.5.1-1"><code>RFC4577-4.2.5.1-1</code></a>, <a href="#rfc4577-4.2.5.1-2"><code>RFC4577-4.2.5.1-2</code></a>, <a href="#rfc4577-4.2.8.1-1"><code>RFC4577-4.2.8.1-1</code></a>, <a href="#rfc4577-4.2.6-3"><code>RFC4577-4.2.6-3</code></a>, <a href="#rfc4577-4.2.6-4"><code>RFC4577-4.2.6-4</code></a>, <a href="#rfc4577-4.2.5.1-3"><code>RFC4577-4.2.5.1-3</code></a>, <a href="#rfc4577-4.2.5.2-1"><code>RFC4577-4.2.5.2-1</code></a>, <a href="#rfc4577-4.2.5.2-2"><code>RFC4577-4.2.5.2-2</code></a>, <a href="#rfc4577-4.2.5.2-3"><code>RFC4577-4.2.5.2-3</code></a>, <a href="#rfc4577-4.2.5.2-4"><code>RFC4577-4.2.5.2-4</code></a>, <a href="#rfc4577-4.2.5.2-5"><code>RFC4577-4.2.5.2-5</code></a>, <a href="#rfc4577-4.2.5.2-6"><code>RFC4577-4.2.5.2-6</code></a>, <a href="#rfc4577-4.2.5.2-7"><code>RFC4577-4.2.5.2-7</code></a>, <a href="#rfc4577-4.2.8.1-2"><code>RFC4577-4.2.8.1-2</code></a>, <a href="#rfc4577-4.1.4-1"><code>RFC4577-4.1.4-1</code></a>, <a href="#rfc4577-4.2.7.1-1"><code>RFC4577-4.2.7.1-1</code></a>, <a href="#rfc4577-4.2.7.1-2"><code>RFC4577-4.2.7.1-2</code></a>, <a href="#rfc4577-4.2.7.1-3"><code>RFC4577-4.2.7.1-3</code></a>, <a href="#rfc4577-4.2.7.2-1"><code>RFC4577-4.2.7.2-1</code></a>, <a href="#rfc4577-4.2.7.3-1"><code>RFC4577-4.2.7.3-1</code></a>, <a href="#rfc4577-4.2.7.4-1"><code>RFC4577-4.2.7.4-1</code></a>, <a href="#rfc4577-4.2.7.4-2"><code>RFC4577-4.2.7.4-2</code></a>, <a href="#rfc4577-4.2.7.4-3"><code>RFC4577-4.2.7.4-3</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (10):</strong> <a href="#rfc4577-4.1.1-3"><code>RFC4577-4.1.1-3</code></a>, <a href="#rfc4577-4.2.5.2-10"><code>RFC4577-4.2.5.2-10</code></a>, <a href="#rfc4577-4.2.6-13"><code>RFC4577-4.2.6-13</code></a>, <a href="#rfc4577-4.2.6-14"><code>RFC4577-4.2.6-14</code></a>, <a href="#rfc4577-4.2.6-15"><code>RFC4577-4.2.6-15</code></a>, <a href="#rfc4577-4.2.7.1-5"><code>RFC4577-4.2.7.1-5</code></a>, <a href="#rfc4577-4.2.7.3-3"><code>RFC4577-4.2.7.3-3</code></a>, <a href="#rfc4577-4.2.7.3-4"><code>RFC4577-4.2.7.3-4</code></a>, <a href="#rfc4577-4.2.8.1-4"><code>RFC4577-4.2.8.1-4</code></a>, <a href="#rfc4577-4.2.8.1-5"><code>RFC4577-4.2.8.1-5</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -802,6 +803,96 @@ Twenty gaps, annotated in <a href="https://github.com/ze-software/ze/blob/main/r
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> `grep -rni sham --include=*.go internal/` returns nothing: no sham link, no Sham Link Endpoint Address, no sham-link forwarding, and no VRF to relate two of them (`grep -rni vrf --include=*.go internal/plugins/ospf/` is also empty), so there is no endpoint address to default from a router ID</p></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.1.1-3">RFC4577-4.1.1-3</code></td><td colspan="3"><span class="rfc-subject">If the PE runs OSPF as its IGP, that IGP instance must be separate and independent from any other OSPF instance the PE runs: &#34;If the PE is running OSPF as its IGP (Interior Gateway Protocol), the instance of OSPF running as the IGP must be separate and independent from any other instance of OSPF that the PE is running.&#34; (§4.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-4.1.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.5.2-10">RFC4577-4.2.5.2-10</code></td><td colspan="3"><span class="rfc-subject">The VPN Route Tag value must be distinct from any OSPF Route Tag used within the OSPF domain: &#34;The value of the VPN Route Tag is arbitrary but must be distinct from any OSPF Route Tag being used within the OSPF domain.&#34; (§4.2.5.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.5.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-4.2.5.2-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-13">RFC4577-4.2.6-13</code></td><td colspan="3"><span class="rfc-subject">For every address prefix installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP: &#34;For every address prefix that was installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP.&#34; (§4.2.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-4.2.6-13">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-14">RFC4577-4.2.6-14</code></td><td colspan="3"><span class="rfc-subject">Where the OSPF instance has a NULL Domain Identifier and the OSPF Domain Identifier Extended Communities attribute is present, the attribute value field must be all zeroes: &#34;then the attribute&#39;s value field must be all zeroes, and its type field may be any of 0005, 0105, or 0205&#34; (§4.2.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-4.2.6-14">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.6-15">RFC4577-4.2.6-15</code></td><td colspan="3"><span class="rfc-subject">In the OSPF Route Type Extended Community, the Area Number field must be 0 when the Route Type is 5: &#34;5 for external routes (area number must be 0)&#34; (§4.2.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-4.2.6-15">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.1-5">RFC4577-4.2.7.1-5</code></td><td colspan="3"><span class="rfc-subject">Each VRF connected by a sham link must be associated with a Sham Link Endpoint Address: &#34;If two VRFs are to be connected by a sham link, each VRF must be associated with a \&#34;Sham Link Endpoint Address\&#34;, a 32-bit IPv4 address that is treated as an address of the PE router containing that VRF.&#34; (§4.2.7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-4.2.7.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.3-3">RFC4577-4.2.7.3-3</code></td><td colspan="3"><span class="rfc-subject">An OSPF packet sent on a sham link must carry the sender&#39;s Sham Link Endpoint Address as its IP source address and the receiver&#39;s as its IP destination address: &#34;An OSPF protocol packet sent on a Sham Link from one PE to another must have as its IP source address the Sham Link Endpoint Address of the sender, and as its IP destination address the Sham Link Endpoint Address of the receiver.&#34; (§4.2.7.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-4.2.7.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.7.3-4">RFC4577-4.2.7.3-4</code></td><td colspan="3"><span class="rfc-subject">The TTL of an OSPF packet sent on a sham link must be set appropriately, because the packet traverses multiple hops of the VPN backbone: &#34;The packet will travel from one PE router to the other over the VPN backbone, which means that it can be expected to traverse multiple hops. As such, its TTL (Time to Live) field must be set appropriately.&#34; (§4.2.7.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.7.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-4.2.7.3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.8.1-4">RFC4577-4.2.8.1-4</code></td><td colspan="3"><span class="rfc-subject">All eight bytes must be compared when two Domain Identifier Extended Communities attributes are compared: &#34;In general, when two such attributes are compared, all eight bytes must be compared.&#34; (§4.2.8.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.8.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-4.2.8.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4577-4.2.8.1-5">RFC4577-4.2.8.1-5</code></td><td colspan="3"><span class="rfc-subject">Before a VPN-IPv4 route is redistributed to an OSPF instance, it must be determined whether the route and that instance belong to the same domain: &#34;If a VPN-IPv4 route is to be redistributed to a particular instance, it must be determined whether that route and that OSPF instance belong to the same domain.&#34; (§4.2.8.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2.8.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4577-4.2.8.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -962,6 +1053,46 @@ Twenty gaps, annotated in <a href="https://github.com/ze-software/ze/blob/main/r
 <tr><td><a href="#rfc4577-4.2.8.1-3"><code>RFC4577-4.2.8.1-3</code></a> The default type 1 metric and the default type 2 metric may be different (§4.2.8.1)</td>
 <td>{gap}</td>
 <td>there is a single default external metric constant, DefaultExternalMetric = 20 (internal/plugins/ospf/config.go:34), applied by externalParams regardless of metric type (internal/plugins/ospf/redist_wiring.go:170) and by the config parser (config.go:1179), so the type 1 and type 2 defaults cannot differ. Disclosed in docs/features/rfc-status.md RFC 4577 row</td>
+</tr>
+<tr><td><a href="#rfc4577-4.1.1-3"><code>RFC4577-4.1.1-3</code></a> If the PE runs OSPF as its IGP, that IGP instance must be separate and independent from any other OSPF instance the PE runs: &#34;If the PE is running OSPF as its IGP (Interior Gateway Protocol), the instance of OSPF running as the IGP must be separate and independent from any other instance of OSPF that the PE is running.&#34; (§4.1.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4577-4.2.5.2-10"><code>RFC4577-4.2.5.2-10</code></a> The VPN Route Tag value must be distinct from any OSPF Route Tag used within the OSPF domain: &#34;The value of the VPN Route Tag is arbitrary but must be distinct from any OSPF Route Tag being used within the OSPF domain.&#34; (§4.2.5.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4577-4.2.6-13"><code>RFC4577-4.2.6-13</code></a> For every address prefix installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP: &#34;For every address prefix that was installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP.&#34; (§4.2.6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4577-4.2.6-14"><code>RFC4577-4.2.6-14</code></a> Where the OSPF instance has a NULL Domain Identifier and the OSPF Domain Identifier Extended Communities attribute is present, the attribute value field must be all zeroes: &#34;then the attribute&#39;s value field must be all zeroes, and its type field may be any of 0005, 0105, or 0205&#34; (§4.2.6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4577-4.2.6-15"><code>RFC4577-4.2.6-15</code></a> In the OSPF Route Type Extended Community, the Area Number field must be 0 when the Route Type is 5: &#34;5 for external routes (area number must be 0)&#34; (§4.2.6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4577-4.2.7.1-5"><code>RFC4577-4.2.7.1-5</code></a> Each VRF connected by a sham link must be associated with a Sham Link Endpoint Address: &#34;If two VRFs are to be connected by a sham link, each VRF must be associated with a \&#34;Sham Link Endpoint Address\&#34;, a 32-bit IPv4 address that is treated as an address of the PE router containing that VRF.&#34; (§4.2.7.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4577-4.2.7.3-3"><code>RFC4577-4.2.7.3-3</code></a> An OSPF packet sent on a sham link must carry the sender&#39;s Sham Link Endpoint Address as its IP source address and the receiver&#39;s as its IP destination address: &#34;An OSPF protocol packet sent on a Sham Link from one PE to another must have as its IP source address the Sham Link Endpoint Address of the sender, and as its IP destination address the Sham Link Endpoint Address of the receiver.&#34; (§4.2.7.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4577-4.2.7.3-4"><code>RFC4577-4.2.7.3-4</code></a> The TTL of an OSPF packet sent on a sham link must be set appropriately, because the packet traverses multiple hops of the VPN backbone: &#34;The packet will travel from one PE router to the other over the VPN backbone, which means that it can be expected to traverse multiple hops. As such, its TTL (Time to Live) field must be set appropriately.&#34; (§4.2.7.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4577-4.2.8.1-4"><code>RFC4577-4.2.8.1-4</code></a> All eight bytes must be compared when two Domain Identifier Extended Communities attributes are compared: &#34;In general, when two such attributes are compared, all eight bytes must be compared.&#34; (§4.2.8.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4577-4.2.8.1-5"><code>RFC4577-4.2.8.1-5</code></a> Before a VPN-IPv4 route is redistributed to an OSPF instance, it must be determined whether the route and that instance belong to the same domain: &#34;If a VPN-IPv4 route is to be redistributed to a particular instance, it must be determined whether that route and that OSPF instance belong to the same domain.&#34; (§4.2.8.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
 </tr>
 </tbody>
 </table>
@@ -1175,9 +1306,376 @@ Twenty gaps, annotated in <a href="https://github.com/ze-software/ze/blob/main/r
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc4577-4.1.1-3"><code>RFC4577-4.1.1-3</code></a></h3>
+<p>If the PE runs OSPF as its IGP, that IGP instance must be separate and independent from any other OSPF instance the PE runs: &#34;If the PE is running OSPF as its IGP (Interior Gateway Protocol), the instance of OSPF running as the IGP must be separate and independent from any other instance of OSPF that the PE is running.&#34; (§4.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4577-4.1.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4577-4.2.5.2-10"><code>RFC4577-4.2.5.2-10</code></a></h3>
+<p>The VPN Route Tag value must be distinct from any OSPF Route Tag used within the OSPF domain: &#34;The value of the VPN Route Tag is arbitrary but must be distinct from any OSPF Route Tag being used within the OSPF domain.&#34; (§4.2.5.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4577-4.2.5.2-10, so no unit is bound to it.</p>
+<h3><a href="#rfc4577-4.2.6-13"><code>RFC4577-4.2.6-13</code></a></h3>
+<p>For every address prefix installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP: &#34;For every address prefix that was installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP.&#34; (§4.2.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4577-4.2.6-13, so no unit is bound to it.</p>
+<h3><a href="#rfc4577-4.2.6-14"><code>RFC4577-4.2.6-14</code></a></h3>
+<p>Where the OSPF instance has a NULL Domain Identifier and the OSPF Domain Identifier Extended Communities attribute is present, the attribute value field must be all zeroes: &#34;then the attribute&#39;s value field must be all zeroes, and its type field may be any of 0005, 0105, or 0205&#34; (§4.2.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4577-4.2.6-14, so no unit is bound to it.</p>
+<h3><a href="#rfc4577-4.2.6-15"><code>RFC4577-4.2.6-15</code></a></h3>
+<p>In the OSPF Route Type Extended Community, the Area Number field must be 0 when the Route Type is 5: &#34;5 for external routes (area number must be 0)&#34; (§4.2.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4577-4.2.6-15, so no unit is bound to it.</p>
+<h3><a href="#rfc4577-4.2.7.1-5"><code>RFC4577-4.2.7.1-5</code></a></h3>
+<p>Each VRF connected by a sham link must be associated with a Sham Link Endpoint Address: &#34;If two VRFs are to be connected by a sham link, each VRF must be associated with a \&#34;Sham Link Endpoint Address\&#34;, a 32-bit IPv4 address that is treated as an address of the PE router containing that VRF.&#34; (§4.2.7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4577-4.2.7.1-5, so no unit is bound to it.</p>
+<h3><a href="#rfc4577-4.2.7.3-3"><code>RFC4577-4.2.7.3-3</code></a></h3>
+<p>An OSPF packet sent on a sham link must carry the sender&#39;s Sham Link Endpoint Address as its IP source address and the receiver&#39;s as its IP destination address: &#34;An OSPF protocol packet sent on a Sham Link from one PE to another must have as its IP source address the Sham Link Endpoint Address of the sender, and as its IP destination address the Sham Link Endpoint Address of the receiver.&#34; (§4.2.7.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4577-4.2.7.3-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4577-4.2.7.3-4"><code>RFC4577-4.2.7.3-4</code></a></h3>
+<p>The TTL of an OSPF packet sent on a sham link must be set appropriately, because the packet traverses multiple hops of the VPN backbone: &#34;The packet will travel from one PE router to the other over the VPN backbone, which means that it can be expected to traverse multiple hops. As such, its TTL (Time to Live) field must be set appropriately.&#34; (§4.2.7.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4577-4.2.7.3-4, so no unit is bound to it.</p>
+<h3><a href="#rfc4577-4.2.8.1-4"><code>RFC4577-4.2.8.1-4</code></a></h3>
+<p>All eight bytes must be compared when two Domain Identifier Extended Communities attributes are compared: &#34;In general, when two such attributes are compared, all eight bytes must be compared.&#34; (§4.2.8.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4577-4.2.8.1-4, so no unit is bound to it.</p>
+<h3><a href="#rfc4577-4.2.8.1-5"><code>RFC4577-4.2.8.1-5</code></a></h3>
+<p>Before a VPN-IPv4 route is redistributed to an OSPF instance, it must be determined whether the route and that instance belong to the same domain: &#34;If a VPN-IPv4 route is to be redistributed to a particular instance, it must be determined whether that route and that OSPF instance belong to the same domain.&#34; (§4.2.8.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4577-4.2.8.1-5, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 4577, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc4577.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>3d9527c9cc48bead</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc4577.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>46</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>13</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1.1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1.4</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1.5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.4</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.5.1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.5.2</code></td>
+<td>not stated</td>
+<td>8</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.5.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.6</code></td>
+<td>not stated</td>
+<td>11</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.7.1</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.7.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.7.3</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.7.4</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.8.1</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.8.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.8.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Introductory framing of what the document will do, in the Introduction: it announces that the sections to follow specify the PE procedures. It states no procedure itself, and the obligation it points at is carried by the sections it introduces (4.1 and 4.2), whose sites this walk maps.</td>
+<td>Thus, we need to specify the procedures that must be implemented by a PE router in order to make this possible.</td>
+</tr>
+<tr><td><code>3:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Section 3 is titled &#39;Requirements&#39; and states the requirements the SOLUTION must satisfy, not a procedure a PE performs. This sentence describes the model the design adopts (the VPN backbone presented to the CEs as a link between PE routers) as a consequence of wanting the backbone route preferred to the backdoor route. The procedures that realise it are sections 4.2.7.1 to 4.2.7.4, whose sites this walk maps.</td>
+<td>Assuming that it is desired to have the route via the VPN backbone be preferred to the backdoor route, the VPN backbone itself must be presented to the CE routers at each site as a link between the two PE routers to which the CE routers are respectively attached.</td>
+</tr>
+<tr><td><code>3:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>A requirement on the SERVICE, stated in section 3 &#39;Requirements&#39;: the transition from a legacy private OSPF backbone to the VPN service is to be simple. It binds the design of the specification, names no message, field, timer or decision a PE implements, and no implementation can be tested against it.</td>
+<td>- The transition from the legacy private OSPF backbone to the VPN service must be simple and straightforward.</td>
+</tr>
+<tr><td><code>3:3</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>A requirement on the SERVICE, stated in section 3 &#39;Requirements&#39;: the VPN service must maintain complete connectivity among the sites the legacy backbone connected. It binds the design, and the procedures that deliver it are in section 4.</td>
+<td>Complete connectivity among all such sites must be maintained.</td>
+</tr>
+<tr><td><code>3:4</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>A requirement on the SERVICE, stated in section 3 &#39;Requirements&#39;: it must be possible for an operator to make OSPF prefer backbone routes by adjusting metrics. It binds the design of the solution and names no PE procedure; the sham link procedures of 4.2.7 are what realise it.</td>
+<td>Since the VPN service is to replace the legacy backbone, it must be possible, by suitable adjustment of the OSPF metrics, to make OSPF prefer routes that traverse the SP&#39;s VPN backbone to alternative routes that do not.</td>
+</tr>
+<tr><td><code>4.2.3:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Restates the area 0 requirement section 4.1.1 states and this walk maps at 4.1.4:1: &#39;If the OSPF domain has any area 0 routers other than the PE routers, then at least one of those MUST be a CE router and MUST have an area 0 link to at least one PE router.&#39; Section 4.2.3 adds only the parenthesis &#39;(possibly a virtual link)&#39;, which the row already carries.</td>
+<td>It follows that if the OSPF domain has any area 0 routers other than the PE routers, at least one of those MUST be a CE router, and it MUST have an area 0 link (possibly a virtual link) to at least one PE router.</td>
+</tr>
+<tr><td><code>4.2.5.2:3</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>States the REASON for the two obligations above it rather than an obligation of its own: the VPN Route Tag is configured and included &#39;for backward compatibility with deployed implementations that do not set the DN bit in type 5 LSAs&#39;. What a PE must do is carried by RFC4577-4.2.5.2-1 (configure the tag by default) and RFC4577-4.2.5.2-2 (include it in originated Type 5 LSAs), both mapped by this walk.</td>
+<td>The configuration and inclusion of the VPN Route Tag is required for backward compatibility with deployed implementations that do not set the DN bit in type 5 LSAs.</td>
+</tr>
+<tr><td><code>4.2.5.3:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>A caution to the network designer, in a section that discusses what happens when a third routing domain is present: &#39;extreme care must be taken if there is any mutual redistribution of routes&#39;. Care is not a behaviour an implementation performs, and the sentence names no LSA, attribute or decision procedure. The redistribution rules a PE must follow are in 4.2.6 and 4.2.8, whose sites this walk maps.</td>
+<td>Therefore, extreme care must be taken if there is any mutual redistribution of routes between the OSPF domain and any third routing domain (i.e., not the VPN backbone).</td>
+</tr>
+<tr><td><code>4.2.6:3</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The lead-in clause of the procedure the next sentence states, which this walk maps to RFC4577-4.2.6-13: the PE examines the VRF so that &#39;For every address prefix that was installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP.&#39; Examining the VRF is how that route set is found; it carries no separate obligation.</td>
+<td>Otherwise, the PE must examine the corresponding VRF.</td>
+</tr>
+<tr><td><code>4.2.6:10</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The obligation belongs to [VPN], which is RFC 4364, and the sentence cites it: &#39;The attributes specified above are in addition to any other attributes that routes must carry in accordance with [VPN].&#39; It adds nothing of its own, and what a VPN-IPv4 route must carry is RFC 4364&#39;s to state.</td>
+<td>The attributes specified above are in addition to any other attributes that routes must carry in accordance with [VPN].</td>
+</tr>
+<tr><td><code>4.2.7.1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>States the CONDITION under which sham links are wanted, as the motivation of section 4.2.7.1: if backbone routes are to be preferred to a backdoor link, they must appear intra-area. It is the premise of the sham link feature, which section 4.1.3 makes OPTIONAL, and the obligations that follow it in 4.2.7.1 to 4.2.7.4 are the procedures a PE that offers sham links performs. This walk maps each of those.</td>
+<td>If it is desired to have OSPF prefer the routes through the backbone over the routes through the backdoor link, then the routes through the backbone must be appear to be intra-area routes.</td>
+</tr>
+<tr><td><code>6:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Restates in the Security Considerations the separation section 4.2.1 requires and this walk maps at 4.2.1:2: &#39;Each instance of OSPF MUST be associated with a single VRF.&#39; A VPN is carried by its VRF, so one instance per VRF is what keeps the instances of different VPNs independent; the sentence adds the reason (&#39;to prevent inadvertent leaking of routes between VPNs&#39;) and no new behaviour.</td>
+<td>The OSPF instances for different VPNs must also be independent OSPF instances, to prevent inadvertent leaking of routes between VPNs.</td>
+</tr>
+<tr><td><code>9:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Boilerplate from the Intellectual Property Statement: it invites parties to disclose IPR to the IETF. It binds no implementation and describes an IETF process.</td>
+<td>The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 4577, so its obligations are stated where they were written.</p>
@@ -1211,7 +1709,7 @@ Twenty gaps, annotated in <a href="https://github.com/ze-software/ze/blob/main/r
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

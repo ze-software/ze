@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 1332 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 1332: The PPP Internet Protocol Control Protocol (IPCP). 6 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 1332: The PPP Internet Protocol Control Protocol (IPCP). 7 gated MUST-level requirements, 1 declared gaps, 2 with no test." />
         <meta property="og:title" content="RFC 1332 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 1332: The PPP Internet Protocol Control Protocol (IPCP). 6 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 1332: The PPP Internet Protocol Control Protocol (IPCP). 7 gated MUST-level requirements, 1 declared gaps, 2 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 1332 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 1332: The PPP Internet Protocol Control Protocol (IPCP). 6 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 1332: The PPP Internet Protocol Control Protocol (IPCP). 7 gated MUST-level requirements, 1 declared gaps, 2 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,26 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>50.0%</strong><b>3 of 6 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>42.9%</strong><b>3 of 7 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 6 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>6</strong><b>of 11 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>2</strong><b>of 6 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>33.3%</strong><b>2 of 6 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 6 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>7</strong><b>of 13 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 7 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>14.3%</strong><b>1 of 7 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>16.7%</strong><b>1 of 6 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>42.9%</strong><b>3 of 7 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -203,19 +203,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>11</td>
+<td>13</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>6</td>
+<td>7</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
-<td>2</td>
+<td>1</td>
 </tr>
 <tr><td>Declared gaps</td>
 <td>1</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -246,14 +246,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: PPP Internet Protocol Control Protocol (IPCP): six MUST-level requirements. Three are met with positive+negative tags in internal/component/l2tp/ppp: 2-1 (one IPCP packet per 0x8021 frame), 2.1-1 (IPCP reaches Opened before IP is programmed), 3-1 (options follow RFC 1661 TLV format). 2-2 (codes 8-11 on IPCP MUST be Code-Rejected) is {gap}: ze&#39;s shared codeToEvent (session_run.go:688-709) maps codes 8-11 to LCP echo/protocol-reject handling, so only codes &gt;= 12 are Code-Rejected; disclosed in the docs/features/rfc-status.md RFC 1332 row. 3.1-1 (no IP-Addresses Type 1) and 4.1-1 (no Van Jacobson Type 2) are {not-applicable}: ze emits only IPCP options 3/129/131 and Configure-Rejects a peer Type-2 option.</p>
+<p>Enrolled: PPP Internet Protocol Control Protocol (IPCP): seven MUST-level requirements after the 2026-09-21 extraction walk. Three are met with positive+negative tags in internal/component/l2tp/ppp: 2-1 (one IPCP packet per 0x8021 frame), 2.1-1 (IPCP reaches Opened before IP is programmed), 3-1 (options follow RFC 1661 TLV format). 2-2 (codes 8-11 on IPCP MUST be Code-Rejected) is {gap}: ze&#39;s shared codeToEvent (session_run.go:688-709) maps codes 8-11 to LCP echo/protocol-reject handling, so only codes &gt;= 12 are Code-Rejected; disclosed in the docs/features/rfc-status.md RFC 1332 row. 4.1-1 (no Van Jacobson Type 2) is {not-applicable}: ze emits only IPCP options 3/129/131 and Configure-Rejects a peer Type-2 option. The walk added two MUST rows with no test: 2.1-3 (fragment an IP datagram larger than the maximum length of the PPP Information field) and 3.3-2 (an IP-Address value appended to a Configure-Nak must be acceptable as the remote address or request that the peer supply it). 3.1-1 left the MUST-level population in the same walk: §3.1 states the IP-Addresses rule as a SHOULD NOT, so the row is advisory now and its {not-applicable} note was removed with the gate it excused.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
 <p><strong>What the ledger says is covered:</strong></p>
 IPv4 address negotiation and pool integration, IPCP option codec (IP-Address type 3, RFC 1877 DNS 129/131), FSM negotiation to Opened, pppN address/route programming.
-<p><strong>What the ledger says remains:</strong></p>
-One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc1332.md" target="_blank" rel="noopener"><code>rfc/short/rfc1332.md</code></a>: codes 8-11 received on IPCP are not Code-Rejected (mapped to LCP echo/protocol-reject handling); codes 12 and above are Code-Rejected.
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc1332.md" target="_blank" rel="noopener"><code>rfc/short/rfc1332.md</code></a>: codes 8-11 received on IPCP are not Code-Rejected (mapped to LCP echo/protocol-reject handling); codes 12 and above are Code-Rejected. Two MUST rows the 2026-09-21 extraction walk added carry no test: <a href="#rfc1332-2.1-3"><code>RFC1332-2.1-3</code></a> (fragment an oversized IP datagram, §2.1) and <a href="#rfc1332-3.3-2"><code>RFC1332-3.3-2</code></a> (the IP-Address value in a Configure-Nak, §3.3).
+</details>
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -265,7 +266,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>3</strong></td>
+<td><strong>2</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -273,7 +274,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>2</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -284,12 +285,13 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>6</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>7</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc1332-2-1"><code>RFC1332-2-1</code></a>, <a href="#rfc1332-2.1-1"><code>RFC1332-2.1-1</code></a>, <a href="#rfc1332-3-1"><code>RFC1332-3-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (3):</strong> <a href="#rfc1332-2-2"><code>RFC1332-2-2</code></a>, <a href="#rfc1332-3.1-1"><code>RFC1332-3.1-1</code></a>, <a href="#rfc1332-4.1-1"><code>RFC1332-4.1-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (2):</strong> <a href="#rfc1332-2-2"><code>RFC1332-2-2</code></a>, <a href="#rfc1332-4.1-1"><code>RFC1332-4.1-1</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (2):</strong> <a href="#rfc1332-2.1-3"><code>RFC1332-2.1-3</code></a>, <a href="#rfc1332-3.3-2"><code>RFC1332-3.3-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -323,6 +325,15 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L171" title="internal/component/l2tp/ppp/ncp_test.go" target="_blank" rel="noopener"><code>TestIPCPNoAddressBeforeOpened</code></a></span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-2.1-3">RFC1332-2.1-3</code></td><td colspan="3"><span class="rfc-subject">An IP datagram larger than the maximum length of the PPP Information field must be fragmented as necessary (Section 2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1332-2.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-3-1">RFC1332-3-1</code></td><td colspan="3"><span class="rfc-subject">Configuration options follow the format defined in RFC 1661 (Section 3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
@@ -332,14 +343,23 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ipcp_test.go#L71" title="internal/component/l2tp/ppp/ipcp_test.go" target="_blank" rel="noopener"><code>TestIPCPParseRejects</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-3.1-1">RFC1332-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Implementation sending IP-Addresses option must not send it in Configure-Request if peer sent any Configure-Request containing IP-Addresses or IP-Address option (Section 3.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-3.3-2">RFC1332-3.3-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The value of the IP-address given must be acceptable as the remote IP-address, or indicate a request that the peer provide the information&#34; when the IP-Address option is appended to a Configure-Nak (Section 3.3)</span></td></tr>
 <tr><td></td>
-<td>MUST NOT</td>
+<td>MUST</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1332-3.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-3.1-1">RFC1332-3.1-1</code></td><td colspan="3"><span class="rfc-subject">The IP-Addresses option SHOULD NOT be sent in a Configure-Request if a Configure-Request has been received which includes either an IP-Addresses or IP-Address option (Section 3.1)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1332-3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> ze has no IP-Addresses (Type 1) send code path; internal/component/l2tp/ppp/ipcp.go defines only options 3/129/131 and WriteIPCPOptions emits only those</p></td>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1332-4.1-1">RFC1332-4.1-1</code></td><td colspan="3"><span class="rfc-subject">Comp-Slot-Id=1 must not be enabled on links without link-level error-indication mechanism (Section 4.1)</span></td></tr>
 <tr><td></td>
@@ -408,9 +428,13 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 <td>{gap}, no test</td>
 <td>ze&#39;s shared codeToEvent (internal/component/l2tp/ppp/session_run.go:688-709) maps PPP control codes 8-11 to LCP echo/protocol-reject events rather than RUC, so ze does not Code-Reject codes 8-11 received on IPCP; only codes 12 and above are Code-Rejected</td>
 </tr>
-<tr><td><a href="#rfc1332-3.1-1"><code>RFC1332-3.1-1</code></a> Implementation sending IP-Addresses option must not send it in Configure-Request if peer sent any Configure-Request containing IP-Addresses or IP-Address option (Section 3.1)</td>
+<tr><td><a href="#rfc1332-2.1-3"><code>RFC1332-2.1-3</code></a> An IP datagram larger than the maximum length of the PPP Information field must be fragmented as necessary (Section 2.1)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: ze has no IP-Addresses (Type 1) send code path; internal/component/l2tp/ppp/ipcp.go defines only options 3/129/131 and WriteIPCPOptions emits only those</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc1332-3.3-2"><code>RFC1332-3.3-2</code></a> &#34;The value of the IP-address given must be acceptable as the remote IP-address, or indicate a request that the peer provide the information&#34; when the IP-Address option is appended to a Configure-Nak (Section 3.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
 </tr>
 <tr><td><a href="#rfc1332-4.1-1"><code>RFC1332-4.1-1</code></a> Comp-Slot-Id=1 must not be enabled on links without link-level error-indication mechanism (Section 4.1)</td>
 <td>no test</td>
@@ -466,6 +490,10 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc1332-2.1-3"><code>RFC1332-2.1-3</code></a></h3>
+<p>An IP datagram larger than the maximum length of the PPP Information field must be fragmented as necessary (Section 2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC1332-2.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc1332-3-1"><code>RFC1332-3-1</code></a></h3>
 <p>Configuration options follow the format defined in RFC 1661 (Section 3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -486,17 +514,160 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
 </tbody>
 </table>
 </div>
-<h3><a href="#rfc1332-3.1-1"><code>RFC1332-3.1-1</code></a></h3>
-<p>Implementation sending IP-Addresses option must not send it in Configure-Request if peer sent any Configure-Request containing IP-Addresses or IP-Address option (Section 3.1)</p>
+<h3><a href="#rfc1332-3.3-2"><code>RFC1332-3.3-2</code></a></h3>
+<p>&#34;The value of the IP-address given must be acceptable as the remote IP-address, or indicate a request that the peer provide the information&#34; when the IP-Address option is appended to a Configure-Nak (Section 3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries RFC1332-3.1-1, so no unit is bound to it.</p>
+<p>No test carries RFC1332-3.3-2, so no unit is bound to it.</p>
 <h3><a href="#rfc1332-4.1-1"><code>RFC1332-4.1-1</code></a></h3>
 <p>Comp-Slot-Id=1 must not be enabled on links without link-level error-indication mechanism (Section 4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC1332-4.1-1, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 1332, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc1332.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>05b932877d43bddd</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc1332.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>5</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>5</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Section 1 is a non-normative description of PPP&#39;s three components. The sentence describes the LCP establishment sequence that RFC 1331 defines, not an IPCP obligation this document places on an implementation.</td>
+<td>In order to establish communications over a point-to-point link, each end of the PPP link must first send LCP packets to configure and test the data link.</td>
+</tr>
+<tr><td><code>1:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Same non-normative introduction: it describes how the NCP family defined in RFC 1331 is used after LCP establishment. IPCP&#39;s own obligations start at Section 2.</td>
+<td>After the link has been established and optional facilities have been negotiated as needed by the LCP, PPP must send NCP packets to choose and configure one or more network-layer protocols.</td>
+</tr>
+<tr><td><code>4:1</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>Van Jacobson TCP/IP header compression is optional in this document and Ze declined it. Section 3.2 states the default: &#34;By default, compression is not enabled.&#34; Ze never requests the IP-Compression-Protocol option and Configure-Rejects a peer&#39;s Type-2 option (isKnownIPCPOption, internal/component/l2tp/ppp/ipcp.go), so the obligation to request it separately per direction never binds.</td>
+<td>Each end of the link must separately request this option if bi-directional compression is desired.</td>
+</tr>
+<tr><td><code>4.1:1</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>Comp-Slot-Id semantics bind only a speaker that negotiated the optional IP-Compression-Protocol option, and Section 3.2 makes it optional: &#34;By default, compression is not enabled.&#34; Ze negotiates only IPCP options 3, 129 and 131 and Configure-Rejects Type 2, so it never carries a Comp-Slot-Id field.</td>
+<td>0 The slot identifier must not be compressed.</td>
+</tr>
+<tr><td><code>4.1:2</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>The C bit and slot identifier rules bind a Van Jacobson compressor, a feature Section 3.2 makes optional: &#34;By default, compression is not enabled.&#34; Ze emits no compressed TCP frames (PPP protocol 002d) because it never negotiates the option.</td>
+<td>All compressed TCP packets must set the C bit in every change mask, and must include the slot identifier.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 1332, so its obligations are stated where they were written.</p>
@@ -530,7 +701,7 @@ One MUST gap gated in <a href="https://github.com/ze-software/ze/blob/main/rfc/s
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 20 September 2026 08:15 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

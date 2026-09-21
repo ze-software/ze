@@ -279,7 +279,57 @@ No test carries RFC3623-3.2-1, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 3623, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc3623.txt |
+| Source fingerprint | 8c64b96d2a23301e |
+| Record | rfc/extraction/rfc3623.json |
+| Mapped sentences | 12 |
+| Declined as scope | 8 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 1 | walked | not stated |
+| `2` | not stated | 1 | walked | not stated |
+| `2.1` | not stated | 2 | walked | not stated |
+| `2.2` | not stated | 0 | walked | not stated |
+| `2.3` | not stated | 0 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `3.1` | not stated | 2 | walked | not stated |
+| `3.2` | not stated | 1 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 6 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 1 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+| `A` | not stated | 4 | walked | not stated |
+| `B` | not stated | 0 | walked | not stated |
+| `B.1` | not stated | 0 | walked | not stated |
+| `B.2` | not stated | 1 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Introduction sentence describing what the mechanism needs from the neighbors ('which must cooperate in order for the restart to be graceful'); the helper obligations themselves are in Section 3. | Then there are the router's neighbors, which must cooperate in order for the restart to be graceful. |
+| `2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Overview sentence announcing that Sections 2.1-2.3 follow ('it must change its OSPF processing somewhat'); it names no specific behavior. | After the router restarts/reloads, it must change its OSPF processing somewhat until it re-establishes full adjacencies with all its former fully-adjacent neighbors. |
+| `2.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Lead-in to the numbered list that follows ('must perform the following actions'); the obligations are the list items, decided below. | In preparation for the graceful restart, Router X must perform the following actions before its software is restarted/reloaded: |
+| `3.1:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | First half of the helper's retransmission-list check: RFC3623-3.1-1 states the same condition as its refusal ('LSAs whose contents have changed' rather than periodic refreshes). | - If there are any LSAs with LS types 1-5,7 on the list, then they all must be periodic refreshes. |
+| `5:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Lead-in to the bullet list that follows ('The following points must be observed'); the obligations are the bullets, decided below. | The following points must be observed during this grace-LSA origination. |
+| `5:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Second sentence of the same bullet; RFC3623-5-2 carries both the before-Hellos ordering and the AllSPFRouters (224.0.0.5) flood target. | On broadcast networks, this LSA must be flooded to the AllSPFRouters multicast address (224.0.0.5) since the restarting router is not aware of its previous DR state. |
+| `8:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | RFC boilerplate: the IETF's standard intellectual-property notice inviting parties to disclose patents. It binds no implementation. | The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights which may cover technology that may be required to practice this standard. |
+| `B.2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | RFC Editor full-copyright statement ('this document itself may not be modified in any way'); it is a licence term, not a protocol requirement. | However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English. |
 
 ## Superseded
 

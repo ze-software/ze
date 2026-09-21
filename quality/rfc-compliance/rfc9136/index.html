@@ -418,14 +418,14 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{not-applicable}:</strong> this constrains the MAC inside the EVPN Router&#39;s MAC Extended Community (the optional MAC overlay-index feature), which ze does not implement or interpret</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-4">RFC9136-3.2-4</code></td><td colspan="3"><span class="rfc-subject">Route MUST be treat as withdraw if MAC address is broadcast or multicast (S3.2, Table 1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.2-4">RFC9136-3.2-4</code></td><td colspan="3"><span class="rfc-subject">The route MUST be treat as withdraw in case of an invalid MAC address; broadcast and multicast MAC addresses are the examples the RFC gives (S3.2, Table 1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>3.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9136-3.2-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{not-applicable}:</strong> detecting a broadcast/multicast MAC requires interpreting the Router&#39;s MAC Extended Community, an optional feature ze neither parses nor validates</p></td>
+</div><p class="rfc-mark"><strong>{not-applicable}:</strong> detecting an invalid MAC requires interpreting the Router&#39;s MAC Extended Community, an optional feature ze neither parses nor validates</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9136-3.1-10">RFC9136-3.1-10</code></td><td colspan="3"><span class="rfc-subject">Label value SHOULD be zero if recursive resolution via Overlay Index is used (S3.1)</span></td></tr>
 <tr><td></td>
@@ -526,9 +526,9 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this constrains the MAC inside the EVPN Router&#39;s MAC Extended Community (the optional MAC overlay-index feature), which ze does not implement or interpret</td>
 </tr>
-<tr><td><a href="#rfc9136-3.2-4"><code>RFC9136-3.2-4</code></a> Route MUST be treat as withdraw if MAC address is broadcast or multicast (S3.2, Table 1)</td>
+<tr><td><a href="#rfc9136-3.2-4"><code>RFC9136-3.2-4</code></a> The route MUST be treat as withdraw in case of an invalid MAC address; broadcast and multicast MAC addresses are the examples the RFC gives (S3.2, Table 1)</td>
 <td>no test</td>
-<td>no test carries this requirement id; annotated {not-applicable}: detecting a broadcast/multicast MAC requires interpreting the Router&#39;s MAC Extended Community, an optional feature ze neither parses nor validates</td>
+<td>no test carries this requirement id; annotated {not-applicable}: detecting an invalid MAC requires interpreting the Router&#39;s MAC Extended Community, an optional feature ze neither parses nor validates</td>
 </tr>
 </tbody>
 </table>
@@ -658,12 +658,201 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9136-3.2-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9136-3.2-4"><code>RFC9136-3.2-4</code></a></h3>
-<p>Route MUST be treat as withdraw if MAC address is broadcast or multicast (S3.2, Table 1)</p>
+<p>The route MUST be treat as withdraw in case of an invalid MAC address; broadcast and multicast MAC addresses are the examples the RFC gives (S3.2, Table 1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9136-3.2-4, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 9136, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc9136.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>3cd1f114ac072151</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc9136.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>13</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>1</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>9</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>3.1:5</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the all-zero-otherwise half of the ESI constraint the row already states: &#34;ESI MUST be a non-zero 10-octet identifier if used as Overlay Index; MUST be all zeros otherwise&#34;</td>
+<td>It MUST be all bytes zero otherwise.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 9136, so its obligations are stated where they were written.</p>
@@ -697,7 +886,7 @@ Five MUST gaps annotated in <a href="https://github.com/ze-software/ze/blob/main
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

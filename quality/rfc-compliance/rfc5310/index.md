@@ -223,7 +223,47 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 5310, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc5310.txt |
+| Source fingerprint | f5b2eddf2b4cd973 |
+| Record | rfc/extraction/rfc5310.json |
+| Mapped sentences | 9 |
+| Declined as scope | 3 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 1 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.2` | not stated | 5 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `3.4` | not stated | 2 | walked | not stated |
+| `3.5` | not stated | 0 | walked | not stated |
+| `4` | not stated | 4 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `7.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Introduction prose explaining why confidentiality is out of scope for a routing protocol; the lowercase 'required' describes the problem space and imposes nothing. | However, the objective of a routing protocol is to advertise the routing topology, and confidentiality is not normally required for routing protocols. |
+| `4:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Security Considerations guidance to the operator, in lowercase 'must'; Section 1.1 binds only the capitalised spellings to RFC 2119, and the sentence constrains how long a deployment keeps the optional transition mode rather than what an implementation does. | The operator must ensure that this mode is only used when migrating to the new CRYPTO_AUTH-based authentication scheme, as this leaves the router vulnerable to an attack. |
+| `4:4` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Security Considerations commentary pointing at RFC 2154 digital signatures as an approach that 'should be seriously considered' if stronger authentication were wanted; lowercase, conditional, and about a mechanism this document does not define. | If a stronger authentication were believed to be required, then the use of a full digital signature [RFC2154] would be an approach that should be seriously considered. |
 
 ## Superseded
 

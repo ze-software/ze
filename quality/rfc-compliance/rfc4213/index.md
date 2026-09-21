@@ -358,7 +358,54 @@ No test carries RFC4213-5-4, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 4213, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc4213.txt |
+| Source fingerprint | 00b5a45164be1272 |
+| Record | rfc/extraction/rfc4213.json |
+| Mapped sentences | 22 |
+| Declined as scope | 2 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 2 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.2` | not stated | 2 | walked | not stated |
+| `3.2.1` | not stated | 4 | walked | not stated |
+| `3.2.2` | not stated | 0 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `3.4` | not stated | 0 | walked | not stated |
+| `3.5` | not stated | 0 | walked | not stated |
+| `3.6` | not stated | 7 | walked | not stated |
+| `3.7` | not stated | 1 | walked | not stated |
+| `3.8` | not stated | 2 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 4 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `7.2` | not stated | 0 | walked | not stated |
+| `8` | not stated | 2 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `8:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 8 is the changelog from RFC 2893. The sentence restates the source-address check obligation already mapped at site 3.6:1 (decapsulator MUST verify the tunnel source address) and at 5:2 (invalid IPv6 source addresses MUST be discarded). | - Added stronger wording for source address checks: both IPv4 and IPv6 source addresses MUST be checked, and RPF-like ingress filtering is optional. |
+| `8:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 8 changelog entry restating the section 2.2 resolver obligation already mapped at site 2.2:2 (the resolver library MUST NOT filter out any records). | - Removed/clarified DNS record filtering; an API is a SHOULD and if it does not exist, MUST NOT filter anything. |
 
 ## Superseded
 

@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 86.7% | 13 of 15 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 13.3% | 2 of 15 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 15 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 15 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 28 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 85.7% | 12 of 14 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 14.3% | 2 of 14 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 14 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0.0% | 0 of 14 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 0.0% | 0 of 26 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,13 +22,13 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 15 | of 20 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 15 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 15 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 15 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 15 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 14 | of 19 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 14 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 14 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 14 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 14 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -52,14 +52,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Experimental |
 | Enrolment | Enrolled |
-| Requirements | 20 |
-| Gated MUST-level | 15 |
+| Requirements | 19 |
+| Gated MUST-level | 14 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 28 |
-| Tagged units | 28 |
+| Test tags | 26 |
+| Tagged units | 26 |
 | Recorded audit verdicts | 0 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc5709.md` |
@@ -86,15 +86,15 @@ Same OSPF experimental status.
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 13 | one part of the gated population |
+| Positive and negative tests | 12 | one part of the gated population |
 | Annotated instead of tested | 2 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **15** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **14** | every gated MUST falls in exactly one bucket above |
 
-**Positive and negative tests (13):** [`RFC5709-3-1`](#rfc5709-3-1), [`RFC5709-3.1-1`](#rfc5709-3.1-1), [`RFC5709-3.1-2`](#rfc5709-3.1-2), [`RFC5709-3.1-3`](#rfc5709-3.1-3), [`RFC5709-3.1-4`](#rfc5709-3.1-4), [`RFC5709-3.3-1`](#rfc5709-3.3-1), [`RFC5709-3.3-2`](#rfc5709-3.3-2), [`RFC5709-3.3-3`](#rfc5709-3.3-3), [`RFC5709-3.3-4`](#rfc5709-3.3-4), [`RFC5709-3.3-5`](#rfc5709-3.3-5), [`RFC5709-3.4-1`](#rfc5709-3.4-1), [`RFC5709-3.4-2`](#rfc5709-3.4-2), [`RFC5709-3.2-1`](#rfc5709-3.2-1)
+**Positive and negative tests (12):** [`RFC5709-3-1`](#rfc5709-3-1), [`RFC5709-3.1-1`](#rfc5709-3.1-1), [`RFC5709-3.1-2`](#rfc5709-3.1-2), [`RFC5709-3.1-3`](#rfc5709-3.1-3), [`RFC5709-3.1-4`](#rfc5709-3.1-4), [`RFC5709-3.3-1`](#rfc5709-3.3-1), [`RFC5709-3.3-2`](#rfc5709-3.3-2), [`RFC5709-3.3-3`](#rfc5709-3.3-3), [`RFC5709-3.3-4`](#rfc5709-3.3-4), [`RFC5709-3.4-1`](#rfc5709-3.4-1), [`RFC5709-3.4-2`](#rfc5709-3.4-2), [`RFC5709-3.2-1`](#rfc5709-3.2-1)
 
 **Annotated instead of tested (2):** [`RFC5709-3-5`](#rfc5709-3-5), [`RFC5709-3.2-2`](#rfc5709-3.2-2)
 
@@ -115,7 +115,6 @@ Same OSPF experimental status.
 | `RFC5709-3.3-2` | Derive Ko to length L: Ko = K, H(K), or K zero-padded to L (Section 3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L74). **negative:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L83) |
 | `RFC5709-3.3-3` | Compute First-Hash = H(Ko XOR Ipad \|\| OSPFv2 Packet) and Second-Hash = H(Ko XOR Opad \|\| First-Hash) (Section 3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L75). **negative:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L84) |
 | `RFC5709-3.3-4` | Place Second-Hash as the Authentication Data of length L in the trailer (Section 3.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L69). **negative:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L92) |
-| `RFC5709-3.3-5` | Set the OSPF header Checksum field to 0 for AuType 2 packets, per RFC 2328 D.4.3 (Section 3.3, RFC 2328 D.4.3) | MUST | 3.3 | **positive:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L65). **negative:** `unit/verify` [`TestOSPFAuthCryptoChecksumOctetAuthenticated`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L354) |
 | `RFC5709-3.4-1` | On receive, save the wire digest, replace the trailer with Apad, recompute, and compare (Section 3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L76). **negative:** `unit/verify` [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L93) |
 | `RFC5709-3.4-2` | Select algorithm/key on receive implicitly from the packet's Key ID (Section 3.4) | MUST | 3.4 | **positive:** `unit/verify` [`TestOSPFAuthCryptoRejectsKeyIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L245). **negative:** `unit/verify` [`TestOSPFAuthCryptoRejectsKeyIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L242) |
 | `RFC5709-3.2-1` | Ensure a new key's KeyStartGenerate <= the old key's KeyStopGenerate on rollover (Section 3.2) | MUST | 3.2 | **positive:** `unit/verify` [`TestKeyRolloverOverlapAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_test.go#L559). **negative:** `unit/verify` [`TestKeyRolloverGapRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_test.go#L572) |
@@ -240,17 +239,6 @@ Audit verdict: not audited: no reader has judged these tests
 | negative | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L92) | unit/verify | unproven |
 | positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L69) | unit/verify | unproven |
 
-### [`RFC5709-3.3-5`](#rfc5709-3.3-5)
-
-Set the OSPF header Checksum field to 0 for AuType 2 packets, per RFC 2328 D.4.3 (Section 3.3, RFC 2328 D.4.3)
-
-Audit verdict: not audited: no reader has judged these tests
-
-| Polarity | Test | Kind and tier | Proof state |
-|---|---|---|---|
-| negative | [`TestOSPFAuthCryptoChecksumOctetAuthenticated`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L354) | unit/verify | unproven |
-| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L65) | unit/verify | unproven |
-
 ### [`RFC5709-3.4-1`](#rfc5709-3.4-1)
 
 On receive, save the wire digest, replace the trailer with Apad, recompute, and compare (Section 3.4)
@@ -296,7 +284,45 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 5709, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc5709.txt |
+| Source fingerprint | 5692692e75358feb |
+| Record | rfc/extraction/rfc5709.json |
+| Mapped sentences | 4 |
+| Declined as scope | 2 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 1 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 2 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.2` | not stated | 1 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `3.4` | not stated | 1 | walked | not stated |
+| `3.5` | not stated | 0 | walked | not stated |
+| `4` | not stated | 1 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `7.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF Trust boilerplate from the Copyright Notice, obliging whoever extracts code components from the document to carry the Simplified BSD License text. It is a licensing condition on republication, not a protocol obligation, and it appears before Section 1. | Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the BSD License. |
+| `4:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Security Considerations advice about a different mechanism, stated as a hypothetical: 'If a stronger authentication were believed to be required, then the use of a full digital signature [RFC2154] would be an approach that should be seriously considered.' The 'should' governs how seriously a reader considers RFC 2154 digital signatures, which this document does not specify, so no OSPFv2 behavior answers it. | If a stronger authentication were believed to be required, then the use of a full digital signature [RFC2154] would be an approach that should be seriously considered. |
 
 ## Superseded
 

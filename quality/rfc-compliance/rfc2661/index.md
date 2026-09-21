@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 80.0% | 16 of 20 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 15.0% | 3 of 20 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 20 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 16.3% | 8 of 49 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 16.3% | 16 of 98 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 3.1% | 3 of 98 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 98 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Proven by a recorded break | 20.4% | 10 of 49 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 20 | of 27 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 20 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 20 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 20 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 20 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 98 | of 105 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 98 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 98 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 98 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 98 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 5.0% | 1 of 20 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 80.6% | 79 of 98 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 20 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 98 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 27 |
-| Gated MUST-level | 20 |
+| Requirements | 105 |
+| Gated MUST-level | 98 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 1 |
-| Gated with no test | 0 |
+| Gated with no test | 78 |
 | Nightly-only evidence | 0 |
 | Test tags | 49 |
 | Tagged units | 49 |
@@ -89,7 +89,7 @@ Enrolled: Layer Two Tunneling Protocol / L2TP (RFC 2661): LAC+LNS control plane.
 
 **What the ledger says remains**
 
-Feature remains Partial; see L2TP guide for operational limits. One MUST gap gated in [`rfc/short/rfc2661.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc2661.md): [`RFC2661-4.3-1`](#rfc2661-4.3-1) -- the hidden-AVP MD5 cipher ([`internal/component/l2tp/hidden.go`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/hidden.go)) is implemented and unit-tested but not wired into any message encoder/decoder, so no Random Vector precedes a hidden AVP on send and precedence is not enforced on receive. Initiator tunnel interop proven vs xl2tpd (test/interop-l2tp/scenarios/03). LAC data-plane bridge (A-4) is QEMU/CAP_NET_ADMIN-gated.
+Feature remains Partial; see L2TP guide for operational limits. One MUST gap gated in [`rfc/short/rfc2661.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc2661.md): [`RFC2661-4.3-1`](#rfc2661-4.3-1) -- the hidden-AVP MD5 cipher ([`internal/component/l2tp/hidden.go`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/hidden.go)) is implemented and unit-tested but not wired into any message encoder/decoder, so no Random Vector precedes a hidden AVP on send and precedence is not enforced on receive. Initiator tunnel interop proven vs xl2tpd (test/interop-l2tp/scenarios/03). LAC data-plane bridge (A-4) is QEMU/CAP_NET_ADMIN-gated. The 2026-09-21 extraction walk added 78 MUST rows from sentences the checklist did not carry, covering the control-message header bits (§3.1), the AVP M-bit and H-bit values Section 4.4 states per AVP, the per-AVP presence and encoding obligations of §4.4.2 to §4.4.6, tunnel and session establishment ordering (§5.0, §5.1.1, §5.3, §5.4, §5.7), the mandatory AVP sets of every control message in §6, the version and termination handling of §7.2.1, the LAC call obligations of §7.5, the UDP transport rules of §8, and proxy authentication configurability (§9.5). None of them is tested.
 
 ## Coverage
 
@@ -98,14 +98,16 @@ Feature remains Partial; see L2TP guide for operational limits. One MUST gap gat
 | Positive and negative tests | 16 | one part of the gated population |
 | Annotated instead of tested | 4 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 78 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **20** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **98** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (16):** [`RFC2661-4.1-1`](#rfc2661-4.1-1), [`RFC2661-4.1-2`](#rfc2661-4.1-2), [`RFC2661-4.1-3`](#rfc2661-4.1-3), [`RFC2661-4.1-4`](#rfc2661-4.1-4), [`RFC2661-5.8-3`](#rfc2661-5.8-3), [`RFC2661-5.8-4`](#rfc2661-5.8-4), [`RFC2661-5.8-5`](#rfc2661-5.8-5), [`RFC2661-5.8-6`](#rfc2661-5.8-6), [`RFC2661-5.8-7`](#rfc2661-5.8-7), [`RFC2661-6.1-1`](#rfc2661-6.1-1), [`RFC2661-6.2-1`](#rfc2661-6.2-1), [`RFC2661-24.10-1`](#rfc2661-24.10-1), [`RFC2661-24.12-1`](#rfc2661-24.12-1), [`RFC2661-10-1`](#rfc2661-10-1), [`RFC2661-9-1`](#rfc2661-9-1), [`RFC2661-10-2`](#rfc2661-10-2)
 
 **Annotated instead of tested (4):** [`RFC2661-x-1`](#rfc2661-x-1), [`RFC2661-5.8-1`](#rfc2661-5.8-1), [`RFC2661-5.8-2`](#rfc2661-5.8-2), [`RFC2661-4.3-1`](#rfc2661-4.3-1)
+
+**No test and no annotation (78):** [`RFC2661-3.1-1`](#rfc2661-3.1-1), [`RFC2661-3.1-2`](#rfc2661-3.1-2), [`RFC2661-3.1-3`](#rfc2661-3.1-3), [`RFC2661-3.1-4`](#rfc2661-3.1-4), [`RFC2661-3.1-5`](#rfc2661-3.1-5), [`RFC2661-3.1-6`](#rfc2661-3.1-6), [`RFC2661-3.1-7`](#rfc2661-3.1-7), [`RFC2661-4.1-5`](#rfc2661-4.1-5), [`RFC2661-4.2-2`](#rfc2661-4.2-2), [`RFC2661-4.3-3`](#rfc2661-4.3-3), [`RFC2661-4.4.1-1`](#rfc2661-4.4.1-1), [`RFC2661-4.4.1-2`](#rfc2661-4.4.1-2), [`RFC2661-4.4-3`](#rfc2661-4.4-3), [`RFC2661-4.4-1`](#rfc2661-4.4-1), [`RFC2661-4.4.2-1`](#rfc2661-4.4.2-1), [`RFC2661-4.4.3-1`](#rfc2661-4.4.3-1), [`RFC2661-4.4.3-2`](#rfc2661-4.4.3-2), [`RFC2661-4.4.3-3`](#rfc2661-4.4.3-3), [`RFC2661-4.4.3-4`](#rfc2661-4.4.3-4), [`RFC2661-4.4-2`](#rfc2661-4.4-2), [`RFC2661-4.4.3-5`](#rfc2661-4.4.3-5), [`RFC2661-4.4.3-6`](#rfc2661-4.4.3-6), [`RFC2661-4.4.3-7`](#rfc2661-4.4.3-7), [`RFC2661-4.4.3-8`](#rfc2661-4.4.3-8), [`RFC2661-4.4.3-9`](#rfc2661-4.4.3-9), [`RFC2661-4.4.4-1`](#rfc2661-4.4.4-1), [`RFC2661-4.4.4-2`](#rfc2661-4.4.4-2), [`RFC2661-4.4.4-3`](#rfc2661-4.4.4-3), [`RFC2661-4.4.4-4`](#rfc2661-4.4.4-4), [`RFC2661-4.4.4-5`](#rfc2661-4.4.4-5), [`RFC2661-4.4.5-1`](#rfc2661-4.4.5-1), [`RFC2661-4.4.5-2`](#rfc2661-4.4.5-2), [`RFC2661-4.4.5-3`](#rfc2661-4.4.5-3), [`RFC2661-4.4.5-4`](#rfc2661-4.4.5-4), [`RFC2661-4.4.5-5`](#rfc2661-4.4.5-5), [`RFC2661-4.4.5-6`](#rfc2661-4.4.5-6), [`RFC2661-4.4.6-1`](#rfc2661-4.4.6-1), [`RFC2661-5.0-1`](#rfc2661-5.0-1), [`RFC2661-5.0-2`](#rfc2661-5.0-2), [`RFC2661-5.1.1-1`](#rfc2661-5.1.1-1), [`RFC2661-5.1.1-2`](#rfc2661-5.1.1-2), [`RFC2661-5.1.1-3`](#rfc2661-5.1.1-3), [`RFC2661-5.3-1`](#rfc2661-5.3-1), [`RFC2661-5.3-2`](#rfc2661-5.3-2), [`RFC2661-5.4-1`](#rfc2661-5.4-1), [`RFC2661-5.4-2`](#rfc2661-5.4-2), [`RFC2661-5.4-3`](#rfc2661-5.4-3), [`RFC2661-5.7-1`](#rfc2661-5.7-1), [`RFC2661-5.8-10`](#rfc2661-5.8-10), [`RFC2661-6.0-1`](#rfc2661-6.0-1), [`RFC2661-6.3-1`](#rfc2661-6.3-1), [`RFC2661-6.4-1`](#rfc2661-6.4-1), [`RFC2661-6.5-1`](#rfc2661-6.5-1), [`RFC2661-6.5-2`](#rfc2661-6.5-2), [`RFC2661-6.5-3`](#rfc2661-6.5-3), [`RFC2661-6.6-1`](#rfc2661-6.6-1), [`RFC2661-6.7-1`](#rfc2661-6.7-1), [`RFC2661-6.8-1`](#rfc2661-6.8-1), [`RFC2661-6.9-1`](#rfc2661-6.9-1), [`RFC2661-6.9-2`](#rfc2661-6.9-2), [`RFC2661-6.10-1`](#rfc2661-6.10-1), [`RFC2661-6.11-1`](#rfc2661-6.11-1), [`RFC2661-6.12-1`](#rfc2661-6.12-1), [`RFC2661-6.12-2`](#rfc2661-6.12-2), [`RFC2661-6.13-1`](#rfc2661-6.13-1), [`RFC2661-6.14-1`](#rfc2661-6.14-1), [`RFC2661-6.14-2`](#rfc2661-6.14-2), [`RFC2661-7.2.1-1`](#rfc2661-7.2.1-1), [`RFC2661-7.2.1-2`](#rfc2661-7.2.1-2), [`RFC2661-7.2.1-3`](#rfc2661-7.2.1-3), [`RFC2661-7.5-1`](#rfc2661-7.5-1), [`RFC2661-7.5.1-1`](#rfc2661-7.5.1-1), [`RFC2661-7.5.1-2`](#rfc2661-7.5.1-2), [`RFC2661-8.1-1`](#rfc2661-8.1-1), [`RFC2661-8.1-2`](#rfc2661-8.1-2), [`RFC2661-8.1-3`](#rfc2661-8.1-3), [`RFC2661-8.2-1`](#rfc2661-8.2-1), [`RFC2661-9.5-2`](#rfc2661-9.5-2)
 
 ## Requirements
 
@@ -131,6 +133,84 @@ Feature remains Partial; see L2TP guide for operational limits. One MUST gap gat
 | `RFC2661-10-1` | CDN is valid in any non-idle session state; receiving CDN destroys the session. RFC 2661 Section 5.6 states session teardown by CDN and RFC 2661 Section 7.4.2 gives the state table. The id anchor below is frozen and does NOT name Section 10, which is IANA Considerations (§10) | MUST | 10 | **positive:** `unit/verify` [`TestSession_CDN_AnyState`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L337). **positive:** `unit/verify` [`TestSession_CDN_EstablishedSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L308). **negative:** `unit/verify` [`TestSession_CDN_UnknownSessionDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L361) |
 | `RFC2661-9-1` | StopCCN cascades: all sessions in a tunnel are cleared when StopCCN is received. RFC 2661 Section 5.7: an implementation "may shut down an entire tunnel and all sessions on the tunnel by sending the StopCCN". The id anchor below is frozen and does NOT name Section 9, which is Security Considerations (§9) | MUST | 9 | **positive:** `unit/verify` [`TestSession_StopCCN_CascadeSessions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L398). **negative:** `unit/verify` [`TestStopCCNQueuesAllTeardowns`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L809) |
 | `RFC2661-10-2` | Session ID 0 is reserved and never assigned. RFC 2661 Section 5.3: "The value of 0 for Session ID and Tunnel ID is special and MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID". The id anchor below is frozen and does NOT name Section 10, which is IANA Considerations (§10) | MUST | 10 | **positive:** `unit/verify` [`TestSession_SIDBoundary_MaxUint16`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L1036). **negative:** `unit/verify` [`TestSession_SIDBoundary_Zero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L1050) |
+| `RFC2661-3.1-1` | This bit MUST be set to 1 for control messages (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-3.1-2` | The S bit MUST be set to 1 for control messages (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-3.1-3` | The O bit MUST be set to 0 (zero) for control messages (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-3.1-4` | The P bit MUST be set to 0 for all control messages (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-3.1-5` | Ver MUST be 2, indicating the version of the L2TP data message header described in this document (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-3.1-6` | Packets received with an unknown Ver field MUST be discarded (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-3.1-7` | In data messages, Nr is reserved and, if present (as indicated by the S-bit), MUST be ignored upon receipt (§3.1) | MUST | 3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.1-5` | If the M bit is not set, an unrecognized AVP MUST be ignored (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.2-2` | Use of the M-bit with new AVPs (those not defined in this document) MUST provide the ability to configure the associated feature off, such that the AVP is either not sent, or sent with the M-bit not set (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.3-3` | The H bit MUST only be set if a shared secret exists between the LAC and LNS (§4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.1-1` | Thus, if the M-bit is set within the Message Type AVP and the Message Type is unknown to the implementation, the tunnel MUST be cleared (§4.4.1) | MUST | 4.4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.1-2` | The M-bit MUST be set to 1 for all message types defined in this document (§4.4.1) | MUST | 4.4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4-3` | Every AVP whose Section 4.4 definition states "This AVP MUST NOT be hidden (the H-bit MUST be 0)" MUST be sent with H=0 (§4.4) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4-1` | Every mandatory AVP definition in Section 4.4 states "The M-bit for this AVP MUST be set to 1", so the sender MUST set M=1 on each of those AVPs (§4.4) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.2-1` | Human readable text in all error messages MUST be provided in the UTF-8 charset using the Default Language [RFC2277] (§4.4.2) | MUST | 4.4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.3-1` | A peer MUST NOT request an incoming or outgoing call with a Framing Type AVP specifying a value not advertised in the Framing Capabilities AVP it received during control connection establishment (§4.4.3) | MUST NOT | 4.4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.3-2` | This AVP MUST be present if the sender can place outgoing calls when requested (§4.4.3) | MUST | 4.4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.3-3` | The lower value "wins", and the "loser" MUST silently discard its tunnel (§4.4.3) | MUST | 4.4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.3-4` | In the case where a tie breaker is present on both sides, and the value is equal, both sides MUST discard their tunnels (§4.4.3) | MUST | 4.4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4-2` | Every optional AVP definition in Section 4.4 states "The M-bit for this AVP MUST be set to 0", so the sender MUST set M=0 on each of those AVPs (§4.4) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.3-5` | The Host Name is of arbitrary length, but MUST be at least 1 octet (§4.4.3) | MUST | 4.4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.3-6` | The L2TP peer MUST place this value in the Tunnel ID header field of all control and data messages that it subsequently transmits over the associated tunnel (§4.4.3) | MUST | 4.4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.3-7` | Before the Assigned Tunnel ID AVP is received from a peer, messages MUST be sent to that peer with a Tunnel ID value of 0 in the header of all control messages (§4.4.3) | MUST | 4.4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.3-8` | In the StopCCN control message, the Assigned Tunnel ID AVP MUST be the same as the Assigned Tunnel ID AVP first sent to the receiving peer, permitting the peer to identify the appropriate tunnel even if a StopCCN is sent before an Assigned Tunnel ID AVP is received (§4.4.3) | MUST | 4.4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.3-9` | This AVP MUST be present in an SCCRP or SCCCN if a challenge was received in the preceding SCCRQ or SCCRP (§4.4.3) | MUST | 4.4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.4-1` | The L2TP peer MUST place this value in the Session ID header field of all control and data messages that it subsequently transmits over the tunnel that belong to this session (§4.4.4) | MUST | 4.4.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.4-2` | Before the Assigned Session ID AVP is received from a peer, messages MUST be sent to that peer with a Session ID of 0 in the header of all control messages (§4.4.4) | MUST | 4.4.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.4-3` | Bits in the Value field of this AVP MUST only be set by the LNS for an OCRQ if it was set in the Bearer Capabilities AVP received from the LAC during control connection establishment (§4.4.4) | MUST | 4.4.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.4-4` | Bits in the Value field of this AVP MUST only be set by the LNS for an OCRQ if it was set in the Framing Capabilities AVP received from the LAC during control connection establishment (§4.4.4) | MUST | 4.4.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.4-5` | The Sequencing Required AVP, Attribute Type 39, indicates to the LNS that Sequence Numbers MUST always be present on the data channel (§4.4.4) | MUST | 4.4.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.5-1` | This AVP MUST be present if proxy authentication is to be utilized (§4.4.5) | MUST | 4.4.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.5-2` | This AVP MUST be present in messages containing a Proxy Authen Type AVP with an Authen Type of 1, 2, 3 or 5 (§4.4.5) | MUST | 4.4.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.5-3` | This AVP MUST be present for Proxy Authen Types 2 and 5 (§4.4.5) | MUST | 4.4.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.5-4` | ID is a 2 octet unsigned integer, the most significant octet MUST be 0 (§4.4.5) | MUST | 4.4.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.5-5` | The Proxy Authen ID AVP MUST be present for Proxy authen types 2, 3 and 5 (§4.4.5) | MUST | 4.4.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.5-6` | This AVP MUST be present for Proxy authen types 1, 2, 3 and 5 (§4.4.5) | MUST | 4.4.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-4.4.6-1` | Reserved - Not used, MUST be 0 CRC Errors - Number of PPP frames received with CRC errors since call was established Framing Errors - Number of improperly framed PPP packets received Hardware Overruns - Number of receive buffer over-runs since call was established Buffer Overruns - Number of buffer over-runs detected since call was established Time-out Errors - Number of time-outs since call was established Alignment Errors - Number of alignment errors since call was established (§4.4.6) | MUST | 4.4.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-5.0-1` | The Tunnel and corresponding Control Connection MUST be established before an incoming or outgoing call is initiated (§5.0) | MUST | 5.0 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-5.0-2` | An L2TP Session MUST be established before L2TP can begin to tunnel PPP frames (§5.0) | MUST | 5.0 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-5.1.1-1` | If a Challenge AVP is received in an SCCRQ or SCCRP, a Challenge Response AVP MUST be sent in the following SCCRP or SCCCN, respectively (§5.1.1) | MUST | 5.1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-5.1.1-2` | If the expected response and response received from a peer does not match, establishment of the tunnel MUST be disallowed (§5.1.1) | MUST | 5.1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-5.1.1-3` | To participate in tunnel authentication, a single shared secret MUST exist between the LAC and LNS (§5.1.1) | MUST | 5.1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-5.3-1` | For the cases where a Session ID has not yet been assigned by the peer (i.e., during establishment of a new session or tunnel), the Session ID field MUST be sent as 0, and the Assigned Session ID AVP within the message MUST be used to identify the session (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-5.3-2` | Similarly, for cases where the Tunnel ID has not yet been assigned from the peer, the Tunnel ID MUST be sent as 0 and Assigned Tunnel ID AVP used to identify the tunnel (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-5.4-1` | If this AVP is present during session setup, sequence numbers MUST be present at all times (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-5.4-2` | Thus, if the LAC receives a data message without sequence numbers present, it MUST stop sending sequence numbers in future data messages (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-5.4-3` | If the LAC receives a data message with sequence numbers present, it MUST begin sending sequence numbers in future outgoing data messages (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-5.7-1` | The receiver of a StopCCN MUST send a ZLB ACK to acknowledge receipt of the message and maintain enough control connection state to properly accept StopCCN retransmissions over at least a full retransmission cycle (in case the ZLB ACK is lost) (§5.7) | MUST | 5.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-5.8-10` | A peer MUST NOT withhold acknowledgment of messages as a technique for flow controlling control messages (§5.8) | MUST NOT | 5.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.0-1` | Any "reserved" or "empty" fields MUST be sent as 0 values to allow for protocol extensibility (§6.0) | MUST | 6.0 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.3-1` | The following AVP MUST be present in the SCCCN: (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.4-1` | The following AVPs MUST be present in the StopCCN: (§6.4) | MUST | 6.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.5-1` | A peer MUST NOT expect HELLO messages at any time or interval (§6.5) | MUST NOT | 6.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.5-2` | The Session ID in a HELLO message MUST be 0 (§6.5) | MUST | 6.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.5-3` | The Following AVP MUST be present in the HELLO message: (§6.5) | MUST | 6.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.6-1` | The following AVPs MUST be present in the ICRQ: (§6.6) | MUST | 6.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.7-1` | The following AVPs MUST be present in the ICRP: (§6.7) | MUST | 6.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.8-1` | The following AVPs MUST be present in the ICCN: (§6.8) | MUST | 6.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.9-1` | An LNS MUST have received a Bearer Capabilities AVP during tunnel establishment from an LAC in order to request an outgoing call to that LAC (§6.9) | MUST | 6.9 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.9-2` | The following AVPs MUST be present in the OCRQ: (§6.9) | MUST | 6.9 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.10-1` | The following AVPs MUST be present in the OCRP: (§6.10) | MUST | 6.10 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.11-1` | The following AVPs MUST be present in the OCCN: (§6.11) | MUST | 6.11 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.12-1` | The peer MUST clean up any resources, and does not send back any indication of success or failure for such cleanup (§6.12) | MUST | 6.12 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.12-2` | The following AVPs MUST be present in the CDN: (§6.12) | MUST | 6.12 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.13-1` | The following AVPs MUST be present in the WEN: (§6.13) | MUST | 6.13 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.14-1` | These options can change at any time during the life of the call, thus the LAC MUST be able to update its internal call information and behavior on an active PPP session (§6.14) | MUST | 6.14 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-6.14-2` | The following AVPs MUST be present in the SLI: (§6.14) | MUST | 6.14 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-7.2.1-1` | If the version is earlier and not supported, a StopCCN MUST be sent to the peer and the originator cleans up and terminates the tunnel (§7.2.1) | MUST | 7.2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-7.2.1-2` | In the event of a local termination, the originator MUST send a Stop-Control-Connection-Notification and clean up the tunnel (§7.2.1) | MUST | 7.2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-7.2.1-3` | If the originator receives a Stop-Control-Connection-Notification it MUST also clean up the tunnel (§7.2.1) | MUST | 7.2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-7.5-1` | The LAC MUST respond to the Outgoing-Call-Request message with an Outgoing-Call-Reply message once the LAC determines that the proper facilities exist to place the call and the call is administratively authorized (§7.5) | MUST | 7.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-7.5.1-1` | established If a Call-Disconnect-Notify is received by the LAC, the telco call MUST be released via appropriate mechanisms and the session cleaned up (§7.5.1) | MUST | 7.5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-7.5.1-2` | If the call is disconnected by the client or the called interface, a Call-Disconnect-Notify message MUST be sent to the LNS (§7.5.1) | MUST | 7.5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-8.1-1` | Once the source and destination ports and addresses are established, they MUST remain static for the life of the tunnel (§8.1) | MUST | 8.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-8.1-2` | The default for any L2TP implementation is that UDP checksums MUST be enabled for both control and data messages (§8.1) | MUST | 8.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-8.1-3` | An L2TP implementation running on a system which does not support L2F MUST silently discard all L2F packets (§8.1) | MUST | 8.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-8.2-1` | When operating in IP environments, L2TP MUST offer the UDP encapsulation described in 8.1 as its default configuration for IP operation (§8.2) | MUST | 8.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2661-9.5-2` | If the LNS chooses to implement proxy authentication, it MUST be able to be configured off, requiring a new round a PPP authentication initiated by the LNS (which may or may not include a new round of LCP negotiation) (§9.5) | MUST | 9.5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2661-5.8-8` | Retransmission count SHOULD be configurable (recommended 5) (§5.8) | SHOULD | 5.8 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2661-x-2` | Slow start and congestion avoidance SHOULD be implemented (CWND/SSTHRESH per Appendix A) (Appendix A) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
 | `RFC2661-15-1` | HELLO keepalive SHOULD be sent when no control messages received for a configurable period (recommended 60 seconds). RFC 2661 Section 5.5 states the keepalive and RFC 2661 Section 6.5 the message. The id anchor below numbers no section of RFC 2661 and is frozen (§15) | SHOULD | 15 | **positive:** no positive test. **negative:** no negative test |
@@ -144,6 +224,84 @@ Feature remains Partial; see L2TP guide for operational limits. One MUST gap gat
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC2661-4.3-1`](#rfc2661-4.3-1) A Random Vector AVP (type 36) MUST precede any hidden AVP (H=1) in the same message (§4.3) | {gap}, no test | the hidden-AVP MD5 cipher is implemented and unit-tested but is not wired into any control-message path -- no encoder sets H=1 or emits a Random Vector, and decoders skip hidden AVPs without decrypting or checking precedence (internal/component/l2tp/hidden.go:38 has no production caller; avp.go:156-168 skips hidden AVPs; AVPRandomVector avp.go:56 never emitted) |
+| [`RFC2661-3.1-1`](#rfc2661-3.1-1) This bit MUST be set to 1 for control messages (§3.1) | no test | no test carries this requirement id |
+| [`RFC2661-3.1-2`](#rfc2661-3.1-2) The S bit MUST be set to 1 for control messages (§3.1) | no test | no test carries this requirement id |
+| [`RFC2661-3.1-3`](#rfc2661-3.1-3) The O bit MUST be set to 0 (zero) for control messages (§3.1) | no test | no test carries this requirement id |
+| [`RFC2661-3.1-4`](#rfc2661-3.1-4) The P bit MUST be set to 0 for all control messages (§3.1) | no test | no test carries this requirement id |
+| [`RFC2661-3.1-5`](#rfc2661-3.1-5) Ver MUST be 2, indicating the version of the L2TP data message header described in this document (§3.1) | no test | no test carries this requirement id |
+| [`RFC2661-3.1-6`](#rfc2661-3.1-6) Packets received with an unknown Ver field MUST be discarded (§3.1) | no test | no test carries this requirement id |
+| [`RFC2661-3.1-7`](#rfc2661-3.1-7) In data messages, Nr is reserved and, if present (as indicated by the S-bit), MUST be ignored upon receipt (§3.1) | no test | no test carries this requirement id |
+| [`RFC2661-4.1-5`](#rfc2661-4.1-5) If the M bit is not set, an unrecognized AVP MUST be ignored (§4.1) | no test | no test carries this requirement id |
+| [`RFC2661-4.2-2`](#rfc2661-4.2-2) Use of the M-bit with new AVPs (those not defined in this document) MUST provide the ability to configure the associated feature off, such that the AVP is either not sent, or sent with the M-bit not set (§4.2) | no test | no test carries this requirement id |
+| [`RFC2661-4.3-3`](#rfc2661-4.3-3) The H bit MUST only be set if a shared secret exists between the LAC and LNS (§4.3) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.1-1`](#rfc2661-4.4.1-1) Thus, if the M-bit is set within the Message Type AVP and the Message Type is unknown to the implementation, the tunnel MUST be cleared (§4.4.1) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.1-2`](#rfc2661-4.4.1-2) The M-bit MUST be set to 1 for all message types defined in this document (§4.4.1) | no test | no test carries this requirement id |
+| [`RFC2661-4.4-3`](#rfc2661-4.4-3) Every AVP whose Section 4.4 definition states "This AVP MUST NOT be hidden (the H-bit MUST be 0)" MUST be sent with H=0 (§4.4) | no test | no test carries this requirement id |
+| [`RFC2661-4.4-1`](#rfc2661-4.4-1) Every mandatory AVP definition in Section 4.4 states "The M-bit for this AVP MUST be set to 1", so the sender MUST set M=1 on each of those AVPs (§4.4) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.2-1`](#rfc2661-4.4.2-1) Human readable text in all error messages MUST be provided in the UTF-8 charset using the Default Language [RFC2277] (§4.4.2) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.3-1`](#rfc2661-4.4.3-1) A peer MUST NOT request an incoming or outgoing call with a Framing Type AVP specifying a value not advertised in the Framing Capabilities AVP it received during control connection establishment (§4.4.3) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.3-2`](#rfc2661-4.4.3-2) This AVP MUST be present if the sender can place outgoing calls when requested (§4.4.3) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.3-3`](#rfc2661-4.4.3-3) The lower value "wins", and the "loser" MUST silently discard its tunnel (§4.4.3) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.3-4`](#rfc2661-4.4.3-4) In the case where a tie breaker is present on both sides, and the value is equal, both sides MUST discard their tunnels (§4.4.3) | no test | no test carries this requirement id |
+| [`RFC2661-4.4-2`](#rfc2661-4.4-2) Every optional AVP definition in Section 4.4 states "The M-bit for this AVP MUST be set to 0", so the sender MUST set M=0 on each of those AVPs (§4.4) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.3-5`](#rfc2661-4.4.3-5) The Host Name is of arbitrary length, but MUST be at least 1 octet (§4.4.3) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.3-6`](#rfc2661-4.4.3-6) The L2TP peer MUST place this value in the Tunnel ID header field of all control and data messages that it subsequently transmits over the associated tunnel (§4.4.3) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.3-7`](#rfc2661-4.4.3-7) Before the Assigned Tunnel ID AVP is received from a peer, messages MUST be sent to that peer with a Tunnel ID value of 0 in the header of all control messages (§4.4.3) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.3-8`](#rfc2661-4.4.3-8) In the StopCCN control message, the Assigned Tunnel ID AVP MUST be the same as the Assigned Tunnel ID AVP first sent to the receiving peer, permitting the peer to identify the appropriate tunnel even if a StopCCN is sent before an Assigned Tunnel ID AVP is received (§4.4.3) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.3-9`](#rfc2661-4.4.3-9) This AVP MUST be present in an SCCRP or SCCCN if a challenge was received in the preceding SCCRQ or SCCRP (§4.4.3) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.4-1`](#rfc2661-4.4.4-1) The L2TP peer MUST place this value in the Session ID header field of all control and data messages that it subsequently transmits over the tunnel that belong to this session (§4.4.4) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.4-2`](#rfc2661-4.4.4-2) Before the Assigned Session ID AVP is received from a peer, messages MUST be sent to that peer with a Session ID of 0 in the header of all control messages (§4.4.4) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.4-3`](#rfc2661-4.4.4-3) Bits in the Value field of this AVP MUST only be set by the LNS for an OCRQ if it was set in the Bearer Capabilities AVP received from the LAC during control connection establishment (§4.4.4) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.4-4`](#rfc2661-4.4.4-4) Bits in the Value field of this AVP MUST only be set by the LNS for an OCRQ if it was set in the Framing Capabilities AVP received from the LAC during control connection establishment (§4.4.4) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.4-5`](#rfc2661-4.4.4-5) The Sequencing Required AVP, Attribute Type 39, indicates to the LNS that Sequence Numbers MUST always be present on the data channel (§4.4.4) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.5-1`](#rfc2661-4.4.5-1) This AVP MUST be present if proxy authentication is to be utilized (§4.4.5) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.5-2`](#rfc2661-4.4.5-2) This AVP MUST be present in messages containing a Proxy Authen Type AVP with an Authen Type of 1, 2, 3 or 5 (§4.4.5) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.5-3`](#rfc2661-4.4.5-3) This AVP MUST be present for Proxy Authen Types 2 and 5 (§4.4.5) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.5-4`](#rfc2661-4.4.5-4) ID is a 2 octet unsigned integer, the most significant octet MUST be 0 (§4.4.5) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.5-5`](#rfc2661-4.4.5-5) The Proxy Authen ID AVP MUST be present for Proxy authen types 2, 3 and 5 (§4.4.5) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.5-6`](#rfc2661-4.4.5-6) This AVP MUST be present for Proxy authen types 1, 2, 3 and 5 (§4.4.5) | no test | no test carries this requirement id |
+| [`RFC2661-4.4.6-1`](#rfc2661-4.4.6-1) Reserved - Not used, MUST be 0 CRC Errors - Number of PPP frames received with CRC errors since call was established Framing Errors - Number of improperly framed PPP packets received Hardware Overruns - Number of receive buffer over-runs since call was established Buffer Overruns - Number of buffer over-runs detected since call was established Time-out Errors - Number of time-outs since call was established Alignment Errors - Number of alignment errors since call was established (§4.4.6) | no test | no test carries this requirement id |
+| [`RFC2661-5.0-1`](#rfc2661-5.0-1) The Tunnel and corresponding Control Connection MUST be established before an incoming or outgoing call is initiated (§5.0) | no test | no test carries this requirement id |
+| [`RFC2661-5.0-2`](#rfc2661-5.0-2) An L2TP Session MUST be established before L2TP can begin to tunnel PPP frames (§5.0) | no test | no test carries this requirement id |
+| [`RFC2661-5.1.1-1`](#rfc2661-5.1.1-1) If a Challenge AVP is received in an SCCRQ or SCCRP, a Challenge Response AVP MUST be sent in the following SCCRP or SCCCN, respectively (§5.1.1) | no test | no test carries this requirement id |
+| [`RFC2661-5.1.1-2`](#rfc2661-5.1.1-2) If the expected response and response received from a peer does not match, establishment of the tunnel MUST be disallowed (§5.1.1) | no test | no test carries this requirement id |
+| [`RFC2661-5.1.1-3`](#rfc2661-5.1.1-3) To participate in tunnel authentication, a single shared secret MUST exist between the LAC and LNS (§5.1.1) | no test | no test carries this requirement id |
+| [`RFC2661-5.3-1`](#rfc2661-5.3-1) For the cases where a Session ID has not yet been assigned by the peer (i.e., during establishment of a new session or tunnel), the Session ID field MUST be sent as 0, and the Assigned Session ID AVP within the message MUST be used to identify the session (§5.3) | no test | no test carries this requirement id |
+| [`RFC2661-5.3-2`](#rfc2661-5.3-2) Similarly, for cases where the Tunnel ID has not yet been assigned from the peer, the Tunnel ID MUST be sent as 0 and Assigned Tunnel ID AVP used to identify the tunnel (§5.3) | no test | no test carries this requirement id |
+| [`RFC2661-5.4-1`](#rfc2661-5.4-1) If this AVP is present during session setup, sequence numbers MUST be present at all times (§5.4) | no test | no test carries this requirement id |
+| [`RFC2661-5.4-2`](#rfc2661-5.4-2) Thus, if the LAC receives a data message without sequence numbers present, it MUST stop sending sequence numbers in future data messages (§5.4) | no test | no test carries this requirement id |
+| [`RFC2661-5.4-3`](#rfc2661-5.4-3) If the LAC receives a data message with sequence numbers present, it MUST begin sending sequence numbers in future outgoing data messages (§5.4) | no test | no test carries this requirement id |
+| [`RFC2661-5.7-1`](#rfc2661-5.7-1) The receiver of a StopCCN MUST send a ZLB ACK to acknowledge receipt of the message and maintain enough control connection state to properly accept StopCCN retransmissions over at least a full retransmission cycle (in case the ZLB ACK is lost) (§5.7) | no test | no test carries this requirement id |
+| [`RFC2661-5.8-10`](#rfc2661-5.8-10) A peer MUST NOT withhold acknowledgment of messages as a technique for flow controlling control messages (§5.8) | no test | no test carries this requirement id |
+| [`RFC2661-6.0-1`](#rfc2661-6.0-1) Any "reserved" or "empty" fields MUST be sent as 0 values to allow for protocol extensibility (§6.0) | no test | no test carries this requirement id |
+| [`RFC2661-6.3-1`](#rfc2661-6.3-1) The following AVP MUST be present in the SCCCN: (§6.3) | no test | no test carries this requirement id |
+| [`RFC2661-6.4-1`](#rfc2661-6.4-1) The following AVPs MUST be present in the StopCCN: (§6.4) | no test | no test carries this requirement id |
+| [`RFC2661-6.5-1`](#rfc2661-6.5-1) A peer MUST NOT expect HELLO messages at any time or interval (§6.5) | no test | no test carries this requirement id |
+| [`RFC2661-6.5-2`](#rfc2661-6.5-2) The Session ID in a HELLO message MUST be 0 (§6.5) | no test | no test carries this requirement id |
+| [`RFC2661-6.5-3`](#rfc2661-6.5-3) The Following AVP MUST be present in the HELLO message: (§6.5) | no test | no test carries this requirement id |
+| [`RFC2661-6.6-1`](#rfc2661-6.6-1) The following AVPs MUST be present in the ICRQ: (§6.6) | no test | no test carries this requirement id |
+| [`RFC2661-6.7-1`](#rfc2661-6.7-1) The following AVPs MUST be present in the ICRP: (§6.7) | no test | no test carries this requirement id |
+| [`RFC2661-6.8-1`](#rfc2661-6.8-1) The following AVPs MUST be present in the ICCN: (§6.8) | no test | no test carries this requirement id |
+| [`RFC2661-6.9-1`](#rfc2661-6.9-1) An LNS MUST have received a Bearer Capabilities AVP during tunnel establishment from an LAC in order to request an outgoing call to that LAC (§6.9) | no test | no test carries this requirement id |
+| [`RFC2661-6.9-2`](#rfc2661-6.9-2) The following AVPs MUST be present in the OCRQ: (§6.9) | no test | no test carries this requirement id |
+| [`RFC2661-6.10-1`](#rfc2661-6.10-1) The following AVPs MUST be present in the OCRP: (§6.10) | no test | no test carries this requirement id |
+| [`RFC2661-6.11-1`](#rfc2661-6.11-1) The following AVPs MUST be present in the OCCN: (§6.11) | no test | no test carries this requirement id |
+| [`RFC2661-6.12-1`](#rfc2661-6.12-1) The peer MUST clean up any resources, and does not send back any indication of success or failure for such cleanup (§6.12) | no test | no test carries this requirement id |
+| [`RFC2661-6.12-2`](#rfc2661-6.12-2) The following AVPs MUST be present in the CDN: (§6.12) | no test | no test carries this requirement id |
+| [`RFC2661-6.13-1`](#rfc2661-6.13-1) The following AVPs MUST be present in the WEN: (§6.13) | no test | no test carries this requirement id |
+| [`RFC2661-6.14-1`](#rfc2661-6.14-1) These options can change at any time during the life of the call, thus the LAC MUST be able to update its internal call information and behavior on an active PPP session (§6.14) | no test | no test carries this requirement id |
+| [`RFC2661-6.14-2`](#rfc2661-6.14-2) The following AVPs MUST be present in the SLI: (§6.14) | no test | no test carries this requirement id |
+| [`RFC2661-7.2.1-1`](#rfc2661-7.2.1-1) If the version is earlier and not supported, a StopCCN MUST be sent to the peer and the originator cleans up and terminates the tunnel (§7.2.1) | no test | no test carries this requirement id |
+| [`RFC2661-7.2.1-2`](#rfc2661-7.2.1-2) In the event of a local termination, the originator MUST send a Stop-Control-Connection-Notification and clean up the tunnel (§7.2.1) | no test | no test carries this requirement id |
+| [`RFC2661-7.2.1-3`](#rfc2661-7.2.1-3) If the originator receives a Stop-Control-Connection-Notification it MUST also clean up the tunnel (§7.2.1) | no test | no test carries this requirement id |
+| [`RFC2661-7.5-1`](#rfc2661-7.5-1) The LAC MUST respond to the Outgoing-Call-Request message with an Outgoing-Call-Reply message once the LAC determines that the proper facilities exist to place the call and the call is administratively authorized (§7.5) | no test | no test carries this requirement id |
+| [`RFC2661-7.5.1-1`](#rfc2661-7.5.1-1) established If a Call-Disconnect-Notify is received by the LAC, the telco call MUST be released via appropriate mechanisms and the session cleaned up (§7.5.1) | no test | no test carries this requirement id |
+| [`RFC2661-7.5.1-2`](#rfc2661-7.5.1-2) If the call is disconnected by the client or the called interface, a Call-Disconnect-Notify message MUST be sent to the LNS (§7.5.1) | no test | no test carries this requirement id |
+| [`RFC2661-8.1-1`](#rfc2661-8.1-1) Once the source and destination ports and addresses are established, they MUST remain static for the life of the tunnel (§8.1) | no test | no test carries this requirement id |
+| [`RFC2661-8.1-2`](#rfc2661-8.1-2) The default for any L2TP implementation is that UDP checksums MUST be enabled for both control and data messages (§8.1) | no test | no test carries this requirement id |
+| [`RFC2661-8.1-3`](#rfc2661-8.1-3) An L2TP implementation running on a system which does not support L2F MUST silently discard all L2F packets (§8.1) | no test | no test carries this requirement id |
+| [`RFC2661-8.2-1`](#rfc2661-8.2-1) When operating in IP environments, L2TP MUST offer the UDP encapsulation described in 8.1 as its default configuration for IP operation (§8.2) | no test | no test carries this requirement id |
+| [`RFC2661-9.5-2`](#rfc2661-9.5-2) If the LNS chooses to implement proxy authentication, it MUST be able to be configured off, requiring a new round a PPP authentication initiated by the LNS (which may or may not include a new round of LCP negotiation) (§9.5) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -300,9 +458,9 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestSCCRQMissingMandatoryAVPIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L45) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestSCCRQMissingMandatoryAVPIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L45) | unit/verify | revert, verified |
 | negative | [`TestSCCRQWithShortFramingCapabilitiesIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L149) | unit/verify | revert, verified |
-| negative | [`rfc2661-sccrq-mandatory-avp.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-mandatory-avp.ci#L24) | functional/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`rfc2661-sccrq-mandatory-avp.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-mandatory-avp.ci#L24) | functional/verify | revert, verified |
 | positive | [`TestSCCRQWithEveryMandatoryAVPEstablishes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/reactor_sccrq_mandatory_avp_test.go#L108) | unit/verify | revert, verified |
 | positive | [`rfc2661-sccrq-mandatory-avp.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-sccrq-mandatory-avp.ci#L28) | functional/verify | revert, verified |
 
@@ -377,9 +535,782 @@ Audit verdict: not audited: no reader has judged these tests
 | negative | [`TestSession_SIDBoundary_Zero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L1050) | unit/verify | unproven |
 | positive | [`TestSession_SIDBoundary_MaxUint16`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/session_fsm_test.go#L1036) | unit/verify | unproven |
 
+### [`RFC2661-3.1-1`](#rfc2661-3.1-1)
+
+This bit MUST be set to 1 for control messages (§3.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-3.1-1, so no unit is bound to it.
+
+### [`RFC2661-3.1-2`](#rfc2661-3.1-2)
+
+The S bit MUST be set to 1 for control messages (§3.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-3.1-2, so no unit is bound to it.
+
+### [`RFC2661-3.1-3`](#rfc2661-3.1-3)
+
+The O bit MUST be set to 0 (zero) for control messages (§3.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-3.1-3, so no unit is bound to it.
+
+### [`RFC2661-3.1-4`](#rfc2661-3.1-4)
+
+The P bit MUST be set to 0 for all control messages (§3.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-3.1-4, so no unit is bound to it.
+
+### [`RFC2661-3.1-5`](#rfc2661-3.1-5)
+
+Ver MUST be 2, indicating the version of the L2TP data message header described in this document (§3.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-3.1-5, so no unit is bound to it.
+
+### [`RFC2661-3.1-6`](#rfc2661-3.1-6)
+
+Packets received with an unknown Ver field MUST be discarded (§3.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-3.1-6, so no unit is bound to it.
+
+### [`RFC2661-3.1-7`](#rfc2661-3.1-7)
+
+In data messages, Nr is reserved and, if present (as indicated by the S-bit), MUST be ignored upon receipt (§3.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-3.1-7, so no unit is bound to it.
+
+### [`RFC2661-4.1-5`](#rfc2661-4.1-5)
+
+If the M bit is not set, an unrecognized AVP MUST be ignored (§4.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.1-5, so no unit is bound to it.
+
+### [`RFC2661-4.2-2`](#rfc2661-4.2-2)
+
+Use of the M-bit with new AVPs (those not defined in this document) MUST provide the ability to configure the associated feature off, such that the AVP is either not sent, or sent with the M-bit not set (§4.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.2-2, so no unit is bound to it.
+
+### [`RFC2661-4.3-3`](#rfc2661-4.3-3)
+
+The H bit MUST only be set if a shared secret exists between the LAC and LNS (§4.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.3-3, so no unit is bound to it.
+
+### [`RFC2661-4.4.1-1`](#rfc2661-4.4.1-1)
+
+Thus, if the M-bit is set within the Message Type AVP and the Message Type is unknown to the implementation, the tunnel MUST be cleared (§4.4.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.1-1, so no unit is bound to it.
+
+### [`RFC2661-4.4.1-2`](#rfc2661-4.4.1-2)
+
+The M-bit MUST be set to 1 for all message types defined in this document (§4.4.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.1-2, so no unit is bound to it.
+
+### [`RFC2661-4.4-3`](#rfc2661-4.4-3)
+
+Every AVP whose Section 4.4 definition states "This AVP MUST NOT be hidden (the H-bit MUST be 0)" MUST be sent with H=0 (§4.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4-3, so no unit is bound to it.
+
+### [`RFC2661-4.4-1`](#rfc2661-4.4-1)
+
+Every mandatory AVP definition in Section 4.4 states "The M-bit for this AVP MUST be set to 1", so the sender MUST set M=1 on each of those AVPs (§4.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4-1, so no unit is bound to it.
+
+### [`RFC2661-4.4.2-1`](#rfc2661-4.4.2-1)
+
+Human readable text in all error messages MUST be provided in the UTF-8 charset using the Default Language [RFC2277] (§4.4.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.2-1, so no unit is bound to it.
+
+### [`RFC2661-4.4.3-1`](#rfc2661-4.4.3-1)
+
+A peer MUST NOT request an incoming or outgoing call with a Framing Type AVP specifying a value not advertised in the Framing Capabilities AVP it received during control connection establishment (§4.4.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.3-1, so no unit is bound to it.
+
+### [`RFC2661-4.4.3-2`](#rfc2661-4.4.3-2)
+
+This AVP MUST be present if the sender can place outgoing calls when requested (§4.4.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.3-2, so no unit is bound to it.
+
+### [`RFC2661-4.4.3-3`](#rfc2661-4.4.3-3)
+
+The lower value "wins", and the "loser" MUST silently discard its tunnel (§4.4.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.3-3, so no unit is bound to it.
+
+### [`RFC2661-4.4.3-4`](#rfc2661-4.4.3-4)
+
+In the case where a tie breaker is present on both sides, and the value is equal, both sides MUST discard their tunnels (§4.4.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.3-4, so no unit is bound to it.
+
+### [`RFC2661-4.4-2`](#rfc2661-4.4-2)
+
+Every optional AVP definition in Section 4.4 states "The M-bit for this AVP MUST be set to 0", so the sender MUST set M=0 on each of those AVPs (§4.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4-2, so no unit is bound to it.
+
+### [`RFC2661-4.4.3-5`](#rfc2661-4.4.3-5)
+
+The Host Name is of arbitrary length, but MUST be at least 1 octet (§4.4.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.3-5, so no unit is bound to it.
+
+### [`RFC2661-4.4.3-6`](#rfc2661-4.4.3-6)
+
+The L2TP peer MUST place this value in the Tunnel ID header field of all control and data messages that it subsequently transmits over the associated tunnel (§4.4.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.3-6, so no unit is bound to it.
+
+### [`RFC2661-4.4.3-7`](#rfc2661-4.4.3-7)
+
+Before the Assigned Tunnel ID AVP is received from a peer, messages MUST be sent to that peer with a Tunnel ID value of 0 in the header of all control messages (§4.4.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.3-7, so no unit is bound to it.
+
+### [`RFC2661-4.4.3-8`](#rfc2661-4.4.3-8)
+
+In the StopCCN control message, the Assigned Tunnel ID AVP MUST be the same as the Assigned Tunnel ID AVP first sent to the receiving peer, permitting the peer to identify the appropriate tunnel even if a StopCCN is sent before an Assigned Tunnel ID AVP is received (§4.4.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.3-8, so no unit is bound to it.
+
+### [`RFC2661-4.4.3-9`](#rfc2661-4.4.3-9)
+
+This AVP MUST be present in an SCCRP or SCCCN if a challenge was received in the preceding SCCRQ or SCCRP (§4.4.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.3-9, so no unit is bound to it.
+
+### [`RFC2661-4.4.4-1`](#rfc2661-4.4.4-1)
+
+The L2TP peer MUST place this value in the Session ID header field of all control and data messages that it subsequently transmits over the tunnel that belong to this session (§4.4.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.4-1, so no unit is bound to it.
+
+### [`RFC2661-4.4.4-2`](#rfc2661-4.4.4-2)
+
+Before the Assigned Session ID AVP is received from a peer, messages MUST be sent to that peer with a Session ID of 0 in the header of all control messages (§4.4.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.4-2, so no unit is bound to it.
+
+### [`RFC2661-4.4.4-3`](#rfc2661-4.4.4-3)
+
+Bits in the Value field of this AVP MUST only be set by the LNS for an OCRQ if it was set in the Bearer Capabilities AVP received from the LAC during control connection establishment (§4.4.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.4-3, so no unit is bound to it.
+
+### [`RFC2661-4.4.4-4`](#rfc2661-4.4.4-4)
+
+Bits in the Value field of this AVP MUST only be set by the LNS for an OCRQ if it was set in the Framing Capabilities AVP received from the LAC during control connection establishment (§4.4.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.4-4, so no unit is bound to it.
+
+### [`RFC2661-4.4.4-5`](#rfc2661-4.4.4-5)
+
+The Sequencing Required AVP, Attribute Type 39, indicates to the LNS that Sequence Numbers MUST always be present on the data channel (§4.4.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.4-5, so no unit is bound to it.
+
+### [`RFC2661-4.4.5-1`](#rfc2661-4.4.5-1)
+
+This AVP MUST be present if proxy authentication is to be utilized (§4.4.5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.5-1, so no unit is bound to it.
+
+### [`RFC2661-4.4.5-2`](#rfc2661-4.4.5-2)
+
+This AVP MUST be present in messages containing a Proxy Authen Type AVP with an Authen Type of 1, 2, 3 or 5 (§4.4.5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.5-2, so no unit is bound to it.
+
+### [`RFC2661-4.4.5-3`](#rfc2661-4.4.5-3)
+
+This AVP MUST be present for Proxy Authen Types 2 and 5 (§4.4.5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.5-3, so no unit is bound to it.
+
+### [`RFC2661-4.4.5-4`](#rfc2661-4.4.5-4)
+
+ID is a 2 octet unsigned integer, the most significant octet MUST be 0 (§4.4.5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.5-4, so no unit is bound to it.
+
+### [`RFC2661-4.4.5-5`](#rfc2661-4.4.5-5)
+
+The Proxy Authen ID AVP MUST be present for Proxy authen types 2, 3 and 5 (§4.4.5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.5-5, so no unit is bound to it.
+
+### [`RFC2661-4.4.5-6`](#rfc2661-4.4.5-6)
+
+This AVP MUST be present for Proxy authen types 1, 2, 3 and 5 (§4.4.5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.5-6, so no unit is bound to it.
+
+### [`RFC2661-4.4.6-1`](#rfc2661-4.4.6-1)
+
+Reserved - Not used, MUST be 0 CRC Errors - Number of PPP frames received with CRC errors since call was established Framing Errors - Number of improperly framed PPP packets received Hardware Overruns - Number of receive buffer over-runs since call was established Buffer Overruns - Number of buffer over-runs detected since call was established Time-out Errors - Number of time-outs since call was established Alignment Errors - Number of alignment errors since call was established (§4.4.6)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-4.4.6-1, so no unit is bound to it.
+
+### [`RFC2661-5.0-1`](#rfc2661-5.0-1)
+
+The Tunnel and corresponding Control Connection MUST be established before an incoming or outgoing call is initiated (§5.0)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-5.0-1, so no unit is bound to it.
+
+### [`RFC2661-5.0-2`](#rfc2661-5.0-2)
+
+An L2TP Session MUST be established before L2TP can begin to tunnel PPP frames (§5.0)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-5.0-2, so no unit is bound to it.
+
+### [`RFC2661-5.1.1-1`](#rfc2661-5.1.1-1)
+
+If a Challenge AVP is received in an SCCRQ or SCCRP, a Challenge Response AVP MUST be sent in the following SCCRP or SCCCN, respectively (§5.1.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-5.1.1-1, so no unit is bound to it.
+
+### [`RFC2661-5.1.1-2`](#rfc2661-5.1.1-2)
+
+If the expected response and response received from a peer does not match, establishment of the tunnel MUST be disallowed (§5.1.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-5.1.1-2, so no unit is bound to it.
+
+### [`RFC2661-5.1.1-3`](#rfc2661-5.1.1-3)
+
+To participate in tunnel authentication, a single shared secret MUST exist between the LAC and LNS (§5.1.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-5.1.1-3, so no unit is bound to it.
+
+### [`RFC2661-5.3-1`](#rfc2661-5.3-1)
+
+For the cases where a Session ID has not yet been assigned by the peer (i.e., during establishment of a new session or tunnel), the Session ID field MUST be sent as 0, and the Assigned Session ID AVP within the message MUST be used to identify the session (§5.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-5.3-1, so no unit is bound to it.
+
+### [`RFC2661-5.3-2`](#rfc2661-5.3-2)
+
+Similarly, for cases where the Tunnel ID has not yet been assigned from the peer, the Tunnel ID MUST be sent as 0 and Assigned Tunnel ID AVP used to identify the tunnel (§5.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-5.3-2, so no unit is bound to it.
+
+### [`RFC2661-5.4-1`](#rfc2661-5.4-1)
+
+If this AVP is present during session setup, sequence numbers MUST be present at all times (§5.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-5.4-1, so no unit is bound to it.
+
+### [`RFC2661-5.4-2`](#rfc2661-5.4-2)
+
+Thus, if the LAC receives a data message without sequence numbers present, it MUST stop sending sequence numbers in future data messages (§5.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-5.4-2, so no unit is bound to it.
+
+### [`RFC2661-5.4-3`](#rfc2661-5.4-3)
+
+If the LAC receives a data message with sequence numbers present, it MUST begin sending sequence numbers in future outgoing data messages (§5.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-5.4-3, so no unit is bound to it.
+
+### [`RFC2661-5.7-1`](#rfc2661-5.7-1)
+
+The receiver of a StopCCN MUST send a ZLB ACK to acknowledge receipt of the message and maintain enough control connection state to properly accept StopCCN retransmissions over at least a full retransmission cycle (in case the ZLB ACK is lost) (§5.7)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-5.7-1, so no unit is bound to it.
+
+### [`RFC2661-5.8-10`](#rfc2661-5.8-10)
+
+A peer MUST NOT withhold acknowledgment of messages as a technique for flow controlling control messages (§5.8)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-5.8-10, so no unit is bound to it.
+
+### [`RFC2661-6.0-1`](#rfc2661-6.0-1)
+
+Any "reserved" or "empty" fields MUST be sent as 0 values to allow for protocol extensibility (§6.0)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.0-1, so no unit is bound to it.
+
+### [`RFC2661-6.3-1`](#rfc2661-6.3-1)
+
+The following AVP MUST be present in the SCCCN: (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.3-1, so no unit is bound to it.
+
+### [`RFC2661-6.4-1`](#rfc2661-6.4-1)
+
+The following AVPs MUST be present in the StopCCN: (§6.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.4-1, so no unit is bound to it.
+
+### [`RFC2661-6.5-1`](#rfc2661-6.5-1)
+
+A peer MUST NOT expect HELLO messages at any time or interval (§6.5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.5-1, so no unit is bound to it.
+
+### [`RFC2661-6.5-2`](#rfc2661-6.5-2)
+
+The Session ID in a HELLO message MUST be 0 (§6.5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.5-2, so no unit is bound to it.
+
+### [`RFC2661-6.5-3`](#rfc2661-6.5-3)
+
+The Following AVP MUST be present in the HELLO message: (§6.5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.5-3, so no unit is bound to it.
+
+### [`RFC2661-6.6-1`](#rfc2661-6.6-1)
+
+The following AVPs MUST be present in the ICRQ: (§6.6)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.6-1, so no unit is bound to it.
+
+### [`RFC2661-6.7-1`](#rfc2661-6.7-1)
+
+The following AVPs MUST be present in the ICRP: (§6.7)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.7-1, so no unit is bound to it.
+
+### [`RFC2661-6.8-1`](#rfc2661-6.8-1)
+
+The following AVPs MUST be present in the ICCN: (§6.8)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.8-1, so no unit is bound to it.
+
+### [`RFC2661-6.9-1`](#rfc2661-6.9-1)
+
+An LNS MUST have received a Bearer Capabilities AVP during tunnel establishment from an LAC in order to request an outgoing call to that LAC (§6.9)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.9-1, so no unit is bound to it.
+
+### [`RFC2661-6.9-2`](#rfc2661-6.9-2)
+
+The following AVPs MUST be present in the OCRQ: (§6.9)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.9-2, so no unit is bound to it.
+
+### [`RFC2661-6.10-1`](#rfc2661-6.10-1)
+
+The following AVPs MUST be present in the OCRP: (§6.10)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.10-1, so no unit is bound to it.
+
+### [`RFC2661-6.11-1`](#rfc2661-6.11-1)
+
+The following AVPs MUST be present in the OCCN: (§6.11)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.11-1, so no unit is bound to it.
+
+### [`RFC2661-6.12-1`](#rfc2661-6.12-1)
+
+The peer MUST clean up any resources, and does not send back any indication of success or failure for such cleanup (§6.12)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.12-1, so no unit is bound to it.
+
+### [`RFC2661-6.12-2`](#rfc2661-6.12-2)
+
+The following AVPs MUST be present in the CDN: (§6.12)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.12-2, so no unit is bound to it.
+
+### [`RFC2661-6.13-1`](#rfc2661-6.13-1)
+
+The following AVPs MUST be present in the WEN: (§6.13)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.13-1, so no unit is bound to it.
+
+### [`RFC2661-6.14-1`](#rfc2661-6.14-1)
+
+These options can change at any time during the life of the call, thus the LAC MUST be able to update its internal call information and behavior on an active PPP session (§6.14)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.14-1, so no unit is bound to it.
+
+### [`RFC2661-6.14-2`](#rfc2661-6.14-2)
+
+The following AVPs MUST be present in the SLI: (§6.14)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-6.14-2, so no unit is bound to it.
+
+### [`RFC2661-7.2.1-1`](#rfc2661-7.2.1-1)
+
+If the version is earlier and not supported, a StopCCN MUST be sent to the peer and the originator cleans up and terminates the tunnel (§7.2.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-7.2.1-1, so no unit is bound to it.
+
+### [`RFC2661-7.2.1-2`](#rfc2661-7.2.1-2)
+
+In the event of a local termination, the originator MUST send a Stop-Control-Connection-Notification and clean up the tunnel (§7.2.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-7.2.1-2, so no unit is bound to it.
+
+### [`RFC2661-7.2.1-3`](#rfc2661-7.2.1-3)
+
+If the originator receives a Stop-Control-Connection-Notification it MUST also clean up the tunnel (§7.2.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-7.2.1-3, so no unit is bound to it.
+
+### [`RFC2661-7.5-1`](#rfc2661-7.5-1)
+
+The LAC MUST respond to the Outgoing-Call-Request message with an Outgoing-Call-Reply message once the LAC determines that the proper facilities exist to place the call and the call is administratively authorized (§7.5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-7.5-1, so no unit is bound to it.
+
+### [`RFC2661-7.5.1-1`](#rfc2661-7.5.1-1)
+
+established If a Call-Disconnect-Notify is received by the LAC, the telco call MUST be released via appropriate mechanisms and the session cleaned up (§7.5.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-7.5.1-1, so no unit is bound to it.
+
+### [`RFC2661-7.5.1-2`](#rfc2661-7.5.1-2)
+
+If the call is disconnected by the client or the called interface, a Call-Disconnect-Notify message MUST be sent to the LNS (§7.5.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-7.5.1-2, so no unit is bound to it.
+
+### [`RFC2661-8.1-1`](#rfc2661-8.1-1)
+
+Once the source and destination ports and addresses are established, they MUST remain static for the life of the tunnel (§8.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-8.1-1, so no unit is bound to it.
+
+### [`RFC2661-8.1-2`](#rfc2661-8.1-2)
+
+The default for any L2TP implementation is that UDP checksums MUST be enabled for both control and data messages (§8.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-8.1-2, so no unit is bound to it.
+
+### [`RFC2661-8.1-3`](#rfc2661-8.1-3)
+
+An L2TP implementation running on a system which does not support L2F MUST silently discard all L2F packets (§8.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-8.1-3, so no unit is bound to it.
+
+### [`RFC2661-8.2-1`](#rfc2661-8.2-1)
+
+When operating in IP environments, L2TP MUST offer the UDP encapsulation described in 8.1 as its default configuration for IP operation (§8.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-8.2-1, so no unit is bound to it.
+
+### [`RFC2661-9.5-2`](#rfc2661-9.5-2)
+
+If the LNS chooses to implement proxy authentication, it MUST be able to be configured off, requiring a new round a PPP authentication initiated by the LNS (which may or may not include a new round of LCP negotiation) (§9.5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC2661-9.5-2, so no unit is bound to it.
+
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 2661, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc2661.txt |
+| Source fingerprint | 5e39a4a0368bb9a6 |
+| Record | rfc/extraction/rfc2661.json |
+| Mapped sentences | 94 |
+| Declined as scope | 49 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1.0` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `1.2` | not stated | 0 | walked | not stated |
+| `2.0` | not stated | 0 | walked | not stated |
+| `3.0` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 8 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `4.0` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 5 | walked | not stated |
+| `4.2` | not stated | 1 | walked | not stated |
+| `4.3` | not stated | 2 | walked | not stated |
+| `4.4` | not stated | 0 | walked | not stated |
+| `4.4.1` | not stated | 7 | walked | not stated |
+| `4.4.2` | not stated | 3 | walked | not stated |
+| `4.4.3` | not stated | 25 | walked | not stated |
+| `4.4.4` | not stated | 22 | walked | not stated |
+| `4.4.5` | not stated | 14 | walked | not stated |
+| `4.4.6` | not stated | 3 | walked | not stated |
+| `5.0` | not stated | 2 | walked | not stated |
+| `5.1` | not stated | 0 | walked | not stated |
+| `5.1.1` | not stated | 3 | walked | not stated |
+| `5.2` | not stated | 0 | walked | not stated |
+| `5.2.1` | not stated | 0 | walked | not stated |
+| `5.2.2` | not stated | 0 | walked | not stated |
+| `5.3` | not stated | 3 | walked | not stated |
+| `5.4` | not stated | 3 | walked | not stated |
+| `5.5` | not stated | 0 | walked | not stated |
+| `5.6` | not stated | 0 | walked | not stated |
+| `5.7` | not stated | 1 | walked | not stated |
+| `5.8` | not stated | 8 | walked | not stated |
+| `6.0` | not stated | 1 | walked | not stated |
+| `6.1` | not stated | 1 | walked | not stated |
+| `6.2` | not stated | 1 | walked | not stated |
+| `6.3` | not stated | 1 | walked | not stated |
+| `6.4` | not stated | 1 | walked | not stated |
+| `6.5` | not stated | 3 | walked | not stated |
+| `6.6` | not stated | 1 | walked | not stated |
+| `6.7` | not stated | 1 | walked | not stated |
+| `6.8` | not stated | 1 | walked | not stated |
+| `6.9` | not stated | 2 | walked | not stated |
+| `6.10` | not stated | 1 | walked | not stated |
+| `6.11` | not stated | 1 | walked | not stated |
+| `6.12` | not stated | 2 | walked | not stated |
+| `6.13` | not stated | 1 | walked | not stated |
+| `6.14` | not stated | 2 | walked | not stated |
+| `7.0` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 1 | walked | not stated |
+| `7.2` | not stated | 0 | walked | not stated |
+| `7.2.1` | not stated | 3 | walked | not stated |
+| `7.3` | not stated | 0 | walked | not stated |
+| `7.4` | not stated | 0 | walked | not stated |
+| `7.4.1` | not stated | 0 | walked | not stated |
+| `7.4.2` | not stated | 0 | walked | not stated |
+| `7.5` | not stated | 1 | walked | not stated |
+| `7.5.1` | not stated | 2 | walked | not stated |
+| `7.5.2` | not stated | 0 | walked | not stated |
+| `7.6` | not stated | 0 | walked | not stated |
+| `8.0` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 3 | walked | not stated |
+| `8.2` | not stated | 1 | walked | not stated |
+| `9.0` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 1 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+| `9.3` | not stated | 0 | walked | not stated |
+| `9.4` | not stated | 0 | walked | not stated |
+| `9.5` | not stated | 1 | walked | not stated |
+| `10.0` | not stated | 0 | walked | not stated |
+| `10.1` | not stated | 0 | walked | not stated |
+| `10.2` | not stated | 0 | walked | not stated |
+| `10.3` | not stated | 0 | walked | not stated |
+| `10.3.1` | not stated | 0 | walked | not stated |
+| `10.3.2` | not stated | 0 | walked | not stated |
+| `10.4` | not stated | 0 | walked | not stated |
+| `10.5` | not stated | 0 | walked | not stated |
+| `10.6` | not stated | 0 | walked | not stated |
+| `11.0` | not stated | 0 | walked | not stated |
+| `12.0` | not stated | 0 | walked | not stated |
+| `13.0` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `4.1:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the reserved-bit handling the same paragraph states, which RFC2661-4.1-1 carries: a reserved bit set to 1 makes the AVP unrecognized. | An AVP received with a reserved bit set to 1 MUST be treated as an unrecognized AVP. |
+| `4.4.1:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the Random Vector ordering Section 4.3 states, which RFC2661-4.3-1 carries: the Random Vector AVP precedes the first AVP with the H bit set. | This AVP MUST precede the first AVP with the H bit set. |
+| `4.4.1:7` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "This AVP MUST NOT be hidden (the H-bit MUST be 0)." once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation. | This AVP MUST NOT be hidden (the H-bit MUST be 0). |
+| `4.4.2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "This AVP MUST NOT be hidden (the H-bit MUST be 0)." once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation. | This AVP MUST NOT be hidden (the H-bit MUST be 0). |
+| `4.4.2:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.3:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "This AVP MUST NOT be hidden (the H-bit MUST be 0)." once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation. | This AVP MUST NOT be hidden (the H-bit MUST be 0). |
+| `4.4.3:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.3:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.3:6` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.3:9` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "This AVP MUST NOT be hidden (the H-bit MUST be 0)." once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation. | This AVP MUST NOT be hidden (the H-bit MUST be 0). |
+| `4.4.3:11` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 0." once per optional AVP definition; RFC2661-4.4-2 carries that obligation. | The M-bit for this AVP MUST be set to 0. |
+| `4.4.3:13` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "This AVP MUST NOT be hidden (the H-bit MUST be 0)." once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation. | This AVP MUST NOT be hidden (the H-bit MUST be 0). |
+| `4.4.3:14` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.3:15` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the UTF-8 Default Language obligation for human readable text that RFC2661-4.4.2-1 carries. | Human readable text for this AVP MUST be provided in the UTF-8 charset using the Default Language [RFC2277]. |
+| `4.4.3:16` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 0." once per optional AVP definition; RFC2661-4.4-2 carries that obligation. | The M-bit for this AVP MUST be set to 0. |
+| `4.4.3:20` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.3:21` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "This AVP MUST NOT be hidden (the H-bit MUST be 0)." once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation. | This AVP MUST NOT be hidden (the H-bit MUST be 0). |
+| `4.4.3:22` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.3:23` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.3:25` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.4:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "This AVP MUST NOT be hidden (the H-bit MUST be 0)." once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation. | This AVP MUST NOT be hidden (the H-bit MUST be 0). |
+| `4.4.4:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.4:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.4:6` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.4:7` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.4:8` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.4:10` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.4:12` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.4:13` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.4:14` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.4:15` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.4:16` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.4:17` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 0." once per optional AVP definition; RFC2661-4.4-2 carries that obligation. | The M-bit for this AVP MUST be set to 0. |
+| `4.4.4:18` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 0." once per optional AVP definition; RFC2661-4.4-2 carries that obligation. | The M-bit for this AVP MUST be set to 0. |
+| `4.4.4:19` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 0." once per optional AVP definition; RFC2661-4.4-2 carries that obligation. | The M-bit for this AVP MUST be set to 0. |
+| `4.4.4:21` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "This AVP MUST NOT be hidden (the H-bit MUST be 0)." once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation. | This AVP MUST NOT be hidden (the H-bit MUST be 0). |
+| `4.4.4:22` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.5:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 0." once per optional AVP definition; RFC2661-4.4-2 carries that obligation. | The M-bit for this AVP MUST be set to 0. |
+| `4.4.5:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 0." once per optional AVP definition; RFC2661-4.4-2 carries that obligation. | The M-bit for this AVP MUST be set to 0. |
+| `4.4.5:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 0." once per optional AVP definition; RFC2661-4.4-2 carries that obligation. | The M-bit for this AVP MUST be set to 0. |
+| `4.4.5:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 0." once per optional AVP definition; RFC2661-4.4-2 carries that obligation. | The M-bit for this AVP MUST be set to 0. |
+| `4.4.5:7` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 0." once per optional AVP definition; RFC2661-4.4-2 carries that obligation. | The M-bit for this AVP MUST be set to 0. |
+| `4.4.5:9` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 0." once per optional AVP definition; RFC2661-4.4-2 carries that obligation. | The M-bit for this AVP MUST be set to 0. |
+| `4.4.5:12` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 0." once per optional AVP definition; RFC2661-4.4-2 carries that obligation. | The M-bit for this AVP MUST be set to 0. |
+| `4.4.5:14` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 0." once per optional AVP definition; RFC2661-4.4-2 carries that obligation. | The M-bit for this AVP MUST be set to 0. |
+| `4.4.6:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `4.4.6:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4.4 repeats the sentence "The M-bit for this AVP MUST be set to 1." once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation. | The M-bit for this AVP MUST be set to 1. |
+| `7.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | A reading instruction for Section 7.1, not an obligation on the wire: it tells the reader that the section's tolerant receive handling is not permission to send malformed AVPs. No sender or receiver behavior is constrained by it. | This MUST NOT be considered a license to send malformed AVPs, but simply a guide towards how to handle an improperly formatted message if one is received. |
+| `9.1:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the shared-secret requirement for tunnel authentication that Section 5.1.1 states and RFC2661-5.1.1-3 carries. | For authentication to occur, the LAC and LNS MUST share a single secret. |
 
 ## Superseded
 

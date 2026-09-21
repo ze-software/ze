@@ -325,7 +325,42 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 1994, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc1994.txt |
+| Source fingerprint | f76fecfc276d54fb |
+| Record | rfc/extraction/rfc1994.json |
+| Mapped sentences | 17 |
+| Declined as scope | 2 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 1 | walked | not stated |
+| `1.1` | not stated | 3 | walked | not stated |
+| `1.2` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 0 | walked | not stated |
+| `2.3` | not stated | 1 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 10 | walked | not stated |
+| `4.2` | not stated | 4 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `1.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 1.1 Specification of Requirements is the RFC 2119 keyword glossary; the sentence defines what MUST means and states no CHAP behaviour. | MUST This word, or the adjective "required", means that the definition is an absolute requirement of the specification. |
+| `1.1:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 1.1 Specification of Requirements is the RFC 2119 keyword glossary; the sentence defines what MUST NOT means and states no CHAP behaviour. | MUST NOT This phrase means that the definition is an absolute prohibition of the specification. |
 
 ## Superseded
 

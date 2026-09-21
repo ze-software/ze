@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 40.9% | 9 of 22 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 36.4% | 8 of 22 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 22 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 30.0% | 9 of 30 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 26.7% | 8 of 30 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 30 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 2.4% | 1 of 42 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 22 | of 34 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 22 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 4.5% | 1 of 22 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 22 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 22 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 30 | of 45 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 1 | of 30 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 3.3% | 1 of 30 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 30 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 30 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 18.2% | 4 of 22 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 40.0% | 12 of 30 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 22 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 30 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 34 |
-| Gated MUST-level | 22 |
+| Requirements | 45 |
+| Gated MUST-level | 30 |
 | Not applicable, so out of scope | 1 |
 | Declared gaps | 4 |
-| Gated with no test | 0 |
+| Gated with no test | 8 |
 | Nightly-only evidence | 0 |
 | Test tags | 42 |
 | Tagged units | 42 |
@@ -89,7 +89,7 @@ Enrolled: Dissemination of Flow Specification Rules
 
 **What the ledger says remains**
 
-Four MUST-level gaps, each annotated in [`rfc/short/rfc8955.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc8955.md): [`RFC8955-4.2.1.1-3`](#rfc8955-4.2.1.1-3) -- the numeric-operator decoder keeps reserved bit 4, so an operator carrying it decodes as `=`; [`RFC8955-6-1`](#rfc8955-6-1) -- no feasibility validation of a FlowSpec against the unicast RIB; [`RFC8955-6-2`](#rfc8955-6-2) -- no eBGP leftmost-neighbor-AS enforcement; and [`RFC8955-6-3`](#rfc8955-6-3) -- no revalidation when unicast routes change.
+Four MUST-level gaps, each annotated in [`rfc/short/rfc8955.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc8955.md): [`RFC8955-4.2.1.1-3`](#rfc8955-4.2.1.1-3) -- the numeric-operator decoder keeps reserved bit 4, so an operator carrying it decodes as `=`; [`RFC8955-6-1`](#rfc8955-6-1) -- no feasibility validation of a FlowSpec against the unicast RIB; [`RFC8955-6-2`](#rfc8955-6-2) -- no eBGP leftmost-neighbor-AS enforcement; and [`RFC8955-6-3`](#rfc8955-6-3) -- no revalidation when unicast routes change. The 2026-09-21 extraction walk added four further MUST rows the earlier checklist omitted, and none carries a tagged test: [`RFC8955-5.1-1`](#rfc8955-5.1-1) and [`RFC8955-5.1-2`](#rfc8955-5.1-2), the Section 5.1 ordering function and its comparison algorithm; and [`RFC8955-8-1`](#rfc8955-8-1) and [`RFC8955-8-2`](#rfc8955-8-2), the Section 8 VPNv4 NLRI layout and the length field that includes the 8 octets of the Route Distinguisher. The same walk added four further MUST rows the document states in lowercase "must", "shall" and "required", also untested: [`RFC8955-3-1`](#rfc8955-3-1) (standard BGP policy mechanisms apply to the Flow Specification NLRI type), [`RFC8955-6-5`](#rfc8955-6-5) (path selection still runs over two routes for the same Flow Specification prefix), [`RFC8955-7.3-2`](#rfc8955-7.3-2) (actions collected across Flow Specifications when the Terminal Action bit is clear) and [`RFC8955-12-2`](#rfc8955-12-2) (BGP policies support the additional filtering the rule-a relaxation needs).
 
 ## Coverage
 
@@ -98,14 +98,16 @@ Four MUST-level gaps, each annotated in [`rfc/short/rfc8955.md`](https://github.
 | Positive and negative tests | 9 | one part of the gated population |
 | Annotated instead of tested | 13 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 8 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **22** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **30** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (9):** [`RFC8955-4.2-1`](#rfc8955-4.2-1), [`RFC8955-4.2-2`](#rfc8955-4.2-2), [`RFC8955-4.2.1.1-2`](#rfc8955-4.2.1.1-2), [`RFC8955-4.2.1.2-1`](#rfc8955-4.2.1.2-1), [`RFC8955-4.2.2.12-2`](#rfc8955-4.2.2.12-2), [`RFC8955-7.1-1`](#rfc8955-7.1-1), [`RFC8955-7.1-2`](#rfc8955-7.1-2), [`RFC8955-7.3-1`](#rfc8955-7.3-1), [`RFC8955-7.5-1`](#rfc8955-7.5-1)
 
 **Annotated instead of tested (13):** [`RFC8955-4-1`](#rfc8955-4-1), [`RFC8955-4-2`](#rfc8955-4-2), [`RFC8955-4-3`](#rfc8955-4-3), [`RFC8955-4-4`](#rfc8955-4-4), [`RFC8955-4.2.1.1-1`](#rfc8955-4.2.1.1-1), [`RFC8955-4.2.1.1-3`](#rfc8955-4.2.1.1-3), [`RFC8955-4.2.2.9-1`](#rfc8955-4.2.2.9-1), [`RFC8955-4.2.2.11-1`](#rfc8955-4.2.2.11-1), [`RFC8955-4.2.2.12-1`](#rfc8955-4.2.2.12-1), [`RFC8955-6-1`](#rfc8955-6-1), [`RFC8955-6-2`](#rfc8955-6-2), [`RFC8955-6-3`](#rfc8955-6-3), [`RFC8955-12-1`](#rfc8955-12-1)
+
+**No test and no annotation (8):** [`RFC8955-5.1-1`](#rfc8955-5.1-1), [`RFC8955-5.1-2`](#rfc8955-5.1-2), [`RFC8955-8-1`](#rfc8955-8-1), [`RFC8955-8-2`](#rfc8955-8-2), [`RFC8955-3-1`](#rfc8955-3-1), [`RFC8955-6-5`](#rfc8955-6-5), [`RFC8955-7.3-2`](#rfc8955-7.3-2), [`RFC8955-12-2`](#rfc8955-12-2)
 
 ## Requirements
 
@@ -133,6 +135,14 @@ Four MUST-level gaps, each annotated in [`rfc/short/rfc8955.md`](https://github.
 | `RFC8955-7.3-1` | traffic-action unused bits MUST be set to 0 on encoding and MUST be ignored during decoding (§7.3) | MUST | 7.3 | **positive:** `unit/verify` [`TestRFC8955TrafficActionBitsDecoded`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L243). **positive:** `unit/verify` [`TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/decode_test.go#L1510). **positive:** `unit/verify` [`TestRFC8955TrafficActionUnusedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_test.go#L209). **negative:** `unit/verify` [`TestRFC8955TrafficActionBitsDecoded`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L257). **negative:** `unit/verify` [`TestRFC8955TrafficActionUnusedBitsIgnoredOnDecode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/cli/decode_test.go#L1517). **positive:** `functional/verify` [`community-attributes-json.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L16). **negative:** `functional/verify` [`community-attributes-json.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L17) |
 | `RFC8955-7.5-1` | traffic-marking reserved bits MUST be set to 0 on encoding and MUST be ignored during decoding (§7.5) | MUST | 7.5 | **positive:** `unit/verify` [`TestEncodeRouteEmitsZeroValuedActions`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/encode_test.go#L53). **positive:** `unit/verify` [`TestEncodeRouteMarkKeepsReservedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/encode_test.go#L86). **positive:** `unit/verify` [`TestParseExtendedCommunityMarkDSCPBound`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_flowspec_test.go#L34). **positive:** `unit/verify` [`TestRFC8955TrafficMarkingReservedBitsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L209). **negative:** `unit/verify` [`TestEncodeRouteMarkKeepsReservedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/encode_test.go#L92). **negative:** `unit/verify` [`TestParseExtendedCommunityMarkDSCPBound`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/routeattr_flowspec_test.go#L56). **negative:** `unit/verify` [`TestRFC8955TrafficMarkingReservedBitsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/extcomm_decoded_test.go#L216). **positive:** `functional/verify` [`community-attributes-json.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L14). **negative:** `functional/verify` [`community-attributes-json.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-attributes-json.ci#L15) |
 | `RFC8955-12-1` | Specifications relaxing the validation restrictions MUST contain security considerations with details on required additional filtering (§12) | MUST | 12 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this obligation binds IETF documents that relax the Section 6 validation restrictions, not implementations; ze publishes no such specification and offers no validation-relaxation knob -- grep -rni 'relax' over internal/component/bgp/plugins/nlri/flowspec and internal/plugins/flowspec-firewall returns no producer, and no Section 6 validation exists to relax |
+| `RFC8955-5.1-1` | "This ordering function is such that it does not depend on the arrival order of the Flow Specification via BGP and thus is consistent in the network" (§5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-5.1-2` | The relative order of two Flow Specifications is determined by comparing their components from the left-most (lowest component type value): the Flow Specification with the lowest numeric type value has higher precedence; for IP destination or source prefix values the more specific prefix has higher precedence and otherwise the lowest IP value does; for all other component types the data is compared as a binary string with memcmp(), the lowest string wins at equal lengths, and at different lengths the common prefix decides with the longest string winning when that prefix is equal (§5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-8-1` | The VPNv4 Flow Specification NLRI "consists of a fixed-length Route Distinguisher field (8 octets) followed by the Flow Specification NLRI value (Section 4.2)" (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-8-2` | "The NLRI length field shall include both the 8 octets of the Route Distinguisher as well as the subsequent Flow Specification NLRI value" (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-3-1` | "Standard BGP policy mechanisms, such as UPDATE filtering by NLRI prefix as well as community matching, must apply to the Flow specification defined NLRI-type" (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-6-5` | "Although the forwarding attributes of two routes for the same Flow Specification prefix may be the same, BGP is still required to perform its path selection algorithm in order to select the correct set of attributes to advertise" (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-7.3-2` | Where the Terminal Action bit is not set and the evaluation continues to the next Flow Specification, "all the Traffic Filtering Actions from these Flow Specifications shall be collected and applied" (§7.3) | MUST | 7.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-12-2` | Where the rule-a validation relaxation is used, "for a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty" (§12) | MUST | 12 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-4.2.2.3-1` | Type 3 (IP Protocol) values SHOULD be encoded as single octet (§4.2.2.3) | SHOULD | 4.2.2.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-4.2.2.4-1` | Type 4-6, 10 (Port, Dst Port, Src Port, Packet Length) values SHOULD be encoded as 1- or 2-octet quantities (§4.2.2.4-6, §4.2.2.10) | SHOULD | 4.2.2.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-4.2.2.7-1` | Type 7-8 (ICMP Type, ICMP Code) values SHOULD be encoded as single octet (§4.2.2.7-8) | SHOULD | 4.2.2.7 | **positive:** no positive test. **negative:** no negative test |
@@ -143,6 +153,9 @@ Four MUST-level gaps, each annotated in [`rfc/short/rfc8955.md`](https://github.
 | `RFC8955-9-1` | Implementations SHOULD provide a mechanism to log the packet header of filtered traffic (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-9-2` | Implementations SHOULD provide a mechanism to count the number of matches for a given Flow Specification rule (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-7.7-1` | Implementors SHOULD document the behavior of their implementation for interfering Traffic Filtering Actions (§7.7) | SHOULD | 7.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-7-2` | "Any additional definition of Traffic Filtering Actions SHOULD specify the action to take if those Traffic Filtering Actions interfere (also with existing Traffic Filtering Actions)" (§7) | SHOULD | 7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-7.1-4` | "A traffic-rate of 0 should result on all traffic for the particular flow to be discarded", and "a traffic-rate-packets of 0 should result in all traffic for the particular flow to be discarded" (§7.1, §7.2) | SHOULD | 7.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC8955-7.6-1` | "Implementations should provide mechanisms that map an arbitrary BGP community value (normal or extended) to Traffic Filtering Actions that require different mappings on different systems in the network" (§7.6) | SHOULD | 7.6 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-6-4` | Rule a (destination prefix requirement) MAY be relaxed by explicit configuration; if so, rules b and c MUST be disregarded (§6) | MAY | 6 | **positive:** no positive test. **negative:** no negative test |
 | `RFC8955-4.2-4` | A given component type MAY appear exactly once (§4.2) | MAY | 4.2 | **positive:** no positive test. **negative:** no negative test |
 
@@ -155,6 +168,14 @@ Four MUST-level gaps, each annotated in [`rfc/short/rfc8955.md`](https://github.
 | [`RFC8955-6-2`](#rfc8955-6-2) BGP implementations MUST enforce that AS_PATH attribute of a route received via eBGP contains the neighboring AS in the left-most position (§6) | {gap}, no test | ze runs no eBGP leftmost-neighbor-AS enforcement; the only AS_PATH ingress guard is RFC 4271 Section 9 loop detection and firstASInPath serves MED neighbor comparison only (internal/component/bgp/reactor/filter/loop_metrics.go:31, internal/component/bgp/plugins/rib/bestpath.go:544) |
 | [`RFC8955-6-3`](#rfc8955-6-3) Revalidation of the Flow Specification NLRI MUST be performed whenever unicast routes change (§6) | {gap}, no test | with no Section 6 validation implemented there is nothing to revalidate; the flowspec-firewall bridge rebuilds rules only on FlowSpec UPDATE and peer-down events, never on a unicast route change (internal/plugins/flowspec-firewall/engine.go:70-79) |
 | [`RFC8955-12-1`](#rfc8955-12-1) Specifications relaxing the validation restrictions MUST contain security considerations with details on required additional filtering (§12) | no test | no test carries this requirement id; annotated {not-applicable}: this obligation binds IETF documents that relax the Section 6 validation restrictions, not implementations; ze publishes no such specification and offers no validation-relaxation knob -- grep -rni 'relax' over internal/component/bgp/plugins/nlri/flowspec and internal/plugins/flowspec-firewall returns no producer, and no Section 6 validation exists to relax |
+| [`RFC8955-5.1-1`](#rfc8955-5.1-1) "This ordering function is such that it does not depend on the arrival order of the Flow Specification via BGP and thus is consistent in the network" (§5.1) | no test | no test carries this requirement id |
+| [`RFC8955-5.1-2`](#rfc8955-5.1-2) The relative order of two Flow Specifications is determined by comparing their components from the left-most (lowest component type value): the Flow Specification with the lowest numeric type value has higher precedence; for IP destination or source prefix values the more specific prefix has higher precedence and otherwise the lowest IP value does; for all other component types the data is compared as a binary string with memcmp(), the lowest string wins at equal lengths, and at different lengths the common prefix decides with the longest string winning when that prefix is equal (§5.1) | no test | no test carries this requirement id |
+| [`RFC8955-8-1`](#rfc8955-8-1) The VPNv4 Flow Specification NLRI "consists of a fixed-length Route Distinguisher field (8 octets) followed by the Flow Specification NLRI value (Section 4.2)" (§8) | no test | no test carries this requirement id |
+| [`RFC8955-8-2`](#rfc8955-8-2) "The NLRI length field shall include both the 8 octets of the Route Distinguisher as well as the subsequent Flow Specification NLRI value" (§8) | no test | no test carries this requirement id |
+| [`RFC8955-3-1`](#rfc8955-3-1) "Standard BGP policy mechanisms, such as UPDATE filtering by NLRI prefix as well as community matching, must apply to the Flow specification defined NLRI-type" (§3) | no test | no test carries this requirement id |
+| [`RFC8955-6-5`](#rfc8955-6-5) "Although the forwarding attributes of two routes for the same Flow Specification prefix may be the same, BGP is still required to perform its path selection algorithm in order to select the correct set of attributes to advertise" (§6) | no test | no test carries this requirement id |
+| [`RFC8955-7.3-2`](#rfc8955-7.3-2) Where the Terminal Action bit is not set and the evaluation continues to the next Flow Specification, "all the Traffic Filtering Actions from these Flow Specifications shall be collected and applied" (§7.3) | no test | no test carries this requirement id |
+| [`RFC8955-12-2`](#rfc8955-12-2) Where the rule-a validation relaxation is used, "for a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty" (§12) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -395,9 +416,157 @@ Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC8955-12-1, so no unit is bound to it.
 
+### [`RFC8955-5.1-1`](#rfc8955-5.1-1)
+
+"This ordering function is such that it does not depend on the arrival order of the Flow Specification via BGP and thus is consistent in the network" (§5.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC8955-5.1-1, so no unit is bound to it.
+
+### [`RFC8955-5.1-2`](#rfc8955-5.1-2)
+
+The relative order of two Flow Specifications is determined by comparing their components from the left-most (lowest component type value): the Flow Specification with the lowest numeric type value has higher precedence; for IP destination or source prefix values the more specific prefix has higher precedence and otherwise the lowest IP value does; for all other component types the data is compared as a binary string with memcmp(), the lowest string wins at equal lengths, and at different lengths the common prefix decides with the longest string winning when that prefix is equal (§5.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC8955-5.1-2, so no unit is bound to it.
+
+### [`RFC8955-8-1`](#rfc8955-8-1)
+
+The VPNv4 Flow Specification NLRI "consists of a fixed-length Route Distinguisher field (8 octets) followed by the Flow Specification NLRI value (Section 4.2)" (§8)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC8955-8-1, so no unit is bound to it.
+
+### [`RFC8955-8-2`](#rfc8955-8-2)
+
+"The NLRI length field shall include both the 8 octets of the Route Distinguisher as well as the subsequent Flow Specification NLRI value" (§8)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC8955-8-2, so no unit is bound to it.
+
+### [`RFC8955-3-1`](#rfc8955-3-1)
+
+"Standard BGP policy mechanisms, such as UPDATE filtering by NLRI prefix as well as community matching, must apply to the Flow specification defined NLRI-type" (§3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC8955-3-1, so no unit is bound to it.
+
+### [`RFC8955-6-5`](#rfc8955-6-5)
+
+"Although the forwarding attributes of two routes for the same Flow Specification prefix may be the same, BGP is still required to perform its path selection algorithm in order to select the correct set of attributes to advertise" (§6)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC8955-6-5, so no unit is bound to it.
+
+### [`RFC8955-7.3-2`](#rfc8955-7.3-2)
+
+Where the Terminal Action bit is not set and the evaluation continues to the next Flow Specification, "all the Traffic Filtering Actions from these Flow Specifications shall be collected and applied" (§7.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC8955-7.3-2, so no unit is bound to it.
+
+### [`RFC8955-12-2`](#rfc8955-12-2)
+
+Where the rule-a validation relaxation is used, "for a network to utilize this relaxation, the BGP policies must support additional filtering since the origin AS field is empty" (§12)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC8955-12-2, so no unit is bound to it.
+
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 8955, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc8955.txt |
+| Source fingerprint | ab2cc37046acae1d |
+| Record | rfc/extraction/rfc8955.json |
+| Mapped sentences | 26 |
+| Declined as scope | 12 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 1 | walked | not stated |
+| `1` | not stated | 3 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `4` | not stated | 4 | walked | not stated |
+| `4.1` | not stated | 0 | walked | not stated |
+| `4.2` | not stated | 2 | walked | not stated |
+| `4.2.1` | not stated | 0 | walked | not stated |
+| `4.2.1.1` | not stated | 2 | walked | not stated |
+| `4.2.1.2` | not stated | 1 | walked | not stated |
+| `4.2.2` | not stated | 0 | walked | not stated |
+| `4.2.2.1` | not stated | 0 | walked | not stated |
+| `4.2.2.2` | not stated | 0 | walked | not stated |
+| `4.2.2.3` | not stated | 0 | walked | not stated |
+| `4.2.2.4` | not stated | 0 | walked | not stated |
+| `4.2.2.5` | not stated | 0 | walked | not stated |
+| `4.2.2.6` | not stated | 0 | walked | not stated |
+| `4.2.2.7` | not stated | 0 | walked | not stated |
+| `4.2.2.8` | not stated | 0 | walked | not stated |
+| `4.2.2.9` | not stated | 1 | walked | not stated |
+| `4.2.2.10` | not stated | 0 | walked | not stated |
+| `4.2.2.11` | not stated | 1 | walked | not stated |
+| `4.2.2.12` | not stated | 2 | walked | not stated |
+| `4.3` | not stated | 0 | walked | not stated |
+| `4.3.1` | not stated | 0 | walked | not stated |
+| `4.3.2` | not stated | 0 | walked | not stated |
+| `4.3.3` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 0 | walked | not stated |
+| `6` | not stated | 5 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 2 | walked | not stated |
+| `7.2` | not stated | 2 | walked | not stated |
+| `7.3` | not stated | 2 | walked | not stated |
+| `7.4` | not stated | 0 | walked | not stated |
+| `7.5` | not stated | 1 | walked | not stated |
+| `7.6` | not stated | 0 | walked | not stated |
+| `7.7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 1 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `11.1` | not stated | 0 | walked | not stated |
+| `11.2` | not stated | 3 | walked | not stated |
+| `11.3` | not stated | 0 | walked | not stated |
+| `12` | not stated | 4 | walked | not stated |
+| `13` | not stated | 0 | walked | not stated |
+| `13.1` | not stated | 0 | walked | not stated |
+| `13.2` | not stated | 0 | walked | not stated |
+| `A` | not stated | 0 | walked | not stated |
+| `B` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF Trust boilerplate on the Simplified BSD License for extracted Code Components; it states no protocol obligation. | Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License. |
+| `1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Introduction prose describing what Section 7 of the document defines; "required" is lowercase and qualifies the Extended Communities the document specifies, not an obligation on an implementation. | Additionally, Section 7 of this document defines the required Traffic Filtering Actions BGP Extended Communities and mechanisms to use BGP for intra- and inter-provider distribution of traffic filtering rules in order to mitigate DoS and DDoS attacks. |
+| `1:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Introduction prose listing possible applications of the extension; "required" is lowercase and describes the coordination those applications need. | Possible applications of that extension are: Automated inter-domain coordination of traffic filtering, such as what is required in order to mitigate DoS and DDoS attacks or traffic filtering in the context of a BGP/MPLS VPN service. |
+| `1:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Introduction scope statement about which applications the specification addresses; "required" is lowercase and qualifies the protocol extensions the document defines. | This specification defines required protocol extensions to address most common applications of IPv4 unicast and VPNv4 unicast filtering. |
+| `6:3` | `advisory-in-context` (never bound Ze): the sentence advises on applying a rule stated elsewhere and adds no obligation of its own | The capitalised keyword is the consequent of the MAY in the preceding sentence, which the splitter cut away: "However, rule a MAY be relaxed by explicit configuration, permitting Flow Specifications that include no destination prefix component. If such is the case, rules b and c are moot and MUST be disregarded." Row RFC8955-6-4 [MAY] carries the whole construction. | If such is the case, rules b and c are moot and MUST be disregarded. |
+| `7.2:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the Section 7.1 encoding obligation for traffic-rate-packets, which uses the same encoding; RFC8955-7.1-1 already carries it and cites both sections. | On encoding, the traffic-rate-packets MUST NOT be negative. |
+| `7.2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the Section 7.1 decoding obligation for traffic-rate-packets, which uses the same encoding; RFC8955-7.1-2 already carries it and cites both sections. | On decoding, negative values MUST be treated as zero (discard all traffic). |
+| `11.2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | An IANA registration-policy table reproduced as text, not a sentence; it assigns code-point ranges to registration policies. | +==============+========================+ \| Type Values \| Policy \| +==============+========================+ \| 0 \| Reserved \| +--------------+------------------------+ \| [1 .. 127] \| Specification Required \| +--------------+------------------------+ \| [128 .. 254] \| Expert Review \| +--------------+------------------------+ \| 255 \| Reserved \| +--------------+------------------------+ |
+| `11.2:2` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | The obligation binds the IANA designated experts who review Flow Spec Component Types registrations under Specification Required and Expert Review, not a BGP speaker: the sentence tells the experts to verify that a requesting specification reached the IDR Working Group. The producer is the IANA designated expert review process for the Flow Spec Component Types registry, which is a review process and not code; Ze operates no registry, requests no code point and holds no file that would act as this role if it did. | The experts must also verify that any specification produced in the IETF that requests one of these code points has been made available for review by the IDR Working Group and that any specification produced outside the IETF does not conflict with work that is active or already published within the IETF. |
+| `11.2:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Rhetorical "it must be pointed out"; the sentence warns that new component types can break interoperability and places no obligation on an implementation. | It must be pointed out that introducing new component types may break interoperability with existing implementations of this protocol. |
+| `12:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Security Considerations exhortation ("additional care must be taken") with no action named; the obligation it introduces is RFC8955-12-2. | Since the validation of Flow Specification (Section 6) depends on this, additional care must be taken. |
+| `12:4` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Statement of fact about what systems can and cannot locate in a packet header; it places no obligation. | Systems may not be able to locate all header values required to identify a packet. |
 
 ## Superseded
 

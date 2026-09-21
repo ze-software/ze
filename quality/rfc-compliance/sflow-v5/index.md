@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 6.2% | 1 of 16 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 68.8% | 11 of 16 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 16 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 2.9% | 1 of 34 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 32.4% | 11 of 34 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 34 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 0.0% | 0 of 13 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 16 | of 24 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 16 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 6.2% | 1 of 16 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 16 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 16 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 34 | of 42 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 1 | of 34 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 2.9% | 1 of 34 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 34 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 34 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 18.8% | 3 of 16 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 61.8% | 21 of 34 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 16 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 34 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Experimental |
 | Enrolment | Enrolled |
-| Requirements | 24 |
-| Gated MUST-level | 16 |
+| Requirements | 42 |
+| Gated MUST-level | 34 |
 | Not applicable, so out of scope | 1 |
 | Declared gaps | 3 |
-| Gated with no test | 0 |
+| Gated with no test | 18 |
 | Nightly-only evidence | 0 |
 | Test tags | 13 |
 | Tagged units | 13 |
@@ -75,7 +75,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at configured interval) + 11 single-polarity positive (version=5, agent addr, sub-agent seq space, MTU bound, no >1s hold, XDR big-endian, count-prefixed arrays, actual rate, sample_pool, cumulative counters) + 3 gap (split datagram seq, no expanded types, no unavailable sentinel) + 1 not-applicable (collector skip)
+Enrolled: sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at configured interval) + 11 single-polarity positive (version=5, agent addr, sub-agent seq space, MTU bound, no >1s hold, XDR big-endian, count-prefixed arrays, actual rate, sample_pool, cumulative counters) + 3 gap (split datagram seq, no expanded types, no unavailable sentinel) + 1 not-applicable (collector skip) + 18 added by the 2026-09-21 extraction walk from sentences this summary did not carry, none of them tested (SFLOW-V5-x-25 through x-42: the no-batching send rule, the outstanding-counter datagram, the compact/expanded encoding choice, the three sequence-number reset rules, the data-source-to-sub-agent binding, counter availability within a session, the header-information and stripping rules, extended_switch reporting, and the sampling-algorithm obligations on randomness, once-per-packet consideration, sampler independence, convergence and rate persistence)
 
 ## What the public ledger says
 
@@ -85,7 +85,7 @@ Enrolled: sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at co
 
 - Flow export protocol alongside NetFlow v9 and IPFIX. Three MUST gaps in [`rfc/short/sflow-v5.md`](https://github.com/ze-software/ze/blob/main/rfc/short/sflow-v5.md): datagram-level sequence numbers split across two independent counters per sub-agent (SFLOW-V5-x-9)
 - no expanded sample types, so ifIndex > 2^24-1 is truncated by the 24-bit source_id mask (SFLOW-V5-x-12)
-- unavailable if_counters fields are exported as 0 instead of the max-value unavailable sentinel (SFLOW-V5-x-16).
+- unavailable if_counters fields are exported as 0 instead of the max-value unavailable sentinel (SFLOW-V5-x-16). Eighteen further MUST rows (SFLOW-V5-x-25 through x-42) were added by the 2026-09-21 extraction walk and none of them is tested.
 
 
 **What the ledger says remains:**
@@ -99,14 +99,16 @@ Enrolled: sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at co
 | Positive and negative tests | 1 | one part of the gated population |
 | Annotated instead of tested | 15 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 18 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **16** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **34** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (1):** [`SFLOW-V5-x-14`](#sflow-v5-x-14)
 
 **Annotated instead of tested (15):** [`SFLOW-V5-x-1`](#sflow-v5-x-1), [`SFLOW-V5-x-2`](#sflow-v5-x-2), [`SFLOW-V5-x-3`](#sflow-v5-x-3), [`SFLOW-V5-x-4`](#sflow-v5-x-4), [`SFLOW-V5-x-5`](#sflow-v5-x-5), [`SFLOW-V5-x-6`](#sflow-v5-x-6), [`SFLOW-V5-x-7`](#sflow-v5-x-7), [`SFLOW-V5-x-8`](#sflow-v5-x-8), [`SFLOW-V5-x-9`](#sflow-v5-x-9), [`SFLOW-V5-x-10`](#sflow-v5-x-10), [`SFLOW-V5-x-11`](#sflow-v5-x-11), [`SFLOW-V5-x-12`](#sflow-v5-x-12), [`SFLOW-V5-x-13`](#sflow-v5-x-13), [`SFLOW-V5-x-15`](#sflow-v5-x-15), [`SFLOW-V5-x-16`](#sflow-v5-x-16)
+
+**No test and no annotation (18):** [`SFLOW-V5-x-25`](#sflow-v5-x-25), [`SFLOW-V5-x-26`](#sflow-v5-x-26), [`SFLOW-V5-x-27`](#sflow-v5-x-27), [`SFLOW-V5-x-28`](#sflow-v5-x-28), [`SFLOW-V5-x-29`](#sflow-v5-x-29), [`SFLOW-V5-x-30`](#sflow-v5-x-30), [`SFLOW-V5-x-31`](#sflow-v5-x-31), [`SFLOW-V5-x-32`](#sflow-v5-x-32), [`SFLOW-V5-x-33`](#sflow-v5-x-33), [`SFLOW-V5-x-34`](#sflow-v5-x-34), [`SFLOW-V5-x-35`](#sflow-v5-x-35), [`SFLOW-V5-x-36`](#sflow-v5-x-36), [`SFLOW-V5-x-37`](#sflow-v5-x-37), [`SFLOW-V5-x-38`](#sflow-v5-x-38), [`SFLOW-V5-x-39`](#sflow-v5-x-39), [`SFLOW-V5-x-40`](#sflow-v5-x-40), [`SFLOW-V5-x-41`](#sflow-v5-x-41), [`SFLOW-V5-x-42`](#sflow-v5-x-42)
 
 ## Requirements
 
@@ -128,6 +130,24 @@ Enrolled: sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at co
 | `SFLOW-V5-x-14` | Counter samples MUST be produced at the configured polling interval for each data source (Counter Polling) | MUST | x | **positive:** `unit/verify` [`TestSFlowCounterPollAtInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L276). **negative:** `unit/verify` [`TestSFlowCounterPollBeforeInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/exporter_test.go#L295) |
 | `SFLOW-V5-x-15` | All counters MUST be cumulative since boot (Counter Polling) | MUST | x | **positive:** `unit/verify` [`TestInterfaceCountersFromCumulative`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/register_test.go#L128). **negative:** no negative test. **{single-polarity}:** interfaceCountersFrom copies the raw cumulative kernel counters straight through with no differencing, so exported if_counters are cumulative by construction (internal/plugins/flowexport/register.go:343-358, snapshot.go:10-13) |
 | `SFLOW-V5-x-16` | Unavailable counter fields MUST be set to max value for the type (0xFFFFFFFF for u32, 0xFFFFFFFFFFFFFFFF for u64) (Implementation Guidance) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{gap}:** interfaceCountersFrom leaves fields the kernel does not expose (ifInUnknownProtos, ifInBroadcastPkts, ifOutMulticastPkts, ifOutBroadcastPkts) at zero rather than the required max-value unavailable sentinel, so a collector cannot distinguish true-zero from unavailable (internal/plugins/flowexport/register.go:343-361) |
+| `SFLOW-V5-x-25` | "the sFlow Agent must not wait for a buffer to fill with samples before sending the sFlow Datagram" (Transport) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-26` | "If counters must be sent in order to satisfy the maximum sampling interval then a datagram must be sent containing the outstanding counters." (Counter Polling) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-27` | "An agent must not mix compact/expanded encodings." An agent that will never use ifIndex numbers >= 2^24 "must use compact encodings for all interfaces", otherwise "the expanded formats must be used for all interfaces" (Expanded Flow/Counter Sample) | MUST NOT | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-28` | "If the agent resets the sample_pool then it must also reset the sequence_number" of the flow sample (Flow Sample) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-29` | "If the agent resets any of the counters then it must also reset the sequence_number" of the counter sample (Counter Sample) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-30` | "In the case of ifIndex-based source_id's the sequence number must be reset each time ifCounterDiscontinuityTime changes." (Counter Sample) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-31` | "Each sFlowDataSource must be associated with only one sub-agent", and "The association between sFlowDataSource and sub-agent must remain constant for the entire duration of an sFlow session." (Agent Architecture) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-32` | "Within any given sFlow session a particular counter must be always available, or always unavailable." (Counter Polling) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-33` | "A flow_sample must contain packet header information." (Flow Sample) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-34` | "Any octets added to the frame_length to compensate for encapsulations removed by the underlying hardware must also be added to the stripped count." (Raw Packet Header) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-35` | "Trailing encapsulation data for the outermost protocol layer included in the sampled header must be stripped", as must trailing data "corresponding to any leading encapsulations that were stripped" and "Outer encapsulations that are ambiguous, or not one of the standard header_protocol" (Raw Packet Header) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-36` | "extended_switch data must always be reported to describe the ingress/egress VLAN information for the packet." (Extended Switch) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-37` | "The random number generator must ensure that all numbers in the range between its maximum and minimum values of the distribution are possible" (Packet Sampling) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-38` | Packet Flow Sampling "must ensure that any packet observed at a Data Source has an equal chance of being sampled, irrespective of the Packet Flow(s) to which it belongs" (Packet Sampling) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-39` | "Each packet must only be considered once for sampling, irrespective of the number of ports it will be forwarded to." (Packet Sampling) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-40` | "Each sFlow sampler instance must operate independently of all other instances", and "Setting an attribute of one sampler must not alter the the behavior and settings of other sampler instances." (Agent Architecture) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-41` | "The sampling algorithm must converge so that over time the number of packets sampled approaches 1/Nth of the total number of packets in the monitored flows." (Packet Sampling) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `SFLOW-V5-x-42` | After an agent adjusts a configured sampling rate, "The sampling rate must stay at its new value and never automatically return to the originally configured value." (Packet Sampling) | MUST | x | **positive:** no positive test. **negative:** no negative test |
 | `SFLOW-V5-x-17` | Default datagram max size SHOULD be 1400 bytes (Transport) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
 | `SFLOW-V5-x-18` | Default max header size SHOULD be 128 bytes for sampled_header (Raw Packet Header) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
 | `SFLOW-V5-x-19` | Counter polls SHOULD be staggered across sources with randomized initial offset (Counter Polling) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
@@ -145,6 +165,24 @@ Enrolled: sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at co
 | [`SFLOW-V5-x-12`](#sflow-v5-x-12) Expanded sample types MUST be used when ifIndex exceeds 2^24-1 or 2^30-1 (Expanded Flow/Counter Sample) | {gap}, no test | ze implements no flow_sample_expanded (format 3) or counters_sample_expanded (format 4); a large ifIndex is silently truncated by a 24-bit mask on source_id rather than switching to the expanded encoding (internal/plugins/flowexport/sflow/counter.go:49, flow.go:48) |
 | [`SFLOW-V5-x-13`](#sflow-v5-x-13) Unknown record formats MUST be skipped using the opaque length prefix (Record Wrappers) | no test | no test carries this requirement id; annotated {not-applicable}: skipping unknown formats on receive is a collector behavior; ze is an sFlow exporter only with no sFlow decode path, though it does emit the length prefixes that let a collector skip (internal/plugins/flowexport/sflow/counter.go:60-61, flow.go:131-132) |
 | [`SFLOW-V5-x-16`](#sflow-v5-x-16) Unavailable counter fields MUST be set to max value for the type (0xFFFFFFFF for u32, 0xFFFFFFFFFFFFFFFF for u64) (Implementation Guidance) | {gap}, no test | interfaceCountersFrom leaves fields the kernel does not expose (ifInUnknownProtos, ifInBroadcastPkts, ifOutMulticastPkts, ifOutBroadcastPkts) at zero rather than the required max-value unavailable sentinel, so a collector cannot distinguish true-zero from unavailable (internal/plugins/flowexport/register.go:343-361) |
+| [`SFLOW-V5-x-25`](#sflow-v5-x-25) "the sFlow Agent must not wait for a buffer to fill with samples before sending the sFlow Datagram" (Transport) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-26`](#sflow-v5-x-26) "If counters must be sent in order to satisfy the maximum sampling interval then a datagram must be sent containing the outstanding counters." (Counter Polling) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-27`](#sflow-v5-x-27) "An agent must not mix compact/expanded encodings." An agent that will never use ifIndex numbers >= 2^24 "must use compact encodings for all interfaces", otherwise "the expanded formats must be used for all interfaces" (Expanded Flow/Counter Sample) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-28`](#sflow-v5-x-28) "If the agent resets the sample_pool then it must also reset the sequence_number" of the flow sample (Flow Sample) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-29`](#sflow-v5-x-29) "If the agent resets any of the counters then it must also reset the sequence_number" of the counter sample (Counter Sample) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-30`](#sflow-v5-x-30) "In the case of ifIndex-based source_id's the sequence number must be reset each time ifCounterDiscontinuityTime changes." (Counter Sample) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-31`](#sflow-v5-x-31) "Each sFlowDataSource must be associated with only one sub-agent", and "The association between sFlowDataSource and sub-agent must remain constant for the entire duration of an sFlow session." (Agent Architecture) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-32`](#sflow-v5-x-32) "Within any given sFlow session a particular counter must be always available, or always unavailable." (Counter Polling) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-33`](#sflow-v5-x-33) "A flow_sample must contain packet header information." (Flow Sample) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-34`](#sflow-v5-x-34) "Any octets added to the frame_length to compensate for encapsulations removed by the underlying hardware must also be added to the stripped count." (Raw Packet Header) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-35`](#sflow-v5-x-35) "Trailing encapsulation data for the outermost protocol layer included in the sampled header must be stripped", as must trailing data "corresponding to any leading encapsulations that were stripped" and "Outer encapsulations that are ambiguous, or not one of the standard header_protocol" (Raw Packet Header) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-36`](#sflow-v5-x-36) "extended_switch data must always be reported to describe the ingress/egress VLAN information for the packet." (Extended Switch) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-37`](#sflow-v5-x-37) "The random number generator must ensure that all numbers in the range between its maximum and minimum values of the distribution are possible" (Packet Sampling) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-38`](#sflow-v5-x-38) Packet Flow Sampling "must ensure that any packet observed at a Data Source has an equal chance of being sampled, irrespective of the Packet Flow(s) to which it belongs" (Packet Sampling) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-39`](#sflow-v5-x-39) "Each packet must only be considered once for sampling, irrespective of the number of ports it will be forwarded to." (Packet Sampling) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-40`](#sflow-v5-x-40) "Each sFlow sampler instance must operate independently of all other instances", and "Setting an attribute of one sampler must not alter the the behavior and settings of other sampler instances." (Agent Architecture) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-41`](#sflow-v5-x-41) "The sampling algorithm must converge so that over time the number of packets sampled approaches 1/Nth of the total number of packets in the monitored flows." (Packet Sampling) | no test | no test carries this requirement id |
+| [`SFLOW-V5-x-42`](#sflow-v5-x-42) After an agent adjusts a configured sampling rate, "The sampling rate must stay at its new value and never automatically return to the originally configured value." (Packet Sampling) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -303,9 +341,233 @@ Audit verdict: not audited: no reader has judged these tests
 
 No test carries SFLOW-V5-x-16, so no unit is bound to it.
 
+### [`SFLOW-V5-x-25`](#sflow-v5-x-25)
+
+"the sFlow Agent must not wait for a buffer to fill with samples before sending the sFlow Datagram" (Transport)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-25, so no unit is bound to it.
+
+### [`SFLOW-V5-x-26`](#sflow-v5-x-26)
+
+"If counters must be sent in order to satisfy the maximum sampling interval then a datagram must be sent containing the outstanding counters." (Counter Polling)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-26, so no unit is bound to it.
+
+### [`SFLOW-V5-x-27`](#sflow-v5-x-27)
+
+"An agent must not mix compact/expanded encodings." An agent that will never use ifIndex numbers >= 2^24 "must use compact encodings for all interfaces", otherwise "the expanded formats must be used for all interfaces" (Expanded Flow/Counter Sample)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-27, so no unit is bound to it.
+
+### [`SFLOW-V5-x-28`](#sflow-v5-x-28)
+
+"If the agent resets the sample_pool then it must also reset the sequence_number" of the flow sample (Flow Sample)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-28, so no unit is bound to it.
+
+### [`SFLOW-V5-x-29`](#sflow-v5-x-29)
+
+"If the agent resets any of the counters then it must also reset the sequence_number" of the counter sample (Counter Sample)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-29, so no unit is bound to it.
+
+### [`SFLOW-V5-x-30`](#sflow-v5-x-30)
+
+"In the case of ifIndex-based source_id's the sequence number must be reset each time ifCounterDiscontinuityTime changes." (Counter Sample)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-30, so no unit is bound to it.
+
+### [`SFLOW-V5-x-31`](#sflow-v5-x-31)
+
+"Each sFlowDataSource must be associated with only one sub-agent", and "The association between sFlowDataSource and sub-agent must remain constant for the entire duration of an sFlow session." (Agent Architecture)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-31, so no unit is bound to it.
+
+### [`SFLOW-V5-x-32`](#sflow-v5-x-32)
+
+"Within any given sFlow session a particular counter must be always available, or always unavailable." (Counter Polling)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-32, so no unit is bound to it.
+
+### [`SFLOW-V5-x-33`](#sflow-v5-x-33)
+
+"A flow_sample must contain packet header information." (Flow Sample)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-33, so no unit is bound to it.
+
+### [`SFLOW-V5-x-34`](#sflow-v5-x-34)
+
+"Any octets added to the frame_length to compensate for encapsulations removed by the underlying hardware must also be added to the stripped count." (Raw Packet Header)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-34, so no unit is bound to it.
+
+### [`SFLOW-V5-x-35`](#sflow-v5-x-35)
+
+"Trailing encapsulation data for the outermost protocol layer included in the sampled header must be stripped", as must trailing data "corresponding to any leading encapsulations that were stripped" and "Outer encapsulations that are ambiguous, or not one of the standard header_protocol" (Raw Packet Header)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-35, so no unit is bound to it.
+
+### [`SFLOW-V5-x-36`](#sflow-v5-x-36)
+
+"extended_switch data must always be reported to describe the ingress/egress VLAN information for the packet." (Extended Switch)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-36, so no unit is bound to it.
+
+### [`SFLOW-V5-x-37`](#sflow-v5-x-37)
+
+"The random number generator must ensure that all numbers in the range between its maximum and minimum values of the distribution are possible" (Packet Sampling)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-37, so no unit is bound to it.
+
+### [`SFLOW-V5-x-38`](#sflow-v5-x-38)
+
+Packet Flow Sampling "must ensure that any packet observed at a Data Source has an equal chance of being sampled, irrespective of the Packet Flow(s) to which it belongs" (Packet Sampling)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-38, so no unit is bound to it.
+
+### [`SFLOW-V5-x-39`](#sflow-v5-x-39)
+
+"Each packet must only be considered once for sampling, irrespective of the number of ports it will be forwarded to." (Packet Sampling)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-39, so no unit is bound to it.
+
+### [`SFLOW-V5-x-40`](#sflow-v5-x-40)
+
+"Each sFlow sampler instance must operate independently of all other instances", and "Setting an attribute of one sampler must not alter the the behavior and settings of other sampler instances." (Agent Architecture)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-40, so no unit is bound to it.
+
+### [`SFLOW-V5-x-41`](#sflow-v5-x-41)
+
+"The sampling algorithm must converge so that over time the number of packets sampled approaches 1/Nth of the total number of packets in the monitored flows." (Packet Sampling)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-41, so no unit is bound to it.
+
+### [`SFLOW-V5-x-42`](#sflow-v5-x-42)
+
+After an agent adjusts a configured sampling rate, "The sampling rate must stay at its new value and never automatically return to the originally configured value." (Packet Sampling)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries SFLOW-V5-x-42, so no unit is bound to it.
+
 ## Extraction sign-off
 
-No extraction sign-off exists for SFLOW-V5, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/sflow-v5.txt |
+| Source fingerprint | cd9e27ebcba6e68b |
+| Record | rfc/extraction/sflow-v5.json |
+| Mapped sentences | 21 |
+| Declined as scope | 37 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | sFlow Datagram Format | 30 | walked | sFlow Datagram Format. The specification's main normative section: 30 sites, 15 mapped to SFLOW-V5-x-6, x-12, x-13 and x-25 through x-36, and 15 excluded, of which 9 repeat a sentence already mapped, 4 bind another role (three an sFlow Collector, one the author of a new sFlow structure definition) and 2 state no obligation. Ten ids are declared unsourced here. sFlow v5 writes this section as XDR type definitions and explanatory prose, so the capitalised MUST-level scan raises no site for any of them. x-1 rests on 'enum datagram_version { VERSION5 = 5 }' with 'union sample_datagram_type (datagram_version version) { case VERSION5: sample_datagram_v5 datagram; }', which admit one version value and name no obligation. x-3 rests on the sub_agent_id comment, 'Used to distinguishing between datagram streams from separate agent sub entities within an device', read with the agent_address comment 'IP address of sampling agent, sFlowAgentAddress'. x-4 rests on the sample_datagram_v5 sequence_number comment, 'Incremented with each sample datagram generated by a sub-agent within an agent'. x-7 rests on 'The format of the sFlow datagram is specified using the XDR standard [32]', which imports 4-byte alignment and big-endian order from XDR instead of restating them. x-8 rests on that same import together with the opaque<> and counters<> array notation the section uses throughout, whose 4-byte count prefix and padding are XDR's. x-9 rests on the 'unsigned int sequence_number' declarations, one per-agent in sample_datagram_v5 and one per-source in flow_sample and counters_sample, each an XDR unsigned 32-bit value that wraps. x-10 rests on 'unsigned int sampling_rate; /* sFlowPacketSamplingRate */' inside flow_sample. x-11 rests on 'unsigned int sample_pool; /* Total number of packets that could have been sampled (i.e. packets skipped by sampling process + total number of samples) */'. x-15 rests on 'If counter samples are lost then new values will be sent during the next polling interval. The chance of an undetected counter wrap is negligible.', which holds for counters that accumulate and not for per-interval deltas, read with '/* Generic Interface Counters - see RFC 2233 */' and with 'An available counter may temporarily have the max value just before it rolls to zero.'. x-16 rests on 'Unknown counter. Use the maximum counter value to indicate that the counter is not available.' |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 3 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 2 | walked | not stated |
+| `3.2` | Counter Sampling | 1 | walked | Counter Sampling. One site, excluded as not a requirement: 'Counters are only added to the datagram if the sources are within a short period, 5 seconds say, of failing to meet the required Sampling Interval', which describes one strategy and prescribes none. One id is declared unsourced here. x-14 rests on 'A maximum Sampling Interval is assigned to each sFlow Instance associated with an interface Data Source, but the sFlow Agent is free to schedule polling in order maximize internal efficiency', read with 'Periodically, say every second, the sFlow Agent examines the list of counter sources and sends any counters that need to be sent to meet the sampling interval requirement'. Both sentences are indicative, so the MUST-level scan raises no site for them. |
+| `4.1` | not stated | 1 | walked | not stated |
+| `4.2` | not stated | 0 | walked | not stated |
+| `4.2.1` | not stated | 1 | walked | not stated |
+| `4.2.2` | not stated | 1 | walked | not stated |
+| `4.2.3` | not stated | 0 | walked | not stated |
+| `4.3` | Definitions | 18 | walked | Definitions. The SFLOW-MIB module itself: 18 sites, 3 mapped to SFLOW-V5-x-39, x-40 and x-41, and 15 excluded, of which 2 repeat a sentence already mapped and 13 bind an SNMP agent or an SNMP management station. Ze configures sFlow through YANG and ships no SFLOW-MIB, so those 13 bind a configuration interface Ze does not implement. Two ids are declared unsourced here, both stated at SHOULD level in an OBJECT-TYPE DESCRIPTION that the MUST-level scan does not raise. x-2 rests on the sFlowAgentAddress DESCRIPTION: 'In the case of a multi-homed agent, this should be the loopback address of the agent.', 'The address should be an invariant that does not change as interfaces are reconfigured, enabled, disabled, added or removed.' and 'A manager should be able to use the sFlowAgentAddress as a unique key that will identify this agent over extended periods of time so that a history can be maintained.'. x-5 rests on the sFlowRcvrMaximumDatagramSize DESCRIPTION, 'The maximum number of data bytes that can be sent in a single sample datagram. The manager should set this value to avoid fragmentation of the sFlow datagrams.', with DEFVAL { 1400 }. |
+| `6.1` | not stated | 1 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+| `6.3` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `5:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | States why UDP was chosen ('The use of UDP reduces the amount of memory required to buffer data'). The word 'required' is part of a noun phrase describing buffering, and the sentence places no obligation on an implementation. | The use of UDP reduces the amount of memory required to buffer data. |
+| `5:5` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Binds whoever publishes a new or changed sFlow structure format, as versioning discipline for the specification's own registry of structure numbers. Ze defines no sFlow structure of its own: internal/plugins/flowexport/sflow emits the structures this document already numbers. The producer would be an author of a new sFlow structure definition, a role Ze does not fill. | Any changes that would alter or invalidate fields in published structure definitions must be implemented using a new structure number. |
+| `5:7` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Addressed to the receiver of sFlow datagrams. Ze fills the sFlow AGENT role only: internal/plugins/flowexport/sflow encodes samples and sends datagrams to a configured collector, and no package decodes an inbound sFlow datagram. The producer would be an sFlow Collector, a receiving role Ze does not ship. | An application receiving sFlow must be prepared to accept additional reason codes. |
+| `5:9` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The compact-encoding half of the same no-mixing rule, which the mapped row states in full. | If an agent will never use ifIndex numbers >= 2^24 then it must use compact encodings for all interfaces. |
+| `5:10` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The expanded-encoding half of the same no-mixing rule, which the mapped row states in full. | Otherwise the expanded formats must be used for all interfaces. |
+| `5:11` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The XDR comment repeats the compact-encoding rule the mapped row carries. | /* Compact Format Flow/Counter samples If ifIndex numbers are always < 2^24 then the compact must be used. */ |
+| `5:16` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The same sample_pool reset rule, repeated in the expanded flow sample definition. | Note: If the agent resets the sample_pool then it must also reset the sequence_number.*/ sflow_data_source_expanded source_id; /* sFlowDataSource */ unsigned int sampling_rate; /* sFlowPacketSamplingRate */ unsigned int sample_pool; /* Total number of packets that could have been sampled (i.e. packets skipped by sampling process + total number of samples) */ unsigned int drops; /* Number of times that the sFlow agent detected that a packet marked to be sampled was dropped due to lack of resources. |
+| `5:17` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The same counter reset rule, repeated in the expanded counter sample definition. | /* Format of a single expanded counter sample */ /* opaque = sample_data; enterprise = 0; format = 4 */ struct counters_sample_expanded { unsigned int sequence_number; /* Incremented with each counter sample generated by this source_id Note: If the agent resets any of the counters then it must also reset the sequence_number. |
+| `5:18` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The same ifCounterDiscontinuityTime reset rule, repeated in the expanded counter sample definition. | In the case of ifIndex-based source_id's the sequence number must be reset each time ifCounterDiscontinuityTime changes. */ sflow_data_source_expanded source_id; /* sFlowDataSource */ counter_record counters<>; /* Counters polled for this source */ } |
+| `5:20` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The constancy half of the same sFlowDataSource-to-sub-agent binding, which the mapped row states in full. | The association between sFlowDataSource and sub-agent must remain constant for the entire duration of an sFlow session. */ |
+| `5:21` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Addressed to the receiver of sFlow datagrams. Ze fills the sFlow AGENT role only: internal/plugins/flowexport/sflow encodes samples and sends datagrams to a configured collector, and no package decodes an inbound sFlow datagram. The producer would be an sFlow Collector, a receiving role Ze does not ship. | Note: While a sub-agents should try and track the global sysUptime value a receiver of sFlow packets must not assume that values are synchronised between sub-agents. */ sample_record samples<>; /* An array of sample records */ } |
+| `5:22` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | A relaxation, not an obligation: 'an sFlow Agent is not required to support all the different record types, only those applicable to its treatment of the particular packet being reporting on'. | However, an sFlow Agent is not required to support all the different record types, only those applicable to its treatment of the particular packet being reporting on. |
+| `5:25` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Addressed to the receiver of sFlow datagrams. Ze fills the sFlow AGENT role only: internal/plugins/flowexport/sflow encodes samples and sends datagrams to a configured collector, and no package decodes an inbound sFlow datagram. The producer would be an sFlow Collector, a receiving role Ze does not ship. | Applications receiving sFlow must be prepared to receive sampled_header structures with unknown sampled_header values. |
+| `5:27` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The leading-encapsulation half of the same stripping rule, which the mapped row states in full. | Trailing encapsulation data corresponding to any leading encapsulations that were stripped must also be stripped. |
+| `5:29` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The ambiguous-encapsulation half of the same stripping rule, which the mapped row states in full. | Outer encapsulations that are ambiguous, or not one of the standard header_protocol must be stripped. */ opaque header<>; /* Header bytes */ } |
+| `8:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Describes the property a generator is judged by ('The essential property of the random number generator is that the mean value of the numbers it generates converges to the required sampling rate'). The obligation it introduces is stated in the next sentence, which is classified at 8:2. | The essential property of the random number generator is that the mean value of the numbers it generates converges to the required sampling rate. |
+| `8:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Describes when the algorithm needs a new skip value ('A new skip value is only required every time a sample is taken'). It grants a licence to compute lazily rather than imposing a duty. | A new skip value is only required every time a sample is taken. |
+| `3.1:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates that a threshold-based sampler must still satisfy the equal-chance property the mapped row carries. | Calculation of an appropriate threshold value depends on the characteristics of the random number generator, however, the resulting sample stream must still satisfy (1). |
+| `3.2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Describes the counter-polling algorithm's piggyback condition; 'required Sampling Interval' is a noun phrase naming the configured interval, and the sentence states no obligation of its own. | Counters are only added to the datagram if the sources are within a short period, 5 seconds say, of failing to meet the required Sampling Interval (see sFlowCounterSamplingInterval in SFLOW MIB). |
+| `4.1:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship. | The resulting translated MIB must be semantically equivalent, except where objects or events are omitted because no translation is possible (use of Counter64). |
+| `4.2.1:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Addressed to the receiver of sFlow datagrams. Ze fills the sFlow AGENT role only: internal/plugins/flowexport/sflow encodes samples and sends datagrams to a configured collector, and no package decodes an inbound sFlow datagram. The producer would be an sFlow Collector, a receiving role Ze does not ship. | Before making any configuration changes, an sFlow Collector must first find a free row in the receiver table and then claim it by writing its owner string and a reservation time into a free row in the receiver table. |
+| `4.3:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The second sentence of the same sampler-independence rule, which the mapped row states in full. | Setting an attribute of one sampler must not alter the the behavior and settings of other sampler instances." SYNTAX Integer32 (1..65535) |
+| `4.3:4` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship. | If non-zero the value must correspond to a valid, active sFlowRcvrIndex. |
+| `4.3:5` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship. | If an entry in the sFlowRcvrTable expires, either because the sFlowRcvrOwner is set to the empty string or because the sFlowRcvrTimeout reaches zero, then the agent must mark all associated resources as available (by setting the associated SFlowReceiver entry to zero) and all values in these records must be restored to their default values. |
+| `4.3:6` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship. | The version string must have the following structure: <MIB Version>;<Organization>;<Software Revision> where: <MIB Version> must be '1.3', the version of this MIB. <Organization> the name of the organization responsible for the agent implementation. <Revision> the specific software build of this agent. |
+| `4.3:7` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Addressed to the management entity that configures an sFlow agent over SNMP, not to the agent. Ze manages no other device's sFlow MIB: its own configuration is YANG (internal/plugins/flowexport/yang). The producer would be an SNMP management station reading the SFLOW-MIB, which Ze does not ship. | Management entities must check the MIB Version and not attempt to manage agents with MIB Versions greater than that for which they were designed. |
+| `4.3:8` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship. | The sFlowAgent address must provide SNMP connectivity to the agent. |
+| `4.3:9` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship. | An entity wishing to claim an sFlowRcvrTable entry must ensure that the entry is unclaimed before trying to claim it. |
+| `4.3:10` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship. | The entry must be claimed before any changes can be made to other sampler objects. |
+| `4.3:11` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship. | In order to avoid a race condition, the entity taking control of the sampler must set both the owner and a value for sFlowRcvrTimeout in the same SNMP set request. |
+| `4.3:12` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship. | The agent must restore all other entities this row to their default values when the owner is set to unclaimed. |
+| `4.3:13` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship. | It must also free all other resources associated with this sFlowRcvrTable entry. |
+| `4.3:14` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship. | It must also free all other resources associated with this sFlowRcvrTable entry." DEFVAL { 0 } ::= { sFlowRcvrEntry 3 } |
+| `4.3:15` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship. | When read, the agent must return the actual sampling rate it will be using (after the adjustments previously described). |
+| `4.3:17` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship. | When read, the agent must return the actual sampling interval it will be using (after the adjustments previously described). |
+| `4.3:18` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The same convergence sentence, repeated in the counter-polling MIB object description. | The sampling algorithm must converge so that over time the number of packets sampled approaches 1/Nth of the total number of packets in the monitored flows." DEFVAL { 0 } ::= { sFlowCpEntry 4 } |
+| `6.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Introduces the list of configuration arguments that follows ('The following arguments are required to configure sFlow sampling on an interface'). The arguments are named in the list, and no behavior is required by this sentence. | The following arguments are required to configure sFlow sampling on an interface. |
 
 ## Superseded
 

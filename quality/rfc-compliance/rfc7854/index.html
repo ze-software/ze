@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7854 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7854: BGP Monitoring Protocol (BMP). 14 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 7854: BGP Monitoring Protocol (BMP). 32 gated MUST-level requirements, 0 declared gaps, 19 with no test." />
         <meta property="og:title" content="RFC 7854 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7854: BGP Monitoring Protocol (BMP). 14 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 7854: BGP Monitoring Protocol (BMP). 32 gated MUST-level requirements, 0 declared gaps, 19 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7854 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7854: BGP Monitoring Protocol (BMP). 14 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 7854: BGP Monitoring Protocol (BMP). 32 gated MUST-level requirements, 0 declared gaps, 19 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,22 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>50.0%</strong><b>7 of 14 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>50.0%</strong><b>7 of 14 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>21.9%</strong><b>7 of 32 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>18.8%</strong><b>6 of 32 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>6.5%</strong><b>2 of 31 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>14</strong><b>of 22 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 14 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 14 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>32</strong><b>of 41 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 32 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 32 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>59.4%</strong><b>19 of 32 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 7 shares marked as a part above are the whole of the 32 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -159,7 +163,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -199,10 +203,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>22</td>
+<td>41</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>14</td>
+<td>32</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -211,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>19</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -242,7 +246,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: BGP Monitoring Protocol (BMP) base: twelve MUST-level requirements, all met in internal/component/bgp/plugins/bmp. Five carry positive+negative tags: x-1 (the common-header version is 3, other versions rejected), x-2 (the common header is 6 octets), x-3 (the per-peer header is present for the peer-scoped message types), x-5 (an IPv4 peer address is IPv4-mapped in the 16-octet field), and x-8 (a Peer Up carries the sent and received OPENs). Seven are {single-polarity: positive}: x-4 (the Peer AS is 4 octets), x-6 (Initiation is sent first), x-7 (Initiation carries the sysName TLV), x-9 (Route Monitoring wraps a BGP UPDATE PDU), x-10 (Peer Down carries a Reason), x-11 (Termination is sent on shutdown), and x-12 (monitoring is unidirectional: the BMP receiver writes nothing back over a valid session, proven by a new net.Pipe test).</p>
+<p>Enrolled: BGP Monitoring Protocol (BMP) base. Twelve x-numbered requirements carry tags in internal/component/bgp/plugins/bmp. Five carry positive+negative tags: x-1 (the common-header version is 3, other versions rejected), x-2 (the common header is 6 octets), x-3 (the per-peer header is present for the peer-scoped message types), x-5 (an IPv4 peer address is IPv4-mapped in the 16-octet field), and x-8 (a Peer Up carries the sent and received OPENs). Seven are {single-polarity: positive}: x-4 (the Peer AS is 4 octets), x-6 (Initiation is sent first), x-7 (Initiation carries the sysName TLV), x-9 (Route Monitoring wraps a BGP UPDATE PDU), x-10 (Peer Down carries a Reason), x-11 (Termination is sent on shutdown, which the RFC states as a MAY), and x-12 (monitoring is unidirectional: the BMP receiver writes nothing back over a valid session, proven by a net.Pipe test). The 2026-09-21 extraction walk read the document and added the section-cited obligations sections 3.2 through 8.2 state; none of those rows carries a test, so they are gaps the gate reports.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
@@ -252,8 +256,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <li>when the bound is reached the session is reset with a bare TCP close and no Termination.</li>
 </ul>
 </details>
-<p><strong>What the ledger says remains:</strong></p>
-Loc-RIB route monitoring is provided under RFC 9069.
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+Loc-RIB route monitoring is provided under RFC 9069. The 2026-09-21 extraction walk added the obligations the document&#39;s own sections state, and none of them carries a test: connection backoff and the session establishment rate limit (3.2), the per-peer End-of-RIB that ends an initial table dump (3.3), ignoring unrecognized message types and stat types (4.1, 4.8), the reserved per-peer flag bits (4.2), the sysDescr and sysName values and the ordering of multiple strings (4.4), the Termination close sequence and its Reason TLV (4.5), the Route Mirroring TLV order (4.7), the L flag, timestamp and withdraw rules of route monitoring (5), and the zero ports on a Loc-RIB Peer Up (8.2).
+</details>
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -265,7 +270,7 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>7</strong></td>
+<td><strong>6</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -273,7 +278,7 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>19</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -284,12 +289,13 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>14</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>32</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc7854-x-1"><code>RFC7854-x-1</code></a>, <a href="#rfc7854-x-2"><code>RFC7854-x-2</code></a>, <a href="#rfc7854-x-3"><code>RFC7854-x-3</code></a>, <a href="#rfc7854-x-5"><code>RFC7854-x-5</code></a>, <a href="#rfc7854-x-8"><code>RFC7854-x-8</code></a>, <a href="#rfc7854-4.9-1"><code>RFC7854-4.9-1</code></a>, <a href="#rfc7854-4.5-2"><code>RFC7854-4.5-2</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (7):</strong> <a href="#rfc7854-x-4"><code>RFC7854-x-4</code></a>, <a href="#rfc7854-x-6"><code>RFC7854-x-6</code></a>, <a href="#rfc7854-x-7"><code>RFC7854-x-7</code></a>, <a href="#rfc7854-x-9"><code>RFC7854-x-9</code></a>, <a href="#rfc7854-x-10"><code>RFC7854-x-10</code></a>, <a href="#rfc7854-x-11"><code>RFC7854-x-11</code></a>, <a href="#rfc7854-x-12"><code>RFC7854-x-12</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (6):</strong> <a href="#rfc7854-x-4"><code>RFC7854-x-4</code></a>, <a href="#rfc7854-x-6"><code>RFC7854-x-6</code></a>, <a href="#rfc7854-x-7"><code>RFC7854-x-7</code></a>, <a href="#rfc7854-x-9"><code>RFC7854-x-9</code></a>, <a href="#rfc7854-x-10"><code>RFC7854-x-10</code></a>, <a href="#rfc7854-x-12"><code>RFC7854-x-12</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (19):</strong> <a href="#rfc7854-x-18"><code>RFC7854-x-18</code></a>, <a href="#rfc7854-3.2-1"><code>RFC7854-3.2-1</code></a>, <a href="#rfc7854-3.2-2"><code>RFC7854-3.2-2</code></a>, <a href="#rfc7854-3.3-1"><code>RFC7854-3.3-1</code></a>, <a href="#rfc7854-4.1-1"><code>RFC7854-4.1-1</code></a>, <a href="#rfc7854-4.2-1"><code>RFC7854-4.2-1</code></a>, <a href="#rfc7854-4.4-1"><code>RFC7854-4.4-1</code></a>, <a href="#rfc7854-4.4-2"><code>RFC7854-4.4-2</code></a>, <a href="#rfc7854-4.4-3"><code>RFC7854-4.4-3</code></a>, <a href="#rfc7854-4.5-1"><code>RFC7854-4.5-1</code></a>, <a href="#rfc7854-4.5-3"><code>RFC7854-4.5-3</code></a>, <a href="#rfc7854-4.7-1"><code>RFC7854-4.7-1</code></a>, <a href="#rfc7854-4.7-2"><code>RFC7854-4.7-2</code></a>, <a href="#rfc7854-4.8-1"><code>RFC7854-4.8-1</code></a>, <a href="#rfc7854-4.8-2"><code>RFC7854-4.8-2</code></a>, <a href="#rfc7854-5-1"><code>RFC7854-5-1</code></a>, <a href="#rfc7854-5-2"><code>RFC7854-5-2</code></a>, <a href="#rfc7854-5-3"><code>RFC7854-5-3</code></a>, <a href="#rfc7854-8.2-1"><code>RFC7854-8.2-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -391,9 +397,9 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> Peer Down is always written with a reason byte, so there is no valid Peer Down without one to assert against</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-11">RFC7854-x-11</code></td><td colspan="3"><span class="rfc-subject">Termination message must be sent when BMP session is being closed (Session Lifecycle)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-11">RFC7854-x-11</code></td><td colspan="3"><span class="rfc-subject">Termination message may be sent before the BMP session is closed: &#34;The router MAY send a Termination message prior to closing the session.&#34; (Session Lifecycle)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
+<td>MAY</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-11">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L359" title="internal/component/bgp/plugins/bmp/sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderTermination</code></a></span></div>
@@ -446,9 +452,9 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-15">RFC7854-x-15</code></td><td colspan="3"><span class="rfc-subject">Statistics Reports should be sent periodically (Session Lifecycle)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-15">RFC7854-x-15</code></td><td colspan="3"><span class="rfc-subject">Statistics Reports may be sent periodically: &#34;It MAY periodically send Stats Reports or even new Initiation messages, according to configuration.&#34; The Stats Reports text imposes no timing either: &#34;This specification does not impose any timing restrictions on when and on what event these reports have to be transmitted.&#34; (Session Lifecycle)</span></td></tr>
 <tr><td></td>
-<td>SHOULD</td>
+<td>MAY</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-15">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L411" title="internal/component/bgp/plugins/bmp/statistics_test.go" target="_blank" rel="noopener"><code>TestRFC7854StatisticsTimeoutSendsPeriodicReports</code></a></span></div>
@@ -473,9 +479,9 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-18">RFC7854-x-18</code></td><td colspan="3"><span class="rfc-subject">Initiation message may include sysDescr TLV (type 1) and free-form string TLV (type 0) (Message Types)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-x-18">RFC7854-x-18</code></td><td colspan="3"><span class="rfc-subject">Initiation message must include the sysDescr TLV (type 1): &#34;The sysDescr and sysName Information TLVs MUST be sent, any others are optional.&#34; (Message Types)</span></td></tr>
 <tr><td></td>
-<td>MAY</td>
+<td>MUST</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-x-18">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
@@ -500,12 +506,265 @@ Loc-RIB route monitoring is provided under RFC 9069.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-3.2-1">RFC7854-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Retries of a failed connection must be subject to some variety of backoff: &#34;Retries MUST be subject to some variety of backoff.&#34; (§3.2, Connection Establishment and Termination)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-3.2-2">RFC7854-3.2-2</code></td><td colspan="3"><span class="rfc-subject">The router must restrict the rate at which BMP sessions may be established: &#34;The router MUST also restrict the rate at which sessions may be established.&#34; (§3.2, Connection Establishment and Termination)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-3.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-3.3-1">RFC7854-3.3-1</code></td><td colspan="3"><span class="rfc-subject">Once all the routes for a given peer have been sent, an End-of-RIB message must be sent for that peer: &#34;Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer&#34; (§3.3, Lifecycle of a BMP Session, and restated in the Route Monitoring section)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-3.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.1-1">RFC7854-4.1-1</code></td><td colspan="3"><span class="rfc-subject">Unrecognized message types must be ignored on receipt: &#34;A BMP implementation MUST ignore unrecognized message types upon receipt.&#34; (§4.1, Common Header)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.2-1">RFC7854-4.2-1</code></td><td colspan="3"><span class="rfc-subject">The reserved per-peer flag bits must be transmitted as 0 and their values ignored on receipt: &#34;They MUST be transmitted as 0 and their values MUST be ignored on receipt.&#34; (§4.2, Per-Peer Header)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.3-1">RFC7854-4.3-1</code></td><td colspan="3"><span class="rfc-subject">The string TLV may be included multiple times in an Initiation message: &#34;The string TLV MAY be included multiple times.&#34; (§4.3, Initiation Message)</span></td></tr>
+<tr><td></td>
+<td>MAY</td>
+<td>4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.4-1">RFC7854-4.4-1</code></td><td colspan="3"><span class="rfc-subject">When multiple strings are included in a string TLV, their ordering must be preserved when they are reported: &#34;If multiple strings are included, their ordering MUST be preserved when they are reported.&#34; (§4.4, Information TLV)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.4-2">RFC7854-4.4-2</code></td><td colspan="3"><span class="rfc-subject">The sysDescr TLV Information field must equal the MIB-II sysDescr object: &#34;The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysDescr MIB-II [RFC1213] object.&#34; (§4.4, Information TLV)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.4-3">RFC7854-4.4-3</code></td><td colspan="3"><span class="rfc-subject">The sysName TLV Information field must equal the MIB-II sysName object: &#34;The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysName MIB-II [RFC1213] object.&#34; (§4.4, Information TLV)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.5-1">RFC7854-4.5-1</code></td><td colspan="3"><span class="rfc-subject">After sending a termination message the router must close the TCP session and send no further messages: &#34;Once the router has sent a termination message, it MUST close the TCP session without sending any further messages.&#34; (§4.5, Termination Message)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.5-3">RFC7854-4.5-3</code></td><td colspan="3"><span class="rfc-subject">A Termination message must carry the Reason TLV (type 1): &#34;Inclusion of this TLV is REQUIRED.&#34; (§4.5, Termination Message)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.7-1">RFC7854-4.7-1</code></td><td colspan="3"><span class="rfc-subject">A BGP Message TLV in a Route Mirroring message must occur last in the list of TLVs: &#34;If the BGP Message TLV occurs in the Route Mirroring message, it MUST occur last in the list of TLVs.&#34; (§4.7, Route Mirroring)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.7-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.7-2">RFC7854-4.7-2</code></td><td colspan="3"><span class="rfc-subject">A Route Mirroring message carrying Information code 0 (Errored PDU) must also carry a BGP Message TLV: &#34;A BGP Message TLV MUST also occur in the TLV list.&#34; (§4.7, Route Mirroring)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.7</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.7-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.8-1">RFC7854-4.8-1</code></td><td colspan="3"><span class="rfc-subject">Unrecognized stat types and unexpected Stat Data must be ignored on receipt: &#34;A BMP implementation MUST ignore unrecognized stat types on receipt, and likewise MUST ignore unexpected data in the Stat Data field.&#34; (§4.8, Stats Reports)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-4.8-2">RFC7854-4.8-2</code></td><td colspan="3"><span class="rfc-subject">A transmitted Stats Report must carry at least one statistic: &#34;However, if an SR message is transmitted, at least one statistic MUST be carried in it.&#34; (§4.8, Stats Reports)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-4.8-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-5-1">RFC7854-5-1</code></td><td colspan="3"><span class="rfc-subject">Pre-policy routes must have the L flag clear and post-policy routes must have it set: &#34;Pre-policy routes MUST have their L flag clear in the BMP header (see Section 4), post-policy routes MUST have their L flag set.&#34; (§5, Route Monitoring)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-5-2">RFC7854-5-2</code></td><td colspan="3"><span class="rfc-subject">Where the time a route was installed is not available, the BMP Timestamp field must be set to 0: &#34;Otherwise, the BMP Timestamp field MUST be set to 0, indicating that time is not available.&#34; (§5, Route Monitoring)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-5-3">RFC7854-5-3</code></td><td colspan="3"><span class="rfc-subject">A withdraw must carry the L flag of the announcement it withdraws, and must be sent twice where the route was announced both pre-policy and post-policy: &#34;The withdraw MUST have its L flag set to correspond to that of any previous announcement; if the route in question was previously announced with L flag both clear and set, the withdraw MUST similarly be sent twice, with L flag clear and set.&#34; (§5, Route Monitoring)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7854-8.2-1">RFC7854-8.2-1</code></td><td colspan="3"><span class="rfc-subject">Where no transport session exists, the Local Port and Remote Port fields of a Peer Up message must be set to 0: &#34;Since in this case no transport session actually exists, the Local and Remote Port fields of the Peer Up message MUST be set to 0.&#34; (§8.2, Peer Up Notification)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7854-8.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 </tbody>
 </table>
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<p>RFC 7854 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc7854-x-18"><code>RFC7854-x-18</code></a> Initiation message must include the sysDescr TLV (type 1): &#34;The sysDescr and sysName Information TLVs MUST be sent, any others are optional.&#34; (Message Types)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-3.2-1"><code>RFC7854-3.2-1</code></a> Retries of a failed connection must be subject to some variety of backoff: &#34;Retries MUST be subject to some variety of backoff.&#34; (§3.2, Connection Establishment and Termination)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-3.2-2"><code>RFC7854-3.2-2</code></a> The router must restrict the rate at which BMP sessions may be established: &#34;The router MUST also restrict the rate at which sessions may be established.&#34; (§3.2, Connection Establishment and Termination)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-3.3-1"><code>RFC7854-3.3-1</code></a> Once all the routes for a given peer have been sent, an End-of-RIB message must be sent for that peer: &#34;Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer&#34; (§3.3, Lifecycle of a BMP Session, and restated in the Route Monitoring section)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-4.1-1"><code>RFC7854-4.1-1</code></a> Unrecognized message types must be ignored on receipt: &#34;A BMP implementation MUST ignore unrecognized message types upon receipt.&#34; (§4.1, Common Header)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-4.2-1"><code>RFC7854-4.2-1</code></a> The reserved per-peer flag bits must be transmitted as 0 and their values ignored on receipt: &#34;They MUST be transmitted as 0 and their values MUST be ignored on receipt.&#34; (§4.2, Per-Peer Header)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-4.4-1"><code>RFC7854-4.4-1</code></a> When multiple strings are included in a string TLV, their ordering must be preserved when they are reported: &#34;If multiple strings are included, their ordering MUST be preserved when they are reported.&#34; (§4.4, Information TLV)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-4.4-2"><code>RFC7854-4.4-2</code></a> The sysDescr TLV Information field must equal the MIB-II sysDescr object: &#34;The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysDescr MIB-II [RFC1213] object.&#34; (§4.4, Information TLV)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-4.4-3"><code>RFC7854-4.4-3</code></a> The sysName TLV Information field must equal the MIB-II sysName object: &#34;The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysName MIB-II [RFC1213] object.&#34; (§4.4, Information TLV)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-4.5-1"><code>RFC7854-4.5-1</code></a> After sending a termination message the router must close the TCP session and send no further messages: &#34;Once the router has sent a termination message, it MUST close the TCP session without sending any further messages.&#34; (§4.5, Termination Message)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-4.5-3"><code>RFC7854-4.5-3</code></a> A Termination message must carry the Reason TLV (type 1): &#34;Inclusion of this TLV is REQUIRED.&#34; (§4.5, Termination Message)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-4.7-1"><code>RFC7854-4.7-1</code></a> A BGP Message TLV in a Route Mirroring message must occur last in the list of TLVs: &#34;If the BGP Message TLV occurs in the Route Mirroring message, it MUST occur last in the list of TLVs.&#34; (§4.7, Route Mirroring)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-4.7-2"><code>RFC7854-4.7-2</code></a> A Route Mirroring message carrying Information code 0 (Errored PDU) must also carry a BGP Message TLV: &#34;A BGP Message TLV MUST also occur in the TLV list.&#34; (§4.7, Route Mirroring)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-4.8-1"><code>RFC7854-4.8-1</code></a> Unrecognized stat types and unexpected Stat Data must be ignored on receipt: &#34;A BMP implementation MUST ignore unrecognized stat types on receipt, and likewise MUST ignore unexpected data in the Stat Data field.&#34; (§4.8, Stats Reports)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-4.8-2"><code>RFC7854-4.8-2</code></a> A transmitted Stats Report must carry at least one statistic: &#34;However, if an SR message is transmitted, at least one statistic MUST be carried in it.&#34; (§4.8, Stats Reports)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-5-1"><code>RFC7854-5-1</code></a> Pre-policy routes must have the L flag clear and post-policy routes must have it set: &#34;Pre-policy routes MUST have their L flag clear in the BMP header (see Section 4), post-policy routes MUST have their L flag set.&#34; (§5, Route Monitoring)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-5-2"><code>RFC7854-5-2</code></a> Where the time a route was installed is not available, the BMP Timestamp field must be set to 0: &#34;Otherwise, the BMP Timestamp field MUST be set to 0, indicating that time is not available.&#34; (§5, Route Monitoring)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-5-3"><code>RFC7854-5-3</code></a> A withdraw must carry the L flag of the announcement it withdraws, and must be sent twice where the route was announced both pre-policy and post-policy: &#34;The withdraw MUST have its L flag set to correspond to that of any previous announcement; if the route in question was previously announced with L flag both clear and set, the withdraw MUST similarly be sent twice, with L flag clear and set.&#34; (§5, Route Monitoring)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc7854-8.2-1"><code>RFC7854-8.2-1</code></a> Where no transport session exists, the Local Port and Remote Port fields of a Peer Up message must be set to 0: &#34;Since in this case no transport session actually exists, the Local and Remote Port fields of the Peer Up message MUST be set to 0.&#34; (§8.2, Peer Up Notification)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
@@ -710,7 +969,7 @@ Loc-RIB route monitoring is provided under RFC 9069.
 </table>
 </div>
 <h3><a href="#rfc7854-x-11"><code>RFC7854-x-11</code></a></h3>
-<p>Termination message must be sent when BMP session is being closed (Session Lifecycle)</p>
+<p>Termination message may be sent before the BMP session is closed: &#34;The router MAY send a Termination message prior to closing the session.&#34; (Session Lifecycle)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -785,7 +1044,7 @@ Loc-RIB route monitoring is provided under RFC 9069.
 </table>
 </div>
 <h3><a href="#rfc7854-x-15"><code>RFC7854-x-15</code></a></h3>
-<p>Statistics Reports should be sent periodically (Session Lifecycle)</p>
+<p>Statistics Reports may be sent periodically: &#34;It MAY periodically send Stats Reports or even new Initiation messages, according to configuration.&#34; The Stats Reports text imposes no timing either: &#34;This specification does not impose any timing restrictions on when and on what event these reports have to be transmitted.&#34; (Session Lifecycle)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -834,9 +1093,438 @@ Loc-RIB route monitoring is provided under RFC 9069.
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc7854-x-18"><code>RFC7854-x-18</code></a></h3>
+<p>Initiation message must include the sysDescr TLV (type 1): &#34;The sysDescr and sysName Information TLVs MUST be sent, any others are optional.&#34; (Message Types)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-x-18, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-3.2-1"><code>RFC7854-3.2-1</code></a></h3>
+<p>Retries of a failed connection must be subject to some variety of backoff: &#34;Retries MUST be subject to some variety of backoff.&#34; (§3.2, Connection Establishment and Termination)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-3.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-3.2-2"><code>RFC7854-3.2-2</code></a></h3>
+<p>The router must restrict the rate at which BMP sessions may be established: &#34;The router MUST also restrict the rate at which sessions may be established.&#34; (§3.2, Connection Establishment and Termination)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-3.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-3.3-1"><code>RFC7854-3.3-1</code></a></h3>
+<p>Once all the routes for a given peer have been sent, an End-of-RIB message must be sent for that peer: &#34;Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer&#34; (§3.3, Lifecycle of a BMP Session, and restated in the Route Monitoring section)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-3.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-4.1-1"><code>RFC7854-4.1-1</code></a></h3>
+<p>Unrecognized message types must be ignored on receipt: &#34;A BMP implementation MUST ignore unrecognized message types upon receipt.&#34; (§4.1, Common Header)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-4.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-4.2-1"><code>RFC7854-4.2-1</code></a></h3>
+<p>The reserved per-peer flag bits must be transmitted as 0 and their values ignored on receipt: &#34;They MUST be transmitted as 0 and their values MUST be ignored on receipt.&#34; (§4.2, Per-Peer Header)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-4.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-4.4-1"><code>RFC7854-4.4-1</code></a></h3>
+<p>When multiple strings are included in a string TLV, their ordering must be preserved when they are reported: &#34;If multiple strings are included, their ordering MUST be preserved when they are reported.&#34; (§4.4, Information TLV)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-4.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-4.4-2"><code>RFC7854-4.4-2</code></a></h3>
+<p>The sysDescr TLV Information field must equal the MIB-II sysDescr object: &#34;The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysDescr MIB-II [RFC1213] object.&#34; (§4.4, Information TLV)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-4.4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-4.4-3"><code>RFC7854-4.4-3</code></a></h3>
+<p>The sysName TLV Information field must equal the MIB-II sysName object: &#34;The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysName MIB-II [RFC1213] object.&#34; (§4.4, Information TLV)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-4.4-3, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-4.5-1"><code>RFC7854-4.5-1</code></a></h3>
+<p>After sending a termination message the router must close the TCP session and send no further messages: &#34;Once the router has sent a termination message, it MUST close the TCP session without sending any further messages.&#34; (§4.5, Termination Message)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-4.5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-4.5-3"><code>RFC7854-4.5-3</code></a></h3>
+<p>A Termination message must carry the Reason TLV (type 1): &#34;Inclusion of this TLV is REQUIRED.&#34; (§4.5, Termination Message)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-4.5-3, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-4.7-1"><code>RFC7854-4.7-1</code></a></h3>
+<p>A BGP Message TLV in a Route Mirroring message must occur last in the list of TLVs: &#34;If the BGP Message TLV occurs in the Route Mirroring message, it MUST occur last in the list of TLVs.&#34; (§4.7, Route Mirroring)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-4.7-1, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-4.7-2"><code>RFC7854-4.7-2</code></a></h3>
+<p>A Route Mirroring message carrying Information code 0 (Errored PDU) must also carry a BGP Message TLV: &#34;A BGP Message TLV MUST also occur in the TLV list.&#34; (§4.7, Route Mirroring)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-4.7-2, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-4.8-1"><code>RFC7854-4.8-1</code></a></h3>
+<p>Unrecognized stat types and unexpected Stat Data must be ignored on receipt: &#34;A BMP implementation MUST ignore unrecognized stat types on receipt, and likewise MUST ignore unexpected data in the Stat Data field.&#34; (§4.8, Stats Reports)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-4.8-1, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-4.8-2"><code>RFC7854-4.8-2</code></a></h3>
+<p>A transmitted Stats Report must carry at least one statistic: &#34;However, if an SR message is transmitted, at least one statistic MUST be carried in it.&#34; (§4.8, Stats Reports)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-4.8-2, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-5-1"><code>RFC7854-5-1</code></a></h3>
+<p>Pre-policy routes must have the L flag clear and post-policy routes must have it set: &#34;Pre-policy routes MUST have their L flag clear in the BMP header (see Section 4), post-policy routes MUST have their L flag set.&#34; (§5, Route Monitoring)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-5-2"><code>RFC7854-5-2</code></a></h3>
+<p>Where the time a route was installed is not available, the BMP Timestamp field must be set to 0: &#34;Otherwise, the BMP Timestamp field MUST be set to 0, indicating that time is not available.&#34; (§5, Route Monitoring)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-5-2, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-5-3"><code>RFC7854-5-3</code></a></h3>
+<p>A withdraw must carry the L flag of the announcement it withdraws, and must be sent twice where the route was announced both pre-policy and post-policy: &#34;The withdraw MUST have its L flag set to correspond to that of any previous announcement; if the route in question was previously announced with L flag both clear and set, the withdraw MUST similarly be sent twice, with L flag clear and set.&#34; (§5, Route Monitoring)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-5-3, so no unit is bound to it.</p>
+<h3><a href="#rfc7854-8.2-1"><code>RFC7854-8.2-1</code></a></h3>
+<p>Where no transport session exists, the Local Port and Remote Port fields of a Peer Up message must be set to 0: &#34;Since in this case no transport session actually exists, the Local and Remote Port fields of the Peer Up message MUST be set to 0.&#34; (§8.2, Peer Up Notification)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7854-8.2-1, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 7854, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc7854.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>b32c6bf7d6b5d67a</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc7854.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>22</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>11</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.5</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.7</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.8</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.10</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.4</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.5</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.6</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.7</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.8</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.9</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.10</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>12</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>12.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>12.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>3.3:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Restates the obligation section 4.3 states at the site this walk maps to RFC7854-x-6: &#39;An initiation message MUST be sent as the first message after the TCP session comes up.&#39; Section 3.3 states it as the first step of the session lifecycle; section 4.3 states it as the rule of the message itself.</td>
+<td>It MUST begin by sending an Initiation message.</td>
+</tr>
+<tr><td><code>5:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Restates the per-peer End-of-RIB obligation section 3.3 states at the site this walk maps to RFC7854-3.3-1: &#39;Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer&#39;. Section 5 adds only where the marker is defined (Section 2 of RFC 4724) and that it carries the BMP encapsulation header.</td>
+<td>When the initial dump is completed for a given peer, this MUST be indicated by sending an End-of-RIB marker for that peer (as specified in Section 2 of [RFC4724], plus the BMP encapsulation header).</td>
+</tr>
+<tr><td><code>10.1:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds IANA, the registry the section addresses: the sentence sets the allocation policy (&#39;Standards Action&#39;, &#39;Specification Required&#39; under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze&#39;s BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one.</td>
+<td>Type values 0 through 127 MUST be assigned using the &#34;Standards Action&#34; policy, and values 128 through 250 using the &#34;Specification Required&#34; policy defined in [RFC5226].</td>
+</tr>
+<tr><td><code>10.2:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds IANA, the registry the section addresses: the sentence sets the allocation policy (&#39;Standards Action&#39;, &#39;Specification Required&#39; under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze&#39;s BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one.</td>
+<td>Peer Type values 0 through 127 MUST be assigned using the &#34;Standards Action&#34; policy, and values 128 through 250 using the &#34;Specification Required&#34; policy, defined in [RFC5226].</td>
+</tr>
+<tr><td><code>10.4:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds IANA, the registry the section addresses: the sentence sets the allocation policy (&#39;Standards Action&#39;, &#39;Specification Required&#39; under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze&#39;s BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one.</td>
+<td>Stat Type values 0 through 32767 MUST be assigned using the &#34;Standards Action&#34; policy, and values 32768 through 65530 using the &#34;Specification Required&#34; policy, defined in [RFC5226].</td>
+</tr>
+<tr><td><code>10.5:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds IANA, the registry the section addresses: the sentence sets the allocation policy (&#39;Standards Action&#39;, &#39;Specification Required&#39; under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze&#39;s BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one.</td>
+<td>Information type values 0 through 32767 MUST be assigned using the &#34;Standards Action&#34; policy, and values 32768 through 65530 using the &#34;Specification Required&#34; policy, defined in [RFC5226].</td>
+</tr>
+<tr><td><code>10.6:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds IANA, the registry the section addresses: the sentence sets the allocation policy (&#39;Standards Action&#39;, &#39;Specification Required&#39; under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze&#39;s BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one.</td>
+<td>Information type values 0 through 32767 MUST be assigned using the &#34;Standards Action&#34; policy, and values 32768 through 65530 using the &#34;Specification Required&#34; policy, defined in [RFC5226].</td>
+</tr>
+<tr><td><code>10.7:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds IANA, the registry the section addresses: the sentence sets the allocation policy (&#39;Standards Action&#39;, &#39;Specification Required&#39; under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze&#39;s BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one.</td>
+<td>Information type values 0 through 32767 MUST be assigned using the &#34;Standards Action&#34; policy, and values 32768 through 65530 using the &#34;Specification Required&#34; policy, defined in [RFC5226].</td>
+</tr>
+<tr><td><code>10.8:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds IANA, the registry the section addresses: the sentence sets the allocation policy (&#39;Standards Action&#39;, &#39;Specification Required&#39; under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze&#39;s BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one.</td>
+<td>Information type values 0 through 32767 MUST be assigned using the &#34;Standards Action&#34; policy, and values 32768 through 65530 using the &#34;Specification Required&#34; policy, defined in [RFC5226].</td>
+</tr>
+<tr><td><code>10.9:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds IANA, the registry the section addresses: the sentence sets the allocation policy (&#39;Standards Action&#39;, &#39;Specification Required&#39; under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze&#39;s BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one.</td>
+<td>Information type values 0 through 32767 MUST be assigned using the &#34;Standards Action&#34; policy, and values 32768 through 65530 using the &#34;Specification Required&#34; policy, defined in [RFC5226].</td>
+</tr>
+<tr><td><code>10.10:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>Binds IANA, the registry the section addresses: the sentence sets the allocation policy (&#39;Standards Action&#39;, &#39;Specification Required&#39; under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze&#39;s BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one.</td>
+<td>Information type values 0 through 32767 MUST be assigned using the &#34;Standards Action&#34; policy, and values 32768 through 65530 using the &#34;Specification Required&#34; policy, defined in [RFC5226].</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 7854, so its obligations are stated where they were written.</p>
@@ -870,7 +1558,7 @@ Loc-RIB route monitoring is provided under RFC 9069.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 00:48 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

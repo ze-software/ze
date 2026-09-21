@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 45.8% | 22 of 48 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 8.3% | 4 of 48 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 48 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 37.3% | 22 of 59 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 6.8% | 4 of 59 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 59 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 0.0% | 0 of 61 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 48 | of 77 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 21 | of 48 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 43.8% | 21 of 48 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 48 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 48 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 59 | of 88 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 21 | of 59 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 35.6% | 21 of 59 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 59 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 59 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 2.1% | 1 of 48 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 20.3% | 12 of 59 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 48 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 59 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 77 |
-| Gated MUST-level | 48 |
+| Requirements | 88 |
+| Gated MUST-level | 59 |
 | Not applicable, so out of scope | 21 |
 | Declared gaps | 1 |
-| Gated with no test | 0 |
+| Gated with no test | 11 |
 | Nightly-only evidence | 0 |
 | Test tags | 61 |
 | Tagged units | 61 |
@@ -85,9 +85,9 @@ Enrolled: Distribution of Link-State and TE Information Using BGP
 
 Same wire format as RFC 7752 and the same role: ze is a BGP-LS Consumer-side decoder and Propagator, never a Producer. Node/Link/Prefix NLRI and node, link and prefix attribute TLV decode (`internal/component/bgp/plugins/nlri/ls`), (AFI 16388, SAFI 71/72) family registration and Multiprotocol capability negotiation, unknown NLRI types framed by Total NLRI Length alone and propagated byte-identically under both SAFI 71 and SAFI 72 (`GetNLRISizeFunc`, [`internal/component/bgp/message/chunk_mp_nlri.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/chunk_mp_nlri.go)), unknown and unexpected attribute TLVs preserved, unordered BGP-LS Attribute TLVs accepted as RFC 9552 now requires, no semantic validation on the propagation path, RFC 9552 §8.2.2 syntactic validation of the BGP-LS Attribute on the receive path (`validateBGPLSAttr`, [`internal/component/bgp/message/rfc7606_bgpls.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_bgpls.go)) with 'Attribute Discard' handling for a malformed one, RFC 9552 §8.2.2 syntactic validation of the Link-State NLRI on the receive path (`validateBGPLSNLRISyntax` and `RetainWellFormedNLRI`, [`internal/component/bgp/message/rfc7606_bgpls_nlri.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_bgpls_nlri.go)) with 'NLRI discard' for a skipable error and session reset for a length error that leaves the UPDATE unprocessable, every descriptor's sub-TLVs emitted in the canonical order Section 5.1 defines -- ascending by TLV type across node, link and prefix descriptors, and, among repeated sub-TLVs of one type, ascending by Length then by Value (`addressTLVs` and `srv6SIDsOrdered`, [`internal/component/bgp/plugins/nlri/ls/types_descriptor.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/types_descriptor.go)) -- so one node never encodes to two keys, RFC 4760 next-hop encoding, zero-padded TE Default Metric and a 1-octet IS-IS small metric whose two high bits are always zero. Requirements bound per line in [`rfc/short/rfc9552.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc9552.md).
 
-**What the ledger says remains:**
+**What the ledger says remains**
 
-One MUST gap annotated in [`rfc/short/rfc9552.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc9552.md): [`RFC9552-5.3-2`](#rfc9552-5.3-2) -- an oversized forwarded UPDATE that cannot be split is dropped whole instead of having the BGP-LS Attribute discarded first
+Twelve MUST-level gaps. [`RFC9552-5.3-2`](#rfc9552-5.3-2): an oversized forwarded UPDATE that cannot be split is dropped whole instead of having the BGP-LS Attribute discarded first. Eleven rows the 2026-09-21 extraction walk added from sentences the checklist did not carry, none of them tested: [`RFC9552-5.2.2.1-2`](#rfc9552-5.2.2.1-2), [`RFC9552-5.2.3-2`](#rfc9552-5.2.3-2), [`RFC9552-5.3.1.1-1`](#rfc9552-5.3.1.1-1), [`RFC9552-5.3.1.5-1`](#rfc9552-5.3.1.5-1), [`RFC9552-5.3.2.2-3`](#rfc9552-5.3.2.2-3), [`RFC9552-5.3.2.6-1`](#rfc9552-5.3.2.6-1), [`RFC9552-5.3.2.6-2`](#rfc9552-5.3.2.6-2), [`RFC9552-5.3.3.1-1`](#rfc9552-5.3.3.1-1), [`RFC9552-5.3.3.6-1`](#rfc9552-5.3.3.6-1), [`RFC9552-5.3.3.6-2`](#rfc9552-5.3.3.6-2) and [`RFC9552-5.4-2`](#rfc9552-5.4-2).
 
 ## Coverage
 
@@ -96,14 +96,16 @@ One MUST gap annotated in [`rfc/short/rfc9552.md`](https://github.com/ze-softwar
 | Positive and negative tests | 22 | one part of the gated population |
 | Annotated instead of tested | 26 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 11 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **48** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **59** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (22):** [`RFC9552-5.1-1`](#rfc9552-5.1-1), [`RFC9552-5.1-2`](#rfc9552-5.1-2), [`RFC9552-5.1-3`](#rfc9552-5.1-3), [`RFC9552-5.1-4`](#rfc9552-5.1-4), [`RFC9552-5.1-5`](#rfc9552-5.1-5), [`RFC9552-5.1-6`](#rfc9552-5.1-6), [`RFC9552-5.2-1`](#rfc9552-5.2-1), [`RFC9552-5.2-2`](#rfc9552-5.2-2), [`RFC9552-5.2-7`](#rfc9552-5.2-7), [`RFC9552-5.2-8`](#rfc9552-5.2-8), [`RFC9552-5.2.1.4-1`](#rfc9552-5.2.1.4-1), [`RFC9552-5.3.2.3-2`](#rfc9552-5.3.2.3-2), [`RFC9552-8.2.2-1`](#rfc9552-8.2.2-1), [`RFC9552-8.2.2-2`](#rfc9552-8.2.2-2), [`RFC9552-8.2.2-4`](#rfc9552-8.2.2-4), [`RFC9552-8.2.2-5`](#rfc9552-8.2.2-5), [`RFC9552-8.2.2-6`](#rfc9552-8.2.2-6), [`RFC9552-8.2.6-1`](#rfc9552-8.2.6-1), [`RFC9552-5.2.1.1-1`](#rfc9552-5.2.1.1-1), [`RFC9552-5.2.1.1-2`](#rfc9552-5.2.1.1-2), [`RFC9552-8.2.2-9`](#rfc9552-8.2.2-9), [`RFC9552-8.2.2-10`](#rfc9552-8.2.2-10)
 
 **Annotated instead of tested (26):** [`RFC9552-5.2-3`](#rfc9552-5.2-3), [`RFC9552-5.2-4`](#rfc9552-5.2-4), [`RFC9552-5.2-5`](#rfc9552-5.2-5), [`RFC9552-5.2-6`](#rfc9552-5.2-6), [`RFC9552-5.2.1.4-2`](#rfc9552-5.2.1.4-2), [`RFC9552-5.2.2-1`](#rfc9552-5.2.2-1), [`RFC9552-5.2.2-2`](#rfc9552-5.2.2-2), [`RFC9552-5.2.2-3`](#rfc9552-5.2.2-3), [`RFC9552-5.2.2-4`](#rfc9552-5.2.2-4), [`RFC9552-5.2.2-5`](#rfc9552-5.2.2-5), [`RFC9552-5.2.3.1-1`](#rfc9552-5.2.3.1-1), [`RFC9552-5.2.1-1`](#rfc9552-5.2.1-1), [`RFC9552-5.3.2.1-1`](#rfc9552-5.3.2.1-1), [`RFC9552-5.3.2.2-1`](#rfc9552-5.3.2.2-1), [`RFC9552-5.3.2.3-1`](#rfc9552-5.3.2.3-1), [`RFC9552-5.5-1`](#rfc9552-5.5-1), [`RFC9552-5.3-1`](#rfc9552-5.3-1), [`RFC9552-5.9-1`](#rfc9552-5.9-1), [`RFC9552-5.4-1`](#rfc9552-5.4-1), [`RFC9552-5.2.3-1`](#rfc9552-5.2.3-1), [`RFC9552-5.3-2`](#rfc9552-5.3-2), [`RFC9552-5.2.2-6`](#rfc9552-5.2.2-6), [`RFC9552-5.1-7`](#rfc9552-5.1-7), [`RFC9552-5.2.2.1-1`](#rfc9552-5.2.2.1-1), [`RFC9552-8.2.3-5`](#rfc9552-8.2.3-5), [`RFC9552-8.2.6-2`](#rfc9552-8.2.6-2)
+
+**No test and no annotation (11):** [`RFC9552-5.2.2.1-2`](#rfc9552-5.2.2.1-2), [`RFC9552-5.2.3-2`](#rfc9552-5.2.3-2), [`RFC9552-5.3.1.1-1`](#rfc9552-5.3.1.1-1), [`RFC9552-5.3.1.5-1`](#rfc9552-5.3.1.5-1), [`RFC9552-5.3.2.2-3`](#rfc9552-5.3.2.2-3), [`RFC9552-5.3.2.6-1`](#rfc9552-5.3.2.6-1), [`RFC9552-5.3.2.6-2`](#rfc9552-5.3.2.6-2), [`RFC9552-5.3.3.1-1`](#rfc9552-5.3.3.1-1), [`RFC9552-5.3.3.6-1`](#rfc9552-5.3.3.6-1), [`RFC9552-5.3.3.6-2`](#rfc9552-5.3.3.6-2), [`RFC9552-5.4-2`](#rfc9552-5.4-2)
 
 ## Requirements
 
@@ -158,6 +160,17 @@ One MUST gap annotated in [`rfc/short/rfc9552.md`](https://github.com/ze-softwar
 | `RFC9552-8.2.2-10` | A BGP-LS Speaker MUST perform the listed syntactic validation of the BGP-LS Attribute to determine if it is malformed (§8.2.2) | MUST | 8.2.2 | **positive:** `unit/verify` [`TestRFC9552BGPLSAttributeTLVOverrunDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L120). **positive:** `unit/verify` [`TestRFC9552BGPLSAttributeTrailingOctetsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L161). **negative:** `unit/verify` [`TestRFC9552BGPLSAttributeWellFormedIsKept`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L87) |
 | `RFC9552-8.2.3-5` | An implementation MUST allow the operator to configure an 8-octet BGP-LS Instance-ID (§8.2.3) | MUST | 8.2.3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the Instance-ID is a BGP-LS Producer's configuration -- it is the value a Producer stamps into the 8-octet Identifier field of the Link-State NLRI, and Section 5.2 assigns it so that each IGP domain a Producer reports is uniquely identified. ze is never a Producer: the four NLRI constructors that take the Identifier, NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:102,:192,:204), have no caller outside their own package, the bgp-ls families register no InProcessRouteEncoder (internal/component/bgp/plugins/nlri/ls/register.go), and ze derives no link-state from its IS-IS or OSPF. Same ground as the other Producer-side obligations of this summary. Disclosed in docs/features/rfc-status.md |
 | `RFC9552-8.2.6-2` | An operator MUST define an import policy that drops all updates from peers that are only serving BGP-LS Consumers (§8.2.6) | MUST | 8.2.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** the sentence binds the operator, not the implementation -- Section 8.2.6 reads "An operator MUST define an import policy to limit inbound updates", and assigns the implementation's own share to the next sentence, "An implementation MUST have the means to limit inbound updates", which this summary gates separately as RFC9552-8.2.6-1. ze provides the means this policy needs: a bgp/policy/family-filter instance naming the bgp-ls family with action remove, referenced from a peer's import chain, rejects every BGP-LS UPDATE that peer sends (parseFamilyFilters and handleFilterUpdate, internal/component/bgp/plugins/filter_family/config.go:30, handler.go:49). Which peers only serve BGP-LS Consumers is knowledge ze does not hold and cannot derive. Disclosed in docs/features/rfc-status.md |
+| `RFC9552-5.2.2.1-2` | In case one wants to advertise multiple topologies for a given Link or Prefix Descriptor, multiple NLRIs MUST be generated where each NLRI contains a single unique MT-ID (§5.2.2.1) | MUST | 5.2.2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9552-5.2.3-2` | The Multi-Topology Identifier TLV MUST be included in the Prefix Descriptor if the underlying IGP prefix object is associated with a non-default topology (§5.2.3) | MUST | 5.2.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9552-5.3.1.1-1` | In the Node Flag Bits TLV the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.1.1) | MUST | 5.3.1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9552-5.3.1.5-1` | In the case of OSPF, the Node Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPF Router Information (RI) LSA (§5.3.1.5) | MUST NOT | 5.3.1.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9552-5.3.2.2-3` | In the MPLS Protocol Mask TLV the reserved bits MUST be set to zero and SHOULD be ignored on receipt, and the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.2.2) | MUST | 5.3.2.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9552-5.3.2.6-1` | In the case of OSPFv2, the Link Opaque Attribute TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Link Opaque LSA (§5.3.2.6) | MUST NOT | 5.3.2.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9552-5.3.2.6-2` | In the case of OSPFv3, the Link Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E-Router-LSA or E-Link-LSA (§5.3.2.6) | MUST NOT | 5.3.2.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9552-5.3.3.1-1` | In the IGP Flags TLV the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.3.1) | MUST | 5.3.3.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9552-5.3.3.6-1` | In the case of OSPFv2, the Prefix Opaque Attribute TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Prefix Opaque LSA (§5.3.3.6) | MUST NOT | 5.3.3.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9552-5.3.3.6-2` | In the case of OSPFv3, the Prefix Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E-Inter-Area-Prefix-LSA, E-Intra-Area-Prefix-LSA, E-AS-External-LSA, and E-NSSA-LSA (§5.3.3.6) | MUST NOT | 5.3.3.6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC9552-5.4-2` | For a private use NLRI type, a 4-octet field MUST be included as the first field in the NLRI immediately following the Total NLRI Length field of the Link-State NLRI format to carry the Enterprise Number (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9552-5.1-8` | TLVs within the BGP-LS Attribute SHOULD be ordered ascending by Type (§5.1) | SHOULD | 5.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9552-5.2-9` | "Direct" and "Static configuration" protocol types SHOULD be used when BGP-LS is sourcing local information (§5.2) | SHOULD | 5.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9552-5.2.1.4-3` | Implementations SHOULD support advertisement of BGP-LS Identifier sub-TLV (513) for backward compatibility (§5.2.1.4) | SHOULD | 5.2.1.4 | **positive:** no positive test. **negative:** no negative test |
@@ -213,6 +226,17 @@ One MUST gap annotated in [`rfc/short/rfc9552.md`](https://github.com/ze-softwar
 | [`RFC9552-5.1-7`](#rfc9552-5.1-7) BGP-LS Consumer MUST NOT send information back to BGP-LS Producers/Propagators (§5.1) | no test | no test carries this requirement id; annotated {not-applicable}: RFC 9552 Section 5.1 defines the BGP-LS Consumer as an application or process that is not a BGP Speaker; ze is a BGP Speaker and implements no Consumer that could feed link-state information back. It holds no BGP-LS content of its own to send: ze originates no BGP-LS: NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:104,:196,:210) have no caller outside _test.go, the plugin registers both families as Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70), and grep -rn "NewBGPLSNode\|NewBGPLSLink\|NewBGPLSPrefixV" --include=*.go outside _test.go returns only those four definitions |
 | [`RFC9552-8.2.3-5`](#rfc9552-8.2.3-5) An implementation MUST allow the operator to configure an 8-octet BGP-LS Instance-ID (§8.2.3) | no test | no test carries this requirement id; annotated {not-applicable}: the Instance-ID is a BGP-LS Producer's configuration -- it is the value a Producer stamps into the 8-octet Identifier field of the Link-State NLRI, and Section 5.2 assigns it so that each IGP domain a Producer reports is uniquely identified. ze is never a Producer: the four NLRI constructors that take the Identifier, NewBGPLSNode, NewBGPLSLink, NewBGPLSPrefixV4 and NewBGPLSPrefixV6 (internal/component/bgp/plugins/nlri/ls/types_nlri.go:23,:102,:192,:204), have no caller outside their own package, the bgp-ls families register no InProcessRouteEncoder (internal/component/bgp/plugins/nlri/ls/register.go), and ze derives no link-state from its IS-IS or OSPF. Same ground as the other Producer-side obligations of this summary. Disclosed in docs/features/rfc-status.md |
 | [`RFC9552-8.2.6-2`](#rfc9552-8.2.6-2) An operator MUST define an import policy that drops all updates from peers that are only serving BGP-LS Consumers (§8.2.6) | no test | no test carries this requirement id; annotated {not-applicable}: the sentence binds the operator, not the implementation -- Section 8.2.6 reads "An operator MUST define an import policy to limit inbound updates", and assigns the implementation's own share to the next sentence, "An implementation MUST have the means to limit inbound updates", which this summary gates separately as RFC9552-8.2.6-1. ze provides the means this policy needs: a bgp/policy/family-filter instance naming the bgp-ls family with action remove, referenced from a peer's import chain, rejects every BGP-LS UPDATE that peer sends (parseFamilyFilters and handleFilterUpdate, internal/component/bgp/plugins/filter_family/config.go:30, handler.go:49). Which peers only serve BGP-LS Consumers is knowledge ze does not hold and cannot derive. Disclosed in docs/features/rfc-status.md |
+| [`RFC9552-5.2.2.1-2`](#rfc9552-5.2.2.1-2) In case one wants to advertise multiple topologies for a given Link or Prefix Descriptor, multiple NLRIs MUST be generated where each NLRI contains a single unique MT-ID (§5.2.2.1) | no test | no test carries this requirement id |
+| [`RFC9552-5.2.3-2`](#rfc9552-5.2.3-2) The Multi-Topology Identifier TLV MUST be included in the Prefix Descriptor if the underlying IGP prefix object is associated with a non-default topology (§5.2.3) | no test | no test carries this requirement id |
+| [`RFC9552-5.3.1.1-1`](#rfc9552-5.3.1.1-1) In the Node Flag Bits TLV the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.1.1) | no test | no test carries this requirement id |
+| [`RFC9552-5.3.1.5-1`](#rfc9552-5.3.1.5-1) In the case of OSPF, the Node Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPF Router Information (RI) LSA (§5.3.1.5) | no test | no test carries this requirement id |
+| [`RFC9552-5.3.2.2-3`](#rfc9552-5.3.2.2-3) In the MPLS Protocol Mask TLV the reserved bits MUST be set to zero and SHOULD be ignored on receipt, and the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.2.2) | no test | no test carries this requirement id |
+| [`RFC9552-5.3.2.6-1`](#rfc9552-5.3.2.6-1) In the case of OSPFv2, the Link Opaque Attribute TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Link Opaque LSA (§5.3.2.6) | no test | no test carries this requirement id |
+| [`RFC9552-5.3.2.6-2`](#rfc9552-5.3.2.6-2) In the case of OSPFv3, the Link Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E-Router-LSA or E-Link-LSA (§5.3.2.6) | no test | no test carries this requirement id |
+| [`RFC9552-5.3.3.1-1`](#rfc9552-5.3.3.1-1) In the IGP Flags TLV the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.3.1) | no test | no test carries this requirement id |
+| [`RFC9552-5.3.3.6-1`](#rfc9552-5.3.3.6-1) In the case of OSPFv2, the Prefix Opaque Attribute TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Prefix Opaque LSA (§5.3.3.6) | no test | no test carries this requirement id |
+| [`RFC9552-5.3.3.6-2`](#rfc9552-5.3.3.6-2) In the case of OSPFv3, the Prefix Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E-Inter-Area-Prefix-LSA, E-Intra-Area-Prefix-LSA, E-AS-External-LSA, and E-NSSA-LSA (§5.3.3.6) | no test | no test carries this requirement id |
+| [`RFC9552-5.4-2`](#rfc9552-5.4-2) For a private use NLRI type, a 4-octet field MUST be included as the first field in the NLRI immediately following the Total NLRI Length field of the Link-State NLRI format to carry the Enterprise Number (§5.4) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -698,9 +722,217 @@ Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC9552-8.2.6-2, so no unit is bound to it.
 
+### [`RFC9552-5.2.2.1-2`](#rfc9552-5.2.2.1-2)
+
+In case one wants to advertise multiple topologies for a given Link or Prefix Descriptor, multiple NLRIs MUST be generated where each NLRI contains a single unique MT-ID (§5.2.2.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC9552-5.2.2.1-2, so no unit is bound to it.
+
+### [`RFC9552-5.2.3-2`](#rfc9552-5.2.3-2)
+
+The Multi-Topology Identifier TLV MUST be included in the Prefix Descriptor if the underlying IGP prefix object is associated with a non-default topology (§5.2.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC9552-5.2.3-2, so no unit is bound to it.
+
+### [`RFC9552-5.3.1.1-1`](#rfc9552-5.3.1.1-1)
+
+In the Node Flag Bits TLV the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.1.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC9552-5.3.1.1-1, so no unit is bound to it.
+
+### [`RFC9552-5.3.1.5-1`](#rfc9552-5.3.1.5-1)
+
+In the case of OSPF, the Node Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPF Router Information (RI) LSA (§5.3.1.5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC9552-5.3.1.5-1, so no unit is bound to it.
+
+### [`RFC9552-5.3.2.2-3`](#rfc9552-5.3.2.2-3)
+
+In the MPLS Protocol Mask TLV the reserved bits MUST be set to zero and SHOULD be ignored on receipt, and the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.2.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC9552-5.3.2.2-3, so no unit is bound to it.
+
+### [`RFC9552-5.3.2.6-1`](#rfc9552-5.3.2.6-1)
+
+In the case of OSPFv2, the Link Opaque Attribute TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Link Opaque LSA (§5.3.2.6)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC9552-5.3.2.6-1, so no unit is bound to it.
+
+### [`RFC9552-5.3.2.6-2`](#rfc9552-5.3.2.6-2)
+
+In the case of OSPFv3, the Link Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E-Router-LSA or E-Link-LSA (§5.3.2.6)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC9552-5.3.2.6-2, so no unit is bound to it.
+
+### [`RFC9552-5.3.3.1-1`](#rfc9552-5.3.3.1-1)
+
+In the IGP Flags TLV the bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver (§5.3.3.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC9552-5.3.3.1-1, so no unit is bound to it.
+
+### [`RFC9552-5.3.3.6-1`](#rfc9552-5.3.3.6-1)
+
+In the case of OSPFv2, the Prefix Opaque Attribute TLV MUST NOT be used to advertise information carried using TLVs other than those in the OSPFv2 Extended Prefix Opaque LSA (§5.3.3.6)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC9552-5.3.3.6-1, so no unit is bound to it.
+
+### [`RFC9552-5.3.3.6-2`](#rfc9552-5.3.3.6-2)
+
+In the case of OSPFv3, the Prefix Opaque Attribute TLV MUST NOT be used to advertise TLVs other than those in the OSPFv3 E-Inter-Area-Prefix-LSA, E-Intra-Area-Prefix-LSA, E-AS-External-LSA, and E-NSSA-LSA (§5.3.3.6)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC9552-5.3.3.6-2, so no unit is bound to it.
+
+### [`RFC9552-5.4-2`](#rfc9552-5.4-2)
+
+For a private use NLRI type, a 4-octet field MUST be included as the first field in the NLRI immediately following the Total NLRI Length field of the Link-State NLRI format to carry the Enterprise Number (§5.4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC9552-5.4-2, so no unit is bound to it.
+
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 9552, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc9552.txt |
+| Source fingerprint | ab66a307e33b68f0 |
+| Record | rfc/extraction/rfc9552.json |
+| Mapped sentences | 58 |
+| Declined as scope | 12 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 6 | walked | not stated |
+| `5.2` | not stated | 9 | walked | not stated |
+| `5.2.1` | not stated | 1 | walked | not stated |
+| `5.2.1.1` | not stated | 2 | walked | not stated |
+| `5.2.1.2` | not stated | 0 | walked | not stated |
+| `5.2.1.3` | not stated | 0 | walked | not stated |
+| `5.2.1.4` | not stated | 2 | walked | not stated |
+| `5.2.2` | not stated | 5 | walked | not stated |
+| `5.2.2.1` | not stated | 3 | walked | not stated |
+| `5.2.3` | not stated | 1 | walked | not stated |
+| `5.2.3.1` | not stated | 1 | walked | not stated |
+| `5.2.3.2` | not stated | 1 | walked | not stated |
+| `5.3` | not stated | 3 | walked | not stated |
+| `5.3.1` | not stated | 0 | walked | not stated |
+| `5.3.1.1` | not stated | 1 | walked | not stated |
+| `5.3.1.2` | not stated | 0 | walked | not stated |
+| `5.3.1.3` | not stated | 0 | walked | not stated |
+| `5.3.1.4` | not stated | 0 | walked | not stated |
+| `5.3.1.5` | not stated | 1 | walked | not stated |
+| `5.3.2` | not stated | 0 | walked | not stated |
+| `5.3.2.1` | not stated | 1 | walked | not stated |
+| `5.3.2.2` | not stated | 3 | walked | not stated |
+| `5.3.2.3` | not stated | 1 | walked | not stated |
+| `5.3.2.4` | not stated | 1 | walked | not stated |
+| `5.3.2.5` | not stated | 0 | walked | not stated |
+| `5.3.2.6` | not stated | 2 | walked | not stated |
+| `5.3.2.7` | not stated | 0 | walked | not stated |
+| `5.3.3` | not stated | 0 | walked | not stated |
+| `5.3.3.1` | not stated | 1 | walked | not stated |
+| `5.3.3.2` | not stated | 0 | walked | not stated |
+| `5.3.3.3` | not stated | 0 | walked | not stated |
+| `5.3.3.4` | not stated | 0 | walked | not stated |
+| `5.3.3.5` | not stated | 0 | walked | not stated |
+| `5.3.3.6` | not stated | 2 | walked | not stated |
+| `5.4` | not stated | 2 | walked | not stated |
+| `5.5` | not stated | 1 | walked | not stated |
+| `5.6` | not stated | 0 | walked | not stated |
+| `5.7` | not stated | 0 | walked | not stated |
+| `5.8` | not stated | 0 | walked | not stated |
+| `5.9` | not stated | 1 | walked | not stated |
+| `5.10` | not stated | 0 | walked | not stated |
+| `5.11` | not stated | 0 | walked | not stated |
+| `5.12` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+| `6.3` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `7.1.1` | not stated | 0 | walked | not stated |
+| `7.1.2` | not stated | 0 | walked | not stated |
+| `7.1.3` | not stated | 0 | walked | not stated |
+| `7.1.4` | not stated | 0 | walked | not stated |
+| `7.1.5` | not stated | 0 | walked | not stated |
+| `7.1.6` | not stated | 0 | walked | not stated |
+| `7.1.7` | not stated | 0 | walked | not stated |
+| `7.2` | not stated | 8 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.1.1` | not stated | 0 | walked | not stated |
+| `8.1.2` | not stated | 0 | walked | not stated |
+| `8.1.3` | not stated | 0 | walked | not stated |
+| `8.1.4` | not stated | 0 | walked | not stated |
+| `8.1.5` | not stated | 0 | walked | not stated |
+| `8.1.6` | not stated | 0 | walked | not stated |
+| `8.2` | not stated | 0 | walked | not stated |
+| `8.2.1` | not stated | 0 | walked | not stated |
+| `8.2.2` | not stated | 7 | walked | not stated |
+| `8.2.3` | not stated | 1 | walked | not stated |
+| `8.2.4` | not stated | 0 | walked | not stated |
+| `8.2.5` | not stated | 0 | walked | not stated |
+| `8.2.6` | not stated | 2 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `11.1` | not stated | 0 | walked | not stated |
+| `11.2` | not stated | 0 | walked | not stated |
+| `A` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `5.2:8` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Addressed to the authors of future documents that extend BGP-LS, not to an implementation: it says what such a document must contain. No ze code path can satisfy or violate it. | Documents extending BGP-LS specifications with new NLRI Types and/or protocols MUST specify the NLRI descriptors for them. |
+| `5.2.2:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the Link Local/Remote Identifiers obligation the preceding sentence states: "If interface and neighbor addresses are not present and the link local/remote identifiers are present, then the Link Local/Remote Identifiers TLV MUST be included in the Link Descriptor." | The Link Local/Remote identifiers MUST be included in the Link Descriptor and in the case of links having only IPv6 link-local addressing on them. |
+| `5.3:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the Attribute Discard ordering the preceding sentence states, that the BGP-LS Attribute is discarded first when the BGP-LS Propagator must reduce the BGP UPDATE message size. | When a BGP-LS Propagator needs to perform 'Attribute Discard' for reducing the BGP UPDATE message size as specified in Section 4 of [RFC8654], it MUST first discard the BGP-LS Attribute to enable the detection and diagnosis of this error condition as discussed in Section 8.2.2. |
+| `5.3.2.2:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the reserved-bit obligation the preceding sentence in the same TLV description states, which RFC9552-5.3.2.2-3 carries in full. | The bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver. |
+| `7.2:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | binds the IANA designated expert who performs Expert Review for the BGP-LS registries under Section 7.2, a role ze never fills: ze is a BGP-LS Speaker that encodes and decodes code points, and reviews no allocation request. producer: none in ze. The reviewing role is exercised by IANA and the designated experts named in Section 7.2, outside any ze code path; the closest ze producer, internal/component/bgp/plugins/nlri/ls, consumes allocated code points and never allocates one. | Application for a code point allocation may be made to the designated experts at any time and MUST be accompanied by technical documentation explaining the use of the code point. |
+| `7.2:2` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | binds the IANA designated expert who performs Expert Review for the BGP-LS registries under Section 7.2, a role ze never fills: ze is a BGP-LS Speaker that encodes and decodes code points, and reviews no allocation request. producer: none in ze. The reviewing role is exercised by IANA and the designated experts named in Section 7.2, outside any ze code path; the closest ze producer, internal/component/bgp/plugins/nlri/ls, consumes allocated code points and never allocates one. | In the case of working group documents, the designated experts MUST check with the working group chairs that there is a consensus within the working group to allocate at this time. |
+| `7.2:3` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | binds the IANA designated expert who performs Expert Review for the BGP-LS registries under Section 7.2, a role ze never fills: ze is a BGP-LS Speaker that encodes and decodes code points, and reviews no allocation request. producer: none in ze. The reviewing role is exercised by IANA and the designated experts named in Section 7.2, outside any ze code path; the closest ze producer, internal/component/bgp/plugins/nlri/ls, consumes allocated code points and never allocates one. | In the case of AD-Sponsored documents, the designated experts MUST check with the AD for approval to allocate at this time. |
+| `7.2:4` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | binds the IANA designated expert who performs Expert Review for the BGP-LS registries under Section 7.2, a role ze never fills: ze is a BGP-LS Speaker that encodes and decodes code points, and reviews no allocation request. producer: none in ze. The reviewing role is exercised by IANA and the designated experts named in Section 7.2, outside any ze code path; the closest ze producer, internal/component/bgp/plugins/nlri/ls, consumes allocated code points and never allocates one. | If the document is not adopted by the IDR Working Group (or its successor), the designated expert MUST notify the IDR mailing list (or its successor) of the request and MUST provide access to the document. |
+| `7.2:5` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | binds the IANA designated expert who performs Expert Review for the BGP-LS registries under Section 7.2, a role ze never fills: ze is a BGP-LS Speaker that encodes and decodes code points, and reviews no allocation request. producer: none in ze. The reviewing role is exercised by IANA and the designated experts named in Section 7.2, outside any ze code path; the closest ze producer, internal/component/bgp/plugins/nlri/ls, consumes allocated code points and never allocates one. | The designated expert MUST allow two weeks for any response. |
+| `7.2:6` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | binds the IANA designated expert who performs Expert Review for the BGP-LS registries under Section 7.2, a role ze never fills: ze is a BGP-LS Speaker that encodes and decodes code points, and reviews no allocation request. producer: none in ze. The reviewing role is exercised by IANA and the designated experts named in Section 7.2, outside any ze code path; the closest ze producer, internal/component/bgp/plugins/nlri/ls, consumes allocated code points and never allocates one. | Any comments received MUST be considered by the designated expert as part of the subsequent step. |
+| `7.2:7` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | binds the IANA designated expert who performs Expert Review for the BGP-LS registries under Section 7.2, a role ze never fills: ze is a BGP-LS Speaker that encodes and decodes code points, and reviews no allocation request. producer: none in ze. The reviewing role is exercised by IANA and the designated experts named in Section 7.2, outside any ze code path; the closest ze producer, internal/component/bgp/plugins/nlri/ls, consumes allocated code points and never allocates one. | The designated experts MUST then review the assignment requests on their technical merit. |
+| `7.2:8` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | binds the IANA designated expert who performs Expert Review for the BGP-LS registries under Section 7.2, a role ze never fills: ze is a BGP-LS Speaker that encodes and decodes code points, and reviews no allocation request. producer: none in ze. The reviewing role is exercised by IANA and the designated experts named in Section 7.2, outside any ze code path; the closest ze producer, internal/component/bgp/plugins/nlri/ls, consumes allocated code points and never allocates one. | The designated expert MUST ensure that any request for a code point does not conflict with work that is active or already published within the IETF. |
 
 ## Superseded
 

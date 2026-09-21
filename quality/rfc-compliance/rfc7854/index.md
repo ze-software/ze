@@ -10,10 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 50.0% | 7 of 14 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 50.0% | 7 of 14 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 14 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 14 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Tested both ways | 21.9% | 7 of 32 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 18.8% | 6 of 32 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 32 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 6.5% | 2 of 31 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -22,13 +21,21 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 14 | of 22 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 14 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 14 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 14 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 14 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 32 | of 41 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 32 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 32 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 32 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 32 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| No test at all | 59.4% | 19 of 32 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+
+The 7 shares marked as a part above are the whole of the 32 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -39,7 +46,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -52,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 22 |
-| Gated MUST-level | 14 |
+| Requirements | 41 |
+| Gated MUST-level | 32 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
-| Gated with no test | 0 |
+| Gated with no test | 19 |
 | Nightly-only evidence | 0 |
 | Test tags | 31 |
 | Tagged units | 31 |
@@ -68,7 +75,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: BGP Monitoring Protocol (BMP) base: twelve MUST-level requirements, all met in internal/component/bgp/plugins/bmp. Five carry positive+negative tags: x-1 (the common-header version is 3, other versions rejected), x-2 (the common header is 6 octets), x-3 (the per-peer header is present for the peer-scoped message types), x-5 (an IPv4 peer address is IPv4-mapped in the 16-octet field), and x-8 (a Peer Up carries the sent and received OPENs). Seven are {single-polarity: positive}: x-4 (the Peer AS is 4 octets), x-6 (Initiation is sent first), x-7 (Initiation carries the sysName TLV), x-9 (Route Monitoring wraps a BGP UPDATE PDU), x-10 (Peer Down carries a Reason), x-11 (Termination is sent on shutdown), and x-12 (monitoring is unidirectional: the BMP receiver writes nothing back over a valid session, proven by a new net.Pipe test).
+Enrolled: BGP Monitoring Protocol (BMP) base. Twelve x-numbered requirements carry tags in internal/component/bgp/plugins/bmp. Five carry positive+negative tags: x-1 (the common-header version is 3, other versions rejected), x-2 (the common header is 6 octets), x-3 (the per-peer header is present for the peer-scoped message types), x-5 (an IPv4 peer address is IPv4-mapped in the 16-octet field), and x-8 (a Peer Up carries the sent and received OPENs). Seven are {single-polarity: positive}: x-4 (the Peer AS is 4 octets), x-6 (Initiation is sent first), x-7 (Initiation carries the sysName TLV), x-9 (Route Monitoring wraps a BGP UPDATE PDU), x-10 (Peer Down carries a Reason), x-11 (Termination is sent on shutdown, which the RFC states as a MAY), and x-12 (monitoring is unidirectional: the BMP receiver writes nothing back over a valid session, proven by a net.Pipe test). The 2026-09-21 extraction walk read the document and added the section-cited obligations sections 3.2 through 8.2 state; none of those rows carries a test, so they are gaps the gate reports.
 
 ## What the public ledger says
 
@@ -80,25 +87,27 @@ Enrolled: BGP Monitoring Protocol (BMP) base: twelve MUST-level requirements, al
 - when the bound is reached the session is reset with a bare TCP close and no Termination.
 
 
-**What the ledger says remains:**
+**What the ledger says remains**
 
-Loc-RIB route monitoring is provided under RFC 9069.
+Loc-RIB route monitoring is provided under RFC 9069. The 2026-09-21 extraction walk added the obligations the document's own sections state, and none of them carries a test: connection backoff and the session establishment rate limit (3.2), the per-peer End-of-RIB that ends an initial table dump (3.3), ignoring unrecognized message types and stat types (4.1, 4.8), the reserved per-peer flag bits (4.2), the sysDescr and sysName values and the ordering of multiple strings (4.4), the Termination close sequence and its Reason TLV (4.5), the Route Mirroring TLV order (4.7), the L flag, timestamp and withdraw rules of route monitoring (5), and the zero ports on a Loc-RIB Peer Up (8.2).
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 7 | one part of the gated population |
-| Annotated instead of tested | 7 | one part of the gated population |
+| Annotated instead of tested | 6 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 19 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **14** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **32** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (7):** [`RFC7854-x-1`](#rfc7854-x-1), [`RFC7854-x-2`](#rfc7854-x-2), [`RFC7854-x-3`](#rfc7854-x-3), [`RFC7854-x-5`](#rfc7854-x-5), [`RFC7854-x-8`](#rfc7854-x-8), [`RFC7854-4.9-1`](#rfc7854-4.9-1), [`RFC7854-4.5-2`](#rfc7854-4.5-2)
 
-**Annotated instead of tested (7):** [`RFC7854-x-4`](#rfc7854-x-4), [`RFC7854-x-6`](#rfc7854-x-6), [`RFC7854-x-7`](#rfc7854-x-7), [`RFC7854-x-9`](#rfc7854-x-9), [`RFC7854-x-10`](#rfc7854-x-10), [`RFC7854-x-11`](#rfc7854-x-11), [`RFC7854-x-12`](#rfc7854-x-12)
+**Annotated instead of tested (6):** [`RFC7854-x-4`](#rfc7854-x-4), [`RFC7854-x-6`](#rfc7854-x-6), [`RFC7854-x-7`](#rfc7854-x-7), [`RFC7854-x-9`](#rfc7854-x-9), [`RFC7854-x-10`](#rfc7854-x-10), [`RFC7854-x-12`](#rfc7854-x-12)
+
+**No test and no annotation (19):** [`RFC7854-x-18`](#rfc7854-x-18), [`RFC7854-3.2-1`](#rfc7854-3.2-1), [`RFC7854-3.2-2`](#rfc7854-3.2-2), [`RFC7854-3.3-1`](#rfc7854-3.3-1), [`RFC7854-4.1-1`](#rfc7854-4.1-1), [`RFC7854-4.2-1`](#rfc7854-4.2-1), [`RFC7854-4.4-1`](#rfc7854-4.4-1), [`RFC7854-4.4-2`](#rfc7854-4.4-2), [`RFC7854-4.4-3`](#rfc7854-4.4-3), [`RFC7854-4.5-1`](#rfc7854-4.5-1), [`RFC7854-4.5-3`](#rfc7854-4.5-3), [`RFC7854-4.7-1`](#rfc7854-4.7-1), [`RFC7854-4.7-2`](#rfc7854-4.7-2), [`RFC7854-4.8-1`](#rfc7854-4.8-1), [`RFC7854-4.8-2`](#rfc7854-4.8-2), [`RFC7854-5-1`](#rfc7854-5-1), [`RFC7854-5-2`](#rfc7854-5-2), [`RFC7854-5-3`](#rfc7854-5-3), [`RFC7854-8.2-1`](#rfc7854-8.2-1)
 
 ## Requirements
 
@@ -114,22 +123,61 @@ Loc-RIB route monitoring is provided under RFC 9069.
 | `RFC7854-x-8` | Peer Up message must include both sent and received OPEN messages (Message Types) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderPeerUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L207). **positive:** `unit/verify` [`TestHandleSenderStatePeerUp`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L136). **negative:** `unit/verify` [`TestBMPPeerUpSkippedOnCacheMiss`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L269). **negative:** `unit/verify` [`TestPeerUpOnCacheMissNeverReachesTheCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerup_openless_test.go#L47) |
 | `RFC7854-x-9` | Route Monitoring messages must contain a BGP UPDATE message (Message Types) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderRouteMonitoring`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L275). **negative:** no negative test. **{single-polarity}:** Route Monitoring is only ever constructed around a complete BGP UPDATE PDU, so there is no valid Route Monitoring lacking one to reject |
 | `RFC7854-x-10` | Peer Down must include the reason code (1 byte) (Message Types) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderPeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L244). **positive:** `unit/verify` [`TestHandleSenderStatePeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L298). **negative:** no negative test. **{single-polarity}:** Peer Down is always written with a reason byte, so there is no valid Peer Down without one to assert against |
-| `RFC7854-x-11` | Termination message must be sent when BMP session is being closed (Session Lifecycle) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L359). **positive:** `unit/verify` [`TestSenderStopSendsTerminationToCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_queue_test.go#L561). **negative:** no negative test. **{single-polarity}:** Termination is produced unconditionally when the session is torn down, so there is no valid shutdown that omits it to reject |
+| `RFC7854-x-11` | Termination message may be sent before the BMP session is closed: "The router MAY send a Termination message prior to closing the session." (Session Lifecycle) | MAY | x | **positive:** `unit/verify` [`TestBMPSenderTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L359). **positive:** `unit/verify` [`TestSenderStopSendsTerminationToCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_queue_test.go#L561). **negative:** no negative test. **{single-polarity}:** Termination is produced unconditionally when the session is torn down, so there is no valid shutdown that omits it to reject |
 | `RFC7854-x-12` | BMP is unidirectional: router to collector only (Session Lifecycle) | MUST | x | **positive:** `unit/verify` [`TestBMPReceiverUnidirectional`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L132). **negative:** no negative test. **{single-polarity}:** the receiver loop (internal/component/bgp/plugins/bmp/bmp.go:441-492) issues only reads and the sender hold-loop (sender.go:207-237) reads only to detect close, so neither role writes toward the monitored router on a valid session and there is no reject case to construct |
 | `RFC7854-4.9-1` | Peer Down must carry the Data field when the Reason is 1, 2 or 3: the BGP NOTIFICATION PDU for reason 1 and reason 3, and the 2-byte FSM event code for reason 2 (§4.9, Peer Down Notification) | MUST | 4.9 | **positive:** `unit/verify` [`TestRFC7854PeerDownCarriesTheDataItsReasonRequires`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L88). **negative:** `unit/verify` [`TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L148) |
 | `RFC7854-4.5-2` | The monitoring station must close the TCP session after receiving a termination message (§4.5, Termination Message) | MUST | 4.5 | **positive:** `unit/verify` [`TestBMPReceiverClosesAfterTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_close_test.go#L9). **negative:** `unit/verify` [`TestBMPReceiverKeepsSessionWithoutTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_absent_test.go#L9) |
 | `RFC7854-x-13` | Minimum 30 seconds between reconnection attempts (Reconnection) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
 | `RFC7854-x-14` | Maximum 720 seconds between reconnection attempts with exponential backoff (Reconnection) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
-| `RFC7854-x-15` | Statistics Reports should be sent periodically (Session Lifecycle) | SHOULD | x | **positive:** `unit/verify` [`TestRFC7854StatisticsTimeoutSendsPeriodicReports`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L411). **negative:** `unit/verify` [`TestRFC7854StatisticsTimeoutZeroSendsNoReport`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L464) |
+| `RFC7854-x-15` | Statistics Reports may be sent periodically: "It MAY periodically send Stats Reports or even new Initiation messages, according to configuration." The Stats Reports text imposes no timing either: "This specification does not impose any timing restrictions on when and on what event these reports have to be transmitted." (Session Lifecycle) | MAY | x | **positive:** `unit/verify` [`TestRFC7854StatisticsTimeoutSendsPeriodicReports`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L411). **negative:** `unit/verify` [`TestRFC7854StatisticsTimeoutZeroSendsNoReport`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L464) |
 | `RFC7854-x-16` | Peer Up message should be sent for each established peer (Session Lifecycle) | SHOULD | x | **positive:** `unit/verify` [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L462). **negative:** no negative test |
 | `RFC7854-x-17` | Initial RIB dump via Route Monitoring should follow Peer Up (Session Lifecycle) | SHOULD | x | **positive:** `unit/verify` [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L465). **negative:** no negative test |
-| `RFC7854-x-18` | Initiation message may include sysDescr TLV (type 1) and free-form string TLV (type 0) (Message Types) | MAY | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-x-18` | Initiation message must include the sysDescr TLV (type 1): "The sysDescr and sysName Information TLVs MUST be sent, any others are optional." (Message Types) | MUST | x | **positive:** no positive test. **negative:** no negative test |
 | `RFC7854-x-19` | Peer Up message may include optional TLVs (Message Types) | MAY | x | **positive:** no positive test. **negative:** no negative test |
 | `RFC7854-x-20` | Route Mirroring messages may be used to mirror BGP messages verbatim (Message Types) | MAY | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-3.2-1` | Retries of a failed connection must be subject to some variety of backoff: "Retries MUST be subject to some variety of backoff." (§3.2, Connection Establishment and Termination) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-3.2-2` | The router must restrict the rate at which BMP sessions may be established: "The router MUST also restrict the rate at which sessions may be established." (§3.2, Connection Establishment and Termination) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-3.3-1` | Once all the routes for a given peer have been sent, an End-of-RIB message must be sent for that peer: "Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer" (§3.3, Lifecycle of a BMP Session, and restated in the Route Monitoring section) | MUST | 3.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-4.1-1` | Unrecognized message types must be ignored on receipt: "A BMP implementation MUST ignore unrecognized message types upon receipt." (§4.1, Common Header) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-4.2-1` | The reserved per-peer flag bits must be transmitted as 0 and their values ignored on receipt: "They MUST be transmitted as 0 and their values MUST be ignored on receipt." (§4.2, Per-Peer Header) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-4.3-1` | The string TLV may be included multiple times in an Initiation message: "The string TLV MAY be included multiple times." (§4.3, Initiation Message) | MAY | 4.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-4.4-1` | When multiple strings are included in a string TLV, their ordering must be preserved when they are reported: "If multiple strings are included, their ordering MUST be preserved when they are reported." (§4.4, Information TLV) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-4.4-2` | The sysDescr TLV Information field must equal the MIB-II sysDescr object: "The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysDescr MIB-II [RFC1213] object." (§4.4, Information TLV) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-4.4-3` | The sysName TLV Information field must equal the MIB-II sysName object: "The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysName MIB-II [RFC1213] object." (§4.4, Information TLV) | MUST | 4.4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-4.5-1` | After sending a termination message the router must close the TCP session and send no further messages: "Once the router has sent a termination message, it MUST close the TCP session without sending any further messages." (§4.5, Termination Message) | MUST | 4.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-4.5-3` | A Termination message must carry the Reason TLV (type 1): "Inclusion of this TLV is REQUIRED." (§4.5, Termination Message) | MUST | 4.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-4.7-1` | A BGP Message TLV in a Route Mirroring message must occur last in the list of TLVs: "If the BGP Message TLV occurs in the Route Mirroring message, it MUST occur last in the list of TLVs." (§4.7, Route Mirroring) | MUST | 4.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-4.7-2` | A Route Mirroring message carrying Information code 0 (Errored PDU) must also carry a BGP Message TLV: "A BGP Message TLV MUST also occur in the TLV list." (§4.7, Route Mirroring) | MUST | 4.7 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-4.8-1` | Unrecognized stat types and unexpected Stat Data must be ignored on receipt: "A BMP implementation MUST ignore unrecognized stat types on receipt, and likewise MUST ignore unexpected data in the Stat Data field." (§4.8, Stats Reports) | MUST | 4.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-4.8-2` | A transmitted Stats Report must carry at least one statistic: "However, if an SR message is transmitted, at least one statistic MUST be carried in it." (§4.8, Stats Reports) | MUST | 4.8 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-5-1` | Pre-policy routes must have the L flag clear and post-policy routes must have it set: "Pre-policy routes MUST have their L flag clear in the BMP header (see Section 4), post-policy routes MUST have their L flag set." (§5, Route Monitoring) | MUST | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-5-2` | Where the time a route was installed is not available, the BMP Timestamp field must be set to 0: "Otherwise, the BMP Timestamp field MUST be set to 0, indicating that time is not available." (§5, Route Monitoring) | MUST | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-5-3` | A withdraw must carry the L flag of the announcement it withdraws, and must be sent twice where the route was announced both pre-policy and post-policy: "The withdraw MUST have its L flag set to correspond to that of any previous announcement; if the route in question was previously announced with L flag both clear and set, the withdraw MUST similarly be sent twice, with L flag clear and set." (§5, Route Monitoring) | MUST | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7854-8.2-1` | Where no transport session exists, the Local Port and Remote Port fields of a Peer Up message must be set to 0: "Since in this case no transport session actually exists, the Local and Remote Port fields of the Peer Up message MUST be set to 0." (§8.2, Peer Up Notification) | MUST | 8.2 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
-RFC 7854 declares no gap, and every gated MUST it carries has a test bound to it.
+| Requirement | State | Reason |
+|---|---|---|
+| [`RFC7854-x-18`](#rfc7854-x-18) Initiation message must include the sysDescr TLV (type 1): "The sysDescr and sysName Information TLVs MUST be sent, any others are optional." (Message Types) | no test | no test carries this requirement id |
+| [`RFC7854-3.2-1`](#rfc7854-3.2-1) Retries of a failed connection must be subject to some variety of backoff: "Retries MUST be subject to some variety of backoff." (§3.2, Connection Establishment and Termination) | no test | no test carries this requirement id |
+| [`RFC7854-3.2-2`](#rfc7854-3.2-2) The router must restrict the rate at which BMP sessions may be established: "The router MUST also restrict the rate at which sessions may be established." (§3.2, Connection Establishment and Termination) | no test | no test carries this requirement id |
+| [`RFC7854-3.3-1`](#rfc7854-3.3-1) Once all the routes for a given peer have been sent, an End-of-RIB message must be sent for that peer: "Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer" (§3.3, Lifecycle of a BMP Session, and restated in the Route Monitoring section) | no test | no test carries this requirement id |
+| [`RFC7854-4.1-1`](#rfc7854-4.1-1) Unrecognized message types must be ignored on receipt: "A BMP implementation MUST ignore unrecognized message types upon receipt." (§4.1, Common Header) | no test | no test carries this requirement id |
+| [`RFC7854-4.2-1`](#rfc7854-4.2-1) The reserved per-peer flag bits must be transmitted as 0 and their values ignored on receipt: "They MUST be transmitted as 0 and their values MUST be ignored on receipt." (§4.2, Per-Peer Header) | no test | no test carries this requirement id |
+| [`RFC7854-4.4-1`](#rfc7854-4.4-1) When multiple strings are included in a string TLV, their ordering must be preserved when they are reported: "If multiple strings are included, their ordering MUST be preserved when they are reported." (§4.4, Information TLV) | no test | no test carries this requirement id |
+| [`RFC7854-4.4-2`](#rfc7854-4.4-2) The sysDescr TLV Information field must equal the MIB-II sysDescr object: "The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysDescr MIB-II [RFC1213] object." (§4.4, Information TLV) | no test | no test carries this requirement id |
+| [`RFC7854-4.4-3`](#rfc7854-4.4-3) The sysName TLV Information field must equal the MIB-II sysName object: "The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysName MIB-II [RFC1213] object." (§4.4, Information TLV) | no test | no test carries this requirement id |
+| [`RFC7854-4.5-1`](#rfc7854-4.5-1) After sending a termination message the router must close the TCP session and send no further messages: "Once the router has sent a termination message, it MUST close the TCP session without sending any further messages." (§4.5, Termination Message) | no test | no test carries this requirement id |
+| [`RFC7854-4.5-3`](#rfc7854-4.5-3) A Termination message must carry the Reason TLV (type 1): "Inclusion of this TLV is REQUIRED." (§4.5, Termination Message) | no test | no test carries this requirement id |
+| [`RFC7854-4.7-1`](#rfc7854-4.7-1) A BGP Message TLV in a Route Mirroring message must occur last in the list of TLVs: "If the BGP Message TLV occurs in the Route Mirroring message, it MUST occur last in the list of TLVs." (§4.7, Route Mirroring) | no test | no test carries this requirement id |
+| [`RFC7854-4.7-2`](#rfc7854-4.7-2) A Route Mirroring message carrying Information code 0 (Errored PDU) must also carry a BGP Message TLV: "A BGP Message TLV MUST also occur in the TLV list." (§4.7, Route Mirroring) | no test | no test carries this requirement id |
+| [`RFC7854-4.8-1`](#rfc7854-4.8-1) Unrecognized stat types and unexpected Stat Data must be ignored on receipt: "A BMP implementation MUST ignore unrecognized stat types on receipt, and likewise MUST ignore unexpected data in the Stat Data field." (§4.8, Stats Reports) | no test | no test carries this requirement id |
+| [`RFC7854-4.8-2`](#rfc7854-4.8-2) A transmitted Stats Report must carry at least one statistic: "However, if an SR message is transmitted, at least one statistic MUST be carried in it." (§4.8, Stats Reports) | no test | no test carries this requirement id |
+| [`RFC7854-5-1`](#rfc7854-5-1) Pre-policy routes must have the L flag clear and post-policy routes must have it set: "Pre-policy routes MUST have their L flag clear in the BMP header (see Section 4), post-policy routes MUST have their L flag set." (§5, Route Monitoring) | no test | no test carries this requirement id |
+| [`RFC7854-5-2`](#rfc7854-5-2) Where the time a route was installed is not available, the BMP Timestamp field must be set to 0: "Otherwise, the BMP Timestamp field MUST be set to 0, indicating that time is not available." (§5, Route Monitoring) | no test | no test carries this requirement id |
+| [`RFC7854-5-3`](#rfc7854-5-3) A withdraw must carry the L flag of the announcement it withdraws, and must be sent twice where the route was announced both pre-policy and post-policy: "The withdraw MUST have its L flag set to correspond to that of any previous announcement; if the route in question was previously announced with L flag both clear and set, the withdraw MUST similarly be sent twice, with L flag clear and set." (§5, Route Monitoring) | no test | no test carries this requirement id |
+| [`RFC7854-8.2-1`](#rfc7854-8.2-1) Where no transport session exists, the Local Port and Remote Port fields of a Peer Up message must be set to 0: "Since in this case no transport session actually exists, the Local and Remote Port fields of the Peer Up message MUST be set to 0." (§8.2, Peer Up Notification) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -247,7 +295,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7854-x-11`](#rfc7854-x-11)
 
-Termination message must be sent when BMP session is being closed (Session Lifecycle)
+Termination message may be sent before the BMP session is closed: "The router MAY send a Termination message prior to closing the session." (Session Lifecycle)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -290,7 +338,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7854-x-15`](#rfc7854-x-15)
 
-Statistics Reports should be sent periodically (Session Lifecycle)
+Statistics Reports may be sent periodically: "It MAY periodically send Stats Reports or even new Initiation messages, according to configuration." The Stats Reports text imposes no timing either: "This specification does not impose any timing restrictions on when and on what event these reports have to be transmitted." (Session Lifecycle)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -319,9 +367,234 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | positive | [`TestConcurrentDumpsStayAddressedToTheirOwnCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/bmp_reconnect_test.go#L465) | unit/verify | unproven |
 
+### [`RFC7854-x-18`](#rfc7854-x-18)
+
+Initiation message must include the sysDescr TLV (type 1): "The sysDescr and sysName Information TLVs MUST be sent, any others are optional." (Message Types)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-x-18, so no unit is bound to it.
+
+### [`RFC7854-3.2-1`](#rfc7854-3.2-1)
+
+Retries of a failed connection must be subject to some variety of backoff: "Retries MUST be subject to some variety of backoff." (§3.2, Connection Establishment and Termination)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-3.2-1, so no unit is bound to it.
+
+### [`RFC7854-3.2-2`](#rfc7854-3.2-2)
+
+The router must restrict the rate at which BMP sessions may be established: "The router MUST also restrict the rate at which sessions may be established." (§3.2, Connection Establishment and Termination)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-3.2-2, so no unit is bound to it.
+
+### [`RFC7854-3.3-1`](#rfc7854-3.3-1)
+
+Once all the routes for a given peer have been sent, an End-of-RIB message must be sent for that peer: "Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer" (§3.3, Lifecycle of a BMP Session, and restated in the Route Monitoring section)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-3.3-1, so no unit is bound to it.
+
+### [`RFC7854-4.1-1`](#rfc7854-4.1-1)
+
+Unrecognized message types must be ignored on receipt: "A BMP implementation MUST ignore unrecognized message types upon receipt." (§4.1, Common Header)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-4.1-1, so no unit is bound to it.
+
+### [`RFC7854-4.2-1`](#rfc7854-4.2-1)
+
+The reserved per-peer flag bits must be transmitted as 0 and their values ignored on receipt: "They MUST be transmitted as 0 and their values MUST be ignored on receipt." (§4.2, Per-Peer Header)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-4.2-1, so no unit is bound to it.
+
+### [`RFC7854-4.4-1`](#rfc7854-4.4-1)
+
+When multiple strings are included in a string TLV, their ordering must be preserved when they are reported: "If multiple strings are included, their ordering MUST be preserved when they are reported." (§4.4, Information TLV)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-4.4-1, so no unit is bound to it.
+
+### [`RFC7854-4.4-2`](#rfc7854-4.4-2)
+
+The sysDescr TLV Information field must equal the MIB-II sysDescr object: "The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysDescr MIB-II [RFC1213] object." (§4.4, Information TLV)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-4.4-2, so no unit is bound to it.
+
+### [`RFC7854-4.4-3`](#rfc7854-4.4-3)
+
+The sysName TLV Information field must equal the MIB-II sysName object: "The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysName MIB-II [RFC1213] object." (§4.4, Information TLV)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-4.4-3, so no unit is bound to it.
+
+### [`RFC7854-4.5-1`](#rfc7854-4.5-1)
+
+After sending a termination message the router must close the TCP session and send no further messages: "Once the router has sent a termination message, it MUST close the TCP session without sending any further messages." (§4.5, Termination Message)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-4.5-1, so no unit is bound to it.
+
+### [`RFC7854-4.5-3`](#rfc7854-4.5-3)
+
+A Termination message must carry the Reason TLV (type 1): "Inclusion of this TLV is REQUIRED." (§4.5, Termination Message)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-4.5-3, so no unit is bound to it.
+
+### [`RFC7854-4.7-1`](#rfc7854-4.7-1)
+
+A BGP Message TLV in a Route Mirroring message must occur last in the list of TLVs: "If the BGP Message TLV occurs in the Route Mirroring message, it MUST occur last in the list of TLVs." (§4.7, Route Mirroring)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-4.7-1, so no unit is bound to it.
+
+### [`RFC7854-4.7-2`](#rfc7854-4.7-2)
+
+A Route Mirroring message carrying Information code 0 (Errored PDU) must also carry a BGP Message TLV: "A BGP Message TLV MUST also occur in the TLV list." (§4.7, Route Mirroring)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-4.7-2, so no unit is bound to it.
+
+### [`RFC7854-4.8-1`](#rfc7854-4.8-1)
+
+Unrecognized stat types and unexpected Stat Data must be ignored on receipt: "A BMP implementation MUST ignore unrecognized stat types on receipt, and likewise MUST ignore unexpected data in the Stat Data field." (§4.8, Stats Reports)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-4.8-1, so no unit is bound to it.
+
+### [`RFC7854-4.8-2`](#rfc7854-4.8-2)
+
+A transmitted Stats Report must carry at least one statistic: "However, if an SR message is transmitted, at least one statistic MUST be carried in it." (§4.8, Stats Reports)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-4.8-2, so no unit is bound to it.
+
+### [`RFC7854-5-1`](#rfc7854-5-1)
+
+Pre-policy routes must have the L flag clear and post-policy routes must have it set: "Pre-policy routes MUST have their L flag clear in the BMP header (see Section 4), post-policy routes MUST have their L flag set." (§5, Route Monitoring)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-5-1, so no unit is bound to it.
+
+### [`RFC7854-5-2`](#rfc7854-5-2)
+
+Where the time a route was installed is not available, the BMP Timestamp field must be set to 0: "Otherwise, the BMP Timestamp field MUST be set to 0, indicating that time is not available." (§5, Route Monitoring)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-5-2, so no unit is bound to it.
+
+### [`RFC7854-5-3`](#rfc7854-5-3)
+
+A withdraw must carry the L flag of the announcement it withdraws, and must be sent twice where the route was announced both pre-policy and post-policy: "The withdraw MUST have its L flag set to correspond to that of any previous announcement; if the route in question was previously announced with L flag both clear and set, the withdraw MUST similarly be sent twice, with L flag clear and set." (§5, Route Monitoring)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-5-3, so no unit is bound to it.
+
+### [`RFC7854-8.2-1`](#rfc7854-8.2-1)
+
+Where no transport session exists, the Local Port and Remote Port fields of a Peer Up message must be set to 0: "Since in this case no transport session actually exists, the Local and Remote Port fields of the Peer Up message MUST be set to 0." (§8.2, Peer Up Notification)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7854-8.2-1, so no unit is bound to it.
+
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 7854, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc7854.txt |
+| Source fingerprint | b32c6bf7d6b5d67a |
+| Record | rfc/extraction/rfc7854.json |
+| Mapped sentences | 22 |
+| Declined as scope | 11 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.2` | not stated | 2 | walked | not stated |
+| `3.3` | not stated | 2 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 2 | walked | not stated |
+| `4.2` | not stated | 1 | walked | not stated |
+| `4.3` | not stated | 2 | walked | not stated |
+| `4.4` | not stated | 3 | walked | not stated |
+| `4.5` | not stated | 3 | walked | not stated |
+| `4.6` | not stated | 0 | walked | not stated |
+| `4.7` | not stated | 2 | walked | not stated |
+| `4.8` | not stated | 2 | walked | not stated |
+| `4.9` | not stated | 0 | walked | not stated |
+| `4.10` | not stated | 0 | walked | not stated |
+| `5` | not stated | 4 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.2` | not stated | 1 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `10.1` | not stated | 1 | walked | not stated |
+| `10.2` | not stated | 1 | walked | not stated |
+| `10.3` | not stated | 0 | walked | not stated |
+| `10.4` | not stated | 1 | walked | not stated |
+| `10.5` | not stated | 1 | walked | not stated |
+| `10.6` | not stated | 1 | walked | not stated |
+| `10.7` | not stated | 1 | walked | not stated |
+| `10.8` | not stated | 1 | walked | not stated |
+| `10.9` | not stated | 1 | walked | not stated |
+| `10.10` | not stated | 1 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `12.1` | not stated | 0 | walked | not stated |
+| `12.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `3.3:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the obligation section 4.3 states at the site this walk maps to RFC7854-x-6: 'An initiation message MUST be sent as the first message after the TCP session comes up.' Section 3.3 states it as the first step of the session lifecycle; section 4.3 states it as the rule of the message itself. | It MUST begin by sending an Initiation message. |
+| `5:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the per-peer End-of-RIB obligation section 3.3 states at the site this walk maps to RFC7854-3.3-1: 'Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer'. Section 5 adds only where the marker is defined (Section 2 of RFC 4724) and that it carries the BMP encapsulation header. | When the initial dump is completed for a given peer, this MUST be indicated by sending an End-of-RIB marker for that peer (as specified in Section 2 of [RFC4724], plus the BMP encapsulation header). |
+| `10.1:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one. | Type values 0 through 127 MUST be assigned using the "Standards Action" policy, and values 128 through 250 using the "Specification Required" policy defined in [RFC5226]. |
+| `10.2:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one. | Peer Type values 0 through 127 MUST be assigned using the "Standards Action" policy, and values 128 through 250 using the "Specification Required" policy, defined in [RFC5226]. |
+| `10.4:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one. | Stat Type values 0 through 32767 MUST be assigned using the "Standards Action" policy, and values 32768 through 65530 using the "Specification Required" policy, defined in [RFC5226]. |
+| `10.5:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one. | Information type values 0 through 32767 MUST be assigned using the "Standards Action" policy, and values 32768 through 65530 using the "Specification Required" policy, defined in [RFC5226]. |
+| `10.6:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one. | Information type values 0 through 32767 MUST be assigned using the "Standards Action" policy, and values 32768 through 65530 using the "Specification Required" policy, defined in [RFC5226]. |
+| `10.7:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one. | Information type values 0 through 32767 MUST be assigned using the "Standards Action" policy, and values 32768 through 65530 using the "Specification Required" policy, defined in [RFC5226]. |
+| `10.8:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one. | Information type values 0 through 32767 MUST be assigned using the "Standards Action" policy, and values 32768 through 65530 using the "Specification Required" policy, defined in [RFC5226]. |
+| `10.9:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one. | Information type values 0 through 32767 MUST be assigned using the "Standards Action" policy, and values 32768 through 65530 using the "Specification Required" policy, defined in [RFC5226]. |
+| `10.10:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one. | Information type values 0 through 32767 MUST be assigned using the "Standards Action" policy, and values 32768 through 65530 using the "Specification Required" policy, defined in [RFC5226]. |
 
 ## Superseded
 

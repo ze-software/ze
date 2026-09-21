@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 75.2% | 76 of 101 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 3.0% | 3 of 101 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 101 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 60.8% | 76 of 125 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 2.4% | 3 of 125 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 125 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 1.7% | 4 of 235 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 101 | of 135 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 7 | of 101 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 6.9% | 7 of 101 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 101 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 101 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 125 | of 159 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 7 | of 125 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 5.6% | 7 of 125 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 125 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 125 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 14.9% | 15 of 101 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 31.2% | 39 of 125 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 101 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 125 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 135 |
-| Gated MUST-level | 101 |
+| Requirements | 159 |
+| Gated MUST-level | 125 |
 | Not applicable, so out of scope | 7 |
 | Declared gaps | 15 |
-| Gated with no test | 0 |
+| Gated with no test | 24 |
 | Nightly-only evidence | 0 |
 | Test tags | 235 |
 | Tagged units | 235 |
@@ -104,7 +104,7 @@ Fifteen MUST/SHALL-level gaps, each annotated in [`rfc/short/rfc4271.md`](https:
 - **Next-hop resolvability:** [`RFC4271-3.1-2`](#rfc4271-3.1-2), 9.1.2-1, 9.1.2-4 and 9.1.2.1-2 (the decision process neither excludes an unresolvable NEXT_HOP nor re-runs on an IGP-cost change, and the Loc-RIB is not purged of unresolvable routes, [`internal/component/bgp/plugins/rib/rib_commands.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_commands.go)).
 - **Adj-RIB-Out:** [`RFC4271-9.2-2`](#rfc4271-9.2-2) (no forwardability gate) and 9.2-3 (a route excluded by an egress filter is skipped without withdrawing the previous advertisement, [`internal/component/bgp/reactor/forward_rs.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs.go)).
 - **Timers:** [`RFC4271-9.2.1.1-2`](#rfc4271-9.2.1.1-2) and 9.2.1.1-3 (no MinRouteAdvertisementIntervalTimer, [`internal/component/bgp/fsm/timer.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/timer.go)).
-- **Connections:** [`RFC4271-8.2.1-3`](#rfc4271-8.2.1-3) (an inbound connection reuses the peer's session rather than getting its own FSM, [`internal/component/bgp/reactor/reactor_connection.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_connection.go)). Seven further requirements are recorded {not-applicable}: ze performs no route aggregation and never disaggregates a received route.
+- **Connections:** [`RFC4271-8.2.1-3`](#rfc4271-8.2.1-3) (an inbound connection reuses the peer's session rather than getting its own FSM, [`internal/component/bgp/reactor/reactor_connection.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_connection.go)). Seven further requirements are recorded {not-applicable}: ze performs no route aggregation and never disaggregates a received route. The 2026-09-21 extraction walk added twenty-four rows this checklist had never carried, and none of them is tagged yet: the six OPEN Error Subcode rules of Section 6.2 ([`RFC4271-6.2-5`](#rfc4271-6.2-5) to 6.2-10), the fourteen UPDATE Error Subcode and Data-field rules of Section 6.3 ([`RFC4271-6.3-4`](#rfc4271-6.3-4) to 6.3-17), the Section 5 pass-along rule for an updated well-known attribute ([`RFC4271-5-8`](#rfc4271-5-8)), the Section 8.2.2 tracking of a second connection until it sends an OPEN ([`RFC4271-8.2.2-19`](#rfc4271-8.2.2-19)), the Section 9 placement of a new route in the Adj-RIB-In ([`RFC4271-9-4`](#rfc4271-9-4)) and the Section 10 jitter factor ([`RFC4271-10-4`](#rfc4271-10-4)). Whether ze produces each behavior is unassessed; the rows record the obligation, not a verdict.
 
 ## Coverage
 
@@ -113,14 +113,16 @@ Fifteen MUST/SHALL-level gaps, each annotated in [`rfc/short/rfc4271.md`](https:
 | Positive and negative tests | 76 | one part of the gated population |
 | Annotated instead of tested | 25 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 24 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **101** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **125** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (76):** [`RFC4271-4.1-1`](#rfc4271-4.1-1), [`RFC4271-4.1-2`](#rfc4271-4.1-2), [`RFC4271-4.1-3`](#rfc4271-4.1-3), [`RFC4271-4.3-1`](#rfc4271-4.3-1), [`RFC4271-4.3-2`](#rfc4271-4.3-2), [`RFC4271-4.3-4`](#rfc4271-4.3-4), [`RFC4271-4.4-1`](#rfc4271-4.4-1), [`RFC4271-4.4-2`](#rfc4271-4.4-2), [`RFC4271-6-1`](#rfc4271-6-1), [`RFC4271-4.2-1`](#rfc4271-4.2-1), [`RFC4271-4.2-2`](#rfc4271-4.2-2), [`RFC4271-6.2-1`](#rfc4271-6.2-1), [`RFC4271-6.2-2`](#rfc4271-6.2-2), [`RFC4271-5-1`](#rfc4271-5-1), [`RFC4271-5-2`](#rfc4271-5-2), [`RFC4271-5-3`](#rfc4271-5-3), [`RFC4271-5-4`](#rfc4271-5-4), [`RFC4271-5-5`](#rfc4271-5-5), [`RFC4271-5-6`](#rfc4271-5-6), [`RFC4271-5.1.3-1`](#rfc4271-5.1.3-1), [`RFC4271-5.1.3-2`](#rfc4271-5.1.3-2), [`RFC4271-5.1.3-3`](#rfc4271-5.1.3-3), [`RFC4271-5.1.4-1`](#rfc4271-5.1.4-1), [`RFC4271-5.1.4-4`](#rfc4271-5.1.4-4), [`RFC4271-5.1.4-2`](#rfc4271-5.1.4-2), [`RFC4271-5.1.5-1`](#rfc4271-5.1.5-1), [`RFC4271-5.1.5-2`](#rfc4271-5.1.5-2), [`RFC4271-5.1.5-3`](#rfc4271-5.1.5-3), [`RFC4271-5.1.5-4`](#rfc4271-5.1.5-4), [`RFC4271-6.3-1`](#rfc4271-6.3-1), [`RFC4271-6.7-1`](#rfc4271-6.7-1), [`RFC4271-8.2.1-1`](#rfc4271-8.2.1-1), [`RFC4271-8.2.1-2`](#rfc4271-8.2.1-2), [`RFC4271-8.2.2-1`](#rfc4271-8.2.2-1), [`RFC4271-8.2.2-2`](#rfc4271-8.2.2-2), [`RFC4271-8.2.2-3`](#rfc4271-8.2.2-3), [`RFC4271-8.2.2-4`](#rfc4271-8.2.2-4), [`RFC4271-8.2.2-5`](#rfc4271-8.2.2-5), [`RFC4271-8.2.2-7`](#rfc4271-8.2.2-7), [`RFC4271-8.2.2-8`](#rfc4271-8.2.2-8), [`RFC4271-8.2.2-9`](#rfc4271-8.2.2-9), [`RFC4271-8.2.2-10`](#rfc4271-8.2.2-10), [`RFC4271-8.2.2-11`](#rfc4271-8.2.2-11), [`RFC4271-8.2.2-12`](#rfc4271-8.2.2-12), [`RFC4271-8.2.2-13`](#rfc4271-8.2.2-13), [`RFC4271-8.2.2-14`](#rfc4271-8.2.2-14), [`RFC4271-8.2.2-15`](#rfc4271-8.2.2-15), [`RFC4271-8.2.2-16`](#rfc4271-8.2.2-16), [`RFC4271-8.2.2-17`](#rfc4271-8.2.2-17), [`RFC4271-8.2.2-18`](#rfc4271-8.2.2-18), [`RFC4271-10-1`](#rfc4271-10-1), [`RFC4271-5.1.2-2`](#rfc4271-5.1.2-2), [`RFC4271-5.1.2-3`](#rfc4271-5.1.2-3), [`RFC4271-5.1.5-5`](#rfc4271-5.1.5-5), [`RFC4271-6.7-4`](#rfc4271-6.7-4), [`RFC4271-6.8-1`](#rfc4271-6.8-1), [`RFC4271-6.8-2`](#rfc4271-6.8-2), [`RFC4271-9-1`](#rfc4271-9-1), [`RFC4271-9-2`](#rfc4271-9-2), [`RFC4271-9-3`](#rfc4271-9-3), [`RFC4271-9.1.1-1`](#rfc4271-9.1.1-1), [`RFC4271-9.1.1-2`](#rfc4271-9.1.1-2), [`RFC4271-9.1.2-2`](#rfc4271-9.1.2-2), [`RFC4271-9.1.2-3`](#rfc4271-9.1.2-3), [`RFC4271-9.1.2.1-1`](#rfc4271-9.1.2.1-1), [`RFC4271-9.1.2.2-1`](#rfc4271-9.1.2.2-1), [`RFC4271-9.1.2.2-3`](#rfc4271-9.1.2.2-3), [`RFC4271-9.1.2.2-4`](#rfc4271-9.1.2.2-4), [`RFC4271-9.2-4`](#rfc4271-9.2-4), [`RFC4271-9.2-5`](#rfc4271-9.2-5), [`RFC4271-Security-1`](#rfc4271-security-1), [`RFC4271-9.2-6`](#rfc4271-9.2-6), [`RFC4271-9.2-7`](#rfc4271-9.2-7), [`RFC4271-9.2-8`](#rfc4271-9.2-8), [`RFC4271-9.2-9`](#rfc4271-9.2-9), [`RFC4271-9.2-10`](#rfc4271-9.2-10)
 
 **Annotated instead of tested (25):** [`RFC4271-4.3-3`](#rfc4271-4.3-3), [`RFC4271-4.3-5`](#rfc4271-4.3-5), [`RFC4271-5.1.6-1`](#rfc4271-5.1.6-1), [`RFC4271-6.1-1`](#rfc4271-6.1-1), [`RFC4271-6.1-2`](#rfc4271-6.1-2), [`RFC4271-6.1-3`](#rfc4271-6.1-3), [`RFC4271-6.1-4`](#rfc4271-6.1-4), [`RFC4271-6.2-3`](#rfc4271-6.2-3), [`RFC4271-8.2.1-3`](#rfc4271-8.2.1-3), [`RFC4271-3.1-2`](#rfc4271-3.1-2), [`RFC4271-5.1.4-3`](#rfc4271-5.1.4-3), [`RFC4271-5.1.7-1`](#rfc4271-5.1.7-1), [`RFC4271-9.1.2-1`](#rfc4271-9.1.2-1), [`RFC4271-9.1.2-4`](#rfc4271-9.1.2-4), [`RFC4271-9.1.2.1-2`](#rfc4271-9.1.2.1-2), [`RFC4271-9.1.2.2-2`](#rfc4271-9.1.2.2-2), [`RFC4271-9.2-2`](#rfc4271-9.2-2), [`RFC4271-9.2-3`](#rfc4271-9.2-3), [`RFC4271-9.2.1.1-2`](#rfc4271-9.2.1.1-2), [`RFC4271-9.2.2.2-1`](#rfc4271-9.2.2.2-1), [`RFC4271-9.2.2.2-2`](#rfc4271-9.2.2.2-2), [`RFC4271-9.2.2.2-3`](#rfc4271-9.2.2.2-3), [`RFC4271-9.2.2.2-4`](#rfc4271-9.2.2.2-4), [`RFC4271-9.2.2.2-5`](#rfc4271-9.2.2.2-5), [`RFC4271-9.2.1.1-3`](#rfc4271-9.2.1.1-3)
+
+**No test and no annotation (24):** [`RFC4271-5-8`](#rfc4271-5-8), [`RFC4271-6.2-5`](#rfc4271-6.2-5), [`RFC4271-6.2-6`](#rfc4271-6.2-6), [`RFC4271-6.2-7`](#rfc4271-6.2-7), [`RFC4271-6.2-8`](#rfc4271-6.2-8), [`RFC4271-6.2-9`](#rfc4271-6.2-9), [`RFC4271-6.2-10`](#rfc4271-6.2-10), [`RFC4271-6.3-4`](#rfc4271-6.3-4), [`RFC4271-6.3-5`](#rfc4271-6.3-5), [`RFC4271-6.3-6`](#rfc4271-6.3-6), [`RFC4271-6.3-7`](#rfc4271-6.3-7), [`RFC4271-6.3-8`](#rfc4271-6.3-8), [`RFC4271-6.3-9`](#rfc4271-6.3-9), [`RFC4271-6.3-10`](#rfc4271-6.3-10), [`RFC4271-6.3-11`](#rfc4271-6.3-11), [`RFC4271-6.3-12`](#rfc4271-6.3-12), [`RFC4271-6.3-13`](#rfc4271-6.3-13), [`RFC4271-6.3-14`](#rfc4271-6.3-14), [`RFC4271-6.3-15`](#rfc4271-6.3-15), [`RFC4271-6.3-16`](#rfc4271-6.3-16), [`RFC4271-6.3-17`](#rfc4271-6.3-17), [`RFC4271-8.2.2-19`](#rfc4271-8.2.2-19), [`RFC4271-9-4`](#rfc4271-9-4), [`RFC4271-10-4`](#rfc4271-10-4)
 
 ## Requirements
 
@@ -261,6 +263,30 @@ Fifteen MUST/SHALL-level gaps, each annotated in [`rfc/short/rfc4271.md`](https:
 | `RFC4271-9.2-11` | A BGP speaker that chooses to aggregate SHOULD either include all ASes in an AS_SET or add ATOMIC_AGGREGATE (§9.2) | SHOULD | 9.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4271-9.2-12` | Routes SHOULD NOT be de-aggregated (§9.2) | SHOULD NOT | 9.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4271-9.2.2.2-6` | If aggregated AS_PATH begins with AS_SET, the originator SHOULD NOT advertise MULTI_EXIT_DISC (§9.2.2.2) | SHOULD NOT | 9.2.2.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-5-8` | Once a BGP peer has updated any well-known attributes, it MUST pass these attributes to its peers in any updates it transmits (§5) | MUST | 5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.2-5` | If the version number in the Version field of the received OPEN message is not supported, then the Error Subcode MUST be set to Unsupported Version Number (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.2-6` | If the Autonomous System field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Bad Peer AS (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.2-7` | If the Hold Time field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Unacceptable Hold Time (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.2-8` | If the BGP Identifier field of the OPEN message is syntactically incorrect, then the Error Subcode MUST be set to Bad BGP Identifier (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.2-9` | If one of the Optional Parameters in the OPEN message is not recognized, then the Error Subcode MUST be set to Unsupported Optional Parameters (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.2-10` | If one of the Optional Parameters in the OPEN message is recognized, but is malformed, then the Error Subcode MUST be set to 0 (Unspecific) (§6.2) | MUST | 6.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.3-4` | If the Withdrawn Routes Length or Total Attribute Length is too large (Withdrawn Routes Length + Total Attribute Length + 23 exceeds the message Length), then the Error Subcode MUST be set to Malformed Attribute List (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.3-5` | If any recognized attribute has Attribute Flags that conflict with the Attribute Type Code, then the Error Subcode MUST be set to Attribute Flags Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.3-6` | If any recognized attribute has an Attribute Length that conflicts with the expected length, then the Error Subcode MUST be set to Attribute Length Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.3-7` | If any of the well-known mandatory attributes are not present, then the Error Subcode MUST be set to Missing Well-known Attribute; the Data field MUST contain the Attribute Type Code of the missing, well-known attribute (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.3-8` | If any of the well-known mandatory attributes are not recognized, then the Error Subcode MUST be set to Unrecognized Well-known Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.3-9` | If the ORIGIN attribute has an undefined value, then the Error Subcode MUST be set to Invalid Origin Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.3-10` | If the NEXT_HOP attribute field is syntactically incorrect, then the Error Subcode MUST be set to Invalid NEXT_HOP Attribute; the Data field MUST contain the incorrect attribute (type, length, and value) (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.3-11` | The IP address in the NEXT_HOP MUST meet two criteria to be considered semantically correct: it MUST NOT be the IP address of the receiving speaker, and on a one-hop EBGP session either the IP address in the NEXT_HOP MUST be the sender's IP address used to establish the BGP connection, or the interface associated with the NEXT_HOP IP address MUST share a common subnet with the receiving BGP speaker (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.3-12` | If the AS_PATH is syntactically incorrect, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.3-13` | If the optional leftmost-AS check on an UPDATE from an external peer determines the leftmost AS is not the peer's autonomous system number, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.3-14` | If an optional attribute is recognized, then the value of this attribute MUST be checked; if an error is detected, the attribute MUST be discarded, the Error Subcode MUST be set to Optional Attribute Error, and the Data field MUST contain the attribute (type, length, and value) (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.3-15` | If any attribute appears more than once in the UPDATE message, then the Error Subcode MUST be set to Malformed Attribute List (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.3-16` | If the NLRI field is syntactically incorrect, then the Error Subcode MUST be set to Invalid Network Field (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-6.3-17` | An UPDATE message that contains correct path attributes, but no NLRI, SHALL be treated as a valid UPDATE message (§6.3) | SHALL | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-8.2.2-19` | In response to an indication that the TCP connection is successfully established (Event 16 or Event 17), the second connection SHALL be tracked until it sends an OPEN message (§8.2.2) | SHALL | 8.2.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-9-4` | If the Adj-RIB-In has no route with NLRI identical to the new route, the new route SHALL be placed in the Adj-RIB-In (§9) | SHALL | 9 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4271-10-4` | The suggested default amount of jitter SHALL be determined by multiplying the base value of the appropriate timer by a random factor, which is uniformly distributed in the range from 0.75 to 1.0 (§10) | SHALL | 10 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -288,6 +314,30 @@ Fifteen MUST/SHALL-level gaps, each annotated in [`rfc/short/rfc4271.md`](https:
 | [`RFC4271-9.2.2.2-4`](#rfc4271-9.2.2.2-4) If at least one aggregated route has ATOMIC_AGGREGATE, the aggregate SHALL have it as well (§9.2.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never aggregates routes, so no producer decides whether an aggregate carries ATOMIC_AGGREGATE. The attribute is only decoded, stored and replayed (internal/core/bgp/attribute/simple.go:175-195, internal/component/bgp/plugins/rib/storage/familyrib.go:815-817); the same aggregation grep returns nothing |
 | [`RFC4271-9.2.2.2-5`](#rfc4271-9.2.2.2-5) AGGREGATOR attributes from aggregated routes MUST NOT be included in the aggregated route (§9.2.2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never aggregates routes, so no producer builds an aggregated route from which a contributing AGGREGATOR would have to be excluded. AGGREGATOR is only interned from the wire or emitted from operator configuration (internal/component/bgp/plugins/rib/storage/attrparse.go:96-102, internal/component/bgp/message/update_build_grouped.go:141-148); the same aggregation grep returns nothing |
 | [`RFC4271-9.2.1.1-3`](#rfc4271-9.2.1.1-3) The last route selected while awaiting MinRouteAdvertisementIntervalTimer SHALL be advertised at expiry (§9.2.1.1) | {gap}, no test | with no MinRouteAdvertisementIntervalTimer there is no expiry at which a last-selected route could be advertised. The timer is absent by design note (internal/component/bgp/fsm/timer.go:39) and no producer buffers a pending best-route advertisement against such a timer; best-path changes are published as they are computed (internal/component/bgp/plugins/rib/rib_bestchange.go:832-880) |
+| [`RFC4271-5-8`](#rfc4271-5-8) Once a BGP peer has updated any well-known attributes, it MUST pass these attributes to its peers in any updates it transmits (§5) | no test | no test carries this requirement id |
+| [`RFC4271-6.2-5`](#rfc4271-6.2-5) If the version number in the Version field of the received OPEN message is not supported, then the Error Subcode MUST be set to Unsupported Version Number (§6.2) | no test | no test carries this requirement id |
+| [`RFC4271-6.2-6`](#rfc4271-6.2-6) If the Autonomous System field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Bad Peer AS (§6.2) | no test | no test carries this requirement id |
+| [`RFC4271-6.2-7`](#rfc4271-6.2-7) If the Hold Time field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Unacceptable Hold Time (§6.2) | no test | no test carries this requirement id |
+| [`RFC4271-6.2-8`](#rfc4271-6.2-8) If the BGP Identifier field of the OPEN message is syntactically incorrect, then the Error Subcode MUST be set to Bad BGP Identifier (§6.2) | no test | no test carries this requirement id |
+| [`RFC4271-6.2-9`](#rfc4271-6.2-9) If one of the Optional Parameters in the OPEN message is not recognized, then the Error Subcode MUST be set to Unsupported Optional Parameters (§6.2) | no test | no test carries this requirement id |
+| [`RFC4271-6.2-10`](#rfc4271-6.2-10) If one of the Optional Parameters in the OPEN message is recognized, but is malformed, then the Error Subcode MUST be set to 0 (Unspecific) (§6.2) | no test | no test carries this requirement id |
+| [`RFC4271-6.3-4`](#rfc4271-6.3-4) If the Withdrawn Routes Length or Total Attribute Length is too large (Withdrawn Routes Length + Total Attribute Length + 23 exceeds the message Length), then the Error Subcode MUST be set to Malformed Attribute List (§6.3) | no test | no test carries this requirement id |
+| [`RFC4271-6.3-5`](#rfc4271-6.3-5) If any recognized attribute has Attribute Flags that conflict with the Attribute Type Code, then the Error Subcode MUST be set to Attribute Flags Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3) | no test | no test carries this requirement id |
+| [`RFC4271-6.3-6`](#rfc4271-6.3-6) If any recognized attribute has an Attribute Length that conflicts with the expected length, then the Error Subcode MUST be set to Attribute Length Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3) | no test | no test carries this requirement id |
+| [`RFC4271-6.3-7`](#rfc4271-6.3-7) If any of the well-known mandatory attributes are not present, then the Error Subcode MUST be set to Missing Well-known Attribute; the Data field MUST contain the Attribute Type Code of the missing, well-known attribute (§6.3) | no test | no test carries this requirement id |
+| [`RFC4271-6.3-8`](#rfc4271-6.3-8) If any of the well-known mandatory attributes are not recognized, then the Error Subcode MUST be set to Unrecognized Well-known Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3) | no test | no test carries this requirement id |
+| [`RFC4271-6.3-9`](#rfc4271-6.3-9) If the ORIGIN attribute has an undefined value, then the Error Subcode MUST be set to Invalid Origin Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3) | no test | no test carries this requirement id |
+| [`RFC4271-6.3-10`](#rfc4271-6.3-10) If the NEXT_HOP attribute field is syntactically incorrect, then the Error Subcode MUST be set to Invalid NEXT_HOP Attribute; the Data field MUST contain the incorrect attribute (type, length, and value) (§6.3) | no test | no test carries this requirement id |
+| [`RFC4271-6.3-11`](#rfc4271-6.3-11) The IP address in the NEXT_HOP MUST meet two criteria to be considered semantically correct: it MUST NOT be the IP address of the receiving speaker, and on a one-hop EBGP session either the IP address in the NEXT_HOP MUST be the sender's IP address used to establish the BGP connection, or the interface associated with the NEXT_HOP IP address MUST share a common subnet with the receiving BGP speaker (§6.3) | no test | no test carries this requirement id |
+| [`RFC4271-6.3-12`](#rfc4271-6.3-12) If the AS_PATH is syntactically incorrect, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3) | no test | no test carries this requirement id |
+| [`RFC4271-6.3-13`](#rfc4271-6.3-13) If the optional leftmost-AS check on an UPDATE from an external peer determines the leftmost AS is not the peer's autonomous system number, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3) | no test | no test carries this requirement id |
+| [`RFC4271-6.3-14`](#rfc4271-6.3-14) If an optional attribute is recognized, then the value of this attribute MUST be checked; if an error is detected, the attribute MUST be discarded, the Error Subcode MUST be set to Optional Attribute Error, and the Data field MUST contain the attribute (type, length, and value) (§6.3) | no test | no test carries this requirement id |
+| [`RFC4271-6.3-15`](#rfc4271-6.3-15) If any attribute appears more than once in the UPDATE message, then the Error Subcode MUST be set to Malformed Attribute List (§6.3) | no test | no test carries this requirement id |
+| [`RFC4271-6.3-16`](#rfc4271-6.3-16) If the NLRI field is syntactically incorrect, then the Error Subcode MUST be set to Invalid Network Field (§6.3) | no test | no test carries this requirement id |
+| [`RFC4271-6.3-17`](#rfc4271-6.3-17) An UPDATE message that contains correct path attributes, but no NLRI, SHALL be treated as a valid UPDATE message (§6.3) | no test | no test carries this requirement id |
+| [`RFC4271-8.2.2-19`](#rfc4271-8.2.2-19) In response to an indication that the TCP connection is successfully established (Event 16 or Event 17), the second connection SHALL be tracked until it sends an OPEN message (§8.2.2) | no test | no test carries this requirement id |
+| [`RFC4271-9-4`](#rfc4271-9-4) If the Adj-RIB-In has no route with NLRI identical to the new route, the new route SHALL be placed in the Adj-RIB-In (§9) | no test | no test carries this requirement id |
+| [`RFC4271-10-4`](#rfc4271-10-4) The suggested default amount of jitter SHALL be determined by multiplying the base value of the appropriate timer by a random factor, which is uniformly distributed in the range from 0.75 to 1.0 (§10) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -1451,9 +1501,324 @@ Audit verdict: not audited: no reader has judged these tests
 | positive | [`TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go#L87) | unit/verify | unproven |
 | positive | [`TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go#L42) | unit/verify | unproven |
 
+### [`RFC4271-5-8`](#rfc4271-5-8)
+
+Once a BGP peer has updated any well-known attributes, it MUST pass these attributes to its peers in any updates it transmits (§5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-5-8, so no unit is bound to it.
+
+### [`RFC4271-6.2-5`](#rfc4271-6.2-5)
+
+If the version number in the Version field of the received OPEN message is not supported, then the Error Subcode MUST be set to Unsupported Version Number (§6.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.2-5, so no unit is bound to it.
+
+### [`RFC4271-6.2-6`](#rfc4271-6.2-6)
+
+If the Autonomous System field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Bad Peer AS (§6.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.2-6, so no unit is bound to it.
+
+### [`RFC4271-6.2-7`](#rfc4271-6.2-7)
+
+If the Hold Time field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Unacceptable Hold Time (§6.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.2-7, so no unit is bound to it.
+
+### [`RFC4271-6.2-8`](#rfc4271-6.2-8)
+
+If the BGP Identifier field of the OPEN message is syntactically incorrect, then the Error Subcode MUST be set to Bad BGP Identifier (§6.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.2-8, so no unit is bound to it.
+
+### [`RFC4271-6.2-9`](#rfc4271-6.2-9)
+
+If one of the Optional Parameters in the OPEN message is not recognized, then the Error Subcode MUST be set to Unsupported Optional Parameters (§6.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.2-9, so no unit is bound to it.
+
+### [`RFC4271-6.2-10`](#rfc4271-6.2-10)
+
+If one of the Optional Parameters in the OPEN message is recognized, but is malformed, then the Error Subcode MUST be set to 0 (Unspecific) (§6.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.2-10, so no unit is bound to it.
+
+### [`RFC4271-6.3-4`](#rfc4271-6.3-4)
+
+If the Withdrawn Routes Length or Total Attribute Length is too large (Withdrawn Routes Length + Total Attribute Length + 23 exceeds the message Length), then the Error Subcode MUST be set to Malformed Attribute List (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.3-4, so no unit is bound to it.
+
+### [`RFC4271-6.3-5`](#rfc4271-6.3-5)
+
+If any recognized attribute has Attribute Flags that conflict with the Attribute Type Code, then the Error Subcode MUST be set to Attribute Flags Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.3-5, so no unit is bound to it.
+
+### [`RFC4271-6.3-6`](#rfc4271-6.3-6)
+
+If any recognized attribute has an Attribute Length that conflicts with the expected length, then the Error Subcode MUST be set to Attribute Length Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.3-6, so no unit is bound to it.
+
+### [`RFC4271-6.3-7`](#rfc4271-6.3-7)
+
+If any of the well-known mandatory attributes are not present, then the Error Subcode MUST be set to Missing Well-known Attribute; the Data field MUST contain the Attribute Type Code of the missing, well-known attribute (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.3-7, so no unit is bound to it.
+
+### [`RFC4271-6.3-8`](#rfc4271-6.3-8)
+
+If any of the well-known mandatory attributes are not recognized, then the Error Subcode MUST be set to Unrecognized Well-known Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.3-8, so no unit is bound to it.
+
+### [`RFC4271-6.3-9`](#rfc4271-6.3-9)
+
+If the ORIGIN attribute has an undefined value, then the Error Subcode MUST be set to Invalid Origin Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.3-9, so no unit is bound to it.
+
+### [`RFC4271-6.3-10`](#rfc4271-6.3-10)
+
+If the NEXT_HOP attribute field is syntactically incorrect, then the Error Subcode MUST be set to Invalid NEXT_HOP Attribute; the Data field MUST contain the incorrect attribute (type, length, and value) (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.3-10, so no unit is bound to it.
+
+### [`RFC4271-6.3-11`](#rfc4271-6.3-11)
+
+The IP address in the NEXT_HOP MUST meet two criteria to be considered semantically correct: it MUST NOT be the IP address of the receiving speaker, and on a one-hop EBGP session either the IP address in the NEXT_HOP MUST be the sender's IP address used to establish the BGP connection, or the interface associated with the NEXT_HOP IP address MUST share a common subnet with the receiving BGP speaker (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.3-11, so no unit is bound to it.
+
+### [`RFC4271-6.3-12`](#rfc4271-6.3-12)
+
+If the AS_PATH is syntactically incorrect, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.3-12, so no unit is bound to it.
+
+### [`RFC4271-6.3-13`](#rfc4271-6.3-13)
+
+If the optional leftmost-AS check on an UPDATE from an external peer determines the leftmost AS is not the peer's autonomous system number, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.3-13, so no unit is bound to it.
+
+### [`RFC4271-6.3-14`](#rfc4271-6.3-14)
+
+If an optional attribute is recognized, then the value of this attribute MUST be checked; if an error is detected, the attribute MUST be discarded, the Error Subcode MUST be set to Optional Attribute Error, and the Data field MUST contain the attribute (type, length, and value) (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.3-14, so no unit is bound to it.
+
+### [`RFC4271-6.3-15`](#rfc4271-6.3-15)
+
+If any attribute appears more than once in the UPDATE message, then the Error Subcode MUST be set to Malformed Attribute List (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.3-15, so no unit is bound to it.
+
+### [`RFC4271-6.3-16`](#rfc4271-6.3-16)
+
+If the NLRI field is syntactically incorrect, then the Error Subcode MUST be set to Invalid Network Field (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.3-16, so no unit is bound to it.
+
+### [`RFC4271-6.3-17`](#rfc4271-6.3-17)
+
+An UPDATE message that contains correct path attributes, but no NLRI, SHALL be treated as a valid UPDATE message (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-6.3-17, so no unit is bound to it.
+
+### [`RFC4271-8.2.2-19`](#rfc4271-8.2.2-19)
+
+In response to an indication that the TCP connection is successfully established (Event 16 or Event 17), the second connection SHALL be tracked until it sends an OPEN message (§8.2.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-8.2.2-19, so no unit is bound to it.
+
+### [`RFC4271-9-4`](#rfc4271-9-4)
+
+If the Adj-RIB-In has no route with NLRI identical to the new route, the new route SHALL be placed in the Adj-RIB-In (§9)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-9-4, so no unit is bound to it.
+
+### [`RFC4271-10-4`](#rfc4271-10-4)
+
+The suggested default amount of jitter SHALL be determined by multiplying the base value of the appropriate timer by a random factor, which is uniformly distributed in the range from 0.75 to 1.0 (§10)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC4271-10-4, so no unit is bound to it.
+
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 4271, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc4271.txt |
+| Source fingerprint | d5034568e80da453 |
+| Record | rfc/extraction/rfc4271.json |
+| Mapped sentences | 105 |
+| Declined as scope | 24 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `1.2` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.2` | not stated | 1 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 3 | walked | not stated |
+| `4.2` | not stated | 2 | walked | not stated |
+| `4.3` | not stated | 4 | walked | not stated |
+| `4.4` | not stated | 2 | walked | not stated |
+| `4.5` | not stated | 0 | walked | not stated |
+| `5` | not stated | 8 | walked | not stated |
+| `5.1` | not stated | 0 | walked | not stated |
+| `5.1.1` | not stated | 0 | walked | not stated |
+| `5.1.2` | not stated | 1 | walked | not stated |
+| `5.1.3` | not stated | 3 | walked | not stated |
+| `5.1.4` | not stated | 4 | walked | not stated |
+| `5.1.5` | not stated | 5 | walked | not stated |
+| `5.1.6` | not stated | 1 | walked | not stated |
+| `5.1.7` | not stated | 1 | walked | not stated |
+| `6` | not stated | 1 | walked | not stated |
+| `6.1` | not stated | 6 | walked | not stated |
+| `6.2` | not stated | 9 | walked | not stated |
+| `6.3` | not stated | 25 | walked | not stated |
+| `6.4` | not stated | 0 | walked | not stated |
+| `6.5` | not stated | 0 | walked | not stated |
+| `6.6` | not stated | 0 | walked | not stated |
+| `6.7` | not stated | 2 | walked | not stated |
+| `6.8` | not stated | 2 | walked | not stated |
+| `7` | not stated | 1 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.1.1` | not stated | 0 | walked | not stated |
+| `8.1.2` | not stated | 0 | walked | not stated |
+| `8.1.3` | not stated | 0 | walked | not stated |
+| `8.1.4` | not stated | 0 | walked | not stated |
+| `8.1.5` | not stated | 0 | walked | not stated |
+| `8.2` | not stated | 0 | walked | not stated |
+| `8.2.1` | not stated | 3 | walked | not stated |
+| `8.2.1.1` | not stated | 0 | walked | not stated |
+| `8.2.1.2` | not stated | 0 | walked | not stated |
+| `8.2.1.3` | not stated | 0 | walked | not stated |
+| `8.2.1.4` | not stated | 0 | walked | not stated |
+| `8.2.1.5` | not stated | 0 | walked | not stated |
+| `8.2.2` | not stated | 1 | walked | not stated |
+| `9` | not stated | 5 | walked | not stated |
+| `9.1` | not stated | 1 | walked | not stated |
+| `9.1.1` | not stated | 1 | walked | not stated |
+| `9.1.2` | not stated | 6 | walked | not stated |
+| `9.1.2.1` | not stated | 0 | walked | not stated |
+| `9.1.2.2` | not stated | 3 | walked | not stated |
+| `9.1.3` | not stated | 2 | walked | not stated |
+| `9.1.4` | not stated | 3 | walked | not stated |
+| `9.2` | not stated | 5 | walked | not stated |
+| `9.2.1` | not stated | 0 | walked | not stated |
+| `9.2.1.1` | not stated | 2 | walked | not stated |
+| `9.2.1.2` | not stated | 0 | walked | not stated |
+| `9.2.2` | not stated | 0 | walked | not stated |
+| `9.2.2.1` | not stated | 0 | walked | not stated |
+| `9.2.2.2` | not stated | 11 | walked | not stated |
+| `9.3` | not stated | 0 | walked | not stated |
+| `9.4` | not stated | 0 | walked | not stated |
+| `10` | not stated | 2 | walked | not stated |
+| `A` | not stated | 1 | walked | not stated |
+| `B` | not stated | 0 | walked | not stated |
+| `C` | not stated | 0 | walked | not stated |
+| `D` | not stated | 0 | walked | not stated |
+| `E` | not stated | 1 | walked | not stated |
+| `F` | not stated | 0 | walked | not stated |
+| `F.1` | not stated | 0 | walked | not stated |
+| `F.2` | not stated | 0 | walked | not stated |
+| `F.3` | not stated | 0 | walked | not stated |
+| `F.4` | not stated | 0 | walked | not stated |
+| `F.5` | not stated | 0 | walked | not stated |
+| `F.6` | not stated | 1 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `5:8` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the sentence defines the mandatory category by restating the obligation site 5:2 already carries, that a mandatory attribute be present when the UPDATE contains NLRI | The mandatory category refers to an attribute that MUST be present in both IBGP and EBGP exchanges if NLRI are contained in the UPDATE message. |
+| `6.1:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the Data field clause belongs to the Bad Message Length obligation, and the row already states both halves | The Data field MUST contain the erroneous Length field. |
+| `6.1:6` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the Data field clause belongs to the Bad Message Type obligation, and the row already states both halves | The Data field MUST contain the erroneous Type field. |
+| `6.3:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the Data field clause belongs to the Attribute Flags Error obligation, and the row states both halves | The Data field MUST contain the erroneous attribute (type, length, and value). |
+| `6.3:6` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the Data field clause belongs to the Attribute Length Error obligation, and the row states both halves | The Data field MUST contain the erroneous attribute (type, length, and value). |
+| `6.3:8` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the Data field clause belongs to the Missing Well-known Attribute obligation, and the row states both halves | The Data field MUST contain the Attribute Type Code of the missing, well-known attribute. |
+| `6.3:10` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the Data field clause belongs to the Unrecognized Well-known Attribute obligation, and the row states both halves | The Data field MUST contain the unrecognized attribute (type, length, and value). |
+| `6.3:12` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the Data field clause belongs to the Invalid Origin Attribute obligation, and the row states both halves | The Data field MUST contain the unrecognized attribute (type, length, and value). |
+| `6.3:14` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the Data field clause belongs to the Invalid NEXT_HOP Attribute obligation, and the row states both halves | The Data field MUST contain the incorrect attribute (type, length, and value). |
+| `6.3:16` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | criterion a) is one of the two criteria the row states | a) It MUST NOT be the IP address of the receiving speaker. |
+| `6.3:17` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | criterion b) is the other of the two criteria the row states | b) In the case of an EBGP, where the sender and receiver are one IP hop away from each other, either the IP address in the NEXT_HOP MUST be the sender's IP address that is used to establish the BGP connection, or the interface associated with the NEXT_HOP IP address MUST share a common subnet with the receiving BGP speaker. |
+| `6.3:21` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the discard and the Optional Attribute Error subcode are the consequence half of the same obligation, and the row states them | If an error is detected, the attribute MUST be discarded, and the Error Subcode MUST be set to Optional Attribute Error. |
+| `6.3:22` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the Data field clause belongs to the Optional Attribute Error obligation, and the row states it | The Data field MUST contain the attribute (type, length, and value). |
+| `7:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | the sentence binds the DESIGN of future BGP versions, not the behavior of a BGP-4 implementation: it tells whoever specifies BGP-5 to keep the OPEN and NOTIFICATION formats. No code ze runs can conform to it or violate it, because the obligation is discharged by a future document rather than by a speaker on the wire | In order to support BGP version negotiation, future versions of BGP MUST retain the format of the OPEN and NOTIFICATION messages. |
+| `9:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | running the Decision Process is the second half of the withdrawal obligation, and the row states both halves | This BGP speaker SHALL run its Decision Process because the previously advertised route is no longer available for use. |
+| `9.1.4:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the next sentence defines the act: 'That is, the NLRI of this route cannot be more specific.' That is the Section 5.1.6 prohibition on making the NLRI of an ATOMIC_AGGREGATE route more specific, restated where overlapping routes are discussed | In particular, a route that carries the ATOMIC_AGGREGATE attribute MUST NOT be de-aggregated. |
+| `9.2.2.2:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the EGP arm is the second clause of the aggregated ORIGIN rule, and the row states both arms | Otherwise, if at least one route among routes that are aggregated has ORIGIN with the value EGP, then the aggregated route MUST have the ORIGIN attribute with the value EGP. |
+| `9.2.2.2:5` | `feature-out-of-scope` (never bound Ze): the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it | the obligation is conditional on aggregating, and ze performs no route aggregation (the scope decision recorded in the Support remaining row of rfc/short/rfc4271.md). The RFC makes the choice the speaker's: "If a BGP speaker chooses to aggregate, then it SHOULD either include" | If the routes to be aggregated have different AS_PATH attributes, then the aggregated AS_PATH attribute SHALL satisfy all of the following conditions: |
+| `9.2.2.2:6` | `feature-out-of-scope` (never bound Ze): the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it | an AS_SEQUENCE condition on an aggregated AS_PATH ze never builds, because ze performs no route aggregation. The RFC makes the choice the speaker's: "If a BGP speaker chooses to aggregate, then it SHOULD either include" | - all tuples of type AS_SEQUENCE in the aggregated AS_PATH SHALL appear in all of the AS_PATHs in the initial set of routes to be aggregated. |
+| `9.2.2.2:7` | `feature-out-of-scope` (never bound Ze): the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it | an AS_SET condition on an aggregated AS_PATH ze never builds, because ze performs no route aggregation. The RFC makes the choice the speaker's: "If a BGP speaker chooses to aggregate, then it SHOULD either include" | - all tuples of type AS_SET in the aggregated AS_PATH SHALL appear in at least one of the AS_PATHs in the initial set (they may appear as either AS_SET or AS_SEQUENCE types). |
+| `9.2.2.2:8` | `feature-out-of-scope` (never bound Ze): the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it | a duplicate-AS_SET condition on an aggregated AS_PATH ze never builds, because ze performs no route aggregation. The RFC makes the choice the speaker's: "If a BGP speaker chooses to aggregate, then it SHOULD either include" | - No tuple of type AS_SET with the same value SHALL appear more than once in the aggregated AS_PATH. |
+| `9.2.2.2:9` | `feature-out-of-scope` (never bound Ze): the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it | the conformance floor is an aggregation algorithm, and ze performs no route aggregation. The RFC makes the choice the speaker's: "If a BGP speaker chooses to aggregate, then it SHOULD either include" | At a minimum, a conformant implementation SHALL be able to perform the following algorithm that meets all of the above conditions: |
+| `E:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Appendix E restates the Security Considerations obligation to support the TCP MD5 option of RFC 2385 | An implementation MUST support the TCP MD5 option [RFC2385]. |
+| `F.6:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Appendix F.6 restates the same RFC 2385 authentication obligation as a change from RFC 1771 | A BGP implementation MUST support the authentication mechanism specified in RFC 2385 [RFC2385]. |
 
 ## Superseded
 

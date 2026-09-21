@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 1334 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 1334: PPP Authentication Protocols. 7 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 1334: PPP Authentication Protocols. 13 gated MUST-level requirements, 0 declared gaps, 6 with no test." />
         <meta property="og:title" content="RFC 1334 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 1334: PPP Authentication Protocols. 7 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 1334: PPP Authentication Protocols. 13 gated MUST-level requirements, 0 declared gaps, 6 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 1334 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 1334: PPP Authentication Protocols. 7 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 1334: PPP Authentication Protocols. 13 gated MUST-level requirements, 0 declared gaps, 6 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,22 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>71.4%</strong><b>5 of 7 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>14.3%</strong><b>1 of 7 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>38.5%</strong><b>5 of 13 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>7.7%</strong><b>1 of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 12 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>7</strong><b>of 10 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 7 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>14.3%</strong><b>1 of 7 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 7 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>13</strong><b>of 16 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 13 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>7.7%</strong><b>1 of 13 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>46.2%</strong><b>6 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -159,7 +163,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -199,10 +203,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>10</td>
+<td>16</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>7</td>
+<td>13</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>1</td>
@@ -211,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>6</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -269,7 +273,7 @@ Carries the L2TP and PPPoE Partial status.
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>6</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -280,12 +284,13 @@ Carries the L2TP and PPPoE Partial status.
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>7</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>13</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (5):</strong> <a href="#rfc1334-1-1"><code>RFC1334-1-1</code></a>, <a href="#rfc1334-x-1"><code>RFC1334-x-1</code></a>, <a href="#rfc1334-2.3-1"><code>RFC1334-2.3-1</code></a>, <a href="#rfc1334-2.3-2"><code>RFC1334-2.3-2</code></a>, <a href="#rfc1334-2.3-4"><code>RFC1334-2.3-4</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (2):</strong> <a href="#rfc1334-2.2-1"><code>RFC1334-2.2-1</code></a>, <a href="#rfc1334-2.3-3"><code>RFC1334-2.3-3</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (6):</strong> <a href="#rfc1334-2.2.1-1"><code>RFC1334-2.2.1-1</code></a>, <a href="#rfc1334-2.2.1-2"><code>RFC1334-2.2.1-2</code></a>, <a href="#rfc1334-2.2.1-3"><code>RFC1334-2.2.1-3</code></a>, <a href="#rfc1334-2.2.1-4"><code>RFC1334-2.2.1-4</code></a>, <a href="#rfc1334-2.2.1-5"><code>RFC1334-2.2.1-5</code></a>, <a href="#rfc1334-2.2.1-6"><code>RFC1334-2.2.1-6</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -326,6 +331,60 @@ Carries the L2TP and PPPoE Partial status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-2.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L407" title="internal/component/l2tp/ppp/pap_test.go" target="_blank" rel="noopener"><code>TestPAPRejectWritesNak</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L297" title="internal/component/l2tp/ppp/pap_test.go" target="_blank" rel="noopener"><code>TestPAPRequestEmitsEvent</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1334-2.2.1-1">RFC1334-2.2.1-1</code></td><td colspan="3"><span class="rfc-subject">The link peer MUST transmit a PAP packet with the Code field set to 1 (Authenticate-Request) during the Authentication phase (Section 2.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-2.2.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1334-2.2.1-2">RFC1334-2.2.1-2</code></td><td colspan="3"><span class="rfc-subject">The Authenticate-Request packet MUST be repeated until a valid reply packet is received, or an optional retry counter expires (Section 2.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-2.2.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1334-2.2.1-3">RFC1334-2.2.1-3</code></td><td colspan="3"><span class="rfc-subject">Upon reception of an Authenticate-Request packet, some type of Authenticate reply MUST be returned (Section 2.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-2.2.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1334-2.2.1-4">RFC1334-2.2.1-4</code></td><td colspan="3"><span class="rfc-subject">Because the Authenticate-Ack might be lost, the authenticator MUST allow repeated Authenticate-Request packets after completing the Authentication phase (Section 2.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-2.2.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1334-2.2.1-5">RFC1334-2.2.1-5</code></td><td colspan="3"><span class="rfc-subject">Any Authenticate-Request packets received during the Network-Layer Protocol phase MUST return the same reply Code returned when the Authentication phase completed (Section 2.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-2.2.1-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1334-2.2.1-6">RFC1334-2.2.1-6</code></td><td colspan="3"><span class="rfc-subject">Any Authenticate-Request packets received during any other phase MUST be silently discarded (Section 2.2.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.2.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC1334-2.2.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc1334-2.2-1">RFC1334-2.2-1</code></td><td colspan="3"><span class="rfc-subject">Identifier field must be changed each time an Authenticate-Request is issued (Section 2.2)</span></td></tr>
@@ -392,6 +451,30 @@ Carries the L2TP and PPPoE Partial status.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
+<tr><td><a href="#rfc1334-2.2.1-1"><code>RFC1334-2.2.1-1</code></a> The link peer MUST transmit a PAP packet with the Code field set to 1 (Authenticate-Request) during the Authentication phase (Section 2.2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc1334-2.2.1-2"><code>RFC1334-2.2.1-2</code></a> The Authenticate-Request packet MUST be repeated until a valid reply packet is received, or an optional retry counter expires (Section 2.2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc1334-2.2.1-3"><code>RFC1334-2.2.1-3</code></a> Upon reception of an Authenticate-Request packet, some type of Authenticate reply MUST be returned (Section 2.2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc1334-2.2.1-4"><code>RFC1334-2.2.1-4</code></a> Because the Authenticate-Ack might be lost, the authenticator MUST allow repeated Authenticate-Request packets after completing the Authentication phase (Section 2.2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc1334-2.2.1-5"><code>RFC1334-2.2.1-5</code></a> Any Authenticate-Request packets received during the Network-Layer Protocol phase MUST return the same reply Code returned when the Authentication phase completed (Section 2.2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc1334-2.2.1-6"><code>RFC1334-2.2.1-6</code></a> Any Authenticate-Request packets received during any other phase MUST be silently discarded (Section 2.2.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
 <tr><td><a href="#rfc1334-2.2-1"><code>RFC1334-2.2-1</code></a> Identifier field must be changed each time an Authenticate-Request is issued (Section 2.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze never issues a second PAP Authenticate-Request; the authenticator role only responds (internal/component/l2tp/ppp/pap.go:160) and the client issues exactly one request per session with a fixed Identifier and no reissue path (internal/component/l2tp/pppoeclient/session.go:230-241), so the change-Identifier-on-reissue obligation has no code path</td>
@@ -482,6 +565,30 @@ Carries the L2TP and PPPoE Partial status.
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc1334-2.2.1-1"><code>RFC1334-2.2.1-1</code></a></h3>
+<p>The link peer MUST transmit a PAP packet with the Code field set to 1 (Authenticate-Request) during the Authentication phase (Section 2.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC1334-2.2.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc1334-2.2.1-2"><code>RFC1334-2.2.1-2</code></a></h3>
+<p>The Authenticate-Request packet MUST be repeated until a valid reply packet is received, or an optional retry counter expires (Section 2.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC1334-2.2.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc1334-2.2.1-3"><code>RFC1334-2.2.1-3</code></a></h3>
+<p>Upon reception of an Authenticate-Request packet, some type of Authenticate reply MUST be returned (Section 2.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC1334-2.2.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc1334-2.2.1-4"><code>RFC1334-2.2.1-4</code></a></h3>
+<p>Because the Authenticate-Ack might be lost, the authenticator MUST allow repeated Authenticate-Request packets after completing the Authentication phase (Section 2.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC1334-2.2.1-4, so no unit is bound to it.</p>
+<h3><a href="#rfc1334-2.2.1-5"><code>RFC1334-2.2.1-5</code></a></h3>
+<p>Any Authenticate-Request packets received during the Network-Layer Protocol phase MUST return the same reply Code returned when the Authentication phase completed (Section 2.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC1334-2.2.1-5, so no unit is bound to it.</p>
+<h3><a href="#rfc1334-2.2.1-6"><code>RFC1334-2.2.1-6</code></a></h3>
+<p>Any Authenticate-Request packets received during any other phase MUST be silently discarded (Section 2.2.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC1334-2.2.1-6, so no unit is bound to it.</p>
 <h3><a href="#rfc1334-2.2-1"><code>RFC1334-2.2-1</code></a></h3>
 <p>Identifier field must be changed each time an Authenticate-Request is issued (Section 2.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -528,7 +635,233 @@ Carries the L2TP and PPPoE Partial status.
 </div>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 1334, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc1334.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>34483221567656af</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc1334.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>13</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>18</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.2.1</code></td>
+<td>not stated</td>
+<td>7</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.2.2</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2.1</code></td>
+<td>not stated</td>
+<td>10</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2.2</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>1.1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Section 1.1 &#39;Specification Requirements&#39; defines the keywords themselves; this sentence is part of the definition of MAY/&#39;optional&#39; and states no PAP or CHAP behaviour.</td>
+<td>MUST This word, or the adjective &#34;required&#34;, means that the definition is an absolute requirement of the specification.</td>
+</tr>
+<tr><td><code>1.1:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Section 1.1 &#39;Specification Requirements&#39; defines the keywords themselves; this sentence is part of the definition of MAY/&#39;optional&#39; and states no PAP or CHAP behaviour.</td>
+<td>MUST NOT This phrase means that the definition is an absolute prohibition of the specification.</td>
+</tr>
+<tr><td><code>1.1:3</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Section 1.1 &#39;Specification Requirements&#39; defines the keywords themselves; this sentence is part of the definition of MAY/&#39;optional&#39; and states no PAP or CHAP behaviour.</td>
+<td>An implementation which does not include this option MUST be prepared to interoperate with another implementation which does include the option.</td>
+</tr>
+<tr><td><code>3:1</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1994 carries &#39;Obsoletes: 1334&#39; in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion (&#39;RFC 1994 for CHAP only -- PAP remains defined here&#39;). The CHAP obligation is owed under rfc/short/rfc1994.md, not here.</td>
+<td>The CHAP algorithm requires that the length of the secret MUST be at least 1 octet.</td>
+</tr>
+<tr><td><code>3.2.1:1</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1994 carries &#39;Obsoletes: 1334&#39; in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion (&#39;RFC 1994 for CHAP only -- PAP remains defined here&#39;). The CHAP obligation is owed under rfc/short/rfc1994.md, not here.</td>
+<td>The authenticator MUST transmit a CHAP packet with the Code field set to 1 (Challenge).</td>
+</tr>
+<tr><td><code>3.2.1:2</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1994 carries &#39;Obsoletes: 1334&#39; in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion (&#39;RFC 1994 for CHAP only -- PAP remains defined here&#39;). The CHAP obligation is owed under rfc/short/rfc1994.md, not here.</td>
+<td>Additional Challenge packets MUST be sent until a valid Response packet is received, or an optional retry counter expires.</td>
+</tr>
+<tr><td><code>3.2.1:3</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1994 carries &#39;Obsoletes: 1334&#39; in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion (&#39;RFC 1994 for CHAP only -- PAP remains defined here&#39;). The CHAP obligation is owed under rfc/short/rfc1994.md, not here.</td>
+<td>Whenever a Challenge packet is received, the peer MUST transmit a CHAP packet with the Code field set to 2 (Response).</td>
+</tr>
+<tr><td><code>3.2.1:4</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1994 carries &#39;Obsoletes: 1334&#39; in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion (&#39;RFC 1994 for CHAP only -- PAP remains defined here&#39;). The CHAP obligation is owed under rfc/short/rfc1994.md, not here.</td>
+<td>Based on this comparison, the authenticator MUST send a Success or Failure packet (described below).</td>
+</tr>
+<tr><td><code>3.2.1:5</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1994 carries &#39;Obsoletes: 1334&#39; in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion (&#39;RFC 1994 for CHAP only -- PAP remains defined here&#39;). The CHAP obligation is owed under rfc/short/rfc1994.md, not here.</td>
+<td>Implementation Note: Because the Success might be lost, the authenticator MUST allow repeated Response packets after completing the Authentication phase.</td>
+</tr>
+<tr><td><code>3.2.1:6</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1994 carries &#39;Obsoletes: 1334&#39; in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion (&#39;RFC 1994 for CHAP only -- PAP remains defined here&#39;). The CHAP obligation is owed under rfc/short/rfc1994.md, not here.</td>
+<td>To prevent discovery of alternative Names and Secrets, any Response packets received having the current Challenge Identifier MUST return the same reply Code returned when the Authentication phase completed (the message portion MAY be different).</td>
+</tr>
+<tr><td><code>3.2.1:7</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1994 carries &#39;Obsoletes: 1334&#39; in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion (&#39;RFC 1994 for CHAP only -- PAP remains defined here&#39;). The CHAP obligation is owed under rfc/short/rfc1994.md, not here.</td>
+<td>Any Response packets received during any other phase MUST be silently discarded.</td>
+</tr>
+<tr><td><code>3.2.1:8</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1994 carries &#39;Obsoletes: 1334&#39; in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion (&#39;RFC 1994 for CHAP only -- PAP remains defined here&#39;). The CHAP obligation is owed under rfc/short/rfc1994.md, not here.</td>
+<td>The Identifier field MUST be changed each time a Challenge is sent.</td>
+</tr>
+<tr><td><code>3.2.1:9</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1994 carries &#39;Obsoletes: 1334&#39; in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion (&#39;RFC 1994 for CHAP only -- PAP remains defined here&#39;). The CHAP obligation is owed under rfc/short/rfc1994.md, not here.</td>
+<td>The Response Identifier MUST be copied from the Identifier field of the Challenge which caused the Response.</td>
+</tr>
+<tr><td><code>3.2.1:10</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1994 carries &#39;Obsoletes: 1334&#39; in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion (&#39;RFC 1994 for CHAP only -- PAP remains defined here&#39;). The CHAP obligation is owed under rfc/short/rfc1994.md, not here.</td>
+<td>The Challenge Value MUST be changed each time a Challenge is sent.</td>
+</tr>
+<tr><td><code>3.2.2:1</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1994 carries &#39;Obsoletes: 1334&#39; in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion (&#39;RFC 1994 for CHAP only -- PAP remains defined here&#39;). The CHAP obligation is owed under rfc/short/rfc1994.md, not here.</td>
+<td>If the Value received in a Response is equal to the expected value, then the implementation MUST transmit a CHAP packet with the Code field set to 3 (Success).</td>
+</tr>
+<tr><td><code>3.2.2:2</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1994 carries &#39;Obsoletes: 1334&#39; in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion (&#39;RFC 1994 for CHAP only -- PAP remains defined here&#39;). The CHAP obligation is owed under rfc/short/rfc1994.md, not here.</td>
+<td>If the Value received in a Response is not equal to the expected value, then the implementation MUST transmit a CHAP packet with the Code field set to 4 (Failure), and SHOULD take action to terminate the link.</td>
+</tr>
+<tr><td><code>3.2.2:3</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1994 carries &#39;Obsoletes: 1334&#39; in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion (&#39;RFC 1994 for CHAP only -- PAP remains defined here&#39;). The CHAP obligation is owed under rfc/short/rfc1994.md, not here.</td>
+<td>The Identifier field MUST be copied from the Identifier field of the Response which caused this reply.</td>
+</tr>
+<tr><td><code>3.2.2:4</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1994 carries &#39;Obsoletes: 1334&#39; in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion (&#39;RFC 1994 for CHAP only -- PAP remains defined here&#39;). The CHAP obligation is owed under rfc/short/rfc1994.md, not here.</td>
+<td>It is intended to be human readable, and MUST NOT affect operation of the protocol.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>RFC 1334 is obsoleted by RFC 1994.</p>
@@ -619,7 +952,7 @@ Carries the L2TP and PPPoE Partial status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

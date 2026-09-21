@@ -225,7 +225,42 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 5304, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc5304.txt |
+| Source fingerprint | 125142e8956ce6f3 |
+| Record | rfc/extraction/rfc5304.json |
+| Mapped sentences | 9 |
+| Declined as scope | 0 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 9 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `3.4` | not stated | 0 | walked | not stated |
+| `3.5` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+The walk over RFC 5304 declined no sentence: every site it found is mapped to a requirement.
 
 ## Superseded
 

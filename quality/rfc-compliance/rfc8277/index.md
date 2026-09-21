@@ -488,7 +488,52 @@ No test carries RFC8277-3.2.2-2, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 8277, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc8277.txt |
+| Source fingerprint | 570bb26257004cc5 |
+| Record | rfc/extraction/rfc8277.json |
+| Mapped sentences | 33 |
+| Declined as scope | 4 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 2 | walked | not stated |
+| `2.1` | not stated | 17 | walked | not stated |
+| `2.2` | not stated | 2 | walked | not stated |
+| `2.3` | not stated | 3 | walked | not stated |
+| `2.4` | not stated | 2 | walked | not stated |
+| `2.5` | not stated | 3 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 1 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.2.1` | not stated | 4 | walked | not stated |
+| `3.2.2` | not stated | 3 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The Section 2 overview bullet announcing the Section 2.3 encoding rule that Section 2.1 states in full; site 2.1:13 carries it. The bullet's other half, "MAY bind a prefix to a sequence of more than one label", is the permission the same row's condition already grants. | o If this Capability is sent by both BGP speakers on a given session, an UPDATE message on that session, from either speaker, MUST use the encoding of Section 2.3 and MAY bind a prefix to a sequence of more than one label. |
+| `2.3:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The Section 2.3 Rsrv paragraph repeats the Section 2.2 sentence word for word ("This 3-bit field SHOULD be set to zero on transmission and MUST be ignored on reception"); row RFC8277-2.2-3 cites both sections. | This 3-bit field SHOULD be set to zero on transmission and MUST be ignored on reception. |
+| `2.4:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The section 2.4 summary sentence restates the reception obligation site 2.4:1 states on its own ("Upon reception, the value of the Compatibility field MUST be ignored."), which maps RFC8277-2.4-1. Its RECOMMENDED half is row RFC8277-2.4-2 and is advisory. | In order to ensure backwards compatibility, it is RECOMMENDED by this document that the Compatibility field be set to 0x800000, but it is REQUIRED that it be ignored upon reception. |
+| `3.2.2:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 3.2.2 repeats the Section 3.2.1 withdrawal rule for the changed-next-hop case ("that route MUST be withdrawn from that peer using the procedure of Section 2.4"); row RFC8277-3.2.1-4 cites both sections. | In that case, if a previous route with the same AFI, SAFI, and prefix (but with fewer labels) has already been propagated to that peer, that route MUST be withdrawn from that peer using the procedure of Section 2.4. |
 
 ## Superseded
 

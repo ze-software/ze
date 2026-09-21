@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 16.7% | 2 of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 50.0% | 6 of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 13.3% | 2 of 15 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 40.0% | 6 of 15 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 15 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 0.0% | 0 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 12 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 12 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 12 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 12 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 12 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 15 | of 19 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 15 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 15 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 15 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 15 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 33.3% | 4 of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 46.7% | 7 of 15 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 16 |
-| Gated MUST-level | 12 |
+| Requirements | 19 |
+| Gated MUST-level | 15 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 4 |
-| Gated with no test | 0 |
+| Gated with no test | 3 |
 | Nightly-only evidence | 0 |
 | Test tags | 12 |
 | Tagged units | 12 |
@@ -98,14 +98,16 @@ Four Section 6 validation MUSTs unmet (same root cause as RFC8956-5-1): 6-1 no e
 | Positive and negative tests | 2 | one part of the gated population |
 | Annotated instead of tested | 10 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 3 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **12** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **15** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (2):** [`RFC5575-4-3`](#rfc5575-4-3), [`RFC5575-4-4`](#rfc5575-4-4)
 
 **Annotated instead of tested (10):** [`RFC5575-4-1`](#rfc5575-4-1), [`RFC5575-4-2`](#rfc5575-4-2), [`RFC5575-6-1`](#rfc5575-6-1), [`RFC5575-6-2`](#rfc5575-6-2), [`RFC5575-6-3`](#rfc5575-6-3), [`RFC5575-6-4`](#rfc5575-6-4), [`RFC5575-4-5`](#rfc5575-4-5), [`RFC5575-4-6`](#rfc5575-4-6), [`RFC5575-4-7`](#rfc5575-4-7), [`RFC5575-7-1`](#rfc5575-7-1)
+
+**No test and no annotation (3):** [`RFC5575-4-8`](#rfc5575-4-8), [`RFC5575-5.1-1`](#rfc5575-5.1-1), [`RFC5575-8-1`](#rfc5575-8-1)
 
 ## Requirements
 
@@ -123,6 +125,9 @@ Four Section 6 validation MUSTs unmet (same root cause as RFC8956-5-1): 6-1 no e
 | `RFC5575-4-6` | Reserved bits in bitmask operator format (bits 4-5) must be 0 (§4, Bitmask Operator) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecBitmaskOperatorReservedBitsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1449). **negative:** no negative test. **{single-polarity}:** bitmask components encode through the same operator builder using only match/not plus the len field, so reserved bits 4-5 are never set on encode (internal/component/bgp/plugins/nlri/flowspec/types_numeric.go:247-257) |
 | `RFC5575-4-7` | Reserved bits in Fragment bitmask (bits 0-3) must be zero (§4, Type 12) | MUST | 4 | **positive:** `unit/verify` [`TestFlowSpecFragmentReservedHighNibbleZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1478). **negative:** no negative test. **{single-polarity}:** the Fragment value is assembled from the four low-nibble flag constants, so the reserved high-nibble bits are never set on encode (internal/component/bgp/plugins/nlri/flowspec/types.go:201-206) |
 | `RFC5575-7-1` | Reserved bytes in Traffic-Marking extended community (bytes 2-6) must be zero (§7) | MUST | 7 | **positive:** `unit/verify` [`TestFlowSpecTrafficMarkingReservedBytesZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1510). **negative:** no negative test. **{single-polarity}:** the traffic-marking community is emitted with literal zero reserved bytes and only the trailing DSCP octet varies (internal/component/bgp/plugins/nlri/flowspec/encode.go:124-127) |
+| `RFC5575-4-8` | "Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt" (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5575-5.1-1` | "This ordering function must be such that it must not depend on the arrival order of the flow specification's rules and must be constant in the network" (§5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5575-8-1` | "The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification" (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5575-3-1` | Standard BGP policy mechanisms (UPDATE filtering by NLRI prefix and community matching) SHOULD apply to flow specification NLRI (§3) | SHOULD | 3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5575-9-1` | Implementations SHOULD provide a mechanism to log the packet header of filtered traffic (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5575-9-2` | Implementations SHOULD provide a mechanism to count the number of matches for a given flow specification rule (§9) | SHOULD | 9 | **positive:** no positive test. **negative:** no negative test |
@@ -136,6 +141,9 @@ Four Section 6 validation MUSTs unmet (same root cause as RFC8956-5-1): 6-1 no e
 | [`RFC5575-6-2`](#rfc5575-6-2) Flow specification MUST be validated against unicast routing (feasibility check) (§6) | {gap}, no test | ze decodes a received flowspec NLRI and lowers it to the firewall with no feasibility validation against the unicast RIB, the same absence disclosed for RFC8956-5-1 (internal/component/bgp/plugins/nlri/flowspec/types.go:351, internal/plugins/flowspec-firewall/translate.go:166) |
 | [`RFC5575-6-3`](#rfc5575-6-3) Originator matching MUST be performed: the originator of the flow spec must match the originator of the best-match unicast route for the destination prefix (§6) | {gap}, no test | no code compares a flowspec's originator against the best-match unicast route's originator; this is part of the absent Section 6 validation procedure (internal/component/bgp/plugins/nlri/flowspec/) |
 | [`RFC5575-6-4`](#rfc5575-6-4) There must be no more-specific unicast routes from a different neighboring AS than the best-match route (§6) | {gap}, no test | no code walks more-specific unicast routes to compare neighboring AS, because the Section 6 validation procedure is unimplemented (internal/component/bgp/plugins/nlri/flowspec/) |
+| [`RFC5575-4-8`](#rfc5575-4-8) "Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt" (§4) | no test | no test carries this requirement id |
+| [`RFC5575-5.1-1`](#rfc5575-5.1-1) "This ordering function must be such that it must not depend on the arrival order of the flow specification's rules and must be constant in the network" (§5.1) | no test | no test carries this requirement id |
+| [`RFC5575-8-1`](#rfc5575-8-1) "The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification" (§8) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -257,9 +265,77 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | positive | [`TestFlowSpecTrafficMarkingReservedBytesZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1510) | unit/verify | unproven |
 
+### [`RFC5575-4-8`](#rfc5575-4-8)
+
+"Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt" (§4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC5575-4-8, so no unit is bound to it.
+
+### [`RFC5575-5.1-1`](#rfc5575-5.1-1)
+
+"This ordering function must be such that it must not depend on the arrival order of the flow specification's rules and must be constant in the network" (§5.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC5575-5.1-1, so no unit is bound to it.
+
+### [`RFC5575-8-1`](#rfc5575-8-1)
+
+"The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification" (§8)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC5575-8-1, so no unit is bound to it.
+
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 5575, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc5575.txt |
+| Source fingerprint | f57a08b1d5469245 |
+| Record | rfc/extraction/rfc5575.json |
+| Mapped sentences | 9 |
+| Declined as scope | 8 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 1 | walked | not stated |
+| `1` | not stated | 3 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `4` | not stated | 5 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 1 | walked | not stated |
+| `6` | not stated | 3 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 1 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `11` | not stated | 3 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `13` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Abstract prose describing what the document defines; the lowercase 'required' is part of the phrase 'such as what is required in order to mitigate (distributed) denial-of-service attacks', not an obligation on an implementation. | Additionally, it defines two applications of that encoding format: one that can be used to automate inter-domain coordination of traffic filtering, such as what is required in order to mitigate (distributed) denial-of-service attacks, and a second application to provide traffic filtering in the context of a BGP/MPLS VPN service. |
+| `1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Introduction prose stating the document's own scope ('we define the required mechanisms'); no obligation on an implementation. | Additionally, we define the required mechanisms to utilize this definition to the problem of immediate concern to the authors: intra- and inter-provider distribution of traffic filtering rules to filter (distributed) denial-of-service (DoS) attacks. |
+| `1:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Introduction sentence heading a descriptive list of technology components; 'required to address the class of problems' describes the problem space, not an implementation obligation. | The key technology components required to address the class of problems targeted by this document are: |
+| `1:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Introduction prose stating the document's own scope ('defines required protocol extensions'); the obligations themselves are in Sections 4, 6 and 7. | This specification defines required protocol extensions to address most common applications of IPv4 unicast and VPNv4 unicast filtering. |
+| `6:1` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The obligation to run path selection is RFC 4271's, which the same paragraph cites: 'The first step of the BGP Route Selection procedure (Section 9.1.2 of [RFC4271])'. This sentence only states that flow specification routes are not exempt from it. | Although the forwarding attributes of two routes for the same flow specification prefix may be the same, BGP is still required to perform its path selection algorithm in order to select the correct set of attributes to advertise. |
+| `11:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | IANA Considerations: the sentence directs IANA in its administration of the 'Flow Spec Component Types' registry ('Types must be assigned and interpreted uniquely'). The producer is IANA, and Ze holds no code for that role and could hold none: it consumes code points and operates no code-point registry. | Types must be assigned and interpreted uniquely. |
+| `11:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | An IANA allocation-policy table (Invalid value / Defined by this specification / Specification Required / First Come First Served), not a sentence stating an obligation on a BGP speaker. | +--------------+-------------------------------+ \| Range \| Policy \| +--------------+-------------------------------+ \| 0 \| Invalid value \| \| [1 .. 12] \| Defined by this specification \| \| [13 .. 127] \| Specification Required \| \| [128 .. 255] \| First Come First Served \| +--------------+-------------------------------+ |
+| `11:3` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | IANA Considerations: the sentence states what a registering document must say, so the producer is the author of a future specification registering a flow component type under the 'Specification Required' policy. Ze holds no code for that role: it registers no new component type and publishes no such specification. | The specification of a particular "flow component type" must clearly identify what the criteria used to match packets forwarded by the router is. |
 
 ## Superseded
 

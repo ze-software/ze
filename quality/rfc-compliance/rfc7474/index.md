@@ -10,10 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 70.0% | 7 of 10 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 30.0% | 3 of 10 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 10 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 10 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Tested both ways | 58.3% | 7 of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 25.0% | 3 of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 10.5% | 2 of 19 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -22,13 +21,21 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 10 | of 14 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 10 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 10 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 10 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 10 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 12 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 12 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 12 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 12 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 12 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| No test at all | 16.7% | 2 of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+
+The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -39,7 +46,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -52,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Experimental |
 | Enrolment | Enrolled |
-| Requirements | 14 |
-| Gated MUST-level | 10 |
+| Requirements | 16 |
+| Gated MUST-level | 12 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
-| Gated with no test | 0 |
+| Gated with no test | 2 |
 | Nightly-only evidence | 0 |
 | Test tags | 20 |
 | Tagged units | 19 |
@@ -68,7 +75,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: OSPFv2 manual-key security extension (AuType 3 extended 64-bit crypto sequence): 10 MUSTs, 7 met + 3 single-polarity, wired end-to-end
+Enrolled: OSPFv2 manual-key security extension (AuType 3 extended 64-bit crypto sequence): 12 MUSTs after the 2026-09-21 extraction walk. 10 are wired end-to-end, 7 with both polarities and 3 single-polarity. The walk added 2 with no test and no annotation: RFC7474-6-2 (Ko is padded with zeros to the length of Ipad or Opad before the XOR, §6) and RFC7474-8-1 (the authentication keys are changed when non-volatile storage loses its contents or the router is replaced, §8).
 
 ## What the public ledger says
 
@@ -78,9 +85,9 @@ Enrolled: OSPFv2 manual-key security extension (AuType 3 extended 64-bit crypto 
 
 Cryptographic authentication with per-packet-type replay protection (RFC 7474 defines no OSPFv2 authentication trailer; that construct is OSPFv3/RFC 7166).
 
-**What the ledger says remains:**
+**What the ledger says remains**
 
-Same OSPF experimental status.
+Same OSPF experimental status. Two MUST rows the 2026-09-21 extraction walk added carry no test: [`RFC7474-6-2`](#rfc7474-6-2) (zero-pad Ko to the Ipad/Opad length, §6) and [`RFC7474-8-1`](#rfc7474-8-1) (change the keys after non-volatile storage is lost or the router is replaced, §8).
 
 ## Coverage
 
@@ -89,14 +96,16 @@ Same OSPF experimental status.
 | Positive and negative tests | 7 | one part of the gated population |
 | Annotated instead of tested | 3 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 2 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **10** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **12** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (7):** [`RFC7474-2-1`](#rfc7474-2-1), [`RFC7474-2-5`](#rfc7474-2-5), [`RFC7474-2-6`](#rfc7474-2-6), [`RFC7474-3-1`](#rfc7474-3-1), [`RFC7474-5-1`](#rfc7474-5-1), [`RFC7474-5-2`](#rfc7474-5-2), [`RFC7474-6-1`](#rfc7474-6-1)
 
 **Annotated instead of tested (3):** [`RFC7474-2-2`](#rfc7474-2-2), [`RFC7474-2-3`](#rfc7474-2-3), [`RFC7474-2-4`](#rfc7474-2-4)
+
+**No test and no annotation (2):** [`RFC7474-6-2`](#rfc7474-6-2), [`RFC7474-8-1`](#rfc7474-8-1)
 
 ## Requirements
 
@@ -112,6 +121,8 @@ Same OSPF experimental status.
 | `RFC7474-5-1` | Include the 64-bit sequence number in the First-Hash along with the Authentication Trailer and OSPF packet (§5) | MUST | 5 | **positive:** `unit/verify` [`TestOSPFAuthType3SequenceTrailer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L173). **negative:** `unit/verify` [`TestOSPFAuthType3SequenceTamperRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L284) |
 | `RFC7474-5-2` | Initialize the first 4 octets of `Apad` to the packet's IP source address (send and receive), remainder 0x878FE1F3 (§5) | MUST | 5 | **positive:** `unit/verify` [`TestOSPFAuthType3SourceBinding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L197). **negative:** `unit/verify` [`TestOSPFAuthType3SourceBinding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L193) |
 | `RFC7474-6-1` | Append the two-octet OSPFv2 Cryptographic Protocol ID to the authentication key prior to use, to block cross-protocol replay (§6) | MUST | 6 | **positive:** `unit/verify` [`TestOSPFAuthType3SequenceTrailer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L174). **negative:** `unit/verify` [`TestOSPFAuthType3RequiresProtocolIDSuffix`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L320) |
+| `RFC7474-6-2` | When XORing Ko and Ipad of Opad, Ko MUST be padded with zeros to the length of Ipad or Opad (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7474-8-1` | If the non-volatile storage is ever repaired or upgraded such that the contents are lost or the OSPFv2 router is replaced, the authentication keys MUST be changed to prevent replay attacks (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7474-4-1` | On receive, use a key only while "the key validity interval as defined by AcceptLifetimeStart and AcceptLifetimeEnd" includes the current time (§4) | SHOULD | 4 | **positive:** `unit/verify` [`TestVerifyRejectsOutsideAcceptLifetime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L449). **negative:** `unit/verify` [`TestVerifyRejectsOutsideAcceptLifetime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L443) |
 | `RFC7474-4.1-1` | On send, when multiple keys match, select the key with the most recent SendLifetimeStart to enable graceful rollover (§4.1) | SHOULD | 4.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7474-2-7` | Maintain a separate OSPF boot count in non-volatile storage (decouples SNMP and OSPF reinitialization) (§2) | RECOMMENDED | 2 | **positive:** no positive test. **negative:** no negative test |
@@ -119,7 +130,10 @@ Same OSPF experimental status.
 
 ## Gaps and untested MUSTs
 
-RFC 7474 declares no gap, and every gated MUST it carries has a test bound to it.
+| Requirement | State | Reason |
+|---|---|---|
+| [`RFC7474-6-2`](#rfc7474-6-2) When XORing Ko and Ipad of Opad, Ko MUST be padded with zeros to the length of Ipad or Opad (§6) | no test | no test carries this requirement id |
+| [`RFC7474-8-1`](#rfc7474-8-1) If the non-volatile storage is ever repaired or upgraded such that the contents are lost or the OSPFv2 router is replaced, the authentication keys MUST be changed to prevent replay attacks (§8) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -232,6 +246,22 @@ Audit verdict: not audited: no reader has judged these tests
 | negative | [`TestOSPFAuthType3RequiresProtocolIDSuffix`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L320) | unit/verify | unproven |
 | positive | [`TestOSPFAuthType3SequenceTrailer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L174) | unit/verify | unproven |
 
+### [`RFC7474-6-2`](#rfc7474-6-2)
+
+When XORing Ko and Ipad of Opad, Ko MUST be padded with zeros to the length of Ipad or Opad (§6)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7474-6-2, so no unit is bound to it.
+
+### [`RFC7474-8-1`](#rfc7474-8-1)
+
+If the non-volatile storage is ever repaired or upgraded such that the contents are lost or the OSPFv2 router is replaced, the authentication keys MUST be changed to prevent replay attacks (§8)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7474-8-1, so no unit is bound to it.
+
 ### [`RFC7474-4-1`](#rfc7474-4-1)
 
 On receive, use a key only while "the key validity interval as defined by AcceptLifetimeStart and AcceptLifetimeEnd" includes the current time (§4)
@@ -245,7 +275,54 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 7474, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc7474.txt |
+| Source fingerprint | c360bb0c18ef9cb4 |
+| Record | rfc/extraction/rfc7474.json |
+| Mapped sentences | 8 |
+| Declined as scope | 9 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 1 | walked | not stated |
+| `1` | not stated | 2 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 5 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `4` | not stated | 2 | walked | not stated |
+| `4.1` | not stated | 2 | walked | not stated |
+| `4.2` | not stated | 0 | walked | not stated |
+| `4.3` | not stated | 0 | walked | not stated |
+| `5` | not stated | 3 | walked | not stated |
+| `6` | not stated | 1 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 1 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `10.1` | not stated | 0 | walked | not stated |
+| `10.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF Trust Legal Provisions boilerplate in the front matter. It binds the extractor of code components to a licence text and carries no protocol obligation. | Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License. |
+| `1:1` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The sentence quotes RFC 2328, which it cites: the keyed MD5 obligation belongs to RFC 2328 Appendix D. RFC 7474 reports it as background for the replay problem it goes on to fix. | [RFC2328] states that implementations MUST offer keyed MD5 authentication. |
+| `1:2` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The algorithm requirement belongs to RFC 6094, which the sentence cites; RFC 7474 only predicts that MD5 will be deprecated in favour of the RFC 5709 algorithms. | It is likely that this will be deprecated in favor of the stronger algorithms described in [RFC5709] and required in [RFC6094]. |
+| `2:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates in lowercase the boot-count mechanism of the MUST at site 2:5. The same section says of that MUST: 'This is achieved by maintaining a boot count in non-volatile storage and incrementing it each time the OSPF router loses its prior sequence number state.' | OSPFv2 implementations are required to retain the boot count in non-volatile storage for the deployment life of the OSPF router. |
+| `4:1` | `advisory-in-context` (never bound Ze): the sentence advises on applying a rule stated elsewhere and adds no obligation of its own | The send-lifetime bullet sits inside the advisory list opened by 'Generally, a key used for OSPFv2 packet authentication should satisfy the following requirements:'. The enclosing construction is a SHOULD, and the receive half of the same list is recorded as RFC7474-4-1. | o For packet transmission, the key validity interval as defined by SendLifetimeStart and SendLifetimeEnd must include the current time. |
+| `4.1:1` | `advisory-in-context` (never bound Ze): the sentence advises on applying a rule stated elsewhere and adds no obligation of its own | A lead-in to the virtual-link key-selection list, which the same paragraph opens as 'Hence, the key should satisfy the following requirements:'. The obligation is carried by that SHOULD list, whose Peers-field bullet names the transit area ID and the virtual endpoint's router ID. | When R1 and R2 are connected to a virtual link, the Peers field must identify the virtual endpoint rather than the virtual link. |
+| `4.1:2` | `advisory-in-context` (never bound Ze): the sentence advises on applying a rule stated elsewhere and adds no obligation of its own | The second half of the same lead-in, inside the same construction: 'Hence, the key should satisfy the following requirements:'. The transit area ID requirement is stated by the Peers-field bullet of that SHOULD list. | Since there may be virtual links to the same router, the transit area ID must be part of the identifier. |
+| `5:1` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The computation obligation belongs to RFC 5709 Section 3.3, which the sentence cites. RFC 7474 changes only what this section then lists: the 64-bit sequence number in the First-Hash and the Apad value. | RFC 5709, Section 3.3 describes how the cryptographic authentication must be computed. |
+| `5:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The receive-side half of the Apad initialization the send-side sentence at site 5:2 already states. RFC7474-5-2 declares one obligation for both directions: initialize the first 4 octets of Apad to the packet's IP source address on send and on receive. | When an OSPF packet is received, implementations MUST initialize the first 4 octets of Apad to the IP source address from the IP header of the incoming OSPFv2 packet. |
 
 ## Superseded
 

@@ -160,7 +160,48 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 3787, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc3787.txt |
+| Source fingerprint | b5160bf591e297a3 |
+| Record | rfc/extraction/rfc3787.json |
+| Mapped sentences | 5 |
+| Declined as scope | 0 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 1 | walked | not stated |
+| `3.2` | not stated | 1 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 1 | walked | not stated |
+| `5.1` | not stated | 0 | walked | not stated |
+| `5.2` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 1 | walked | not stated |
+| `10` | not stated | 1 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `12.1` | not stated | 0 | walked | not stated |
+| `12.2` | not stated | 0 | walked | not stated |
+| `13` | not stated | 0 | walked | not stated |
+| `14` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+The walk over RFC 3787 declined no sentence: every site it found is mapped to a requirement.
 
 ## Superseded
 

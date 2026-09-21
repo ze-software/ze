@@ -312,7 +312,44 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 5072, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc5072.txt |
+| Source fingerprint | b75abcda38d89696 |
+| Record | rfc/extraction/rfc5072.json |
+| Mapped sentences | 15 |
+| Declined as scope | 2 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 2 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 15 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `4.1:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The sentence is the lead-in to the three enumerated responses that follow it; each response carries its own MUST and its own site (4.1:8 Ack, 4.1:9 Nak, 4.1:11 Reject), so the lead-in adds no obligation of its own. | Depending on the result of the comparison, an implementation MUST respond in one of the following ways: |
+| `4.1:10` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Word-for-word repeat of site 4.1:7, restated inside the Configure-Nak bullet; 4.1:7 already maps the u-bit obligation on a suggested identifier. | The "u" (universal/local) bit of the suggested identifier MUST be set to zero (0) regardless of its source unless the globally unique EUI-48/EUI-64 derived identifier is provided for the exclusive use by the remote peer. |
 
 ## Superseded
 

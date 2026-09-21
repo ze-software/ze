@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4271 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4271: A Border Gateway Protocol 4 (BGP-4). 101 gated MUST-level requirements, 15 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4271: A Border Gateway Protocol 4 (BGP-4). 125 gated MUST-level requirements, 15 declared gaps, 24 with no test." />
         <meta property="og:title" content="RFC 4271 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4271: A Border Gateway Protocol 4 (BGP-4). 101 gated MUST-level requirements, 15 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4271: A Border Gateway Protocol 4 (BGP-4). 125 gated MUST-level requirements, 15 declared gaps, 24 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4271 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4271: A Border Gateway Protocol 4 (BGP-4). 101 gated MUST-level requirements, 15 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4271: A Border Gateway Protocol 4 (BGP-4). 125 gated MUST-level requirements, 15 declared gaps, 24 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,26 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>75.2%</strong><b>76 of 101 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.0%</strong><b>3 of 101 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 101 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>60.8%</strong><b>76 of 125 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2.4%</strong><b>3 of 125 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 125 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>1.7%</strong><b>4 of 235 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>101</strong><b>of 135 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>7</strong><b>of 101 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>6.9%</strong><b>7 of 101 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 101 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 101 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>125</strong><b>of 159 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>7</strong><b>of 125 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>5.6%</strong><b>7 of 125 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 125 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 125 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>14.9%</strong><b>15 of 101 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>31.2%</strong><b>39 of 125 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 101 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 125 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -203,10 +203,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>135</td>
+<td>159</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>101</td>
+<td>125</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>7</td>
@@ -215,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>15</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>24</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -271,7 +271,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p class="rfc-prose"><strong>Next-hop resolvability:</strong> <a href="#rfc4271-3.1-2"><code>RFC4271-3.1-2</code></a>, 9.1.2-1, 9.1.2-4 and 9.1.2.1-2 (the decision process neither excludes an unresolvable NEXT_HOP nor re-runs on an IGP-cost change, and the Loc-RIB is not purged of unresolvable routes, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_commands.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rib/rib_commands.go</code></a>).</p>
 <p class="rfc-prose"><strong>Adj-RIB-Out:</strong> <a href="#rfc4271-9.2-2"><code>RFC4271-9.2-2</code></a> (no forwardability gate) and 9.2-3 (a route excluded by an egress filter is skipped without withdrawing the previous advertisement, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rs.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/forward_rs.go</code></a>).</p>
 <p class="rfc-prose"><strong>Timers:</strong> <a href="#rfc4271-9.2.1.1-2"><code>RFC4271-9.2.1.1-2</code></a> and 9.2.1.1-3 (no MinRouteAdvertisementIntervalTimer, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/fsm/timer.go" target="_blank" rel="noopener"><code>internal/component/bgp/fsm/timer.go</code></a>).</p>
-<p class="rfc-prose"><strong>Connections:</strong> <a href="#rfc4271-8.2.1-3"><code>RFC4271-8.2.1-3</code></a> (an inbound connection reuses the peer&#39;s session rather than getting its own FSM, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_connection.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/reactor_connection.go</code></a>). Seven further requirements are recorded {not-applicable}: ze performs no route aggregation and never disaggregates a received route.</p>
+<p class="rfc-prose"><strong>Connections:</strong> <a href="#rfc4271-8.2.1-3"><code>RFC4271-8.2.1-3</code></a> (an inbound connection reuses the peer&#39;s session rather than getting its own FSM, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_connection.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/reactor_connection.go</code></a>). Seven further requirements are recorded {not-applicable}: ze performs no route aggregation and never disaggregates a received route. The 2026-09-21 extraction walk added twenty-four rows this checklist had never carried, and none of them is tagged yet: the six OPEN Error Subcode rules of Section 6.2 (<a href="#rfc4271-6.2-5"><code>RFC4271-6.2-5</code></a> to 6.2-10), the fourteen UPDATE Error Subcode and Data-field rules of Section 6.3 (<a href="#rfc4271-6.3-4"><code>RFC4271-6.3-4</code></a> to 6.3-17), the Section 5 pass-along rule for an updated well-known attribute (<a href="#rfc4271-5-8"><code>RFC4271-5-8</code></a>), the Section 8.2.2 tracking of a second connection until it sends an OPEN (<a href="#rfc4271-8.2.2-19"><code>RFC4271-8.2.2-19</code></a>), the Section 9 placement of a new route in the Adj-RIB-In (<a href="#rfc4271-9-4"><code>RFC4271-9-4</code></a>) and the Section 10 jitter factor (<a href="#rfc4271-10-4"><code>RFC4271-10-4</code></a>). Whether ze produces each behavior is unassessed; the rows record the obligation, not a verdict.</p>
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -292,7 +292,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>24</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -303,12 +303,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>101</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>125</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (76):</strong> <a href="#rfc4271-4.1-1"><code>RFC4271-4.1-1</code></a>, <a href="#rfc4271-4.1-2"><code>RFC4271-4.1-2</code></a>, <a href="#rfc4271-4.1-3"><code>RFC4271-4.1-3</code></a>, <a href="#rfc4271-4.3-1"><code>RFC4271-4.3-1</code></a>, <a href="#rfc4271-4.3-2"><code>RFC4271-4.3-2</code></a>, <a href="#rfc4271-4.3-4"><code>RFC4271-4.3-4</code></a>, <a href="#rfc4271-4.4-1"><code>RFC4271-4.4-1</code></a>, <a href="#rfc4271-4.4-2"><code>RFC4271-4.4-2</code></a>, <a href="#rfc4271-6-1"><code>RFC4271-6-1</code></a>, <a href="#rfc4271-4.2-1"><code>RFC4271-4.2-1</code></a>, <a href="#rfc4271-4.2-2"><code>RFC4271-4.2-2</code></a>, <a href="#rfc4271-6.2-1"><code>RFC4271-6.2-1</code></a>, <a href="#rfc4271-6.2-2"><code>RFC4271-6.2-2</code></a>, <a href="#rfc4271-5-1"><code>RFC4271-5-1</code></a>, <a href="#rfc4271-5-2"><code>RFC4271-5-2</code></a>, <a href="#rfc4271-5-3"><code>RFC4271-5-3</code></a>, <a href="#rfc4271-5-4"><code>RFC4271-5-4</code></a>, <a href="#rfc4271-5-5"><code>RFC4271-5-5</code></a>, <a href="#rfc4271-5-6"><code>RFC4271-5-6</code></a>, <a href="#rfc4271-5.1.3-1"><code>RFC4271-5.1.3-1</code></a>, <a href="#rfc4271-5.1.3-2"><code>RFC4271-5.1.3-2</code></a>, <a href="#rfc4271-5.1.3-3"><code>RFC4271-5.1.3-3</code></a>, <a href="#rfc4271-5.1.4-1"><code>RFC4271-5.1.4-1</code></a>, <a href="#rfc4271-5.1.4-4"><code>RFC4271-5.1.4-4</code></a>, <a href="#rfc4271-5.1.4-2"><code>RFC4271-5.1.4-2</code></a>, <a href="#rfc4271-5.1.5-1"><code>RFC4271-5.1.5-1</code></a>, <a href="#rfc4271-5.1.5-2"><code>RFC4271-5.1.5-2</code></a>, <a href="#rfc4271-5.1.5-3"><code>RFC4271-5.1.5-3</code></a>, <a href="#rfc4271-5.1.5-4"><code>RFC4271-5.1.5-4</code></a>, <a href="#rfc4271-6.3-1"><code>RFC4271-6.3-1</code></a>, <a href="#rfc4271-6.7-1"><code>RFC4271-6.7-1</code></a>, <a href="#rfc4271-8.2.1-1"><code>RFC4271-8.2.1-1</code></a>, <a href="#rfc4271-8.2.1-2"><code>RFC4271-8.2.1-2</code></a>, <a href="#rfc4271-8.2.2-1"><code>RFC4271-8.2.2-1</code></a>, <a href="#rfc4271-8.2.2-2"><code>RFC4271-8.2.2-2</code></a>, <a href="#rfc4271-8.2.2-3"><code>RFC4271-8.2.2-3</code></a>, <a href="#rfc4271-8.2.2-4"><code>RFC4271-8.2.2-4</code></a>, <a href="#rfc4271-8.2.2-5"><code>RFC4271-8.2.2-5</code></a>, <a href="#rfc4271-8.2.2-7"><code>RFC4271-8.2.2-7</code></a>, <a href="#rfc4271-8.2.2-8"><code>RFC4271-8.2.2-8</code></a>, <a href="#rfc4271-8.2.2-9"><code>RFC4271-8.2.2-9</code></a>, <a href="#rfc4271-8.2.2-10"><code>RFC4271-8.2.2-10</code></a>, <a href="#rfc4271-8.2.2-11"><code>RFC4271-8.2.2-11</code></a>, <a href="#rfc4271-8.2.2-12"><code>RFC4271-8.2.2-12</code></a>, <a href="#rfc4271-8.2.2-13"><code>RFC4271-8.2.2-13</code></a>, <a href="#rfc4271-8.2.2-14"><code>RFC4271-8.2.2-14</code></a>, <a href="#rfc4271-8.2.2-15"><code>RFC4271-8.2.2-15</code></a>, <a href="#rfc4271-8.2.2-16"><code>RFC4271-8.2.2-16</code></a>, <a href="#rfc4271-8.2.2-17"><code>RFC4271-8.2.2-17</code></a>, <a href="#rfc4271-8.2.2-18"><code>RFC4271-8.2.2-18</code></a>, <a href="#rfc4271-10-1"><code>RFC4271-10-1</code></a>, <a href="#rfc4271-5.1.2-2"><code>RFC4271-5.1.2-2</code></a>, <a href="#rfc4271-5.1.2-3"><code>RFC4271-5.1.2-3</code></a>, <a href="#rfc4271-5.1.5-5"><code>RFC4271-5.1.5-5</code></a>, <a href="#rfc4271-6.7-4"><code>RFC4271-6.7-4</code></a>, <a href="#rfc4271-6.8-1"><code>RFC4271-6.8-1</code></a>, <a href="#rfc4271-6.8-2"><code>RFC4271-6.8-2</code></a>, <a href="#rfc4271-9-1"><code>RFC4271-9-1</code></a>, <a href="#rfc4271-9-2"><code>RFC4271-9-2</code></a>, <a href="#rfc4271-9-3"><code>RFC4271-9-3</code></a>, <a href="#rfc4271-9.1.1-1"><code>RFC4271-9.1.1-1</code></a>, <a href="#rfc4271-9.1.1-2"><code>RFC4271-9.1.1-2</code></a>, <a href="#rfc4271-9.1.2-2"><code>RFC4271-9.1.2-2</code></a>, <a href="#rfc4271-9.1.2-3"><code>RFC4271-9.1.2-3</code></a>, <a href="#rfc4271-9.1.2.1-1"><code>RFC4271-9.1.2.1-1</code></a>, <a href="#rfc4271-9.1.2.2-1"><code>RFC4271-9.1.2.2-1</code></a>, <a href="#rfc4271-9.1.2.2-3"><code>RFC4271-9.1.2.2-3</code></a>, <a href="#rfc4271-9.1.2.2-4"><code>RFC4271-9.1.2.2-4</code></a>, <a href="#rfc4271-9.2-4"><code>RFC4271-9.2-4</code></a>, <a href="#rfc4271-9.2-5"><code>RFC4271-9.2-5</code></a>, <a href="#rfc4271-security-1"><code>RFC4271-Security-1</code></a>, <a href="#rfc4271-9.2-6"><code>RFC4271-9.2-6</code></a>, <a href="#rfc4271-9.2-7"><code>RFC4271-9.2-7</code></a>, <a href="#rfc4271-9.2-8"><code>RFC4271-9.2-8</code></a>, <a href="#rfc4271-9.2-9"><code>RFC4271-9.2-9</code></a>, <a href="#rfc4271-9.2-10"><code>RFC4271-9.2-10</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (25):</strong> <a href="#rfc4271-4.3-3"><code>RFC4271-4.3-3</code></a>, <a href="#rfc4271-4.3-5"><code>RFC4271-4.3-5</code></a>, <a href="#rfc4271-5.1.6-1"><code>RFC4271-5.1.6-1</code></a>, <a href="#rfc4271-6.1-1"><code>RFC4271-6.1-1</code></a>, <a href="#rfc4271-6.1-2"><code>RFC4271-6.1-2</code></a>, <a href="#rfc4271-6.1-3"><code>RFC4271-6.1-3</code></a>, <a href="#rfc4271-6.1-4"><code>RFC4271-6.1-4</code></a>, <a href="#rfc4271-6.2-3"><code>RFC4271-6.2-3</code></a>, <a href="#rfc4271-8.2.1-3"><code>RFC4271-8.2.1-3</code></a>, <a href="#rfc4271-3.1-2"><code>RFC4271-3.1-2</code></a>, <a href="#rfc4271-5.1.4-3"><code>RFC4271-5.1.4-3</code></a>, <a href="#rfc4271-5.1.7-1"><code>RFC4271-5.1.7-1</code></a>, <a href="#rfc4271-9.1.2-1"><code>RFC4271-9.1.2-1</code></a>, <a href="#rfc4271-9.1.2-4"><code>RFC4271-9.1.2-4</code></a>, <a href="#rfc4271-9.1.2.1-2"><code>RFC4271-9.1.2.1-2</code></a>, <a href="#rfc4271-9.1.2.2-2"><code>RFC4271-9.1.2.2-2</code></a>, <a href="#rfc4271-9.2-2"><code>RFC4271-9.2-2</code></a>, <a href="#rfc4271-9.2-3"><code>RFC4271-9.2-3</code></a>, <a href="#rfc4271-9.2.1.1-2"><code>RFC4271-9.2.1.1-2</code></a>, <a href="#rfc4271-9.2.2.2-1"><code>RFC4271-9.2.2.2-1</code></a>, <a href="#rfc4271-9.2.2.2-2"><code>RFC4271-9.2.2.2-2</code></a>, <a href="#rfc4271-9.2.2.2-3"><code>RFC4271-9.2.2.2-3</code></a>, <a href="#rfc4271-9.2.2.2-4"><code>RFC4271-9.2.2.2-4</code></a>, <a href="#rfc4271-9.2.2.2-5"><code>RFC4271-9.2.2.2-5</code></a>, <a href="#rfc4271-9.2.1.1-3"><code>RFC4271-9.2.1.1-3</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (24):</strong> <a href="#rfc4271-5-8"><code>RFC4271-5-8</code></a>, <a href="#rfc4271-6.2-5"><code>RFC4271-6.2-5</code></a>, <a href="#rfc4271-6.2-6"><code>RFC4271-6.2-6</code></a>, <a href="#rfc4271-6.2-7"><code>RFC4271-6.2-7</code></a>, <a href="#rfc4271-6.2-8"><code>RFC4271-6.2-8</code></a>, <a href="#rfc4271-6.2-9"><code>RFC4271-6.2-9</code></a>, <a href="#rfc4271-6.2-10"><code>RFC4271-6.2-10</code></a>, <a href="#rfc4271-6.3-4"><code>RFC4271-6.3-4</code></a>, <a href="#rfc4271-6.3-5"><code>RFC4271-6.3-5</code></a>, <a href="#rfc4271-6.3-6"><code>RFC4271-6.3-6</code></a>, <a href="#rfc4271-6.3-7"><code>RFC4271-6.3-7</code></a>, <a href="#rfc4271-6.3-8"><code>RFC4271-6.3-8</code></a>, <a href="#rfc4271-6.3-9"><code>RFC4271-6.3-9</code></a>, <a href="#rfc4271-6.3-10"><code>RFC4271-6.3-10</code></a>, <a href="#rfc4271-6.3-11"><code>RFC4271-6.3-11</code></a>, <a href="#rfc4271-6.3-12"><code>RFC4271-6.3-12</code></a>, <a href="#rfc4271-6.3-13"><code>RFC4271-6.3-13</code></a>, <a href="#rfc4271-6.3-14"><code>RFC4271-6.3-14</code></a>, <a href="#rfc4271-6.3-15"><code>RFC4271-6.3-15</code></a>, <a href="#rfc4271-6.3-16"><code>RFC4271-6.3-16</code></a>, <a href="#rfc4271-6.3-17"><code>RFC4271-6.3-17</code></a>, <a href="#rfc4271-8.2.2-19"><code>RFC4271-8.2.2-19</code></a>, <a href="#rfc4271-9-4"><code>RFC4271-9-4</code></a>, <a href="#rfc4271-10-4"><code>RFC4271-10-4</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -1605,6 +1606,222 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-5-8">RFC4271-5-8</code></td><td colspan="3"><span class="rfc-subject">Once a BGP peer has updated any well-known attributes, it MUST pass these attributes to its peers in any updates it transmits (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-5-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.2-5">RFC4271-6.2-5</code></td><td colspan="3"><span class="rfc-subject">If the version number in the Version field of the received OPEN message is not supported, then the Error Subcode MUST be set to Unsupported Version Number (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.2-6">RFC4271-6.2-6</code></td><td colspan="3"><span class="rfc-subject">If the Autonomous System field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Bad Peer AS (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.2-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.2-7">RFC4271-6.2-7</code></td><td colspan="3"><span class="rfc-subject">If the Hold Time field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Unacceptable Hold Time (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.2-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.2-8">RFC4271-6.2-8</code></td><td colspan="3"><span class="rfc-subject">If the BGP Identifier field of the OPEN message is syntactically incorrect, then the Error Subcode MUST be set to Bad BGP Identifier (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.2-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.2-9">RFC4271-6.2-9</code></td><td colspan="3"><span class="rfc-subject">If one of the Optional Parameters in the OPEN message is not recognized, then the Error Subcode MUST be set to Unsupported Optional Parameters (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.2-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.2-10">RFC4271-6.2-10</code></td><td colspan="3"><span class="rfc-subject">If one of the Optional Parameters in the OPEN message is recognized, but is malformed, then the Error Subcode MUST be set to 0 (Unspecific) (§6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.2-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.3-4">RFC4271-6.3-4</code></td><td colspan="3"><span class="rfc-subject">If the Withdrawn Routes Length or Total Attribute Length is too large (Withdrawn Routes Length + Total Attribute Length + 23 exceeds the message Length), then the Error Subcode MUST be set to Malformed Attribute List (§6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.3-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.3-5">RFC4271-6.3-5</code></td><td colspan="3"><span class="rfc-subject">If any recognized attribute has Attribute Flags that conflict with the Attribute Type Code, then the Error Subcode MUST be set to Attribute Flags Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.3-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.3-6">RFC4271-6.3-6</code></td><td colspan="3"><span class="rfc-subject">If any recognized attribute has an Attribute Length that conflicts with the expected length, then the Error Subcode MUST be set to Attribute Length Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.3-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.3-7">RFC4271-6.3-7</code></td><td colspan="3"><span class="rfc-subject">If any of the well-known mandatory attributes are not present, then the Error Subcode MUST be set to Missing Well-known Attribute; the Data field MUST contain the Attribute Type Code of the missing, well-known attribute (§6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.3-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.3-8">RFC4271-6.3-8</code></td><td colspan="3"><span class="rfc-subject">If any of the well-known mandatory attributes are not recognized, then the Error Subcode MUST be set to Unrecognized Well-known Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.3-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.3-9">RFC4271-6.3-9</code></td><td colspan="3"><span class="rfc-subject">If the ORIGIN attribute has an undefined value, then the Error Subcode MUST be set to Invalid Origin Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.3-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.3-10">RFC4271-6.3-10</code></td><td colspan="3"><span class="rfc-subject">If the NEXT_HOP attribute field is syntactically incorrect, then the Error Subcode MUST be set to Invalid NEXT_HOP Attribute; the Data field MUST contain the incorrect attribute (type, length, and value) (§6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.3-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.3-11">RFC4271-6.3-11</code></td><td colspan="3"><span class="rfc-subject">The IP address in the NEXT_HOP MUST meet two criteria to be considered semantically correct: it MUST NOT be the IP address of the receiving speaker, and on a one-hop EBGP session either the IP address in the NEXT_HOP MUST be the sender&#39;s IP address used to establish the BGP connection, or the interface associated with the NEXT_HOP IP address MUST share a common subnet with the receiving BGP speaker (§6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.3-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.3-12">RFC4271-6.3-12</code></td><td colspan="3"><span class="rfc-subject">If the AS_PATH is syntactically incorrect, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.3-12">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.3-13">RFC4271-6.3-13</code></td><td colspan="3"><span class="rfc-subject">If the optional leftmost-AS check on an UPDATE from an external peer determines the leftmost AS is not the peer&#39;s autonomous system number, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.3-13">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.3-14">RFC4271-6.3-14</code></td><td colspan="3"><span class="rfc-subject">If an optional attribute is recognized, then the value of this attribute MUST be checked; if an error is detected, the attribute MUST be discarded, the Error Subcode MUST be set to Optional Attribute Error, and the Data field MUST contain the attribute (type, length, and value) (§6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.3-14">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.3-15">RFC4271-6.3-15</code></td><td colspan="3"><span class="rfc-subject">If any attribute appears more than once in the UPDATE message, then the Error Subcode MUST be set to Malformed Attribute List (§6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.3-15">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.3-16">RFC4271-6.3-16</code></td><td colspan="3"><span class="rfc-subject">If the NLRI field is syntactically incorrect, then the Error Subcode MUST be set to Invalid Network Field (§6.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.3-16">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-6.3-17">RFC4271-6.3-17</code></td><td colspan="3"><span class="rfc-subject">An UPDATE message that contains correct path attributes, but no NLRI, SHALL be treated as a valid UPDATE message (§6.3)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-6.3-17">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-8.2.2-19">RFC4271-8.2.2-19</code></td><td colspan="3"><span class="rfc-subject">In response to an indication that the TCP connection is successfully established (Event 16 or Event 17), the second connection SHALL be tracked until it sends an OPEN message (§8.2.2)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>8.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-8.2.2-19">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-9-4">RFC4271-9-4</code></td><td colspan="3"><span class="rfc-subject">If the Adj-RIB-In has no route with NLRI identical to the new route, the new route SHALL be placed in the Adj-RIB-In (§9)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>9</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-9-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4271-10-4">RFC4271-10-4</code></td><td colspan="3"><span class="rfc-subject">The suggested default amount of jitter SHALL be determined by multiplying the base value of the appropriate timer by a random factor, which is uniformly distributed in the range from 0.75 to 1.0 (§10)</span></td></tr>
+<tr><td></td>
+<td>SHALL</td>
+<td>10</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4271-10-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -1701,6 +1918,102 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><a href="#rfc4271-9.2.1.1-3"><code>RFC4271-9.2.1.1-3</code></a> The last route selected while awaiting MinRouteAdvertisementIntervalTimer SHALL be advertised at expiry (§9.2.1.1)</td>
 <td>{gap}, no test</td>
 <td>with no MinRouteAdvertisementIntervalTimer there is no expiry at which a last-selected route could be advertised. The timer is absent by design note (internal/component/bgp/fsm/timer.go:39) and no producer buffers a pending best-route advertisement against such a timer; best-path changes are published as they are computed (internal/component/bgp/plugins/rib/rib_bestchange.go:832-880)</td>
+</tr>
+<tr><td><a href="#rfc4271-5-8"><code>RFC4271-5-8</code></a> Once a BGP peer has updated any well-known attributes, it MUST pass these attributes to its peers in any updates it transmits (§5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.2-5"><code>RFC4271-6.2-5</code></a> If the version number in the Version field of the received OPEN message is not supported, then the Error Subcode MUST be set to Unsupported Version Number (§6.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.2-6"><code>RFC4271-6.2-6</code></a> If the Autonomous System field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Bad Peer AS (§6.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.2-7"><code>RFC4271-6.2-7</code></a> If the Hold Time field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Unacceptable Hold Time (§6.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.2-8"><code>RFC4271-6.2-8</code></a> If the BGP Identifier field of the OPEN message is syntactically incorrect, then the Error Subcode MUST be set to Bad BGP Identifier (§6.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.2-9"><code>RFC4271-6.2-9</code></a> If one of the Optional Parameters in the OPEN message is not recognized, then the Error Subcode MUST be set to Unsupported Optional Parameters (§6.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.2-10"><code>RFC4271-6.2-10</code></a> If one of the Optional Parameters in the OPEN message is recognized, but is malformed, then the Error Subcode MUST be set to 0 (Unspecific) (§6.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.3-4"><code>RFC4271-6.3-4</code></a> If the Withdrawn Routes Length or Total Attribute Length is too large (Withdrawn Routes Length + Total Attribute Length + 23 exceeds the message Length), then the Error Subcode MUST be set to Malformed Attribute List (§6.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.3-5"><code>RFC4271-6.3-5</code></a> If any recognized attribute has Attribute Flags that conflict with the Attribute Type Code, then the Error Subcode MUST be set to Attribute Flags Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.3-6"><code>RFC4271-6.3-6</code></a> If any recognized attribute has an Attribute Length that conflicts with the expected length, then the Error Subcode MUST be set to Attribute Length Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.3-7"><code>RFC4271-6.3-7</code></a> If any of the well-known mandatory attributes are not present, then the Error Subcode MUST be set to Missing Well-known Attribute; the Data field MUST contain the Attribute Type Code of the missing, well-known attribute (§6.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.3-8"><code>RFC4271-6.3-8</code></a> If any of the well-known mandatory attributes are not recognized, then the Error Subcode MUST be set to Unrecognized Well-known Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.3-9"><code>RFC4271-6.3-9</code></a> If the ORIGIN attribute has an undefined value, then the Error Subcode MUST be set to Invalid Origin Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.3-10"><code>RFC4271-6.3-10</code></a> If the NEXT_HOP attribute field is syntactically incorrect, then the Error Subcode MUST be set to Invalid NEXT_HOP Attribute; the Data field MUST contain the incorrect attribute (type, length, and value) (§6.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.3-11"><code>RFC4271-6.3-11</code></a> The IP address in the NEXT_HOP MUST meet two criteria to be considered semantically correct: it MUST NOT be the IP address of the receiving speaker, and on a one-hop EBGP session either the IP address in the NEXT_HOP MUST be the sender&#39;s IP address used to establish the BGP connection, or the interface associated with the NEXT_HOP IP address MUST share a common subnet with the receiving BGP speaker (§6.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.3-12"><code>RFC4271-6.3-12</code></a> If the AS_PATH is syntactically incorrect, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.3-13"><code>RFC4271-6.3-13</code></a> If the optional leftmost-AS check on an UPDATE from an external peer determines the leftmost AS is not the peer&#39;s autonomous system number, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.3-14"><code>RFC4271-6.3-14</code></a> If an optional attribute is recognized, then the value of this attribute MUST be checked; if an error is detected, the attribute MUST be discarded, the Error Subcode MUST be set to Optional Attribute Error, and the Data field MUST contain the attribute (type, length, and value) (§6.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.3-15"><code>RFC4271-6.3-15</code></a> If any attribute appears more than once in the UPDATE message, then the Error Subcode MUST be set to Malformed Attribute List (§6.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.3-16"><code>RFC4271-6.3-16</code></a> If the NLRI field is syntactically incorrect, then the Error Subcode MUST be set to Invalid Network Field (§6.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-6.3-17"><code>RFC4271-6.3-17</code></a> An UPDATE message that contains correct path attributes, but no NLRI, SHALL be treated as a valid UPDATE message (§6.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-8.2.2-19"><code>RFC4271-8.2.2-19</code></a> In response to an indication that the TCP connection is successfully established (Event 16 or Event 17), the second connection SHALL be tracked until it sends an OPEN message (§8.2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-9-4"><code>RFC4271-9-4</code></a> If the Adj-RIB-In has no route with NLRI identical to the new route, the new route SHALL be placed in the Adj-RIB-In (§9)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4271-10-4"><code>RFC4271-10-4</code></a> The suggested default amount of jitter SHALL be determined by multiplying the base value of the appropriate timer by a random factor, which is uniformly distributed in the range from 0.75 to 1.0 (§10)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
 </tr>
 </tbody>
 </table>
@@ -3801,9 +4114,745 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc4271-5-8"><code>RFC4271-5-8</code></a></h3>
+<p>Once a BGP peer has updated any well-known attributes, it MUST pass these attributes to its peers in any updates it transmits (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-5-8, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.2-5"><code>RFC4271-6.2-5</code></a></h3>
+<p>If the version number in the Version field of the received OPEN message is not supported, then the Error Subcode MUST be set to Unsupported Version Number (§6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.2-5, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.2-6"><code>RFC4271-6.2-6</code></a></h3>
+<p>If the Autonomous System field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Bad Peer AS (§6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.2-6, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.2-7"><code>RFC4271-6.2-7</code></a></h3>
+<p>If the Hold Time field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Unacceptable Hold Time (§6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.2-7, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.2-8"><code>RFC4271-6.2-8</code></a></h3>
+<p>If the BGP Identifier field of the OPEN message is syntactically incorrect, then the Error Subcode MUST be set to Bad BGP Identifier (§6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.2-8, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.2-9"><code>RFC4271-6.2-9</code></a></h3>
+<p>If one of the Optional Parameters in the OPEN message is not recognized, then the Error Subcode MUST be set to Unsupported Optional Parameters (§6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.2-9, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.2-10"><code>RFC4271-6.2-10</code></a></h3>
+<p>If one of the Optional Parameters in the OPEN message is recognized, but is malformed, then the Error Subcode MUST be set to 0 (Unspecific) (§6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.2-10, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.3-4"><code>RFC4271-6.3-4</code></a></h3>
+<p>If the Withdrawn Routes Length or Total Attribute Length is too large (Withdrawn Routes Length + Total Attribute Length + 23 exceeds the message Length), then the Error Subcode MUST be set to Malformed Attribute List (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.3-4, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.3-5"><code>RFC4271-6.3-5</code></a></h3>
+<p>If any recognized attribute has Attribute Flags that conflict with the Attribute Type Code, then the Error Subcode MUST be set to Attribute Flags Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.3-5, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.3-6"><code>RFC4271-6.3-6</code></a></h3>
+<p>If any recognized attribute has an Attribute Length that conflicts with the expected length, then the Error Subcode MUST be set to Attribute Length Error; the Data field MUST contain the erroneous attribute (type, length, and value) (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.3-6, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.3-7"><code>RFC4271-6.3-7</code></a></h3>
+<p>If any of the well-known mandatory attributes are not present, then the Error Subcode MUST be set to Missing Well-known Attribute; the Data field MUST contain the Attribute Type Code of the missing, well-known attribute (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.3-7, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.3-8"><code>RFC4271-6.3-8</code></a></h3>
+<p>If any of the well-known mandatory attributes are not recognized, then the Error Subcode MUST be set to Unrecognized Well-known Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.3-8, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.3-9"><code>RFC4271-6.3-9</code></a></h3>
+<p>If the ORIGIN attribute has an undefined value, then the Error Subcode MUST be set to Invalid Origin Attribute; the Data field MUST contain the unrecognized attribute (type, length, and value) (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.3-9, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.3-10"><code>RFC4271-6.3-10</code></a></h3>
+<p>If the NEXT_HOP attribute field is syntactically incorrect, then the Error Subcode MUST be set to Invalid NEXT_HOP Attribute; the Data field MUST contain the incorrect attribute (type, length, and value) (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.3-10, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.3-11"><code>RFC4271-6.3-11</code></a></h3>
+<p>The IP address in the NEXT_HOP MUST meet two criteria to be considered semantically correct: it MUST NOT be the IP address of the receiving speaker, and on a one-hop EBGP session either the IP address in the NEXT_HOP MUST be the sender&#39;s IP address used to establish the BGP connection, or the interface associated with the NEXT_HOP IP address MUST share a common subnet with the receiving BGP speaker (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.3-11, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.3-12"><code>RFC4271-6.3-12</code></a></h3>
+<p>If the AS_PATH is syntactically incorrect, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.3-12, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.3-13"><code>RFC4271-6.3-13</code></a></h3>
+<p>If the optional leftmost-AS check on an UPDATE from an external peer determines the leftmost AS is not the peer&#39;s autonomous system number, then the Error Subcode MUST be set to Malformed AS_PATH (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.3-13, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.3-14"><code>RFC4271-6.3-14</code></a></h3>
+<p>If an optional attribute is recognized, then the value of this attribute MUST be checked; if an error is detected, the attribute MUST be discarded, the Error Subcode MUST be set to Optional Attribute Error, and the Data field MUST contain the attribute (type, length, and value) (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.3-14, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.3-15"><code>RFC4271-6.3-15</code></a></h3>
+<p>If any attribute appears more than once in the UPDATE message, then the Error Subcode MUST be set to Malformed Attribute List (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.3-15, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.3-16"><code>RFC4271-6.3-16</code></a></h3>
+<p>If the NLRI field is syntactically incorrect, then the Error Subcode MUST be set to Invalid Network Field (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.3-16, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-6.3-17"><code>RFC4271-6.3-17</code></a></h3>
+<p>An UPDATE message that contains correct path attributes, but no NLRI, SHALL be treated as a valid UPDATE message (§6.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-6.3-17, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-8.2.2-19"><code>RFC4271-8.2.2-19</code></a></h3>
+<p>In response to an indication that the TCP connection is successfully established (Event 16 or Event 17), the second connection SHALL be tracked until it sends an OPEN message (§8.2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-8.2.2-19, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-9-4"><code>RFC4271-9-4</code></a></h3>
+<p>If the Adj-RIB-In has no route with NLRI identical to the new route, the new route SHALL be placed in the Adj-RIB-In (§9)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-9-4, so no unit is bound to it.</p>
+<h3><a href="#rfc4271-10-4"><code>RFC4271-10-4</code></a></h3>
+<p>The suggested default amount of jitter SHALL be determined by multiplying the base value of the appropriate timer by a random factor, which is uniformly distributed in the range from 0.75 to 1.0 (§10)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4271-10-4, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 4271, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc4271.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>d5034568e80da453</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc4271.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>105</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>24</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>8</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.3</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.4</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.5</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.6</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1.7</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.1</code></td>
+<td>not stated</td>
+<td>6</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.2</code></td>
+<td>not stated</td>
+<td>9</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.3</code></td>
+<td>not stated</td>
+<td>25</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.7</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.8</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1.5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2.1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2.1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2.1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2.1.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2.1.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2.1.5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.1.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.1.2</code></td>
+<td>not stated</td>
+<td>6</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.1.2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.1.2.2</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.1.3</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.1.4</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.2</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.2.1.1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.2.1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.2.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.2.2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.2.2.2</code></td>
+<td>not stated</td>
+<td>11</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>B</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>C</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>D</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>E</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>F</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>F.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>F.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>F.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>F.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>F.5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>F.6</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>5:8</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the sentence defines the mandatory category by restating the obligation site 5:2 already carries, that a mandatory attribute be present when the UPDATE contains NLRI</td>
+<td>The mandatory category refers to an attribute that MUST be present in both IBGP and EBGP exchanges if NLRI are contained in the UPDATE message.</td>
+</tr>
+<tr><td><code>6.1:4</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the Data field clause belongs to the Bad Message Length obligation, and the row already states both halves</td>
+<td>The Data field MUST contain the erroneous Length field.</td>
+</tr>
+<tr><td><code>6.1:6</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the Data field clause belongs to the Bad Message Type obligation, and the row already states both halves</td>
+<td>The Data field MUST contain the erroneous Type field.</td>
+</tr>
+<tr><td><code>6.3:4</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the Data field clause belongs to the Attribute Flags Error obligation, and the row states both halves</td>
+<td>The Data field MUST contain the erroneous attribute (type, length, and value).</td>
+</tr>
+<tr><td><code>6.3:6</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the Data field clause belongs to the Attribute Length Error obligation, and the row states both halves</td>
+<td>The Data field MUST contain the erroneous attribute (type, length, and value).</td>
+</tr>
+<tr><td><code>6.3:8</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the Data field clause belongs to the Missing Well-known Attribute obligation, and the row states both halves</td>
+<td>The Data field MUST contain the Attribute Type Code of the missing, well-known attribute.</td>
+</tr>
+<tr><td><code>6.3:10</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the Data field clause belongs to the Unrecognized Well-known Attribute obligation, and the row states both halves</td>
+<td>The Data field MUST contain the unrecognized attribute (type, length, and value).</td>
+</tr>
+<tr><td><code>6.3:12</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the Data field clause belongs to the Invalid Origin Attribute obligation, and the row states both halves</td>
+<td>The Data field MUST contain the unrecognized attribute (type, length, and value).</td>
+</tr>
+<tr><td><code>6.3:14</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the Data field clause belongs to the Invalid NEXT_HOP Attribute obligation, and the row states both halves</td>
+<td>The Data field MUST contain the incorrect attribute (type, length, and value).</td>
+</tr>
+<tr><td><code>6.3:16</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>criterion a) is one of the two criteria the row states</td>
+<td>a) It MUST NOT be the IP address of the receiving speaker.</td>
+</tr>
+<tr><td><code>6.3:17</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>criterion b) is the other of the two criteria the row states</td>
+<td>b) In the case of an EBGP, where the sender and receiver are one IP hop away from each other, either the IP address in the NEXT_HOP MUST be the sender&#39;s IP address that is used to establish the BGP connection, or the interface associated with the NEXT_HOP IP address MUST share a common subnet with the receiving BGP speaker.</td>
+</tr>
+<tr><td><code>6.3:21</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the discard and the Optional Attribute Error subcode are the consequence half of the same obligation, and the row states them</td>
+<td>If an error is detected, the attribute MUST be discarded, and the Error Subcode MUST be set to Optional Attribute Error.</td>
+</tr>
+<tr><td><code>6.3:22</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the Data field clause belongs to the Optional Attribute Error obligation, and the row states it</td>
+<td>The Data field MUST contain the attribute (type, length, and value).</td>
+</tr>
+<tr><td><code>7:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>the sentence binds the DESIGN of future BGP versions, not the behavior of a BGP-4 implementation: it tells whoever specifies BGP-5 to keep the OPEN and NOTIFICATION formats. No code ze runs can conform to it or violate it, because the obligation is discharged by a future document rather than by a speaker on the wire</td>
+<td>In order to support BGP version negotiation, future versions of BGP MUST retain the format of the OPEN and NOTIFICATION messages.</td>
+</tr>
+<tr><td><code>9:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>running the Decision Process is the second half of the withdrawal obligation, and the row states both halves</td>
+<td>This BGP speaker SHALL run its Decision Process because the previously advertised route is no longer available for use.</td>
+</tr>
+<tr><td><code>9.1.4:3</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the next sentence defines the act: &#39;That is, the NLRI of this route cannot be more specific.&#39; That is the Section 5.1.6 prohibition on making the NLRI of an ATOMIC_AGGREGATE route more specific, restated where overlapping routes are discussed</td>
+<td>In particular, a route that carries the ATOMIC_AGGREGATE attribute MUST NOT be de-aggregated.</td>
+</tr>
+<tr><td><code>9.2.2.2:4</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the EGP arm is the second clause of the aggregated ORIGIN rule, and the row states both arms</td>
+<td>Otherwise, if at least one route among routes that are aggregated has ORIGIN with the value EGP, then the aggregated route MUST have the ORIGIN attribute with the value EGP.</td>
+</tr>
+<tr><td><code>9.2.2.2:5</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>the obligation is conditional on aggregating, and ze performs no route aggregation (the scope decision recorded in the Support remaining row of rfc/short/rfc4271.md). The RFC makes the choice the speaker&#39;s: &#34;If a BGP speaker chooses to aggregate, then it SHOULD either include&#34;</td>
+<td>If the routes to be aggregated have different AS_PATH attributes, then the aggregated AS_PATH attribute SHALL satisfy all of the following conditions:</td>
+</tr>
+<tr><td><code>9.2.2.2:6</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>an AS_SEQUENCE condition on an aggregated AS_PATH ze never builds, because ze performs no route aggregation. The RFC makes the choice the speaker&#39;s: &#34;If a BGP speaker chooses to aggregate, then it SHOULD either include&#34;</td>
+<td>- all tuples of type AS_SEQUENCE in the aggregated AS_PATH SHALL appear in all of the AS_PATHs in the initial set of routes to be aggregated.</td>
+</tr>
+<tr><td><code>9.2.2.2:7</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>an AS_SET condition on an aggregated AS_PATH ze never builds, because ze performs no route aggregation. The RFC makes the choice the speaker&#39;s: &#34;If a BGP speaker chooses to aggregate, then it SHOULD either include&#34;</td>
+<td>- all tuples of type AS_SET in the aggregated AS_PATH SHALL appear in at least one of the AS_PATHs in the initial set (they may appear as either AS_SET or AS_SEQUENCE types).</td>
+</tr>
+<tr><td><code>9.2.2.2:8</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>a duplicate-AS_SET condition on an aggregated AS_PATH ze never builds, because ze performs no route aggregation. The RFC makes the choice the speaker&#39;s: &#34;If a BGP speaker chooses to aggregate, then it SHOULD either include&#34;</td>
+<td>- No tuple of type AS_SET with the same value SHALL appear more than once in the aggregated AS_PATH.</td>
+</tr>
+<tr><td><code>9.2.2.2:9</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>the conformance floor is an aggregation algorithm, and ze performs no route aggregation. The RFC makes the choice the speaker&#39;s: &#34;If a BGP speaker chooses to aggregate, then it SHOULD either include&#34;</td>
+<td>At a minimum, a conformant implementation SHALL be able to perform the following algorithm that meets all of the above conditions:</td>
+</tr>
+<tr><td><code>E:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Appendix E restates the Security Considerations obligation to support the TCP MD5 option of RFC 2385</td>
+<td>An implementation MUST support the TCP MD5 option [RFC2385].</td>
+</tr>
+<tr><td><code>F.6:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Appendix F.6 restates the same RFC 2385 authentication obligation as a change from RFC 1771</td>
+<td>A BGP implementation MUST support the authentication mechanism specified in RFC 2385 [RFC2385].</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 4271, so its obligations are stated where they were written.</p>
@@ -3837,7 +4886,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

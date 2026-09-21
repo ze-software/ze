@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>DRAFT-IETF-BESS-MUP-SAFI requirement ledger - Ze</title>
-        <meta name="description" content="DRAFT-IETF-BESS-MUP-SAFI: BGP Extensions for the Mobile User Plane (MUP) SAFI. 40 gated MUST-level requirements, 37 declared gaps, 0 with no test." />
+        <meta name="description" content="DRAFT-IETF-BESS-MUP-SAFI: BGP Extensions for the Mobile User Plane (MUP) SAFI. 48 gated MUST-level requirements, 34 declared gaps, 11 with no test." />
         <meta property="og:title" content="DRAFT-IETF-BESS-MUP-SAFI requirement ledger - Ze" />
-        <meta property="og:description" content="DRAFT-IETF-BESS-MUP-SAFI: BGP Extensions for the Mobile User Plane (MUP) SAFI. 40 gated MUST-level requirements, 37 declared gaps, 0 with no test." />
+        <meta property="og:description" content="DRAFT-IETF-BESS-MUP-SAFI: BGP Extensions for the Mobile User Plane (MUP) SAFI. 48 gated MUST-level requirements, 34 declared gaps, 11 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="DRAFT-IETF-BESS-MUP-SAFI requirement ledger - Ze" />
-        <meta name="twitter:description" content="DRAFT-IETF-BESS-MUP-SAFI: BGP Extensions for the Mobile User Plane (MUP) SAFI. 40 gated MUST-level requirements, 37 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="DRAFT-IETF-BESS-MUP-SAFI: BGP Extensions for the Mobile User Plane (MUP) SAFI. 48 gated MUST-level requirements, 34 declared gaps, 11 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,26 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>2.5%</strong><b>1 of 40 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5.0%</strong><b>2 of 40 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>2.1%</strong><b>1 of 48 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4.2%</strong><b>2 of 48 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 48 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 4 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>40</strong><b>of 61 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 40 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 40 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>48</strong><b>of 68 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 48 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 48 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 48 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 48 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>92.5%</strong><b>37 of 40 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>93.8%</strong><b>45 of 48 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 40 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 48 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -203,19 +203,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>61</td>
+<td>68</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>40</td>
+<td>48</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
 </tr>
 <tr><td>Declared gaps</td>
-<td>37</td>
+<td>34</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>11</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -246,12 +246,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: BGP Extensions for Mobile User Plane (MUP) SAFI</p>
+<p>Enrolled: BGP Extensions for Mobile User Plane (MUP) SAFI. Eleven MUST rows added 2026-09-21 from sentences the checklist had not carried, each untested: the TLV rules of Sections 3.1.3.1 and 3.1.4.1 (3.1.3.1-6 through 3.1.3.1-10, 3.1.4.1-3), the Section 3.1.5 rule that a TLV received in a route type for which it is not applicable MUST be ignored (3.1.5-1), and the four Section 3.3.12 route resolution rules that bind a PE receiving a Type 2 ST route to DSD or ISD routes by BGP MUP Extended Community (3.3.12-4 through 3.3.12-7). The MUP codec parses no ST route TLV and resolves no Type 2 ST route.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
 <details class="rfc-fold"><summary>What the ledger says is covered</summary>
-The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/T1ST/T2ST encoding from config and route commands, full route type body decoding, the RFC 7606 Section 5.4 ruling that discards a route whose Architecture Type is not 1 or whose Route Type is outside 1..4 at ingress (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/rfc7606.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/nlri/mup/rfc7606.go</code></a>, RecognizeNLRI), MUP extended-community config syntax, and family-generic MP_REACH announcement (internal/component/bgp/plugins/nlri/mup). Thirty-seven MUST gaps are annotated per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/draft-ietf-bess-mup-safi.md" target="_blank" rel="noopener"><code>rfc/short/draft-ietf-bess-mup-safi.md</code></a>. Withdrawal: no MUP NLRI reaches the family-generic MP_UNREACH encoder (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_rib_routes.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/peer_rib_routes.go</code></a>) -- its callers read the PeerOpWithdraw queue, and neither withdrawal entry point parses SAFI 85 (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/update/update_text_nlri.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/cmd/update/update_text_nlri.go</code></a>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/announce.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/cmd/announce/announce.go</code></a>) -- so a Type 1 ST or Type 2 ST withdrawal cannot be emitted (3.3.8-1, 3.3.11-1). Receive side: nlrisplit registers SplitMUP for SAFI 85 since 2026-08-04 (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/register.go" target="_blank" rel="noopener"><code>internal/core/bgp/nlri/nlrisplit/register.go</code></a>), so a received MUP route is stored as an opaque Adj-RIB-In entry (insertPoolNLRIs) and a withdrawal deletes exactly the NLRI it names (removePoolNLRIs, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rib/rib.go</code></a>). Four routing-instance obligations stay open because ze models no MUP routing instance and no route-type-aware wildcard delete exists (<a href="#draft-ietf-bess-mup-safi-3.3.3-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.3-2</code></a>, 3.3.6-2, 3.3.9-1, 3.3.9-2). ParseMUP validates the route type body and refuses an NLRI that does not add up (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/types.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/nlri/mup/types.go</code></a>), but it serves the JSON decode path and the CLI: the ingress recognizer reads the architecture and route type alone (rfc7606.go, RecognizeNLRI), so no RFC 7606 treat-as-withdraw fires on an out-of-range prefix length, wrong-size address, zero TEID, invalid endpoint or source length, over-long T2ST endpoint length, or non-3gpp-5g architecture type (3.1.1-1, 3.1.1-2, 3.1.2-1, 3.1.3-1, 3.1.3.1-1, 3.1.3.1-2, 3.1.3.1-3, 3.1.3.1-4, 3.1.4-1, 3.1.4.1-1, 3.1.4.1-2), nor on a missing Prefix-SID, a nexthop/locator mismatch, or a Type 2 ST route without the BGP MUP Extended Community (3.3.3-1, 3.3.3-3, 3.3.3-4, 3.3.6-1, 3.3.12-1). Send side: ze runs no MUP PE or MUP Controller function, so route targets, the BGP MUP Extended Community, the Prefix-SID, the GTP4.E/GTP6.E function, the required T1ST TEID and Endpoint Address, and the PE or controller IPv6 nexthop are whatever the operator configures rather than derived (3.3.1-1, 3.3.1-2, 3.3.1-3, 3.3.1-4, 3.3.2-1, 3.3.4-1, 3.3.4-2, 3.3.4-3, 3.3.4-4, 3.3.5-1, 3.3.5-2, 3.3.7-1, 3.3.7-3, 3.3.10-1, 3.3.10-2).
+The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/T1ST/T2ST encoding from config and route commands, full route type body decoding, the RFC 7606 Section 5.4 ruling that discards a route whose Architecture Type is not 1 or whose Route Type is outside 1..4 at ingress (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/rfc7606.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/nlri/mup/rfc7606.go</code></a>, RecognizeNLRI), MUP extended-community config syntax, and family-generic MP_REACH announcement (internal/component/bgp/plugins/nlri/mup). Thirty-four MUST gaps are annotated per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/draft-ietf-bess-mup-safi.md" target="_blank" rel="noopener"><code>rfc/short/draft-ietf-bess-mup-safi.md</code></a>. Withdrawal: no MUP NLRI reaches the family-generic MP_UNREACH encoder (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_rib_routes.go" target="_blank" rel="noopener"><code>internal/component/bgp/reactor/peer_rib_routes.go</code></a>) -- its callers read the PeerOpWithdraw queue, and neither withdrawal entry point parses SAFI 85 (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/update/update_text_nlri.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/cmd/update/update_text_nlri.go</code></a>, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/announce.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/cmd/announce/announce.go</code></a>) -- so a Type 1 ST or Type 2 ST withdrawal cannot be emitted (3.3.8-1, 3.3.11-1). Receive side: nlrisplit registers SplitMUP for SAFI 85 since 2026-08-04 (<a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/register.go" target="_blank" rel="noopener"><code>internal/core/bgp/nlri/nlrisplit/register.go</code></a>), so a received MUP route is stored as an opaque Adj-RIB-In entry (insertPoolNLRIs) and a withdrawal deletes exactly the NLRI it names (removePoolNLRIs, <a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rib/rib.go</code></a>). Four routing-instance obligations stay open because ze models no MUP routing instance and no route-type-aware wildcard delete exists (<a href="#draft-ietf-bess-mup-safi-3.3.3-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.3-2</code></a>, 3.3.6-2, 3.3.9-1, 3.3.9-2). ParseMUP validates the route type body and refuses an NLRI that does not add up (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/types.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/nlri/mup/types.go</code></a>), but it serves the JSON decode path and the CLI: the ingress recognizer reads the architecture and route type alone (rfc7606.go, RecognizeNLRI), so no RFC 7606 treat-as-withdraw fires on an out-of-range prefix length, wrong-size address, zero TEID, invalid endpoint or source length, over-long T2ST endpoint length, or non-3gpp-5g architecture type (3.1.1-1, 3.1.1-2, 3.1.2-1, 3.1.3-1, 3.1.3.1-1, 3.1.3.1-2, 3.1.3.1-3, 3.1.3.1-4, 3.1.4-1, 3.1.4.1-1, 3.1.4.1-2), nor on a missing Prefix-SID, a nexthop/locator mismatch, or a Type 2 ST route without the BGP MUP Extended Community (3.3.3-1, 3.3.3-3, 3.3.3-4, 3.3.6-1). Send side: ze runs no MUP PE or MUP Controller function, so route targets, the BGP MUP Extended Community, the Prefix-SID, the GTP4.E/GTP6.E function, the required T1ST TEID and Endpoint Address, and the PE or controller IPv6 nexthop are whatever the operator configures rather than derived (3.3.1-1, 3.3.1-2, 3.3.1-3, 3.3.1-4, 3.3.2-1, 3.3.4-1, 3.3.4-2, 3.3.4-3, 3.3.4-4, 3.3.5-2, 3.3.7-1, 3.3.10-1, 3.3.10-2).
 </details>
 <p><strong>What the ledger says remains:</strong></p>
 -
@@ -266,7 +266,7 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
-<td><strong>39</strong></td>
+<td><strong>36</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>One polarity only</td>
@@ -274,7 +274,7 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>11</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -285,12 +285,13 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>40</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>48</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (1):</strong> <a href="#draft-ietf-bess-mup-safi-3.3-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3-1</code></a></p>
-<p class="rfc-id-list"><strong>Annotated instead of tested (39):</strong> <a href="#draft-ietf-bess-mup-safi-3.3.1-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.1-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.1-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.1-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.1-3"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.1-3</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.2-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.2-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.4-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.4-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.4-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.4-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.4-3"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.4-3</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.4-4"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.4-4</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.5-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.5-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.7-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.7-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.7-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.7-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.10-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.10-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.10-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.10-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.3-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.3-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.3-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.3-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.6-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.6-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.6-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.6-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.9-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.9-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.12-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.12-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.1-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.1-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.1-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.2-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.2-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.3-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.3.1-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.3.1-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.3.1-3"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-3</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.4-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.4-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.4.1-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.3.1-4"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-4</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.4.1-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.3-3"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.3-3</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.3-4"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.3-4</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.1-4"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.1-4</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.5-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.5-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.8-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.8-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.7-3"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.7-3</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.9-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.9-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.11-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.11-1</code></a></p>
+<p class="rfc-id-list"><strong>Annotated instead of tested (36):</strong> <a href="#draft-ietf-bess-mup-safi-3.3.1-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.1-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.1-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.1-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.1-3"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.1-3</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.2-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.2-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.4-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.4-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.4-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.4-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.4-3"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.4-3</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.4-4"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.4-4</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.7-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.7-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.7-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.7-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.10-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.10-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.10-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.10-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.3-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.3-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.3-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.3-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.6-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.6-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.6-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.6-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.9-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.9-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.1-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.1-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.1-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.2-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.2-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.3-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.3.1-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.3.1-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.3.1-3"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-3</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.4-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.4-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.4.1-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.3.1-4"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-4</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.4.1-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.3-3"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.3-3</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.3-4"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.3-4</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.1-4"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.1-4</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.5-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.5-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.8-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.8-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.9-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.9-2</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.11-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.11-1</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (11):</strong> <a href="#draft-ietf-bess-mup-safi-3.1.3.1-6"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.3.1-7"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.3.1-8"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-8</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.3.1-9"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.3.1-10"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.4.1-3"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-3</code></a>, <a href="#draft-ietf-bess-mup-safi-3.1.5-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.5-1</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.12-4"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.12-4</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.12-5"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.12-5</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.12-6"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.12-6</code></a>, <a href="#draft-ietf-bess-mup-safi-3.3.12-7"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.12-7</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -368,15 +369,6 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> parseConfigRoute adds the Prefix-SID attribute only when the config supplies one (internal/component/bgp/plugins/nlri/mup/config.go:71), so a DSD route configured without a prefix SID is advertised without one</p></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.3.5-1">DRAFT-IETF-BESS-MUP-SAFI-3.3.5-1</code></td><td colspan="3"><span class="rfc-subject">BGP speaker announcing T1ST must attach a BGP MUP Extended Community (Section 3.3.5)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>3.3.5</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.3.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> parseConfigRoute attaches only the extended communities the operator configures (internal/component/bgp/plugins/nlri/mup/config.go:66), so a Type 1 ST advertisement carries a BGP MUP Extended Community only when the operator writes one into the route</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.3.7-1">DRAFT-IETF-BESS-MUP-SAFI-3.3.7-1</code></td><td colspan="3"><span class="rfc-subject">MUP Controller must set nexthop of T1ST route to the controller address (Section 3.3.7)</span></td></tr>
 <tr><td></td>
@@ -468,15 +460,6 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> nlrisplit now registers SplitMUP for SAFI 85 (internal/core/bgp/nlri/nlrisplit/register.go), so insertPoolNLRIs stores a received MUP NLRI as an opaque entry keyed on the whole NLRI and removePoolNLRIs deletes exactly the NLRI a withdrawal names (internal/component/bgp/plugins/rib/rib.go). The delete is one NLRI for one NLRI. Nothing reads the Type 1 ST route type to delete every route of the associated routing instance, and ze models no such instance</p></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.3.12-1">DRAFT-IETF-BESS-MUP-SAFI-3.3.12-1</code></td><td colspan="3"><span class="rfc-subject">PE must handle T2ST without MUP Extended Community as treat-as-withdraw (Section 3.3.12)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>3.3.12</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.3.12-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> DecodeNLRIHex surfaces only route type, architecture type and RD from a received MUP NLRI (internal/component/bgp/plugins/nlri/mup/mup.go:56-73) without consulting the UPDATE extended communities, so a Type 2 ST route arriving without the BGP MUP Extended Community is not treated as withdrawn</p></td>
-</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.1.1-1">DRAFT-IETF-BESS-MUP-SAFI-3.1.1-1</code></td><td colspan="3"><span class="rfc-subject">ISD with prefix length exceeding max for AFI: treat-as-withdraw per RFC 7606 (Section 3.1.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
@@ -540,6 +523,51 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ParseMUP reads the T1ST Source Address Length and returns an error for a value other than 0, 32 or 128 (internal/component/bgp/plugins/nlri/mup/types.go, parseBodyT1ST), but that parse serves the JSON decode path (DecodeNLRIHex) and the CLI decoder, while the ingress recognizer reads the architecture and route type alone (internal/component/bgp/plugins/nlri/mup/rfc7606.go, RecognizeNLRI), so a received route carrying it is still stored rather than treated as withdrawn</p></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.1.3.1-6">DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6</code></td><td colspan="3"><span class="rfc-subject">T1ST: if the octets remaining after the mandatory fields are &lt; 0 the mandatory fields exceed the declared Length, the NLRI is malformed and MUST be treated as Treat-as-withdraw (Section 3.1.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.1.3.1-7">DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7</code></td><td colspan="3"><span class="rfc-subject">T1ST: if exactly 1 octet remains the encoding is invalid, because a valid TLV requires at minimum a Type byte and a Length byte, and MUST be treated as Treat-as-withdraw (Section 3.1.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.1.3.1-8">DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-8</code></td><td colspan="3"><span class="rfc-subject">T1ST: unknown TLV types MUST be ignored for local processing (Section 3.1.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.1.3.1-9">DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9</code></td><td colspan="3"><span class="rfc-subject">T1ST: unknown TLV types MUST be propagated unchanged when re-advertising the route to other BGP peers (Section 3.1.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.1.3.1-10">DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10</code></td><td colspan="3"><span class="rfc-subject">T1ST: any TLV parsing error MUST result in Treat-as-withdraw (Section 3.1.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.1.4-1">DRAFT-IETF-BESS-MUP-SAFI-3.1.4-1</code></td><td colspan="3"><span class="rfc-subject">T2ST with Endpoint Length exceeding max for AFI: treat-as-withdraw (Section 3.1.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
@@ -557,6 +585,24 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ParseMUP reads the T2ST TEID and returns an error when a present TEID is zero (internal/component/bgp/plugins/nlri/mup/types.go, parseBodyT2ST), but that parse serves the JSON decode path (DecodeNLRIHex) and the CLI decoder, while the ingress recognizer reads the architecture and route type alone (internal/component/bgp/plugins/nlri/mup/rfc7606.go, RecognizeNLRI), so a received route carrying it is still stored rather than treated as withdrawn</p></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.1.4.1-3">DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-3</code></td><td colspan="3"><span class="rfc-subject">T2ST: the Endpoint Length MUST NOT extend beyond the TEID field (Section 3.1.4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.1.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.1.5-1">DRAFT-IETF-BESS-MUP-SAFI-3.1.5-1</code></td><td colspan="3"><span class="rfc-subject">A TLV received in a route type for which it is not applicable MUST be ignored (Section 3.1.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.1.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.1.3.1-4">DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-4</code></td><td colspan="3"><span class="rfc-subject">T1ST NLRI architecture field MUST be encoded as specified for 3gpp-5g; otherwise treat-as-withdraw (Section 3.1.3.1)</span></td></tr>
 <tr><td></td>
@@ -629,15 +675,6 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> no MUP NLRI can reach the family-generic MP_UNREACH encoder (internal/component/bgp/reactor/peer_rib_routes.go:170). Its only callers take the NLRI from a PeerOpWithdraw queue entry (internal/component/bgp/reactor/peer_initial_sync.go:237, :377) filled by QueueWithdraw (internal/component/bgp/reactor/peer.go:886-893), and the two withdrawal entry points that feed it parse no SAFI 85: text mode rejects the family in isSupportedFamily, whose list stops at SAFI 73 (internal/component/bgp/plugins/cmd/update/update_text_nlri.go:375-403), and the announce/withdraw registry builds only unicast and FlowSpec NLRIs (internal/component/bgp/plugins/cmd/announce/announce.go:257, :304, :415). NewMUP and NewMUPFull (internal/component/bgp/plugins/nlri/mup/types.go:93, :103) have no non-test caller, and nlrisplit registers no SAFI 85 splitter (internal/core/bgp/nlri/nlrisplit/register.go:9-24) so no received MUP route is stored to be withdrawn either</p></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.3.7-3">DRAFT-IETF-BESS-MUP-SAFI-3.3.7-3</code></td><td colspan="3"><span class="rfc-subject">Controller MUST advertise the Type 1 ST route with Destination prefix, TEID, QFI, Endpoint Address, and optionally Source Address (Section 3.3.7)</span></td></tr>
-<tr><td></td>
-<td>MUST</td>
-<td>3.3.7</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.3.7-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{gap}:</strong> parseT1STFields requires only the destination prefix (internal/component/bgp/plugins/nlri/mup/encode.go:313-316) and writeT1STData omits the TEID field when no TEID is configured and the Endpoint Address field when no endpoint is configured (internal/component/bgp/plugins/nlri/mup/encode.go:396-409), so a Type 1 ST route is advertised without them</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.3.9-2">DRAFT-IETF-BESS-MUP-SAFI-3.3.9-2</code></td><td colspan="3"><span class="rfc-subject">PE receiving T1ST in MP_UNREACH_NLRI without Source address MUST delete all matching T1ST routes with different Source addresses (Section 3.3.9)</span></td></tr>
 <tr><td></td>
@@ -729,11 +766,38 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.3.12-3">DRAFT-IETF-BESS-MUP-SAFI-3.3.12-3</code></td><td colspan="3"><span class="rfc-subject">PE receiving T2ST without BGP MUP Extended community should consider the route malformed (Section 3.3.12)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.3.12-4">DRAFT-IETF-BESS-MUP-SAFI-3.3.12-4</code></td><td colspan="3"><span class="rfc-subject">A PE receiving a Type 2 ST route with a Direct Segment type BGP MUP Extended Community MUST resolve the route using the DSD routes matching that community (Section 3.3.12)</span></td></tr>
 <tr><td></td>
-<td>SHOULD</td>
+<td>MUST</td>
 <td>3.3.12</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.3.12-3">
+<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.3.12-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.3.12-5">DRAFT-IETF-BESS-MUP-SAFI-3.3.12-5</code></td><td colspan="3"><span class="rfc-subject">DSD routes MUST NOT be used to resolve Type 2 ST routes that do not carry a Direct Segment type BGP MUP Extended Community (Section 3.3.12)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>3.3.12</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.3.12-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.3.12-6">DRAFT-IETF-BESS-MUP-SAFI-3.3.12-6</code></td><td colspan="3"><span class="rfc-subject">A PE receiving a Type 2 ST route with an Interwork Segment type BGP MUP Extended Community MUST resolve the route using ISD routes that carry a matching Interwork Segment type BGP MUP Extended Community (Section 3.3.12)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3.12</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.3.12-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="draft-ietf-bess-mup-safi-3.3.12-7">DRAFT-IETF-BESS-MUP-SAFI-3.3.12-7</code></td><td colspan="3"><span class="rfc-subject">A PE receiving a Type 2 ST route without a BGP MUP Extended Community MUST resolve the route using ISD routes for the default Interwork Segment, that is ISD routes that carry no BGP MUP Extended Community (Section 3.3.12)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.3.12</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to DRAFT-IETF-BESS-MUP-SAFI-3.3.12-7">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
@@ -887,10 +951,6 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <td>{gap}, no test</td>
 <td>parseConfigRoute adds the Prefix-SID attribute only when the config supplies one (internal/component/bgp/plugins/nlri/mup/config.go:71), so a DSD route configured without a prefix SID is advertised without one</td>
 </tr>
-<tr><td><a href="#draft-ietf-bess-mup-safi-3.3.5-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.5-1</code></a> BGP speaker announcing T1ST must attach a BGP MUP Extended Community (Section 3.3.5)</td>
-<td>{gap}, no test</td>
-<td>parseConfigRoute attaches only the extended communities the operator configures (internal/component/bgp/plugins/nlri/mup/config.go:66), so a Type 1 ST advertisement carries a BGP MUP Extended Community only when the operator writes one into the route</td>
-</tr>
 <tr><td><a href="#draft-ietf-bess-mup-safi-3.3.7-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.7-1</code></a> MUP Controller must set nexthop of T1ST route to the controller address (Section 3.3.7)</td>
 <td>{gap}, no test</td>
 <td>EncodeRoute takes the next-hop verbatim from the route command (internal/component/bgp/plugins/nlri/mup/encode.go:173-191) for a Type 1 ST route and ze runs no MUP Controller function that substitutes the controller address</td>
@@ -923,10 +983,6 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <td>{gap}, no test</td>
 <td>nlrisplit now registers SplitMUP for SAFI 85 (internal/core/bgp/nlri/nlrisplit/register.go), so insertPoolNLRIs stores a received MUP NLRI as an opaque entry keyed on the whole NLRI and removePoolNLRIs deletes exactly the NLRI a withdrawal names (internal/component/bgp/plugins/rib/rib.go). The delete is one NLRI for one NLRI. Nothing reads the Type 1 ST route type to delete every route of the associated routing instance, and ze models no such instance</td>
 </tr>
-<tr><td><a href="#draft-ietf-bess-mup-safi-3.3.12-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.12-1</code></a> PE must handle T2ST without MUP Extended Community as treat-as-withdraw (Section 3.3.12)</td>
-<td>{gap}, no test</td>
-<td>DecodeNLRIHex surfaces only route type, architecture type and RD from a received MUP NLRI (internal/component/bgp/plugins/nlri/mup/mup.go:56-73) without consulting the UPDATE extended communities, so a Type 2 ST route arriving without the BGP MUP Extended Community is not treated as withdrawn</td>
-</tr>
 <tr><td><a href="#draft-ietf-bess-mup-safi-3.1.1-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.1-1</code></a> ISD with prefix length exceeding max for AFI: treat-as-withdraw per RFC 7606 (Section 3.1.1)</td>
 <td>{gap}, no test</td>
 <td>ParseMUP reads the ISD prefix length and returns an error above 32 for AFI 1 or 128 for AFI 2 (internal/component/bgp/plugins/nlri/mup/types.go, parseBodyISD), but that parse serves the JSON decode path (DecodeNLRIHex) and the CLI decoder, while the ingress recognizer reads the architecture and route type alone (internal/component/bgp/plugins/nlri/mup/rfc7606.go, RecognizeNLRI), so a received route carrying it is still stored rather than treated as withdrawn</td>
@@ -955,6 +1011,26 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <td>{gap}, no test</td>
 <td>ParseMUP reads the T1ST Source Address Length and returns an error for a value other than 0, 32 or 128 (internal/component/bgp/plugins/nlri/mup/types.go, parseBodyT1ST), but that parse serves the JSON decode path (DecodeNLRIHex) and the CLI decoder, while the ingress recognizer reads the architecture and route type alone (internal/component/bgp/plugins/nlri/mup/rfc7606.go, RecognizeNLRI), so a received route carrying it is still stored rather than treated as withdrawn</td>
 </tr>
+<tr><td><a href="#draft-ietf-bess-mup-safi-3.1.3.1-6"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6</code></a> T1ST: if the octets remaining after the mandatory fields are &lt; 0 the mandatory fields exceed the declared Length, the NLRI is malformed and MUST be treated as Treat-as-withdraw (Section 3.1.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#draft-ietf-bess-mup-safi-3.1.3.1-7"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7</code></a> T1ST: if exactly 1 octet remains the encoding is invalid, because a valid TLV requires at minimum a Type byte and a Length byte, and MUST be treated as Treat-as-withdraw (Section 3.1.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#draft-ietf-bess-mup-safi-3.1.3.1-8"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-8</code></a> T1ST: unknown TLV types MUST be ignored for local processing (Section 3.1.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#draft-ietf-bess-mup-safi-3.1.3.1-9"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9</code></a> T1ST: unknown TLV types MUST be propagated unchanged when re-advertising the route to other BGP peers (Section 3.1.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#draft-ietf-bess-mup-safi-3.1.3.1-10"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10</code></a> T1ST: any TLV parsing error MUST result in Treat-as-withdraw (Section 3.1.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
 <tr><td><a href="#draft-ietf-bess-mup-safi-3.1.4-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.4-1</code></a> T2ST with Endpoint Length exceeding max for AFI: treat-as-withdraw (Section 3.1.4)</td>
 <td>{gap}, no test</td>
 <td>ParseMUP reads the T2ST Endpoint Length and returns an error above 64 for AFI 1 or 160 for AFI 2 (internal/component/bgp/plugins/nlri/mup/types.go, parseBodyT2ST), but that parse serves the JSON decode path (DecodeNLRIHex) and the CLI decoder, while the ingress recognizer reads the architecture and route type alone (internal/component/bgp/plugins/nlri/mup/rfc7606.go, RecognizeNLRI), so a received route carrying it is still stored rather than treated as withdrawn</td>
@@ -962,6 +1038,14 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <tr><td><a href="#draft-ietf-bess-mup-safi-3.1.4.1-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-1</code></a> T2ST with TEID=0: treat-as-withdraw per RFC 7606 (Section 3.1.4.1)</td>
 <td>{gap}, no test</td>
 <td>ParseMUP reads the T2ST TEID and returns an error when a present TEID is zero (internal/component/bgp/plugins/nlri/mup/types.go, parseBodyT2ST), but that parse serves the JSON decode path (DecodeNLRIHex) and the CLI decoder, while the ingress recognizer reads the architecture and route type alone (internal/component/bgp/plugins/nlri/mup/rfc7606.go, RecognizeNLRI), so a received route carrying it is still stored rather than treated as withdrawn</td>
+</tr>
+<tr><td><a href="#draft-ietf-bess-mup-safi-3.1.4.1-3"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-3</code></a> T2ST: the Endpoint Length MUST NOT extend beyond the TEID field (Section 3.1.4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#draft-ietf-bess-mup-safi-3.1.5-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.5-1</code></a> A TLV received in a route type for which it is not applicable MUST be ignored (Section 3.1.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
 </tr>
 <tr><td><a href="#draft-ietf-bess-mup-safi-3.1.3.1-4"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-4</code></a> T1ST NLRI architecture field MUST be encoded as specified for 3gpp-5g; otherwise treat-as-withdraw (Section 3.1.3.1)</td>
 <td>{gap}, no test</td>
@@ -991,10 +1075,6 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <td>{gap}, no test</td>
 <td>no MUP NLRI can reach the family-generic MP_UNREACH encoder (internal/component/bgp/reactor/peer_rib_routes.go:170). Its only callers take the NLRI from a PeerOpWithdraw queue entry (internal/component/bgp/reactor/peer_initial_sync.go:237, :377) filled by QueueWithdraw (internal/component/bgp/reactor/peer.go:886-893), and the two withdrawal entry points that feed it parse no SAFI 85: text mode rejects the family in isSupportedFamily, whose list stops at SAFI 73 (internal/component/bgp/plugins/cmd/update/update_text_nlri.go:375-403), and the announce/withdraw registry builds only unicast and FlowSpec NLRIs (internal/component/bgp/plugins/cmd/announce/announce.go:257, :304, :415). NewMUP and NewMUPFull (internal/component/bgp/plugins/nlri/mup/types.go:93, :103) have no non-test caller, and nlrisplit registers no SAFI 85 splitter (internal/core/bgp/nlri/nlrisplit/register.go:9-24) so no received MUP route is stored to be withdrawn either</td>
 </tr>
-<tr><td><a href="#draft-ietf-bess-mup-safi-3.3.7-3"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.7-3</code></a> Controller MUST advertise the Type 1 ST route with Destination prefix, TEID, QFI, Endpoint Address, and optionally Source Address (Section 3.3.7)</td>
-<td>{gap}, no test</td>
-<td>parseT1STFields requires only the destination prefix (internal/component/bgp/plugins/nlri/mup/encode.go:313-316) and writeT1STData omits the TEID field when no TEID is configured and the Endpoint Address field when no endpoint is configured (internal/component/bgp/plugins/nlri/mup/encode.go:396-409), so a Type 1 ST route is advertised without them</td>
-</tr>
 <tr><td><a href="#draft-ietf-bess-mup-safi-3.3.9-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.9-2</code></a> PE receiving T1ST in MP_UNREACH_NLRI without Source address MUST delete all matching T1ST routes with different Source addresses (Section 3.3.9)</td>
 <td>{gap}, no test</td>
 <td>nlrisplit now registers SplitMUP for SAFI 85 (internal/core/bgp/nlri/nlrisplit/register.go), so insertPoolNLRIs stores a received MUP NLRI as an opaque entry keyed on the whole NLRI and removePoolNLRIs deletes exactly the NLRI a withdrawal names (internal/component/bgp/plugins/rib/rib.go). The opaque key is the whole NLRI, Source address included, so a Source-less Type 1 ST withdrawal matches no stored entry. No wildcard delete over differing Source addresses exists</td>
@@ -1002,6 +1082,22 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <tr><td><a href="#draft-ietf-bess-mup-safi-3.3.11-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.11-1</code></a> Controller MUST advertise the withdrawal of the Type 2 ST route (Section 3.3.11)</td>
 <td>{gap}, no test</td>
 <td>the same missing path as DRAFT-IETF-BESS-MUP-SAFI-3.3.8-1 -- the family-generic MP_UNREACH encoder (internal/component/bgp/reactor/peer_rib_routes.go:170) is reachable only through PeerOpWithdraw (internal/component/bgp/reactor/peer.go:886-893, internal/component/bgp/reactor/peer_initial_sync.go:237, :377), and neither withdrawal entry point produces a SAFI 85 NLRI: isSupportedFamily omits it (internal/component/bgp/plugins/cmd/update/update_text_nlri.go:375-403) and the announce registry builds only unicast and FlowSpec NLRIs (internal/component/bgp/plugins/cmd/announce/announce.go:257, :304, :415)</td>
+</tr>
+<tr><td><a href="#draft-ietf-bess-mup-safi-3.3.12-4"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.12-4</code></a> A PE receiving a Type 2 ST route with a Direct Segment type BGP MUP Extended Community MUST resolve the route using the DSD routes matching that community (Section 3.3.12)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#draft-ietf-bess-mup-safi-3.3.12-5"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.12-5</code></a> DSD routes MUST NOT be used to resolve Type 2 ST routes that do not carry a Direct Segment type BGP MUP Extended Community (Section 3.3.12)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#draft-ietf-bess-mup-safi-3.3.12-6"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.12-6</code></a> A PE receiving a Type 2 ST route with an Interwork Segment type BGP MUP Extended Community MUST resolve the route using ISD routes that carry a matching Interwork Segment type BGP MUP Extended Community (Section 3.3.12)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#draft-ietf-bess-mup-safi-3.3.12-7"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.12-7</code></a> A PE receiving a Type 2 ST route without a BGP MUP Extended Community MUST resolve the route using ISD routes for the default Interwork Segment, that is ISD routes that carry no BGP MUP Extended Community (Section 3.3.12)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
 </tr>
 </tbody>
 </table>
@@ -1041,10 +1137,6 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <p>DSD route update must have a prefix SID attribute (Section 3.3.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.3.4-4, so no unit is bound to it.</p>
-<h3><a href="#draft-ietf-bess-mup-safi-3.3.5-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.5-1</code></a></h3>
-<p>BGP speaker announcing T1ST must attach a BGP MUP Extended Community (Section 3.3.5)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.3.5-1, so no unit is bound to it.</p>
 <h3><a href="#draft-ietf-bess-mup-safi-3.3.7-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.7-1</code></a></h3>
 <p>MUP Controller must set nexthop of T1ST route to the controller address (Section 3.3.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1107,10 +1199,6 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <p>PE receiving T1ST routes in MP_UNREACH_NLRI must delete all routes from associated routing instance (Section 3.3.9)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.3.9-1, so no unit is bound to it.</p>
-<h3><a href="#draft-ietf-bess-mup-safi-3.3.12-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.12-1</code></a></h3>
-<p>PE must handle T2ST without MUP Extended Community as treat-as-withdraw (Section 3.3.12)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.3.12-1, so no unit is bound to it.</p>
 <h3><a href="#draft-ietf-bess-mup-safi-3.1.1-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.1-1</code></a></h3>
 <p>ISD with prefix length exceeding max for AFI: treat-as-withdraw per RFC 7606 (Section 3.1.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1139,6 +1227,26 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <p>T1ST with invalid Source Address Length (not 0, 32, or 128): treat-as-withdraw (Section 3.1.3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-3, so no unit is bound to it.</p>
+<h3><a href="#draft-ietf-bess-mup-safi-3.1.3.1-6"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6</code></a></h3>
+<p>T1ST: if the octets remaining after the mandatory fields are &lt; 0 the mandatory fields exceed the declared Length, the NLRI is malformed and MUST be treated as Treat-as-withdraw (Section 3.1.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6, so no unit is bound to it.</p>
+<h3><a href="#draft-ietf-bess-mup-safi-3.1.3.1-7"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7</code></a></h3>
+<p>T1ST: if exactly 1 octet remains the encoding is invalid, because a valid TLV requires at minimum a Type byte and a Length byte, and MUST be treated as Treat-as-withdraw (Section 3.1.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7, so no unit is bound to it.</p>
+<h3><a href="#draft-ietf-bess-mup-safi-3.1.3.1-8"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-8</code></a></h3>
+<p>T1ST: unknown TLV types MUST be ignored for local processing (Section 3.1.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-8, so no unit is bound to it.</p>
+<h3><a href="#draft-ietf-bess-mup-safi-3.1.3.1-9"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9</code></a></h3>
+<p>T1ST: unknown TLV types MUST be propagated unchanged when re-advertising the route to other BGP peers (Section 3.1.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9, so no unit is bound to it.</p>
+<h3><a href="#draft-ietf-bess-mup-safi-3.1.3.1-10"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10</code></a></h3>
+<p>T1ST: any TLV parsing error MUST result in Treat-as-withdraw (Section 3.1.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10, so no unit is bound to it.</p>
 <h3><a href="#draft-ietf-bess-mup-safi-3.1.4-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.4-1</code></a></h3>
 <p>T2ST with Endpoint Length exceeding max for AFI: treat-as-withdraw (Section 3.1.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1147,6 +1255,14 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <p>T2ST with TEID=0: treat-as-withdraw per RFC 7606 (Section 3.1.4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-1, so no unit is bound to it.</p>
+<h3><a href="#draft-ietf-bess-mup-safi-3.1.4.1-3"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-3</code></a></h3>
+<p>T2ST: the Endpoint Length MUST NOT extend beyond the TEID field (Section 3.1.4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-3, so no unit is bound to it.</p>
+<h3><a href="#draft-ietf-bess-mup-safi-3.1.5-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.5-1</code></a></h3>
+<p>A TLV received in a route type for which it is not applicable MUST be ignored (Section 3.1.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.1.5-1, so no unit is bound to it.</p>
 <h3><a href="#draft-ietf-bess-mup-safi-3.1.3.1-4"><code>DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-4</code></a></h3>
 <p>T1ST NLRI architecture field MUST be encoded as specified for 3gpp-5g; otherwise treat-as-withdraw (Section 3.1.3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1195,10 +1311,6 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <p>Controller MUST advertise the withdrawal of the Type 1 ST route (Section 3.3.8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.3.8-1, so no unit is bound to it.</p>
-<h3><a href="#draft-ietf-bess-mup-safi-3.3.7-3"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.7-3</code></a></h3>
-<p>Controller MUST advertise the Type 1 ST route with Destination prefix, TEID, QFI, Endpoint Address, and optionally Source Address (Section 3.3.7)</p>
-<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
-<p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.3.7-3, so no unit is bound to it.</p>
 <h3><a href="#draft-ietf-bess-mup-safi-3.3.9-2"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.9-2</code></a></h3>
 <p>PE receiving T1ST in MP_UNREACH_NLRI without Source address MUST delete all matching T1ST routes with different Source addresses (Section 3.3.9)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1207,9 +1319,411 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
 <p>Controller MUST advertise the withdrawal of the Type 2 ST route (Section 3.3.11)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.3.11-1, so no unit is bound to it.</p>
+<h3><a href="#draft-ietf-bess-mup-safi-3.3.12-4"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.12-4</code></a></h3>
+<p>A PE receiving a Type 2 ST route with a Direct Segment type BGP MUP Extended Community MUST resolve the route using the DSD routes matching that community (Section 3.3.12)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.3.12-4, so no unit is bound to it.</p>
+<h3><a href="#draft-ietf-bess-mup-safi-3.3.12-5"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.12-5</code></a></h3>
+<p>DSD routes MUST NOT be used to resolve Type 2 ST routes that do not carry a Direct Segment type BGP MUP Extended Community (Section 3.3.12)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.3.12-5, so no unit is bound to it.</p>
+<h3><a href="#draft-ietf-bess-mup-safi-3.3.12-6"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.12-6</code></a></h3>
+<p>A PE receiving a Type 2 ST route with an Interwork Segment type BGP MUP Extended Community MUST resolve the route using ISD routes that carry a matching Interwork Segment type BGP MUP Extended Community (Section 3.3.12)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.3.12-6, so no unit is bound to it.</p>
+<h3><a href="#draft-ietf-bess-mup-safi-3.3.12-7"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.12-7</code></a></h3>
+<p>A PE receiving a Type 2 ST route without a BGP MUP Extended Community MUST resolve the route using ISD routes for the default Interwork Segment, that is ISD routes that carry no BGP MUP Extended Community (Section 3.3.12)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries DRAFT-IETF-BESS-MUP-SAFI-3.3.12-7, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for DRAFT-IETF-BESS-MUP-SAFI, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/drafts/draft-ietf-bess-mup-safi.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>cc8da36f0b20e05b</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/draft-ietf-bess-mup-safi.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>46</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>20</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1.1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1.2</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1.3</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1.3.1</code></td>
+<td>not stated</td>
+<td>12</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1.4</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1.4.1</code></td>
+<td>not stated</td>
+<td>9</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1.5</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1.5.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1.5.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1.5.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3.1</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3.3</code></td>
+<td>not stated</td>
+<td>6</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3.4</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3.5</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3.6</code></td>
+<td>not stated</td>
+<td>6</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3.7</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3.8</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3.9</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3.10</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3.11</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3.12</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>3.1.2:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.</td>
+<td>A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.</td>
+</tr>
+<tr><td><code>3.1.3:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.</td>
+<td>A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.</td>
+</tr>
+<tr><td><code>3.1.3.1:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.</td>
+<td>A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.</td>
+</tr>
+<tr><td><code>3.1.3.1:4</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.</td>
+<td>A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.</td>
+</tr>
+<tr><td><code>3.1.3.1:6</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.</td>
+<td>A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.</td>
+</tr>
+<tr><td><code>3.1.3.1:11</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Restates the Treat-as-withdraw consequence of the Type 1 ST architecture encoding rule mapped at site 3.1.3.1:10, which the row already carries as its otherwise clause.</td>
+<td>A BGP speaker MUST handle such a malformed NLRI as a &#34;Treat-as-withdraw&#34; [RFC7606].</td>
+</tr>
+<tr><td><code>3.1.3.1:12</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.</td>
+<td>A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.</td>
+</tr>
+<tr><td><code>3.1.4:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.</td>
+<td>A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.</td>
+</tr>
+<tr><td><code>3.1.4.1:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.</td>
+<td>A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.</td>
+</tr>
+<tr><td><code>3.1.4.1:4</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 3.1.4.1 repeats the Section 3.1.3.1 TLV length computation word for word; the negative-remainder rule is mapped at site 3.1.3.1:7.</td>
+<td>- &lt; 0: the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw.</td>
+</tr>
+<tr><td><code>3.1.4.1:5</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 3.1.4.1 repeats the Section 3.1.3.1 TLV length computation word for word; the one-octet-remainder rule is mapped at site 3.1.3.1:8.</td>
+<td>- 1: encoding is invalid (a valid TLV requires at minimum a Type byte and a Length byte); MUST be treated as Treat-as- withdraw.</td>
+</tr>
+<tr><td><code>3.1.4.1:6</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 3.1.4.1 repeats the Section 3.1.3.1 TLV parsing sentence word for word; it is mapped at site 3.1.3.1:9.</td>
+<td>Parse TLVs one by one per Section 3.1.5; unknown TLV types MUST be ignored for local processing and MUST be propagated unchanged when re- advertising the route to other BGP peers; any TLV parsing error MUST result in Treat-as-withdraw; TLVs are not part of the NLRI key for route processing.</td>
+</tr>
+<tr><td><code>3.1.4.1:8</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Restates the Treat-as-withdraw consequence of the Type 2 ST architecture encoding rule mapped at site 3.1.4.1:7, which the row already carries as its otherwise clause.</td>
+<td>A BGP speaker MUST handle such a malformed NLRI as a &#34;Treat-as-withdraw&#34; [RFC7606].</td>
+</tr>
+<tr><td><code>3.1.4.1:9</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.</td>
+<td>A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.</td>
+</tr>
+<tr><td><code>3.3.3:3</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.</td>
+<td>A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.</td>
+</tr>
+<tr><td><code>3.3.3:5</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.</td>
+<td>A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.</td>
+</tr>
+<tr><td><code>3.3.6:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Restates for the Direct Segment Discovery route the nexthop-locator mismatch ruling mapped at site 3.3.3:2; the row cites both Section 3.3.3 and Section 3.3.6.</td>
+<td>If the result of the match is not identical then the receiving BGP speaker MUST consider it as a malformed NLRI and the &#34;Treat-as-withdraw procedure of [RFC7606] is applied.</td>
+</tr>
+<tr><td><code>3.3.6:3</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.</td>
+<td>A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.</td>
+</tr>
+<tr><td><code>3.3.6:4</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Restates for the Direct Segment Discovery route the missing-prefix-SID ruling mapped at site 3.3.3:4; the row cites both Section 3.3.3 and Section 3.3.6.</td>
+<td>When a BGP speaker receives a MP_REACH_NLRI attribute update message with a Direct Segment Discovery route without a prefix SID attribute, than it MUST be treated as if it contained a malformed prefix SID attribute and the &#34;Treat-as-withdraw procedure of [RFC7606] is applied.</td>
+</tr>
+<tr><td><code>3.3.6:5</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.</td>
+<td>A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes DRAFT-IETF-BESS-MUP-SAFI, so its obligations are stated where they were written.</p>
@@ -1243,7 +1757,7 @@ The BGP-MUP NLRI codec only: ipv4/mup and ipv6/mup family registration, ISD/DSD/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

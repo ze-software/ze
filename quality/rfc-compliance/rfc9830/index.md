@@ -1251,7 +1251,79 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 9830, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc9830.txt |
+| Source fingerprint | 35ee1db5cdbf6fc4 |
+| Record | rfc/extraction/rfc9830.json |
+| Mapped sentences | 71 |
+| Declined as scope | 5 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 1 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 3 | walked | not stated |
+| `2.2` | not stated | 2 | walked | not stated |
+| `2.3` | not stated | 2 | walked | not stated |
+| `2.4` | not stated | 1 | walked | not stated |
+| `2.4.1` | not stated | 4 | walked | not stated |
+| `2.4.2` | not stated | 6 | walked | not stated |
+| `2.4.3` | not stated | 4 | walked | not stated |
+| `2.4.4` | not stated | 2 | walked | not stated |
+| `2.4.4.1` | not stated | 4 | walked | not stated |
+| `2.4.4.2` | not stated | 0 | walked | not stated |
+| `2.4.4.2.1` | not stated | 3 | walked | not stated |
+| `2.4.4.2.2` | not stated | 3 | walked | not stated |
+| `2.4.4.2.3` | not stated | 2 | walked | not stated |
+| `2.4.4.2.4` | not stated | 2 | walked | not stated |
+| `2.4.5` | not stated | 6 | walked | not stated |
+| `2.4.6` | not stated | 3 | walked | not stated |
+| `2.4.7` | not stated | 3 | walked | not stated |
+| `2.4.8` | not stated | 3 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 1 | walked | not stated |
+| `4.2` | not stated | 0 | walked | not stated |
+| `4.2.1` | not stated | 6 | walked | not stated |
+| `4.2.2` | not stated | 3 | walked | not stated |
+| `4.2.3` | not stated | 3 | walked | not stated |
+| `5` | not stated | 8 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+| `6.3` | not stated | 0 | walked | not stated |
+| `6.4` | not stated | 0 | walked | not stated |
+| `6.5` | not stated | 0 | walked | not stated |
+| `6.6` | not stated | 0 | walked | not stated |
+| `6.7` | not stated | 0 | walked | not stated |
+| `6.8` | not stated | 0 | walked | not stated |
+| `6.9` | not stated | 0 | walked | not stated |
+| `6.10` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF Trust boilerplate on the Revised BSD License for extracted Code Components; it states no protocol obligation. | Code Components extracted from this document must include Revised BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Revised BSD License. |
+| `2.4.4:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Descriptive prose explaining the format diagram: "required" is lowercase and is not an RFC 2119 keyword. The Segment List sub-TLV length field width is the diagram's, not an obligation on a speaker. | A 2-octet length is thus required. |
+| `2.4.5:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Introductory description of what the ENLP sub-TLV indicates; "must" is lowercase and is not an RFC 2119 keyword. The normative ENLP obligations are the sites 2.4.5:2 through 2.4.5:6. | The Explicit NULL Label Policy (ENLP) sub-TLV is used to indicate whether an Explicit NULL Label [RFC3032] must be pushed on an unlabeled IP packet before any other labels. |
+| `2.4.7:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Descriptive prose explaining the format diagram: "required" is lowercase and is not an RFC 2119 keyword. | A 2-octet length is thus required. |
+| `2.4.8:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Descriptive prose explaining the format diagram: "required" is lowercase and is not an RFC 2119 keyword. | A 2-octet length is thus required. |
 
 ## Superseded
 

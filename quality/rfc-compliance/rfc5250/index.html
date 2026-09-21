@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5250 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5250: The OSPF Opaque LSA Option. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5250: The OSPF Opaque LSA Option. 13 gated MUST-level requirements, 0 declared gaps, 4 with no test." />
         <meta property="og:title" content="RFC 5250 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5250: The OSPF Opaque LSA Option. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5250: The OSPF Opaque LSA Option. 13 gated MUST-level requirements, 0 declared gaps, 4 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5250 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5250: The OSPF Opaque LSA Option. 9 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5250: The OSPF Opaque LSA Option. 13 gated MUST-level requirements, 0 declared gaps, 4 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,22 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>77.8%</strong><b>7 of 9 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>22.2%</strong><b>2 of 9 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>53.8%</strong><b>7 of 13 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>15.4%</strong><b>2 of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 19 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>9</strong><b>of 11 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 9 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>13</strong><b>of 15 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 13 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>30.8%</strong><b>4 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -159,7 +163,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -199,10 +203,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>11</td>
+<td>15</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>9</td>
+<td>13</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -211,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>4</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -269,7 +273,7 @@ Same OSPF experimental status.
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -280,12 +284,13 @@ Same OSPF experimental status.
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>9</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>13</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (7):</strong> <a href="#rfc5250-3-1"><code>RFC5250-3-1</code></a>, <a href="#rfc5250-3.1-1"><code>RFC5250-3.1-1</code></a>, <a href="#rfc5250-3.1-2"><code>RFC5250-3.1-2</code></a>, <a href="#rfc5250-3.1-3"><code>RFC5250-3.1-3</code></a>, <a href="#rfc5250-3.1-4"><code>RFC5250-3.1-4</code></a>, <a href="#rfc5250-3.1-5"><code>RFC5250-3.1-5</code></a>, <a href="#rfc5250-5-1"><code>RFC5250-5-1</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (2):</strong> <a href="#rfc5250-3-2"><code>RFC5250-3-2</code></a>, <a href="#rfc5250-5-2"><code>RFC5250-5-2</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (4):</strong> <a href="#rfc5250-3.2-1"><code>RFC5250-3.2-1</code></a>, <a href="#rfc5250-3.2-2"><code>RFC5250-3.2-2</code></a>, <a href="#rfc5250-3.2-3"><code>RFC5250-3.2-3</code></a>, <a href="#rfc5250-3.2-4"><code>RFC5250-3.2-4</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -376,6 +381,42 @@ Same OSPF experimental status.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> reachability is recomputed from a live SPF seam on every opaque delivery (internal/plugins/ospf/opaque.go:126,243) and never cached, so a now-unreachable originator yields not-usable on the next evaluation; there is no stale-cache code path to drive a negative</p></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.2-1">RFC5250-3.2-1</code></td><td colspan="3"><span class="rfc-subject">At ExStart/NegotiationDone, list the entire area link-state database in the neighbor Database summary list, which now includes type-9 and type-10 Opaque LSAs from the area structure and type-11 Opaque LSAs from the global structure (§3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.2-2">RFC5250-3.2-2</code></td><td colspan="3"><span class="rfc-subject">AS External and type-11 Opaque LSAs MUST be omitted from a virtual neighbor&#39;s Database summary list (§3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-3.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.2-3">RFC5250-3.2-3</code></td><td colspan="3"><span class="rfc-subject">AS External LSAs and type-11 Opaque LSAs MUST be omitted from the Database summary list if the area has been configured as a stub area or NSSA (§3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-3.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.2-4">RFC5250-3.2-4</code></td><td colspan="3"><span class="rfc-subject">Type-9 Opaque LSAs MUST be omitted from the Database summary list if the interface associated with the neighbor is not the interface associated with the Opaque LSA (§3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5250-3.2-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5250-3.1-6">RFC5250-3.1-6</code></td><td colspan="3"><span class="rfc-subject">Set the O-bit in DD packets to advertise opaque capability; SHOULD NOT set it in non-DD packets (§3.1)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
@@ -399,7 +440,29 @@ Same OSPF experimental status.
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<p>RFC 5250 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc5250-3.2-1"><code>RFC5250-3.2-1</code></a> At ExStart/NegotiationDone, list the entire area link-state database in the neighbor Database summary list, which now includes type-9 and type-10 Opaque LSAs from the area structure and type-11 Opaque LSAs from the global structure (§3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5250-3.2-2"><code>RFC5250-3.2-2</code></a> AS External and type-11 Opaque LSAs MUST be omitted from a virtual neighbor&#39;s Database summary list (§3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5250-3.2-3"><code>RFC5250-3.2-3</code></a> AS External LSAs and type-11 Opaque LSAs MUST be omitted from the Database summary list if the area has been configured as a stub area or NSSA (§3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5250-3.2-4"><code>RFC5250-3.2-4</code></a> Type-9 Opaque LSAs MUST be omitted from the Database summary list if the interface associated with the neighbor is not the interface associated with the Opaque LSA (§3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
@@ -588,9 +651,253 @@ Same OSPF experimental status.
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc5250-3.2-1"><code>RFC5250-3.2-1</code></a></h3>
+<p>At ExStart/NegotiationDone, list the entire area link-state database in the neighbor Database summary list, which now includes type-9 and type-10 Opaque LSAs from the area structure and type-11 Opaque LSAs from the global structure (§3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5250-3.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5250-3.2-2"><code>RFC5250-3.2-2</code></a></h3>
+<p>AS External and type-11 Opaque LSAs MUST be omitted from a virtual neighbor&#39;s Database summary list (§3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5250-3.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc5250-3.2-3"><code>RFC5250-3.2-3</code></a></h3>
+<p>AS External LSAs and type-11 Opaque LSAs MUST be omitted from the Database summary list if the area has been configured as a stub area or NSSA (§3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5250-3.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc5250-3.2-4"><code>RFC5250-3.2-4</code></a></h3>
+<p>Type-9 Opaque LSAs MUST be omitted from the Database summary list if the interface associated with the neighbor is not the interface associated with the Opaque LSA (§3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5250-3.2-4, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 5250, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc5250.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>e2fca6f42f48f835</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc5250.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>12</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>10</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>9</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>6</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.2</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>3.1:2</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The sentence cites Section 13 of [OSPF] (RFC 2328) and binds this document&#39;s reader to that RFC&#39;s flooding procedure; the opaque-specific modifications follow it and are mapped separately.</td>
+<td>Those procedures MUST be followed as defined except where modified in this section.</td>
+</tr>
+<tr><td><code>3.1:6</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Second half of the same type-11 bullet: RFC5250-3.1-3 states both the flood-out ban and the discard of a type-11 LSA received on a stub/NSSA interface.</td>
+<td>A type-11 Opaque LSA that is received on an interface associated with a stub area or NSSA MUST be discarded and not acknowledged (the neighboring router has flooded the LSA in error).</td>
+</tr>
+<tr><td><code>3.1:8</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Editorial note explaining why the preceding sentence chose SHOULD NOT over MUST NOT (&#39;to remain compatible with earlier specifications&#39;); it states no obligation of its own.</td>
+<td>The setting of the O-bit is a &#34;SHOULD NOT&#34; rather than a &#34;MUST NOT&#34; to remain compatible with earlier specifications.</td>
+</tr>
+<tr><td><code>3.2:5</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>Section 3.2 reproduces the ExStart/NegotiationDone action of Section 10.3 of [OSPF]; the MaxAge omission sentence is unmodified RFC 2328 text carrying no opaque-specific content.</td>
+<td>Any advertisement whose age is equal to MaxAge MUST be omitted from the Database summary list.</td>
+</tr>
+<tr><td><code>3.2:6</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>Same reproduced RFC 2328 Section 10.3 paragraph: the MaxAge advertisement goes on the neighbor&#39;s retransmission list, unmodified base text with no opaque content.</td>
+<td>It MUST instead be added to the neighbor&#39;s link-state retransmission list.</td>
+</tr>
+<tr><td><code>5:1</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The obligation named is &#39;the requirements related to setting of the Options field E-bit in OSPF LSA headers as specified in [OSPF]&#39;, which is RFC 2328&#39;s ASBR E-bit rule.</td>
+<td>(1) An OSPF router that is configured to originate AS-scope opaque LSAs will advertise itself as an ASBR and MUST follow the requirements related to setting of the Options field E-bit in OSPF LSA headers as specified in [OSPF].</td>
+</tr>
+<tr><td><code>5:3</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Same numbered procedure (2): RFC5250-5-1 states both the routing-table lookup and &#39;if unreachable, do nothing with the LSA&#39;.</td>
+<td>If no entries exist for the ASBR (i.e., the ASBR is unreachable), the router MUST do nothing with this LSA.</td>
+</tr>
+<tr><td><code>A.2:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Appendix A.2 restates the link-local flooding scope that Section 3/3.1 defines and RFC5250-3-1 carries.</td>
+<td>Opaque LSAs with a link-local scope MUST NOT be flooded beyond the local (sub)network.</td>
+</tr>
+<tr><td><code>A.2:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Appendix A.2 restates the area-local flooding scope that Section 3/3.1 defines and RFC5250-3-1 carries.</td>
+<td>Opaque LSAs with an area-local scope MUST NOT be flooded beyond their area of origin.</td>
+</tr>
+<tr><td><code>A.2:3</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Appendix A.2 restates the type-11 stub/NSSA flooding ban that Section 3.1 states and RFC5250-3.1-3 carries.</td>
+<td>Opaque LSAs with AS-wide scope MUST NOT be flooded into stub areas or NSSAs.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 5250, so its obligations are stated where they were written.</p>
@@ -624,7 +931,7 @@ Same OSPF experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

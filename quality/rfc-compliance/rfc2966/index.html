@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2966 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2966: Domain-wide Prefix Distribution with Two-Level IS-IS. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 2966: Domain-wide Prefix Distribution with Two-Level IS-IS. 5 gated MUST-level requirements, 0 declared gaps, 1 with no test." />
         <meta property="og:title" content="RFC 2966 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2966: Domain-wide Prefix Distribution with Two-Level IS-IS. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 2966: Domain-wide Prefix Distribution with Two-Level IS-IS. 5 gated MUST-level requirements, 0 declared gaps, 1 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2966 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2966: Domain-wide Prefix Distribution with Two-Level IS-IS. 4 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 2966: Domain-wide Prefix Distribution with Two-Level IS-IS. 5 gated MUST-level requirements, 0 declared gaps, 1 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,22 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>75.0%</strong><b>3 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>60.0%</strong><b>3 of 5 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 6 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>4</strong><b>of 6 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 4 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>25.0%</strong><b>1 of 4 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>5</strong><b>of 7 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 5 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>20.0%</strong><b>1 of 5 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 5 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>20.0%</strong><b>1 of 5 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 7 shares marked as a part above are the whole of the 5 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -159,7 +163,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -199,10 +203,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>6</td>
+<td>7</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>4</td>
+<td>5</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>1</td>
@@ -211,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -242,14 +246,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Domain-wide Prefix Distribution with Two-Level IS-IS (the RFC 2966 up/down bit): four MUST-level requirements over the pure inter-level leak producer LeakPrefixes/leakInto (internal/plugins/isis/spf/leak.go). RFC2966-2-1 (up/down bit set for L2-&gt;L1 prefixes, clear otherwise) both polarities via TestISISLeakOriginationL1L2: an L2-derived prefix leaks DOWN into L1 with up/down=true, an L1-native prefix leaks UP into L2 with up/down=false. RFC2966-2-2 (MUST NOT re-advertise up/down-set L1-learned prefixes back into L2) both polarities via TestISISLeakOriginationL1L2: a prefix already carrying the down bit is skipped (leakInto skips p.UpDown) while a clear-bit L1 prefix is still leaked. RFC2966-2-3 (L1L2 routers never advertise L2-&gt;L1 routes back into L2) both polarities via TestISISLeakFixpoint: a re-originated down-bit prefix is not leaked back up, while the same prefix without the down bit does leak down. RFC2966-x-1 (ignore internal-reachability-with-external-metric-type on receipt) is {not-applicable}: Ze does not decode the old narrow TLV 128/130 (only the wide TLV 135/236), so the internal/external-metric-type conflict never arises. No SHOULD/MAY requirements are gated.</p>
+<p>Enrolled: Domain-wide Prefix Distribution with Two-Level IS-IS (the RFC 2966 up/down bit): five MUST-level requirements after the 2026-09-21 extraction walk, which added RFC2966-3.2-1 (the six-level route preference order of Section 3.2) with no test and no annotation. The other four are over the pure inter-level leak producer LeakPrefixes/leakInto (internal/plugins/isis/spf/leak.go). RFC2966-2-1 (up/down bit set for L2-&gt;L1 prefixes, clear otherwise) both polarities via TestISISLeakOriginationL1L2: an L2-derived prefix leaks DOWN into L1 with up/down=true, an L1-native prefix leaks UP into L2 with up/down=false. RFC2966-2-2 (MUST NOT re-advertise up/down-set L1-learned prefixes back into L2) both polarities via TestISISLeakOriginationL1L2: a prefix already carrying the down bit is skipped (leakInto skips p.UpDown) while a clear-bit L1 prefix is still leaked. RFC2966-2-3 (L1L2 routers never advertise L2-&gt;L1 routes back into L2) both polarities via TestISISLeakFixpoint: a re-originated down-bit prefix is not leaked back up, while the same prefix without the down bit does leak down. RFC2966-x-1 (ignore internal-reachability-with-external-metric-type on receipt) is {not-applicable}: Ze does not decode the old narrow TLV 128/130 (only the wide TLV 135/236), so the internal/external-metric-type conflict never arises. No SHOULD/MAY requirements are gated.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Experimental</p>
 <p><strong>What the ledger says is covered:</strong></p>
 Up/down bit retention and redistribution behavior.
 <p><strong>What the ledger says remains:</strong></p>
-Same IS-IS experimental status.
+Same IS-IS experimental status. <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</code></a>, the Section 3.2 route preference order, was added by the 2026-09-21 extraction walk and carries no test.
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -269,7 +273,7 @@ Same IS-IS experimental status.
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -280,12 +284,13 @@ Same IS-IS experimental status.
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>4</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>5</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (3):</strong> <a href="#rfc2966-2-1"><code>RFC2966-2-1</code></a>, <a href="#rfc2966-2-2"><code>RFC2966-2-2</code></a>, <a href="#rfc2966-2-3"><code>RFC2966-2-3</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc2966-x-1"><code>RFC2966-x-1</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (1):</strong> <a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -317,6 +322,15 @@ Same IS-IS experimental status.
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2966-2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L129" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakFixpoint</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/leak_test.go#L133" title="internal/plugins/isis/spf/leak_test.go" target="_blank" rel="noopener"><code>TestISISLeakFixpoint</code></a></span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2966-3.2-1">RFC2966-3.2-1</code></td><td colspan="3"><span class="rfc-subject">Apply the six-level route preference order this document defines, from L1 intra-area routes with internal metric down to L2-&gt;L1 inter-area external routes with external metric: &#34;Some types of routes must always preferred over others, regardless of the costs that were computed in the Dijkstra calculation&#34; (Section 3.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2966-3.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2966-x-1">RFC2966-x-1</code></td><td colspan="3"><span class="rfc-subject">Ignore a prefix combining &#34;IP Internal Reachability Information&#34; with external metric-type on receipt (Sections 3.1, 3.3)</span></td></tr>
@@ -355,6 +369,10 @@ Same IS-IS experimental status.
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
+<tr><td><a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</code></a> Apply the six-level route preference order this document defines, from L1 intra-area routes with internal metric down to L2-&gt;L1 inter-area external routes with external metric: &#34;Some types of routes must always preferred over others, regardless of the costs that were computed in the Dijkstra calculation&#34; (Section 3.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
 <tr><td><a href="#rfc2966-x-1"><code>RFC2966-x-1</code></a> Ignore a prefix combining &#34;IP Internal Reachability Information&#34; with external metric-type on receipt (Sections 3.1, 3.3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: This requirement concerns the OLD narrow-metric TLV 128 (IP Internal Reachability Information), whose per-prefix external-metric-type bit could conflict with internal reachability. Ze does not decode TLV 128 or TLV 130 (old narrow IP reachability) at all -- its codec recognizes only the wide-metric TLV 135 / TLV 236 (Extended IP/IPv6 Reachability, RFC 5305/5308), and TLV 135 has no internal/external-metric-type octet (internal/plugins/isis/packet/tlv.go recognized-type set: 1,2,6,8,9,10,22,129,132,135,137,232,236,240). A received TLV 128 is an unrecognized TLV, retained opaquely for re-flood but never interpreted for routing, so the internal-reachability-with-external-metric prefix RFC 2966 warns against is never acted upon in Ze.</td>
@@ -425,13 +443,246 @@ Same IS-IS experimental status.
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc2966-3.2-1"><code>RFC2966-3.2-1</code></a></h3>
+<p>Apply the six-level route preference order this document defines, from L1 intra-area routes with internal metric down to L2-&gt;L1 inter-area external routes with external metric: &#34;Some types of routes must always preferred over others, regardless of the costs that were computed in the Dijkstra calculation&#34; (Section 3.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2966-3.2-1, so no unit is bound to it.</p>
 <h3><a href="#rfc2966-x-1"><code>RFC2966-x-1</code></a></h3>
 <p>Ignore a prefix combining &#34;IP Internal Reachability Information&#34; with external metric-type on receipt (Sections 3.1, 3.3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC2966-x-1, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 2966, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc2966.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>69c5c5a8b8142a19</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc2966.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>5</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>15</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>7</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.2</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>1.2:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>&#39;It must also be noted&#39; is the author addressing the reader, not an obligation on an implementation. The sentence records that domain-wide prefix distribution leaves the link state database boundary untouched.</td>
+<td>It must also be noted that the domain-wide distribution of prefixes has no effect whatsoever on the first aspect of scalability, namely the existence of areas and the limitation of the distribution of the link state database.</td>
+</tr>
+<tr><td><code>2:1</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The obligation belongs to RFC 1195, which the sentence names: &#39;RFC 1195 defines that these L1-&gt;L2 inter-area routes must be advertised in L2 LSPs in the IP Internal Reachability Information TLV (TLV 128).&#39; RFC 2966 reports it as the starting point for the up/down bit.</td>
+<td>RFC 1195 defines that these L1-&gt;L2 inter-area routes must be advertised in L2 LSPs in the &#34;IP Internal Reachability Information&#34; TLV (TLV 128).</td>
+</tr>
+<tr><td><code>2:3</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>States the design need that motivates the up/down bit, and the next sentences supply the mechanism: &#39;Draft-ietf-isis-traffic-01.txt defines the up/down bit for this purpose.&#39; The obligations are sites 2:5, 2:6 and 2:7.</td>
+<td>Therefore, there must be a way to distinguish L2-&gt;L1 inter-area routes from L1 intra-area routes.</td>
+</tr>
+<tr><td><code>2:4</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>RFC 1195&#39;s rule for the bit it reserved, introduced two sentences earlier as &#39;RFC 1195 defines TLVs 128 and 130 to contain IP routes... the default metric, has the high-order bit reserved (bit 8).&#39; RFC 2966 then supersedes it: &#39;This document redefines this high-order bit in the default metric field in TLVs 128 and 130 to be the up/down bit.&#39;</td>
+<td>Routers must set this bit to zero on transmission, and ignore it on receipt.</td>
+</tr>
+<tr><td><code>2:6</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The zero half of the same sender rule the previous sentence states: RFC2966-2-1 reads &#39;Set the up/down bit to one for L2-derived prefixes advertised into L1 LSPs, zero otherwise&#39;.</td>
+<td>The bit must be set to zero for all other IP prefixes in L1 or L2 LSPs.</td>
+</tr>
+<tr><td><code>2.1:1</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The preference rule belongs to RFC 1195, which the same paragraph cites and this document declines to change: &#39;RFC 1195 states this quite clearly in the note in paragraph 3.10.2, item 2c). This document does not alter this rule of preference.&#39;</td>
+<td>To prevent confusion, this document states again that when a router computes IP routes, it must give the same preference to IP routes advertised in an &#34;IP Internal Reachability Information&#34; TLV and IP routes advertised in an &#34;IP External Reachability Information&#34; TLV.</td>
+</tr>
+<tr><td><code>2.1:2</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>Also an RFC 1195 rule, which section 3.2 of this document attributes: &#39;RFC 1195 defines that external routes with internal metric-type are preferred over external routes with external metric type.&#39; Section 2.1 is titled &#39;Clarification of external route-type and external metric-type&#39; and restates it.</td>
+<td>However, IP routes advertised in &#34;IP External Reachability Information&#34; with external metric-type must be given less preference than the same IP routes advertised with internal-metric type, regardless of the value of the metrics.</td>
+</tr>
+<tr><td><code>2.1:3</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The must-not clause restates the same RFC 1195 rule the paragraph already attributed to &#39;the note in paragraph 3.10.2, item 2c)&#39;. What this sentence adds is a permission, not an obligation: routers running several IGPs &#39;are free to use this distinction&#39; when filling their global RIB.</td>
+<td>While IS-IS routers must not give different preference to IP prefixes learned via &#34;IP Internal Reachability Information&#34; and &#34;IP External Reachability Information&#34; when executing the Dijkstra calculation, routers that implement multiple IGPs are free to use this distinction between internal and external routes when comparing routes derived from different IGPs for inclusion in their global RIB.</td>
+</tr>
+<tr><td><code>2.2:1</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The obligation belongs to RFC 1195, which the sentence names: &#39;RFC 1195 defines that IP routes learned via L1 routing must always be advertised in L2 LSPs in a IP Internal Reachability Information TLV.&#39;</td>
+<td>RFC 1195 defines that IP routes learned via L1 routing must always be advertised in L2 LSPs in a &#34;IP Internal Reachability Information&#34; TLV.</td>
+</tr>
+<tr><td><code>2.2:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Restates the up/down bit sender rule for the external-prefix case of section 2.2. RFC2966-2-1 already requires the bit set to one for prefixes derived from L2 routing and advertised into L1 LSPs.</td>
+<td>Of course in this case also the up/down bit must be set.</td>
+</tr>
+<tr><td><code>2.2:3</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The obligation belongs to RFC 1195, which the sentence names: &#39;RFC 1195 defines that if a router sees the same external prefix advertised by two or more routers with the same external metric, it must select the route that is advertised by the router that is closest to itself.&#39;</td>
+<td>RFC 1195 defines that if a router sees the same external prefix advertised by two or more routers with the same external metric, it must select the route that is advertised by the router that is closest to itself.</td>
+</tr>
+<tr><td><code>4:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The sentence opens &#39;As has been stated before&#39;, and restates the section 2 loop-prevention rule that RFC2966-2-3 already carries: an L1L2 router never advertises an L2-&gt;L1 inter-area route learned via L1 routing back into L2.</td>
+<td>As has been stated before, L1L2 routers must never advertise L2-&gt;L1 inter-area routes back into L2.</td>
+</tr>
+<tr><td><code>4:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>A precondition on the deployed network rather than on an implementation: every L1L2 router in the area has to understand the up/down bit before L2 routes are leaked down. The same paragraph turns it into the implementation obligation the summary carries as RFC2966-x-2: &#39;it is recommended that implementations by default do not advertise any L2 routes into L1. Implementations should force the network administrator to manually configure L1L2 routers to advertise any L2 routes into L1.&#39;</td>
+<td>Therefore, if L2 routes are advertised down into L1 area, it is required that all L1L2 routers in that area run software that understands the new up/down bit.</td>
+</tr>
+<tr><td><code>5:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Section 5 compares this document with the proposal it calls [3], and the sentence describes what deploying [3] costs a network administrator. RFC 2966 places no obligation here; the section closes by offering its own solution as the alternative that &#39;requires only an upgrade of L1L2 routers in selected areas&#39;.</td>
+<td>To make full use of the wider metric space, network administrators must deploy both new TLVs at the same time.</td>
+</tr>
+<tr><td><code>9:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>The ISOC full copyright statement in the back matter. It governs republication of the document text and carries no protocol obligation.</td>
+<td>However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 2966, so its obligations are stated where they were written.</p>
@@ -465,7 +716,7 @@ Same IS-IS experimental status.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

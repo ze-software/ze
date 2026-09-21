@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 3.7% | 3 of 82 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 82 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 82 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 2.9% | 3 of 103 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 103 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 103 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 0.0% | 0 of 6 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 82 | of 99 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 64 | of 82 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 78.0% | 64 of 82 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 82 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 82 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 103 | of 120 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 64 | of 103 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 62.1% | 64 of 103 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 103 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 103 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 18.3% | 15 of 82 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 35.0% | 36 of 103 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 82 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 103 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 99 |
-| Gated MUST-level | 82 |
+| Requirements | 120 |
+| Gated MUST-level | 103 |
 | Not applicable, so out of scope | 64 |
 | Declared gaps | 15 |
-| Gated with no test | 0 |
+| Gated with no test | 21 |
 | Nightly-only evidence | 0 |
 | Test tags | 8 |
 | Tagged units | 6 |
@@ -87,7 +87,7 @@ EVPN NLRI family (AFI 25 / SAFI 70), common `[route-type][length][body]` header,
 
 **What the ledger says remains**
 
-Fifteen MUST gaps annotated in [`rfc/short/rfc7432.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc7432.md): [`RFC7432-7.9-1`](#rfc7432-7.9-1)/-2/-3 (the RD is per configured route, with no MAC-VRF binding and no uniqueness check), 8.2.1-1/-2 (no per-ES versus per-EVI Ethernet A-D distinction, so MAX-ET and the zero NLRI label are unenforced), 8.1.1-1 (an Ethernet Segment route accepts any RD type, not only Type 1), 9.2.1-2 (an EVPN route with no configured next hop is advertised with next hop 0.0.0.0 instead of the advertising PE address), 9.2.1-3 (Label1 is operator-supplied, with no local label allocation), and 8.2.1-8 / 9.2.1-4 / 8.4.1-1 / 11.1-2 (route targets are attached only when pre-packed by the caller), 8.2.1-3 and 8.1.1-2 (neither the Ethernet A-D per ES route nor the Ethernet Segment route can be originated from a session: `NewEVPNType1` and `NewEVPNType4` ([`internal/component/bgp/plugins/nlri/evpn/encode.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/encode.go)) are reached only from the offline `ze bgp encode` hex tool, while the session origination path `buildEVPNFromParams` admits route types 2, 3 and 5 only. No ESI Label extended community is attached on any path, and the codec defines no type 0x06 sub-type 0x01 value), plus 11.1-1 (the Inclusive Multicast Originating Router's IP is per route). Sixty-four further MUSTs bind PE roles ze does not play: it is a BGP speaker with no MAC-VRF or EVI model, no bridge or MAC learning, no ARP/ND cache, no EVPN forwarding plane, no ES-Import or MAC Mobility or Default Gateway extended community, no PMSI Tunnel attribute, no designated-forwarder election, and no split-horizon, aliasing, or BUM replication.
+Fifteen MUST gaps annotated in [`rfc/short/rfc7432.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc7432.md): [`RFC7432-7.9-1`](#rfc7432-7.9-1)/-2/-3 (the RD is per configured route, with no MAC-VRF binding and no uniqueness check), 8.2.1-1/-2 (no per-ES versus per-EVI Ethernet A-D distinction, so MAX-ET and the zero NLRI label are unenforced), 8.1.1-1 (an Ethernet Segment route accepts any RD type, not only Type 1), 9.2.1-2 (an EVPN route with no configured next hop is advertised with next hop 0.0.0.0 instead of the advertising PE address), 9.2.1-3 (Label1 is operator-supplied, with no local label allocation), and 8.2.1-8 / 9.2.1-4 / 8.4.1-1 / 11.1-2 (route targets are attached only when pre-packed by the caller), 8.2.1-3 and 8.1.1-2 (neither the Ethernet A-D per ES route nor the Ethernet Segment route can be originated from a session: `NewEVPNType1` and `NewEVPNType4` ([`internal/component/bgp/plugins/nlri/evpn/encode.go`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/encode.go)) are reached only from the offline `ze bgp encode` hex tool, while the session origination path `buildEVPNFromParams` admits route types 2, 3 and 5 only. No ESI Label extended community is attached on any path, and the codec defines no type 0x06 sub-type 0x01 value), plus 11.1-1 (the Inclusive Multicast Originating Router's IP is per route). Sixty-four further MUSTs bind PE roles ze does not play: it is a BGP speaker with no MAC-VRF or EVI model, no bridge or MAC learning, no ARP/ND cache, no EVPN forwarding plane, no ES-Import or MAC Mobility or Default Gateway extended community, no PMSI Tunnel attribute, no designated-forwarder election, and no split-horizon, aliasing, or BUM replication. In addition, the 2026-09-21 extraction walk added twenty-one MUST rows from sentences the checklist did not carry, none of them tested: [`RFC7432-6.3-4`](#rfc7432-6.3-4), [`RFC7432-7.10.1-1`](#rfc7432-7.10.1-1), [`RFC7432-7.10.1-2`](#rfc7432-7.10.1-2), [`RFC7432-8.2.1-9`](#rfc7432-8.2.1-9), [`RFC7432-8.2.1-10`](#rfc7432-8.2.1-10), [`RFC7432-8.2.1.1-1`](#rfc7432-8.2.1.1-1), [`RFC7432-8.3-1`](#rfc7432-8.3-1), [`RFC7432-8.3-2`](#rfc7432-8.3-2), [`RFC7432-8.3.1.1-6`](#rfc7432-8.3.1.1-6), [`RFC7432-8.3.1.1-7`](#rfc7432-8.3.1.1-7), [`RFC7432-8.3.1.2-2`](#rfc7432-8.3.1.2-2), [`RFC7432-8.5-2`](#rfc7432-8.5-2), [`RFC7432-9.2.1-6`](#rfc7432-9.2.1-6), [`RFC7432-10.1-5`](#rfc7432-10.1-5), [`RFC7432-11.1-3`](#rfc7432-11.1-3), [`RFC7432-11.2-5`](#rfc7432-11.2-5), [`RFC7432-11.2-6`](#rfc7432-11.2-6), [`RFC7432-11.2-7`](#rfc7432-11.2-7), [`RFC7432-13.1-6`](#rfc7432-13.1-6), [`RFC7432-13.1-7`](#rfc7432-13.1-7), [`RFC7432-17.3-3`](#rfc7432-17.3-3).
 
 ## Coverage
 
@@ -96,14 +96,16 @@ Fifteen MUST gaps annotated in [`rfc/short/rfc7432.md`](https://github.com/ze-so
 | Positive and negative tests | 3 | one part of the gated population |
 | Annotated instead of tested | 79 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 21 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **82** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **103** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (3):** [`RFC7432-5-1`](#rfc7432-5-1), [`RFC7432-9.2.1-1`](#rfc7432-9.2.1-1), [`RFC7432-10-1`](#rfc7432-10-1)
 
 **Annotated instead of tested (79):** [`RFC7432-7.9-1`](#rfc7432-7.9-1), [`RFC7432-7.9-2`](#rfc7432-7.9-2), [`RFC7432-7.9-3`](#rfc7432-7.9-3), [`RFC7432-8.2.1-1`](#rfc7432-8.2.1-1), [`RFC7432-8.2.1-2`](#rfc7432-8.2.1-2), [`RFC7432-8.2.1-3`](#rfc7432-8.2.1-3), [`RFC7432-8.2.1-4`](#rfc7432-8.2.1-4), [`RFC7432-8.2.1-5`](#rfc7432-8.2.1-5), [`RFC7432-8.2.1-6`](#rfc7432-8.2.1-6), [`RFC7432-8.2.1-7`](#rfc7432-8.2.1-7), [`RFC7432-8.2.1-8`](#rfc7432-8.2.1-8), [`RFC7432-8.1.1-1`](#rfc7432-8.1.1-1), [`RFC7432-8.1.1-2`](#rfc7432-8.1.1-2), [`RFC7432-7.6-1`](#rfc7432-7.6-1), [`RFC7432-7.6-2`](#rfc7432-7.6-2), [`RFC7432-11-1`](#rfc7432-11-1), [`RFC7432-9.2.1-2`](#rfc7432-9.2.1-2), [`RFC7432-9.2.1-3`](#rfc7432-9.2.1-3), [`RFC7432-9.1-1`](#rfc7432-9.1-1), [`RFC7432-9.2.1-4`](#rfc7432-9.2.1-4), [`RFC7432-8.4.1-1`](#rfc7432-8.4.1-1), [`RFC7432-10-2`](#rfc7432-10-2), [`RFC7432-10-3`](#rfc7432-10-3), [`RFC7432-10-4`](#rfc7432-10-4), [`RFC7432-11.1-1`](#rfc7432-11.1-1), [`RFC7432-11.1-2`](#rfc7432-11.1-2), [`RFC7432-11.2-1`](#rfc7432-11.2-1), [`RFC7432-11.2-2`](#rfc7432-11.2-2), [`RFC7432-11.2-3`](#rfc7432-11.2-3), [`RFC7432-6.1-1`](#rfc7432-6.1-1), [`RFC7432-6.1-2`](#rfc7432-6.1-2), [`RFC7432-6.2-1`](#rfc7432-6.2-1), [`RFC7432-6.3-1`](#rfc7432-6.3-1), [`RFC7432-6.3-2`](#rfc7432-6.3-2), [`RFC7432-8.3.1.1-1`](#rfc7432-8.3.1.1-1), [`RFC7432-8.3.1.2-1`](#rfc7432-8.3.1.2-1), [`RFC7432-8.3.1-1`](#rfc7432-8.3.1-1), [`RFC7432-15-1`](#rfc7432-15-1), [`RFC7432-15-2`](#rfc7432-15-2), [`RFC7432-15.1-1`](#rfc7432-15.1-1), [`RFC7432-15.1-2`](#rfc7432-15.1-2), [`RFC7432-15.2-1`](#rfc7432-15.2-1), [`RFC7432-10.1-1`](#rfc7432-10.1-1), [`RFC7432-17.3-1`](#rfc7432-17.3-1), [`RFC7432-14.1.1-1`](#rfc7432-14.1.1-1), [`RFC7432-8.4-1`](#rfc7432-8.4-1), [`RFC7432-8.3.1.1-2`](#rfc7432-8.3.1.1-2), [`RFC7432-8.3.1.1-3`](#rfc7432-8.3.1.1-3), [`RFC7432-5-3`](#rfc7432-5-3), [`RFC7432-5-4`](#rfc7432-5-4), [`RFC7432-5-5`](#rfc7432-5-5), [`RFC7432-5-6`](#rfc7432-5-6), [`RFC7432-5-7`](#rfc7432-5-7), [`RFC7432-5-8`](#rfc7432-5-8), [`RFC7432-5-9`](#rfc7432-5-9), [`RFC7432-5-10`](#rfc7432-5-10), [`RFC7432-5-11`](#rfc7432-5-11), [`RFC7432-5-12`](#rfc7432-5-12), [`RFC7432-5-13`](#rfc7432-5-13), [`RFC7432-12-1`](#rfc7432-12-1), [`RFC7432-12.1-1`](#rfc7432-12.1-1), [`RFC7432-12.1-2`](#rfc7432-12.1-2), [`RFC7432-12.2-1`](#rfc7432-12.2-1), [`RFC7432-13.1-1`](#rfc7432-13.1-1), [`RFC7432-13.1-2`](#rfc7432-13.1-2), [`RFC7432-13.1-3`](#rfc7432-13.1-3), [`RFC7432-13.1-4`](#rfc7432-13.1-4), [`RFC7432-13.1-5`](#rfc7432-13.1-5), [`RFC7432-14.1-1`](#rfc7432-14.1-1), [`RFC7432-14.1.1-2`](#rfc7432-14.1.1-2), [`RFC7432-14.1.1-3`](#rfc7432-14.1.1-3), [`RFC7432-14.1.2-1`](#rfc7432-14.1.2-1), [`RFC7432-14.1.2-2`](#rfc7432-14.1.2-2), [`RFC7432-9.2.2-1`](#rfc7432-9.2.2-1), [`RFC7432-9.2.2-2`](#rfc7432-9.2.2-2), [`RFC7432-10.1-4`](#rfc7432-10.1-4), [`RFC7432-9.2.1-5`](#rfc7432-9.2.1-5), [`RFC7432-6.2-2`](#rfc7432-6.2-2), [`RFC7432-6.3-3`](#rfc7432-6.3-3)
+
+**No test and no annotation (21):** [`RFC7432-6.3-4`](#rfc7432-6.3-4), [`RFC7432-7.10.1-1`](#rfc7432-7.10.1-1), [`RFC7432-7.10.1-2`](#rfc7432-7.10.1-2), [`RFC7432-8.2.1-9`](#rfc7432-8.2.1-9), [`RFC7432-8.2.1-10`](#rfc7432-8.2.1-10), [`RFC7432-8.2.1.1-1`](#rfc7432-8.2.1.1-1), [`RFC7432-8.3-1`](#rfc7432-8.3-1), [`RFC7432-8.3-2`](#rfc7432-8.3-2), [`RFC7432-8.3.1.1-6`](#rfc7432-8.3.1.1-6), [`RFC7432-8.3.1.1-7`](#rfc7432-8.3.1.1-7), [`RFC7432-8.3.1.2-2`](#rfc7432-8.3.1.2-2), [`RFC7432-8.5-2`](#rfc7432-8.5-2), [`RFC7432-9.2.1-6`](#rfc7432-9.2.1-6), [`RFC7432-10.1-5`](#rfc7432-10.1-5), [`RFC7432-11.1-3`](#rfc7432-11.1-3), [`RFC7432-11.2-5`](#rfc7432-11.2-5), [`RFC7432-11.2-6`](#rfc7432-11.2-6), [`RFC7432-11.2-7`](#rfc7432-11.2-7), [`RFC7432-13.1-6`](#rfc7432-13.1-6), [`RFC7432-13.1-7`](#rfc7432-13.1-7), [`RFC7432-17.3-3`](#rfc7432-17.3-3)
 
 ## Requirements
 
@@ -208,6 +210,27 @@ Fifteen MUST gaps annotated in [`rfc/short/rfc7432.md`](https://github.com/ze-so
 | `RFC7432-8.3.1.1-5` | Non-DF PE receiving BUM from CE SHOULD not forward it back to CEs on same ES (§8.3.1.1) | SHOULD | 8.3.1.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7432-18-1` | Preferred PW MPLS Control Word SHOULD NOT be used when sending EVPN-encapsulated packets over pseudowire (§18) | SHOULD NOT | 18 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7432-18-2` | Preferred PW MPLS Control Word SHOULD be used with the Ethernet pseudowire type (§18) | SHOULD | 18 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-6.3-4` | The Ethernet Tag ID in all EVPN routes MUST be set to that VID, where a single VLAN is represented by a single VID and no VID translation is required (§6.3) | MUST | 6.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-7.10.1-1` | The Global Administrator field of the RT MUST be set to the Autonomous System (AS) number with which the PE is associated (§7.10.1) | MUST | 7.10.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-7.10.1-2` | The 12-bit VLAN ID MUST be encoded in the lowest 12 bits of the Local Administrator field, with the remaining bits set to zero (§7.10.1) | MUST | 7.10.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-8.2.1-9` | Support of the Ethernet A-D per ES route is REQUIRED (§8.2.1) | MUST | 8.2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-8.2.1-10` | The Route Distinguisher of the Ethernet A-D per ES route MUST be a Type 1 RD (§8.2.1) | MUST | 8.2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-8.2.1.1-1` | The set of Ethernet A-D routes per ES MUST carry the entire set of RTs for all the EVPN instances to which the Ethernet segment belongs (§8.2.1.1) | MUST | 8.2.1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-8.3-1` | Where a BUM packet returns to the Ethernet segment it came from, the DF PE to which the CE is multihomed MUST drop the packet and not forward back to the CE (§8.3) | MUST | 8.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-8.3-2` | The ESI label MUST be distributed by all PEs when operating in All-Active redundancy mode using a set of Ethernet A-D per ES routes (§8.3) | MUST | 8.3 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-8.3.1.1-6` | After pushing the ESI label, the ingress PE MUST then push onto the MPLS label stack the MPLS label distributed by the egress PE in the Inclusive Multicast Ethernet Tag route for that VLAN (§8.3.1.1) | MUST | 8.3.1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-8.3.1.1-7` | If the next label is an ESI label that has not been assigned by the receiving PE, then that PE MUST drop the packet (§8.3.1.1) | MUST | 8.3.1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-8.3.1.2-2` | If the next label is the ESI label assigned by the ingress PE to an ES the receiving PE is not connected to, then the receiving PE MUST pop the label and flood the packet over all local ESIs in that EVPN instance (§8.3.1.2) | MUST | 8.3.1.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-8.5-2` | In the case of VLAN-(aware) bundle service, the numerically lowest VLAN value in that bundle on that ES MUST be used in the DF election modulo function (§8.5) | MUST | 8.5 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-9.2.1-6` | The encoding of an IP address MUST be either 4 octets for IPv4 or 16 octets for IPv6 (§9.2.1) | MUST | 9.2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-10.1-5` | Each PE that acts as a default gateway and imports the default gateway route MUST create MAC forwarding state that enables it to apply IP forwarding to packets destined to the MAC address carried in the route (§10.1) | MUST | 10.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-11.1-3` | The BGP advertisement for the Inclusive Multicast Ethernet Tag route MUST carry one or more Route Target attributes (§11.1) | MUST | 11.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-11.2-5` | If the originating PE uses a P-multicast tree for the P-tunnel, the PMSI Tunnel attribute MUST contain the identity of the tree (§11.2) | MUST | 11.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-11.2-6` | When aggregating EVIs onto one tree, the PMSI Tunnel attribute MUST carry an MPLS upstream assigned label that the PE has bound uniquely to the EVI associated with the update (§11.2) | MUST | 11.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-11.2-7` | If the PE has already advertised Inclusive Multicast Ethernet Tag routes for two or more EVIs that it now desires to aggregate, the PE MUST re-advertise those routes, identical except for the PMSI Tunnel attribute and its label (§11.2) | MUST | 11.2 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-13.1-6` | If a distinct P2MP LSP is used for a given Ethernet tag in the EVPN instance, then only the PEs in that Ethernet tag MUST be the leaves of the P2MP LSP (§13.1) | MUST | 13.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-13.1-7` | The flooded packet MUST be encapsulated in the P2MP LSP label stack (§13.1) | MUST | 13.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7432-17.3-3` | When the MAC entry on the PE ages out, the PE MUST withdraw the MAC address from BGP (§17.3) | MUST | 17.3 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -292,6 +315,27 @@ Fifteen MUST gaps annotated in [`rfc/short/rfc7432.md`](https://github.com/ze-so
 | [`RFC7432-9.2.1-5`](#rfc7432-9.2.1-5) PE creating MAC forwarding state from received MAC/IP routes MUST enable forwarding to remote destinations (§9.2.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze programs no EVPN forwarding plane: grep -rni 'evpn' --include=*.go over internal/plugins/fib/ and internal/component/iface/ matches nothing, so no encapsulation, label push, or bridge-port decision exists |
 | [`RFC7432-6.2-2`](#rfc7432-6.2-2) VLAN-bundle service: MAC addresses MUST remain tagged with originating VID in MPLS encapsulation (§6.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze models no EVPN service type: grep -rni 'vlan.based\|vlan.bundle\|vlan.aware' --include=*.go over internal/ matches nothing, and the Ethernet Tag ID is simply the value the route command supplies (internal/component/bgp/plugins/nlri/evpn/encode.go:189), and ze programs no EVPN forwarding plane: grep -rni 'evpn' --include=*.go over internal/plugins/fib/ and internal/component/iface/ matches nothing, so no encapsulation, label push, or bridge-port decision exists |
 | [`RFC7432-6.3-3`](#rfc7432-6.3-3) VLAN-aware bundle with VID translation: Ethernet frames MUST remain tagged with normalized VID (§6.3) | no test | no test carries this requirement id; annotated {not-applicable}: ze models no EVPN service type: grep -rni 'vlan.based\|vlan.bundle\|vlan.aware' --include=*.go over internal/ matches nothing, and the Ethernet Tag ID is simply the value the route command supplies (internal/component/bgp/plugins/nlri/evpn/encode.go:189), and ze programs no EVPN forwarding plane: grep -rni 'evpn' --include=*.go over internal/plugins/fib/ and internal/component/iface/ matches nothing, so no encapsulation, label push, or bridge-port decision exists |
+| [`RFC7432-6.3-4`](#rfc7432-6.3-4) The Ethernet Tag ID in all EVPN routes MUST be set to that VID, where a single VLAN is represented by a single VID and no VID translation is required (§6.3) | no test | no test carries this requirement id |
+| [`RFC7432-7.10.1-1`](#rfc7432-7.10.1-1) The Global Administrator field of the RT MUST be set to the Autonomous System (AS) number with which the PE is associated (§7.10.1) | no test | no test carries this requirement id |
+| [`RFC7432-7.10.1-2`](#rfc7432-7.10.1-2) The 12-bit VLAN ID MUST be encoded in the lowest 12 bits of the Local Administrator field, with the remaining bits set to zero (§7.10.1) | no test | no test carries this requirement id |
+| [`RFC7432-8.2.1-9`](#rfc7432-8.2.1-9) Support of the Ethernet A-D per ES route is REQUIRED (§8.2.1) | no test | no test carries this requirement id |
+| [`RFC7432-8.2.1-10`](#rfc7432-8.2.1-10) The Route Distinguisher of the Ethernet A-D per ES route MUST be a Type 1 RD (§8.2.1) | no test | no test carries this requirement id |
+| [`RFC7432-8.2.1.1-1`](#rfc7432-8.2.1.1-1) The set of Ethernet A-D routes per ES MUST carry the entire set of RTs for all the EVPN instances to which the Ethernet segment belongs (§8.2.1.1) | no test | no test carries this requirement id |
+| [`RFC7432-8.3-1`](#rfc7432-8.3-1) Where a BUM packet returns to the Ethernet segment it came from, the DF PE to which the CE is multihomed MUST drop the packet and not forward back to the CE (§8.3) | no test | no test carries this requirement id |
+| [`RFC7432-8.3-2`](#rfc7432-8.3-2) The ESI label MUST be distributed by all PEs when operating in All-Active redundancy mode using a set of Ethernet A-D per ES routes (§8.3) | no test | no test carries this requirement id |
+| [`RFC7432-8.3.1.1-6`](#rfc7432-8.3.1.1-6) After pushing the ESI label, the ingress PE MUST then push onto the MPLS label stack the MPLS label distributed by the egress PE in the Inclusive Multicast Ethernet Tag route for that VLAN (§8.3.1.1) | no test | no test carries this requirement id |
+| [`RFC7432-8.3.1.1-7`](#rfc7432-8.3.1.1-7) If the next label is an ESI label that has not been assigned by the receiving PE, then that PE MUST drop the packet (§8.3.1.1) | no test | no test carries this requirement id |
+| [`RFC7432-8.3.1.2-2`](#rfc7432-8.3.1.2-2) If the next label is the ESI label assigned by the ingress PE to an ES the receiving PE is not connected to, then the receiving PE MUST pop the label and flood the packet over all local ESIs in that EVPN instance (§8.3.1.2) | no test | no test carries this requirement id |
+| [`RFC7432-8.5-2`](#rfc7432-8.5-2) In the case of VLAN-(aware) bundle service, the numerically lowest VLAN value in that bundle on that ES MUST be used in the DF election modulo function (§8.5) | no test | no test carries this requirement id |
+| [`RFC7432-9.2.1-6`](#rfc7432-9.2.1-6) The encoding of an IP address MUST be either 4 octets for IPv4 or 16 octets for IPv6 (§9.2.1) | no test | no test carries this requirement id |
+| [`RFC7432-10.1-5`](#rfc7432-10.1-5) Each PE that acts as a default gateway and imports the default gateway route MUST create MAC forwarding state that enables it to apply IP forwarding to packets destined to the MAC address carried in the route (§10.1) | no test | no test carries this requirement id |
+| [`RFC7432-11.1-3`](#rfc7432-11.1-3) The BGP advertisement for the Inclusive Multicast Ethernet Tag route MUST carry one or more Route Target attributes (§11.1) | no test | no test carries this requirement id |
+| [`RFC7432-11.2-5`](#rfc7432-11.2-5) If the originating PE uses a P-multicast tree for the P-tunnel, the PMSI Tunnel attribute MUST contain the identity of the tree (§11.2) | no test | no test carries this requirement id |
+| [`RFC7432-11.2-6`](#rfc7432-11.2-6) When aggregating EVIs onto one tree, the PMSI Tunnel attribute MUST carry an MPLS upstream assigned label that the PE has bound uniquely to the EVI associated with the update (§11.2) | no test | no test carries this requirement id |
+| [`RFC7432-11.2-7`](#rfc7432-11.2-7) If the PE has already advertised Inclusive Multicast Ethernet Tag routes for two or more EVIs that it now desires to aggregate, the PE MUST re-advertise those routes, identical except for the PMSI Tunnel attribute and its label (§11.2) | no test | no test carries this requirement id |
+| [`RFC7432-13.1-6`](#rfc7432-13.1-6) If a distinct P2MP LSP is used for a given Ethernet tag in the EVPN instance, then only the PEs in that Ethernet tag MUST be the leaves of the P2MP LSP (§13.1) | no test | no test carries this requirement id |
+| [`RFC7432-13.1-7`](#rfc7432-13.1-7) The flooded packet MUST be encapsulated in the P2MP LSP label stack (§13.1) | no test | no test carries this requirement id |
+| [`RFC7432-17.3-3`](#rfc7432-17.3-3) When the MAC entry on the PE ages out, the PE MUST withdraw the MAC address from BGP (§17.3) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -962,9 +1006,302 @@ Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC7432-6.3-3, so no unit is bound to it.
 
+### [`RFC7432-6.3-4`](#rfc7432-6.3-4)
+
+The Ethernet Tag ID in all EVPN routes MUST be set to that VID, where a single VLAN is represented by a single VID and no VID translation is required (§6.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-6.3-4, so no unit is bound to it.
+
+### [`RFC7432-7.10.1-1`](#rfc7432-7.10.1-1)
+
+The Global Administrator field of the RT MUST be set to the Autonomous System (AS) number with which the PE is associated (§7.10.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-7.10.1-1, so no unit is bound to it.
+
+### [`RFC7432-7.10.1-2`](#rfc7432-7.10.1-2)
+
+The 12-bit VLAN ID MUST be encoded in the lowest 12 bits of the Local Administrator field, with the remaining bits set to zero (§7.10.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-7.10.1-2, so no unit is bound to it.
+
+### [`RFC7432-8.2.1-9`](#rfc7432-8.2.1-9)
+
+Support of the Ethernet A-D per ES route is REQUIRED (§8.2.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-8.2.1-9, so no unit is bound to it.
+
+### [`RFC7432-8.2.1-10`](#rfc7432-8.2.1-10)
+
+The Route Distinguisher of the Ethernet A-D per ES route MUST be a Type 1 RD (§8.2.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-8.2.1-10, so no unit is bound to it.
+
+### [`RFC7432-8.2.1.1-1`](#rfc7432-8.2.1.1-1)
+
+The set of Ethernet A-D routes per ES MUST carry the entire set of RTs for all the EVPN instances to which the Ethernet segment belongs (§8.2.1.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-8.2.1.1-1, so no unit is bound to it.
+
+### [`RFC7432-8.3-1`](#rfc7432-8.3-1)
+
+Where a BUM packet returns to the Ethernet segment it came from, the DF PE to which the CE is multihomed MUST drop the packet and not forward back to the CE (§8.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-8.3-1, so no unit is bound to it.
+
+### [`RFC7432-8.3-2`](#rfc7432-8.3-2)
+
+The ESI label MUST be distributed by all PEs when operating in All-Active redundancy mode using a set of Ethernet A-D per ES routes (§8.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-8.3-2, so no unit is bound to it.
+
+### [`RFC7432-8.3.1.1-6`](#rfc7432-8.3.1.1-6)
+
+After pushing the ESI label, the ingress PE MUST then push onto the MPLS label stack the MPLS label distributed by the egress PE in the Inclusive Multicast Ethernet Tag route for that VLAN (§8.3.1.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-8.3.1.1-6, so no unit is bound to it.
+
+### [`RFC7432-8.3.1.1-7`](#rfc7432-8.3.1.1-7)
+
+If the next label is an ESI label that has not been assigned by the receiving PE, then that PE MUST drop the packet (§8.3.1.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-8.3.1.1-7, so no unit is bound to it.
+
+### [`RFC7432-8.3.1.2-2`](#rfc7432-8.3.1.2-2)
+
+If the next label is the ESI label assigned by the ingress PE to an ES the receiving PE is not connected to, then the receiving PE MUST pop the label and flood the packet over all local ESIs in that EVPN instance (§8.3.1.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-8.3.1.2-2, so no unit is bound to it.
+
+### [`RFC7432-8.5-2`](#rfc7432-8.5-2)
+
+In the case of VLAN-(aware) bundle service, the numerically lowest VLAN value in that bundle on that ES MUST be used in the DF election modulo function (§8.5)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-8.5-2, so no unit is bound to it.
+
+### [`RFC7432-9.2.1-6`](#rfc7432-9.2.1-6)
+
+The encoding of an IP address MUST be either 4 octets for IPv4 or 16 octets for IPv6 (§9.2.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-9.2.1-6, so no unit is bound to it.
+
+### [`RFC7432-10.1-5`](#rfc7432-10.1-5)
+
+Each PE that acts as a default gateway and imports the default gateway route MUST create MAC forwarding state that enables it to apply IP forwarding to packets destined to the MAC address carried in the route (§10.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-10.1-5, so no unit is bound to it.
+
+### [`RFC7432-11.1-3`](#rfc7432-11.1-3)
+
+The BGP advertisement for the Inclusive Multicast Ethernet Tag route MUST carry one or more Route Target attributes (§11.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-11.1-3, so no unit is bound to it.
+
+### [`RFC7432-11.2-5`](#rfc7432-11.2-5)
+
+If the originating PE uses a P-multicast tree for the P-tunnel, the PMSI Tunnel attribute MUST contain the identity of the tree (§11.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-11.2-5, so no unit is bound to it.
+
+### [`RFC7432-11.2-6`](#rfc7432-11.2-6)
+
+When aggregating EVIs onto one tree, the PMSI Tunnel attribute MUST carry an MPLS upstream assigned label that the PE has bound uniquely to the EVI associated with the update (§11.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-11.2-6, so no unit is bound to it.
+
+### [`RFC7432-11.2-7`](#rfc7432-11.2-7)
+
+If the PE has already advertised Inclusive Multicast Ethernet Tag routes for two or more EVIs that it now desires to aggregate, the PE MUST re-advertise those routes, identical except for the PMSI Tunnel attribute and its label (§11.2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-11.2-7, so no unit is bound to it.
+
+### [`RFC7432-13.1-6`](#rfc7432-13.1-6)
+
+If a distinct P2MP LSP is used for a given Ethernet tag in the EVPN instance, then only the PEs in that Ethernet tag MUST be the leaves of the P2MP LSP (§13.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-13.1-6, so no unit is bound to it.
+
+### [`RFC7432-13.1-7`](#rfc7432-13.1-7)
+
+The flooded packet MUST be encapsulated in the P2MP LSP label stack (§13.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-13.1-7, so no unit is bound to it.
+
+### [`RFC7432-17.3-3`](#rfc7432-17.3-3)
+
+When the MAC entry on the PE ages out, the PE MUST withdraw the MAC address from BGP (§17.3)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7432-17.3-3, so no unit is bound to it.
+
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 7432, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc7432.txt |
+| Source fingerprint | e0c94051f8085c2a |
+| Record | rfc/extraction/rfc7432.json |
+| Mapped sentences | 101 |
+| Declined as scope | 24 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 11 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 2 | walked | not stated |
+| `6.2` | not stated | 3 | walked | not stated |
+| `6.2.1` | not stated | 0 | walked | not stated |
+| `6.3` | not stated | 5 | walked | not stated |
+| `6.3.1` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `7.2` | not stated | 0 | walked | not stated |
+| `7.3` | not stated | 0 | walked | not stated |
+| `7.4` | not stated | 0 | walked | not stated |
+| `7.5` | not stated | 0 | walked | not stated |
+| `7.6` | not stated | 1 | walked | not stated |
+| `7.7` | not stated | 0 | walked | not stated |
+| `7.8` | not stated | 0 | walked | not stated |
+| `7.9` | not stated | 3 | walked | not stated |
+| `7.10` | not stated | 0 | walked | not stated |
+| `7.10.1` | not stated | 2 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.1.1` | not stated | 4 | walked | not stated |
+| `8.2` | not stated | 0 | walked | not stated |
+| `8.2.1` | not stated | 11 | walked | not stated |
+| `8.2.1.1` | not stated | 2 | walked | not stated |
+| `8.3` | not stated | 3 | walked | not stated |
+| `8.3.1` | not stated | 0 | walked | not stated |
+| `8.3.1.1` | not stated | 7 | walked | not stated |
+| `8.3.1.2` | not stated | 6 | walked | not stated |
+| `8.4` | not stated | 1 | walked | not stated |
+| `8.4.1` | not stated | 4 | walked | not stated |
+| `8.5` | not stated | 2 | walked | not stated |
+| `8.6` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 1 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+| `9.2.1` | not stated | 6 | walked | not stated |
+| `9.2.2` | not stated | 2 | walked | not stated |
+| `10` | not stated | 4 | walked | not stated |
+| `10.1` | not stated | 3 | walked | not stated |
+| `11` | not stated | 1 | walked | not stated |
+| `11.1` | not stated | 5 | walked | not stated |
+| `11.2` | not stated | 8 | walked | not stated |
+| `12` | not stated | 1 | walked | not stated |
+| `12.1` | not stated | 2 | walked | not stated |
+| `12.2` | not stated | 2 | walked | not stated |
+| `13` | not stated | 0 | walked | not stated |
+| `13.1` | not stated | 8 | walked | not stated |
+| `13.2` | not stated | 0 | walked | not stated |
+| `13.2.1` | not stated | 0 | walked | not stated |
+| `13.2.2` | not stated | 0 | walked | not stated |
+| `14` | not stated | 0 | walked | not stated |
+| `14.1` | not stated | 1 | walked | not stated |
+| `14.1.1` | not stated | 2 | walked | not stated |
+| `14.1.2` | not stated | 3 | walked | not stated |
+| `14.2` | not stated | 0 | walked | not stated |
+| `14.2.1` | not stated | 0 | walked | not stated |
+| `14.2.2` | not stated | 0 | walked | not stated |
+| `15` | not stated | 2 | walked | not stated |
+| `15.1` | not stated | 2 | walked | not stated |
+| `15.2` | not stated | 1 | walked | not stated |
+| `16` | not stated | 0 | walked | not stated |
+| `16.1` | not stated | 0 | walked | not stated |
+| `16.2` | not stated | 0 | walked | not stated |
+| `16.2.1` | not stated | 0 | walked | not stated |
+| `17` | not stated | 0 | walked | not stated |
+| `17.1` | not stated | 0 | walked | not stated |
+| `17.2` | not stated | 0 | walked | not stated |
+| `17.3` | not stated | 4 | walked | not stated |
+| `18` | not stated | 0 | walked | not stated |
+| `19` | not stated | 0 | walked | not stated |
+| `20` | not stated | 0 | walked | not stated |
+| `21` | not stated | 0 | walked | not stated |
+| `21.1` | not stated | 0 | walked | not stated |
+| `21.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `6.2:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the zero Ethernet Tag ID obligation for VLAN bundle service that Section 6.1 states for VLAN-based service: "The Ethernet Tag ID in all EVPN routes MUST be set to 0." | The Ethernet Tag ID in all EVPN routes MUST be set to 0. |
+| `6.3:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the normalized Ethernet Tag ID obligation the same section already states: "a normalized Ethernet Tag ID (VID) MUST be carried in the EVPN BGP routes." | The Ethernet Tag ID in all EVPN routes MUST be set to the normalized Ethernet Tag ID assigned by the EVPN provider. |
+| `8.2.1:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the 10-octet Ethernet Segment Identifier that Section 5 defines and RFC7432-5-1 carries. | The Ethernet Segment Identifier MUST be a 10-octet entity as described in Section 5 ("Ethernet Segment"). |
+| `8.2.1:9` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the downstream assigned ESI label that the All-Active sentence in the same section states, which RFC7432-8.2.1-4 carries. | This label MUST be a downstream assigned MPLS label if the advertising PE is using ingress replication for receiving multicast, broadcast, or unknown unicast traffic from other PEs. |
+| `8.3:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the ESI Label extended community the Ethernet Segment route must carry, stated in Section 8.1.1 and carried by RFC7432-8.1.1-2. | As described in Section 8.1.1, the route MUST carry an ESI Label extended community with a valid ESI label. |
+| `8.3.1.1:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates, in the worked example, the obligation on the ingress PE to push the ESI label the egress PE distributed, which RFC7432-8.3.1.1-1 carries. | So, when PE1 sends a BUM packet that it receives from CE1, it MUST first push onto the MPLS label stack the ESI label that PE2 has distributed for ES1. |
+| `8.3.1.2:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the ESI label programming obligation for the P2MP case that RFC7432-8.3.1-1 carries. | This label MUST be programmed by the other PEs that are connected to the ESI advertised in the route, in the context label space for the advertising PE. |
+| `8.3.1.2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the ESI label programming obligation for PEs that import the route without being connected to the ESI, which RFC7432-8.3.1-1 carries. | This label MUST also be programmed by the other PEs that import the route but are not connected to the ESI advertised in the route, in the context label space for the advertising PE. |
+| `8.3.1.2:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates, for the P2MP case, the obligation to push the ESI label first, which RFC7432-8.3.1.1-1 carries. | When PE1 sends a BUM packet that it receives from CE1, it MUST first push onto the MPLS label stack the ESI label that it has assigned for the ESI on which the packet was received. |
+| `8.3.1.2:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the split-horizon prohibition for the P2MP case that RFC7432-8.3.1.1-3 carries. | If the next label is the ESI label assigned by PE1 to ES1, then PE2 MUST NOT forward the packet onto ES1. |
+| `8.4.1:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | "The Route Distinguisher (RD) MUST be set per Section 7.9" defers to Section 7.9, whose obligation RFC7432-7.9-1 carries. | The Route Distinguisher (RD) MUST be set per Section 7.9. |
+| `8.4.1:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the 10-octet Ethernet Segment Identifier that Section 5 defines and RFC7432-5-1 carries. | The Ethernet Segment Identifier MUST be a 10-octet entity as described in Section 5 ("Ethernet Segment"). |
+| `8.4.1:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the MP_REACH_NLRI next-hop obligation that RFC7432-9.2.1-2 carries. | The Next Hop field of the MP_REACH_NLRI attribute of the route MUST be set to the IPv4 or IPv6 address of the advertising PE. |
+| `9.2.1:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | "The RD MUST be set per Section 7.9" defers to Section 7.9, whose obligation RFC7432-7.9-1 carries. | The RD MUST be set per Section 7.9. |
+| `10.1:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the valid downstream assigned label the default gateway route must carry, which RFC7432-10.1-4 carries. | Furthermore, even if all PEs of a given EVPN instance do act as a default gateway for that EVPN instance, but only some, but not all, of these PEs have sufficient (routing) information to provide inter-subnet routing for all the inter-subnet traffic originated within the subnet associated with the EVPN instance, then when such a PE advertises in the EVPN control plane its default gateway MAC address using the MAC/IP Advertisement route and indicates that such a route is associated with the default gateway, the route MUST carry a valid downstream assigned label. |
+| `11.1:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | "The RD MUST be set per Section 7.9" defers to Section 7.9, whose obligation RFC7432-7.9-1 carries. | The RD MUST be set per Section 7.9. |
+| `11.1:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the MP_REACH_NLRI next-hop obligation that RFC7432-9.2.1-2 carries. | The Next Hop field of the MP_REACH_NLRI attribute of the route MUST be set to the IPv4 or IPv6 address of the advertising PE. |
+| `11.2:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the re-advertisement obligation in the preceding sentence, which RFC7432-11.2-7 carries in full. | The re-advertised routes MUST be the same as the original ones, except for the PMSI Tunnel attribute and the label carried in that attribute. |
+| `11.2:6` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates, for the ingress replication case, the obligation to include the PMSI Tunnel attribute that RFC7432-11.2-1 carries. | + If the PE that originates the advertisement uses ingress replication for the P-tunnel for EVPN, the route MUST include the PMSI Tunnel attribute with the Tunnel Type set to Ingress Replication and the Tunnel Identifier set to a routable address of the PE. |
+| `12.2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates, for the P2MP case, the unknown unicast treatment that RFC7432-12.1-2 carries. | Further, if the MAC address is a unicast MAC address, the PE MUST treat the packet as an unknown unicast packet. |
+| `13.1:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the ESI label encapsulation the same requirement carries: RFC7432-13.1-1 covers flooding to other PEs and the ESI label encapsulation together. | The PE MUST first encapsulate the packet in the ESI MPLS label as described in Section 8.3. |
+| `14.1.2:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the label stack choice inside the ECMP next-hop construction that RFC7432-14.1.2-2 carries. | - If the next hop is constructed as a result of a MAC route, then this label stack MUST be used. |
+| `17.3:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the withdrawal of Ethernet A-D per EVI routes on decommissioning that RFC7432-17.3-1 carries. | When an Ethernet tag is decommissioned on an Ethernet segment, then the PE MUST withdraw the Ethernet A-D per EVI route(s) announced for the <ESI, Ethernet tags> that are impacted by the decommissioning. |
+| `17.3:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the withdrawal of the impacted MAC/IP Advertisement routes that RFC7432-17.3-1 carries. | In addition, the PE MUST also withdraw the MAC/IP Advertisement routes that are impacted by the decommissioning. |
 
 ## Superseded
 

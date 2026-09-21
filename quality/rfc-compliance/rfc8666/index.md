@@ -506,7 +506,55 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 8666, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc8666.txt |
+| Source fingerprint | 4b07a65a8931185d |
+| Record | rfc/extraction/rfc8666.json |
+| Mapped sentences | 30 |
+| Declined as scope | 1 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 4 | walked | not stated |
+| `6` | not stated | 15 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 3 | walked | not stated |
+| `7.2` | not stated | 2 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 3 | walked | not stated |
+| `8.2` | not stated | 1 | walked | not stated |
+| `8.3` | not stated | 0 | walked | not stated |
+| `8.4` | not stated | 0 | walked | not stated |
+| `8.4.1` | not stated | 1 | walked | not stated |
+| `8.4.2` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+| `10` | not stated | 1 | walked | not stated |
+| `11` | not stated | 1 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `12.1` | not stated | 0 | walked | not stated |
+| `12.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `6:9` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Second sentence of the same paragraph; RFC8666-6-8 already carries 'regardless of whether the next-hop router contributes to the best path' as part of the outgoing-label rule. | This MUST be done regardless of whether the next-hop router contributes to the best path to the prefix. |
 
 ## Superseded
 

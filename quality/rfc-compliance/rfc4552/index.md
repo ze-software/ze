@@ -423,7 +423,59 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 4552, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc4552.txt |
+| Source fingerprint | 13a1f16d1a8257fb |
+| Record | rfc/extraction/rfc4552.json |
+| Mapped sentences | 28 |
+| Declined as scope | 9 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 3 | walked | not stated |
+| `3` | not stated | 4 | walked | not stated |
+| `4` | not stated | 3 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 9 | walked | not stated |
+| `7` | not stated | 4 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 6 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `10.1` | not stated | 2 | walked | not stated |
+| `10.2` | not stated | 0 | walked | not stated |
+| `10.3` | not stated | 0 | walked | not stated |
+| `11` | not stated | 4 | walked | not stated |
+| `12` | not stated | 1 | walked | not stated |
+| `13` | not stated | 0 | walked | not stated |
+| `14` | not stated | 0 | walked | not stated |
+| `15` | not stated | 0 | walked | not stated |
+| `15.1` | not stated | 0 | walked | not stated |
+| `15.2` | not stated | 1 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Descriptive of the IPsec architecture, not of an OSPFv3 implementation: the lowercase 'must' restates when the IPsec architecture calls for a tunnel mode SA. The same paragraph then removes the case from OSPFv3: 'since the packets are locally delivered, the routers assume the role of hosts in the context of tunnel mode SA.' | The SA must be a tunnel mode SA if either end of the security association is a router/gateway. |
+| `6:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | The lead-in sentence that introduces the capability list in section 6. It carries no obligation of its own; the obligations are the numbered capability entries that follow, sites 6:2 through 6:9. | In order to implement this specification, the following IPsec capabilities are required. |
+| `7:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Describes the shape of the problem on a broadcast interface. 'required' names the security service OSPFv3 needs, and the sentence states no obligation on an implementation. | While running OSPFv3 over a broadcast interface, the authentication/confidentiality required is "one to many". |
+| `7:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Describes IKE, another system: it explains why a Diffie-Hellman two-party protocol cannot serve the one-to-many case. It places no obligation on an OSPFv3 implementation. | Since IKE is based on the Diffie-Hellman key agreement protocol and works only for two communicating parties, it is not possible to use IKE for providing the required "one to many" authentication/confidentiality. |
+| `7:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | A forward reference to the scalability discussion that follows. It is the rationale for the obligation in site 7:4, not an obligation itself. | The following discussion explains that it is not scalable and is practically infeasible to use different security associations for inbound and outbound traffic to provide the required "one to many" security. |
+| `9:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | The rationale sentence for the address-selection obligations that follow. 'the source address also needs to be predictable' explains why sites 9:4, 9:5 and 9:6 exist; the obligations are those three sentences. | In order to install the required security rules for virtual links, the source address also needs to be predictable. |
+| `10.1:1` | `advisory-in-context` (never bound Ze): the sentence advises on applying a rule stated elsewhere and adds no obligation of its own | A step-ordering note inside the rekey procedure, which section 10.1 opens as 'The following three-step procedure SHOULD be provided to rekey the routers on a link without dropping OSPFv3 protocol packets or disrupting the adjacency.' The enclosing construction is a SHOULD, recorded as RFC4552-10.1-1. | Note that all routers on the link must complete step 1 before any begin step 2. |
+| `10.1:2` | `advisory-in-context` (never bound Ze): the sentence advises on applying a rule stated elsewhere and adds no obligation of its own | The second half of the same step-ordering note, inside the same construction: 'The following three-step procedure SHOULD be provided to rekey the routers on a link without dropping OSPFv3 protocol packets or disrupting the adjacency.' Recorded as RFC4552-10.1-1. | Likewise, all the routers on the link must complete step 2 before any begin step 3. |
+| `15.2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF intellectual property boilerplate in the back matter. It addresses any interested party about patent disclosure and carries no protocol obligation. | The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard. |
 
 ## Superseded
 

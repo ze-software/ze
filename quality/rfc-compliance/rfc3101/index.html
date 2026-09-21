@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3101 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 3101: The OSPF Not-So-Stubby Area (NSSA) Option. 17 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 3101: The OSPF Not-So-Stubby Area (NSSA) Option. 25 gated MUST-level requirements, 0 declared gaps, 8 with no test." />
         <meta property="og:title" content="RFC 3101 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 3101: The OSPF Not-So-Stubby Area (NSSA) Option. 17 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 3101: The OSPF Not-So-Stubby Area (NSSA) Option. 25 gated MUST-level requirements, 0 declared gaps, 8 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 3101 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 3101: The OSPF Not-So-Stubby Area (NSSA) Option. 17 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 3101: The OSPF Not-So-Stubby Area (NSSA) Option. 25 gated MUST-level requirements, 0 declared gaps, 8 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,22 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>17 of 17 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>68.0%</strong><b>17 of 25 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>20.0%</strong><b>13 of 65 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>17</strong><b>of 21 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 17 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 17 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>25</strong><b>of 30 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 25 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 17 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>32.0%</strong><b>8 of 25 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 7 shares marked as a part above are the whole of the 25 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -159,7 +163,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -199,10 +203,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>21</td>
+<td>30</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>17</td>
+<td>25</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -211,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>8</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -242,7 +246,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: OSPF NSSA (RFC 3101): 13 MET (N/E-bit Hello negotiation, Type-7 origination/flood-scope, P-bit boundary policy, ASBR E-bit, Type-3 import, translator election, Type-7-&gt;Type-5 translation, highest-RID duplicate suppression) + 2 gap (install-side default P-gate, unconditional default into every NSSA)</p>
+<p>Enrolled: OSPF NSSA (RFC 3101): 13 MET (N/E-bit Hello negotiation, Type-7 origination/flood-scope, P-bit boundary policy, ASBR E-bit, Type-3 import, translator election, Type-7-&gt;Type-5 translation, highest-RID duplicate suppression) + 2 gap (install-side default P-gate, unconditional default into every NSSA). The 2026-09-21 extraction walk read the document against this checklist and added 9 rows it did not carry: RFC3101-2.3-3 (re-originate the Type-7 LSA with a new forwarding address when the forwarding address&#39;s interface goes Down), RFC3101-2.5-2 through -5 (the four Section 2.5 rules on which routing table entry an ASBR match may use, and when the calculation runs), RFC3101-3.1-3 (translation by several border routers is not recommended), and RFC3101-x-3 through -x-5 (the Appendix D configuration vehicles for the P-bit, for ExternalRoutingCapability and for the default LSA&#39;s metric). None of the 9 carries a tagged test, so each is an open gap.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Experimental</p>
@@ -250,7 +254,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 Type-7 origination/flooding, redistribution into NSSA, N/E-bit Hello negotiation, Router-LSA Nt/E/B flags, translator election (Nt-bit candidates, highest-RID, always/never roles, stability grace), Type-7 to Type-5 translation with FA/metric/tag preservation and highest-RID duplicate suppression, source preference, Type-3 summary import policy. For both address families: mandatory border-router defaults with no operator gate, no-summary defaults through the summary path (Type-3 for OSPFv2, Inter-Area-Prefix for OSPFv3), no summary-LSA default where summary routes ARE imported (Section 2.7 MUST NOT), an internal router&#39;s <code>default-originate</code> held inert in a no-summary NSSA (Section 1.3 mutual exclusivity), and the P-bit and suppressed-summary-import gates on installing a received Type-7 default, each gate proven permissive on a router that is not an NSSA border router.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-The Section 2.4 default-route origination dispatches on address family in <code>applyNSSADefaults</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/nssa.go</code></a>), so an OSPFv3 NSSA border router originates the 0x2007 NSSA-LSA that RFC 5340 Section 4.4.3.7 defines rather than the OSPFv2 0x0007. Both halves are unit-proven in each family, both families reach the operator&#39;s <code>show ospf database nssa-external</code> subview under <a href="https://github.com/ze-software/ze/blob/main/test/ospf/ospf-nssa-abr-default.ci" target="_blank" rel="noopener"><code>test/ospf/ospf-nssa-abr-default.ci</code></a> and <a href="https://github.com/ze-software/ze/blob/main/test/ospfv3/ospfv3-nssa-abr-default.ci" target="_blank" rel="noopener"><code>test/ospfv3/ospfv3-nssa-abr-default.ci</code></a>, and OSPFv2 origination is additionally proven against FRR by <code>test/interop/scenarios/ospf-stub-nssa-frr</code>. Two things are still owed, tracked by <a href="https://github.com/ze-software/ze/blob/main/plan/immediate/spec-ospf-rfc3101-nssa-defaults.md" target="_blank" rel="noopener"><code>plan/immediate/spec-ospf-rfc3101-nssa-defaults.md</code></a>: OSPFv3 has no interop scenario, so no peer daemon has read a Ze OSPFv3 NSSA default, and neither family has an interop scenario for the two install-side gates; and three sites compute NSSA border-router status independently, so the advertised Router-LSA B-bit and the originated default can disagree across a backbone transition. Section 2.2 Type-7 address-range aggregation into one Type-5 stays unimplemented; it is a MAY. Note that the <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc3101.md" target="_blank" rel="noopener"><code>rfc/short/rfc3101.md</code></a> checklist cannot record an address-family difference: its requirement ids carry no address-family dimension, so a tagged test on either path satisfies it for both. Same OSPF experimental status.
+The Section 2.4 default-route origination dispatches on address family in <code>applyNSSADefaults</code> (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/nssa.go</code></a>), so an OSPFv3 NSSA border router originates the 0x2007 NSSA-LSA that RFC 5340 Section 4.4.3.7 defines rather than the OSPFv2 0x0007. Both halves are unit-proven in each family, both families reach the operator&#39;s <code>show ospf database nssa-external</code> subview under <a href="https://github.com/ze-software/ze/blob/main/test/ospf/ospf-nssa-abr-default.ci" target="_blank" rel="noopener"><code>test/ospf/ospf-nssa-abr-default.ci</code></a> and <a href="https://github.com/ze-software/ze/blob/main/test/ospfv3/ospfv3-nssa-abr-default.ci" target="_blank" rel="noopener"><code>test/ospfv3/ospfv3-nssa-abr-default.ci</code></a>, and OSPFv2 origination is additionally proven against FRR by <code>test/interop/scenarios/ospf-stub-nssa-frr</code>. Two things are still owed, tracked by <a href="https://github.com/ze-software/ze/blob/main/plan/immediate/spec-ospf-rfc3101-nssa-defaults.md" target="_blank" rel="noopener"><code>plan/immediate/spec-ospf-rfc3101-nssa-defaults.md</code></a>: OSPFv3 has no interop scenario, so no peer daemon has read a Ze OSPFv3 NSSA default, and neither family has an interop scenario for the two install-side gates; and three sites compute NSSA border-router status independently, so the advertised Router-LSA B-bit and the originated default can disagree across a backbone transition. Section 2.2 Type-7 address-range aggregation into one Type-5 stays unimplemented; it is a MAY. Note that the <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc3101.md" target="_blank" rel="noopener"><code>rfc/short/rfc3101.md</code></a> checklist cannot record an address-family difference: its requirement ids carry no address-family dimension, so a tagged test on either path satisfies it for both. Same OSPF experimental status. Nine further rows were added by the 2026-09-21 extraction walk and none is proven: <a href="#rfc3101-2.3-3"><code>RFC3101-2.3-3</code></a>, <a href="#rfc3101-2.5-2"><code>RFC3101-2.5-2</code></a>, <a href="#rfc3101-2.5-3"><code>RFC3101-2.5-3</code></a>, <a href="#rfc3101-2.5-4"><code>RFC3101-2.5-4</code></a>, <a href="#rfc3101-2.5-5"><code>RFC3101-2.5-5</code></a>, <a href="#rfc3101-3.1-3"><code>RFC3101-3.1-3</code></a> and RFC3101-x-3 through RFC3101-x-5.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -271,7 +275,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>8</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -282,11 +286,12 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>17</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>25</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (17):</strong> <a href="#rfc3101-2.1-1"><code>RFC3101-2.1-1</code></a>, <a href="#rfc3101-2.1-2"><code>RFC3101-2.1-2</code></a>, <a href="#rfc3101-x-1"><code>RFC3101-x-1</code></a>, <a href="#rfc3101-2.3-1"><code>RFC3101-2.3-1</code></a>, <a href="#rfc3101-2.3-2"><code>RFC3101-2.3-2</code></a>, <a href="#rfc3101-2.4-1"><code>RFC3101-2.4-1</code></a>, <a href="#rfc3101-2.4-2"><code>RFC3101-2.4-2</code></a>, <a href="#rfc3101-2.4-3"><code>RFC3101-2.4-3</code></a>, <a href="#rfc3101-2.4-4"><code>RFC3101-2.4-4</code></a>, <a href="#rfc3101-2.4-5"><code>RFC3101-2.4-5</code></a>, <a href="#rfc3101-2.5-1"><code>RFC3101-2.5-1</code></a>, <a href="#rfc3101-3.1-1"><code>RFC3101-3.1-1</code></a>, <a href="#rfc3101-2.7-1"><code>RFC3101-2.7-1</code></a>, <a href="#rfc3101-3.1-2"><code>RFC3101-3.1-2</code></a>, <a href="#rfc3101-3.2-1"><code>RFC3101-3.2-1</code></a>, <a href="#rfc3101-3.2-2"><code>RFC3101-3.2-2</code></a>, <a href="#rfc3101-2.7-3"><code>RFC3101-2.7-3</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (8):</strong> <a href="#rfc3101-2.3-3"><code>RFC3101-2.3-3</code></a>, <a href="#rfc3101-2.5-2"><code>RFC3101-2.5-2</code></a>, <a href="#rfc3101-2.5-3"><code>RFC3101-2.5-3</code></a>, <a href="#rfc3101-2.5-4"><code>RFC3101-2.5-4</code></a>, <a href="#rfc3101-2.5-5"><code>RFC3101-2.5-5</code></a>, <a href="#rfc3101-x-3"><code>RFC3101-x-3</code></a>, <a href="#rfc3101-x-4"><code>RFC3101-x-4</code></a>, <a href="#rfc3101-x-5"><code>RFC3101-x-5</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -408,6 +413,51 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_install_gate_v6_test.go#L114" title="internal/plugins/ospf/nssa_install_gate_v6_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSANonBorderRouterInstallsPClearDefault</code></a></span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.3-3">RFC3101-2.3-3</code></td><td colspan="3"><span class="rfc-subject">&#34;When the interface whose IP address is the LSA&#39;s forwarding address transitions to a Down state (see [OSPF] Section 9.3), the router must select a new forwarding address for the LSA and then re-originate it&#34; (Section 2.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-2.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.5-2">RFC3101-2.5-2</code></td><td colspan="3"><span class="rfc-subject">&#34;Since the flooding scope of a Type-7 LSA is restricted to the originating NSSA, the routing table entry of its ASBR must be found in the originating NSSA&#34; (Section 2.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-2.5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.5-3">RFC3101-2.5-3</code></td><td colspan="3"><span class="rfc-subject">&#34;For a Type-5 LSA the matching routing table entry must specify an intra-area or inter-area path through a Type-5 capable area&#34; (Section 2.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-2.5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.5-4">RFC3101-2.5-4</code></td><td colspan="3"><span class="rfc-subject">&#34;For a Type-7 LSA the matching routing table entry must specify an intra-area path through the LSA&#39;s originating NSSA&#34; (Section 2.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-2.5-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.5-5">RFC3101-2.5-5</code></td><td colspan="3"><span class="rfc-subject">The NSSA ASBR routing table calculation &#34;must be run when Type-7 LSAs are processed during the AS external route calculation&#34; (Section 2.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>2.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-2.5-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-3.1-1">RFC3101-3.1-1</code></td><td colspan="3"><span class="rfc-subject">Set the E-bit in Type-1 router-LSAs of directly attached non-stub areas (Section 3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
@@ -458,11 +508,47 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/nssa_ac14_16_test.go#L128" title="internal/plugins/ospf/nssa_ac14_16_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSAHigherRIDType5Suppresses</code></a></span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-x-3">RFC3101-x-3</code></td><td colspan="3"><span class="rfc-subject">&#34;Implementations must provide a vehicle for setting the P-bit when external routes are imported into the NSSA as Type-7 LSAs&#34; (Appendix D)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-x-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-x-4">RFC3101-x-4</code></td><td colspan="3"><span class="rfc-subject">&#34;For NSSAs the ExternalRoutingCapability area configuration parameter must be set to accept Type-7 external routes&#34; (Appendix D)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-x-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-x-5">RFC3101-x-5</code></td><td colspan="3"><span class="rfc-subject">&#34;Additionally there must be a way of configuring the metric of the default LSA that a border router advertises into its directly attached NSSAs&#34; (Appendix D)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>x</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-x-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-x-2">RFC3101-x-2</code></td><td colspan="3"><span class="rfc-subject">Honor the TranslatorStabilityInterval (default 40 s) before relinquishing translator duties (Appendix D)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>x</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-x-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-3.1-3">RFC3101-3.1-3</code></td><td colspan="3"><span class="rfc-subject">&#34;It is not recommended that multiple NSSA border routers perform Type-7 to Type-5 translation unless it is required to route packets efficiently through Area 0 to an NSSA partitioned by Type-7 address ranges&#34; (Section 3.1)</span></td></tr>
+<tr><td></td>
+<td>NOT RECOMMENDED</td>
+<td>3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3101-3.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
@@ -516,7 +602,45 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<p>RFC 3101 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc3101-2.3-3"><code>RFC3101-2.3-3</code></a> &#34;When the interface whose IP address is the LSA&#39;s forwarding address transitions to a Down state (see [OSPF] Section 9.3), the router must select a new forwarding address for the LSA and then re-originate it&#34; (Section 2.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc3101-2.5-2"><code>RFC3101-2.5-2</code></a> &#34;Since the flooding scope of a Type-7 LSA is restricted to the originating NSSA, the routing table entry of its ASBR must be found in the originating NSSA&#34; (Section 2.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc3101-2.5-3"><code>RFC3101-2.5-3</code></a> &#34;For a Type-5 LSA the matching routing table entry must specify an intra-area or inter-area path through a Type-5 capable area&#34; (Section 2.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc3101-2.5-4"><code>RFC3101-2.5-4</code></a> &#34;For a Type-7 LSA the matching routing table entry must specify an intra-area path through the LSA&#39;s originating NSSA&#34; (Section 2.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc3101-2.5-5"><code>RFC3101-2.5-5</code></a> The NSSA ASBR routing table calculation &#34;must be run when Type-7 LSAs are processed during the AS external route calculation&#34; (Section 2.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc3101-x-3"><code>RFC3101-x-3</code></a> &#34;Implementations must provide a vehicle for setting the P-bit when external routes are imported into the NSSA as Type-7 LSAs&#34; (Appendix D)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc3101-x-4"><code>RFC3101-x-4</code></a> &#34;For NSSAs the ExternalRoutingCapability area configuration parameter must be set to accept Type-7 external routes&#34; (Appendix D)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc3101-x-5"><code>RFC3101-x-5</code></a> &#34;Additionally there must be a way of configuring the metric of the default LSA that a border router advertises into its directly attached NSSAs&#34; (Appendix D)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
@@ -820,6 +944,26 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc3101-2.3-3"><code>RFC3101-2.3-3</code></a></h3>
+<p>&#34;When the interface whose IP address is the LSA&#39;s forwarding address transitions to a Down state (see [OSPF] Section 9.3), the router must select a new forwarding address for the LSA and then re-originate it&#34; (Section 2.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3101-2.3-3, so no unit is bound to it.</p>
+<h3><a href="#rfc3101-2.5-2"><code>RFC3101-2.5-2</code></a></h3>
+<p>&#34;Since the flooding scope of a Type-7 LSA is restricted to the originating NSSA, the routing table entry of its ASBR must be found in the originating NSSA&#34; (Section 2.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3101-2.5-2, so no unit is bound to it.</p>
+<h3><a href="#rfc3101-2.5-3"><code>RFC3101-2.5-3</code></a></h3>
+<p>&#34;For a Type-5 LSA the matching routing table entry must specify an intra-area or inter-area path through a Type-5 capable area&#34; (Section 2.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3101-2.5-3, so no unit is bound to it.</p>
+<h3><a href="#rfc3101-2.5-4"><code>RFC3101-2.5-4</code></a></h3>
+<p>&#34;For a Type-7 LSA the matching routing table entry must specify an intra-area path through the LSA&#39;s originating NSSA&#34; (Section 2.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3101-2.5-4, so no unit is bound to it.</p>
+<h3><a href="#rfc3101-2.5-5"><code>RFC3101-2.5-5</code></a></h3>
+<p>The NSSA ASBR routing table calculation &#34;must be run when Type-7 LSAs are processed during the AS external route calculation&#34; (Section 2.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3101-2.5-5, so no unit is bound to it.</p>
 <h3><a href="#rfc3101-3.1-1"><code>RFC3101-3.1-1</code></a></h3>
 <p>Set the E-bit in Type-1 router-LSAs of directly attached non-stub areas (Section 3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -945,6 +1089,18 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc3101-x-3"><code>RFC3101-x-3</code></a></h3>
+<p>&#34;Implementations must provide a vehicle for setting the P-bit when external routes are imported into the NSSA as Type-7 LSAs&#34; (Appendix D)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3101-x-3, so no unit is bound to it.</p>
+<h3><a href="#rfc3101-x-4"><code>RFC3101-x-4</code></a></h3>
+<p>&#34;For NSSAs the ExternalRoutingCapability area configuration parameter must be set to accept Type-7 external routes&#34; (Appendix D)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3101-x-4, so no unit is bound to it.</p>
+<h3><a href="#rfc3101-x-5"><code>RFC3101-x-5</code></a></h3>
+<p>&#34;Additionally there must be a way of configuring the metric of the default LSA that a border router advertises into its directly attached NSSAs&#34; (Appendix D)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC3101-x-5, so no unit is bound to it.</p>
 <h3><a href="#rfc3101-2.7-2"><code>RFC3101-2.7-2</code></a></h3>
 <p>Originate a Type-3 summary-LSA as the NSSA default when summary import is disabled (no-summary NSSA) (Section 2.7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -1027,7 +1183,260 @@ The Section 2.4 default-route origination dispatches on address family in <code>
 </div>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 3101, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc3101.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>7061642290964ece</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc3101.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>25</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>15</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.0</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.3</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.0</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.3</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.4</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.5</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2.7</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.0</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.0</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.0</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.0</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.0</code></td>
+<td>not stated</td>
+<td>9</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>1.1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Section 1.1 is the transit-network motivation: the sentence describes the deployment problem NSSA exists to solve and binds no implementation.</td>
+<td>In order to run OSPF out to BR18, BR18 must be a member of a non-stub area or the OSPF backbone before it can import routes other than its directly connected network(s).</td>
+</tr>
+<tr><td><code>1.2:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Section 1.2 is the corporate-network motivation: the sentence states what any solution has to achieve, as a design goal, not an obligation on an implementation.</td>
+<td>Any solution to this dilemma must also honor Area 1&#39;s path of choice to 192.168.192/20 through A0 with redundancy through B0 while at the same time honoring Area 2&#39;s path of choice to 192.168.208/20 through B0 with redundancy through A0.</td>
+</tr>
+<tr><td><code>1.3:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 1.3 is the overview; it restates the border-router default-origination obligation Section 2.4 states.</td>
+<td>Default routes are necessary because NSSAs do not receive full routing information and must have a default route in order to route to AS-external destinations.</td>
+</tr>
+<tr><td><code>2.1:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The sentence quotes [OSPF] Section 10.5 to state the E-bit condition the Section 2.1 Hello check verifies.</td>
+<td>As explained in [OSPF] Section 10.5, if Type-5 LSAs are not flooded into/throughout the area, the E-bit must be clear in the option field of the received Hello packets.</td>
+</tr>
+<tr><td><code>2.1:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Section 2.1 restates the Appendix A rule that the E-bit is clear whenever the N-bit is set.</td>
+<td>Therefore, if the N-bit is set in the options field, the E-bit must be clear.</td>
+</tr>
+<tr><td><code>2.3:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The sentence restates the non-zero forwarding address obligation Section 2.4 states for a P-bit Type-7 LSA.</td>
+<td>Those Type-7 LSAs that are to be translated into Type-5 LSAs must have their forwarding address set.</td>
+</tr>
+<tr><td><code>2.3:3</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Explanatory aside: it says non-zero forwarding addresses ease translation because border routers are not required to compute them, and states no obligation.</td>
+<td>Also the non-zero forwarding addresses of Type-7 LSAs ease the process of their translation into Type-5 LSAs, as NSSA border routers are not required to compute them.</td>
+</tr>
+<tr><td><code>2.4:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>&#34;The LSAs of these networks must have a valid non-zero forwarding address&#34; restates the same obligation in the same section.</td>
+<td>The LSAs of these networks must have a valid non-zero forwarding address.</td>
+</tr>
+<tr><td><code>2.5:3</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>The zero-forwarding-address case restates the rule that the ASBR entry is chosen from the originating NSSA.</td>
+<td>Since a Type-7 LSA only has area-wide flooding scope, when its forwarding address is set to 0.0.0.0, its ASBR&#39;s routing table entry must be chosen from the originating NSSA.</td>
+</tr>
+<tr><td><code>4.0:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Section 4.0 describes what the [DIGI] document contains; it is a pointer, not an obligation of this document.</td>
+<td>[DIGI] describes the extensions to OSPF required to add digital signature authentication to Link State data and to provide a certification mechanism for router data.</td>
+</tr>
+<tr><td><code>7.0:2</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>Appendix B describes the Type-1 router-LSA and defers outright: &#34;For details concerning the construction of router-LSAs, see [OSPF] Section 12.4.1.&#34; The single-router-LSA rule is RFC 2328&#39;s.</td>
+<td>All of the router&#39;s links to the area must be described in a single router-LSA.</td>
+</tr>
+<tr><td><code>7.0:3</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Appendix C&#39;s Type-7 packet format restates the Section 2.4 P-bit origination rule.</td>
+<td>The Options field must have the N/P bit set as described in Appendix A when the originating router desires that the external route be propagated throughout the OSPF domain.</td>
+</tr>
+<tr><td><code>7.0:4</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Appendix C restates the Section 2.4 forwarding address rule word for word.</td>
+<td>If the P-bit is set, the forwarding address must be non-zero, otherwise it may be 0.0.0.0.</td>
+</tr>
+<tr><td><code>7.0:8</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Appendix F&#39;s differences list restates the Section 2.7 no-summary default rule.</td>
+<td>When summary routes are not imported into an NSSA, the default LSA originated by its border routers must be a Type-3 summary-LSA.</td>
+</tr>
+<tr><td><code>7.0:9</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Internet Society copyright boilerplate.</td>
+<td>However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 3101, so its obligations are stated where they were written.</p>
@@ -1061,7 +1470,7 @@ The Section 2.4 default-route origination dispatches on address family in <code>
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

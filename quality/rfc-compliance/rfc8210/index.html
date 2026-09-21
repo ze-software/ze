@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8210 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 56 gated MUST-level requirements, 12 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 60 gated MUST-level requirements, 12 declared gaps, 4 with no test." />
         <meta property="og:title" content="RFC 8210 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 56 gated MUST-level requirements, 12 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 60 gated MUST-level requirements, 12 declared gaps, 4 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 8210 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 56 gated MUST-level requirements, 12 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 8210: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 1. 60 gated MUST-level requirements, 12 declared gaps, 4 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,26 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>14.3%</strong><b>8 of 56 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>7.1%</strong><b>4 of 56 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 56 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>13.3%</strong><b>8 of 60 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>6.7%</strong><b>4 of 60 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 60 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 21 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>56</strong><b>of 80 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>32</strong><b>of 56 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>57.1%</strong><b>32 of 56 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 56 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 56 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>60</strong><b>of 84 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>32</strong><b>of 60 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>53.3%</strong><b>32 of 60 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 60 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 60 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>21.4%</strong><b>12 of 56 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>26.7%</strong><b>16 of 60 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 56 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 60 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -203,10 +203,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>80</td>
+<td>84</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>56</td>
+<td>60</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>32</td>
@@ -215,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>12</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>4</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -254,7 +254,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 ze is the RTR router (client). It opens every connection with a Reset or Serial Query (<a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session.go" target="_blank" rel="noopener"><code>internal/component/bgp/plugins/rpki/rtr_session.go</code></a>), speaks version 2 with a downgrade to version 1 (rtr_pdu.go, rtr_session.go), parses IPv4/IPv6 Prefix, Cache Response, the 24-byte v1 End of Data with its Refresh/Retry/Expire parameters, Cache Reset, Serial Notify and Error Report PDUs, enforces Max Length &gt;= Prefix Length and ignores reserved Flags bits on receipt (rtr_pdu.go), applies each delta atomically at End of Data (rtr_session.go), ignores Serial Notify during startup, re-issues a Reset Query on Cache Reset and on No Data Available, and validates origins against the merged VRP cache (validate.go).
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Twelve MUST-level gaps, each annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8210.md" target="_blank" rel="noopener"><code>rfc/short/rfc8210.md</code></a>: <a href="#rfc8210-5.1-3"><code>RFC8210-5.1-3</code></a>, <a href="#rfc8210-5.1-4"><code>RFC8210-5.1-4</code></a> -- no Session ID mismatch detection, no Error Report code 0, no cache flush (rtr_session.go adopts the Session ID unconditionally); <a href="#rfc8210-5.1-5"><code>RFC8210-5.1-5</code></a> -- a version downgrade reuses the previous version&#39;s Session ID and serial (rtr_session.go); <a href="#rfc8210-7-3"><code>RFC8210-7-3</code></a>, <a href="#rfc8210-7-4"><code>RFC8210-7-4</code></a>, <a href="#rfc8210-7-7"><code>RFC8210-7-7</code></a> -- handlePDU never reads hdr.Version (rtr_session.go), so no received-version check, downgrade or session drop happens; <a href="#rfc8210-12-1"><code>RFC8210-12-1</code></a> -- Error Code 4 is excluded from isFatalError (rtr_pdu.go) and at rtrVersionMin the session survives it (rtr_session.go); <a href="#rfc8210-5.10-2"><code>RFC8210-5.10-2</code></a> -- Router Key PDUs are discarded (rtr_session.go), so no Subject Public Key comparison exists; <a href="#rfc8210-6-2"><code>RFC8210-6-2</code></a> -- VRPs outlive the Expire Interval (ROACache.Clear, roa_cache.go, has no production caller); <a href="#rfc8210-4-1"><code>RFC8210-4-1</code></a> -- no most-preferred-cache selection (rpki.go runs every configured cache concurrently); <a href="#rfc8210-10-2"><code>RFC8210-10-2</code></a> -- VRPs are not marked by source cache (rpki.go, roa_cache.go); <a href="#rfc8210-9-3"><code>RFC8210-9-3</code></a> -- no protected RTR transport (rtr_session.go dials only unprotected TCP).
+Twelve MUST-level gaps, each annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc8210.md" target="_blank" rel="noopener"><code>rfc/short/rfc8210.md</code></a>: <a href="#rfc8210-5.1-3"><code>RFC8210-5.1-3</code></a>, <a href="#rfc8210-5.1-4"><code>RFC8210-5.1-4</code></a> -- no Session ID mismatch detection, no Error Report code 0, no cache flush (rtr_session.go adopts the Session ID unconditionally); <a href="#rfc8210-5.1-5"><code>RFC8210-5.1-5</code></a> -- a version downgrade reuses the previous version&#39;s Session ID and serial (rtr_session.go); <a href="#rfc8210-7-3"><code>RFC8210-7-3</code></a>, <a href="#rfc8210-7-4"><code>RFC8210-7-4</code></a>, <a href="#rfc8210-7-7"><code>RFC8210-7-7</code></a> -- handlePDU never reads hdr.Version (rtr_session.go), so no received-version check, downgrade or session drop happens; <a href="#rfc8210-12-1"><code>RFC8210-12-1</code></a> -- Error Code 4 is excluded from isFatalError (rtr_pdu.go) and at rtrVersionMin the session survives it (rtr_session.go); <a href="#rfc8210-5.10-2"><code>RFC8210-5.10-2</code></a> -- Router Key PDUs are discarded (rtr_session.go), so no Subject Public Key comparison exists; <a href="#rfc8210-6-2"><code>RFC8210-6-2</code></a> -- VRPs outlive the Expire Interval (ROACache.Clear, roa_cache.go, has no production caller); <a href="#rfc8210-4-1"><code>RFC8210-4-1</code></a> -- no most-preferred-cache selection (rpki.go runs every configured cache concurrently); <a href="#rfc8210-10-2"><code>RFC8210-10-2</code></a> -- VRPs are not marked by source cache (rpki.go, roa_cache.go); <a href="#rfc8210-9-3"><code>RFC8210-9-3</code></a> -- no protected RTR transport (rtr_session.go dials only unprotected TCP). Four further obligations were added by the 2026-09-21 extraction walk and carry no test: <a href="#rfc8210-2-1"><code>RFC8210-2-1</code></a> (a cache holds new data back until the fetch completes) and <a href="#rfc8210-9.2-11"><code>RFC8210-9.2-11</code></a> (DNS-ID support in a TLS implementation) reach no ze code path, <a href="#rfc8210-3-1"><code>RFC8210-3-1</code></a> (a trusted transport channel to the cache) is the same absence as <a href="#rfc8210-9-3"><code>RFC8210-9-3</code></a>, and <a href="#rfc8210-8.1-3"><code>RFC8210-8.1-3</code></a> (fall back to a Reset Query when fast resynchronization is impossible) is the untested half of the Reset-or-Serial choice at rtr_session.go:165-176.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -275,7 +275,7 @@ Twelve MUST-level gaps, each annotated in <a href="https://github.com/ze-softwar
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -286,12 +286,13 @@ Twelve MUST-level gaps, each annotated in <a href="https://github.com/ze-softwar
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>56</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>60</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (8):</strong> <a href="#rfc8210-5-1"><code>RFC8210-5-1</code></a>, <a href="#rfc8210-5.1-1"><code>RFC8210-5.1-1</code></a>, <a href="#rfc8210-5.1-2"><code>RFC8210-5.1-2</code></a>, <a href="#rfc8210-5.2-1"><code>RFC8210-5.2-1</code></a>, <a href="#rfc8210-8.3-1"><code>RFC8210-8.3-1</code></a>, <a href="#rfc8210-10-1"><code>RFC8210-10-1</code></a>, <a href="#rfc8210-7-8"><code>RFC8210-7-8</code></a>, <a href="#rfc8210-8.4-1"><code>RFC8210-8.4-1</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (48):</strong> <a href="#rfc8210-5.1-3"><code>RFC8210-5.1-3</code></a>, <a href="#rfc8210-5.1-4"><code>RFC8210-5.1-4</code></a>, <a href="#rfc8210-5.1-5"><code>RFC8210-5.1-5</code></a>, <a href="#rfc8210-5.3-1"><code>RFC8210-5.3-1</code></a>, <a href="#rfc8210-5.3-2"><code>RFC8210-5.3-2</code></a>, <a href="#rfc8210-5.5-1"><code>RFC8210-5.5-1</code></a>, <a href="#rfc8210-5.6-1"><code>RFC8210-5.6-1</code></a>, <a href="#rfc8210-5.10-1"><code>RFC8210-5.10-1</code></a>, <a href="#rfc8210-5.10-2"><code>RFC8210-5.10-2</code></a>, <a href="#rfc8210-5.8-1"><code>RFC8210-5.8-1</code></a>, <a href="#rfc8210-5.11-1"><code>RFC8210-5.11-1</code></a>, <a href="#rfc8210-5.11-2"><code>RFC8210-5.11-2</code></a>, <a href="#rfc8210-5.11-3"><code>RFC8210-5.11-3</code></a>, <a href="#rfc8210-5.11-4"><code>RFC8210-5.11-4</code></a>, <a href="#rfc8210-6-1"><code>RFC8210-6-1</code></a>, <a href="#rfc8210-6-2"><code>RFC8210-6-2</code></a>, <a href="#rfc8210-7-1"><code>RFC8210-7-1</code></a>, <a href="#rfc8210-7-2"><code>RFC8210-7-2</code></a>, <a href="#rfc8210-7-3"><code>RFC8210-7-3</code></a>, <a href="#rfc8210-7-4"><code>RFC8210-7-4</code></a>, <a href="#rfc8210-4-1"><code>RFC8210-4-1</code></a>, <a href="#rfc8210-8.1-1"><code>RFC8210-8.1-1</code></a>, <a href="#rfc8210-12-1"><code>RFC8210-12-1</code></a>, <a href="#rfc8210-8.2-1"><code>RFC8210-8.2-1</code></a>, <a href="#rfc8210-9-1"><code>RFC8210-9-1</code></a>, <a href="#rfc8210-9-2"><code>RFC8210-9-2</code></a>, <a href="#rfc8210-9-3"><code>RFC8210-9-3</code></a>, <a href="#rfc8210-9.1-1"><code>RFC8210-9.1-1</code></a>, <a href="#rfc8210-9.1-2"><code>RFC8210-9.1-2</code></a>, <a href="#rfc8210-9.2-1"><code>RFC8210-9.2-1</code></a>, <a href="#rfc8210-9.2-2"><code>RFC8210-9.2-2</code></a>, <a href="#rfc8210-9.2-3"><code>RFC8210-9.2-3</code></a>, <a href="#rfc8210-9.2-4"><code>RFC8210-9.2-4</code></a>, <a href="#rfc8210-9.2-5"><code>RFC8210-9.2-5</code></a>, <a href="#rfc8210-9.2-6"><code>RFC8210-9.2-6</code></a>, <a href="#rfc8210-9.3-1"><code>RFC8210-9.3-1</code></a>, <a href="#rfc8210-9.4-1"><code>RFC8210-9.4-1</code></a>, <a href="#rfc8210-4-2"><code>RFC8210-4-2</code></a>, <a href="#rfc8210-4-3"><code>RFC8210-4-3</code></a>, <a href="#rfc8210-7-7"><code>RFC8210-7-7</code></a>, <a href="#rfc8210-9.2-8"><code>RFC8210-9.2-8</code></a>, <a href="#rfc8210-10-2"><code>RFC8210-10-2</code></a>, <a href="#rfc8210-9.3-2"><code>RFC8210-9.3-2</code></a>, <a href="#rfc8210-9.4-2"><code>RFC8210-9.4-2</code></a>, <a href="#rfc8210-9.4-3"><code>RFC8210-9.4-3</code></a>, <a href="#rfc8210-9.2-9"><code>RFC8210-9.2-9</code></a>, <a href="#rfc8210-9.2-10"><code>RFC8210-9.2-10</code></a>, <a href="#rfc8210-8.1-2"><code>RFC8210-8.1-2</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (4):</strong> <a href="#rfc8210-2-1"><code>RFC8210-2-1</code></a>, <a href="#rfc8210-3-1"><code>RFC8210-3-1</code></a>, <a href="#rfc8210-8.1-3"><code>RFC8210-8.1-3</code></a>, <a href="#rfc8210-9.2-11"><code>RFC8210-9.2-11</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -956,6 +957,42 @@ Twelve MUST-level gaps, each annotated in <a href="https://github.com/ze-softwar
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L184" title="internal/component/bgp/plugins/rpki/rtr_session_test.go" target="_blank" rel="noopener"><code>TestNoDataAvailableKeepsResetQueryMode</code></a></span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-2-1">RFC8210-2-1</code></td><td colspan="3"><span class="rfc-subject">While a cache is receiving updates, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete (§2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-3-1">RFC8210-3-1</code></td><td colspan="3"><span class="rfc-subject">A Relying Party MUST have a trust relationship with, and a trusted transport channel to, any cache(s) it uses (§3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-8.1-3">RFC8210-8.1-3</code></td><td colspan="3"><span class="rfc-subject">A router that lacks the data needed for fast resynchronization MUST fall back to a Reset Query (§8.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-8.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-9.2-11">RFC8210-9.2-11</code></td><td colspan="3"><span class="rfc-subject">Support for the DNS-ID identifier type is REQUIRED in rpki-rtr server and client implementations which use TLS (§9.2)</span></td></tr>
+<tr><td></td>
+<td>REQUIRED</td>
+<td>9.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8210-9.2-11">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8210-7-9">RFC8210-7-9</code></td><td colspan="3"><span class="rfc-subject">Party dropping session after version mismatch SHOULD send Error Report with error code 8 (§7)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
@@ -1203,6 +1240,22 @@ Twelve MUST-level gaps, each annotated in <a href="https://github.com/ze-softwar
 <tr><td><a href="#rfc8210-9.2-10"><code>RFC8210-9.2-10</code></a> CN field in TLS certificate MUST NOT be used for authentication (§9.2)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: TLS-transport obligation -- ze has no rpki-rtr TLS implementation (internal/component/bgp/plugins/rpki/rtr_session.go:127), so it reads no certificate CN field for authentication</td>
+</tr>
+<tr><td><a href="#rfc8210-2-1"><code>RFC8210-2-1</code></a> While a cache is receiving updates, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete (§2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc8210-3-1"><code>RFC8210-3-1</code></a> A Relying Party MUST have a trust relationship with, and a trusted transport channel to, any cache(s) it uses (§3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc8210-8.1-3"><code>RFC8210-8.1-3</code></a> A router that lacks the data needed for fast resynchronization MUST fall back to a Reset Query (§8.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc8210-9.2-11"><code>RFC8210-9.2-11</code></a> Support for the DNS-ID identifier type is REQUIRED in rpki-rtr server and client implementations which use TLS (§9.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
 </tr>
 </tbody>
 </table>
@@ -1611,9 +1664,331 @@ Twelve MUST-level gaps, each annotated in <a href="https://github.com/ze-softwar
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc8210-2-1"><code>RFC8210-2-1</code></a></h3>
+<p>While a cache is receiving updates, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete (§2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8210-2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc8210-3-1"><code>RFC8210-3-1</code></a></h3>
+<p>A Relying Party MUST have a trust relationship with, and a trusted transport channel to, any cache(s) it uses (§3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8210-3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc8210-8.1-3"><code>RFC8210-8.1-3</code></a></h3>
+<p>A router that lacks the data needed for fast resynchronization MUST fall back to a Reset Query (§8.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8210-8.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc8210-9.2-11"><code>RFC8210-9.2-11</code></a></h3>
+<p>Support for the DNS-ID identifier type is REQUIRED in rpki-rtr server and client implementations which use TLS (§9.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC8210-9.2-11, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 8210, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc8210.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>d55f8b529fb430bf</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc8210.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>56</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>4</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.3</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.5</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.6</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.8</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.10</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.11</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>7</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.4</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.2</code></td>
+<td>not stated</td>
+<td>7</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.3</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.4</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>12</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>13</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>14</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>15</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>15.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>15.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>7:6</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>restates the ignore-Serial-Notify-before-negotiation obligation already mapped at site 7:5, adding only the backwards-compatibility reason</td>
+<td>Routers, however, MUST handle such notifications (by ignoring them) for backwards compatibility with caches serving protocol version 0.</td>
+</tr>
+<tr><td><code>8.2:2</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>restates the periodic Serial-or-Reset Query obligation already mapped at site 8.1:3, here for the old-withdraw case</td>
+<td>To limit the length of time a cache must keep old withdraws, a router MUST send either a Serial Query or a Reset Query periodically.</td>
+</tr>
+<tr><td><code>9.4:3</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the MAC-length half of the TCP-AO support obligation the row already states: &#34;key lengths of at least 80 printable ASCII bytes and MAC lengths of at least 96 bits&#34;</td>
+<td>Message Authentication Code (MAC) lengths of at least 96 bits MUST be supported, per Section 5.1 of [RFC5925].</td>
+</tr>
+<tr><td><code>13:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>the Security Considerations restatement of the section 9 rule that an unprotected TCP transport puts the router and cache on the same trusted, controlled network</td>
+<td>Protocols which provide integrity and authenticity SHOULD be used, and if they cannot, i.e., TCP is used as the transport, the router and cache MUST be on the same trusted, controlled network.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 8210, so its obligations are stated where they were written.</p>
@@ -1647,7 +2022,7 @@ Twelve MUST-level gaps, each annotated in <a href="https://github.com/ze-softwar
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

@@ -219,7 +219,40 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 5443, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc5443.txt |
+| Source fingerprint | 2400d8b588b794a6 |
+| Record | rfc/extraction/rfc5443.json |
+| Mapped sentences | 0 |
+| Declined as scope | 1 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 1 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 1 problem statement, describing why an L2/L3 VPN service depends on an edge-to-edge LSP. The lowercase 'must have been exchanged' states a property of the network the document then sets out to protect, not an obligation on an implementation: the sentence is followed by 'If only one link along the IP shortest path is not covered by an LDP session, a blackhole exists'. Section 2 carries the obligations this document places on a router. | This means that all the links along the IP shortest path from one PE router to the other need to have operational LDP sessions, and the necessary label binding must have been exchanged over those sessions. |
 
 ## Superseded
 

@@ -125,7 +125,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>9</strong><b>of 10 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces</p></article>
+<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>9</strong><b>of 10 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (third-party), so every share below reads what the summary records rather than what the gate enforces</p></article>
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>9</strong><b>of 9 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>100.0%</strong><b>9 of 9 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 9 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
@@ -196,7 +196,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>No row in the public ledger</td>
 </tr>
 <tr><td>Enrolment</td>
-<td>Not enrolled (enrolled)</td>
+<td>Not enrolled (third-party)</td>
 </tr>
 <tr><td>Requirements</td>
 <td>10</td>
@@ -242,7 +242,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Not enrolled (enrolled, a disposition this page has no published meaning for): A Profile for Route Origin Authorizations (ROAs): nine MUST-level requirements, all {not-applicable}. ze is neither a ROA producer nor a relying-party validator: it consumes Validated ROA Payloads (prefix, maxLength, origin AS) over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go) and never parses or constructs the RFC 6482 CMS-signed ROA object. The gated MUSTs (ROA version, CMS content-type OID, addressFamily, maxLength constraint, and the relying-party validation duties -- validate before use, RFC 6488 checks, EE-certificate delegation containment, integrity, X.509 signature verification) all govern producing or validating the ROA object, done by the RPKI cache upstream. The nearest analog (maxLength sanity) ze enforces on the RTR PDU wire per RFC 8210, not on a ROA object.</p>
+<p>Not enrolled (third-party, a layer under or beside Ze performs the document and Ze holds no Go code for it, so the reason beside this kind names the component that does): The RPKI cache validates the CMS-signed ROA object. Ze consumes an already-validated payload over the RTR protocol, internal/component/bgp/plugins/rpki/rtr_pdu.go.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p>No row in the public ledger, so its summary declares `| Support | - |` and docs/features/rfc-status.md carries no row for RFC 6482.</p>
@@ -466,7 +466,159 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC6482-5-2, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 6482, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc6482.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>035b0b690b67aecd</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc6482.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>8</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>2</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.3</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>IETF Trust Legal Provisions boilerplate on the status page. The lowercase &#39;must include Simplified BSD License text&#39; governs reuse of the document&#39;s code components, not ROA behaviour.</td>
+<td>Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</td>
+</tr>
+<tr><td><code>1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Item 3 of the Introduction&#39;s list of what this document specifies. It describes the document&#39;s own contents; the obligation itself is Section 4&#39;s &#39;the relying party MUST perform all the validation checks specified in [RFC6488] as well as the following additional ROA-specific validation step&#39;, which site 4:2 maps.</td>
+<td>An additional step required to validate ROAs (in addition to the validation steps specified in [RFC6488]).</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 6482, so its obligations are stated where they were written.</p>
@@ -500,7 +652,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 00:48 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

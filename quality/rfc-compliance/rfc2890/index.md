@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 7 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 7 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 7 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 7 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Tested both ways | 0.0% | 0 of 3 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 3 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 3 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0.0% | 0 of 3 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 | Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -22,13 +22,13 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| MUSTs declared | 7 | of 13 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
-| Out of scope | 7 | of 7 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 100.0% | 7 of 7 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 7 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 7 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| MUSTs declared | 3 | of 7 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (third-party), so every share below reads what the summary records rather than what the gate enforces |
+| Out of scope | 3 | of 3 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 100.0% | 3 of 3 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 3 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 3 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -51,10 +51,10 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Not enrolled (enrolled) |
-| Requirements | 13 |
-| Gated MUST-level | 7 |
-| Not applicable, so out of scope | 7 |
+| Enrolment | Not enrolled (third-party) |
+| Requirements | 7 |
+| Gated MUST-level | 3 |
+| Not applicable, so out of scope | 3 |
 | Declared gaps | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
@@ -68,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Not enrolled (enrolled, a disposition this page has no published meaning for): Key and Sequence Number Extensions to GRE: seven MUST-level requirements, all {not-applicable}. ze builds and parses no GRE header: it configures kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go buildGretun sets only IKey/OKey) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go), delegating all C/K/S flag construction, Key/Sequence field encoding, receiver ordering (OUTOFORDER_TIMER), and IPsec protection to the kernel/VPP dataplane. ze has no GRE header-construction, sequence, decapsulation, or receiver code path.
+Not enrolled (third-party, a layer under or beside Ze performs the document and Ze holds no Go code for it, so the reason beside this kind names the component that does): The Linux ip_gre module encodes and checks the Key and Sequence fields. Ze only sets IKey and OKey on the netlink descriptor, internal/plugins/iface/netlink/tunnel_linux.go::buildGretun.
 
 ## What the public ledger says
 
@@ -79,41 +79,31 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 0 | one part of the gated population |
-| Annotated instead of tested | 7 | one part of the gated population |
+| Annotated instead of tested | 3 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **7** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **3** | every gated MUST falls in exactly one bucket above |
 
-**Annotated instead of tested (7):** [`RFC2890-2.1-1`](#rfc2890-2.1-1), [`RFC2890-2.1-2`](#rfc2890-2.1-2), [`RFC2890-2.2-1`](#rfc2890-2.2-1), [`RFC2890-2.2-2`](#rfc2890-2.2-2), [`RFC2890-2.2-3`](#rfc2890-2.2-3), [`RFC2890-2.2-4`](#rfc2890-2.2-4), [`RFC2890-3-1`](#rfc2890-3-1)
+**Annotated instead of tested (3):** [`RFC2890-2.2-3`](#rfc2890-2.2-3), [`RFC2890-2.2-4`](#rfc2890-2.2-4), [`RFC2890-3-1`](#rfc2890-3-1)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC2890-2.1-1` | When K=1, the Key field MUST be present (4 octets) (S2.1) | MUST | 2.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze builds no GRE header; the netlink backend sets only the tunnel IKey/OKey config fields (internal/plugins/iface/netlink/tunnel_linux.go:129) and the VPP backend calls gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:70), so the kernel/VPP dataplane constructs the K flag and Key octets, not ze |
-| `RFC2890-2.1-2` | When K=0, the Key field MUST NOT be present (S2.1) | MUST NOT | 2.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze emits no GRE header bytes; the K-bit-and-Key-absence invariant is enforced by the kernel, which sets the flag only when IKey/OKey are non-zero (internal/plugins/iface/netlink/tunnel_linux.go:128-139); ze has no header-flag code path |
-| `RFC2890-2.2-1` | When S=1, the Sequence Number field MUST be present (S2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze exposes no GRE sequence-number configuration and constructs no Sequence Number field; grep for a sequence producer across the iface tunnel paths finds none |
-| `RFC2890-2.2-2` | When S=0, the Sequence Number field MUST NOT be present (S2.2) | MUST NOT | 2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze has no S-bit or Sequence Number code path; it configures kernel/VPP tunnels and builds no GRE header |
 | `RFC2890-2.2-3` | Sequence Number MUST be used by the receiver to establish packet order (S2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** GRE receive-side sequence ordering is performed by the kernel/VPP datapath; ze has no GRE decapsulation or packet-parse code path |
 | `RFC2890-2.2-4` | If a packet has waited longer than OUTOFORDER_TIMER milliseconds in the buffer, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (S2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze has no GRE receiver buffer or OUTOFORDER_TIMER; it programs kernel/VPP tunnels and does not process GRE payloads |
 | `RFC2890-3-1` | IP security protocols (ESP or AH) MUST be used to protect the GRE header and tunneled payload when using Sequence Number (S3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze applies no ESP or AH to GRE; IPsec is not wired to the GRE tunnel builders (internal/plugins/iface/netlink/tunnel_linux.go, internal/plugins/iface/vpp/tunnel.go) |
 | `RFC2890-1.1-1` | When silently discarding, the implementation SHOULD provide the capability of logging the error (S1.1) | SHOULD | 1.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2890-1.1-2` | When silently discarding, the implementation SHOULD record the event in a statistics counter (S1.1) | SHOULD | 1.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2890-2.2-5` | An out-of-sequence packet SHOULD be silently discarded (S2.2) | SHOULD | 2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2890-2.2-6` | The first packet's sequence number MAY be any value (S2.2) | MAY | 2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2890-2.2-7` | A receiver MAY discard out-of-order packets (S2.2) | MAY | 2.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2890-2.2-8` | Reordering of out-of-sequence packets MAY be performed by the decapsulator (S2.2) | MAY | 2.2 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC2890-2.1-1`](#rfc2890-2.1-1) When K=1, the Key field MUST be present (4 octets) (S2.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze builds no GRE header; the netlink backend sets only the tunnel IKey/OKey config fields (internal/plugins/iface/netlink/tunnel_linux.go:129) and the VPP backend calls gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:70), so the kernel/VPP dataplane constructs the K flag and Key octets, not ze |
-| [`RFC2890-2.1-2`](#rfc2890-2.1-2) When K=0, the Key field MUST NOT be present (S2.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze emits no GRE header bytes; the K-bit-and-Key-absence invariant is enforced by the kernel, which sets the flag only when IKey/OKey are non-zero (internal/plugins/iface/netlink/tunnel_linux.go:128-139); ze has no header-flag code path |
-| [`RFC2890-2.2-1`](#rfc2890-2.2-1) When S=1, the Sequence Number field MUST be present (S2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze exposes no GRE sequence-number configuration and constructs no Sequence Number field; grep for a sequence producer across the iface tunnel paths finds none |
-| [`RFC2890-2.2-2`](#rfc2890-2.2-2) When S=0, the Sequence Number field MUST NOT be present (S2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze has no S-bit or Sequence Number code path; it configures kernel/VPP tunnels and builds no GRE header |
 | [`RFC2890-2.2-3`](#rfc2890-2.2-3) Sequence Number MUST be used by the receiver to establish packet order (S2.2) | no test | no test carries this requirement id; annotated {not-applicable}: GRE receive-side sequence ordering is performed by the kernel/VPP datapath; ze has no GRE decapsulation or packet-parse code path |
 | [`RFC2890-2.2-4`](#rfc2890-2.2-4) If a packet has waited longer than OUTOFORDER_TIMER milliseconds in the buffer, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (S2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze has no GRE receiver buffer or OUTOFORDER_TIMER; it programs kernel/VPP tunnels and does not process GRE payloads |
 | [`RFC2890-3-1`](#rfc2890-3-1) IP security protocols (ESP or AH) MUST be used to protect the GRE header and tunneled payload when using Sequence Number (S3) | no test | no test carries this requirement id; annotated {not-applicable}: ze applies no ESP or AH to GRE; IPsec is not wired to the GRE tunnel builders (internal/plugins/iface/netlink/tunnel_linux.go, internal/plugins/iface/vpp/tunnel.go) |
@@ -121,38 +111,6 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 ## Proof state
 
 A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
-
-### [`RFC2890-2.1-1`](#rfc2890-2.1-1)
-
-When K=1, the Key field MUST be present (4 octets) (S2.1)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC2890-2.1-1, so no unit is bound to it.
-
-### [`RFC2890-2.1-2`](#rfc2890-2.1-2)
-
-When K=0, the Key field MUST NOT be present (S2.1)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC2890-2.1-2, so no unit is bound to it.
-
-### [`RFC2890-2.2-1`](#rfc2890-2.2-1)
-
-When S=1, the Sequence Number field MUST be present (S2.2)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC2890-2.2-1, so no unit is bound to it.
-
-### [`RFC2890-2.2-2`](#rfc2890-2.2-2)
-
-When S=0, the Sequence Number field MUST NOT be present (S2.2)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC2890-2.2-2, so no unit is bound to it.
 
 ### [`RFC2890-2.2-3`](#rfc2890-2.2-3)
 
@@ -180,7 +138,39 @@ No test carries RFC2890-3-1, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 2890, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc2890.txt |
+| Source fingerprint | a51de7afc69fbb42 |
+| Record | rfc/extraction/rfc2890.json |
+| Mapped sentences | 3 |
+| Declined as scope | 1 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 2 | walked | not stated |
+| `3` | not stated | 2 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `3:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the obligation site 3:1 already maps. Row RFC2890-3-1 already names the two protocols: 'IP security protocols (ESP or AH) MUST be used to protect the GRE header and tunneled payload'. | Either ESP (Encapsulating Security Payload) [5] or AH (Authentication Header)[6] MUST be used to protect the GRE header. |
 
 ## Superseded
 

@@ -508,7 +508,51 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 6793, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc6793.txt |
+| Source fingerprint | c532462ab07361de |
+| Record | rfc/extraction/rfc6793.json |
+| Mapped sentences | 29 |
+| Declined as scope | 3 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 6 | walked | not stated |
+| `4.2` | not stated | 0 | walked | not stated |
+| `4.2.1` | not stated | 1 | walked | not stated |
+| `4.2.2` | not stated | 6 | walked | not stated |
+| `4.2.3` | not stated | 10 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 8 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `12.1` | not stated | 0 | walked | not stated |
+| `12.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `6:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 6 restates the Section 4.1 prohibition word for word; site 4.1:5 carries the same sentence and maps RFC6793-4.1-6, whose checklist row cites both sections. | The AS4_PATH attribute and AS4_AGGREGATOR attribute MUST NOT be carried in an UPDATE message between NEW BGP speakers. |
+| `6:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 6 restates the Section 4.1 discard rule word for word; site 4.1:6 carries the same sentence and maps RFC6793-4.1-7, whose checklist row cites both sections. | A NEW BGP speaker that receives the AS4_PATH attribute or the AS4_AGGREGATOR attribute in an UPDATE message from another NEW BGP speaker MUST discard the path attribute and continue processing the UPDATE message. |
+| `6:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 6 restates the Section 3 prohibition on AS_CONFED_SEQUENCE and AS_CONFED_SET inside AS4_PATH; site 3:1 maps RFC6793-3-1, whose checklist row cites both sections. | In addition, the path segment types AS_CONFED_SEQUENCE and AS_CONFED_SET [RFC5065] MUST NOT be carried in the AS4_PATH attribute of an UPDATE message. |
 
 ## Superseded
 

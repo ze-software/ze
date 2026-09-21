@@ -10,10 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 100.0% | 7 of 7 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0.0% | 0 of 7 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 7 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 7 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Tested both ways | 87.5% | 7 of 8 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 8 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 8 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 0.0% | 0 of 18 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -22,13 +21,21 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 7 | of 8 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 7 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 7 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 7 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 7 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 8 | of 9 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 8 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 8 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 8 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 8 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| No test at all | 12.5% | 1 of 8 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+
+The 7 shares marked as a part above are the whole of the 8 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -39,7 +46,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -52,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Experimental |
 | Enrolment | Enrolled |
-| Requirements | 8 |
-| Gated MUST-level | 7 |
+| Requirements | 9 |
+| Gated MUST-level | 8 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 0 |
-| Gated with no test | 0 |
+| Gated with no test | 1 |
 | Nightly-only evidence | 0 |
 | Test tags | 18 |
 | Tagged units | 18 |
@@ -68,7 +75,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: Routing IPv6 with IS-IS: seven MUST-level requirements, all met and test-bound with positive+negative tags. 2-1 (no link-local in IPv6 Reachability TLV 236) and 3-2 (no link-local in the LSP IPv6 address set) via internal/plugins/isis/lsdb origination tests; 3-1 (IPv6 Interface Address TLV 232 only for link-local in Hellos) and 4-1 (advertise IPv6 NLPID 0x8E in Protocols Supported) via internal/plugins/isis/circuit tests; 2-2 (do not route a metric above MaxV6PathMetric), 5-1 (up/down and level-aware preference), and 5-2 (clamp the path metric) via internal/plugins/isis/spf tests. Single-topology IS-IS: IPv6 rides the shared per-level SPF, so 5-1/5-2 reuse the IPv4 producers exercised for IPv6 via BuildRoutesV6.
+Enrolled: Routing IPv6 with IS-IS: eight MUST-level requirements after the 2026-09-21 extraction walk. Seven are met and test-bound with positive+negative tags; the eighth, RFC5308-2-3 (the external bit of TLV 236 is set to 1 when the prefix came into IS-IS from another routing protocol, Section 2), the walk added and no test covers it. 2-1 (no link-local in IPv6 Reachability TLV 236) and 3-2 (no link-local in the LSP IPv6 address set) via internal/plugins/isis/lsdb origination tests; 3-1 (IPv6 Interface Address TLV 232 only for link-local in Hellos) and 4-1 (advertise IPv6 NLPID 0x8E in Protocols Supported) via internal/plugins/isis/circuit tests; 2-2 (do not route a metric above MaxV6PathMetric), 5-1 (up/down and level-aware preference), and 5-2 (clamp the path metric) via internal/plugins/isis/spf tests. Single-topology IS-IS: IPv6 rides the shared per-level SPF, so 5-1/5-2 reuse the IPv4 producers exercised for IPv6 via BuildRoutesV6.
 
 ## What the public ledger says
 
@@ -80,7 +87,7 @@ IPv6 reachability over the same IS-IS instance.
 
 **What the ledger says remains:**
 
-Same IS-IS experimental status.
+Same IS-IS experimental status. [`RFC5308-2-3`](#rfc5308-2-3), the external bit in TLV 236 for a redistributed prefix, was added by the 2026-09-21 extraction walk and carries no test.
 
 ## Coverage
 
@@ -89,12 +96,14 @@ Same IS-IS experimental status.
 | Positive and negative tests | 7 | one part of the gated population |
 | Annotated instead of tested | 0 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 1 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **7** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **8** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (7):** [`RFC5308-2-1`](#rfc5308-2-1), [`RFC5308-2-2`](#rfc5308-2-2), [`RFC5308-3-1`](#rfc5308-3-1), [`RFC5308-3-2`](#rfc5308-3-2), [`RFC5308-4-1`](#rfc5308-4-1), [`RFC5308-5-1`](#rfc5308-5-1), [`RFC5308-5-2`](#rfc5308-5-2)
+
+**No test and no annotation (1):** [`RFC5308-2-3`](#rfc5308-2-3)
 
 ## Requirements
 
@@ -102,6 +111,7 @@ Same IS-IS experimental status.
 |---|---|---|---|---|
 | `RFC5308-2-1` | Advertise link-local prefixes in TLV 236 (Section 2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L65). **negative:** `unit/verify` [`TestISISOriginateTLV236`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L66) |
 | `RFC5308-2-2` | Consider a TLV 236 prefix with metric above MAX_V6_PATH_METRIC (0xFE000000) in normal SPF (Section 2) | MUST NOT | 2 | **positive:** `unit/verify` [`TestISISIPv6MetricAboveMaxIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/ipv6_test.go#L207). **negative:** `unit/verify` [`TestISISIPv6MetricAboveMaxIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/ipv6_test.go#L206) |
+| `RFC5308-2-3` | Set the external bit to 1 in TLV 236 when the prefix was distributed into IS-IS from another routing protocol (Section 2) | SHALL | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5308-3-1` | Carry only link-local IPv6 addresses in TLV 232 in Hellos (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L30). **negative:** `unit/verify` [`TestISISIIHTLV232OmittedNoLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L103). **negative:** `unit/verify` [`TestISISIIHTLV232RejectsNonLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L130) |
 | `RFC5308-3-2` | Carry only non-link-local IPv6 addresses in TLV 232 in LSPs (Section 3) | MUST | 3 | **positive:** `unit/verify` [`TestISISOriginateTLV232Scope`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L110). **negative:** `unit/verify` [`TestISISOriginateTLV232Scope`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L111) |
 | `RFC5308-4-1` | Advertise the IPv6 NLPID (142, 0x8E) in the NLPID TLV when supporting IPv6 (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestISISIIHTLV232LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L31). **positive:** `unit/verify` [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L148). **negative:** `unit/verify` [`TestISISIIHNoTLV232WhenIPv4Only`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_ipv6_test.go#L78). **negative:** `unit/verify` [`TestISISProtocolsSupportedDualStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/origination_ipv6_test.go#L149) |
@@ -111,7 +121,9 @@ Same IS-IS experimental status.
 
 ## Gaps and untested MUSTs
 
-RFC 5308 declares no gap, and every gated MUST it carries has a test bound to it.
+| Requirement | State | Reason |
+|---|---|---|
+| [`RFC5308-2-3`](#rfc5308-2-3) Set the external bit to 1 in TLV 236 when the prefix was distributed into IS-IS from another routing protocol (Section 2) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -138,6 +150,14 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | negative | [`TestISISIPv6MetricAboveMaxIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/ipv6_test.go#L206) | unit/verify | unproven |
 | positive | [`TestISISIPv6MetricAboveMaxIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/ipv6_test.go#L207) | unit/verify | unproven |
+
+### [`RFC5308-2-3`](#rfc5308-2-3)
+
+Set the external bit to 1 in TLV 236 when the prefix was distributed into IS-IS from another routing protocol (Section 2)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC5308-2-3, so no unit is bound to it.
 
 ### [`RFC5308-3-1`](#rfc5308-3-1)
 
@@ -200,7 +220,41 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 5308, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc5308.txt |
+| Source fingerprint | 5357f43116f448ce |
+| Record | rfc/extraction/rfc5308.json |
+| Mapped sentences | 8 |
+| Declined as scope | 2 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 5 | walked | not stated |
+| `3` | not stated | 2 | walked | not stated |
+| `4` | not stated | 1 | walked | not stated |
+| `5` | not stated | 2 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `2:2` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The sentence is inside a verbatim quotation of RFC 5305 that the text introduces with 'As is described in [RFC5305]:'; the up/down bit obligation is RFC 5305's, and RFC 5308 repeats it for the reader. | As is described in [RFC5305]: "The up/down bit SHALL be set to 0 when a prefix is first injected into IS-IS. |
+| `2:3` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | Second sentence of the same verbatim RFC 5305 quotation opened by 'As is described in [RFC5305]:' and closed after 'i.e., to lower levels'; the up/down bit obligation belongs to RFC 5305. | If a prefix is advertised from a higher level to a lower level (e.g. level 2 to level 1), the bit SHALL be set to 1, indicating that the prefix has traveled down the hierarchy. |
 
 ## Superseded
 

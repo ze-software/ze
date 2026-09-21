@@ -22,7 +22,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| MUSTs declared | 4 | of 11 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
+| MUSTs declared | 4 | of 11 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (foundation), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 4 | of 4 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 4 of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -51,7 +51,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Not enrolled (enrolled) |
+| Enrolment | Not enrolled (foundation) |
 | Requirements | 11 |
 | Gated MUST-level | 4 |
 | Not applicable, so out of scope | 4 |
@@ -68,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Not enrolled (enrolled, a disposition this page has no published meaning for): The Use of maxLength in the RPKI (BCP 185): four MUST-level requirements, all {not-applicable} to Ze. RFC 9319 is operational guidance directed at RPKI OPERATORS and ROA issuers (5-1 review existing ROAs for minimality, 5-2 replace published ROAs as necessary, 5-3 repeat the review on policy changes) and at operators PROVIDING RTDR/Route-Origin-Validation filtering as a service (6-1 MUST NOT require non-minimal ROAs). Ze is an RPKI Relying Party: it consumes Validated ROA Payloads over RTR (internal/component/bgp/plugins/rpki/roa_cache.go, aspa_cache.go) and validates route origins against the maxLength bound (internal/component/bgp/plugins/rpki/validate.go:45); it never issues, publishes, or reviews ROAs and provides no RTDR filtering service, so none of these operator-side obligations has an applicable code path. Ze re-validates its own routes on VRP change per RFC 6811 Section 4 (origin_tracker.go), which is governed by the already-enrolled RFC 6811, not this operator BCP. No SHOULD/MAY requirements are gated.
+Not enrolled (foundation, the document defines, registers or describes, and obliges no implementer, so there is no implementation anywhere for a gate to hold): A Best Current Practice addressed to operators and ROA issuers rather than to a router.
 
 ## What the public ledger says
 
@@ -151,7 +151,45 @@ No test carries RFC9319-6-1, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 9319, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc9319.txt |
+| Source fingerprint | 0b377f370cf81004 |
+| Record | rfc/extraction/rfc9319.json |
+| Mapped sentences | 4 |
+| Declined as scope | 0 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `1.2` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 3 | walked | not stated |
+| `5.1` | not stated | 0 | walked | not stated |
+| `5.2` | not stated | 0 | walked | not stated |
+| `6` | not stated | 1 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `11.1` | not stated | 0 | walked | not stated |
+| `11.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+The walk over RFC 9319 declined no sentence: every site it found is mapped to a requirement.
 
 ## Superseded
 

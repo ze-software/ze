@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5575 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 5575: Dissemination of Flow Specification Rules. 12 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 5575: Dissemination of Flow Specification Rules. 15 gated MUST-level requirements, 4 declared gaps, 3 with no test." />
         <meta property="og:title" content="RFC 5575 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 5575: Dissemination of Flow Specification Rules. 12 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 5575: Dissemination of Flow Specification Rules. 15 gated MUST-level requirements, 4 declared gaps, 3 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 5575 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 5575: Dissemination of Flow Specification Rules. 12 gated MUST-level requirements, 4 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 5575: Dissemination of Flow Specification Rules. 15 gated MUST-level requirements, 4 declared gaps, 3 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,26 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>16.7%</strong><b>2 of 12 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>50.0%</strong><b>6 of 12 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>13.3%</strong><b>2 of 15 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>40.0%</strong><b>6 of 15 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 12 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>12</strong><b>of 16 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 12 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>15</strong><b>of 19 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 15 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 15 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>33.3%</strong><b>4 of 12 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>46.7%</strong><b>7 of 15 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 15 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -203,10 +203,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>16</td>
+<td>19</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>12</td>
+<td>15</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -215,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>3</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -278,7 +278,7 @@ Four Section 6 validation MUSTs unmet (same root cause as RFC8956-5-1): 6-1 no e
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>3</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -289,12 +289,13 @@ Four Section 6 validation MUSTs unmet (same root cause as RFC8956-5-1): 6-1 no e
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>12</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>15</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc5575-4-3"><code>RFC5575-4-3</code></a>, <a href="#rfc5575-4-4"><code>RFC5575-4-4</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (10):</strong> <a href="#rfc5575-4-1"><code>RFC5575-4-1</code></a>, <a href="#rfc5575-4-2"><code>RFC5575-4-2</code></a>, <a href="#rfc5575-6-1"><code>RFC5575-6-1</code></a>, <a href="#rfc5575-6-2"><code>RFC5575-6-2</code></a>, <a href="#rfc5575-6-3"><code>RFC5575-6-3</code></a>, <a href="#rfc5575-6-4"><code>RFC5575-6-4</code></a>, <a href="#rfc5575-4-5"><code>RFC5575-4-5</code></a>, <a href="#rfc5575-4-6"><code>RFC5575-4-6</code></a>, <a href="#rfc5575-4-7"><code>RFC5575-4-7</code></a>, <a href="#rfc5575-7-1"><code>RFC5575-7-1</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (3):</strong> <a href="#rfc5575-4-8"><code>RFC5575-4-8</code></a>, <a href="#rfc5575-5.1-1"><code>RFC5575-5.1-1</code></a>, <a href="#rfc5575-8-1"><code>RFC5575-8-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -411,6 +412,33 @@ Four Section 6 validation MUSTs unmet (same root cause as RFC8956-5-1): 6-1 no e
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the traffic-marking community is emitted with literal zero reserved bytes and only the trailing DSCP octet varies (internal/component/bgp/plugins/nlri/flowspec/encode.go:124-127)</p></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5575-4-8">RFC5575-4-8</code></td><td colspan="3"><span class="rfc-subject">&#34;Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt&#34; (§4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5575-4-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5575-5.1-1">RFC5575-5.1-1</code></td><td colspan="3"><span class="rfc-subject">&#34;This ordering function must be such that it must not depend on the arrival order of the flow specification&#39;s rules and must be constant in the network&#34; (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5575-5.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5575-8-1">RFC5575-8-1</code></td><td colspan="3"><span class="rfc-subject">&#34;The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification&#34; (§8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5575-8-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5575-3-1">RFC5575-3-1</code></td><td colspan="3"><span class="rfc-subject">Standard BGP policy mechanisms (UPDATE filtering by NLRI prefix and community matching) SHOULD apply to flow specification NLRI (§3)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
@@ -471,6 +499,18 @@ Four Section 6 validation MUSTs unmet (same root cause as RFC8956-5-1): 6-1 no e
 <tr><td><a href="#rfc5575-6-4"><code>RFC5575-6-4</code></a> There must be no more-specific unicast routes from a different neighboring AS than the best-match route (§6)</td>
 <td>{gap}, no test</td>
 <td>no code walks more-specific unicast routes to compare neighboring AS, because the Section 6 validation procedure is unimplemented (internal/component/bgp/plugins/nlri/flowspec/)</td>
+</tr>
+<tr><td><a href="#rfc5575-4-8"><code>RFC5575-4-8</code></a> &#34;Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt&#34; (§4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5575-5.1-1"><code>RFC5575-5.1-1</code></a> &#34;This ordering function must be such that it must not depend on the arrival order of the flow specification&#39;s rules and must be constant in the network&#34; (§5.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc5575-8-1"><code>RFC5575-8-1</code></a> &#34;The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification&#34; (§8)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
 </tr>
 </tbody>
 </table>
@@ -634,9 +674,203 @@ Four Section 6 validation MUSTs unmet (same root cause as RFC8956-5-1): 6-1 no e
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc5575-4-8"><code>RFC5575-4-8</code></a></h3>
+<p>&#34;Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt&#34; (§4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5575-4-8, so no unit is bound to it.</p>
+<h3><a href="#rfc5575-5.1-1"><code>RFC5575-5.1-1</code></a></h3>
+<p>&#34;This ordering function must be such that it must not depend on the arrival order of the flow specification&#39;s rules and must be constant in the network&#34; (§5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5575-5.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc5575-8-1"><code>RFC5575-8-1</code></a></h3>
+<p>&#34;The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification&#34; (§8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC5575-8-1, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 5575, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc5575.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>f57a08b1d5469245</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc5575.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>9</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>8</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>12</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>13</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Abstract prose describing what the document defines; the lowercase &#39;required&#39; is part of the phrase &#39;such as what is required in order to mitigate (distributed) denial-of-service attacks&#39;, not an obligation on an implementation.</td>
+<td>Additionally, it defines two applications of that encoding format: one that can be used to automate inter-domain coordination of traffic filtering, such as what is required in order to mitigate (distributed) denial-of-service attacks, and a second application to provide traffic filtering in the context of a BGP/MPLS VPN service.</td>
+</tr>
+<tr><td><code>1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Introduction prose stating the document&#39;s own scope (&#39;we define the required mechanisms&#39;); no obligation on an implementation.</td>
+<td>Additionally, we define the required mechanisms to utilize this definition to the problem of immediate concern to the authors: intra- and inter-provider distribution of traffic filtering rules to filter (distributed) denial-of-service (DoS) attacks.</td>
+</tr>
+<tr><td><code>1:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Introduction sentence heading a descriptive list of technology components; &#39;required to address the class of problems&#39; describes the problem space, not an implementation obligation.</td>
+<td>The key technology components required to address the class of problems targeted by this document are:</td>
+</tr>
+<tr><td><code>1:3</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Introduction prose stating the document&#39;s own scope (&#39;defines required protocol extensions&#39;); the obligations themselves are in Sections 4, 6 and 7.</td>
+<td>This specification defines required protocol extensions to address most common applications of IPv4 unicast and VPNv4 unicast filtering.</td>
+</tr>
+<tr><td><code>6:1</code></td>
+<td><code>cross-document</code><br /><strong>never bound Ze</strong><br />the obligation belongs to another document that this one only cites</td>
+<td>The obligation to run path selection is RFC 4271&#39;s, which the same paragraph cites: &#39;The first step of the BGP Route Selection procedure (Section 9.1.2 of [RFC4271])&#39;. This sentence only states that flow specification routes are not exempt from it.</td>
+<td>Although the forwarding attributes of two routes for the same flow specification prefix may be the same, BGP is still required to perform its path selection algorithm in order to select the correct set of attributes to advertise.</td>
+</tr>
+<tr><td><code>11:1</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>IANA Considerations: the sentence directs IANA in its administration of the &#39;Flow Spec Component Types&#39; registry (&#39;Types must be assigned and interpreted uniquely&#39;). The producer is IANA, and Ze holds no code for that role and could hold none: it consumes code points and operates no code-point registry.</td>
+<td>Types must be assigned and interpreted uniquely.</td>
+</tr>
+<tr><td><code>11:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>An IANA allocation-policy table (Invalid value / Defined by this specification / Specification Required / First Come First Served), not a sentence stating an obligation on a BGP speaker.</td>
+<td>+--------------+-------------------------------+ | Range | Policy | +--------------+-------------------------------+ | 0 | Invalid value | | [1 .. 12] | Defined by this specification | | [13 .. 127] | Specification Required | | [128 .. 255] | First Come First Served | +--------------+-------------------------------+</td>
+</tr>
+<tr><td><code>11:3</code></td>
+<td><code>binds-another-role</code><br /><strong>never bound Ze</strong><br />the obligation is addressed to a role Ze never acts as<br /><strong>Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would.</strong></td>
+<td>IANA Considerations: the sentence states what a registering document must say, so the producer is the author of a future specification registering a flow component type under the &#39;Specification Required&#39; policy. Ze holds no code for that role: it registers no new component type and publishes no such specification.</td>
+<td>The specification of a particular &#34;flow component type&#34; must clearly identify what the criteria used to match packets forwarded by the router is.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>RFC 5575 is obsoleted by RFC 8955.</p>
@@ -757,7 +991,7 @@ Four Section 6 validation MUSTs unmet (same root cause as RFC8956-5-1): 6-1 no e
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

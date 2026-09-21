@@ -557,7 +557,65 @@ No test carries RFC7871-12.1-5, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 7871, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc7871.txt |
+| Source fingerprint | de63f477f0265ea1 |
+| Record | rfc/extraction/rfc7871.json |
+| Mapped sentences | 37 |
+| Declined as scope | 3 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 2 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `7.1.1` | not stated | 4 | walked | not stated |
+| `7.1.2` | not stated | 3 | walked | not stated |
+| `7.1.3` | not stated | 3 | walked | not stated |
+| `7.2` | not stated | 0 | walked | not stated |
+| `7.2.1` | not stated | 6 | walked | not stated |
+| `7.2.2` | not stated | 2 | walked | not stated |
+| `7.3` | not stated | 3 | walked | not stated |
+| `7.3.1` | not stated | 3 | walked | not stated |
+| `7.3.2` | not stated | 2 | walked | not stated |
+| `7.4` | not stated | 0 | walked | not stated |
+| `7.5` | not stated | 3 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 1 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `11.1` | not stated | 1 | walked | not stated |
+| `11.2` | not stated | 3 | walked | not stated |
+| `11.3` | not stated | 1 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `12.1` | not stated | 3 | walked | not stated |
+| `12.2` | not stated | 0 | walked | not stated |
+| `13` | not stated | 0 | walked | not stated |
+| `14` | not stated | 0 | walked | not stated |
+| `14.1` | not stated | 0 | walked | not stated |
+| `14.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `7.5:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates for any Intermediate Nameserver the obligation section 7.1.2 states for the Recursive Resolver, which this walk maps at 7.1.2:2: 'A SOURCE PREFIX-LENGTH value of 0 means that the Recursive Resolver MUST NOT add the client's address information to its queries.' The sentence cites that section itself ('see Section 7.1.2'), and RFC7871-7.1.2-3 already carries both readings. | If an Intermediate Nameserver receives a query with SOURCE PREFIX- LENGTH set to 0, it MUST NOT include client address information in queries made to resolve that client's request (see Section 7.1.2). |
+| `11.2:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates as an anti-spoofing measure the echo requirement section 7.2.1 states and this walk maps at 7.2.1:5: 'FAMILY, SOURCE PREFIX-LENGTH, and ADDRESS in the response MUST match those in the query.' RFC7871-7.2.1-8 already records that section 11.2 restates it. | To counter this, the ECS option in a response packet MUST contain the full FAMILY, ADDRESS, and SOURCE PREFIX-LENGTH fields from the corresponding query. |
+| `11.2:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Explains the LEVEL the sentence before it uses rather than stating an obligation: 'The requirement to discard is categorized as "SHOULD" instead of "MUST" because it stands in opposition to the instruction in Section 7.3'. The capitalised keywords are quoted words, the subject of the sentence. The obligations themselves are RFC7871-11.2-1 (MUST verify) and RFC7871-11.2-2 (SHOULD discard), both carried by the checklist. | The requirement to discard is categorized as "SHOULD" instead of "MUST" because it stands in opposition to the instruction in Section 7.3, which states that a response lacking an ECS option should be treated as though it had one of SCOPE PREFIX-LENGTH of 0. |
 
 ## Superseded
 

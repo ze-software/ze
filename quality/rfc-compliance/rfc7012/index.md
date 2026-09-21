@@ -10,11 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 27.3% | 3 of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 3 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 0.0% | 0 of 6 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 16.7% | 1 of 6 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 6 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Proven by a recorded break | 0.0% | 0 of 1 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,13 +21,21 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 11 | of 12 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 8 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 72.7% | 8 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 6 | of 6 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 4 | of 6 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 66.7% | 4 of 6 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 6 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 6 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| No test at all | 16.7% | 1 of 6 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+
+The 7 shares marked as a part above are the whole of the 6 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -39,7 +46,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -52,14 +59,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | No row in the public ledger |
 | Enrolment | Enrolled |
-| Requirements | 12 |
-| Gated MUST-level | 11 |
-| Not applicable, so out of scope | 8 |
+| Requirements | 6 |
+| Gated MUST-level | 6 |
+| Not applicable, so out of scope | 4 |
 | Declared gaps | 0 |
-| Gated with no test | 0 |
+| Gated with no test | 1 |
 | Nightly-only evidence | 0 |
-| Test tags | 3 |
-| Tagged units | 3 |
+| Test tags | 1 |
+| Tagged units | 1 |
 | Recorded audit verdicts | 0 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc7012.md` |
@@ -68,7 +75,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: IPFIX Information Model: exporter role; 8 not-applicable (no enterprise IEs / reduced-size / variable-length IEs / IANA-registry authorship) + 3 single-polarity positive
+Enrolled: IPFIX Information Model: exporter role. Six rows after the 2026-09-21 extraction walk: 3 not-applicable (2.1-2, 2.1-3, 4-2, all enterprise-specific IEs ze never emits), 1 not-applicable for IANA-registry authorship (2.1-1), 1 single-polarity positive (4-1 IE identifier 0 never used) and 1 untested MUST NOT added by the walk (2.1-5, a value outside an IE's valid inclusive range must not be exported). The walk deleted six rows that stated RFC 7011 obligations and one SHOULD no sentence of RFC 7012 carries; most of this document's remaining MUSTs bind the author of an IE definition in the IANA registry and are excluded in rfc/extraction/rfc7012.json.
 
 ## What the public ledger says
 
@@ -79,44 +86,37 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 0 | one part of the gated population |
-| Annotated instead of tested | 11 | one part of the gated population |
+| Annotated instead of tested | 5 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 1 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **6** | every gated MUST falls in exactly one bucket above |
 
-**Annotated instead of tested (11):** [`RFC7012-2.1-1`](#rfc7012-2.1-1), [`RFC7012-2.1-2`](#rfc7012-2.1-2), [`RFC7012-4-1`](#rfc7012-4-1), [`RFC7012-4-2`](#rfc7012-4-2), [`RFC7012-2.1-3`](#rfc7012-2.1-3), [`RFC7012-x-1`](#rfc7012-x-1), [`RFC7012-x-2`](#rfc7012-x-2), [`RFC7012-x-3`](#rfc7012-x-3), [`RFC7012-x-4`](#rfc7012-x-4), [`RFC7012-x-5`](#rfc7012-x-5), [`RFC7012-x-6`](#rfc7012-x-6)
+**Annotated instead of tested (5):** [`RFC7012-2.1-1`](#rfc7012-2.1-1), [`RFC7012-2.1-2`](#rfc7012-2.1-2), [`RFC7012-2.1-3`](#rfc7012-2.1-3), [`RFC7012-4-1`](#rfc7012-4-1), [`RFC7012-4-2`](#rfc7012-4-2)
+
+**No test and no annotation (1):** [`RFC7012-2.1-5`](#rfc7012-2.1-5)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC7012-2.1-1` | Every IE MUST have: name, elementId, description, dataType, and status (current or deprecated) (Section 2.1) | MUST | 2.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the author of an IE definition in the IANA registry; ze references registered IEs by numeric elementId alone and emits no IE metadata in-band (internal/plugins/flowexport/ipfix/ie.go) |
-| `RFC7012-2.1-2` | Enterprise-specific IEs MUST also carry enterpriseId (Section 2.1) | MUST | 2.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze emits no enterprise-specific IEs; every field specifier it writes is an IANA IE with the E bit clear (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
-| `RFC7012-4-1` | IE identifier 0 is reserved and MUST NOT be used (Section 4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestIPFIXFlowTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/flow_template_test.go#L9). **negative:** no negative test. **{single-polarity}:** ze's static templates reference only non-zero IANA IE IDs and it has no code path that constructs IE identifier 0 to drive a negative test |
-| `RFC7012-4-2` | Enterprise-specific IEs MUST use IDs in the range 1-32767 (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze emits no enterprise-specific IEs, so no enterprise IE ID range applies to its output (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
-| `RFC7012-2.1-3` | Enterprise-specific IEs MUST set E=1 in the field specifier and include the 4-octet Enterprise Number (Section 2.1, Section 4) | MUST | 2.1 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze emits no enterprise-specific IEs and never sets the E bit, so there is no enterprise-number write path (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
-| `RFC7012-x-1` | When E=0, the Enterprise Number MUST NOT be present in the Field Specifier (RFC 7011 Section 3.2) | MUST NOT | x | **positive:** `unit/verify` [`TestIPFIXTemplateSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/template_test.go#L9). **negative:** no negative test. **{single-polarity}:** every specifier ze emits is E=0 and exactly 4 octets with no enterprise number, and ze has no E=1 path to exercise the complementary case |
-| `RFC7012-x-2` | When E=1, the Enterprise Number MUST be present in the Field Specifier (RFC 7011 Section 3.2) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never emits an E=1 field specifier, so this requirement's antecedent never holds for its output (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
-| `RFC7012-x-3` | Reduced-size encoding MUST preserve the signed/unsigned property (RFC 7011 Section 6.2) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze applies no reduced-size encoding; every field length equals the IE's abstract-type default (internal/plugins/flowexport/ipfix/flow_template.go:20-48) |
-| `RFC7012-x-4` | Reduced-size encoding MUST NOT be applied to fixed-length types other than integers and float64 (RFC 7011 Section 6.2) | MUST NOT | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze applies no reduced-size encoding at all, so no fixed-length type is ever narrowed (internal/plugins/flowexport/ipfix/flow_template.go:20-48) |
-| `RFC7012-x-5` | All data records using a template MUST match the declared Field Lengths exactly, except for variable-length IEs (Exporter Implementation Notes) | MUST | x | **positive:** `unit/verify` [`TestIPFIXFlowData`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/flow_data_test.go#L10). **negative:** no negative test. **{single-polarity}:** ze's record writers emit exactly the widths declared in the template by construction, and it has no decoder/reject path to drive a negative test |
-| `RFC7012-x-6` | Variable-length IE template Field Length MUST be 0xFFFF, with inline length prefix in each data record (Exporter Implementation Notes) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze emits no variable-length IEs; interfaceName (IE 82) is defined but placed in no template, so no 0xFFFF field length is ever written (internal/plugins/flowexport/ipfix/ie.go) |
-| `RFC7012-2.1-4` | An exporter using enterprise IEs SHOULD publish an information model document so collectors can interpret the fields (Section 2.1, Section 4) | SHOULD | 2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC7012-2.1-1` | Every IE MUST have: name, elementId, description, dataType, and status (current or deprecated) (Section 2.1) | MUST | 2.1 - Information Element properties | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** this binds the author of an IE definition in the IANA registry; ze references registered IEs by numeric elementId alone and emits no IE metadata in-band (internal/plugins/flowexport/ipfix/ie.go) |
+| `RFC7012-2.1-2` | Enterprise-specific Information Elements MUST have the enterpriseId property defined (Section 2.1) | MUST | 2.1 - Information Element properties | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze emits no enterprise-specific IEs; every field specifier it writes is an IANA IE with the E bit clear (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
+| `RFC7012-2.1-3` | If specifications of enterprise-specific Information Elements are made public, or enterprise-specific identifiers are used by the IPFIX protocol outside the enterprise, then the enterprise-specific identifier MUST be made globally unique by combining it with an enterprise identifier (Section 2.1) | MUST | 2.1 - Information Element properties | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze emits no enterprise-specific IEs and never pairs an identifier with an enterprise number, so it publishes no enterprise-specific identifier to make unique (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
+| `RFC7012-2.1-5` | Where an Information Element has a valid inclusive range, values for that Information Element outside the range are invalid and MUST NOT be exported (Section 2.1) | MUST NOT | 2.1 - Information Element properties | **positive:** no positive test. **negative:** no negative test |
+| `RFC7012-4-1` | Information Element identifier values are in the range 1-32767, and for enterprise-specific Information Elements identifier 0 is also reserved (Section 4) | MUST NOT | 4 - Information Element Identifiers | **positive:** `unit/verify` [`TestIPFIXFlowTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/flow_template_test.go#L9). **negative:** no negative test. **{single-polarity}:** ze's static templates reference only non-zero IANA IE IDs and it has no code path that constructs IE identifier 0 to drive a negative test |
+| `RFC7012-4-2` | Enterprise-specific Information Element identifiers have the same range of 1-32767, coupled with an additional enterprise identifier (Section 4) | MUST | 4 - Information Element Identifiers | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze emits no enterprise-specific IEs, so no enterprise IE ID range applies to its output (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC7012-2.1-1`](#rfc7012-2.1-1) Every IE MUST have: name, elementId, description, dataType, and status (current or deprecated) (Section 2.1) | no test | no test carries this requirement id; annotated {not-applicable}: this binds the author of an IE definition in the IANA registry; ze references registered IEs by numeric elementId alone and emits no IE metadata in-band (internal/plugins/flowexport/ipfix/ie.go) |
-| [`RFC7012-2.1-2`](#rfc7012-2.1-2) Enterprise-specific IEs MUST also carry enterpriseId (Section 2.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze emits no enterprise-specific IEs; every field specifier it writes is an IANA IE with the E bit clear (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
-| [`RFC7012-4-2`](#rfc7012-4-2) Enterprise-specific IEs MUST use IDs in the range 1-32767 (Section 4) | no test | no test carries this requirement id; annotated {not-applicable}: ze emits no enterprise-specific IEs, so no enterprise IE ID range applies to its output (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
-| [`RFC7012-2.1-3`](#rfc7012-2.1-3) Enterprise-specific IEs MUST set E=1 in the field specifier and include the 4-octet Enterprise Number (Section 2.1, Section 4) | no test | no test carries this requirement id; annotated {not-applicable}: ze emits no enterprise-specific IEs and never sets the E bit, so there is no enterprise-number write path (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
-| [`RFC7012-x-2`](#rfc7012-x-2) When E=1, the Enterprise Number MUST be present in the Field Specifier (RFC 7011 Section 3.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never emits an E=1 field specifier, so this requirement's antecedent never holds for its output (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
-| [`RFC7012-x-3`](#rfc7012-x-3) Reduced-size encoding MUST preserve the signed/unsigned property (RFC 7011 Section 6.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze applies no reduced-size encoding; every field length equals the IE's abstract-type default (internal/plugins/flowexport/ipfix/flow_template.go:20-48) |
-| [`RFC7012-x-4`](#rfc7012-x-4) Reduced-size encoding MUST NOT be applied to fixed-length types other than integers and float64 (RFC 7011 Section 6.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze applies no reduced-size encoding at all, so no fixed-length type is ever narrowed (internal/plugins/flowexport/ipfix/flow_template.go:20-48) |
-| [`RFC7012-x-6`](#rfc7012-x-6) Variable-length IE template Field Length MUST be 0xFFFF, with inline length prefix in each data record (Exporter Implementation Notes) | no test | no test carries this requirement id; annotated {not-applicable}: ze emits no variable-length IEs; interfaceName (IE 82) is defined but placed in no template, so no 0xFFFF field length is ever written (internal/plugins/flowexport/ipfix/ie.go) |
+| [`RFC7012-2.1-2`](#rfc7012-2.1-2) Enterprise-specific Information Elements MUST have the enterpriseId property defined (Section 2.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze emits no enterprise-specific IEs; every field specifier it writes is an IANA IE with the E bit clear (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
+| [`RFC7012-2.1-3`](#rfc7012-2.1-3) If specifications of enterprise-specific Information Elements are made public, or enterprise-specific identifiers are used by the IPFIX protocol outside the enterprise, then the enterprise-specific identifier MUST be made globally unique by combining it with an enterprise identifier (Section 2.1) | no test | no test carries this requirement id; annotated {not-applicable}: ze emits no enterprise-specific IEs and never pairs an identifier with an enterprise number, so it publishes no enterprise-specific identifier to make unique (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
+| [`RFC7012-2.1-5`](#rfc7012-2.1-5) Where an Information Element has a valid inclusive range, values for that Information Element outside the range are invalid and MUST NOT be exported (Section 2.1) | no test | no test carries this requirement id |
+| [`RFC7012-4-2`](#rfc7012-4-2) Enterprise-specific Information Element identifiers have the same range of 1-32767, coupled with an additional enterprise identifier (Section 4) | no test | no test carries this requirement id; annotated {not-applicable}: ze emits no enterprise-specific IEs, so no enterprise IE ID range applies to its output (internal/plugins/flowexport/ipfix/flow_template.go:114-120) |
 
 ## Proof state
 
@@ -132,15 +132,31 @@ No test carries RFC7012-2.1-1, so no unit is bound to it.
 
 ### [`RFC7012-2.1-2`](#rfc7012-2.1-2)
 
-Enterprise-specific IEs MUST also carry enterpriseId (Section 2.1)
+Enterprise-specific Information Elements MUST have the enterpriseId property defined (Section 2.1)
 
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC7012-2.1-2, so no unit is bound to it.
 
+### [`RFC7012-2.1-3`](#rfc7012-2.1-3)
+
+If specifications of enterprise-specific Information Elements are made public, or enterprise-specific identifiers are used by the IPFIX protocol outside the enterprise, then the enterprise-specific identifier MUST be made globally unique by combining it with an enterprise identifier (Section 2.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7012-2.1-3, so no unit is bound to it.
+
+### [`RFC7012-2.1-5`](#rfc7012-2.1-5)
+
+Where an Information Element has a valid inclusive range, values for that Information Element outside the range are invalid and MUST NOT be exported (Section 2.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7012-2.1-5, so no unit is bound to it.
+
 ### [`RFC7012-4-1`](#rfc7012-4-1)
 
-IE identifier 0 is reserved and MUST NOT be used (Section 4)
+Information Element identifier values are in the range 1-32767, and for enterprise-specific Information Elements identifier 0 is also reserved (Section 4)
 
 Audit verdict: not audited: no reader has judged these tests
 
@@ -150,75 +166,96 @@ Audit verdict: not audited: no reader has judged these tests
 
 ### [`RFC7012-4-2`](#rfc7012-4-2)
 
-Enterprise-specific IEs MUST use IDs in the range 1-32767 (Section 4)
+Enterprise-specific Information Element identifiers have the same range of 1-32767, coupled with an additional enterprise identifier (Section 4)
 
 Audit verdict: not audited: no reader has judged these tests
 
 No test carries RFC7012-4-2, so no unit is bound to it.
 
-### [`RFC7012-2.1-3`](#rfc7012-2.1-3)
-
-Enterprise-specific IEs MUST set E=1 in the field specifier and include the 4-octet Enterprise Number (Section 2.1, Section 4)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC7012-2.1-3, so no unit is bound to it.
-
-### [`RFC7012-x-1`](#rfc7012-x-1)
-
-When E=0, the Enterprise Number MUST NOT be present in the Field Specifier (RFC 7011 Section 3.2)
-
-Audit verdict: not audited: no reader has judged these tests
-
-| Polarity | Test | Kind and tier | Proof state |
-|---|---|---|---|
-| positive | [`TestIPFIXTemplateSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/template_test.go#L9) | unit/verify | unproven |
-
-### [`RFC7012-x-2`](#rfc7012-x-2)
-
-When E=1, the Enterprise Number MUST be present in the Field Specifier (RFC 7011 Section 3.2)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC7012-x-2, so no unit is bound to it.
-
-### [`RFC7012-x-3`](#rfc7012-x-3)
-
-Reduced-size encoding MUST preserve the signed/unsigned property (RFC 7011 Section 6.2)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC7012-x-3, so no unit is bound to it.
-
-### [`RFC7012-x-4`](#rfc7012-x-4)
-
-Reduced-size encoding MUST NOT be applied to fixed-length types other than integers and float64 (RFC 7011 Section 6.2)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC7012-x-4, so no unit is bound to it.
-
-### [`RFC7012-x-5`](#rfc7012-x-5)
-
-All data records using a template MUST match the declared Field Lengths exactly, except for variable-length IEs (Exporter Implementation Notes)
-
-Audit verdict: not audited: no reader has judged these tests
-
-| Polarity | Test | Kind and tier | Proof state |
-|---|---|---|---|
-| positive | [`TestIPFIXFlowData`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/flow_data_test.go#L10) | unit/verify | unproven |
-
-### [`RFC7012-x-6`](#rfc7012-x-6)
-
-Variable-length IE template Field Length MUST be 0xFFFF, with inline length prefix in each data record (Exporter Implementation Notes)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC7012-x-6, so no unit is bound to it.
-
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 7012, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc7012.txt |
+| Source fingerprint | 484167319fbb3a09 |
+| Record | rfc/extraction/rfc7012.json |
+| Mapped sentences | 4 |
+| Declined as scope | 8 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `1.2` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | Information Element properties | 5 | walked | Information Element properties. Five MUST-level sites. Three map to declared ids: the required property set (2.1-1), the enterpriseId property of an enterprise-specific IE (2.1-2), and the globally unique enterprise-specific identifier (2.1-3). One binds the IE definition's description text and is excluded. One binds the EXPORTER and the checklist did not carry it, so the 2026-09-21 walk added RFC7012-2.1-5 for it: "values for this Information Element outside the range are invalid and MUST NOT be exported". The SHOULD in the same sentence, that a valid inclusive range be specified, binds the IE definition and carries no row. |
+| `2.2` | not stated | 0 | walked | not stated |
+| `2.3` | Naming Conventions for Information Elements | 3 | walked | Naming Conventions for Information Elements. Three MUST-level sites, all excluded as binding the author of a registry entry. Its two SHOULDs, that names be descriptive and that enterprise-specific names be prefixed with a vendor name, bind the same role and carry no row. |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.1.1` | not stated | 0 | walked | not stated |
+| `3.1.2` | not stated | 0 | walked | not stated |
+| `3.1.3` | not stated | 0 | walked | not stated |
+| `3.1.4` | not stated | 0 | walked | not stated |
+| `3.1.5` | not stated | 0 | walked | not stated |
+| `3.1.6` | not stated | 0 | walked | not stated |
+| `3.1.7` | not stated | 0 | walked | not stated |
+| `3.1.8` | not stated | 0 | walked | not stated |
+| `3.1.9` | not stated | 0 | walked | not stated |
+| `3.1.10` | not stated | 0 | walked | not stated |
+| `3.1.11` | not stated | 0 | walked | not stated |
+| `3.1.12` | not stated | 0 | walked | not stated |
+| `3.1.13` | not stated | 0 | walked | not stated |
+| `3.1.14` | not stated | 0 | walked | not stated |
+| `3.1.15` | not stated | 0 | walked | not stated |
+| `3.1.16` | not stated | 0 | walked | not stated |
+| `3.1.17` | not stated | 0 | walked | not stated |
+| `3.1.18` | not stated | 0 | walked | not stated |
+| `3.1.19` | not stated | 0 | walked | not stated |
+| `3.1.20` | not stated | 0 | walked | not stated |
+| `3.1.21` | not stated | 0 | walked | not stated |
+| `3.1.22` | not stated | 0 | walked | not stated |
+| `3.1.23` | not stated | 0 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.2.1` | not stated | 0 | walked | not stated |
+| `3.2.2` | not stated | 0 | walked | not stated |
+| `3.2.3` | not stated | 0 | walked | not stated |
+| `3.2.4` | identifier semantics | 1 | walked | identifier semantics. One site, excluded as binding the dataType chosen for a registry entry. |
+| `3.2.5` | flags semantics | 1 | walked | flags semantics. One site, excluded as binding the dataType chosen for a registry entry. |
+| `4` | Information Element Identifiers | 0 | walked | Information Element Identifiers. No 2119 keyword: the section states in the indicative that identifier values are in the range 1-32767, that identifier 0 is also reserved for enterprise-specific Information Elements, and that enterprise-specific identifiers share that range coupled with an enterprise identifier. Those are RFC7012-4-1 and RFC7012-4-2, declared unsourced here. |
+| `5` | Information Elements | 0 | walked | Information Elements. No obligation: it records that [IANA-IPFIX] is now the normative reference and lists the RFC 5102 categories as a historical note. |
+| `6` | IANA Considerations | 1 | walked | IANA Considerations. One site, excluded as binding IANA's allocation policy and the Standards Track document that would define a new abstract data type or semantic. |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `7.2` | mplsTopLabelType subregistry | 1 | walked | mplsTopLabelType subregistry. One site, excluded as binding whoever specifies a new MPLS label type. |
+| `7.3` | not stated | 0 | walked | not stated |
+| `7.4` | not stated | 0 | walked | not stated |
+| `8` | Security Considerations | 0 | walked | Security Considerations. No MUST-level site. Its two directives bind the Collector, not the Exporter role ze fills: Collectors MAY take advantage of the machine-readability of the information model, and Collectors SHOULD NOT poll the IANA registry directly at runtime. Neither carries a checklist row. |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `10.1` | not stated | 0 | walked | not stated |
+| `10.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `2.1:2` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | The obligation is on the DESCRIPTION written for an Information Element: a string or octetArray IE with length constraints must note them in its description. The description is a registry field, written when the IE is defined, and it never travels on the IPFIX wire. Producer: the author of an Information Element definition in the IANA IPFIX Information Elements registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers. | Information Elements of dataType string or octetArray that have length constraints (fixed length, minimum and/or maximum length) MUST note these constraints in their descriptions. |
+| `2.3:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Names of Information Elements must be unique within the IANA registry. Uniqueness is a property of the registry, enforced when an entry is added to it. Producer: the author of an Information Element definition in the IANA IPFIX Information Elements registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers. | o Names of Information Elements MUST be unique within the "IPFIX Information Elements" registry [IANA-IPFIX]. |
+| `2.3:2` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Names of Information Elements must start with lowercase letters. This is a naming convention binding whoever writes the name into the registry. Producer: the author of an Information Element definition in the IANA IPFIX Information Elements registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers. | o Names of Information Elements MUST start with lowercase letters. |
+| `2.3:3` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | Composed names must capitalise the first letter of each component after the first. This is a naming convention binding whoever writes the name into the registry. Producer: the author of an Information Element definition in the IANA IPFIX Information Elements registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers. | o Composed names MUST use capital letters for the first letter of each component (except for the first one). |
+| `3.2.4:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | An Information Element with 'identifier' data type semantics must be declared with a signed or unsigned data type. The constraint is on the dataType field of the registry entry, chosen when the IE is defined. Producer: the author of an Information Element definition in the IANA IPFIX Information Elements registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers. | Identifiers MUST be one of the signed or unsigned data types. |
+| `3.2.5:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | An Information Element with 'flags' data type semantics must be declared with an unsigned data type. The constraint is on the dataType field of the registry entry, chosen when the IE is defined. Producer: the author of an Information Element definition in the IANA IPFIX Information Elements registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers. | Flags MUST always be of an unsigned data type. |
+| `6:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | "New abstract data types and semantics are subject to Standards Action [RFC5226] and MUST be defined in IETF Standards Track documents updating this document." The obligation is on the IANA allocation policy and on the document that defines a new type. Producer: IANA and the author of an IETF Standards Track document that extends this registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers. | New abstract data types and semantics are subject to Standards Action [RFC5226] and MUST be defined in IETF Standards Track documents updating this document. |
+| `7.2:1` | `binds-another-role` (never bound Ze): the obligation is addressed to a role Ze never acts as. Presumed wrong until justified: Ze rarely implements one side of a protocol, so the reason beside this row must name the role, show Ze never acts as it, and cite the producer that would. | "The specification of new MPLS label types MUST be published using a well-established and persistent publication medium." The obligation is on whoever specifies a new MPLS label type for the IPFIX mplsTopLabelType subregistry. Producer: IANA and the author of an IETF Standards Track document that extends this registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers. | The specification of new MPLS label types MUST be published using a well-established and persistent publication medium. |
 
 ## Superseded
 

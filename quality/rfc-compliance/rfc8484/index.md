@@ -306,7 +306,55 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 8484, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc8484.txt |
+| Source fingerprint | 43bd257016f67e75 |
+| Record | rfc/extraction/rfc8484.json |
+| Mapped sentences | 16 |
+| Declined as scope | 0 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 1 | walked | The MAY that a DoH server support more than one URI Template is advisory and the MUST-level scan does not raise it. |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 3 | walked | Three advisory directives carry no site: the SHOULD to send an Accept header, the SHOULD to use DNS ID 0, and the MAY to process other DNS-related media types (the second clause of site 4.1:3). |
+| `4.1.1` | not stated | 0 | walked | not stated |
+| `4.2` | not stated | 1 | walked | not stated |
+| `4.2.1` | not stated | 0 | walked | not stated |
+| `4.2.2` | not stated | 0 | walked | not stated |
+| `5` | not stated | 1 | walked | not stated |
+| `5.1` | not stated | 3 | walked | Two advisory directives carry no site: the SHOULD to assign an explicit freshness lifetime, and the RECOMMENDED freshness equal to the smallest Answer-section TTL. |
+| `5.2` | not stated | 0 | walked | One advisory directive and no MUST-level site: "HTTP/2 [RFC7540] is the minimum RECOMMENDED version of HTTP for use with DoH". |
+| `5.3` | not stated | 1 | walked | not stated |
+| `5.4` | not stated | 2 | walked | The MAY that other media types be used as defined by HTTP Content Negotiation is advisory. |
+| `6` | not stated | 4 | walked | The MAY that a DoH client include EDNS options in the request is advisory. |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.2` | not stated | 0 | walked | The SHOULD NOT that DoH clients accept HTTP cookies is advisory. |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | The SHOULD NOT that DoH server authentication rely on DNS-based references in the TLS handshake is advisory. |
+| `11` | not stated | 0 | walked | not stated |
+| `11.1` | not stated | 0 | walked | not stated |
+| `11.2` | not stated | 0 | walked | not stated |
+| `A` | not stated | 0 | walked | not stated |
+| `B` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+The walk over RFC 8484 declined no sentence: every site it found is mapped to a requirement.
 
 ## Superseded
 

@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9582 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9582: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2. 10 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 9582: A Profile for Route Origin Authorizations (ROAs). 26 gated MUST-level requirements, 0 declared gaps, 16 with no test." />
         <meta property="og:title" content="RFC 9582 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9582: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2. 10 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 9582: A Profile for Route Origin Authorizations (ROAs). 26 gated MUST-level requirements, 0 declared gaps, 16 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9582 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9582: The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2. 10 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 9582: A Profile for Route Origin Authorizations (ROAs). 26 gated MUST-level requirements, 0 declared gaps, 16 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -46,7 +46,7 @@
             <section aria-labeledby="rfc-detail-title" class="md-content reveal cat-observe">
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Unsupported</span>
-    <h1 id="rfc-detail-title">RFC 9582 - The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2</h1>
+    <h1 id="rfc-detail-title">RFC 9582 - A Profile for Route Origin Authorizations (ROAs)</h1>
     <p>Every requirement this repository extracted from RFC 9582, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.</p>
 </div>
 <style>
@@ -116,22 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>60.0%</strong><b>6 of 10 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>10.0%</strong><b>1 of 10 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>23.1%</strong><b>6 of 26 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3.8%</strong><b>1 of 26 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 13 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>10</strong><b>of 13 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>3</strong><b>of 10 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>30.0%</strong><b>3 of 10 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 10 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>MUSTs declared</span><strong>26</strong><b>of 35 this summary declares</b><p>MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (third-party), so every share below reads what the summary records rather than what the gate enforces</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>3</strong><b>of 26 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>11.5%</strong><b>3 of 26 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 26 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 10 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>61.5%</strong><b>16 of 26 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 7 shares marked as a part above are the whole of the 26 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -159,7 +163,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -196,13 +200,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Unsupported</td>
 </tr>
 <tr><td>Enrolment</td>
-<td>Not enrolled (enrolled)</td>
+<td>Not enrolled (third-party)</td>
 </tr>
 <tr><td>Requirements</td>
-<td>13</td>
+<td>35</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>10</td>
+<td>26</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>3</td>
@@ -211,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>16</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -242,7 +246,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Not enrolled (enrolled, a disposition this page has no published meaning for): RPKI-to-Router Protocol v2 (ASPA PDU parsing + version negotiation): 6 MET + 1 single-polarity (7-1) + 3 not-applicable (cache-side roles ze does not play)</p>
+<p>Not enrolled (third-party, a layer under or beside Ze performs the document and Ze holds no Go code for it, so the reason beside this kind names the component that does): The RPKI cache validates the CMS and X.509 profile. Ze consumes an already-validated payload over the RTR protocol, internal/component/bgp/plugins/rpki/rtr_pdu.go.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Unsupported</p>
@@ -271,7 +275,7 @@ Every obligation, and implementing them means a relying-party validator: a CMS/D
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>16</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -282,12 +286,13 @@ Every obligation, and implementing them means a relying-party validator: a CMS/D
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>10</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>26</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (6):</strong> <a href="#rfc9582-5.12-1"><code>RFC9582-5.12-1</code></a>, <a href="#rfc9582-5.12-2"><code>RFC9582-5.12-2</code></a>, <a href="#rfc9582-5.12-3"><code>RFC9582-5.12-3</code></a>, <a href="#rfc9582-5.12-6"><code>RFC9582-5.12-6</code></a>, <a href="#rfc9582-5.12-7"><code>RFC9582-5.12-7</code></a>, <a href="#rfc9582-7-2"><code>RFC9582-7-2</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (4):</strong> <a href="#rfc9582-5.12-4"><code>RFC9582-5.12-4</code></a>, <a href="#rfc9582-5.12-5"><code>RFC9582-5.12-5</code></a>, <a href="#rfc9582-7-1"><code>RFC9582-7-1</code></a>, <a href="#rfc9582-7-3"><code>RFC9582-7-3</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (16):</strong> <a href="#rfc9582-3-1"><code>RFC9582-3-1</code></a>, <a href="#rfc9582-4.1-1"><code>RFC9582-4.1-1</code></a>, <a href="#rfc9582-4.3.1-1"><code>RFC9582-4.3.1-1</code></a>, <a href="#rfc9582-4.3.1-2"><code>RFC9582-4.3.1-2</code></a>, <a href="#rfc9582-4.3.1-3"><code>RFC9582-4.3.1-3</code></a>, <a href="#rfc9582-4.3.1-4"><code>RFC9582-4.3.1-4</code></a>, <a href="#rfc9582-4.3.2.2-1"><code>RFC9582-4.3.2.2-1</code></a>, <a href="#rfc9582-5-1"><code>RFC9582-5-1</code></a>, <a href="#rfc9582-5-2"><code>RFC9582-5-2</code></a>, <a href="#rfc9582-5-3"><code>RFC9582-5-3</code></a>, <a href="#rfc9582-5-4"><code>RFC9582-5-4</code></a>, <a href="#rfc9582-5-5"><code>RFC9582-5-5</code></a>, <a href="#rfc9582-5-6"><code>RFC9582-5-6</code></a>, <a href="#rfc9582-5-7"><code>RFC9582-5-7</code></a>, <a href="#rfc9582-6-1"><code>RFC9582-6-1</code></a>, <a href="#rfc9582-6-2"><code>RFC9582-6-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -411,6 +416,204 @@ Every obligation, and implementing them means a relying-party validator: a CMS/D
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-3-1">RFC9582-3-1</code></td><td colspan="3"><span class="rfc-subject">The ROA content-type OID 1.2.840.113549.1.9.16.1.24 MUST appear within both the eContentType in the encapContentInfo object and the content-type signed attribute in the signerInfo object (§3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.1-1">RFC9582-4.1-1</code></td><td colspan="3"><span class="rfc-subject">The version number of the RouteOriginAttestation entry MUST be 0 (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.1-1">RFC9582-4.3.1-1</code></td><td colspan="3"><span class="rfc-subject">addressFamily MUST be either 0001 or 0002 (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.3.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.1-2">RFC9582-4.3.1-2</code></td><td colspan="3"><span class="rfc-subject">IPv4 prefixes MUST NOT appear as IPv4-mapped IPv6 addresses (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.3.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.1-3">RFC9582-4.3.1-3</code></td><td colspan="3"><span class="rfc-subject">There MUST be only one instance of ROAIPAddressFamily per unique AFI in the ROA (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.3.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.1-4">RFC9582-4.3.1-4</code></td><td colspan="3"><span class="rfc-subject">The ROAIPAddressFamily structure MUST NOT appear more than twice (§4.3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.3.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.3.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.2.2-1">RFC9582-4.3.2.2-1</code></td><td colspan="3"><span class="rfc-subject">If present, the maxLength element MUST be an integer greater than or equal to the length of the accompanying prefix, and less than or equal to the maximum length in bits of an IP address in the applicable address family: 32 for IPv4 and 128 for IPv6 (§4.3.2.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.3.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.3.2.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-5-1">RFC9582-5-1</code></td><td colspan="3"><span class="rfc-subject">Before a Relying Party can use a ROA to validate a routing announcement, the Relying Party MUST first validate the ROA (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-5-2">RFC9582-5-2</code></td><td colspan="3"><span class="rfc-subject">To validate a ROA, the Relying Party MUST perform all the validation checks specified in RFC 6488 as well as the ROA-specific validation steps of Section 5 (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-5-3">RFC9582-5-3</code></td><td colspan="3"><span class="rfc-subject">The EE certificate&#39;s IP address delegation extension MUST NOT contain &#34;inherit&#34; elements as described in RFC 3779 (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-5-4">RFC9582-5-4</code></td><td colspan="3"><span class="rfc-subject">The Autonomous System identifier delegation extension described in RFC 3779 is not used in ROAs and MUST NOT be present in the EE certificate (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-5-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-5-5">RFC9582-5-5</code></td><td colspan="3"><span class="rfc-subject">If any of the Section 5 checks fail, the ROA in its entirety MUST be considered invalid (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-5-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-5-6">RFC9582-5-6</code></td><td colspan="3"><span class="rfc-subject">The IP address delegation extension is present in the EE certificate and every IP address prefix in the ROA payload is contained within the set of IP addresses specified by that extension (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-5-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-5-7">RFC9582-5-7</code></td><td colspan="3"><span class="rfc-subject">The ROA content fully conforms with all requirements specified in Sections 3 and 4 (§5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-5-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-6-1">RFC9582-6-1</code></td><td colspan="3"><span class="rfc-subject">The integrity of a ROA MUST be established (§6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-6-2">RFC9582-6-2</code></td><td colspan="3"><span class="rfc-subject">One MUST verify the signature on the ROA using an X.509 certificate issued under this PKI and check that the prefix or prefixes in the ROA are contained within those in the certificate&#39;s IP address delegation extension (§6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-6-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.2.2-2">RFC9582-4.3.2.2-2</code></td><td colspan="3"><span class="rfc-subject">The maxLength element SHOULD NOT be encoded if the maximum length is equal to the prefix length (§4.3.2.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD NOT</td>
+<td>4.3.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.3.2.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.2.2-3">RFC9582-4.3.2.2-3</code></td><td colspan="3"><span class="rfc-subject">Certification Authorities SHOULD anticipate that future Relying Parties will become increasingly stringent in considering the presence of superfluous maxLength elements an encoding error (§4.3.2.2)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3.2.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.3.2.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.3-1">RFC9582-4.3.3-1</code></td><td colspan="3"><span class="rfc-subject">The canonicalization process described in Section 4.3.3 SHOULD be used to ensure that information elements are unique with respect to one another and sorted in ascending order (§4.3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.3.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.3-2">RFC9582-4.3.3-2</code></td><td colspan="3"><span class="rfc-subject">Certification Authorities SHOULD anticipate that future Relying Parties will impose a strict requirement for the ipAddrBlocks field to be in canonical form (§4.3.3)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>4.3.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.3.3-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-5-8">RFC9582-5-8</code></td><td colspan="3"><span class="rfc-subject">If any of the Section 5 checks fail, an error SHOULD be logged (§5)</span></td></tr>
+<tr><td></td>
+<td>SHOULD</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-5-8">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9582-4.3.2.3-1">RFC9582-4.3.2.3-1</code></td><td colspan="3"><span class="rfc-subject">A ROA MAY contain two ROAIPAddress elements where the IP address prefix is identical in both cases, but this is NOT RECOMMENDED because the element with the shorter maxLength grants no additional privileges (§4.3.2.3)</span></td></tr>
+<tr><td></td>
+<td>NOT RECOMMENDED</td>
+<td>4.3.2.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9582-4.3.2.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 </tbody>
 </table>
 </div>
@@ -431,6 +634,70 @@ Every obligation, and implementing them means a relying-party validator: a CMS/D
 <tr><td><a href="#rfc9582-7-3"><code>RFC9582-7-3</code></a> Cache receiving a version it does not support MUST send error code 4 (§7)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: this binds the RTR cache/server role; ze runs only an RTR client that dials out and reads error reports, with no listener and no error-report writer, so it never receives queries or sends error code 4 (internal/component/bgp/plugins/rpki/rtr_session.go:125)</td>
+</tr>
+<tr><td><a href="#rfc9582-3-1"><code>RFC9582-3-1</code></a> The ROA content-type OID 1.2.840.113549.1.9.16.1.24 MUST appear within both the eContentType in the encapContentInfo object and the content-type signed attribute in the signerInfo object (§3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9582-4.1-1"><code>RFC9582-4.1-1</code></a> The version number of the RouteOriginAttestation entry MUST be 0 (§4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9582-4.3.1-1"><code>RFC9582-4.3.1-1</code></a> addressFamily MUST be either 0001 or 0002 (§4.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9582-4.3.1-2"><code>RFC9582-4.3.1-2</code></a> IPv4 prefixes MUST NOT appear as IPv4-mapped IPv6 addresses (§4.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9582-4.3.1-3"><code>RFC9582-4.3.1-3</code></a> There MUST be only one instance of ROAIPAddressFamily per unique AFI in the ROA (§4.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9582-4.3.1-4"><code>RFC9582-4.3.1-4</code></a> The ROAIPAddressFamily structure MUST NOT appear more than twice (§4.3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9582-4.3.2.2-1"><code>RFC9582-4.3.2.2-1</code></a> If present, the maxLength element MUST be an integer greater than or equal to the length of the accompanying prefix, and less than or equal to the maximum length in bits of an IP address in the applicable address family: 32 for IPv4 and 128 for IPv6 (§4.3.2.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9582-5-1"><code>RFC9582-5-1</code></a> Before a Relying Party can use a ROA to validate a routing announcement, the Relying Party MUST first validate the ROA (§5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9582-5-2"><code>RFC9582-5-2</code></a> To validate a ROA, the Relying Party MUST perform all the validation checks specified in RFC 6488 as well as the ROA-specific validation steps of Section 5 (§5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9582-5-3"><code>RFC9582-5-3</code></a> The EE certificate&#39;s IP address delegation extension MUST NOT contain &#34;inherit&#34; elements as described in RFC 3779 (§5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9582-5-4"><code>RFC9582-5-4</code></a> The Autonomous System identifier delegation extension described in RFC 3779 is not used in ROAs and MUST NOT be present in the EE certificate (§5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9582-5-5"><code>RFC9582-5-5</code></a> If any of the Section 5 checks fail, the ROA in its entirety MUST be considered invalid (§5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9582-5-6"><code>RFC9582-5-6</code></a> The IP address delegation extension is present in the EE certificate and every IP address prefix in the ROA payload is contained within the set of IP addresses specified by that extension (§5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9582-5-7"><code>RFC9582-5-7</code></a> The ROA content fully conforms with all requirements specified in Sections 3 and 4 (§5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9582-6-1"><code>RFC9582-6-1</code></a> The integrity of a ROA MUST be established (§6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc9582-6-2"><code>RFC9582-6-2</code></a> One MUST verify the signature on the ROA using an X.509 certificate issued under this PKI and check that the prefix or prefixes in the ROA are contained within those in the certificate&#39;s IP address delegation extension (§6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
 </tr>
 </tbody>
 </table>
@@ -585,9 +852,320 @@ Every obligation, and implementing them means a relying-party validator: a CMS/D
 <p>Cache receiving a version it does not support MUST send error code 4 (§7)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9582-7-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-3-1"><code>RFC9582-3-1</code></a></h3>
+<p>The ROA content-type OID 1.2.840.113549.1.9.16.1.24 MUST appear within both the eContentType in the encapContentInfo object and the content-type signed attribute in the signerInfo object (§3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-4.1-1"><code>RFC9582-4.1-1</code></a></h3>
+<p>The version number of the RouteOriginAttestation entry MUST be 0 (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-4.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-4.3.1-1"><code>RFC9582-4.3.1-1</code></a></h3>
+<p>addressFamily MUST be either 0001 or 0002 (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-4.3.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-4.3.1-2"><code>RFC9582-4.3.1-2</code></a></h3>
+<p>IPv4 prefixes MUST NOT appear as IPv4-mapped IPv6 addresses (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-4.3.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-4.3.1-3"><code>RFC9582-4.3.1-3</code></a></h3>
+<p>There MUST be only one instance of ROAIPAddressFamily per unique AFI in the ROA (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-4.3.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-4.3.1-4"><code>RFC9582-4.3.1-4</code></a></h3>
+<p>The ROAIPAddressFamily structure MUST NOT appear more than twice (§4.3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-4.3.1-4, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-4.3.2.2-1"><code>RFC9582-4.3.2.2-1</code></a></h3>
+<p>If present, the maxLength element MUST be an integer greater than or equal to the length of the accompanying prefix, and less than or equal to the maximum length in bits of an IP address in the applicable address family: 32 for IPv4 and 128 for IPv6 (§4.3.2.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-4.3.2.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-5-1"><code>RFC9582-5-1</code></a></h3>
+<p>Before a Relying Party can use a ROA to validate a routing announcement, the Relying Party MUST first validate the ROA (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-5-2"><code>RFC9582-5-2</code></a></h3>
+<p>To validate a ROA, the Relying Party MUST perform all the validation checks specified in RFC 6488 as well as the ROA-specific validation steps of Section 5 (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-5-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-5-3"><code>RFC9582-5-3</code></a></h3>
+<p>The EE certificate&#39;s IP address delegation extension MUST NOT contain &#34;inherit&#34; elements as described in RFC 3779 (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-5-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-5-4"><code>RFC9582-5-4</code></a></h3>
+<p>The Autonomous System identifier delegation extension described in RFC 3779 is not used in ROAs and MUST NOT be present in the EE certificate (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-5-4, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-5-5"><code>RFC9582-5-5</code></a></h3>
+<p>If any of the Section 5 checks fail, the ROA in its entirety MUST be considered invalid (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-5-5, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-5-6"><code>RFC9582-5-6</code></a></h3>
+<p>The IP address delegation extension is present in the EE certificate and every IP address prefix in the ROA payload is contained within the set of IP addresses specified by that extension (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-5-6, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-5-7"><code>RFC9582-5-7</code></a></h3>
+<p>The ROA content fully conforms with all requirements specified in Sections 3 and 4 (§5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-5-7, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-6-1"><code>RFC9582-6-1</code></a></h3>
+<p>The integrity of a ROA MUST be established (§6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9582-6-2"><code>RFC9582-6-2</code></a></h3>
+<p>One MUST verify the signature on the ROA using an X.509 certificate issued under this PKI and check that the prefix or prefixes in the ROA are contained within those in the certificate&#39;s IP address delegation extension (§6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9582-6-2, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 9582, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc9582.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>c7cf938bf211d0aa</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc9582.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>14</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>3</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3.1</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3.2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3.2.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3.2.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3.3.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3.3.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.5</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>IETF Trust Legal Provisions boilerplate on the Copyright Notice page. The lowercase &#39;must include Revised BSD License text&#39; governs reuse of the document&#39;s code components, not ROA behaviour.</td>
+<td>Code Components extracted from this document must include Revised BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Revised BSD License.</td>
+</tr>
+<tr><td><code>1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>A bullet in the Introduction&#39;s list of what this document specifies. It describes the document&#39;s own contents; the obligation itself is Section 5&#39;s &#39;the Relying Party MUST perform all the validation checks specified in [RFC6488] as well as the following additional ROA-specific validation steps&#39;, which site 5:2 maps.</td>
+<td>* Additional steps required to validate ROAs (in addition to the validation steps specified in [RFC6488]).</td>
+</tr>
+<tr><td><code>7.5:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>A field label in the IANA media-type registration template of Section 7.5. &#39;Required parameters: N/A&#39; names a registry field and its value, and states no protocol obligation.</td>
+<td>Required parameters: N/A</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 9582, so its obligations are stated where they were written.</p>
@@ -621,7 +1199,7 @@ Every obligation, and implementing them means a relying-party validator: a CMS/D
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 21 September 2026 00:48 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

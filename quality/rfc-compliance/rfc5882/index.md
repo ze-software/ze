@@ -22,7 +22,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 3 | of 27 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Gated MUSTs | 3 | of 28 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
 | Out of scope | 2 | of 3 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 66.7% | 2 of 3 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 3 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -52,7 +52,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 27 |
+| Requirements | 28 |
 | Gated MUST-level | 3 |
 | Not applicable, so out of scope | 2 |
 | Declared gaps | 0 |
@@ -116,6 +116,7 @@ Same BFD partial status.
 | `RFC5882-4.2.1-1` | When BFD session transitions from Up to Down, action should be taken in the control protocol to signal lack of connectivity (§4.2.1, §4.2.2.1, §4.2.2.2) | SHOULD | 4.2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5882-4.2.1-2` | If control protocol has an explicit path-state mechanism, use it rather than impacting control protocol connectivity (§4.2.1) | SHOULD | 4.2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5882-4.2.1-3` | If no explicit mechanism, emulate a control protocol timeout for the associated neighbor (§4.2.1) | SHOULD | 4.2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC5882-4.2.1-4` | A control protocol tightly bound to a single failing data protocol should take action to ensure that data traffic is no longer directed to the failing path (§4.2.1) | SHOULD | 4.2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5882-4.3.1-1` | If BFD is fate-independent of control plane (C bit set both directions), Graceful Restart should be aborted on BFD session failure, and topology change should be signaled (§4.3.1) | SHOULD | 4.3.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5882-4.3.2-1` | If BFD shares fate with control plane (C bit clear), BFD session failures during restart should not abort the restart (§4.3.2) | SHOULD NOT | 4.3.2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC5882-4.3.2.1-1` | During a planned restart with BFD fate-sharing, BFD session failure should not result in a topology change (§4.3.2.1) | SHOULD NOT | 4.3.2.1 | **positive:** no positive test. **negative:** no negative test |
@@ -186,7 +187,68 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 5882, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc5882.txt |
+| Source fingerprint | 010c8613f697b6a9 |
+| Record | rfc/extraction/rfc5882.json |
+| Mapped sentences | 3 |
+| Declined as scope | 0 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 1 | walked | not stated |
+| `4.2` | not stated | 0 | walked | not stated |
+| `4.2.1` | not stated | 0 | walked | not stated |
+| `4.2.2` | not stated | 0 | walked | not stated |
+| `4.2.2.1` | not stated | 0 | walked | not stated |
+| `4.2.2.2` | not stated | 0 | walked | not stated |
+| `4.3` | not stated | 0 | walked | not stated |
+| `4.3.1` | not stated | 0 | walked | not stated |
+| `4.3.2` | not stated | 0 | walked | not stated |
+| `4.3.2.1` | not stated | 0 | walked | not stated |
+| `4.3.2.2` | not stated | 0 | walked | not stated |
+| `4.4` | not stated | 1 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `7.2` | not stated | 0 | walked | not stated |
+| `7.3` | not stated | 0 | walked | not stated |
+| `7.4` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `10.1` | not stated | 0 | walked | not stated |
+| `10.1.1` | not stated | 0 | walked | not stated |
+| `10.1.2` | not stated | 0 | walked | not stated |
+| `10.1.3` | not stated | 1 | walked | not stated |
+| `10.2` | not stated | 0 | walked | not stated |
+| `10.3` | not stated | 0 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `12.1` | not stated | 0 | walked | not stated |
+| `12.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+The walk over RFC 5882 declined no sentence: every site it found is mapped to a requirement.
 
 ## Superseded
 

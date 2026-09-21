@@ -413,7 +413,68 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 2181, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc2181.txt |
+| Source fingerprint | b86942be6a672cdb |
+| Record | rfc/extraction/rfc2181.json |
+| Mapped sentences | 29 |
+| Declined as scope | 5 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 2 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 1 | walked | not stated |
+| `4.2` | not stated | 2 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 1 | walked | not stated |
+| `5.2` | not stated | 2 | walked | not stated |
+| `5.3` | not stated | 0 | walked | not stated |
+| `5.3.1` | not stated | 4 | walked | not stated |
+| `5.3.2` | not stated | 1 | walked | not stated |
+| `5.4` | not stated | 2 | walked | not stated |
+| `5.4.1` | not stated | 4 | walked | not stated |
+| `5.5` | not stated | 3 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `6.2` | not stated | 2 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `7.2` | not stated | 1 | walked | not stated |
+| `7.3` | not stated | 0 | walked | not stated |
+| `8` | not stated | 1 | walked | not stated |
+| `9` | not stated | 1 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `10.1` | not stated | 0 | walked | not stated |
+| `10.1.1` | not stated | 1 | walked | not stated |
+| `10.2` | not stated | 2 | walked | not stated |
+| `10.3` | not stated | 2 | walked | not stated |
+| `11` | not stated | 2 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `13` | not stated | 0 | walked | not stated |
+| `14` | not stated | 0 | walked | not stated |
+| `15` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `3:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 3 states the memo's own drafting convention ('This memo does not use the oft used expressions MUST, SHOULD, MAY'); it names no behaviour a DNS implementation performs. | This memo does not use the oft used expressions MUST, SHOULD, MAY, or their negative forms. |
+| `3:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | The reading instruction for the whole document: it tells a reader to treat the lowercase words as fundamental. It carries no obligation of its own, and the rfc/short/rfc2181.md checklist preamble quotes it as the rule under which every row's level was assigned. | Anywhere that this memo suggests that some action should be carried out, or must be carried out, or that some behaviour is acceptable, or not, that is to be considered as a fundamental aspect of this specification, regardless of the specific words used. |
+| `5.3.1:4` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Descriptive prose closing the SIG-forwarding discussion: it says what a server that already follows RFC2181-5.3.1-4 can then determine about its own cache. 'the query must be forwarded' names the outcome of that determination, not a new obligation. | Then the server can determine when it is safe to reply from the cache, and when the answer is not available and the query must be forwarded. |
+| `6.2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | A statement of fact about the NXT RR type: it 'must necessarily relate to the zone in which it exists' describes what the record's contents mean, not an action an implementation takes. | In particular the NXT ("next") RR type contains information about which names exist in a zone, and hence which do not, and thus must necessarily relate to the zone in which it exists. |
+| `10.2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The closing sentence of Section 10.2 restates the obligation site 10.2:1 carries: 'This final result, the value of the PTR RR, is the label which must not be an alias.' | This final result, the value of the PTR RR, is the label which must not be an alias. |
 
 ## Superseded
 

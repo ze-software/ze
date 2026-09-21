@@ -503,7 +503,124 @@ No test carries RFC2132-9.14-1, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 2132, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc2132.txt |
+| Source fingerprint | 671b4cd5878737e5 |
+| Record | rfc/extraction/rfc2132.json |
+| Mapped sentences | 34 |
+| Declined as scope | 3 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 3 | walked | not stated |
+| `1.2` | not stated | 0 | walked | not stated |
+| `2` | not stated | 3 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.3` | not stated | 1 | walked | not stated |
+| `3.4` | not stated | 0 | walked | not stated |
+| `3.5` | not stated | 1 | walked | not stated |
+| `3.6` | not stated | 1 | walked | not stated |
+| `3.7` | not stated | 1 | walked | not stated |
+| `3.8` | not stated | 1 | walked | not stated |
+| `3.9` | not stated | 1 | walked | not stated |
+| `3.10` | not stated | 1 | walked | not stated |
+| `3.11` | not stated | 1 | walked | not stated |
+| `3.12` | not stated | 1 | walked | not stated |
+| `3.13` | not stated | 1 | walked | not stated |
+| `3.14` | not stated | 0 | walked | not stated |
+| `3.15` | not stated | 0 | walked | not stated |
+| `3.16` | not stated | 0 | walked | not stated |
+| `3.17` | not stated | 0 | walked | not stated |
+| `3.18` | not stated | 0 | walked | not stated |
+| `3.19` | not stated | 0 | walked | not stated |
+| `3.20` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 0 | walked | not stated |
+| `4.2` | not stated | 0 | walked | not stated |
+| `4.3` | not stated | 1 | walked | not stated |
+| `4.4` | not stated | 0 | walked | not stated |
+| `4.5` | not stated | 0 | walked | not stated |
+| `4.6` | not stated | 0 | walked | not stated |
+| `4.7` | not stated | 1 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 0 | walked | not stated |
+| `5.2` | not stated | 0 | walked | not stated |
+| `5.3` | not stated | 0 | walked | not stated |
+| `5.4` | not stated | 0 | walked | not stated |
+| `5.5` | not stated | 0 | walked | not stated |
+| `5.6` | not stated | 0 | walked | not stated |
+| `5.7` | not stated | 0 | walked | not stated |
+| `5.8` | not stated | 1 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+| `6.3` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `7.2` | not stated | 0 | walked | not stated |
+| `7.3` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.2` | not stated | 1 | walked | not stated |
+| `8.3` | not stated | 1 | walked | not stated |
+| `8.4` | not stated | 1 | walked | not stated |
+| `8.5` | not stated | 0 | walked | not stated |
+| `8.6` | not stated | 0 | walked | not stated |
+| `8.7` | not stated | 0 | walked | not stated |
+| `8.8` | not stated | 0 | walked | not stated |
+| `8.9` | not stated | 1 | walked | not stated |
+| `8.10` | not stated | 1 | walked | not stated |
+| `8.11` | not stated | 0 | walked | not stated |
+| `8.12` | not stated | 1 | walked | not stated |
+| `8.13` | not stated | 1 | walked | not stated |
+| `8.14` | not stated | 1 | walked | not stated |
+| `8.15` | not stated | 1 | walked | not stated |
+| `8.16` | not stated | 1 | walked | not stated |
+| `8.17` | not stated | 1 | walked | not stated |
+| `8.18` | not stated | 1 | walked | not stated |
+| `8.19` | not stated | 1 | walked | not stated |
+| `8.20` | not stated | 1 | walked | not stated |
+| `8.21` | not stated | 1 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+| `9.3` | not stated | 0 | walked | not stated |
+| `9.4` | not stated | 0 | walked | not stated |
+| `9.5` | not stated | 0 | walked | not stated |
+| `9.6` | not stated | 0 | walked | not stated |
+| `9.7` | not stated | 0 | walked | not stated |
+| `9.8` | not stated | 1 | walked | not stated |
+| `9.9` | not stated | 0 | walked | not stated |
+| `9.10` | not stated | 0 | walked | not stated |
+| `9.11` | not stated | 0 | walked | not stated |
+| `9.12` | not stated | 0 | walked | not stated |
+| `9.13` | not stated | 1 | walked | not stated |
+| `9.14` | not stated | 1 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `13` | not stated | 0 | walked | not stated |
+| `14` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `1.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 1.1 is the document's RFC 2119 terminology section: it lists the keywords and defines them ('This word or the adjective "REQUIRED" means that the item is an absolute requirement of this specification.'). The keyword is the subject of the sentence rather than an obligation on a DHCP implementation. | o "MUST" |
+| `1.1:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 1.1 is the document's RFC 2119 terminology section: it lists the keywords and defines them ('This word or the adjective "REQUIRED" means that the item is an absolute requirement of this specification.'). The keyword is the subject of the sentence rather than an obligation on a DHCP implementation. | This word or the adjective "REQUIRED" means that the item is an absolute requirement of this specification. |
+| `1.1:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 1.1 is the document's RFC 2119 terminology section: it lists the keywords and defines them ('This word or the adjective "REQUIRED" means that the item is an absolute requirement of this specification.'). The keyword is the subject of the sentence rather than an obligation on a DHCP implementation. | o "MUST NOT" |
 
 ## Superseded
 

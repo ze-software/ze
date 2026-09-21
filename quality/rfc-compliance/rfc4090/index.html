@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4090 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 12 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 34 gated MUST-level requirements, 0 declared gaps, 25 with no test." />
         <meta property="og:title" content="RFC 4090 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 12 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 34 gated MUST-level requirements, 0 declared gaps, 25 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 4090 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 12 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 4090: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. 34 gated MUST-level requirements, 0 declared gaps, 25 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,22 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>100.0%</strong><b>12 of 12 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>26.5%</strong><b>9 of 34 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 34 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 34 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 26 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>12</strong><b>of 14 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 12 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 12 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>34</strong><b>of 39 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 34 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 34 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 34 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 34 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>73.5%</strong><b>25 of 34 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 7 shares marked as a part above are the whole of the 34 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -159,7 +163,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -199,10 +203,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>14</td>
+<td>39</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>12</td>
+<td>34</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -211,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>25</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -242,14 +246,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: Fast Reroute Extensions to RSVP-TE for LSP Tunnels: 12 MUSTs all MET (FAST_REROUTE/SESSION_ATTRIBUTE flags, RRO protection flags, PLR local repair, label-stacking bypass, merge-point selection, PathErr Notify, and the Section 4.2 rejection of a PATH carrying a DETOUR object at an LSR without one-to-one backup support), positive+negative tags</p>
+<p>Enrolled: Fast Reroute Extensions to RSVP-TE for LSP Tunnels. The checklist was rewritten against the document&#39;s own text on 2026-09-21: the facility-backup path Ze implements (FAST_REROUTE/SESSION_ATTRIBUTE flags, RRO protection flags, PLR local repair, label-stacking bypass, merge-point selection, and the Section 4.2 rejection of a PATH carrying a DETOUR object) is tagged, and the Section 5, 6, 6.1 to 6.4 and 7 MUSTs the earlier row set omitted are now listed and untested.</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Experimental</p>
 <p><strong>What the ledger says is covered:</strong></p>
 Facility backup behavior. A PATH carrying a DETOUR object is rejected with a PathErr, as Section 4.2 requires of an LSR without one-to-one backup.
-<p><strong>What the ledger says remains:</strong></p>
-One-to-one detour backup was explicitly split to later work.
+<details class="rfc-fold"><summary>What the ledger says remains</summary>
+One-to-one detour backup was explicitly split to later work; Section 6 permits it (&#34;A PLR MAY support the DETOUR object&#34;). The head-end MUSTs of Section 5 (<a href="#rfc4090-5-1"><code>RFC4090-5-1</code></a> to 5-4), the RRO flag MUSTs of Sections 4.4 and 6 (<a href="#rfc4090-4.4-5"><code>RFC4090-4.4-5</code></a> to 4.4-7, <a href="#rfc4090-6-1"><code>RFC4090-6-1</code></a> to 6-7), the PLR backup-signaling MUSTs of Sections 6.1 to 6.4 (<a href="#rfc4090-6.1-1"><code>RFC4090-6.1-1</code></a>, 6.2-1, 6.3-1, 6.4-1 to 6.4-3) and the merge-node MUSTs of Section 7 (<a href="#rfc4090-7.1-1"><code>RFC4090-7.1-1</code></a>, 7.1-2, 7.2-1, 7.2-2) are listed and carry no tagged test.
+</details>
 </section>
 <section><h2>Coverage</h2>
 <div class="rfc-table-wrap">
@@ -257,7 +262,7 @@ One-to-one detour backup was explicitly split to later work.
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>12</strong></td>
+<td><strong>9</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Annotated instead of tested</td>
@@ -269,7 +274,7 @@ One-to-one detour backup was explicitly split to later work.
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>25</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -280,11 +285,12 @@ One-to-one detour backup was explicitly split to later work.
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>12</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>34</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (12):</strong> <a href="#rfc4090-4.1-1"><code>RFC4090-4.1-1</code></a>, <a href="#rfc4090-4.3-1"><code>RFC4090-4.3-1</code></a>, <a href="#rfc4090-4.3-2"><code>RFC4090-4.3-2</code></a>, <a href="#rfc4090-4.1-2"><code>RFC4090-4.1-2</code></a>, <a href="#rfc4090-4.4-1"><code>RFC4090-4.4-1</code></a>, <a href="#rfc4090-4.4-2"><code>RFC4090-4.4-2</code></a>, <a href="#rfc4090-4.4-3"><code>RFC4090-4.4-3</code></a>, <a href="#rfc4090-6.5-1"><code>RFC4090-6.5-1</code></a>, <a href="#rfc4090-6.5-2"><code>RFC4090-6.5-2</code></a>, <a href="#rfc4090-3.2-1"><code>RFC4090-3.2-1</code></a>, <a href="#rfc4090-3.2-2"><code>RFC4090-3.2-2</code></a>, <a href="#rfc4090-4.2-1"><code>RFC4090-4.2-1</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (9):</strong> <a href="#rfc4090-4.1-1"><code>RFC4090-4.1-1</code></a>, <a href="#rfc4090-4.3-1"><code>RFC4090-4.3-1</code></a>, <a href="#rfc4090-4.4-1"><code>RFC4090-4.4-1</code></a>, <a href="#rfc4090-4.4-2"><code>RFC4090-4.4-2</code></a>, <a href="#rfc4090-4.4-3"><code>RFC4090-4.4-3</code></a>, <a href="#rfc4090-6.5-2"><code>RFC4090-6.5-2</code></a>, <a href="#rfc4090-3.2-1"><code>RFC4090-3.2-1</code></a>, <a href="#rfc4090-3.2-2"><code>RFC4090-3.2-2</code></a>, <a href="#rfc4090-4.2-1"><code>RFC4090-4.2-1</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (25):</strong> <a href="#rfc4090-4.1-3"><code>RFC4090-4.1-3</code></a>, <a href="#rfc4090-4.4-5"><code>RFC4090-4.4-5</code></a>, <a href="#rfc4090-4.4-6"><code>RFC4090-4.4-6</code></a>, <a href="#rfc4090-4.4-7"><code>RFC4090-4.4-7</code></a>, <a href="#rfc4090-5-1"><code>RFC4090-5-1</code></a>, <a href="#rfc4090-5-2"><code>RFC4090-5-2</code></a>, <a href="#rfc4090-5-3"><code>RFC4090-5-3</code></a>, <a href="#rfc4090-5-4"><code>RFC4090-5-4</code></a>, <a href="#rfc4090-6-1"><code>RFC4090-6-1</code></a>, <a href="#rfc4090-6-2"><code>RFC4090-6-2</code></a>, <a href="#rfc4090-6-3"><code>RFC4090-6-3</code></a>, <a href="#rfc4090-6-4"><code>RFC4090-6-4</code></a>, <a href="#rfc4090-6-5"><code>RFC4090-6-5</code></a>, <a href="#rfc4090-6-6"><code>RFC4090-6-6</code></a>, <a href="#rfc4090-6-7"><code>RFC4090-6-7</code></a>, <a href="#rfc4090-6.1-1"><code>RFC4090-6.1-1</code></a>, <a href="#rfc4090-6.2-1"><code>RFC4090-6.2-1</code></a>, <a href="#rfc4090-6.3-1"><code>RFC4090-6.3-1</code></a>, <a href="#rfc4090-6.4-1"><code>RFC4090-6.4-1</code></a>, <a href="#rfc4090-6.4-2"><code>RFC4090-6.4-2</code></a>, <a href="#rfc4090-6.4-3"><code>RFC4090-6.4-3</code></a>, <a href="#rfc4090-7.1-1"><code>RFC4090-7.1-1</code></a>, <a href="#rfc4090-7.1-2"><code>RFC4090-7.1-2</code></a>, <a href="#rfc4090-7.2-1"><code>RFC4090-7.2-1</code></a>, <a href="#rfc4090-7.2-2"><code>RFC4090-7.2-2</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -300,7 +306,7 @@ One-to-one detour backup was explicitly split to later work.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L49" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestFastRerouteShortBody</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.3-1">RFC4090-4.3-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Local protection desired&#34; (0x01) set in SESSION_ATTRIBUTE when protection is requested (S4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.3-1">RFC4090-4.3-1</code></td><td colspan="3"><span class="rfc-subject">To indicate that an LSP should be locally protected, the head-end LSR MUST either set the &#34;local protection desired&#34; flag (0x01) in the SESSION_ATTRIBUTE object or include a FAST_REROUTE object in the PATH message, or both (S4.3, S5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.3</td>
@@ -309,9 +315,9 @@ One-to-one detour backup was explicitly split to later work.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L181" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathNoProtection</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.3-2">RFC4090-4.3-2</code></td><td colspan="3"><span class="rfc-subject">&#34;Node protection desired&#34; (0x10) set in SESSION_ATTRIBUTE for node protection (S4.3)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.3-2">RFC4090-4.3-2</code></td><td colspan="3"><span class="rfc-subject">&#34;If node protection is desired, the head-end LSR should set the &#39;node protection desired&#39; flag in the SESSION_ATTRIBUTE object; otherwise, this flag should be cleared&#34; (0x10) (S4.3, S5)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
+<td>SHOULD</td>
 <td>4.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L168" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathIncludesFastReroute</code></a></span></div>
@@ -319,16 +325,16 @@ One-to-one detour backup was explicitly split to later work.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L91" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestSessionAttributeEmptyName</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.1-2">RFC4090-4.1-2</code></td><td colspan="3"><span class="rfc-subject">FAST_REROUTE Flags: facility backup (0x02) or one-to-one backup (0x01) set per the requested method (S4.1)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.1-2">RFC4090-4.1-2</code></td><td colspan="3"><span class="rfc-subject">The head-end LSR &#34;should include a FAST_REROUTE object and set the &#39;one-to-one backup desired&#39; flag&#34; (0x01), or for facility backup &#34;should include a FAST_REROUTE object and set the &#39;facility backup desired&#39; flag&#34; (0x02) (S4.1, S5)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
+<td>SHOULD</td>
 <td>4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L161" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestBuildPathIncludesFastReroute</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L833" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestFastRerouteOneToOneMethodFlag</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-1">RFC4090-4.4-1</code></td><td colspan="3"><span class="rfc-subject">PLR sets RRO &#34;local protection available&#34; (0x01) once a backup is armed (S4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-1">RFC4090-4.4-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Whenever the PLR has a backup path available, the PLR MUST set the &#39;local protection available&#39; flag&#34; (0x01) (S4.4, S6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4</td>
@@ -337,7 +343,7 @@ One-to-one detour backup was explicitly split to later work.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L341" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestPLRNoBypassWithoutProtection</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-2">RFC4090-4.4-2</code></td><td colspan="3"><span class="rfc-subject">PLR sets RRO &#34;local protection in use&#34; (0x02) once traffic is on the backup (S4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-2">RFC4090-4.4-2</code></td><td colspan="3"><span class="rfc-subject">During fast reroute &#34;the PLR MUST update the IPv4 or IPv6 sub-object it inserted into the RRO by setting the &#39;Local protection in use&#39; and &#39;Local Protection Available&#39; flags&#34; (S4.4, S6.5)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4</td>
@@ -346,7 +352,7 @@ One-to-one detour backup was explicitly split to later work.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L849" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-3">RFC4090-4.4-3</code></td><td colspan="3"><span class="rfc-subject">PLR sets RRO &#34;node protection&#34; (0x08) when the backup protects the next node (S4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-3">RFC4090-4.4-3</code></td><td colspan="3"><span class="rfc-subject">&#34;the PLR MUST set this flag when the node protection is provided and the &#39;node protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (node protection, 0x08) (S4.4)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
 <td>4.4</td>
@@ -355,9 +361,9 @@ One-to-one detour backup was explicitly split to later work.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L851" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestRROProtectionFlagsReflectState</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.5-1">RFC4090-6.5-1</code></td><td colspan="3"><span class="rfc-subject">On local repair the PLR sends PathErr Error Code 25 (Notify), Error Value sub-code 3 (Tunnel locally repaired) toward the head-end (S6.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.5-1">RFC4090-6.5-1</code></td><td colspan="3"><span class="rfc-subject">&#34;the PLR SHOULD send a Path Error message with error code of &#39;Notify&#39; (Error code = 25) and an error value field of ss00 cccc cccc cccc, where ss=00 and the sub-code = 3 (&#39;Tunnel locally repaired&#39;)&#34; (S6.5, S6.5.1)</span></td></tr>
 <tr><td></td>
-<td>MUST</td>
+<td>SHOULD</td>
 <td>6.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L447" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestLocalRepairSendsNotify</code></a></span></div>
@@ -401,7 +407,7 @@ One-to-one detour backup was explicitly split to later work.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L904" title="internal/plugins/rsvpte/frr_test.go" target="_blank" rel="noopener"><code>TestEnginePathWithDetourRejected</code></a></span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.5-3">RFC4090-6.5-3</code></td><td colspan="3"><span class="rfc-subject">The head-end re-optimizes (make-before-break) onto a fresh path after a Notify and tears the repaired LSP (S6.5)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.5-3">RFC4090-6.5-3</code></td><td colspan="3"><span class="rfc-subject">Global revertive mode: &#34;The head-end LSR of each tunnel is responsible for reoptimizing the TE LSPs that used the failed resource&#34; after a Notify (S6.5, S6.5.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
 <td>6.5</td>
@@ -410,11 +416,236 @@ One-to-one detour backup was explicitly split to later work.
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
 </tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-4">RFC4090-4.4-4</code></td><td colspan="3"><span class="rfc-subject">DETOUR object (Class-Num 63) signals one-to-one backup detour LSPs (S4.4)</span></td></tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-4">RFC4090-4.4-4</code></td><td colspan="3"><span class="rfc-subject">&#34;A PLR MAY support the DETOUR object&#34; (Class-Num 63), which identifies one-to-one backup detour LSPs (S4.4, S4.2, S6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
 <td>4.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.4-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.1-3">RFC4090-4.1-3</code></td><td colspan="3"><span class="rfc-subject">The FAST_REROUTE object &#34;MUST only be inserted into the PATH message by the head-end LER and MUST NOT be changed by downstream LSRs&#34; (S4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-5">RFC4090-4.4-5</code></td><td colspan="3"><span class="rfc-subject">&#34;the PLR MUST set this flag when the desired bandwidth is guaranteed and the &#39;bandwidth protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (bandwidth protection, 0x04) (S4.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.4-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-6">RFC4090-4.4-6</code></td><td colspan="3"><span class="rfc-subject">&#34;If the requested bandwidth is not guaranteed, the PLR MUST NOT set this flag&#34; (bandwidth protection, 0x04) (S4.4)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.4-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-4.4-7">RFC4090-4.4-7</code></td><td colspan="3"><span class="rfc-subject">&#34;If node protection is not provided, the PLR MUST NOT set this flag&#34; (node protection, 0x08) (S4.4)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>4.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-4.4-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-5-1">RFC4090-5-1</code></td><td colspan="3"><span class="rfc-subject">&#34;If a head-end LSR signals a FAST_REROUTE object, it MUST be stored for Path refreshes&#34; (S5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-5-2">RFC4090-5-2</code></td><td colspan="3"><span class="rfc-subject">&#34;The head-end LSR of a protected LSP MUST set the &#39;label recording desired&#39; flag in the SESSION_ATTRIBUTE object&#34; (S5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-5-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-5-3">RFC4090-5-3</code></td><td colspan="3"><span class="rfc-subject">&#34;The head-end LSR of a protected LSP MUST support the additional flags defined in Section 4.4 being set or clear in the RRO IPv4 and IPv6 sub-objects&#34; (S5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-5-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-5-4">RFC4090-5-4</code></td><td colspan="3"><span class="rfc-subject">&#34;The head-end LSR of a protected LSP MUST support the RRO Label sub-object&#34; (S5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-5-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-1">RFC4090-6-1</code></td><td colspan="3"><span class="rfc-subject">&#34;Every LSR along a protected LSP (except the egress) MUST follow the PLR behavior described in this document&#34; (S6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-2">RFC4090-6-2</code></td><td colspan="3"><span class="rfc-subject">&#34;A PLR MUST consider an LSP to have asked for local protection if the &#39;local protection desired&#39; flag is set in the SESSION_ATTRIBUTE object and/or the FAST_REROUTE object is included&#34; (S6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-3">RFC4090-6-3</code></td><td colspan="3"><span class="rfc-subject">&#34;Until a PLR has a backup path available, the PLR MUST clear the relevant four flags in the corresponding RRO IPv4 or IPv6 sub-object&#34; (S6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-4">RFC4090-6-4</code></td><td colspan="3"><span class="rfc-subject">&#34;If no established one-to-one backup LSP or bypass tunnel exists, or if the one-to-one LSP and the bypass tunnel is in &#39;DOWN&#39; state, the PLR MUST clear the &#39;local protection available&#39; flag in its IPv4 (or IPv6) address sub-object of the RRO&#34; (S6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-5">RFC4090-6-5</code></td><td colspan="3"><span class="rfc-subject">&#34;The PLR MUST clear the &#39;local protection in use&#39; flag unless it is actively redirecting traffic into the backup path instead of along the protected LSP&#34; (S6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-6">RFC4090-6-6</code></td><td colspan="3"><span class="rfc-subject">Setting or clearing the &#34;node protection&#34; flag to match the backup path &#34;MUST be done if the &#39;node protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (S6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6-7">RFC4090-6-7</code></td><td colspan="3"><span class="rfc-subject">Setting or clearing the &#34;bandwidth protection&#34; flag to match the backup path &#34;MUST be done if the &#39;bandwidth protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (S6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.1-1">RFC4090-6.1-1</code></td><td colspan="3"><span class="rfc-subject">&#34;If the head-end of a tunnel is also acting as the PLR, it MUST choose an IP address different from the one used in the SENDER_TEMPLATE of the original LSP tunnel&#34; (S6.1, S6.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.2-1">RFC4090-6.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;For bypass tunnels (Section 7), the destination MUST be the address of the MP&#34; (S6.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.3-1">RFC4090-6.3-1</code></td><td colspan="3"><span class="rfc-subject">&#34;When the PLR detects a failure on the protected LSP, the PLR MUST rapidly switch packets to the protected LSP&#39;s backup LSP instead of to the protected LSP&#39;s normal out-segment&#34; (S6.3, S6.3.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.4-1">RFC4090-6.4-1</code></td><td colspan="3"><span class="rfc-subject">On the backup Path message &#34;the RSVP_HOP object MUST contain an IP source address belonging to the PLR&#34; (S6.4, S6.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.4-2">RFC4090-6.4-2</code></td><td colspan="3"><span class="rfc-subject">On the backup Path message &#34;the PLR MUST generate an EXPLICIT_ROUTE object toward the egress&#34; (S6.4, S6.4.3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-6.4-3">RFC4090-6.4-3</code></td><td colspan="3"><span class="rfc-subject">Before sending a Path message via a bypass tunnel the PLR MUST &#34;remove all the sub-objects proceeding the first address belonging to the MP&#34; and &#34;replace this first MP address with an IP address of the MP&#34; (S6.4, S6.4.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>6.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-6.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-7.1-1">RFC4090-7.1-1</code></td><td colspan="3"><span class="rfc-subject">&#34;If merging occurs and one of the Path messages merged was for the protected LSP, then the final Path message to be sent MUST be that of the protected LSP&#34; (S7.1, S7.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-7.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-7.1-2">RFC4090-7.1-2</code></td><td colspan="3"><span class="rfc-subject">&#34;Once the final Path message has been identified, the MP MUST start to refresh it downstream periodically&#34; (S7.1, S7.1.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-7.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-7.2-1">RFC4090-7.2-1</code></td><td colspan="3"><span class="rfc-subject">&#34;When a downstream LSR detects a local link failure, for any protected LSPs routed over the failed link, Path and Resv state MUST NOT be cleared, and PathTear and ResvErr messages MUST NOT be sent immediately&#34; (S7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST NOT</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-7.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4090-7.2-2">RFC4090-7.2-2</code></td><td colspan="3"><span class="rfc-subject">&#34;State MUST be removed if it has not been refreshed before the refresh timer expires&#34; (S7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4090-7.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
@@ -424,7 +655,113 @@ One-to-one detour backup was explicitly split to later work.
 </div>
 </section>
 <section><h2>Gaps and untested MUSTs</h2>
-<p>RFC 4090 declares no gap, and every gated MUST it carries has a test bound to it.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><a href="#rfc4090-4.1-3"><code>RFC4090-4.1-3</code></a> The FAST_REROUTE object &#34;MUST only be inserted into the PATH message by the head-end LER and MUST NOT be changed by downstream LSRs&#34; (S4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-4.4-5"><code>RFC4090-4.4-5</code></a> &#34;the PLR MUST set this flag when the desired bandwidth is guaranteed and the &#39;bandwidth protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (bandwidth protection, 0x04) (S4.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-4.4-6"><code>RFC4090-4.4-6</code></a> &#34;If the requested bandwidth is not guaranteed, the PLR MUST NOT set this flag&#34; (bandwidth protection, 0x04) (S4.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-4.4-7"><code>RFC4090-4.4-7</code></a> &#34;If node protection is not provided, the PLR MUST NOT set this flag&#34; (node protection, 0x08) (S4.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-5-1"><code>RFC4090-5-1</code></a> &#34;If a head-end LSR signals a FAST_REROUTE object, it MUST be stored for Path refreshes&#34; (S5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-5-2"><code>RFC4090-5-2</code></a> &#34;The head-end LSR of a protected LSP MUST set the &#39;label recording desired&#39; flag in the SESSION_ATTRIBUTE object&#34; (S5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-5-3"><code>RFC4090-5-3</code></a> &#34;The head-end LSR of a protected LSP MUST support the additional flags defined in Section 4.4 being set or clear in the RRO IPv4 and IPv6 sub-objects&#34; (S5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-5-4"><code>RFC4090-5-4</code></a> &#34;The head-end LSR of a protected LSP MUST support the RRO Label sub-object&#34; (S5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-6-1"><code>RFC4090-6-1</code></a> &#34;Every LSR along a protected LSP (except the egress) MUST follow the PLR behavior described in this document&#34; (S6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-6-2"><code>RFC4090-6-2</code></a> &#34;A PLR MUST consider an LSP to have asked for local protection if the &#39;local protection desired&#39; flag is set in the SESSION_ATTRIBUTE object and/or the FAST_REROUTE object is included&#34; (S6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-6-3"><code>RFC4090-6-3</code></a> &#34;Until a PLR has a backup path available, the PLR MUST clear the relevant four flags in the corresponding RRO IPv4 or IPv6 sub-object&#34; (S6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-6-4"><code>RFC4090-6-4</code></a> &#34;If no established one-to-one backup LSP or bypass tunnel exists, or if the one-to-one LSP and the bypass tunnel is in &#39;DOWN&#39; state, the PLR MUST clear the &#39;local protection available&#39; flag in its IPv4 (or IPv6) address sub-object of the RRO&#34; (S6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-6-5"><code>RFC4090-6-5</code></a> &#34;The PLR MUST clear the &#39;local protection in use&#39; flag unless it is actively redirecting traffic into the backup path instead of along the protected LSP&#34; (S6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-6-6"><code>RFC4090-6-6</code></a> Setting or clearing the &#34;node protection&#34; flag to match the backup path &#34;MUST be done if the &#39;node protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (S6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-6-7"><code>RFC4090-6-7</code></a> Setting or clearing the &#34;bandwidth protection&#34; flag to match the backup path &#34;MUST be done if the &#39;bandwidth protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (S6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-6.1-1"><code>RFC4090-6.1-1</code></a> &#34;If the head-end of a tunnel is also acting as the PLR, it MUST choose an IP address different from the one used in the SENDER_TEMPLATE of the original LSP tunnel&#34; (S6.1, S6.1.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-6.2-1"><code>RFC4090-6.2-1</code></a> &#34;For bypass tunnels (Section 7), the destination MUST be the address of the MP&#34; (S6.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-6.3-1"><code>RFC4090-6.3-1</code></a> &#34;When the PLR detects a failure on the protected LSP, the PLR MUST rapidly switch packets to the protected LSP&#39;s backup LSP instead of to the protected LSP&#39;s normal out-segment&#34; (S6.3, S6.3.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-6.4-1"><code>RFC4090-6.4-1</code></a> On the backup Path message &#34;the RSVP_HOP object MUST contain an IP source address belonging to the PLR&#34; (S6.4, S6.4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-6.4-2"><code>RFC4090-6.4-2</code></a> On the backup Path message &#34;the PLR MUST generate an EXPLICIT_ROUTE object toward the egress&#34; (S6.4, S6.4.3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-6.4-3"><code>RFC4090-6.4-3</code></a> Before sending a Path message via a bypass tunnel the PLR MUST &#34;remove all the sub-objects proceeding the first address belonging to the MP&#34; and &#34;replace this first MP address with an IP address of the MP&#34; (S6.4, S6.4.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-7.1-1"><code>RFC4090-7.1-1</code></a> &#34;If merging occurs and one of the Path messages merged was for the protected LSP, then the final Path message to be sent MUST be that of the protected LSP&#34; (S7.1, S7.1.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-7.1-2"><code>RFC4090-7.1-2</code></a> &#34;Once the final Path message has been identified, the MP MUST start to refresh it downstream periodically&#34; (S7.1, S7.1.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-7.2-1"><code>RFC4090-7.2-1</code></a> &#34;When a downstream LSR detects a local link failure, for any protected LSPs routed over the failed link, Path and Resv state MUST NOT be cleared, and PathTear and ResvErr messages MUST NOT be sent immediately&#34; (S7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc4090-7.2-2"><code>RFC4090-7.2-2</code></a> &#34;State MUST be removed if it has not been refreshed before the refresh timer expires&#34; (S7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Proof state</h2>
 <p>A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.</p>
@@ -449,7 +786,7 @@ One-to-one detour backup was explicitly split to later work.
 </table>
 </div>
 <h3><a href="#rfc4090-4.3-1"><code>RFC4090-4.3-1</code></a></h3>
-<p>&#34;Local protection desired&#34; (0x01) set in SESSION_ATTRIBUTE when protection is requested (S4.3)</p>
+<p>To indicate that an LSP should be locally protected, the head-end LSR MUST either set the &#34;local protection desired&#34; flag (0x01) in the SESSION_ATTRIBUTE object or include a FAST_REROUTE object in the PATH message, or both (S4.3, S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -469,7 +806,7 @@ One-to-one detour backup was explicitly split to later work.
 </table>
 </div>
 <h3><a href="#rfc4090-4.3-2"><code>RFC4090-4.3-2</code></a></h3>
-<p>&#34;Node protection desired&#34; (0x10) set in SESSION_ATTRIBUTE for node protection (S4.3)</p>
+<p>&#34;If node protection is desired, the head-end LSR should set the &#39;node protection desired&#39; flag in the SESSION_ATTRIBUTE object; otherwise, this flag should be cleared&#34; (0x10) (S4.3, S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -494,7 +831,7 @@ One-to-one detour backup was explicitly split to later work.
 </table>
 </div>
 <h3><a href="#rfc4090-4.1-2"><code>RFC4090-4.1-2</code></a></h3>
-<p>FAST_REROUTE Flags: facility backup (0x02) or one-to-one backup (0x01) set per the requested method (S4.1)</p>
+<p>The head-end LSR &#34;should include a FAST_REROUTE object and set the &#39;one-to-one backup desired&#39; flag&#34; (0x01), or for facility backup &#34;should include a FAST_REROUTE object and set the &#39;facility backup desired&#39; flag&#34; (0x02) (S4.1, S5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -514,7 +851,7 @@ One-to-one detour backup was explicitly split to later work.
 </table>
 </div>
 <h3><a href="#rfc4090-4.4-1"><code>RFC4090-4.4-1</code></a></h3>
-<p>PLR sets RRO &#34;local protection available&#34; (0x01) once a backup is armed (S4.4)</p>
+<p>&#34;Whenever the PLR has a backup path available, the PLR MUST set the &#39;local protection available&#39; flag&#34; (0x01) (S4.4, S6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -534,7 +871,7 @@ One-to-one detour backup was explicitly split to later work.
 </table>
 </div>
 <h3><a href="#rfc4090-4.4-2"><code>RFC4090-4.4-2</code></a></h3>
-<p>PLR sets RRO &#34;local protection in use&#34; (0x02) once traffic is on the backup (S4.4)</p>
+<p>During fast reroute &#34;the PLR MUST update the IPv4 or IPv6 sub-object it inserted into the RRO by setting the &#39;Local protection in use&#39; and &#39;Local Protection Available&#39; flags&#34; (S4.4, S6.5)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -554,7 +891,7 @@ One-to-one detour backup was explicitly split to later work.
 </table>
 </div>
 <h3><a href="#rfc4090-4.4-3"><code>RFC4090-4.4-3</code></a></h3>
-<p>PLR sets RRO &#34;node protection&#34; (0x08) when the backup protects the next node (S4.4)</p>
+<p>&#34;the PLR MUST set this flag when the node protection is provided and the &#39;node protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (node protection, 0x08) (S4.4)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -574,7 +911,7 @@ One-to-one detour backup was explicitly split to later work.
 </table>
 </div>
 <h3><a href="#rfc4090-6.5-1"><code>RFC4090-6.5-1</code></a></h3>
-<p>On local repair the PLR sends PathErr Error Code 25 (Notify), Error Value sub-code 3 (Tunnel locally repaired) toward the head-end (S6.5)</p>
+<p>&#34;the PLR SHOULD send a Path Error message with error code of &#39;Notify&#39; (Error code = 25) and an error value field of ss00 cccc cccc cccc, where ss=00 and the sub-code = 3 (&#39;Tunnel locally repaired&#39;)&#34; (S6.5, S6.5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -678,9 +1015,539 @@ One-to-one detour backup was explicitly split to later work.
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc4090-4.1-3"><code>RFC4090-4.1-3</code></a></h3>
+<p>The FAST_REROUTE object &#34;MUST only be inserted into the PATH message by the head-end LER and MUST NOT be changed by downstream LSRs&#34; (S4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-4.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-4.4-5"><code>RFC4090-4.4-5</code></a></h3>
+<p>&#34;the PLR MUST set this flag when the desired bandwidth is guaranteed and the &#39;bandwidth protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (bandwidth protection, 0x04) (S4.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-4.4-5, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-4.4-6"><code>RFC4090-4.4-6</code></a></h3>
+<p>&#34;If the requested bandwidth is not guaranteed, the PLR MUST NOT set this flag&#34; (bandwidth protection, 0x04) (S4.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-4.4-6, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-4.4-7"><code>RFC4090-4.4-7</code></a></h3>
+<p>&#34;If node protection is not provided, the PLR MUST NOT set this flag&#34; (node protection, 0x08) (S4.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-4.4-7, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-5-1"><code>RFC4090-5-1</code></a></h3>
+<p>&#34;If a head-end LSR signals a FAST_REROUTE object, it MUST be stored for Path refreshes&#34; (S5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-5-2"><code>RFC4090-5-2</code></a></h3>
+<p>&#34;The head-end LSR of a protected LSP MUST set the &#39;label recording desired&#39; flag in the SESSION_ATTRIBUTE object&#34; (S5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-5-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-5-3"><code>RFC4090-5-3</code></a></h3>
+<p>&#34;The head-end LSR of a protected LSP MUST support the additional flags defined in Section 4.4 being set or clear in the RRO IPv4 and IPv6 sub-objects&#34; (S5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-5-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-5-4"><code>RFC4090-5-4</code></a></h3>
+<p>&#34;The head-end LSR of a protected LSP MUST support the RRO Label sub-object&#34; (S5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-5-4, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-6-1"><code>RFC4090-6-1</code></a></h3>
+<p>&#34;Every LSR along a protected LSP (except the egress) MUST follow the PLR behavior described in this document&#34; (S6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-6-2"><code>RFC4090-6-2</code></a></h3>
+<p>&#34;A PLR MUST consider an LSP to have asked for local protection if the &#39;local protection desired&#39; flag is set in the SESSION_ATTRIBUTE object and/or the FAST_REROUTE object is included&#34; (S6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-6-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-6-3"><code>RFC4090-6-3</code></a></h3>
+<p>&#34;Until a PLR has a backup path available, the PLR MUST clear the relevant four flags in the corresponding RRO IPv4 or IPv6 sub-object&#34; (S6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-6-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-6-4"><code>RFC4090-6-4</code></a></h3>
+<p>&#34;If no established one-to-one backup LSP or bypass tunnel exists, or if the one-to-one LSP and the bypass tunnel is in &#39;DOWN&#39; state, the PLR MUST clear the &#39;local protection available&#39; flag in its IPv4 (or IPv6) address sub-object of the RRO&#34; (S6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-6-4, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-6-5"><code>RFC4090-6-5</code></a></h3>
+<p>&#34;The PLR MUST clear the &#39;local protection in use&#39; flag unless it is actively redirecting traffic into the backup path instead of along the protected LSP&#34; (S6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-6-5, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-6-6"><code>RFC4090-6-6</code></a></h3>
+<p>Setting or clearing the &#34;node protection&#34; flag to match the backup path &#34;MUST be done if the &#39;node protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (S6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-6-6, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-6-7"><code>RFC4090-6-7</code></a></h3>
+<p>Setting or clearing the &#34;bandwidth protection&#34; flag to match the backup path &#34;MUST be done if the &#39;bandwidth protection desired&#39; flag was set in the SESSION_ATTRIBUTE object&#34; (S6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-6-7, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-6.1-1"><code>RFC4090-6.1-1</code></a></h3>
+<p>&#34;If the head-end of a tunnel is also acting as the PLR, it MUST choose an IP address different from the one used in the SENDER_TEMPLATE of the original LSP tunnel&#34; (S6.1, S6.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-6.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-6.2-1"><code>RFC4090-6.2-1</code></a></h3>
+<p>&#34;For bypass tunnels (Section 7), the destination MUST be the address of the MP&#34; (S6.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-6.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-6.3-1"><code>RFC4090-6.3-1</code></a></h3>
+<p>&#34;When the PLR detects a failure on the protected LSP, the PLR MUST rapidly switch packets to the protected LSP&#39;s backup LSP instead of to the protected LSP&#39;s normal out-segment&#34; (S6.3, S6.3.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-6.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-6.4-1"><code>RFC4090-6.4-1</code></a></h3>
+<p>On the backup Path message &#34;the RSVP_HOP object MUST contain an IP source address belonging to the PLR&#34; (S6.4, S6.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-6.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-6.4-2"><code>RFC4090-6.4-2</code></a></h3>
+<p>On the backup Path message &#34;the PLR MUST generate an EXPLICIT_ROUTE object toward the egress&#34; (S6.4, S6.4.3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-6.4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-6.4-3"><code>RFC4090-6.4-3</code></a></h3>
+<p>Before sending a Path message via a bypass tunnel the PLR MUST &#34;remove all the sub-objects proceeding the first address belonging to the MP&#34; and &#34;replace this first MP address with an IP address of the MP&#34; (S6.4, S6.4.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-6.4-3, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-7.1-1"><code>RFC4090-7.1-1</code></a></h3>
+<p>&#34;If merging occurs and one of the Path messages merged was for the protected LSP, then the final Path message to be sent MUST be that of the protected LSP&#34; (S7.1, S7.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-7.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-7.1-2"><code>RFC4090-7.1-2</code></a></h3>
+<p>&#34;Once the final Path message has been identified, the MP MUST start to refresh it downstream periodically&#34; (S7.1, S7.1.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-7.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-7.2-1"><code>RFC4090-7.2-1</code></a></h3>
+<p>&#34;When a downstream LSR detects a local link failure, for any protected LSPs routed over the failed link, Path and Resv state MUST NOT be cleared, and PathTear and ResvErr messages MUST NOT be sent immediately&#34; (S7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-7.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc4090-7.2-2"><code>RFC4090-7.2-2</code></a></h3>
+<p>&#34;State MUST be removed if it has not been refreshed before the refresh timer expires&#34; (S7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC4090-7.2-2, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 4090, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>rfc2119</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc4090.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>d53e6ba082494f4e</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc4090.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>30</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>18</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>8</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.1.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.1.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.2</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.3</code></td>
+<td>not stated</td>
+<td>5</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.3.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.3.2</code></td>
+<td>not stated</td>
+<td>6</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.3.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.4.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.4.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.4.3</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.4.4</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.5</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.5.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6.5.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.1.1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.1.2</code></td>
+<td>not stated</td>
+<td>4</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.1.2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.1.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>12</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>13</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>6.2:1</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is the detour LSP destination rule. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>- For detour LSPs, the destination MUST be the tail-end of the protected LSP.</td>
+</tr>
+<tr><td><code>6.3:1</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is detour SENDER_TEMPLATE rewriting. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>- If the sender template-specific method is to be used, then the PLR MUST change the &#34;IPv4 (or IPv6) tunnel sender address&#34; of the SENDER_TEMPLATE to an address belonging to the PLR that is not the same as that used for the protected LSP.</td>
+</tr>
+<tr><td><code>6.3:2</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is the DETOUR object and the detour SESSION_ATTRIBUTE flags. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>- If the path-specific method is to be used, then the PLR MUST add a DETOUR object to the PATH message. - The SESSION_ATTRIBUTE flags &#34;Local protection desired&#34;, &#34;Bandwidth protection desired&#34;, and &#34;Node protection desired&#34; MUST be cleared.</td>
+</tr>
+<tr><td><code>6.3:3</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is FAST_REROUTE removal from a detour PATH. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>- If the protected LSP&#39;s Path message contained a FAST_REROUTE object, this object MUST be removed from the detour LSP&#39;s PATH message.</td>
+</tr>
+<tr><td><code>6.3:4</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is the detour EXPLICIT_ROUTE object. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>- The PLR MUST generate an EXPLICIT_ROUTE object toward the egress.</td>
+</tr>
+<tr><td><code>6.3:5</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is the detour reservation style. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>- The detour LSPs MUST use the same reservation style as the protected LSP.</td>
+</tr>
+<tr><td><code>6.3.2:1</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is detour message separation. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>The PLR MUST not mix the messages for the protected and the detour LSPs.</td>
+</tr>
+<tr><td><code>6.3.2:2</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is detour message forwarding. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>When a PLR receives Resv, ResvTear, and PathErr messages from the downstream detour destination, the messages MUST not be forwarded upstream.</td>
+</tr>
+<tr><td><code>6.3.2:3</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is detour ResvErr/ResvConf propagation. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>Similarly, when a PLR receives ResvErr and ResvConf messages from a protected LSP, it MUST not propagate them onto the associated detour LSP.</td>
+</tr>
+<tr><td><code>6.3.2:4</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is detour PathTear handling. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>When a PLR node receives a PathTear message from upstream, it MUST delete both the protected and the detour LSPs.</td>
+</tr>
+<tr><td><code>6.3.2:5</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is detour PathTear propagation. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>The PathTear messages MUST propagate to both protected and detour LSPs.</td>
+</tr>
+<tr><td><code>6.3.2:6</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is detour ResvTear propagation. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>When a PLR node receives the ResvTear messages from downstream for a protected LSP, as long as a detour is up, the ResvTear messages MUST not be sent further upstream.</td>
+</tr>
+<tr><td><code>6.4.1:1</code></td>
+<td><code>duplicate-of</code><br /><strong>never bound Ze</strong><br />the same obligation is already captured under another requirement id</td>
+<td>Restates the Section 5 head-end obligation to set the label recording desired flag, which RFC4090-5-2 already carries; this sentence says so itself (&#34;As described in Section 6&#34;).</td>
+<td>As described in Section 6, the head-end LSR MUST set the &#34;label recording requested&#34; flag in the SESSION_ATTRIBUTE object for LSPs requesting local protection.</td>
+</tr>
+<tr><td><code>7.1.2:1</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is detour merging by the path-specific method. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>In this case, Path state merging is REQUIRED.</td>
+</tr>
+<tr><td><code>7.1.2:2</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is detour Path state recording under the path-specific method. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>Otherwise, the MP MUST record the Path state and the incoming interface.</td>
+</tr>
+<tr><td><code>7.1.2:3</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is detour merge eligibility under the path-specific method. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>If the Path messages do not share an outgoing interface and a next-hop LSR, the MP MUST consider them to be independent LSPs and MUST NOT merge them.</td>
+</tr>
+<tr><td><code>7.1.2:4</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is detour refresh after merging under the path-specific method. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>Once the final Path message has been identified, the MP MUST start to refresh it downstream periodically.</td>
+</tr>
+<tr><td><code>7.1.3:1</code></td>
+<td><code>feature-out-of-scope</code><br /><strong>never bound Ze</strong><br />the RFC makes a feature OPTIONAL, Ze decided not to offer it, and this obligation is conditional on offering it</td>
+<td>One-to-one detour backup is optional and ze declined it; this site is ResvTear handling for merged detours. RFC 4090 Section 6 makes the method optional: &#34;A PLR MAY support the DETOUR object.&#34;</td>
+<td>If the LSR does not have an alternate associated LSP, then the MP MUST propagate the ResvTear toward the LSP&#39;s ingress, and, for each backup LSP merged into that LSP at this LSR, the ResvTear SHOULD also be propagated along the backup LSP.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 4090, so its obligations are stated where they were written.</p>
@@ -714,7 +1581,7 @@ One-to-one detour backup was explicitly split to later work.
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

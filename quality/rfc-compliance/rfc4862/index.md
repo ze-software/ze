@@ -22,7 +22,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| MUSTs declared | 16 | of 30 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
+| MUSTs declared | 16 | of 30 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (third-party), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 16 | of 16 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 16 of 16 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 16 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -51,7 +51,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Not enrolled (enrolled) |
+| Enrolment | Not enrolled (third-party) |
 | Requirements | 30 |
 | Gated MUST-level | 16 |
 | Not applicable, so out of scope | 16 |
@@ -68,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Not enrolled (enrolled, a disposition this page has no published meaning for): IPv6 Stateless Address Autoconfiguration (RFC 4862): all 16 gated MUST/MUST-NOTs not-applicable -- host SLAAC (address formation, RA/PIO, DAD, deprecated/invalid source selection) is kernel addrconf; ze enables it via sysctls and classifies kernel-assigned addresses
+Not enrolled (third-party, a layer under or beside Ze performs the document and Ze holds no Go code for it, so the reason beside this kind names the component that does): Linux addrconf performs stateless address autoconfiguration. Ze sets the sysctls at internal/component/iface/config_sysctl.go and reads the resulting addresses over netlink.
 
 ## What the public ledger says
 
@@ -278,7 +278,78 @@ No test carries RFC4862-5.5.4-8, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 4862, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc4862.txt |
+| Source fingerprint | d3b85654e334cbd7 |
+| Record | rfc/extraction/rfc4862.json |
+| Mapped sentences | 14 |
+| Declined as scope | 18 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 2 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `3` | not stated | 2 | walked | not stated |
+| `4` | not stated | 2 | walked | not stated |
+| `4.1` | not stated | 1 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 1 | walked | not stated |
+| `5.2` | not stated | 0 | walked | not stated |
+| `5.3` | not stated | 1 | walked | not stated |
+| `5.4` | not stated | 5 | walked | not stated |
+| `5.4.1` | not stated | 1 | walked | not stated |
+| `5.4.2` | not stated | 3 | walked | not stated |
+| `5.4.3` | not stated | 1 | walked | not stated |
+| `5.4.4` | not stated | 0 | walked | not stated |
+| `5.4.5` | not stated | 1 | walked | not stated |
+| `5.5` | not stated | 1 | walked | not stated |
+| `5.5.1` | not stated | 0 | walked | not stated |
+| `5.5.2` | not stated | 1 | walked | not stated |
+| `5.5.3` | not stated | 1 | walked | not stated |
+| `5.5.4` | not stated | 4 | walked | not stated |
+| `5.6` | not stated | 0 | walked | not stated |
+| `5.7` | not stated | 1 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.2` | not stated | 0 | walked | not stated |
+| `A` | not stated | 2 | walked | not stated |
+| `B` | not stated | 1 | walked | not stated |
+| `C` | not stated | 1 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 2 is Terminology; the sentence is part of the definition of an address lifetime and carries no RFC 2119 keyword. | The valid lifetime must be greater than or equal to the preferred lifetime. |
+| `2:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Terminology note reconciling this document's definitions with RFC 4291; descriptive, no RFC 2119 keyword. | Note that the address architecture [RFC4291] also defines the length of the interface identifiers for some set of addresses, but the two sets of definitions must be consistent. |
+| `3:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 3 is Design Goals; the bullet states a goal for the mechanism, not an obligation on an implementation. | o Manual configuration of individual machines before connecting them to the network should not be required. |
+| `3:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 3 Design Goals; the sentence motivates the need for router advertisements and states no implementation obligation. | In order to generate global addresses, hosts must determine the prefixes that identify the subnets to which they attach. |
+| `4:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 4 is the Protocol Overview; this sentence restates the Duplicate Address Detection obligation Section 5.4 states normatively. | Before the link-local address can be assigned to an interface and used, however, a node must attempt to verify that this "tentative" address is not already in use by another node on the link. |
+| `4:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 4 Protocol Overview; indicative prose describing the outcome of a link-local DAD failure, with no RFC 2119 keyword. | If a node determines that its tentative link-local address is not unique, autoconfiguration stops and manual configuration of the interface is required. |
+| `4.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 4.1 discusses site renumbering; the sentence explains why addresses stay stable during a packet exchange and binds no implementation. | Even when applications use UDP as a transport protocol, addresses must generally remain the same during a packet exchange. |
+| `5.3:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Indicative outcome prose with no RFC 2119 keyword: it states that autoconfiguration fails, and Section 2.1 confines this document's keywords to the normative statements. | If the sum of the link-local prefix length and N is larger than 128, autoconfiguration fails and manual configuration is required. |
+| `5.4:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The sentence explains tentative-address packet handling that Section 5.4.2 states normatively as the MUST receive-and-process obligation. | That is, the interface must accept Neighbor Solicitation and Advertisement messages containing the tentative address in the Target Address field, but processes such packets differently from those whose Target Address matches an address assigned to the interface. |
+| `5.4:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | "It should also be noted that" reintroduces the Section 5.4 DAD-before-assignment MUST already mapped. | It should also be noted that Duplicate Address Detection must be performed prior to assigning an address to an interface in order to prevent multiple nodes from using the same address simultaneously. |
+| `5.4.2:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Explanatory note about why an MLD report is sent; it describes the purpose of a message RFC 4861 and RFC 2710 require, not an obligation of this document. | In the case of Duplicate Address Detection, the MLD report message is required in order to inform MLD- snooping switches, rather than routers, to forward multicast packets. |
+| `5.5.2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 5.5.2 explains the consequence of having no Router Advertisement; descriptive prose about operator action, no RFC 2119 keyword. | In this case, the forwarding node's address must be manually configured in hosts to be able to send packets off-link, since the only mechanism to configure the default router's address automatically is the one using Router Advertisements. |
+| `5.5.4:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | An example illustrating the preceding SHOULD about deprecated source addresses; the sentence gives the reason for the SHOULD and states no separate obligation. | For example, if an application explicitly specifies that the protocol stack use a deprecated address as a source address, the protocol stack must accept that; the application might request it because that IP address is used in higher-level communication and there might be a requirement that the multiple connections in such a grouping use the same pair of IP addresses. |
+| `5.7:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 5.7 describes an optional stable-storage extension ("An implementation that has stable storage may want to retain addresses in the storage") and the sentence opens "it should also be noted that"; it is advisory, and the section closes "Further details on this kind of extension are beyond the scope of this document." | When this technique is used, it should also be noted that the expiration times of the preferred and valid lifetimes must be retained, in order to prevent the use of an address after it has become deprecated or invalid. |
+| `A:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Appendix A is informational: it discusses loopback suppression and DAD interaction and states no obligation. | o If a node performing Duplicate Address Detection discards received packets that have the same source link-layer address as the receiving interface, it will also discard packets from other nodes that also use the same link-layer address, including Neighbor Advertisement and Neighbor Solicitation messages required to make Duplicate Address Detection work correctly. |
+| `A:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Appendix A informational discussion of multicast loopback semantics; no RFC 2119 keyword and no obligation of this document. | Thus, to perform Duplicate Address Detection correctly in the case where two interfaces are using the same link-layer address, an implementation must have a good understanding of the interface's multicast loopback semantics, and the interface cannot discard received packets simply because the source link-layer address is the same as the interface's. |
+| `B:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Appendix B is the change log against RFC 2462; it describes an editorial clarification, not an obligation. | o Clarified wording in Section 5.5.4 to make clear that all upper layer protocols must process (i.e., send and receive) packets sent to deprecated addresses. |
+| `C:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF IPR boilerplate. | The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard. |
 
 ## Superseded
 

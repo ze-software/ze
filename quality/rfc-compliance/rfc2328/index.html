@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2328 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 2328: OSPF Version 2. 25 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 2328: OSPF Version 2. 51 gated MUST-level requirements, 1 declared gaps, 26 with no test." />
         <meta property="og:title" content="RFC 2328 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 2328: OSPF Version 2. 25 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 2328: OSPF Version 2. 51 gated MUST-level requirements, 1 declared gaps, 26 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 2328 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 2328: OSPF Version 2. 25 gated MUST-level requirements, 1 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 2328: OSPF Version 2. 51 gated MUST-level requirements, 1 declared gaps, 26 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,26 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>96.0%</strong><b>24 of 25 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>47.1%</strong><b>24 of 51 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 51 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 51 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 59 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>25</strong><b>of 38 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 25 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 25 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>51</strong><b>of 64 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 51 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 51 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 51 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 51 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>4.0%</strong><b>1 of 25 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>52.9%</strong><b>27 of 51 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 25 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 51 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -203,10 +203,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>38</td>
+<td>64</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>25</td>
+<td>51</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -215,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>1</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>26</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -254,7 +254,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 Native OSPFv2 engine, raw protocol 89: the 24-byte common header with Version-2 validation and the auth-excluding packet checksum, the Fletcher LS checksum, the Section 13 flooding procedure (checksum/unknown-type discard, stub-area Type-5 filter, Exchange-or-higher gate, Section 13.1 freshness ordering, MaxAge+MaxSequenceNumber silent discard, retransmission lists at RxmtInterval, Table 19 acknowledgment decisions, self-originated re-origination and premature-aging flush), Section 14 aging and purge retention, the Section 16 routing calculation (two-way check, ABR backbone-only summaries, LSInfinity/MaxAge/self skips, intra-over-inter-over-external path preference), Database Exchange with a single outstanding DD and the BadLSReq restart, virtual links with Interface MTU 0 in their DDs, positive interface output cost, and Appendix D authentication types 0/1/2 including the non-decreasing cryptographic sequence number. Requirements bound per line in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc2328.md" target="_blank" rel="noopener"><code>rfc/short/rfc2328.md</code></a>.
 </details>
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-One MUST gap, annotated in <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc2328.md" target="_blank" rel="noopener"><code>rfc/short/rfc2328.md</code></a> and gated by <code>./le rfc check</code>: <a href="#rfc2328-13.3-2"><code>RFC2328-13.3-2</code></a> -- the InfTransDelay increment of LS age is applied on retransmission (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/lsdb/flooding.go</code></a>) and on a direct database-copy reply (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/lsdb/flooding.go</code></a>), but the normal flood path copies the LSA with transmit delay 0 (<code>floodExcept</code> -&gt; <code>entry.LSA(d.now())</code> -&gt; <code>Raw(now, 0)</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/lsdb/flooding.go</code></a> and <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/entry.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/lsdb/entry.go</code></a>), so a first-flooded LSA carries an unincremented age. The feature also remains pre-production pending hardening and deployment evidence.
+The MUST gap recorded for <a href="#rfc2328-13.3-2"><code>RFC2328-13.3-2</code></a> stands: the InfTransDelay increment of LS age is applied on retransmission (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/lsdb/flooding.go</code></a>) and on a direct database-copy reply (<a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/lsdb/flooding.go</code></a>), but the normal flood path copies the LSA with transmit delay 0 (<code>floodExcept</code> -&gt; <code>entry.LSA(d.now())</code> -&gt; <code>Raw(now, 0)</code>, <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/flooding.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/lsdb/flooding.go</code></a> and <a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/entry.go" target="_blank" rel="noopener"><code>internal/plugins/ospf/lsdb/entry.go</code></a>), so a first-flooded LSA carries an unincremented age. The extraction walk of 2026-09-21 added 26 MUST rows the checklist did not carry (<a href="#rfc2328-3.6-1"><code>RFC2328-3.6-1</code></a>, 4.4-1 to 4.4-3, 8.1-1, 8.2-1 to 8.2-3, 9.1-1, 9.5.1-1, 10.5-1, 10.6-1, 12.1.6-1, 12.2-1, 12.4-1, 12.4.1-1, 12.4.3-1, 13-5 to 13-7, 13.3-3, 15-2, 16.1-3, A.1-1, A.1-2, A.4.4-1); each states an obligation RFC 2328 writes and none carries a tagged test yet, so they are untested MUSTs on this ledger. The feature also remains pre-production pending hardening and deployment evidence.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -275,7 +275,7 @@ One MUST gap, annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>26</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -286,12 +286,13 @@ One MUST gap, annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>25</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>51</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (24):</strong> <a href="#rfc2328-a.3.1-1"><code>RFC2328-A.3.1-1</code></a>, <a href="#rfc2328-a.3.1-2"><code>RFC2328-A.3.1-2</code></a>, <a href="#rfc2328-12.1.7-1"><code>RFC2328-12.1.7-1</code></a>, <a href="#rfc2328-13-1"><code>RFC2328-13-1</code></a>, <a href="#rfc2328-13-2"><code>RFC2328-13-2</code></a>, <a href="#rfc2328-13-3"><code>RFC2328-13-3</code></a>, <a href="#rfc2328-13.1-1"><code>RFC2328-13.1-1</code></a>, <a href="#rfc2328-13-4"><code>RFC2328-13-4</code></a>, <a href="#rfc2328-13.3-1"><code>RFC2328-13.3-1</code></a>, <a href="#rfc2328-14-1"><code>RFC2328-14-1</code></a>, <a href="#rfc2328-14-2"><code>RFC2328-14-2</code></a>, <a href="#rfc2328-13.5-1"><code>RFC2328-13.5-1</code></a>, <a href="#rfc2328-13.4-1"><code>RFC2328-13.4-1</code></a>, <a href="#rfc2328-16.1-1"><code>RFC2328-16.1-1</code></a>, <a href="#rfc2328-16.4-1"><code>RFC2328-16.4-1</code></a>, <a href="#rfc2328-16.2-1"><code>RFC2328-16.2-1</code></a>, <a href="#rfc2328-16.2-2"><code>RFC2328-16.2-2</code></a>, <a href="#rfc2328-d.2-1"><code>RFC2328-D.2-1</code></a>, <a href="#rfc2328-d.3-1"><code>RFC2328-D.3-1</code></a>, <a href="#rfc2328-d.3-2"><code>RFC2328-D.3-2</code></a>, <a href="#rfc2328-a.3.3-1"><code>RFC2328-A.3.3-1</code></a>, <a href="#rfc2328-10.1-1"><code>RFC2328-10.1-1</code></a>, <a href="#rfc2328-10.2-1"><code>RFC2328-10.2-1</code></a>, <a href="#rfc2328-c.3-1"><code>RFC2328-C.3-1</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc2328-13.3-2"><code>RFC2328-13.3-2</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (26):</strong> <a href="#rfc2328-3.6-1"><code>RFC2328-3.6-1</code></a>, <a href="#rfc2328-4.4-1"><code>RFC2328-4.4-1</code></a>, <a href="#rfc2328-4.4-2"><code>RFC2328-4.4-2</code></a>, <a href="#rfc2328-4.4-3"><code>RFC2328-4.4-3</code></a>, <a href="#rfc2328-8.1-1"><code>RFC2328-8.1-1</code></a>, <a href="#rfc2328-8.2-1"><code>RFC2328-8.2-1</code></a>, <a href="#rfc2328-8.2-2"><code>RFC2328-8.2-2</code></a>, <a href="#rfc2328-8.2-3"><code>RFC2328-8.2-3</code></a>, <a href="#rfc2328-9.1-1"><code>RFC2328-9.1-1</code></a>, <a href="#rfc2328-9.5.1-1"><code>RFC2328-9.5.1-1</code></a>, <a href="#rfc2328-10.5-1"><code>RFC2328-10.5-1</code></a>, <a href="#rfc2328-10.6-1"><code>RFC2328-10.6-1</code></a>, <a href="#rfc2328-12.1.6-1"><code>RFC2328-12.1.6-1</code></a>, <a href="#rfc2328-12.2-1"><code>RFC2328-12.2-1</code></a>, <a href="#rfc2328-12.4-1"><code>RFC2328-12.4-1</code></a>, <a href="#rfc2328-12.4.1-1"><code>RFC2328-12.4.1-1</code></a>, <a href="#rfc2328-12.4.3-1"><code>RFC2328-12.4.3-1</code></a>, <a href="#rfc2328-13-5"><code>RFC2328-13-5</code></a>, <a href="#rfc2328-13-6"><code>RFC2328-13-6</code></a>, <a href="#rfc2328-13-7"><code>RFC2328-13-7</code></a>, <a href="#rfc2328-13.3-3"><code>RFC2328-13.3-3</code></a>, <a href="#rfc2328-15-2"><code>RFC2328-15-2</code></a>, <a href="#rfc2328-16.1-3"><code>RFC2328-16.1-3</code></a>, <a href="#rfc2328-a.1-1"><code>RFC2328-A.1-1</code></a>, <a href="#rfc2328-a.1-2"><code>RFC2328-A.1-2</code></a>, <a href="#rfc2328-a.4.4-1"><code>RFC2328-A.4.4-1</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -534,6 +535,240 @@ One MUST gap, annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_interface_validate_test.go#L17" title="internal/plugins/ospf/config_interface_validate_test.go" target="_blank" rel="noopener"><code>TestInterfaceCostAndTransmitDelayBoundary</code></a></span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-3.6-1">RFC2328-3.6-1</code></td><td colspan="3"><span class="rfc-subject">One or more of a stub area&#39;s area border routers advertise a default route into the stub area via summary-LSAs (§3.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-3.6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-4.4-1">RFC2328-4.4-1</code></td><td colspan="3"><span class="rfc-subject">Support receiving and sending IP multicast datagrams, with the appropriate lower-level protocol support (§4.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-4.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-4.4-2">RFC2328-4.4-2</code></td><td colspan="3"><span class="rfc-subject">The router&#39;s IP support includes variable-length subnetting (dividing one class A, B or C network into subnets of various sizes) and IP supernetting (aggregating contiguous class A, B and C networks into supernets) (§4.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-4.4-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-4.4-3">RFC2328-4.4-3</code></td><td colspan="3"><span class="rfc-subject">Lower-level protocols pass indications to OSPF as the network interface goes up and down (§4.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-4.4-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-8.1-1">RFC2328-8.1-1</code></td><td colspan="3"><span class="rfc-subject">Assign at least one IP address to the router, for use as the IP source address of packets sent over unnumbered point-to-point networks and virtual links (§8.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-8.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-8.2-1">RFC2328-8.2-1</code></td><td colspan="3"><span class="rfc-subject">Accept a received packet only when it passes the IP-level tests of Section 8.2: a correct IP checksum, IP protocol OSPF (89), and an IP destination equal to the receiving interface&#39;s address or to AllSPFRouters or AllDRouters (§8.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-8.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-8.2-2">RFC2328-8.2-2</code></td><td colspan="3"><span class="rfc-subject">Verify the OSPF header against the receiving interface: the Area ID matches the interface&#39;s area, or names the backbone, in which case the receiving router is an area border router, the source router is the other endpoint of a configured virtual link, and the receiving interface attaches to that link&#39;s Transit area (§8.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-8.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-8.2-3">RFC2328-8.2-3</code></td><td colspan="3"><span class="rfc-subject">Authenticate every received OSPF packet and discard one whose AuType does not match the AuType configured for the associated area; accept a packet of any type other than Hello only from an active neighbor, because all other types are sent and received only on adjacencies (§8.2, §D.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>8.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-8.2-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-9.1-1">RFC2328-9.1-1</code></td><td colspan="3"><span class="rfc-subject">A router that becomes Designated Router for an attached network originates a network-LSA for that network (§9.1, §12.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>9.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-9.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-9.5.1-1">RFC2328-9.5.1-1</code></td><td colspan="3"><span class="rfc-subject">Send Hello packets on an NBMA network per Section 9.5.1: a Designated-Router-eligible router sends periodic Hellos to every other eligible neighbor; the Designated Router or Backup Designated Router also sends periodic Hellos to all other neighbors; a router that is not eligible sends periodic Hellos to the Designated Router and Backup Designated Router and replies with a Hello to an eligible neighbor&#39;s Hello; the interface state is at least Waiting before any Hello is sent out the NBMA interface (§9.5.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>9.5.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-9.5.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-10.5-1">RFC2328-10.5-1</code></td><td colspan="3"><span class="rfc-subject">On receiving a Hello, check the Network Mask, HelloInterval and RouterDeadInterval against the values configured for the receiving interface and reject the packet on a mismatch; declare bidirectional communication only when the router itself is listed in the neighbor&#39;s Hello (§10.5, §9.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>10.5</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-10.5-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-10.6-1">RFC2328-10.6-1</code></td><td colspan="3"><span class="rfc-subject">Process Database Description packets in sequence; as slave, reply to each one with a Database Description packet, repeat the last packet sent in answer to a duplicate, and keep it for RouterDeadInterval seconds after the last reply (§10.6, §10.8)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>10.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-10.6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-12.1.6-1">RFC2328-12.1.6-1</code></td><td colspan="3"><span class="rfc-subject">Before the LS sequence number wraps past MaxSequenceNumber, flush the current instance from the routing domain by premature aging, and originate the new instance at InitialSequenceNumber only after that flood is acknowledged by all adjacent neighbors (§12.1.6, §14.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>12.1.6</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-12.1.6-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-12.2-1">RFC2328-12.2-1</code></td><td colspan="3"><span class="rfc-subject">Provide a database lookup of an individual LSA on LS type, Link State ID and Advertising Router, and a lookup of a network-LSA on Link State ID alone (§12.2, §16.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>12.2</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-12.2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-12.4-1">RFC2328-12.4-1</code></td><td colspan="3"><span class="rfc-subject">When a destination advertised in a summary-LSA or an AS-external-LSA becomes unreachable, or is no longer advertisable to an area, flush that LSA from the routing domain by setting its LS age to MaxAge and reflooding it (§12.4, §12.4.3, §12.4.4, §16.7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>12.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-12.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-12.4.1-1">RFC2328-12.4.1-1</code></td><td colspan="3"><span class="rfc-subject">Describe all of the router&#39;s links to an area in a single router-LSA, as the total collection of that router&#39;s interfaces to the area (§12.4.1, §A.4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>12.4.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-12.4.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-12.4.3-1">RFC2328-12.4.3-1</code></td><td colspan="3"><span class="rfc-subject">As an area border router, originate summary-LSAs into a newly attached area for all pertinent intra-area and inter-area routes in the routing table, condensing that information as the configured area address ranges require (§12.4.3, §12.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>12.4.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-12.4.3-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-13-5">RFC2328-13-5</code></td><td colspan="3"><span class="rfc-subject">Remove an LSA deleted or replaced in the database from all neighbors&#39; Link state retransmission lists (§13, §12.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>13</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-13-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-13-6">RFC2328-13-6</code></td><td colspan="3"><span class="rfc-subject">When an installed LSA&#39;s contents differ from the previous instance, recalculate the affected routing table: the entire table for a router-LSA or a network-LSA, the destination&#39;s best route for a summary-LSA or an AS-external-LSA (§13, §16.5, §16.6)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>13</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-13-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-13-7">RFC2328-13-7</code></td><td colspan="3"><span class="rfc-subject">Discard, without acknowledging it, a received LSA whose database copy was received via flooding and installed less than MinLSArrival seconds ago (§13, §B)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>13</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-13-7">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-13.3-3">RFC2328-13.3-3</code></td><td colspan="3"><span class="rfc-subject">On non-broadcast networks send Link State Update packets, and delayed Link State Acknowledgments, as separate unicasts to each adjacent neighbor in state Exchange or greater (§13.3, §13.5)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>13.3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-13.3-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-15-2">RFC2328-15-2</code></td><td colspan="3"><span class="rfc-subject">Take a virtual link&#39;s cost and next hop from the Transit area&#39;s routing table entry for the other endpoint, and originate a new backbone router-LSA when that cost changes while a virtual adjacency is fully established (§15, §16.7)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>15</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-15-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-16.1-3">RFC2328-16.1-3</code></td><td colspan="3"><span class="rfc-subject">When several vertices are equally close to the root, add network vertices to the shortest-path tree before router vertices, so that all equal-cost paths are found (§16.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>16.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-16.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-a.1-1">RFC2328-A.1-1</code></td><td colspan="3"><span class="rfc-subject">Set the IP TTL to 1 on OSPF packets sent to the AllSPFRouters and AllDRouters multicast addresses, so that they travel one hop only (§A.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>A.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-A.1-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-a.1-2">RFC2328-A.1-2</code></td><td colspan="3"><span class="rfc-subject">As Designated Router or Backup Designated Router, be prepared to receive packets addressed to AllDRouters (224.0.0.6) (§A.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>A.1</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-A.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-a.4.4-1">RFC2328-A.4.4-1</code></td><td colspan="3"><span class="rfc-subject">Set the Network Mask field to 0 in a Type 4 summary-LSA, where the field is not meaningful (§A.4.4)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>A.4.4</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2328-A.4.4-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2328-a.2-1">RFC2328-A.2-1</code></td><td colspan="3"><span class="rfc-subject">Reset (clear) unrecognized Options bits when sending Hellos / DD packets and when originating LSAs (§A.2)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
@@ -663,6 +898,110 @@ One MUST gap, annotated in <a href="https://github.com/ze-software/ze/blob/main/
 <tr><td><a href="#rfc2328-13.3-2"><code>RFC2328-13.3-2</code></a> Increment an LSA&#39;s LS age by InfTransDelay (which MUST be &gt; 0) when copying it into an outgoing Link State Update, capped at MaxAge (§13.3, §13.6, §14)</td>
 <td>{gap}, no test</td>
 <td>the InfTransDelay bump is applied on the retransmit path (RetransmitTick, lsdb/flooding.go:545) and on a direct database-copy reply (sendDirectLSUpdate, lsdb/flooding.go:745; sendDirectLinkLSUpdate, lsdb/link_scope.go:349), but NOT on the normal flood: floodExcept builds the outgoing copy with `entry.LSA(d.now())` (lsdb/flooding.go:351), and Entry.LSA calls `e.Raw(now, 0)` with transmitDelay 0 (lsdb/entry.go:62-68, 75-85), so the first flooded copy carries the unincremented LS age. The MaxAge cap itself is present wherever the bump is applied (LSAge.Add, types/lsage.go:54-63). Disclosed in docs/features/rfc-status.md RFC 2328 row</td>
+</tr>
+<tr><td><a href="#rfc2328-3.6-1"><code>RFC2328-3.6-1</code></a> One or more of a stub area&#39;s area border routers advertise a default route into the stub area via summary-LSAs (§3.6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-4.4-1"><code>RFC2328-4.4-1</code></a> Support receiving and sending IP multicast datagrams, with the appropriate lower-level protocol support (§4.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-4.4-2"><code>RFC2328-4.4-2</code></a> The router&#39;s IP support includes variable-length subnetting (dividing one class A, B or C network into subnets of various sizes) and IP supernetting (aggregating contiguous class A, B and C networks into supernets) (§4.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-4.4-3"><code>RFC2328-4.4-3</code></a> Lower-level protocols pass indications to OSPF as the network interface goes up and down (§4.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-8.1-1"><code>RFC2328-8.1-1</code></a> Assign at least one IP address to the router, for use as the IP source address of packets sent over unnumbered point-to-point networks and virtual links (§8.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-8.2-1"><code>RFC2328-8.2-1</code></a> Accept a received packet only when it passes the IP-level tests of Section 8.2: a correct IP checksum, IP protocol OSPF (89), and an IP destination equal to the receiving interface&#39;s address or to AllSPFRouters or AllDRouters (§8.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-8.2-2"><code>RFC2328-8.2-2</code></a> Verify the OSPF header against the receiving interface: the Area ID matches the interface&#39;s area, or names the backbone, in which case the receiving router is an area border router, the source router is the other endpoint of a configured virtual link, and the receiving interface attaches to that link&#39;s Transit area (§8.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-8.2-3"><code>RFC2328-8.2-3</code></a> Authenticate every received OSPF packet and discard one whose AuType does not match the AuType configured for the associated area; accept a packet of any type other than Hello only from an active neighbor, because all other types are sent and received only on adjacencies (§8.2, §D.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-9.1-1"><code>RFC2328-9.1-1</code></a> A router that becomes Designated Router for an attached network originates a network-LSA for that network (§9.1, §12.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-9.5.1-1"><code>RFC2328-9.5.1-1</code></a> Send Hello packets on an NBMA network per Section 9.5.1: a Designated-Router-eligible router sends periodic Hellos to every other eligible neighbor; the Designated Router or Backup Designated Router also sends periodic Hellos to all other neighbors; a router that is not eligible sends periodic Hellos to the Designated Router and Backup Designated Router and replies with a Hello to an eligible neighbor&#39;s Hello; the interface state is at least Waiting before any Hello is sent out the NBMA interface (§9.5.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-10.5-1"><code>RFC2328-10.5-1</code></a> On receiving a Hello, check the Network Mask, HelloInterval and RouterDeadInterval against the values configured for the receiving interface and reject the packet on a mismatch; declare bidirectional communication only when the router itself is listed in the neighbor&#39;s Hello (§10.5, §9.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-10.6-1"><code>RFC2328-10.6-1</code></a> Process Database Description packets in sequence; as slave, reply to each one with a Database Description packet, repeat the last packet sent in answer to a duplicate, and keep it for RouterDeadInterval seconds after the last reply (§10.6, §10.8)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-12.1.6-1"><code>RFC2328-12.1.6-1</code></a> Before the LS sequence number wraps past MaxSequenceNumber, flush the current instance from the routing domain by premature aging, and originate the new instance at InitialSequenceNumber only after that flood is acknowledged by all adjacent neighbors (§12.1.6, §14.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-12.2-1"><code>RFC2328-12.2-1</code></a> Provide a database lookup of an individual LSA on LS type, Link State ID and Advertising Router, and a lookup of a network-LSA on Link State ID alone (§12.2, §16.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-12.4-1"><code>RFC2328-12.4-1</code></a> When a destination advertised in a summary-LSA or an AS-external-LSA becomes unreachable, or is no longer advertisable to an area, flush that LSA from the routing domain by setting its LS age to MaxAge and reflooding it (§12.4, §12.4.3, §12.4.4, §16.7)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-12.4.1-1"><code>RFC2328-12.4.1-1</code></a> Describe all of the router&#39;s links to an area in a single router-LSA, as the total collection of that router&#39;s interfaces to the area (§12.4.1, §A.4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-12.4.3-1"><code>RFC2328-12.4.3-1</code></a> As an area border router, originate summary-LSAs into a newly attached area for all pertinent intra-area and inter-area routes in the routing table, condensing that information as the configured area address ranges require (§12.4.3, §12.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-13-5"><code>RFC2328-13-5</code></a> Remove an LSA deleted or replaced in the database from all neighbors&#39; Link state retransmission lists (§13, §12.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-13-6"><code>RFC2328-13-6</code></a> When an installed LSA&#39;s contents differ from the previous instance, recalculate the affected routing table: the entire table for a router-LSA or a network-LSA, the destination&#39;s best route for a summary-LSA or an AS-external-LSA (§13, §16.5, §16.6)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-13-7"><code>RFC2328-13-7</code></a> Discard, without acknowledging it, a received LSA whose database copy was received via flooding and installed less than MinLSArrival seconds ago (§13, §B)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-13.3-3"><code>RFC2328-13.3-3</code></a> On non-broadcast networks send Link State Update packets, and delayed Link State Acknowledgments, as separate unicasts to each adjacent neighbor in state Exchange or greater (§13.3, §13.5)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-15-2"><code>RFC2328-15-2</code></a> Take a virtual link&#39;s cost and next hop from the Transit area&#39;s routing table entry for the other endpoint, and originate a new backbone router-LSA when that cost changes while a virtual adjacency is fully established (§15, §16.7)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-16.1-3"><code>RFC2328-16.1-3</code></a> When several vertices are equally close to the root, add network vertices to the shortest-path tree before router vertices, so that all equal-cost paths are found (§16.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-a.1-1"><code>RFC2328-A.1-1</code></a> Set the IP TTL to 1 on OSPF packets sent to the AllSPFRouters and AllDRouters multicast addresses, so that they travel one hop only (§A.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-a.1-2"><code>RFC2328-A.1-2</code></a> As Designated Router or Backup Designated Router, be prepared to receive packets addressed to AllDRouters (224.0.0.6) (§A.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
+<tr><td><a href="#rfc2328-a.4.4-1"><code>RFC2328-A.4.4-1</code></a> Set the Network Mask field to 0 in a Type 4 summary-LSA, where the field is not meaningful (§A.4.4)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
 </tr>
 </tbody>
 </table>
@@ -1209,9 +1548,519 @@ One MUST gap, annotated in <a href="https://github.com/ze-software/ze/blob/main/
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc2328-3.6-1"><code>RFC2328-3.6-1</code></a></h3>
+<p>One or more of a stub area&#39;s area border routers advertise a default route into the stub area via summary-LSAs (§3.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-3.6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-4.4-1"><code>RFC2328-4.4-1</code></a></h3>
+<p>Support receiving and sending IP multicast datagrams, with the appropriate lower-level protocol support (§4.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-4.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-4.4-2"><code>RFC2328-4.4-2</code></a></h3>
+<p>The router&#39;s IP support includes variable-length subnetting (dividing one class A, B or C network into subnets of various sizes) and IP supernetting (aggregating contiguous class A, B and C networks into supernets) (§4.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-4.4-2, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-4.4-3"><code>RFC2328-4.4-3</code></a></h3>
+<p>Lower-level protocols pass indications to OSPF as the network interface goes up and down (§4.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-4.4-3, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-8.1-1"><code>RFC2328-8.1-1</code></a></h3>
+<p>Assign at least one IP address to the router, for use as the IP source address of packets sent over unnumbered point-to-point networks and virtual links (§8.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-8.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-8.2-1"><code>RFC2328-8.2-1</code></a></h3>
+<p>Accept a received packet only when it passes the IP-level tests of Section 8.2: a correct IP checksum, IP protocol OSPF (89), and an IP destination equal to the receiving interface&#39;s address or to AllSPFRouters or AllDRouters (§8.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-8.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-8.2-2"><code>RFC2328-8.2-2</code></a></h3>
+<p>Verify the OSPF header against the receiving interface: the Area ID matches the interface&#39;s area, or names the backbone, in which case the receiving router is an area border router, the source router is the other endpoint of a configured virtual link, and the receiving interface attaches to that link&#39;s Transit area (§8.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-8.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-8.2-3"><code>RFC2328-8.2-3</code></a></h3>
+<p>Authenticate every received OSPF packet and discard one whose AuType does not match the AuType configured for the associated area; accept a packet of any type other than Hello only from an active neighbor, because all other types are sent and received only on adjacencies (§8.2, §D.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-8.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-9.1-1"><code>RFC2328-9.1-1</code></a></h3>
+<p>A router that becomes Designated Router for an attached network originates a network-LSA for that network (§9.1, §12.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-9.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-9.5.1-1"><code>RFC2328-9.5.1-1</code></a></h3>
+<p>Send Hello packets on an NBMA network per Section 9.5.1: a Designated-Router-eligible router sends periodic Hellos to every other eligible neighbor; the Designated Router or Backup Designated Router also sends periodic Hellos to all other neighbors; a router that is not eligible sends periodic Hellos to the Designated Router and Backup Designated Router and replies with a Hello to an eligible neighbor&#39;s Hello; the interface state is at least Waiting before any Hello is sent out the NBMA interface (§9.5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-9.5.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-10.5-1"><code>RFC2328-10.5-1</code></a></h3>
+<p>On receiving a Hello, check the Network Mask, HelloInterval and RouterDeadInterval against the values configured for the receiving interface and reject the packet on a mismatch; declare bidirectional communication only when the router itself is listed in the neighbor&#39;s Hello (§10.5, §9.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-10.5-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-10.6-1"><code>RFC2328-10.6-1</code></a></h3>
+<p>Process Database Description packets in sequence; as slave, reply to each one with a Database Description packet, repeat the last packet sent in answer to a duplicate, and keep it for RouterDeadInterval seconds after the last reply (§10.6, §10.8)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-10.6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-12.1.6-1"><code>RFC2328-12.1.6-1</code></a></h3>
+<p>Before the LS sequence number wraps past MaxSequenceNumber, flush the current instance from the routing domain by premature aging, and originate the new instance at InitialSequenceNumber only after that flood is acknowledged by all adjacent neighbors (§12.1.6, §14.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-12.1.6-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-12.2-1"><code>RFC2328-12.2-1</code></a></h3>
+<p>Provide a database lookup of an individual LSA on LS type, Link State ID and Advertising Router, and a lookup of a network-LSA on Link State ID alone (§12.2, §16.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-12.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-12.4-1"><code>RFC2328-12.4-1</code></a></h3>
+<p>When a destination advertised in a summary-LSA or an AS-external-LSA becomes unreachable, or is no longer advertisable to an area, flush that LSA from the routing domain by setting its LS age to MaxAge and reflooding it (§12.4, §12.4.3, §12.4.4, §16.7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-12.4-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-12.4.1-1"><code>RFC2328-12.4.1-1</code></a></h3>
+<p>Describe all of the router&#39;s links to an area in a single router-LSA, as the total collection of that router&#39;s interfaces to the area (§12.4.1, §A.4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-12.4.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-12.4.3-1"><code>RFC2328-12.4.3-1</code></a></h3>
+<p>As an area border router, originate summary-LSAs into a newly attached area for all pertinent intra-area and inter-area routes in the routing table, condensing that information as the configured area address ranges require (§12.4.3, §12.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-12.4.3-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-13-5"><code>RFC2328-13-5</code></a></h3>
+<p>Remove an LSA deleted or replaced in the database from all neighbors&#39; Link state retransmission lists (§13, §12.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-13-5, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-13-6"><code>RFC2328-13-6</code></a></h3>
+<p>When an installed LSA&#39;s contents differ from the previous instance, recalculate the affected routing table: the entire table for a router-LSA or a network-LSA, the destination&#39;s best route for a summary-LSA or an AS-external-LSA (§13, §16.5, §16.6)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-13-6, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-13-7"><code>RFC2328-13-7</code></a></h3>
+<p>Discard, without acknowledging it, a received LSA whose database copy was received via flooding and installed less than MinLSArrival seconds ago (§13, §B)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-13-7, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-13.3-3"><code>RFC2328-13.3-3</code></a></h3>
+<p>On non-broadcast networks send Link State Update packets, and delayed Link State Acknowledgments, as separate unicasts to each adjacent neighbor in state Exchange or greater (§13.3, §13.5)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-13.3-3, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-15-2"><code>RFC2328-15-2</code></a></h3>
+<p>Take a virtual link&#39;s cost and next hop from the Transit area&#39;s routing table entry for the other endpoint, and originate a new backbone router-LSA when that cost changes while a virtual adjacency is fully established (§15, §16.7)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-15-2, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-16.1-3"><code>RFC2328-16.1-3</code></a></h3>
+<p>When several vertices are equally close to the root, add network vertices to the shortest-path tree before router vertices, so that all equal-cost paths are found (§16.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-16.1-3, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-a.1-1"><code>RFC2328-A.1-1</code></a></h3>
+<p>Set the IP TTL to 1 on OSPF packets sent to the AllSPFRouters and AllDRouters multicast addresses, so that they travel one hop only (§A.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-A.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-a.1-2"><code>RFC2328-A.1-2</code></a></h3>
+<p>As Designated Router or Backup Designated Router, be prepared to receive packets addressed to AllDRouters (224.0.0.6) (§A.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-A.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc2328-a.4.4-1"><code>RFC2328-A.4.4-1</code></a></h3>
+<p>Set the Network Mask field to 0 in a Type 4 summary-LSA, where the field is not meaningful (§A.4.4)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC2328-A.4.4-1, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 2328, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc2328.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>e2e865f4d247d1bf</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc2328.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>136</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>42</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>9</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>9</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>15</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>17</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>16</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>12</code></td>
+<td>not stated</td>
+<td>14</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>13</code></td>
+<td>not stated</td>
+<td>29</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>14</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>15</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>16</code></td>
+<td>not stated</td>
+<td>21</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>not stated</td>
+<td>9</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>B</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>C</code></td>
+<td>not stated</td>
+<td>16</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>D</code></td>
+<td>not stated</td>
+<td>9</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>E</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>F</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>G</code></td>
+<td>not stated</td>
+<td>3</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>non-normative description of the Designated Router concept&#39;s effect on the number of adjacencies; no obligation is stated</td>
+<td>The Designated Router concept enables a reduction in the number of adjacencies required on a broadcast or NBMA network.</td>
+</tr>
+<tr><td><code>1:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>non-normative history of the protocol&#39;s development; &#39;enhanced&#39; prose, no obligation</td>
+<td>The Designated Router concept has been greatly enhanced to further reduce the amount of routing traffic required.</td>
+</tr>
+<tr><td><code>1:3</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>non-normative document convention: it states that the memo&#39;s data structures are illustrative, imposing no specific protocol behavior</td>
+<td>Implementations of the protocol are required to support the functionality described, but need not use the precise data structures that appear in this memo.</td>
+</tr>
+<tr><td><code>3:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>constraint on the AS topology a network operator builds (the backbone must be contiguous), not a behavior the router produces</td>
+<td>The backbone must be contiguous.</td>
+</tr>
+<tr><td><code>3:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>narrative about Figure 6&#39;s sample AS, naming RT3 and RT4; an example, not an obligation</td>
+<td>Also, RT3 and RT4 must advertise into Area 1 the location of the AS boundary routers RT5 and RT7.</td>
+</tr>
+<tr><td><code>3:3</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>figure text for the sample AS of Figure 6, garbled by the extractor; an example, not an obligation</td>
+<td>Routers RT3 and RT4 must also summarize Area 1&#39;s topology for ........................... . + . . | 3+---+ .</td>
+</tr>
+<tr><td><code>3:4</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>constraint on the operator&#39;s addressing plan (mask assignment), not a behavior the router produces</td>
+<td>Subnet masks must be assigned so that the best match for any IP destination is unambiguous.</td>
+</tr>
+<tr><td><code>3:5</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>statement of what an operator must do to use stub areas (configure default routing), not a router behavior</td>
+<td>In order to take advantage of the OSPF stub area support, default routing must be used in the stub area.</td>
+</tr>
+<tr><td><code>3:7</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>example reading &#39;For example, Area 3 in Figure 6 could be configured as a stub area&#39;; an illustration, not an obligation</td>
+<td>For example, Area 3 in Figure 6 could be configured as a stub area, because all external traffic must travel though its single area border router RT11.</td>
+</tr>
+<tr><td><code>3:8</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>constraint on the operator&#39;s address-range plan across an area partition, not a router behavior</td>
+<td>However, in order to maintain full routing after the partition, an address range must not be split across multiple components of the area partition.</td>
+</tr>
+<tr><td><code>3:9</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>constraint on the AS topology an operator builds (the backbone must not partition), not a router behavior</td>
+<td>Also, the backbone itself must not partition.</td>
+</tr>
+<tr><td><code>4:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>non-normative rationale for flooding AS-external information throughout the AS; no discrete behavior is required</td>
+<td>To utilize external routing information, the path to all routers advertising external information must be known throughout the AS (excepting the stub areas).</td>
+</tr>
+<tr><td><code>4:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>describes the implementation&#39;s internal timer facilities (single-shot and interval timers), not a protocol behavior</td>
+<td>Timers Two different kind of timers are required.</td>
+</tr>
+<tr><td><code>4:4</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>states a NON-requirement: &#39;the ability to forward IP multicast datagrams is not required&#39;</td>
+<td>For this reason, the ability to forward IP multicast datagrams is not required.</td>
+</tr>
+<tr><td><code>4:8</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>introductory sentence to the area-capability discussion; the obligation it introduces is the E-bit consistency stated in the next sentence</td>
+<td>Some capabilities must be supported by all routers attached to a specific area.</td>
+</tr>
+<tr><td><code>9:5</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>glossary entry for the Wait Timer in the interface data structure&#39;s timer list; it names the timer, it states no behavior</td>
+<td>WaitTimer The Wait Timer has fired, indicating the end of the waiting period that is required before electing a (Backup) Designated Router.</td>
+</tr>
+<tr><td><code>9:7</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>explains how the interface state machine table is read (&#39;Each entry ... describes the resulting new interface state&#39;); document convention, not an obligation</td>
+<td>Each entry in the state machine describes the resulting new interface state and the required set of additional actions.</td>
+</tr>
+<tr><td><code>9:8</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>explains that state machine actions generate neighbor events; document convention, not an obligation</td>
+<td>Some of the required actions below involve generating events for the neighbor state machine.</td>
+</tr>
+<tr><td><code>9:9</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>illustrative example opening &#39;For example, when an interface becomes inoperative&#39;; the normative action is the state machine entry it illustrates</td>
+<td>For example, when an interface becomes inoperative, all neighbor connections associated with the interface must be destroyed.</td>
+</tr>
+<tr><td><code>9:11</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>describes the meaning of the RouterDeadInterval field carried in the Hello packet; no behavior is required by this sentence</td>
+<td>The Hello Packet also indicates how often a neighbor must be heard from to remain active (RouterDeadInterval).</td>
+</tr>
+<tr><td><code>10:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>introductory pointer to Section 10.4 (&#39;whether to become adjacent&#39;); it names where the decision is specified, it does not state it</td>
+<td>A decision must be made as to whether an adjacency should be established/maintained with the neighbor.</td>
+</tr>
+<tr><td><code>10:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>explains how the neighbor state machine table is read; document convention, not an obligation</td>
+<td>Each entry in the state machine describes the resulting new neighbor state and the required set of additional actions.</td>
+</tr>
+<tr><td><code>10:4</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>state machine table entry reading &#39;No other action is required&#39;; it states the absence of an action</td>
+<td>No other action is required.</td>
+</tr>
+<tr><td><code>10:5</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>state machine table entry reading &#39;No action required&#39;; it states the absence of an action</td>
+<td>Action: No action required.</td>
+</tr>
+<tr><td><code>10:7</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>state machine table entry reading &#39;No action required&#39;; it states the absence of an action</td>
+<td>Action: No action required.</td>
+</tr>
+<tr><td><code>10:8</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>state machine table entry reading &#39;No action required&#39;; it states the absence of an action</td>
+<td>Action: No action required.</td>
+</tr>
+<tr><td><code>12:13</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>narrative about the sample routers RTA and RTX in the Section 12.4.4 example; an illustration, not an obligation</td>
+<td>RTA must then originate AS- external-LSAs for those destinations it has learned from RTX.</td>
+</tr>
+<tr><td><code>12:14</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>design note on the configuration of two routers advertising the same external route; it requires an unambiguous configuration, not a behavior the router produces</td>
+<td>However, it must be unambiguously defined as to which router originates the LSAs (otherwise neither may, or the identity of the originator may oscillate).</td>
+</tr>
+<tr><td><code>15:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>constraint on the operator&#39;s configuration of a virtual link (both endpoints configure it); the router cannot observe the other end&#39;s configuration</td>
+<td>The virtual link must be configured in both routers.</td>
+</tr>
+<tr><td><code>16:6</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>states a NON-requirement: &#39;no next hop IP address is required&#39; for a directly connected destination</td>
+<td>If the destination is a directly connected network, or a router which connects to the calculating router via a point-to-point interface, no next hop IP address is required.</td>
+</tr>
+<tr><td><code>A:4</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>describes what the LSA header contains (&#39;all the information required to uniquely identify the LSA&#39;); a field description, not an obligation</td>
+<td>It contains all the information required to uniquely identify both the LSA and the LSA&#39;s current instance.</td>
+</tr>
+<tr><td><code>A:5</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>describes what the LSA header contains (&#39;all the information required to uniquely identify the LSA&#39;); a field description, not an obligation</td>
+<td>It contains all the information required to uniquely identify both the LSA and the LSA&#39;s current instance.</td>
+</tr>
+<tr><td><code>A:8</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>describes the # TOS field&#39;s meaning, counting metrics &#39;not counting the required link metric&#39;; a field description, not an obligation</td>
+<td>See Section 16.1.1 for more details. # TOS The number of different TOS metrics given for this link, not counting the required link metric (referred to as the TOS 0 metric in [Ref9]).</td>
+</tr>
+<tr><td><code>C:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>statement that the operator configures an area&#39;s parameters consistently on all its routers; a configuration constraint, not a behavior the router produces</td>
+<td>All routers belonging to an area must agree on that area&#39;s configuration.</td>
+</tr>
+<tr><td><code>C:3</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>preamble to the list of an area&#39;s configurable items (&#39;The following items must be configured for an area:&#39;); a configuration inventory</td>
+<td>The following items must be configured for an area:</td>
+</tr>
+<tr><td><code>C:5</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>preamble to the list of a router interface&#39;s configurable parameters; a configuration inventory</td>
+<td>The parameters that must be configured for a router interface are: IP interface address The IP protocol address for this interface.</td>
+</tr>
+<tr><td><code>C:6</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>states a NON-requirement: &#39;An IP address is not required on point-to-point networks&#39;</td>
+<td>An IP address is not required on point-to-point networks.</td>
+</tr>
+<tr><td><code>C:13</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>constraint on the operator&#39;s configuration of a virtual link (both area border routers configure it); the router cannot observe the other end&#39;s configuration</td>
+<td>The virtual link must be configured in both of the area border routers.</td>
+</tr>
+<tr><td><code>C:14</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>entry in the interface configuration inventory naming RxmtInterval, with a sizing recommendation; the protocol behavior that uses it is stated in Section 13.3</td>
+<td>The parameter RxmtInterval must be configured, and should be well over the expected round-trip delay between the two routers.</td>
+</tr>
+<tr><td><code>C:15</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>entry in the NBMA configuration inventory: the operator defines each listed router&#39;s Designated Router eligibility</td>
+<td>Also, for each router listed, that router&#39;s eligibility to become Designated Router must be defined.</td>
+</tr>
+<tr><td><code>C:16</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>preamble to the list of a directly connected host&#39;s configurable items; a configuration inventory</td>
+<td>For each host directly connected to the router, the following items must be configured:</td>
+</tr>
+<tr><td><code>G:3</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>ISOC copyright boilerplate on modification and translation of the document; it states no protocol obligation</td>
+<td>However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 2328, so its obligations are stated where they were written.</p>
@@ -1245,7 +2094,7 @@ One MUST gap, annotated in <a href="https://github.com/ze-software/ze/blob/main/
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

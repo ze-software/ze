@@ -534,7 +534,187 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 1071, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc1071.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>14cc1f9826f8d215</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc1071.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>2</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>16</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.4</code></td>
+<td>not stated</td>
+<td>16</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>4.4:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>A comment block inside the IBM 370 assembly listing of Section 4.4, stating a register-pairing constraint of that example program (&#34;(RCARRY, RSUM) must be an even/odd register pair&#34;). A code comment in a machine-specific sample, not an obligation on an implementation.</td>
+<td>* Registers RADDR and RCOUNT contain the address and length of * the block to be checksummed. * * (RCARRY, RSUM) must be an even/odd register pair. * (RCOUNT, RMOD) must be an even/odd register pair. * CHECKSUM SR RSUM,RSUM Clear working registers.</td>
+</tr>
+<tr><td><code>4.4:2</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Prose from the IEN-45 paper &#34;Checksum Function Design&#34; by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (&#34;Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC&#34;). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase &#34;must&#34;/&#34;required&#34; here is a statement of the paper&#39;s own scope (&#34;The focus in this paper is on checksum functions for protocols such as TCP&#34;).</td>
+<td>The focus in this paper is on checksum functions for protocols such as TCP where the required reliable delivery is achieved by retransmission.</td>
+</tr>
+<tr><td><code>4.4:3</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Prose from the IEN-45 paper &#34;Checksum Function Design&#34; by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (&#34;Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC&#34;). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase &#34;must&#34;/&#34;required&#34; here is the paper introducing its own property list P1-P7 for evaluating candidate schemes.</td>
+<td>Albeit imprecise, another property which must be preserved in any future checksum scheme is:</td>
+</tr>
+<tr><td><code>4.4:4</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Prose from the IEN-45 paper &#34;Checksum Function Design&#34; by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (&#34;Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC&#34;). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase &#34;must&#34;/&#34;required&#34; here is a description of why the sample loops carry an extra instruction.</td>
+<td>The &#34;extra&#34; instruction in the loops above are required to convert the two&#39;s complement ADD instruction(s) into a one&#39;s complement add by making the carries be end-around.</td>
+</tr>
+<tr><td><code>4.4:5</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Prose from the IEN-45 paper &#34;Checksum Function Design&#34; by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (&#34;Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC&#34;). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase &#34;must&#34;/&#34;required&#34; here is a mathematical precondition of a candidate residue-code scheme the paper evaluates and does not adopt.</td>
+<td>K must be relatively prime to the base chosen to express the message.</td>
+</tr>
+<tr><td><code>4.4:6</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Prose from the IEN-45 paper &#34;Checksum Function Design&#34; by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (&#34;Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC&#34;). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase &#34;must&#34;/&#34;required&#34; here is a step in the paper&#39;s description of a candidate product-code scheme.</td>
+<td>In order to form Ms, the sender must multiply the multiple precision &#34;number&#34; Mo by 2**16 - 1.</td>
+</tr>
+<tr><td><code>4.4:7</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Prose from the IEN-45 paper &#34;Checksum Function Design&#34; by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (&#34;Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC&#34;). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase &#34;must&#34;/&#34;required&#34; here is an explanation of why the candidate scheme uses one&#39;s complement arithmetic.</td>
+<td>Since carries must propagate between digits, but it is only the current digit which is of interest, one&#39;s complement arithmetic is used.</td>
+</tr>
+<tr><td><code>4.4:8</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Prose from the IEN-45 paper &#34;Checksum Function Design&#34; by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (&#34;Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC&#34;). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase &#34;must&#34;/&#34;required&#34; here is a description of sender retransmission buffers under a candidate scheme.</td>
+<td>In general the original copy, Mo, will have to be retained by the sender for retransmission purposes and therefore must remain readable.</td>
+</tr>
+<tr><td><code>4.4:9</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Prose from the IEN-45 paper &#34;Checksum Function Design&#34; by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (&#34;Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC&#34;). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase &#34;must&#34;/&#34;required&#34; here is an accounting of memory cycles in a PDP-11 sample loop.</td>
+<td>Thus the MOV R0,(R3)+ is required which accounts for 2 of the 8 memory cycles per loop.</td>
+</tr>
+<tr><td><code>4.4:10</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Prose from the IEN-45 paper &#34;Checksum Function Design&#34; by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (&#34;Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC&#34;). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase &#34;must&#34;/&#34;required&#34; here is a refinement the paper proposes for one of its candidate schemes.</td>
+<td>A slight refinement of the procedure is required in order to protect against an all-zero message passing to the destination.</td>
+</tr>
+<tr><td><code>4.4:11</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Prose from the IEN-45 paper &#34;Checksum Function Design&#34; by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (&#34;Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC&#34;). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase &#34;must&#34;/&#34;required&#34; here is the paper announcing its own evaluation of a candidate against its P1-P7 list.</td>
+<td>The product code checksum must be evaluated in terms of the desired properties P1 - P7.</td>
+</tr>
+<tr><td><code>4.4:12</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Prose from the IEN-45 paper &#34;Checksum Function Design&#34; by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (&#34;Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC&#34;). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase &#34;must&#34;/&#34;required&#34; here is a criticism of a hardware checksum-processor option the paper rejects.</td>
+<td>In general this is not a very good solution since such a processor must be constructed for every different host machine which uses TCP messages.</td>
+</tr>
+<tr><td><code>4.4:13</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Prose from the IEN-45 paper &#34;Checksum Function Design&#34; by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (&#34;Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC&#34;). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase &#34;must&#34;/&#34;required&#34; here is a consequence the paper draws for a frontend-processor architecture it discusses.</td>
+<td>A separate, small protocol must be developed to cover this link.</td>
+</tr>
+<tr><td><code>4.4:14</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Prose from the IEN-45 paper &#34;Checksum Function Design&#34; by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (&#34;Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC&#34;). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase &#34;must&#34;/&#34;required&#34; here is an explanation of why a frontend offload reduces host cost.</td>
+<td>The reason this scheme reduces the computing burden on the host is that all that is required in order to validate the message using the end-to-end checksum is to send it back to the frontend machine.</td>
+</tr>
+<tr><td><code>4.4:15</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Prose from the IEN-45 paper &#34;Checksum Function Design&#34; by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (&#34;Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC&#34;). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase &#34;must&#34;/&#34;required&#34; here is a PDP-10 memory-cycle measurement.</td>
+<td>In the case of the PDP-10, this requires only 0.5 memory cycles per 16-bit byte of Internet message, and only a few processor cycles to setup the required transfers.</td>
+</tr>
+<tr><td><code>4.4:16</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Prose from the IEN-45 paper &#34;Checksum Function Design&#34; by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (&#34;Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC&#34;). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase &#34;must&#34;/&#34;required&#34; here is a drawback the paper attributes to one of its candidate schemes.</td>
+<td>It suffers mainly in that messages must be (at least partially) decoded by intermediate gateways in order that they can be forwarded.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 1071, so its obligations are stated where they were written.</p>
@@ -568,7 +748,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

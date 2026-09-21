@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7427 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 7427: Signature Authentication in the Internet Key Exchange Version 2 (IKEv2). 3 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 7427: Signature Authentication in the Internet Key Exchange Version 2 (IKEv2). 4 gated MUST-level requirements, 0 declared gaps, 1 with no test." />
         <meta property="og:title" content="RFC 7427 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 7427: Signature Authentication in the Internet Key Exchange Version 2 (IKEv2). 3 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 7427: Signature Authentication in the Internet Key Exchange Version 2 (IKEv2). 4 gated MUST-level requirements, 0 declared gaps, 1 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 7427 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 7427: Signature Authentication in the Internet Key Exchange Version 2 (IKEv2). 3 gated MUST-level requirements, 0 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 7427: Signature Authentication in the Internet Key Exchange Version 2 (IKEv2). 4 gated MUST-level requirements, 0 declared gaps, 1 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,22 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66.7%</strong><b>2 of 3 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>No test at all</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>50.0%</strong><b>2 of 4 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 6 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>3</strong><b>of 7 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 3 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>33.3%</strong><b>1 of 3 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 3 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>4</strong><b>of 7 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>1</strong><b>of 4 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>25.0%</strong><b>1 of 4 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 4 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 3 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>25.0%</strong><b>1 of 4 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+</div>
+<p>The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -159,7 +163,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>No test at all</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated</td>
 </tr>
 <tr><td>Not applicable</td>
@@ -202,7 +206,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>7</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>3</td>
+<td>4</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>1</td>
@@ -211,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>1</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -265,7 +269,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>1</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -276,12 +280,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>3</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>4</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (2):</strong> <a href="#rfc7427-4-1"><code>RFC7427-4-1</code></a>, <a href="#rfc7427-3-4"><code>RFC7427-3-4</code></a></p>
 <p class="rfc-id-list"><strong>Annotated instead of tested (1):</strong> <a href="#rfc7427-3-1"><code>RFC7427-3-1</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (1):</strong> <a href="#rfc7427-3-5"><code>RFC7427-3-5</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -308,6 +313,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7427_sighash_test.go#L95" title="internal/component/ike/engine/rfc7427_sighash_test.go" target="_blank" rel="noopener"><code>TestRFC7427DigitalSignatureNeedsTheNotify</code></a></span></div>
 </div></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7427-3-5">RFC7427-3-5</code></td><td colspan="3"><span class="rfc-subject">&#34;If both ends send and receive SIGNATURE_HASH_ALGORITHMS Notify payloads, and signature authentication is to be used, then the authentication method specified in this Authentication payload MUST be used&#34; -- once the notify has been exchanged in both directions, signature authentication uses the Digital Signature method (14) and not a legacy AUTH method number (§3)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7427-3-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7427-3-1">RFC7427-3-1</code></td><td colspan="3"><span class="rfc-subject">Use ANSI X9.62:2005 method for hash truncation when hash is longer than curve order (§3)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
@@ -322,15 +336,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>SHOULD</td>
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7427-4-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div></td>
-</tr>
-<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7427-4-3">RFC7427-4-3</code></td><td colspan="3"><span class="rfc-subject">Support SHA-1 as a hash algorithm for backward compatibility (§4)</span></td></tr>
-<tr><td></td>
-<td>SHOULD</td>
-<td>4</td>
-<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7427-4-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div></td>
@@ -362,6 +367,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>Requirement</th><th>State</th><th>Reason</th></tr></thead>
 <tbody>
+<tr><td><a href="#rfc7427-3-5"><code>RFC7427-3-5</code></a> &#34;If both ends send and receive SIGNATURE_HASH_ALGORITHMS Notify payloads, and signature authentication is to be used, then the authentication method specified in this Authentication payload MUST be used&#34; -- once the notify has been exchanged in both directions, signature authentication uses the Digital Signature method (14) and not a legacy AUTH method number (§3)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
 <tr><td><a href="#rfc7427-3-1"><code>RFC7427-3-1</code></a> Use ANSI X9.62:2005 method for hash truncation when hash is longer than curve order (§3)</td>
 <td>no test</td>
 <td>no test carries this requirement id; annotated {not-applicable}: ze does not implement ECDSA hash truncation itself -- it passes the full digest to Go&#39;s crypto/ecdsa (signDigest -&gt; ecdsa.SignASN1, and verifySignature -&gt; ecdsa.VerifyASN1, both in internal/component/ike/engine/auth.go), which performs the FIPS 186-4 / ANSI X9.62 leftmost-bits truncation internally. There is no ze-authored truncation code to gate</td>
@@ -422,13 +431,300 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
+<h3><a href="#rfc7427-3-5"><code>RFC7427-3-5</code></a></h3>
+<p>&#34;If both ends send and receive SIGNATURE_HASH_ALGORITHMS Notify payloads, and signature authentication is to be used, then the authentication method specified in this Authentication payload MUST be used&#34; -- once the notify has been exchanged in both directions, signature authentication uses the Digital Signature method (14) and not a legacy AUTH method number (§3)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC7427-3-5, so no unit is bound to it.</p>
 <h3><a href="#rfc7427-3-1"><code>RFC7427-3-1</code></a></h3>
 <p>Use ANSI X9.62:2005 method for hash truncation when hash is longer than curve order (§3)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC7427-3-1, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 7427, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc7427.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>afec1d0d40ee2a25</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc7427.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>3</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>9</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>2</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>8.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.1.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.1.2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.1.3</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.1.4</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.2.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.2.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.3.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.3.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.3.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.3.4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.4</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.4.1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.4.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A.4.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>B</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>B.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>RFC boilerplate: the Trust Legal Provisions notice about Simplified BSD License text in extracted code components. It is a licence term, not a protocol requirement.</td>
+<td>Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.</td>
+</tr>
+<tr><td><code>1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Introduction motivation: it states why fixed per-algorithm AUTH method numbers do not scale (&#39;will cause the number of required authentication methods to become unmanageable&#39;), and imposes nothing.</td>
+<td>The combination of new ECDSA groups and hash functions will cause the number of required authentication methods to become unmanageable.</td>
+</tr>
+<tr><td><code>A:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Appendix A opens &#39;This section is not normative, and these values should only be used as examples.&#39;, so this sentence sets precedence rather than an obligation of its own: where the example differs from the algorithm&#39;s own specification, that specification governs (the same point Section 3 makes with SHOULD, RFC7427-3-2).</td>
+<td>If the ASN.1 object listed in Appendix A and the ASN.1 object specified by the algorithm differ, then the algorithm specification must be used.</td>
+</tr>
+<tr><td><code>A.1.1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Appendix A opens &#39;This section is not normative, and these values should only be used as examples.&#39;, so the lowercase &#39;must be NULL&#39; describes the sha1WithRSAEncryption AlgorithmIdentifier encoding that [RFC3279]/[RFC4055] define, reproduced here as an example.</td>
+<td>Parameters are required, and they must be NULL.</td>
+</tr>
+<tr><td><code>A.1.2:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Appendix A opens &#39;This section is not normative, and these values should only be used as examples.&#39;, so the lowercase &#39;must be NULL&#39; describes the sha256WithRSAEncryption AlgorithmIdentifier encoding that [RFC3279]/[RFC4055] define, reproduced here as an example.</td>
+<td>Parameters are required, and they must be NULL.</td>
+</tr>
+<tr><td><code>A.1.3:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Appendix A opens &#39;This section is not normative, and these values should only be used as examples.&#39;, so the lowercase &#39;must be NULL&#39; describes the sha384WithRSAEncryption AlgorithmIdentifier encoding that [RFC3279]/[RFC4055] define, reproduced here as an example.</td>
+<td>Parameters are required, and they must be NULL.</td>
+</tr>
+<tr><td><code>A.1.4:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Appendix A opens &#39;This section is not normative, and these values should only be used as examples.&#39;, so the lowercase &#39;must be NULL&#39; describes the sha512WithRSAEncryption AlgorithmIdentifier encoding that [RFC3279]/[RFC4055] define, reproduced here as an example.</td>
+<td>Parameters are required, and they must be NULL.</td>
+</tr>
+<tr><td><code>A.4:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Appendix A opens &#39;This section is not normative, and these values should only be used as examples.&#39;, so the sentence describes how RSASSA-PSS encodes its identifier and parameters, as [RFC3447] Section 8.1 defines it.</td>
+<td>With RSASSA-PSS, the algorithm object identifier must always be id-RSASSA-PSS, and the hash function and padding parameters are conveyed in the parameters (which are not optional in this case).</td>
+</tr>
+<tr><td><code>A.4.1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Appendix A opens &#39;This section is not normative, and these values should only be used as examples.&#39;, so the sentence describes the ASN.1 encoding of the RSASSA-PSS default parameter set in this example.</td>
+<td>Parameters are empty, but the ASN.1 part of the sequence must be present.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 7427, so its obligations are stated where they were written.</p>
@@ -462,7 +758,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

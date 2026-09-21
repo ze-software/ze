@@ -1,0 +1,11 @@
+site: republish the generated tree
+
+Regenerated with ./le site build over the current checkout. The command
+catalog gains show-mtu, so the CLI reference now publishes 468 commands
+and a new command-equivalents page. The roadmap is republished from
+committed HEAD and data/release-roadmap.json appears beside it.
+Repository facts move with the tree: 152 interop scenarios, 790 Go
+packages. The RFC compliance page now reports 7 open issues instead of
+4: the four untested MUSTs in RFC 4302 and RFC 5082 are gone, and seven
+lapsed discrimination records took their place, in RFC 2661, RFC 5880
+and RFC 7311, where the producer moved after the red was observed.

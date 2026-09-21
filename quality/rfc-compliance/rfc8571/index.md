@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 4 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 25.0% | 1 of 4 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 4 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 4 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 0.0% | 0 of 3 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Tested both ways | 0.0% | 0 of 1 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 0.0% | 0 of 1 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 1 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| No test at all | 0.0% | 0 of 1 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Proven by a recorded break | 0.0% | 0 of 0 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -22,13 +22,13 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 4 | of 4 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 3 | of 4 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 75.0% | 3 of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 4 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 1 | of 1 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 1 | of 1 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 100.0% | 1 of 1 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 1 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 1 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 4 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 1 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -52,14 +52,14 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | No row in the public ledger |
 | Enrolment | Enrolled |
-| Requirements | 4 |
-| Gated MUST-level | 4 |
-| Not applicable, so out of scope | 3 |
+| Requirements | 1 |
+| Gated MUST-level | 1 |
+| Not applicable, so out of scope | 1 |
 | Declared gaps | 0 |
 | Gated with no test | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 3 |
-| Tagged units | 3 |
+| Test tags | 0 |
+| Tagged units | 0 |
 | Recorded audit verdicts | 0 |
 | Discrimination records | 0 |
 | Summary | `rfc/short/rfc8571.md` |
@@ -79,63 +79,30 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 0 | one part of the gated population |
-| Annotated instead of tested | 4 | one part of the gated population |
+| Annotated instead of tested | 1 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **4** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **1** | every gated MUST falls in exactly one bucket above |
 
-**Annotated instead of tested (4):** [`RFC8571-x-1`](#rfc8571-x-1), [`RFC8571-x-2`](#rfc8571-x-2), [`RFC8571-x-3`](#rfc8571-x-3), [`RFC8571-x-4`](#rfc8571-x-4)
+**Annotated instead of tested (1):** [`RFC8571-x-4`](#rfc8571-x-4)
 
 ## Requirements
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC8571-x-1` | Reserved fields in all TLVs (1114-1120) must be set to 0 on transmission (Encoding Rules) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze has no BGP-LS origination or encode path, so there is no encoder to zero the reserved field on transmission: the plugin registers Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70-71) and the TE-metric WriteTo encoders (internal/component/bgp/plugins/nlri/ls/attr_link.go:732,776,824) have no production caller |
-| `RFC8571-x-2` | Reserved fields in all TLVs must be ignored on receipt (Decoding Rules) | MUST | x | **positive:** `unit/verify` [`TestRFC8571ReservedIgnoredDelayVariation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc8571_attr_reserved_test.go#L53). **positive:** `unit/verify` [`TestRFC8571ReservedIgnoredMinMaxDelay`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc8571_attr_reserved_test.go#L40). **positive:** `unit/verify` [`TestRFC8571ReservedIgnoredUnidirectionalDelay`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc8571_attr_reserved_test.go#L28). **negative:** no negative test. **{single-polarity}:** ze decodes 1114/1115/1116 and never interprets or rejects on reserved bits (internal/component/bgp/plugins/nlri/ls/attr_link.go:755-763,804-813,838-845); RFC 8571 mandates ignore-on-receipt not reject, so no negative case exists |
-| `RFC8571-x-3` | TLVs must only be added to Link NLRIs in the BGP-LS Attribute (MUST Requirements) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze has no Link-NLRI origination path: the plugin sets only OnDecodeNLRI (internal/component/bgp/plugins/nlri/ls/plugin.go:45) and registers Mode "decode" (plugin.go:70-71), so it never adds these TLVs to any NLRI |
 | `RFC8571-x-4` | Semantics and values must follow RFC 8570 (IS-IS) and RFC 7471 (OSPF) (MUST Requirements) | MUST | x | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never assigns or transmits TE metric values: it only decodes received TLVs (internal/component/bgp/plugins/nlri/ls/attr_link.go:755-763,804-813,838-845) and has no encode path that could source semantics or values from RFC 8570 or RFC 7471 |
 
 ## Gaps and untested MUSTs
 
 | Requirement | State | Reason |
 |---|---|---|
-| [`RFC8571-x-1`](#rfc8571-x-1) Reserved fields in all TLVs (1114-1120) must be set to 0 on transmission (Encoding Rules) | no test | no test carries this requirement id; annotated {not-applicable}: ze has no BGP-LS origination or encode path, so there is no encoder to zero the reserved field on transmission: the plugin registers Mode "decode" only (internal/component/bgp/plugins/nlri/ls/plugin.go:70-71) and the TE-metric WriteTo encoders (internal/component/bgp/plugins/nlri/ls/attr_link.go:732,776,824) have no production caller |
-| [`RFC8571-x-3`](#rfc8571-x-3) TLVs must only be added to Link NLRIs in the BGP-LS Attribute (MUST Requirements) | no test | no test carries this requirement id; annotated {not-applicable}: ze has no Link-NLRI origination path: the plugin sets only OnDecodeNLRI (internal/component/bgp/plugins/nlri/ls/plugin.go:45) and registers Mode "decode" (plugin.go:70-71), so it never adds these TLVs to any NLRI |
 | [`RFC8571-x-4`](#rfc8571-x-4) Semantics and values must follow RFC 8570 (IS-IS) and RFC 7471 (OSPF) (MUST Requirements) | no test | no test carries this requirement id; annotated {not-applicable}: ze never assigns or transmits TE metric values: it only decodes received TLVs (internal/component/bgp/plugins/nlri/ls/attr_link.go:755-763,804-813,838-845) and has no encode path that could source semantics or values from RFC 8570 or RFC 7471 |
 
 ## Proof state
 
 A tagged unit reads unproven where no discrimination record exists for it: nothing in this tree has been observed to break it, so the claim its tag makes is unproven.
-
-### [`RFC8571-x-1`](#rfc8571-x-1)
-
-Reserved fields in all TLVs (1114-1120) must be set to 0 on transmission (Encoding Rules)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC8571-x-1, so no unit is bound to it.
-
-### [`RFC8571-x-2`](#rfc8571-x-2)
-
-Reserved fields in all TLVs must be ignored on receipt (Decoding Rules)
-
-Audit verdict: not audited: no reader has judged these tests
-
-| Polarity | Test | Kind and tier | Proof state |
-|---|---|---|---|
-| positive | [`TestRFC8571ReservedIgnoredDelayVariation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc8571_attr_reserved_test.go#L53) | unit/verify | unproven |
-| positive | [`TestRFC8571ReservedIgnoredMinMaxDelay`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc8571_attr_reserved_test.go#L40) | unit/verify | unproven |
-| positive | [`TestRFC8571ReservedIgnoredUnidirectionalDelay`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc8571_attr_reserved_test.go#L28) | unit/verify | unproven |
-
-### [`RFC8571-x-3`](#rfc8571-x-3)
-
-TLVs must only be added to Link NLRIs in the BGP-LS Attribute (MUST Requirements)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC8571-x-3, so no unit is bound to it.
 
 ### [`RFC8571-x-4`](#rfc8571-x-4)
 
@@ -147,7 +114,47 @@ No test carries RFC8571-x-4, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 8571, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc8571.txt |
+| Source fingerprint | 4418647079d036e7 |
+| Record | rfc/extraction/rfc8571.json |
+| Mapped sentences | 0 |
+| Declined as scope | 3 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 1 | walked | not stated |
+| `1` | not stated | 1 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 0 | walked | not stated |
+| `2.3` | not stated | 0 | walked | not stated |
+| `2.4` | not stated | 0 | walked | not stated |
+| `2.5` | not stated | 0 | walked | not stated |
+| `2.6` | not stated | 0 | walked | not stated |
+| `2.7` | not stated | 0 | walked | not stated |
+| `2.8` | not stated | 0 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 0 | walked | not stated |
+| `5.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF Trust Legal Provisions boilerplate in the copyright notice. It binds whoever extracts code components from the document, not a BGP-LS implementation. | Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License. |
+| `1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | The Introduction states why the document exists: new TLVs are needed to carry metrics RFC 8570 and RFC 7471 already define. It places no obligation on an implementation, and this document carries no RFC 2119 keyword anywhere in its text. | New BGP-LS Link Attribute TLVs are required in order to carry the Traffic Engineering Metric Extensions defined in [RFC8570] and [RFC7471]. |
+| `3:1` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The security and authentication mechanisms this sentence calls required are those of RFC 8570 and RFC 7471, which the sentence cites, and they bind the IGP instance that originates the metrics. RFC 8571 states its own position in the next paragraph: the advertisement presents no additional risk beyond the link attribute information RFC 7752 already carries. | It is assumed that the IGP instances originating these TLVs will support all the required security and authentication mechanisms (as described in [RFC8570] and [RFC7471]) in order to prevent any security issues when propagating the TLVs into BGP-LS. |
 
 ## Superseded
 

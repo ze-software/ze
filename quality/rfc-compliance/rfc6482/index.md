@@ -22,7 +22,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| MUSTs declared | 9 | of 10 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
+| MUSTs declared | 9 | of 10 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (third-party), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 9 | of 9 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 9 of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -51,7 +51,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Not enrolled (enrolled) |
+| Enrolment | Not enrolled (third-party) |
 | Requirements | 10 |
 | Gated MUST-level | 9 |
 | Not applicable, so out of scope | 9 |
@@ -68,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Not enrolled (enrolled, a disposition this page has no published meaning for): A Profile for Route Origin Authorizations (ROAs): nine MUST-level requirements, all {not-applicable}. ze is neither a ROA producer nor a relying-party validator: it consumes Validated ROA Payloads (prefix, maxLength, origin AS) over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go) and never parses or constructs the RFC 6482 CMS-signed ROA object. The gated MUSTs (ROA version, CMS content-type OID, addressFamily, maxLength constraint, and the relying-party validation duties -- validate before use, RFC 6488 checks, EE-certificate delegation containment, integrity, X.509 signature verification) all govern producing or validating the ROA object, done by the RPKI cache upstream. The nearest analog (maxLength sanity) ze enforces on the RTR PDU wire per RFC 8210, not on a ROA object.
+Not enrolled (third-party, a layer under or beside Ze performs the document and Ze holds no Go code for it, so the reason beside this kind names the component that does): The RPKI cache validates the CMS-signed ROA object. Ze consumes an already-validated payload over the RTR protocol, internal/component/bgp/plugins/rpki/rtr_pdu.go.
 
 ## What the public ledger says
 
@@ -195,7 +195,45 @@ No test carries RFC6482-5-2, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 6482, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc6482.txt |
+| Source fingerprint | 035b0b690b67aecd |
+| Record | rfc/extraction/rfc6482.json |
+| Mapped sentences | 8 |
+| Declined as scope | 2 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 1 | walked | not stated |
+| `1` | not stated | 1 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 1 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 1 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.3` | not stated | 2 | walked | not stated |
+| `4` | not stated | 2 | walked | not stated |
+| `5` | not stated | 2 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF Trust Legal Provisions boilerplate on the status page. The lowercase 'must include Simplified BSD License text' governs reuse of the document's code components, not ROA behaviour. | Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License. |
+| `1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Item 3 of the Introduction's list of what this document specifies. It describes the document's own contents; the obligation itself is Section 4's 'the relying party MUST perform all the validation checks specified in [RFC6488] as well as the following additional ROA-specific validation step', which site 4:2 maps. | An additional step required to validate ROAs (in addition to the validation steps specified in [RFC6488]). |
 
 ## Superseded
 

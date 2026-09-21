@@ -10,10 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 71.4% | 5 of 7 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 14.3% | 1 of 7 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 7 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| No test at all | 0.0% | 0 of 7 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Tested both ways | 38.5% | 5 of 13 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 7.7% | 1 of 13 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 13 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 0.0% | 0 of 12 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -22,13 +21,21 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 7 | of 10 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 7 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 14.3% | 1 of 7 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 7 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 7 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 13 | of 16 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 1 | of 13 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 7.7% | 1 of 13 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 13 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 13 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
-The 7 shares marked as a part above are the whole of the 7 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+### Negative
+
+what Ze owes
+
+| Measure | Value | Count | What it means |
+|---|---:|---|---|
+| No test at all | 46.2% | 6 of 13 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+
+The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -39,7 +46,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| No test at all | ok | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
+| No test at all | bad | green at zero, RED above it: a binding obligation nothing exercises is a claim with nothing behind it, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green shares above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
@@ -52,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 10 |
-| Gated MUST-level | 7 |
+| Requirements | 16 |
+| Gated MUST-level | 13 |
 | Not applicable, so out of scope | 1 |
 | Declared gaps | 0 |
-| Gated with no test | 0 |
+| Gated with no test | 6 |
 | Nightly-only evidence | 0 |
 | Test tags | 12 |
 | Tagged units | 12 |
@@ -89,14 +96,16 @@ Carries the L2TP and PPPoE Partial status.
 | Positive and negative tests | 5 | one part of the gated population |
 | Annotated instead of tested | 2 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 6 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **7** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **13** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (5):** [`RFC1334-1-1`](#rfc1334-1-1), [`RFC1334-x-1`](#rfc1334-x-1), [`RFC1334-2.3-1`](#rfc1334-2.3-1), [`RFC1334-2.3-2`](#rfc1334-2.3-2), [`RFC1334-2.3-4`](#rfc1334-2.3-4)
 
 **Annotated instead of tested (2):** [`RFC1334-2.2-1`](#rfc1334-2.2-1), [`RFC1334-2.3-3`](#rfc1334-2.3-3)
+
+**No test and no annotation (6):** [`RFC1334-2.2.1-1`](#rfc1334-2.2.1-1), [`RFC1334-2.2.1-2`](#rfc1334-2.2.1-2), [`RFC1334-2.2.1-3`](#rfc1334-2.2.1-3), [`RFC1334-2.2.1-4`](#rfc1334-2.2.1-4), [`RFC1334-2.2.1-5`](#rfc1334-2.2.1-5), [`RFC1334-2.2.1-6`](#rfc1334-2.2.1-6)
 
 ## Requirements
 
@@ -106,6 +115,12 @@ Carries the L2TP and PPPoE Partial status.
 | `RFC1334-x-1` | Any implementation that includes a stronger authentication method (such as CHAP) must offer to negotiate that method prior to PAP (Security Considerations) | MUST | x | **positive:** `unit/verify` [`TestDefaultAuthFallbackOrder`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_test.go#L269). **negative:** `unit/verify` [`TestSelectAuthFallback`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_test.go#L111) |
 | `RFC1334-2.3-1` | If id/password pair is recognizable and acceptable, authenticator must transmit Authenticate-Ack (Code=2) (Section 2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L293). **negative:** `unit/verify` [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L411) |
 | `RFC1334-2.3-2` | If id/password pair is not recognizable or acceptable, authenticator must transmit Authenticate-Nak (Code=3) (Section 2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L407). **negative:** `unit/verify` [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L297) |
+| `RFC1334-2.2.1-1` | The link peer MUST transmit a PAP packet with the Code field set to 1 (Authenticate-Request) during the Authentication phase (Section 2.2.1) | MUST | 2.2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1334-2.2.1-2` | The Authenticate-Request packet MUST be repeated until a valid reply packet is received, or an optional retry counter expires (Section 2.2.1) | MUST | 2.2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1334-2.2.1-3` | Upon reception of an Authenticate-Request packet, some type of Authenticate reply MUST be returned (Section 2.2.1) | MUST | 2.2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1334-2.2.1-4` | Because the Authenticate-Ack might be lost, the authenticator MUST allow repeated Authenticate-Request packets after completing the Authentication phase (Section 2.2.1) | MUST | 2.2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1334-2.2.1-5` | Any Authenticate-Request packets received during the Network-Layer Protocol phase MUST return the same reply Code returned when the Authentication phase completed (Section 2.2.1) | MUST | 2.2.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC1334-2.2.1-6` | Any Authenticate-Request packets received during any other phase MUST be silently discarded (Section 2.2.1) | MUST | 2.2.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC1334-2.2-1` | Identifier field must be changed each time an Authenticate-Request is issued (Section 2.2) | MUST | 2.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze never issues a second PAP Authenticate-Request; the authenticator role only responds (internal/component/l2tp/ppp/pap.go:160) and the client issues exactly one request per session with a fixed Identifier and no reissue path (internal/component/l2tp/pppoeclient/session.go:230-241), so the change-Identifier-on-reissue obligation has no code path |
 | `RFC1334-2.3-3` | Ack/Nak Identifier must be copied from the Authenticate-Request which caused the reply (Section 2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L414). **positive:** `unit/verify` [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L300). **negative:** no negative test. **{single-polarity}:** writePAPReply copies the request Identifier into the PAP reply (internal/component/l2tp/ppp/pap.go:138) and ze never validates or rejects on the Identifier, so there is no negative case |
 | `RFC1334-2.3-4` | Message field must not affect operation of the protocol (Section 2.3) | MUST NOT | 2.3 | **positive:** `unit/verify` [`TestPAPReplyMessageDoesNotAffectOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L49). **negative:** `unit/verify` [`TestPAPReplyMessageDoesNotAffectOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1334_pap_message_test.go#L53) |
@@ -117,6 +132,12 @@ Carries the L2TP and PPPoE Partial status.
 
 | Requirement | State | Reason |
 |---|---|---|
+| [`RFC1334-2.2.1-1`](#rfc1334-2.2.1-1) The link peer MUST transmit a PAP packet with the Code field set to 1 (Authenticate-Request) during the Authentication phase (Section 2.2.1) | no test | no test carries this requirement id |
+| [`RFC1334-2.2.1-2`](#rfc1334-2.2.1-2) The Authenticate-Request packet MUST be repeated until a valid reply packet is received, or an optional retry counter expires (Section 2.2.1) | no test | no test carries this requirement id |
+| [`RFC1334-2.2.1-3`](#rfc1334-2.2.1-3) Upon reception of an Authenticate-Request packet, some type of Authenticate reply MUST be returned (Section 2.2.1) | no test | no test carries this requirement id |
+| [`RFC1334-2.2.1-4`](#rfc1334-2.2.1-4) Because the Authenticate-Ack might be lost, the authenticator MUST allow repeated Authenticate-Request packets after completing the Authentication phase (Section 2.2.1) | no test | no test carries this requirement id |
+| [`RFC1334-2.2.1-5`](#rfc1334-2.2.1-5) Any Authenticate-Request packets received during the Network-Layer Protocol phase MUST return the same reply Code returned when the Authentication phase completed (Section 2.2.1) | no test | no test carries this requirement id |
+| [`RFC1334-2.2.1-6`](#rfc1334-2.2.1-6) Any Authenticate-Request packets received during any other phase MUST be silently discarded (Section 2.2.1) | no test | no test carries this requirement id |
 | [`RFC1334-2.2-1`](#rfc1334-2.2-1) Identifier field must be changed each time an Authenticate-Request is issued (Section 2.2) | no test | no test carries this requirement id; annotated {not-applicable}: ze never issues a second PAP Authenticate-Request; the authenticator role only responds (internal/component/l2tp/ppp/pap.go:160) and the client issues exactly one request per session with a fixed Identifier and no reissue path (internal/component/l2tp/pppoeclient/session.go:230-241), so the change-Identifier-on-reissue obligation has no code path |
 
 ## Proof state
@@ -167,6 +188,54 @@ Audit verdict: not audited: no reader has judged these tests
 | negative | [`TestPAPRequestEmitsEvent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L297) | unit/verify | unproven |
 | positive | [`TestPAPRejectWritesNak`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/pap_test.go#L407) | unit/verify | unproven |
 
+### [`RFC1334-2.2.1-1`](#rfc1334-2.2.1-1)
+
+The link peer MUST transmit a PAP packet with the Code field set to 1 (Authenticate-Request) during the Authentication phase (Section 2.2.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC1334-2.2.1-1, so no unit is bound to it.
+
+### [`RFC1334-2.2.1-2`](#rfc1334-2.2.1-2)
+
+The Authenticate-Request packet MUST be repeated until a valid reply packet is received, or an optional retry counter expires (Section 2.2.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC1334-2.2.1-2, so no unit is bound to it.
+
+### [`RFC1334-2.2.1-3`](#rfc1334-2.2.1-3)
+
+Upon reception of an Authenticate-Request packet, some type of Authenticate reply MUST be returned (Section 2.2.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC1334-2.2.1-3, so no unit is bound to it.
+
+### [`RFC1334-2.2.1-4`](#rfc1334-2.2.1-4)
+
+Because the Authenticate-Ack might be lost, the authenticator MUST allow repeated Authenticate-Request packets after completing the Authentication phase (Section 2.2.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC1334-2.2.1-4, so no unit is bound to it.
+
+### [`RFC1334-2.2.1-5`](#rfc1334-2.2.1-5)
+
+Any Authenticate-Request packets received during the Network-Layer Protocol phase MUST return the same reply Code returned when the Authentication phase completed (Section 2.2.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC1334-2.2.1-5, so no unit is bound to it.
+
+### [`RFC1334-2.2.1-6`](#rfc1334-2.2.1-6)
+
+Any Authenticate-Request packets received during any other phase MUST be silently discarded (Section 2.2.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC1334-2.2.1-6, so no unit is bound to it.
+
 ### [`RFC1334-2.2-1`](#rfc1334-2.2-1)
 
 Identifier field must be changed each time an Authenticate-Request is issued (Section 2.2)
@@ -199,7 +268,60 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 1334, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc1334.txt |
+| Source fingerprint | 34483221567656af |
+| Record | rfc/extraction/rfc1334.json |
+| Mapped sentences | 13 |
+| Declined as scope | 18 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 1 | walked | not stated |
+| `1.1` | not stated | 3 | walked | not stated |
+| `1.2` | not stated | 0 | walked | not stated |
+| `2` | not stated | 1 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 0 | walked | not stated |
+| `2.2.1` | not stated | 7 | walked | not stated |
+| `2.2.2` | not stated | 4 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.2.1` | not stated | 10 | walked | not stated |
+| `3.2.2` | not stated | 4 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `1.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 1.1 'Specification Requirements' defines the keywords themselves; this sentence is part of the definition of MAY/'optional' and states no PAP or CHAP behaviour. | MUST This word, or the adjective "required", means that the definition is an absolute requirement of the specification. |
+| `1.1:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 1.1 'Specification Requirements' defines the keywords themselves; this sentence is part of the definition of MAY/'optional' and states no PAP or CHAP behaviour. | MUST NOT This phrase means that the definition is an absolute prohibition of the specification. |
+| `1.1:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section 1.1 'Specification Requirements' defines the keywords themselves; this sentence is part of the definition of MAY/'optional' and states no PAP or CHAP behaviour. | An implementation which does not include this option MUST be prepared to interoperate with another implementation which does include the option. |
+| `3:1` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here. | The CHAP algorithm requires that the length of the secret MUST be at least 1 octet. |
+| `3.2.1:1` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here. | The authenticator MUST transmit a CHAP packet with the Code field set to 1 (Challenge). |
+| `3.2.1:2` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here. | Additional Challenge packets MUST be sent until a valid Response packet is received, or an optional retry counter expires. |
+| `3.2.1:3` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here. | Whenever a Challenge packet is received, the peer MUST transmit a CHAP packet with the Code field set to 2 (Response). |
+| `3.2.1:4` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here. | Based on this comparison, the authenticator MUST send a Success or Failure packet (described below). |
+| `3.2.1:5` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here. | Implementation Note: Because the Success might be lost, the authenticator MUST allow repeated Response packets after completing the Authentication phase. |
+| `3.2.1:6` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here. | To prevent discovery of alternative Names and Secrets, any Response packets received having the current Challenge Identifier MUST return the same reply Code returned when the Authentication phase completed (the message portion MAY be different). |
+| `3.2.1:7` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here. | Any Response packets received during any other phase MUST be silently discarded. |
+| `3.2.1:8` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here. | The Identifier field MUST be changed each time a Challenge is sent. |
+| `3.2.1:9` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here. | The Response Identifier MUST be copied from the Identifier field of the Challenge which caused the Response. |
+| `3.2.1:10` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here. | The Challenge Value MUST be changed each time a Challenge is sent. |
+| `3.2.2:1` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here. | If the Value received in a Response is equal to the expected value, then the implementation MUST transmit a CHAP packet with the Code field set to 3 (Success). |
+| `3.2.2:2` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here. | If the Value received in a Response is not equal to the expected value, then the implementation MUST transmit a CHAP packet with the Code field set to 4 (Failure), and SHOULD take action to terminate the link. |
+| `3.2.2:3` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here. | The Identifier field MUST be copied from the Identifier field of the Response which caused this reply. |
+| `3.2.2:4` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here. | It is intended to be human readable, and MUST NOT affect operation of the protocol. |
 
 ## Superseded
 

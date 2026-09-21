@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 22.2% | 2 of 9 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 22.2% | 2 of 9 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 9 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 14.3% | 2 of 14 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 14.3% | 2 of 14 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 14 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 0.0% | 0 of 8 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 9 | of 21 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 4 | of 9 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 44.4% | 4 of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 9 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 14 | of 26 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 4 | of 14 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 28.6% | 4 of 14 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 14 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 14 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 11.1% | 1 of 9 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 42.9% | 6 of 14 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 9 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 14 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Experimental |
 | Enrolment | Enrolled |
-| Requirements | 21 |
-| Gated MUST-level | 9 |
+| Requirements | 26 |
+| Gated MUST-level | 14 |
 | Not applicable, so out of scope | 4 |
 | Declared gaps | 1 |
-| Gated with no test | 0 |
+| Gated with no test | 5 |
 | Nightly-only evidence | 0 |
 | Test tags | 8 |
 | Tagged units | 8 |
@@ -75,7 +75,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: NetFlow Services Export Version 9 (ze as a v9 exporter): nine MUST-level requirements. Four are met: x-1 (never send a Data FlowSet before its Template) and x-8 (the sequence number is cumulative per observation domain) carry positive+negative tags; x-3 (network byte order) and x-9 (a Template ID is constant for the process lifetime) are {single-polarity: positive}. x-2 (refresh templates on both a time interval and a packet-count interval) is {gap}: ze refreshes on a configurable time interval only, with no packet-count-based interval. x-4, x-5, x-6, x-7 are {not-applicable}: they are NetFlow v9 collector requirements and ze is an exporter only. Disclosed in the docs/features/rfc-status.md RFC 3954 row.
+Enrolled: NetFlow Services Export Version 9 (ze as a v9 exporter): fourteen MUST-level requirements. Four are met: x-1 (never send a Data FlowSet before its Template) and x-8 (the sequence number is cumulative per observation domain) carry positive+negative tags; x-3 (network byte order) and x-9 (a Template ID is constant for the process lifetime) are {single-polarity: positive}. x-2 (refresh templates on both a time interval and a packet-count interval) is {gap}: ze refreshes on a configurable time interval only, with no packet-count-based interval. x-4, x-5, x-6, x-7 are {not-applicable}: they are NetFlow v9 collector requirements and ze is an exporter only. x-22, x-23, x-24, x-25 and x-26 were added by the 2026-09-21 extraction walk from RFC 3954 sections 7 and 9: they are v9 collector obligations (store the Template Record, do not assume Template ID uniqueness across Observation Domains, do not assume Template and Data travel together, do not assume a single Template FlowSet per packet, do not decode with an expired Template) and they carry no test. Disclosed in the docs/features/rfc-status.md RFC 3954 row.
 
 ## What the public ledger says
 
@@ -87,9 +87,9 @@ Enrolled: NetFlow Services Export Version 9 (ze as a v9 exporter): nine MUST-lev
 - tests bound per requirement in [`rfc/requirements/rfc3954.md`](https://github.com/ze-software/ze/blob/main/rfc/requirements/rfc3954.md).
 
 
-**What the ledger says remains:**
+**What the ledger says remains**
 
-Template refresh is time-interval-based only, with no packet-count-based refresh interval (RFC3954-x-2 gap). ze is an exporter only; the v9 collector requirements are not applicable.
+Template refresh is time-interval-based only, with no packet-count-based refresh interval (RFC3954-x-2 gap). ze is an exporter only, so the v9 collector requirements x-4 to x-7 are marked not applicable and the five collector obligations added on 2026-09-21 (x-22 to x-26) carry no test.
 
 ## Coverage
 
@@ -98,14 +98,16 @@ Template refresh is time-interval-based only, with no packet-count-based refresh
 | Positive and negative tests | 2 | one part of the gated population |
 | Annotated instead of tested | 7 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 5 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **9** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **14** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (2):** [`RFC3954-x-1`](#rfc3954-x-1), [`RFC3954-x-8`](#rfc3954-x-8)
 
 **Annotated instead of tested (7):** [`RFC3954-x-2`](#rfc3954-x-2), [`RFC3954-x-3`](#rfc3954-x-3), [`RFC3954-x-4`](#rfc3954-x-4), [`RFC3954-x-5`](#rfc3954-x-5), [`RFC3954-x-6`](#rfc3954-x-6), [`RFC3954-x-7`](#rfc3954-x-7), [`RFC3954-x-9`](#rfc3954-x-9)
+
+**No test and no annotation (5):** [`RFC3954-x-22`](#rfc3954-x-22), [`RFC3954-x-23`](#rfc3954-x-23), [`RFC3954-x-24`](#rfc3954-x-24), [`RFC3954-x-25`](#rfc3954-x-25), [`RFC3954-x-26`](#rfc3954-x-26)
 
 ## Requirements
 
@@ -132,6 +134,11 @@ Template refresh is time-interval-based only, with no packet-count-based refresh
 | `RFC3954-x-19` | Exporter MAY include multiple template records in a single Template FlowSet (Template FlowSet) | MAY | x | **positive:** no positive test. **negative:** no negative test |
 | `RFC3954-x-20` | Exporter MAY send templates and data in the same packet (Template Lifecycle) | MAY | x | **positive:** no positive test. **negative:** no negative test |
 | `RFC3954-x-21` | Exporters MAY use reserved field type IDs for vendor-specific fields (Reserved Fields) | MAY | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-22` | The NetFlow Collector MUST store the Template Record to interpret the corresponding Flow Data Records that are received in subsequent data packets (Template Lifecycle) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-23` | A NetFlow Collector that receives Export Packets from several Observation Domains from the same Exporter MUST be aware that the uniqueness of the Template ID is not guaranteed across Observation Domains (Template Lifecycle) | MUST | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-24` | A Collector device MUST NOT assume that the Data FlowSet and the associated Template FlowSet (or Options Template FlowSet) are exported in the same Export Packet (Validation) | MUST NOT | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-25` | The Collector MUST NOT assume that one and only one Template FlowSet is present in an Export Packet (Validation) | MUST NOT | x | **positive:** no positive test. **negative:** no negative test |
+| `RFC3954-x-26` | The Collector MUST NOT attempt to decode the Flow or Options Data Records with an expired Template (Validation) | MUST NOT | x | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -142,6 +149,11 @@ Template refresh is time-interval-based only, with no packet-count-based refresh
 | [`RFC3954-x-5`](#rfc3954-x-5) Collector MUST use the Length field to determine the position of the next FlowSet record (Encoding Rules) | no test | no test carries this requirement id; annotated {not-applicable}: collector requirement (use FlowSet Length to find the next FlowSet); ze does not collect v9 |
 | [`RFC3954-x-6`](#rfc3954-x-6) Collector MUST accept padding in Data FlowSets and Options Template FlowSets (Validation) | no test | no test carries this requirement id; annotated {not-applicable}: collector requirement (accept padding); ze does not collect v9 (its exporter does emit 4-octet padding at internal/plugins/flowexport/netflow9/data.go:38-44) |
 | [`RFC3954-x-7`](#rfc3954-x-7) Collector MUST override an existing template when a new definition arrives for the same Template ID (Template Lifecycle) | no test | no test carries this requirement id; annotated {not-applicable}: collector requirement (override a template on redefinition); ze does not collect v9 |
+| [`RFC3954-x-22`](#rfc3954-x-22) The NetFlow Collector MUST store the Template Record to interpret the corresponding Flow Data Records that are received in subsequent data packets (Template Lifecycle) | no test | no test carries this requirement id |
+| [`RFC3954-x-23`](#rfc3954-x-23) A NetFlow Collector that receives Export Packets from several Observation Domains from the same Exporter MUST be aware that the uniqueness of the Template ID is not guaranteed across Observation Domains (Template Lifecycle) | no test | no test carries this requirement id |
+| [`RFC3954-x-24`](#rfc3954-x-24) A Collector device MUST NOT assume that the Data FlowSet and the associated Template FlowSet (or Options Template FlowSet) are exported in the same Export Packet (Validation) | no test | no test carries this requirement id |
+| [`RFC3954-x-25`](#rfc3954-x-25) The Collector MUST NOT assume that one and only one Template FlowSet is present in an Export Packet (Validation) | no test | no test carries this requirement id |
+| [`RFC3954-x-26`](#rfc3954-x-26) The Collector MUST NOT attempt to decode the Flow or Options Data Records with an expired Template (Validation) | no test | no test carries this requirement id |
 
 ## Proof state
 
@@ -231,9 +243,111 @@ Audit verdict: not audited: no reader has judged these tests
 | positive | [`TestNetflow9FlowTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/flow_template_test.go#L8) | unit/verify | unproven |
 | positive | [`TestNetflow9Template`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/netflow9/template_test.go#L8) | unit/verify | unproven |
 
+### [`RFC3954-x-22`](#rfc3954-x-22)
+
+The NetFlow Collector MUST store the Template Record to interpret the corresponding Flow Data Records that are received in subsequent data packets (Template Lifecycle)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC3954-x-22, so no unit is bound to it.
+
+### [`RFC3954-x-23`](#rfc3954-x-23)
+
+A NetFlow Collector that receives Export Packets from several Observation Domains from the same Exporter MUST be aware that the uniqueness of the Template ID is not guaranteed across Observation Domains (Template Lifecycle)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC3954-x-23, so no unit is bound to it.
+
+### [`RFC3954-x-24`](#rfc3954-x-24)
+
+A Collector device MUST NOT assume that the Data FlowSet and the associated Template FlowSet (or Options Template FlowSet) are exported in the same Export Packet (Validation)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC3954-x-24, so no unit is bound to it.
+
+### [`RFC3954-x-25`](#rfc3954-x-25)
+
+The Collector MUST NOT assume that one and only one Template FlowSet is present in an Export Packet (Validation)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC3954-x-25, so no unit is bound to it.
+
+### [`RFC3954-x-26`](#rfc3954-x-26)
+
+The Collector MUST NOT attempt to decode the Flow or Options Data Records with an expired Template (Validation)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC3954-x-26, so no unit is bound to it.
+
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 3954, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc3954.txt |
+| Source fingerprint | 4274d093e24b4bad |
+| Record | rfc/extraction/rfc3954.json |
+| Mapped sentences | 13 |
+| Declined as scope | 6 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `4` | not stated | 1 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 1 | walked | not stated |
+| `5.2` | not stated | 1 | walked | not stated |
+| `5.3` | not stated | 1 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 1 | walked | not stated |
+| `6.2` | not stated | 1 | walked | not stated |
+| `7` | not stated | 8 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 5 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `10.1` | not stated | 0 | walked | not stated |
+| `10.2` | not stated | 0 | walked | not stated |
+| `10.3` | not stated | 0 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `11.1` | not stated | 0 | walked | not stated |
+| `11.2` | not stated | 0 | walked | not stated |
+| `11.3` | not stated | 0 | walked | not stated |
+| `11.4` | not stated | 0 | walked | not stated |
+| `11.5` | not stated | 0 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `12.1` | not stated | 0 | walked | not stated |
+| `12.2` | not stated | 0 | walked | not stated |
+| `13` | not stated | 0 | walked | not stated |
+| `14` | not stated | 0 | walked | not stated |
+| `15` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `6.1:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | restates the Length-determines-next-FlowSet obligation already mapped at site 5.2:1 | Thus, the Length value MUST be used to determine the position of the next FlowSet record, which could be either a Template FlowSet or Data FlowSet. |
+| `6.2:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | restates the FlowSet-ID-selects-the-template obligation already mapped at site 5.3:1 | The Collector MUST use the FlowSet ID to map the appropriate type and length to any field values that follow. |
+| `7:6` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | restates the periodic template refresh obligation already mapped at site 7:5 | Template IDs have a limited lifetime at the Collector and MUST be periodically refreshed. |
+| `7:7` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the configurability of the two refresh intervals is part of the same refresh obligation mapped at site 7:5 | Both options MUST be configurable by the user on the Exporter. |
+| `7:8` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | restates the send-on-expiry half of the refresh obligation already mapped at site 7:5 | When one of these expiry conditions is met, the Exporter MUST send the Template FlowSet and Options Template. |
+| `9:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | restates the override-on-redefinition obligation already mapped at site 7:3 | If the Collector receives a new Template Record (for example, in the case of an Exporter restart) it MUST immediately override the existing Template Record. |
 
 ## Superseded
 

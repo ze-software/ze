@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0.0% | 0 of 12 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 25.0% | 3 of 12 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 12 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 0.0% | 0 of 11 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 27.3% | 3 of 11 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 11 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 0.0% | 0 of 3 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 12 | of 14 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 0 | of 12 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 0.0% | 0 of 12 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 12 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 12 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 11 | of 14 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 0 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 0.0% | 0 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 11 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 75.0% | 9 of 12 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 72.7% | 8 of 11 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 12 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 11 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -60,7 +60,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Public status | Partial |
 | Enrolment | Enrolled |
 | Requirements | 14 |
-| Gated MUST-level | 12 |
+| Gated MUST-level | 11 |
 | Not applicable, so out of scope | 0 |
 | Declared gaps | 9 |
 | Gated with no test | 0 |
@@ -75,7 +75,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: BGP-LS Segment Routing extensions: 3 single-polarity positive (SID/Label 20-bit mask, reserved + undefined flags ignored on receipt) + 9 gap (SR-SID origination/encode not implemented; decode only)
+Enrolled: BGP-LS Segment Routing extensions: 3 single-polarity positive (SID/Label 20-bit mask, reserved + undefined flags ignored on receipt) + 8 MUST gaps (SR-SID origination/encode not implemented; decode only). The 2026-09-21 extraction walk lowered RFC9085-2.1-1 to SHOULD, the level the document's own sentence uses, so the TLV-placement rule is now a SHOULD gap and the MUST count is 11 rather than 12.
 
 ## What the public ledger says
 
@@ -89,21 +89,21 @@ Enrolled: BGP-LS Segment Routing extensions: 3 single-polarity positive (SID/Lab
 
 **What the ledger says remains**
 
-Nine origination/encode MUSTs unmet (decode-only plugin, no config surface): the reserved-and-flags-zero-on-transmit and TLV-placement rules have dormant encoders but no origination path; the LAN-Adjacency-SID (TLV 1100) and Range (TLV 1159) TLVs are not implemented at all.
+Eight origination/encode MUSTs unmet (decode-only plugin, no config surface): the reserved-and-flags-zero-on-transmit rules have dormant encoders but no origination path, and the LAN-Adjacency-SID (TLV 1100) and Range (TLV 1159) TLVs are not implemented at all. The TLV-placement rule [`RFC9085-2.1-1`](#rfc9085-2.1-1) is unmet too and is a SHOULD, the level the document states it at.
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
 | Positive and negative tests | 0 | one part of the gated population |
-| Annotated instead of tested | 12 | one part of the gated population |
+| Annotated instead of tested | 11 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
 | No test and no annotation | 0 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **12** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **11** | every gated MUST falls in exactly one bucket above |
 
-**Annotated instead of tested (12):** [`RFC9085-2.1.2-1`](#rfc9085-2.1.2-1), [`RFC9085-2.1.2-2`](#rfc9085-2.1.2-2), [`RFC9085-2.1.4-1`](#rfc9085-2.1.4-1), [`RFC9085-2.1.4-2`](#rfc9085-2.1.4-2), [`RFC9085-2.2.1-1`](#rfc9085-2.2.1-1), [`RFC9085-2.2.2-1`](#rfc9085-2.2.2-1), [`RFC9085-2.3.1-1`](#rfc9085-2.3.1-1), [`RFC9085-2.3.5-1`](#rfc9085-2.3.5-1), [`RFC9085-2.1.1-1`](#rfc9085-2.1.1-1), [`RFC9085-2.1-1`](#rfc9085-2.1-1), [`RFC9085-2.1.2-3`](#rfc9085-2.1.2-3), [`RFC9085-2.1.2-4`](#rfc9085-2.1.2-4)
+**Annotated instead of tested (11):** [`RFC9085-2.1.2-1`](#rfc9085-2.1.2-1), [`RFC9085-2.1.2-2`](#rfc9085-2.1.2-2), [`RFC9085-2.1.4-1`](#rfc9085-2.1.4-1), [`RFC9085-2.1.4-2`](#rfc9085-2.1.4-2), [`RFC9085-2.2.1-1`](#rfc9085-2.2.1-1), [`RFC9085-2.2.2-1`](#rfc9085-2.2.2-1), [`RFC9085-2.3.1-1`](#rfc9085-2.3.1-1), [`RFC9085-2.3.5-1`](#rfc9085-2.3.5-1), [`RFC9085-2.1.1-1`](#rfc9085-2.1.1-1), [`RFC9085-2.1.2-3`](#rfc9085-2.1.2-3), [`RFC9085-2.1.2-4`](#rfc9085-2.1.2-4)
 
 ## Requirements
 
@@ -117,10 +117,10 @@ Nine origination/encode MUSTs unmet (decode-only plugin, no config surface): the
 | `RFC9085-2.2.2-1` | LAN Adjacency SID TLV (1100): Reserved field (2 octets) MUST be set to 0 (S2.2.2) | MUST | 2.2.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze neither decodes nor encodes TLV 1100 (LAN Adjacency SID); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go) |
 | `RFC9085-2.3.1-1` | Prefix-SID TLV (1158): Reserved field (2 octets) MUST be set to 0 (S2.3.1) | MUST | 2.3.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the encoder hardcodes both reserved octets to 0 but ze originates no Prefix-SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_prefix.go:154-155) |
 | `RFC9085-2.3.5-1` | Range TLV (1159): Reserved field MUST be set to 0 (S2.3.5) | MUST | 2.3.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze neither decodes nor encodes TLV 1159 (Range); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go) |
-| `RFC9085-2.1.1-1` | SID/Label TLV (1161): When Length=3, the 4 leftmost bits MUST be 0 (S2.1.1) | MUST | 2.1.1 | **positive:** `unit/verify` [`TestRFC9085SIDLabelMasksLeftmostFourBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L886). **negative:** no negative test. **{single-polarity}:** the decoder enforces the leftmost-4-bits-zero rule on receipt by masking the 3-octet value to its 20 rightmost bits (& 0xFFFFF), clearing rather than rejecting, so only a positive decode assertion is meaningful (internal/component/bgp/plugins/nlri/ls/attr_prefix.go:242) |
-| `RFC9085-2.1-1` | TLVs MUST only be added to appropriate NLRI type (Node/Link/Prefix) (S2.1, S2.2, S2.3) | MUST | 2.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** this is an origination placement rule and ze originates no BGP-LS; the plugin registers decode mode only, so it never adds a TLV to any NLRI (internal/component/bgp/plugins/nlri/ls/plugin.go:70-71) |
-| `RFC9085-2.1.2-3` | Reserved fields MUST be ignored on receipt (S2.1.2, S2.1.4, S2.2.1, S2.2.2, S2.3.1, S2.3.5) | MUST | 2.1.2 | **positive:** `unit/verify` [`TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L936). **negative:** no negative test. **{single-polarity}:** every SR decoder skips its reserved octets and never rejects on reserved content, so only a positive test is meaningful (internal/component/bgp/plugins/nlri/ls/attr_node.go:363, attr_link.go:478-479, attr_prefix.go:187-188) |
-| `RFC9085-2.1.2-4` | OSPF-undefined flags in SR Capabilities/SRLB MUST be ignored on receipt (S2.1.2, S2.1.4) | MUST | 2.1.2 | **positive:** `unit/verify` [`TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L926). **negative:** no negative test. **{single-polarity}:** decodeSRCapabilities and decodeSRLocalBlock store the Flags octet without branching on or rejecting any bit, so undefined flags are inherently ignored (internal/component/bgp/plugins/nlri/ls/attr_node.go:367, :439) |
+| `RFC9085-2.1.1-1` | SID/Label TLV (1161): When Length=3, the 4 leftmost bits MUST be 0 (S2.1.1) | MUST | 2.1.1 | **positive:** `unit/verify` [`TestRFC9085SIDLabelMasksLeftmostFourBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L888). **negative:** no negative test. **{single-polarity}:** the decoder enforces the leftmost-4-bits-zero rule on receipt by masking the 3-octet value to its 20 rightmost bits (& 0xFFFFF), clearing rather than rejecting, so only a positive decode assertion is meaningful (internal/component/bgp/plugins/nlri/ls/attr_prefix.go:242) |
+| `RFC9085-2.1-1` | TLVs should only be added to the BGP-LS Attribute of the NLRI type the document names for them (Node, Link or Prefix): "These TLVs should only be added to the BGP-LS Attribute associated with the Node NLRI that describes the IGP node that is originating the corresponding IGP TLV/sub-TLV described below." (S2.1, and the same sentence at S2.2 and S2.3) | SHOULD | 2.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** this is an origination placement rule and ze originates no BGP-LS; the plugin registers decode mode only, so it never adds a TLV to any NLRI (internal/component/bgp/plugins/nlri/ls/plugin.go:70-71) |
+| `RFC9085-2.1.2-3` | Reserved fields MUST be ignored on receipt (S2.1.2, S2.1.4, S2.2.1, S2.2.2, S2.3.1, S2.3.5) | MUST | 2.1.2 | **positive:** `unit/verify` [`TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L938). **negative:** no negative test. **{single-polarity}:** every SR decoder skips its reserved octets and never rejects on reserved content, so only a positive test is meaningful (internal/component/bgp/plugins/nlri/ls/attr_node.go:363, attr_link.go:478-479, attr_prefix.go:187-188) |
+| `RFC9085-2.1.2-4` | OSPF-undefined flags in SR Capabilities/SRLB MUST be ignored on receipt (S2.1.2, S2.1.4) | MUST | 2.1.2 | **positive:** `unit/verify` [`TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L928). **negative:** no negative test. **{single-polarity}:** decodeSRCapabilities and decodeSRLocalBlock store the Flags octet without branching on or rejecting any bit, so undefined flags are inherently ignored (internal/component/bgp/plugins/nlri/ls/attr_node.go:367, :439) |
 | `RFC9085-2.2.3-1` | L2 Bundle Member Attributes TLV MAY include sub-TLVs describing bundle member attributes (S2.2.3) | MAY | 2.2.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC9085-2.2.3-2` | Multiple L2 Bundle Member Attributes TLVs MAY be associated with a Link NLRI (S2.2.3) | MAY | 2.2.3 | **positive:** no positive test. **negative:** no negative test |
 
@@ -136,7 +136,7 @@ Nine origination/encode MUSTs unmet (decode-only plugin, no config surface): the
 | [`RFC9085-2.2.2-1`](#rfc9085-2.2.2-1) LAN Adjacency SID TLV (1100): Reserved field (2 octets) MUST be set to 0 (S2.2.2) | {gap}, no test | ze neither decodes nor encodes TLV 1100 (LAN Adjacency SID); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go) |
 | [`RFC9085-2.3.1-1`](#rfc9085-2.3.1-1) Prefix-SID TLV (1158): Reserved field (2 octets) MUST be set to 0 (S2.3.1) | {gap}, no test | the encoder hardcodes both reserved octets to 0 but ze originates no Prefix-SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_prefix.go:154-155) |
 | [`RFC9085-2.3.5-1`](#rfc9085-2.3.5-1) Range TLV (1159): Reserved field MUST be set to 0 (S2.3.5) | {gap}, no test | ze neither decodes nor encodes TLV 1159 (Range); it is not registered and no struct exists, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go) |
-| [`RFC9085-2.1-1`](#rfc9085-2.1-1) TLVs MUST only be added to appropriate NLRI type (Node/Link/Prefix) (S2.1, S2.2, S2.3) | {gap}, no test | this is an origination placement rule and ze originates no BGP-LS; the plugin registers decode mode only, so it never adds a TLV to any NLRI (internal/component/bgp/plugins/nlri/ls/plugin.go:70-71) |
+| [`RFC9085-2.1-1`](#rfc9085-2.1-1) TLVs should only be added to the BGP-LS Attribute of the NLRI type the document names for them (Node, Link or Prefix): "These TLVs should only be added to the BGP-LS Attribute associated with the Node NLRI that describes the IGP node that is originating the corresponding IGP TLV/sub-TLV described below." (S2.1, and the same sentence at S2.2 and S2.3) | {gap} | this is an origination placement rule and ze originates no BGP-LS; the plugin registers decode mode only, so it never adds a TLV to any NLRI (internal/component/bgp/plugins/nlri/ls/plugin.go:70-71) |
 
 ## Proof state
 
@@ -214,15 +214,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC9085SIDLabelMasksLeftmostFourBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L886) | unit/verify | unproven |
-
-### [`RFC9085-2.1-1`](#rfc9085-2.1-1)
-
-TLVs MUST only be added to appropriate NLRI type (Node/Link/Prefix) (S2.1, S2.2, S2.3)
-
-Audit verdict: not audited: no reader has judged these tests
-
-No test carries RFC9085-2.1-1, so no unit is bound to it.
+| positive | [`TestRFC9085SIDLabelMasksLeftmostFourBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L888) | unit/verify | unproven |
 
 ### [`RFC9085-2.1.2-3`](#rfc9085-2.1.2-3)
 
@@ -232,7 +224,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L936) | unit/verify | unproven |
+| positive | [`TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L938) | unit/verify | unproven |
 
 ### [`RFC9085-2.1.2-4`](#rfc9085-2.1.2-4)
 
@@ -242,11 +234,64 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L926) | unit/verify | unproven |
+| positive | [`TestRFC9085SRCapabilitiesIgnoresReservedAndUndefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/attr_test.go#L928) | unit/verify | unproven |
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 9085, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc9085.txt |
+| Source fingerprint | fdec3413ebb35a14 |
+| Record | rfc/extraction/rfc9085.json |
+| Mapped sentences | 8 |
+| Declined as scope | 3 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 1 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.1.1` | not stated | 0 | walked | not stated |
+| `2.1.2` | not stated | 2 | walked | not stated |
+| `2.1.3` | not stated | 0 | walked | not stated |
+| `2.1.4` | not stated | 3 | walked | not stated |
+| `2.1.5` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 0 | walked | not stated |
+| `2.2.1` | not stated | 1 | walked | not stated |
+| `2.2.2` | not stated | 1 | walked | not stated |
+| `2.2.3` | not stated | 0 | walked | not stated |
+| `2.3` | not stated | 0 | walked | not stated |
+| `2.3.1` | not stated | 1 | walked | not stated |
+| `2.3.2` | not stated | 0 | walked | not stated |
+| `2.3.3` | not stated | 0 | walked | not stated |
+| `2.3.4` | not stated | 0 | walked | not stated |
+| `2.3.5` | not stated | 1 | walked | not stated |
+| `2.4` | not stated | 0 | walked | not stated |
+| `2.5` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 1 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Boilerplate from the Copyright Notice: it states the licence terms under which code components extracted from the document are provided ('must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions'). It binds a republisher of the text, not a BGP-LS implementation, and names no message, field or procedure. | Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License. |
+| `2.1.4:1` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The obligation to advertise the SRLB belongs to the IGP documents the same section cites three lines later: 'This information is derived from the protocol-specific advertisements. * IS-IS, as defined by the SRLB Sub-TLV in Section 3.3 of [RFC8667]. * OSPFv2/OSPFv3, as defined by the SR Local Block TLV in Section 3.3 of [RFC8665] and [RFC8666]'. RFC 9085 defines only how BGP-LS carries the range once the IGP has advertised it; the sentence explains why the IGP advertisement exists. | Therefore, in order for such applications or controllers to know the range of local SIDs available, the node is required to advertise its SRLB. |
+| `5:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | A Security Considerations ASSUMPTION rather than an obligation: 'The IGP instances originating these TLVs are assumed to support all the required security and authentication mechanisms (as described in [RFC8665], [RFC8666], and [RFC8667])'. It states what this document takes for granted about the IGP that feeds BGP-LS, and the mechanisms it names are required by those three documents, not by this one. | The IGP instances originating these TLVs are assumed to support all the required security and authentication mechanisms (as described in [RFC8665], [RFC8666], and [RFC8667]) in order to prevent any security issue when propagating the TLVs into BGP-LS. |
 
 ## Superseded
 

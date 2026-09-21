@@ -125,7 +125,7 @@ No IPv4-mapped-IPv6 next-hop for IPv4 transport ([`RFC4659-3.2.1.2-1`](#rfc4659-
 | `RFC4659-3.2.1.1-1` | When requesting IPv6 transport, BGP speaker SHALL advertise a Next Hop containing a VPN-IPv6 address with zero RD and global IPv6 address (Section 3.2.1.1) | SHALL | 3.2.1.1 | **positive:** `unit/verify` [`TestUpdateBuilder_BuildVPN_IPv6_NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/update_build_test.go#L646). **negative:** no negative test. **{single-polarity}:** the obligation is to EMIT a 24-octet zero-RD + global-IPv6 next-hop, which ze produces for a VPNv6 route with an IPv6 next-hop; the decode side is not RD-aware and is not a gated obligation (internal/component/bgp/message/update_build_vpn.go:246, internal/component/bgp/rib/commit.go:498) |
 | `RFC4659-3.2.1.2-1` | When requesting IPv4 transport, BGP speaker SHALL advertise a Next Hop containing a VPN-IPv6 address with zero RD and IPv4-mapped IPv6 address (Section 3.2.1.2) | SHALL | 3.2.1.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze constructs no IPv4-mapped-IPv6 next-hop for VPNv6 -- a plain IPv4 next-hop on a VPNv6 route emits a non-conformant 12-octet zero-RD+IPv4 next-hop, and no ::ffff:a.b.c.d mapping exists in the BGP path (internal/component/bgp/message/update_build_vpn.go:229; Is4In6 appears only in ISIS/OSPF) |
 | `RFC4659-8-4` | Multi-AS approach (b) with IPv4 tunneling: Next Hop Field SHALL contain an IPv4-mapped IPv6 address (Section 8) | SHALL | 8 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the same missing IPv4-mapped-IPv6 next-hop construction as RFC4659-3.2.1.2-1; ze never emits a zero-RD + ::ffff:a.b.c.d VPNv6 next-hop (internal/component/bgp/message/update_build_vpn.go:246; no IPv4-mapped VPNv6 next-hop producer) |
-| `RFC4659-3.2.1.1-2` | Remove link-local from Next Hop when advertising to internal peer not on a common subnet (Section 3.2.1.1) | SHOULD | 3.2.1.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC4659-3.2.1.1-2` | "As a consequence, a BGP speaker that advertises a route to an internal peer may modify the Network Address of Next Hop field by removing the link-local IPv6 address of the next hop" (Section 3.2.1.1) | MAY | 3.2.1.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4659-1-1` | Same single set of MP-BGP peering relationships and same PE-PE tunnel mesh MAY be used for both IPv4 and IPv6 VPNs (Section 1) | MAY | 1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4659-2-1` | Same RD MAY be used for IPv6 and IPv4 addresses from the same site (Section 2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
 | `RFC4659-2-2` | Different RD MAY be used for IPv4 and IPv6 addresses (Section 2) | MAY | 2 | **positive:** no positive test. **negative:** no negative test |
@@ -293,7 +293,53 @@ No test carries RFC4659-8-4, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 4659, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc4659.txt |
+| Source fingerprint | 675026b53c92cac3 |
+| Record | rfc/extraction/rfc4659.json |
+| Mapped sentences | 16 |
+| Declined as scope | 0 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.2` | not stated | 2 | walked | not stated |
+| `3.2.1` | not stated | 0 | walked | not stated |
+| `3.2.1.1` | not stated | 1 | walked | not stated |
+| `3.2.1.2` | not stated | 1 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `3.4` | not stated | 1 | walked | not stated |
+| `4` | not stated | 7 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 4 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `13` | not stated | 0 | walked | not stated |
+| `14` | not stated | 0 | walked | not stated |
+| `15` | not stated | 0 | walked | not stated |
+| `16` | not stated | 0 | walked | not stated |
+| `16.1` | not stated | 0 | walked | not stated |
+| `16.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+The walk over RFC 4659 declined no sentence: every site it found is mapped to a requirement.
 
 ## Superseded
 

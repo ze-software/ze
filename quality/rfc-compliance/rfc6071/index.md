@@ -22,7 +22,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| MUSTs declared | 8 | of 20 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
+| MUSTs declared | 8 | of 20 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (foundation), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 8 | of 8 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 8 of 8 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 8 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -51,7 +51,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Not enrolled (enrolled) |
+| Enrolment | Not enrolled (foundation) |
 | Requirements | 20 |
 | Gated MUST-level | 8 |
 | Not applicable, so out of scope | 8 |
@@ -68,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Not enrolled (enrolled, a disposition this page has no published meaning for): IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap: eight MUST-level requirements, all {not-applicable}. RFC 6071 is an informational roadmap that catalogs the IPsec/IKE specifications and defines no independent protocol behavior; each gated MUST restates an algorithm-implementation requirement owned by RFC 4835 (ESP/AH algorithms), RFC 4307 (IKEv2 algorithms), or RFC 4109 (IKEv1, which ze does not implement). The concrete algorithm behavior lives in ze's IKEv2 transform negotiation (internal/component/ike/crypto/transform.go) and ESP dataplane (internal/component/ike/dataplane/xfrm_linux.go), governed by those owning RFCs rather than by the roadmap.
+Not enrolled (foundation, the document defines, registers or describes, and obliges no implementer, so there is no implementation anywhere for a gate to hold): An informational roadmap over the IPsec and IKE document set. It defines no behaviour of its own.
 
 ## What the public ledger says
 
@@ -196,7 +196,216 @@ No test carries RFC6071-5.1-4, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 6071, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc6071.txt |
+| Source fingerprint | a844625658606a3d |
+| Record | rfc/extraction/rfc6071.json |
+| Mapped sentences | 6 |
+| Declined as scope | 13 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 0 | walked | not stated |
+| `2.2.1` | not stated | 2 | walked | not stated |
+| `2.3` | not stated | 0 | walked | not stated |
+| `2.3.1` | not stated | 0 | walked | not stated |
+| `2.4` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 0 | walked | not stated |
+| `3.1.1` | not stated | 0 | walked | not stated |
+| `3.1.1.1` | not stated | 0 | walked | not stated |
+| `3.1.1.2` | not stated | 0 | walked | not stated |
+| `3.1.1.3` | not stated | 0 | walked | not stated |
+| `3.1.2` | not stated | 0 | walked | not stated |
+| `3.1.2.1` | not stated | 0 | walked | not stated |
+| `3.1.2.2` | not stated | 0 | walked | not stated |
+| `3.1.2.3` | not stated | 0 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.2.1` | not stated | 0 | walked | not stated |
+| `3.2.2` | not stated | 0 | walked | not stated |
+| `3.2.3` | not stated | 0 | walked | not stated |
+| `3.2.4` | not stated | 0 | walked | not stated |
+| `3.2.5` | not stated | 0 | walked | not stated |
+| `3.2.6` | not stated | 0 | walked | not stated |
+| `3.2.7` | not stated | 0 | walked | not stated |
+| `3.2.8` | not stated | 0 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `3.3.1` | not stated | 0 | walked | not stated |
+| `3.3.2` | not stated | 0 | walked | not stated |
+| `3.3.3` | not stated | 0 | walked | not stated |
+| `3.3.4` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 0 | walked | not stated |
+| `4.1.1` | not stated | 0 | walked | not stated |
+| `4.1.1.1` | not stated | 0 | walked | not stated |
+| `4.1.1.2` | not stated | 0 | walked | not stated |
+| `4.1.1.3` | not stated | 0 | walked | not stated |
+| `4.1.1.4` | not stated | 0 | walked | not stated |
+| `4.1.2` | not stated | 0 | walked | not stated |
+| `4.1.2.1` | not stated | 0 | walked | not stated |
+| `4.1.2.2` | not stated | 0 | walked | not stated |
+| `4.1.2.3` | not stated | 0 | walked | not stated |
+| `4.2` | not stated | 0 | walked | not stated |
+| `4.2.1` | not stated | 0 | walked | not stated |
+| `4.2.1.1` | not stated | 0 | walked | not stated |
+| `4.2.1.2` | not stated | 0 | walked | not stated |
+| `4.2.1.3` | not stated | 0 | walked | not stated |
+| `4.2.1.4` | not stated | 0 | walked | not stated |
+| `4.2.2` | not stated | 0 | walked | not stated |
+| `4.2.2.1` | not stated | 0 | walked | not stated |
+| `4.2.2.2` | not stated | 0 | walked | not stated |
+| `4.2.2.3` | not stated | 0 | walked | not stated |
+| `4.2.3` | not stated | 0 | walked | not stated |
+| `4.2.3.1` | not stated | 0 | walked | not stated |
+| `4.2.4` | not stated | 0 | walked | not stated |
+| `4.2.4.1` | not stated | 0 | walked | not stated |
+| `4.2.4.2` | not stated | 0 | walked | not stated |
+| `4.2.4.3` | not stated | 0 | walked | not stated |
+| `4.2.4.4` | not stated | 0 | walked | not stated |
+| `4.2.4.5` | not stated | 0 | walked | not stated |
+| `4.2.4.6` | not stated | 0 | walked | not stated |
+| `5` | not stated | 1 | walked | not stated |
+| `5.1` | not stated | 1 | walked | not stated |
+| `5.1.1` | not stated | 0 | walked | not stated |
+| `5.1.2` | not stated | 0 | walked | not stated |
+| `5.1.3` | not stated | 0 | walked | not stated |
+| `5.2` | not stated | 0 | walked | not stated |
+| `5.2.1` | not stated | 1 | walked | not stated |
+| `5.2.2` | not stated | 1 | walked | not stated |
+| `5.2.3` | not stated | 2 | walked | not stated |
+| `5.2.4` | not stated | 1 | walked | not stated |
+| `5.2.5` | not stated | 0 | walked | not stated |
+| `5.2.6` | not stated | 1 | walked | not stated |
+| `5.2.7` | not stated | 0 | walked | not stated |
+| `5.2.8` | not stated | 0 | walked | not stated |
+| `5.3` | not stated | 0 | walked | not stated |
+| `5.3.1` | not stated | 1 | walked | not stated |
+| `5.3.2` | not stated | 0 | walked | not stated |
+| `5.3.3` | not stated | 0 | walked | not stated |
+| `5.3.4` | not stated | 0 | walked | not stated |
+| `5.3.5` | not stated | 0 | walked | not stated |
+| `5.3.6` | not stated | 0 | walked | not stated |
+| `5.3.7` | not stated | 0 | walked | not stated |
+| `5.4` | not stated | 0 | walked | not stated |
+| `5.4.1` | not stated | 2 | walked | not stated |
+| `5.4.2` | not stated | 2 | walked | not stated |
+| `5.4.3` | not stated | 0 | walked | not stated |
+| `5.4.4` | not stated | 0 | walked | not stated |
+| `5.5` | not stated | 1 | walked | not stated |
+| `5.5.1` | not stated | 0 | walked | not stated |
+| `5.5.2` | not stated | 0 | walked | not stated |
+| `5.6` | not stated | 0 | walked | not stated |
+| `5.6.1` | not stated | 0 | walked | not stated |
+| `5.6.2` | not stated | 0 | walked | not stated |
+| `5.7` | not stated | 1 | walked | not stated |
+| `5.7.1` | not stated | 0 | walked | not stated |
+| `5.7.2` | not stated | 0 | walked | not stated |
+| `5.7.3` | not stated | 0 | walked | not stated |
+| `5.7.4` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+| `6.3` | not stated | 0 | walked | not stated |
+| `6.4` | not stated | 0 | walked | not stated |
+| `6.5` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `7.1.1` | not stated | 0 | walked | not stated |
+| `7.1.2` | not stated | 0 | walked | not stated |
+| `7.2` | not stated | 0 | walked | not stated |
+| `7.2.1` | not stated | 0 | walked | not stated |
+| `7.3` | not stated | 0 | walked | not stated |
+| `7.3.1` | not stated | 0 | walked | not stated |
+| `7.4` | not stated | 0 | walked | not stated |
+| `7.4.1` | not stated | 0 | walked | not stated |
+| `7.4.2` | not stated | 0 | walked | not stated |
+| `7.4.3` | not stated | 0 | walked | not stated |
+| `7.5` | not stated | 0 | walked | not stated |
+| `7.5.1` | not stated | 0 | walked | not stated |
+| `7.5.2` | not stated | 0 | walked | not stated |
+| `7.6` | not stated | 0 | walked | not stated |
+| `7.6.1` | not stated | 0 | walked | not stated |
+| `7.6.2` | not stated | 0 | walked | not stated |
+| `7.7` | not stated | 0 | walked | not stated |
+| `7.7.1` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.1.1` | not stated | 0 | walked | not stated |
+| `8.1.2` | not stated | 0 | walked | not stated |
+| `8.1.3` | not stated | 0 | walked | not stated |
+| `8.1.4` | not stated | 0 | walked | not stated |
+| `8.1.5` | not stated | 0 | walked | not stated |
+| `8.1.6` | not stated | 0 | walked | not stated |
+| `8.1.7` | not stated | 0 | walked | not stated |
+| `8.1.8` | not stated | 0 | walked | not stated |
+| `8.2` | not stated | 0 | walked | not stated |
+| `8.2.1` | not stated | 0 | walked | not stated |
+| `8.3` | not stated | 0 | walked | not stated |
+| `8.3.1` | not stated | 0 | walked | not stated |
+| `8.3.2` | not stated | 0 | walked | not stated |
+| `8.3.3` | not stated | 0 | walked | not stated |
+| `8.3.4` | not stated | 0 | walked | not stated |
+| `8.4` | not stated | 0 | walked | not stated |
+| `8.4.1` | not stated | 0 | walked | not stated |
+| `8.5` | not stated | 0 | walked | not stated |
+| `8.5.1` | not stated | 0 | walked | not stated |
+| `8.5.2` | not stated | 0 | walked | not stated |
+| `8.5.3` | not stated | 0 | walked | not stated |
+| `8.5.4` | not stated | 0 | walked | not stated |
+| `8.5.5` | not stated | 0 | walked | not stated |
+| `8.6` | not stated | 0 | walked | not stated |
+| `8.6.1` | not stated | 0 | walked | not stated |
+| `8.7` | not stated | 0 | walked | not stated |
+| `8.7.1` | not stated | 0 | walked | not stated |
+| `8.7.2` | not stated | 0 | walked | not stated |
+| `8.8` | not stated | 0 | walked | not stated |
+| `8.8.1` | not stated | 0 | walked | not stated |
+| `8.9` | not stated | 0 | walked | not stated |
+| `8.9.1` | not stated | 0 | walked | not stated |
+| `8.10` | not stated | 0 | walked | not stated |
+| `8.10.1` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.1.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+| `9.2.1` | not stated | 0 | walked | not stated |
+| `9.3` | not stated | 0 | walked | not stated |
+| `9.3.1` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `12.1` | not stated | 0 | walked | not stated |
+| `A` | not stated | 2 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `2.2.1:1` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | RFC 6071 is a roadmap document. The bullet reports what the IPsec architecture documents require of AH: the "(MUST)" belongs to IPsec-v2 (RFC 2401 with RFC 4302), which this bullet cites, and the "(MAY)" to IPsec-v3 (RFC 4301). RFC 6071 states no obligation of its own here. | o AH [RFC4302] is mandatory to implement (MUST) in IPsec-v2, optional (MAY) in IPsec-v3 |
+| `2.2.1:2` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | A bullet in the IPsec-v2 to IPsec-v3 difference list, restating what RFC 2406 and RFC 4303 require of ESP NULL authentication. Section 1 states the roadmap's own standing: "This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs." | o NULL authentication, mandatory (MUST) in ESP-v2, is optional (MAY) in ESP-v3 |
+| `5:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | A description of the vocabulary this roadmap uses to print requirement levels. The keywords name the classification terms, not an obligation on an implementation. | For each RFC that describes a cryptographic algorithm, this roadmap will classify its requirement level for each protocol, as either MUST, SHOULD, or MAY [RFC2119]; SHOULD+, SHOULD-, or MUST- [RFC4835]; optional; undefined; or N/A (not applicable). |
+| `5.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | A description of another system: it says that RFC 4835 and RFC 4307 each classify algorithms as MUST, SHOULD, MAY and SHOULD NOT. The keywords name those documents' vocabulary. | IPsec-v3 and IKEv2 each have an RFC that specifies their mandatory- to-implement (MUST), recommended (SHOULD), optional (MAY), and deprecated (SHOULD NOT) algorithms. |
+| `5.2.3:1` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The AES-CBC key-size obligation belongs to RFC 3602, the document Section 5.2.3 catalogues. Section 1: "This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs." | If AES-CBC is implemented, 128-bit keys are MUST; the other sizes are MAY. |
+| `5.2.4:1` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The AES-CTR key-size obligation belongs to RFC 3686, the document Section 5.2.4 catalogues. Section 1: "This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs." | If AES-CTR is implemented, 128-bit keys are MUST; 192- and 256-byte keys are MAY. |
+| `5.2.6:1` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The Camellia-CBC key-size obligation belongs to RFC 4312, the document Section 5.2.6 catalogues. Section 1: "This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs." | If Camellia-CBC is implemented, 128-bit keys are MUST; the other sizes are MAY. |
+| `5.4.1:1` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The AES-CCM key-size obligation belongs to RFC 4309, the document Section 5.4.1 catalogues. Section 1: "This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs." | If AES-CCM is implemented, 128-bit keys are MUST; the other sizes are MAY. |
+| `5.4.1:2` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The AES-CCM ICV-size obligation belongs to RFC 4309, the document Section 5.4.1 catalogues. Section 1: "This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs." | ICV sizes of 64 and 128 bits are MUST; 96 bits is MAY. |
+| `5.4.2:1` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The AES-GCM key-size obligation belongs to RFC 4106, the document Section 5.4.2 catalogues. Section 1: "This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs." | If AES-GCM is implemented, 128-bit keys are MUST; the other sizes are MAY. |
+| `5.4.2:2` | `cross-document` (never bound Ze): the obligation belongs to another document that this one only cites | The AES-GCM ICV-size obligation belongs to RFC 4106, the document Section 5.4.2 catalogues. Section 1: "This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs." | An ICV size of 128 bits is a MUST; 64 and 96 bits are MAY. |
+| `A:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Appendix A is a reference table that reprints the requirement levels Section 5 already catalogues. Section 1: "This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs." | +--------------------------+----------------------------------------+ \| ALGORITHM \| REQUIREMENT LEVEL \| \| \| IKEv1 IKEv2 IPsec-v2 IPsec-v3 \| +--------------------------+----------------------------------------+ \|Encryption Algorithms: \| \|--------------------- \| \| ESP-NULL \| N/A N/A MUST MUST \| \| \| \| \| 3DES-CBC \| MUST MUST- MUST MUST- \| \| \| \| \| Blowfish/CAST/IDEA/RC5 \| optional optional optional optional \| \| \| \| \| AES-CBC 128-bit key \| SHOULD SHOULD+ MUST MUST \| \| \| \| \| AES-CBC 192/256-bit key \| optional optional optional optional \| \| \| \| \| AES-CTR \| undefined optional SHOULD SHOULD \| \| \| \| \| Camellia-CBC \| optional optional optional optional \| \| \| \| \| Camellia-CTR \| undefined undefined undefined optional \| \| \| \| \| SEED-CBC \| undefined undefined optional undefined\| \| \| \| \|Integrity-Protection Algorithms: \| \|------------------------------ \| \| HMAC-SHA-1 \| MUST MUST MUST MUST \| \| \| \| \| AES-XCBC-MAC \| undefined optional SHOULD+ SHOULD+ \| \| \| \| \| HMAC-SHA-256/384/512 \| optional optional optional optional \| \| \| \| \| AES-GMAC \| N/A N/A undefined optional \| \| \| \| \| HMAC-MD5 \| MAY optional MAY MAY \| \| \| \| \| AES-CMAC \| undefined optional undefined optional \| \| \| \| \| HMAC-RIPEMD \| undefined undefined optional undefined\| +--------------------------+----------------------------------------+ Table 1: Algorithm Requirement Levels (continued) |
+| `A:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Appendix A is a reference table that reprints the requirement levels Section 5 already catalogues. Section 1: "This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs." | +--------------------------+----------------------------------------+ \| ALGORITHM \| REQUIREMENT LEVEL \| \| \| IKEv1 IKEv2 IPsec-v2 IPsec-v3 \| +--------------------------+----------------------------------------+ \|Combined Mode Algorithms: \| \|------------------------ \| \| AES-CCM \| N/A optional N/A optional \| \| \| \| \| AES-GCM \| N/A optional N/A optional \| \| \| \| \| AES-GMAC \| N/A N/A undefined optional \| \| \| \| \| Camellia-CCM \| N/A undefined N/A optional \| \| \| \| \|Pseudorandom Functions: \| \|----------------------- \| \| PRF-HMAC-SHA1 \| MUST MUST \| \| \| \| \| PRF-HMAC-SHA-256/384/512 \| optional optional \| \| \| \| \| AES-XCBC-PRF \| undefined SHOULD+ \| \| \| \| \| AES-CMAC-PRF \| undefined optional \| \| \| \| \|Diffie-Hellman Algorithms: \| \|------------------------- \| \| DH MODP grp 1 \| MAY optional \| \| \| \| \| DH MODP grp 2 \| MUST MUST- \| \| \| \| \| DH MODP grp 5 \| optional optional \| \| \| \| \| DH MODP grp 14 \| SHOULD SHOULD+ \| \| \| \| \| DH MODP grp 15-18 \| optional optional \| \| \| \| \| DH MODP grp 22-24 \| optional optional \| \| \| \| \| DH EC grp 3-4 \| MAY undefined \| \| \| \| \| DH EC grp 19-21 \| optional optional \| \| \| \| \| DH EC grp 25-26 \| optional optional \| +--------------------------+----------------------------------------+ Authors' Addresses |
 
 ## Superseded
 

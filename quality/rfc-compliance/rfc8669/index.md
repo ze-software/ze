@@ -429,7 +429,53 @@ Audit verdict: not audited: no reader has judged these tests
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 8669, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc8669.txt |
+| Source fingerprint | bf04f41e726679f9 |
+| Record | rfc/extraction/rfc8669.json |
+| Mapped sentences | 23 |
+| Declined as scope | 8 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 1 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 3 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `3.1` | not stated | 4 | walked | not stated |
+| `3.2` | not stated | 4 | walked | not stated |
+| `4` | not stated | 1 | walked | not stated |
+| `4.1` | not stated | 9 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 2 | walked | not stated |
+| `6` | not stated | 4 | walked | not stated |
+| `7` | not stated | 1 | walked | not stated |
+| `8` | not stated | 1 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `10.1` | not stated | 0 | walked | not stated |
+| `10.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF Trust boilerplate on the Simplified BSD License for extracted Code Components; it binds republication of the document, not any protocol behaviour. | Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License. |
+| `2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Overview prose in Section 2: 'if traffic engineering ... is required' and 'may also be required' are lowercase and describe what an SR domain deployment needs, not an obligation on a BGP speaker. | If traffic engineering within the SR domain is required, each node may also be required to advertise topological information and Peer SIDs for each of its links and peers. |
+| `2:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Overview prose: 'This information is required to perform the explicit path computation' is lowercase and describes why the information exists. | This information is required to perform the explicit path computation and to express an explicit path as a list of SIDs. |
+| `2:3` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Overview prose: 'knowledge of the prefix originator's SRGB is required in order to compute the local label' is lowercase and motivates the Originator SRGB TLV. | If a prefix segment is to be included in an MPLS label stack, e.g., for traffic-engineering purposes, knowledge of the prefix originator's SRGB is required in order to compute the local label used by the originator. |
+| `3.2:4` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | 'Since the Label-Index TLV is required for IPv4/IPv6 prefix applicability' is lowercase and restates RFC8669-3.1-1; the rest of the sentence states the consequence that Section 6 error handling (RFC8669-6-1) already carries. | Since the Label-Index TLV is required for IPv4/IPv6 prefix applicability, the Originator SRGB TLV will be ignored if it is not specified in a manner consistent with Section 6. |
+| `4.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | 'A BGP session supporting the Multiprotocol BGP Labeled IPv4 or IPv6 Unicast AFI/SAFI is required' is lowercase and states the deployment precondition for the section, not a behaviour a speaker performs. | A BGP session supporting the Multiprotocol BGP Labeled IPv4 or IPv6 Unicast ([RFC8277]) AFI/SAFI is required. |
+| `6:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 6 repeats the Section 3 sentence word for word: 'For future extensibility, unknown TLVs MUST be ignored and propagated unmodified.' Site 3:1 is the source and RFC8669-3-1 already cites both sections. | For future extensibility, unknown TLVs MUST be ignored and propagated unmodified. |
+| `7:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IANA Considerations: 'The designated experts must be good and faithful stewards' is lowercase and addresses the registry's designated experts about how they review requests, not a BGP speaker. | The designated experts must be good and faithful stewards of the above registries, ensuring that each request is legitimate and corresponds to a viable use case. |
 
 ## Superseded
 

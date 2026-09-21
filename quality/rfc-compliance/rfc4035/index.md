@@ -1272,7 +1272,124 @@ No test carries RFC4035-5.5-3, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 4035, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc4035.txt |
+| Source fingerprint | a47565ed03b850dd |
+| Record | rfc/extraction/rfc4035.json |
+| Mapped sentences | 97 |
+| Declined as scope | 15 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `1.2` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 3 | walked | not stated |
+| `2.2` | not stated | 6 | walked | not stated |
+| `2.3` | not stated | 5 | walked | not stated |
+| `2.4` | not stated | 1 | walked | not stated |
+| `2.5` | not stated | 2 | walked | not stated |
+| `2.6` | not stated | 1 | walked | not stated |
+| `2.7` | not stated | 0 | walked | not stated |
+| `3` | not stated | 4 | walked | not stated |
+| `3.1` | not stated | 3 | walked | not stated |
+| `3.1.1` | not stated | 6 | walked | not stated |
+| `3.1.2` | not stated | 1 | walked | not stated |
+| `3.1.3` | not stated | 1 | walked | not stated |
+| `3.1.3.1` | not stated | 2 | walked | not stated |
+| `3.1.3.2` | not stated | 2 | walked | not stated |
+| `3.1.3.3` | not stated | 2 | walked | not stated |
+| `3.1.3.4` | not stated | 2 | walked | not stated |
+| `3.1.3.5` | not stated | 0 | walked | not stated |
+| `3.1.4` | not stated | 4 | walked | not stated |
+| `3.1.4.1` | not stated | 1 | walked | not stated |
+| `3.1.5` | not stated | 6 | walked | not stated |
+| `3.1.6` | not stated | 3 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.2.1` | not stated | 2 | walked | not stated |
+| `3.2.2` | not stated | 3 | walked | not stated |
+| `3.2.3` | not stated | 2 | walked | not stated |
+| `3.3` | not stated | 0 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 3 | walked | not stated |
+| `4.2` | not stated | 5 | walked | not stated |
+| `4.3` | not stated | 2 | walked | not stated |
+| `4.4` | not stated | 1 | walked | not stated |
+| `4.5` | not stated | 0 | walked | not stated |
+| `4.6` | not stated | 2 | walked | not stated |
+| `4.7` | not stated | 3 | walked | not stated |
+| `4.8` | not stated | 2 | walked | not stated |
+| `4.9` | not stated | 1 | walked | not stated |
+| `4.9.1` | not stated | 2 | walked | not stated |
+| `4.9.2` | not stated | 0 | walked | not stated |
+| `4.9.3` | not stated | 1 | walked | not stated |
+| `5` | not stated | 2 | walked | not stated |
+| `5.1` | not stated | 0 | walked | not stated |
+| `5.2` | not stated | 2 | walked | not stated |
+| `5.3` | not stated | 0 | walked | not stated |
+| `5.3.1` | not stated | 9 | walked | not stated |
+| `5.3.2` | not stated | 3 | walked | not stated |
+| `5.3.3` | not stated | 2 | walked | not stated |
+| `5.3.4` | not stated | 1 | walked | not stated |
+| `5.4` | not stated | 5 | walked | not stated |
+| `5.5` | not stated | 2 | walked | not stated |
+| `5.6` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+| `A` | not stated | 0 | walked | not stated |
+| `B` | not stated | 0 | walked | not stated |
+| `B.1` | not stated | 0 | walked | not stated |
+| `B.2` | not stated | 0 | walked | not stated |
+| `B.3` | not stated | 0 | walked | not stated |
+| `B.4` | not stated | 0 | walked | not stated |
+| `B.5` | not stated | 0 | walked | not stated |
+| `B.6` | not stated | 0 | walked | not stated |
+| `B.7` | not stated | 0 | walked | not stated |
+| `B.8` | not stated | 0 | walked | not stated |
+| `C` | not stated | 0 | walked | not stated |
+| `C.1` | not stated | 0 | walked | not stated |
+| `C.1.1` | not stated | 0 | walked | not stated |
+| `C.2` | not stated | 0 | walked | not stated |
+| `C.3` | not stated | 0 | walked | not stated |
+| `C.4` | not stated | 0 | walked | not stated |
+| `C.5` | not stated | 0 | walked | not stated |
+| `C.6` | not stated | 1 | walked | not stated |
+| `C.7` | not stated | 0 | walked | not stated |
+| `C.8` | not stated | 1 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `3.1:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the lead-in sentence to the three bullets that follow; site 3.1:2 maps the first two bullets and site 3.1:3 the third | Upon receiving a relevant query that has the EDNS ([RFC2671]) OPT pseudo-RR DO bit ([RFC3225]) set, a security-aware authoritative name server for a signed zone MUST include additional RRSIG, NSEC, and DS RRs, according to the following rules: |
+| `3.1.1:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the Authority-section repeat of the sentence already stated for the Answer section; site 3.1.1:2 maps it | If space does not permit inclusion of these RRSIG RRs, the name server MUST set the TC bit. |
+| `3.1.3.1:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the same 'if space does not permit ... MUST set the TC bit' rule section 3.1.1 states and this site cites back to it; site 3.1.1:2 maps it | If space does not permit inclusion of the NSEC RR or its associated RRSIG RR(s), the name server MUST set the TC bit (see Section 3.1.1). |
+| `3.1.3.2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the same 'if space does not permit ... MUST set the TC bit' rule section 3.1.1 states and this site cites back to it; site 3.1.1:2 maps it | If space does not permit inclusion of these NSEC and RRSIG RRs, the name server MUST set the TC bit (see Section 3.1.1). |
+| `3.1.3.3:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the same 'if space does not permit ... MUST set the TC bit' rule section 3.1.1 states and this site cites back to it; site 3.1.1:2 maps it | If space does not permit inclusion of the answer, NSEC and RRSIG RRs, the name server MUST set the TC bit (see Section 3.1.1). |
+| `3.1.3.4:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the same 'if space does not permit ... MUST set the TC bit' rule section 3.1.1 states and this site cites back to it; site 3.1.1:2 maps it | If space does not permit inclusion of these NSEC and RRSIG RRs, the name server MUST set the TC bit (see Section 3.1.1). |
+| `3.1.4:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the same 'if space does not permit ... MUST set the TC bit' rule section 3.1.1 states and this site cites back to it; site 3.1.1:2 maps it | If space does not permit inclusion of the DS or NSEC RRset and associated RRSIG RRs, the name server MUST set the TC bit (see Section 3.1.1). |
+| `3.1.5:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | a statement that no obligation exists ('is not required to verify that a zone is properly signed'), not an obligation; the permission it grants is carried by RFC4035-3.1.5-1 | An authoritative name server is not required to verify that a zone is properly signed before sending or accepting a zone transfer. |
+| `3.2.2:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | section 3 already binds every security-aware name server to copy the CD bit from a query into the corresponding response; site 3:3 maps it | The name server side MUST copy the setting of the CD bit from a query to the corresponding response. |
+| `3.2.3:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the same AD-bit prohibition section 3.1.6 states for a security-aware name server, narrowed here to the name server side of a recursive server; site 3.1.6:1 maps it | The name server side of a security-aware recursive name server MUST NOT set the AD bit in a response unless the name server considers all RRsets in the Answer and Authority sections of the response to be authentic. |
+| `4.3:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the lowercase restatement of the preceding sentence, naming the four cases the resolver must distinguish; site 4.3:1 maps it | More precisely, a security-aware resolver must be able to distinguish between four cases: |
+| `5.3.4:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | a lowercase forward reference to the authenticated-denial procedure section 5.4 states with a keyword; site 5.4:1 maps it | Once the validator has verified the signature, as described in Section 5.3, it must take additional steps to verify the non- existence of an exact match or closer wildcard match for the query. |
+| `5.4:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | the lowercase restatement of what the section 5.4 denial-of-existence proof consists of; site 5.4:1 maps it | To prove the non-existence of an RRset, the resolver must be able to verify both that the queried RRset does not exist and that no relevant wildcard RRset exists. |
+| `C.6:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Appendix C.6 is a worked authentication example, and this lowercase sentence restates the section 5.4 obligation to authenticate the NSEC RR; site 5.4:1 maps it | The NSEC proves that no closer match (exact or closer wildcard) could have been used to answer this query, and the NSEC RR must also be authenticated before the answer is considered valid. |
+| `C.8:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF intellectual property boilerplate inviting parties to disclose patent rights, not a protocol obligation on an implementation | The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard. |
 
 ## Superseded
 

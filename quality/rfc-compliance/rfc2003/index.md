@@ -22,7 +22,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| MUSTs declared | 13 | of 36 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
+| MUSTs declared | 13 | of 37 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (third-party), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 13 | of 13 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 13 of 13 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 13 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -51,8 +51,8 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Not enrolled (enrolled) |
-| Requirements | 36 |
+| Enrolment | Not enrolled (third-party) |
+| Requirements | 37 |
 | Gated MUST-level | 13 |
 | Not applicable, so out of scope | 13 |
 | Declared gaps | 0 |
@@ -68,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Not enrolled (enrolled, a disposition this page has no published meaning for): IP Encapsulation within IP (IP-in-IP, protocol 4): thirteen MUST-level requirements, all {not-applicable}. ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go setting IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go). The kernel ipip module and the VPP dataplane own the outer-header construction (Don't-Fragment copy, TTL-zero encap guard), decapsulation (inner-TTL-zero discard), source-address loop prevention, the ICMP relay/suppression rules, the Time-Exceeded-to-Host-Unreachable mapping, and path-MTU soft state. This is the same delegation rationale as the enrolled RFC 2784 and RFC 2890 (GRE).
+Not enrolled (third-party, a layer under or beside Ze performs the document and Ze holds no Go code for it, so the reason beside this kind names the component that does): The Linux ipip module builds and parses every outer header. Ze only builds the netlink link descriptor, internal/plugins/iface/netlink/tunnel_linux.go::buildIptun.
 
 ## What the public ledger says
 
@@ -128,6 +128,7 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | `RFC2003-4.3-2` | The encapsulator MAY handle ICMP Redirect messages itself (§4.3) | MAY | 4.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2003-4.5-2` | The encapsulator MAY relay ICMP Parameter Problem to the original sender if it points to a field from the inner datagram (§4.5) | MAY | 4.5 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2003-5.1-4` | The encapsulator MAY keep a copy of the sent datagram to allow fragmentation and resend on Datagram Too Big (§5.1) | MAY | 5.1 | **positive:** no positive test. **negative:** no negative test |
+| `RFC2003-5.1-5` | The encapsulator MAY be configured for certain types of datagrams not to set the "Don't Fragment" bit when the original sender of the unencapsulated datagram has not set it (§5.1) | MAY | 5.1 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -257,7 +258,47 @@ No test carries RFC2003-5.1-1, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 2003, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc2003.txt |
+| Source fingerprint | 89b0add22ddc2311 |
+| Record | rfc/extraction/rfc2003.json |
+| Mapped sentences | 13 |
+| Declined as scope | 0 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 3 | walked | not stated |
+| `3.2` | not stated | 2 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 4 | walked | not stated |
+| `4.2` | not stated | 0 | walked | not stated |
+| `4.3` | not stated | 1 | walked | not stated |
+| `4.4` | not stated | 1 | walked | not stated |
+| `4.5` | not stated | 1 | walked | not stated |
+| `4.6` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 1 | walked | not stated |
+| `5.2` | not stated | 0 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 0 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+The walk over RFC 2003 declined no sentence: every site it found is mapped to a requirement.
 
 ## Superseded
 

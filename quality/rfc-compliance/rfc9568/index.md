@@ -835,7 +835,123 @@ No test carries RFC9568-8.4.2-3, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 9568, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc9568.txt |
+| Source fingerprint | 98495f2abdfc1a49 |
+| Record | rfc/extraction/rfc9568.json |
+| Mapped sentences | 46 |
+| Declined as scope | 17 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 2 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `1.2` | not stated | 0 | walked | not stated |
+| `1.3` | not stated | 0 | walked | not stated |
+| `1.4` | not stated | 0 | walked | not stated |
+| `1.5` | not stated | 0 | walked | not stated |
+| `1.6` | not stated | 0 | walked | not stated |
+| `1.7` | not stated | 0 | walked | not stated |
+| `2` | not stated | 1 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 0 | walked | not stated |
+| `2.3` | not stated | 0 | walked | not stated |
+| `2.4` | not stated | 0 | walked | not stated |
+| `2.5` | not stated | 0 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 1 | walked | not stated |
+| `4.2` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 0 | walked | not stated |
+| `5.1.1` | not stated | 0 | walked | not stated |
+| `5.1.1.1` | not stated | 0 | walked | not stated |
+| `5.1.1.2` | not stated | 1 | walked | not stated |
+| `5.1.1.3` | not stated | 2 | walked | not stated |
+| `5.1.1.4` | not stated | 0 | walked | not stated |
+| `5.1.2` | not stated | 0 | walked | not stated |
+| `5.1.2.1` | not stated | 0 | walked | not stated |
+| `5.1.2.2` | not stated | 1 | walked | not stated |
+| `5.1.2.3` | not stated | 2 | walked | not stated |
+| `5.1.2.4` | not stated | 0 | walked | not stated |
+| `5.2` | not stated | 0 | walked | not stated |
+| `5.2.1` | not stated | 0 | walked | not stated |
+| `5.2.2` | not stated | 1 | walked | not stated |
+| `5.2.3` | not stated | 0 | walked | not stated |
+| `5.2.4` | not stated | 2 | walked | not stated |
+| `5.2.5` | not stated | 1 | walked | not stated |
+| `5.2.6` | not stated | 1 | walked | not stated |
+| `5.2.7` | not stated | 0 | walked | not stated |
+| `5.2.8` | not stated | 0 | walked | not stated |
+| `5.2.9` | not stated | 2 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 2 | walked | not stated |
+| `6.2` | not stated | 0 | walked | not stated |
+| `6.3` | not stated | 0 | walked | not stated |
+| `6.4` | not stated | 0 | walked | not stated |
+| `6.4.1` | not stated | 0 | walked | not stated |
+| `6.4.2` | not stated | 6 | walked | not stated |
+| `6.4.3` | not stated | 9 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 9 | walked | not stated |
+| `7.2` | not stated | 1 | walked | not stated |
+| `7.3` | not stated | 0 | walked | not stated |
+| `7.4` | not stated | 1 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `8.1` | not stated | 0 | walked | not stated |
+| `8.1.1` | not stated | 1 | walked | not stated |
+| `8.1.2` | not stated | 4 | walked | not stated |
+| `8.1.3` | not stated | 1 | walked | not stated |
+| `8.2` | not stated | 0 | walked | not stated |
+| `8.2.1` | not stated | 0 | walked | not stated |
+| `8.2.2` | not stated | 5 | walked | not stated |
+| `8.2.3` | not stated | 1 | walked | not stated |
+| `8.2.4` | not stated | 1 | walked | not stated |
+| `8.3` | not stated | 0 | walked | not stated |
+| `8.3.1` | not stated | 0 | walked | not stated |
+| `8.3.2` | not stated | 0 | walked | not stated |
+| `8.4` | not stated | 0 | walked | not stated |
+| `8.4.1` | not stated | 0 | walked | not stated |
+| `8.4.2` | not stated | 3 | walked | not stated |
+| `8.4.2.1` | not stated | 0 | walked | not stated |
+| `8.4.2.1.1` | not stated | 0 | walked | not stated |
+| `8.4.2.1.2` | not stated | 0 | walked | not stated |
+| `9` | not stated | 1 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `11.1` | not stated | 0 | walked | not stated |
+| `11.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `front:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | IETF Trust boilerplate on the Revised BSD License for extracted Code Components; it states no protocol obligation. | Code Components extracted from this document must include Revised BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Revised BSD License. |
+| `front:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Table of contents entry for Section 2.1 ("Required Features"); a heading, not a sentence. | Required Features 2.1. |
+| `2:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Section heading ("Required Features"); a heading, not a sentence. | Required Features |
+| `3:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Deployment coordination statement with a lowercase "must", not the RFC 2119 keyword: it describes what operators arrange across a LAN, and no VRRP Router behavior follows from it. | The mapping between the VRID and its IPvX address(es) must be coordinated among all VRRP Routers on a LAN. |
+| `4.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Worked example prose explaining Figure 3 with a lowercase "must"; it states what the example's configuration contains, not an obligation on an implementation. | In order to back up IPvX B, a second Virtual Router must be configured. |
+| `6.1:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the Section 5.2.9 obligation that the first advertised address is the Virtual Router's IPv6 link-local address; RFC9568-5.2.9-1 already carries it and cites both sections. | The first address MUST be the Link-Local address associated with the Virtual Router. |
+| `6.4.2:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Lead-in to the bulleted {Backup} state list; the obligations it introduces are sites 6.4.2:2 to 6.4.2:6 and rows RFC9568-6.4.2-1 through RFC9568-6.4.2-10. | While in the {Backup} state, a VRRP Router MUST do the following: |
+| `6.4.3:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Lead-in to the bulleted {Active} state list; the obligations it introduces are sites 6.4.3:2 to 6.4.3:9 and rows RFC9568-6.4.3-1 through RFC9568-6.4.3-12. | While in the {Active} state, a VRRP Router MUST do the following: |
+| `6.4.3:6` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the Section 6.1 obligation not to drop IPv6 Neighbor Solicitations and Advertisements; RFC9568-6.1-1 already carries it and cites both sections. | o It MUST NOT drop IPv6 Neighbor Solicitations and Neighbor Advertisements. |
+| `7.1:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Lead-in to the receive-check list (lowercase "must"); the checks are sites 7.1:2 to 7.1:9. | The following functions must be performed when a VRRP packet is received: |
+| `7.1:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the Section 5.1.1.3 TTL-255 receive check; RFC9568-5.1.1.3-2 already carries it and cites both sections. | - It MUST verify that the IPv4 TTL is 255. |
+| `7.1:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the Section 5.1.2.3 Hop-Limit-255 receive check; RFC9568-5.1.2.3-2 already carries it and cites both sections. | - It MUST verify that the IPv6 Hop Limit is 255. |
+| `8.1.1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Descriptive prose with a lowercase "must" about how an Active Router picks an ICMP redirect source address; the normative redirect guidance is the SHOULD at Section 8.2.1 (RFC9568-8.2.1-1). | If a VRRP Router is acting as the Active Router for Virtual Router(s) containing address(es) it does not own, then it must determine to which Virtual Router the packet was sent when selecting the redirect source address. |
+| `8.1.2:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the Section 6.4.3 Active-state obligation to answer ARP for a virtual IPv4 address with the Virtual Router MAC; RFC9568-6.4.3-1 already carries it and cites both sections. | When a host sends an ARP request for one of the Virtual Router IPv4 addresses, the Active Router MUST respond to the ARP request with an ARP response that indicates the Virtual Router MAC address for the Virtual Router. |
+| `8.2.2:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the Section 6.4.3 Active-state obligation to answer a Neighbor Solicitation for a virtual IPv6 address with the Virtual Router MAC; RFC9568-6.4.3-3 already carries it and cites both sections. | When a host sends an ND Neighbor Solicitation message for a Virtual Router IPv6 address, the Active Router MUST respond to the ND Neighbor Solicitation message with the Virtual Router MAC address for the Virtual Router. |
+| `8.2.4:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Descriptive prose with a lowercase "may" noting that extra configuration can be needed; the normative statement is the SHOULD at RFC9568-8.2.4-1. | Additional configuration may be required in order for Unsolicited Neighbor Advertisements to update the corresponding neighbor cache. |
+| `9:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Statement that confidentiality is NOT needed, with a lowercase "must"; it removes an obligation rather than stating one. | Confidentiality is not necessary for the correct operation of VRRP, and there is no information in the VRRP messages that must be kept secret from other nodes on the LAN. |
 
 ## Superseded
 

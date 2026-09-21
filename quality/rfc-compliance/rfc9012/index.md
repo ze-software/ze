@@ -927,7 +927,99 @@ No test carries RFC9012-15-1, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 9012, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc9012.txt |
+| Source fingerprint | 0d9a9771610007d7 |
+| Record | rfc/extraction/rfc9012.json |
+| Mapped sentences | 69 |
+| Declined as scope | 7 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `1.2` | not stated | 0 | walked | not stated |
+| `1.3` | not stated | 0 | walked | not stated |
+| `1.4` | not stated | 0 | walked | not stated |
+| `1.5` | not stated | 0 | walked | not stated |
+| `1.6` | not stated | 0 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `3` | not stated | 0 | walked | not stated |
+| `3.1` | not stated | 5 | walked | not stated |
+| `3.1.1` | not stated | 1 | walked | not stated |
+| `3.2` | not stated | 0 | walked | not stated |
+| `3.2.1` | not stated | 6 | walked | not stated |
+| `3.2.2` | not stated | 6 | walked | not stated |
+| `3.2.3` | not stated | 0 | walked | not stated |
+| `3.2.4` | not stated | 1 | walked | not stated |
+| `3.2.5` | not stated | 1 | walked | not stated |
+| `3.3` | not stated | 1 | walked | not stated |
+| `3.3.1` | not stated | 0 | walked | not stated |
+| `3.3.2` | not stated | 1 | walked | not stated |
+| `3.4` | not stated | 0 | walked | not stated |
+| `3.4.1` | not stated | 3 | walked | not stated |
+| `3.4.2` | not stated | 1 | walked | not stated |
+| `3.5` | not stated | 4 | walked | not stated |
+| `3.6` | not stated | 8 | walked | not stated |
+| `3.7` | not stated | 3 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `4.1` | not stated | 3 | walked | not stated |
+| `4.2` | not stated | 1 | walked | not stated |
+| `4.3` | not stated | 1 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `6` | not stated | 1 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 1 | walked | not stated |
+| `7.2` | not stated | 0 | walked | not stated |
+| `8` | not stated | 2 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `9.1` | not stated | 0 | walked | not stated |
+| `9.2` | not stated | 0 | walked | not stated |
+| `9.2.1` | not stated | 0 | walked | not stated |
+| `9.2.2` | not stated | 0 | walked | not stated |
+| `9.2.2.1` | not stated | 0 | walked | not stated |
+| `9.2.2.2` | not stated | 0 | walked | not stated |
+| `10` | not stated | 1 | walked | not stated |
+| `11` | not stated | 8 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `13` | not stated | 16 | walked | not stated |
+| `14` | not stated | 0 | walked | not stated |
+| `14.1` | not stated | 0 | walked | not stated |
+| `14.2` | not stated | 0 | walked | not stated |
+| `14.3` | not stated | 0 | walked | not stated |
+| `14.4` | not stated | 0 | walked | not stated |
+| `14.5` | not stated | 0 | walked | not stated |
+| `14.6` | not stated | 0 | walked | not stated |
+| `14.7` | not stated | 0 | walked | not stated |
+| `14.8` | not stated | 0 | walked | not stated |
+| `14.9` | not stated | 0 | walked | not stated |
+| `14.10` | not stated | 0 | walked | not stated |
+| `15` | not stated | 1 | walked | not stated |
+| `16` | not stated | 0 | walked | not stated |
+| `16.1` | not stated | 0 | walked | not stated |
+| `16.2` | not stated | 0 | walked | not stated |
+| `A` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `3.2.2:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 3.2.2 (NVGRE Encapsulation sub-TLV) repeats Section 3.2.1's flag and field rules word for word; the mapped row states the obligation for both sub-TLVs and cites both sections. | They MUST always be set to 0 by the originator of the sub-TLV. |
+| `3.2.2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 3.2.2 (NVGRE Encapsulation sub-TLV) repeats Section 3.2.1's flag and field rules word for word; the mapped row states the obligation for both sub-TLVs and cites both sections. | Intermediate routers MUST propagate them without modification. |
+| `3.2.2:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 3.2.2 (NVGRE Encapsulation sub-TLV) repeats Section 3.2.1's flag and field rules word for word; the mapped row states the obligation for both sub-TLVs and cites both sections. | Any receiving routers MUST ignore these bits upon receipt. |
+| `3.2.2:4` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 3.2.2 (NVGRE Encapsulation sub-TLV) repeats Section 3.2.1's flag and field rules word for word; the mapped row states the obligation for both sub-TLVs and cites both sections. | If the V bit is set to 0, the VN-ID field MUST be set to zero on transmission and disregarded on receipt. |
+| `3.2.2:5` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 3.2.2 (NVGRE Encapsulation sub-TLV) repeats Section 3.2.1's flag and field rules word for word; the mapped row states the obligation for both sub-TLVs and cites both sections. | If the M bit is set to 0, this field MUST be set to all zeroes on transmission and disregarded on receipt. |
+| `3.2.2:6` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 3.2.2 (NVGRE Encapsulation sub-TLV) repeats Section 3.2.1's flag and field rules word for word; the mapped row states the obligation for both sub-TLVs and cites both sections. | Reserved: MUST be set to zero on transmission and disregarded on receipt. |
+| `3.2.5:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 3.2.5 repeats Section 3.2.4's rule for the MPLS-in-GRE Encapsulation sub-TLV; the mapped row states the obligation for both sub-TLVs and cites both sections. | Unless a key value is being advertised, the MPLS-in-GRE Encapsulation sub-TLV MUST NOT be present. |
 
 ## Superseded
 

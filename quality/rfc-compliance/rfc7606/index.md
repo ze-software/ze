@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 86.5% | 45 of 52 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 9.6% | 5 of 52 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 52 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 84.9% | 45 of 53 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 9.4% | 5 of 53 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 53 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 3.1% | 6 of 195 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 52 | of 56 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 1 | of 52 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 1.9% | 1 of 52 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 52 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 52 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 53 | of 57 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 1 | of 53 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 1.9% | 1 of 53 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 53 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 53 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,10 +33,10 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 1.9% | 1 of 52 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Audit verdicts | 52 | of 52 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| No test at all | 3.8% | 2 of 53 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| Audit verdicts | 52 | of 53 gated MUSTs judged | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
-The 7 shares marked as a part above are the whole of the 52 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 53 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -60,11 +60,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 56 |
-| Gated MUST-level | 52 |
+| Requirements | 57 |
+| Gated MUST-level | 53 |
 | Not applicable, so out of scope | 1 |
 | Declared gaps | 1 |
-| Gated with no test | 0 |
+| Gated with no test | 1 |
 | Nightly-only evidence | 0 |
 | Test tags | 197 |
 | Tagged units | 195 |
@@ -101,14 +101,16 @@ One MUST-level gap, annotated in [`rfc/short/rfc7606.md`](https://github.com/ze-
 | Positive and negative tests | 45 | one part of the gated population |
 | Annotated instead of tested | 7 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 1 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **52** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **53** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (45):** [`RFC7606-2-1`](#rfc7606-2-1), [`RFC7606-2-2`](#rfc7606-2-2), [`RFC7606-2-3`](#rfc7606-2-3), [`RFC7606-3.b-1`](#rfc7606-3.b-1), [`RFC7606-3.c-1`](#rfc7606-3.c-1), [`RFC7606-3.d-1`](#rfc7606-3.d-1), [`RFC7606-3.e-1`](#rfc7606-3.e-1), [`RFC7606-3.f-1`](#rfc7606-3.f-1), [`RFC7606-3.g-1`](#rfc7606-3.g-1), [`RFC7606-3.i-1`](#rfc7606-3.i-1), [`RFC7606-3.j-1`](#rfc7606-3.j-1), [`RFC7606-4-1`](#rfc7606-4-1), [`RFC7606-5.1-2`](#rfc7606-5.1-2), [`RFC7606-5.2-1`](#rfc7606-5.2-1), [`RFC7606-5.4-1`](#rfc7606-5.4-1), [`RFC7606-7.1-1`](#rfc7606-7.1-1), [`RFC7606-7.2-1`](#rfc7606-7.2-1), [`RFC7606-7.3-1`](#rfc7606-7.3-1), [`RFC7606-7.4-1`](#rfc7606-7.4-1), [`RFC7606-7.5-1`](#rfc7606-7.5-1), [`RFC7606-7.5-2`](#rfc7606-7.5-2), [`RFC7606-7.6-1`](#rfc7606-7.6-1), [`RFC7606-7.7-1`](#rfc7606-7.7-1), [`RFC7606-7.8-1`](#rfc7606-7.8-1), [`RFC7606-7.9-1`](#rfc7606-7.9-1), [`RFC7606-7.9-2`](#rfc7606-7.9-2), [`RFC7606-7.10-1`](#rfc7606-7.10-1), [`RFC7606-7.10-2`](#rfc7606-7.10-2), [`RFC7606-7.11-1`](#rfc7606-7.11-1), [`RFC7606-7.13-1`](#rfc7606-7.13-1), [`RFC7606-7.14-1`](#rfc7606-7.14-1), [`RFC7606-7.15-1`](#rfc7606-7.15-1), [`RFC7606-7.16-1`](#rfc7606-7.16-1), [`RFC7606-4-2`](#rfc7606-4-2), [`RFC7606-3.g-2`](#rfc7606-3.g-2), [`RFC7606-6-1`](#rfc7606-6-1), [`RFC7606-3.a-1`](#rfc7606-3.a-1), [`RFC7606-2-5`](#rfc7606-2-5), [`RFC7606-5.3-1`](#rfc7606-5.3-1), [`RFC7606-5.3-2`](#rfc7606-5.3-2), [`RFC7606-5.3-3`](#rfc7606-5.3-3), [`RFC7606-5.3-4`](#rfc7606-5.3-4), [`RFC7606-5.3-5`](#rfc7606-5.3-5), [`RFC7606-5.3-6`](#rfc7606-5.3-6), [`RFC7606-2-6`](#rfc7606-2-6)
 
 **Annotated instead of tested (7):** [`RFC7606-3.h-1`](#rfc7606-3.h-1), [`RFC7606-3.h-2`](#rfc7606-3.h-2), [`RFC7606-5.1-1`](#rfc7606-5.1-1), [`RFC7606-5.1-3`](#rfc7606-5.1-3), [`RFC7606-7.14-2`](#rfc7606-7.14-2), [`RFC7606-7.15-2`](#rfc7606-7.15-2), [`RFC7606-8-1`](#rfc7606-8-1)
+
+**No test and no annotation (1):** [`RFC7606-4-3`](#rfc7606-4-3)
 
 ## Requirements
 
@@ -153,6 +155,7 @@ One MUST-level gap, annotated in [`rfc/short/rfc7606.md`](https://github.com/ze-
 | `RFC7606-7.15-1` | IPv6 Extended Community: malformed if length is zero or not a multiple of 20; treat-as-withdraw (§7.15) | MUST | 7.15 | **positive:** `unit/verify` [`TestRFC7606IPv6ExtCommunityValidLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L142). **negative:** `unit/verify` [`TestRFC7606IPv6ExtCommunityBadLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L115) |
 | `RFC7606-7.15-2` | Unrecognized IPv6 Extended Community Type or Sub-Type MUST NOT be treated as error (§7.15) | MUST NOT | 7.15 | **positive:** `unit/verify` [`TestRFC7606IPv6ExtCommunityUnrecognizedType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L172). **negative:** no negative test. **{single-polarity}:** the rule is a prohibition (MUST NOT treat an unrecognized type as an error), not a detection duty -- the only conforming observation is acceptance, and a negative would assert the rejection the RFC forbids. Now met BY DESIGN rather than by omission: validateIPv6ExtCommunityAttr takes the attribute value as `_` and tests length alone, so no Type or Sub-Type can reach a rejection |
 | `RFC7606-7.16-1` | ATTR_SET if malformed: treat-as-withdraw (§7.16) | MUST | 7.16 | **positive:** `unit/verify` [`TestRFC7606AttrSetInnerASPathAlwaysFourOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attrset_context_test.go#L31). **positive:** `unit/verify` [`TestRFC7606AttrSetInnerDiscardDoesNotWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attrset_discard_test.go#L25). **positive:** `unit/verify` [`TestRFC7606AttrSetInnerIBGPAttributesOnEBGPSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attrset_context_test.go#L55). **positive:** `unit/verify` [`TestRFC7606AttrSetValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L252). **negative:** `unit/verify` [`TestRFC7606AttrSetInnerMalformedStillWithdraws`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attrset_context_test.go#L83). **negative:** `unit/verify` [`TestRFC7606AttrSetMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L207). **negative:** `unit/verify` [`TestRFC7606AttrSetNestingCapBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attrset_context_test.go#L102) |
+| `RFC7606-4-3` | "the Total Attribute Length MUST be relied upon to enable the beginning of the NLRI field to be located" when an attribute length conflict is detected (§4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC7606-4-2` | For all path attributes other than those specified as having an attribute length that may be zero, a zero attribute length SHALL be a syntax error handled as a malformed attribute. Of the attributes considered in RFC 7606, only AS_PATH and ATOMIC_AGGREGATE may validly have zero length; the RFC leaves this open for future attributes (§4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC7606SystematicLengthCorruption`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1621). **positive:** `unit/verify` [`TestRFC7606ValidUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L185). **negative:** `unit/verify` [`TestRFC7606ZeroLengthAttributeMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L273) |
 | `RFC7606-3.g-2` | Duplicate non-MP attributes: discard all but first occurrence (§3.g) | MUST | 3.g | **positive:** `unit/verify` [`TestRFC7606DuplicateAttributeFirstOccurrenceWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L542). **negative:** `unit/verify` [`TestRFC7606DuplicateAttributeFirstOccurrenceIsValidated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L563) |
 | `RFC7606-8-1` | A new BGP attribute specification MUST define what constitutes malformation and how to handle it (§8) | MUST | 8 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** an obligation on the authors of FUTURE attribute specifications, not on an implementation; Ze has no code path that could satisfy or violate it |
@@ -176,6 +179,7 @@ One MUST-level gap, annotated in [`rfc/short/rfc7606.md`](https://github.com/ze-
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC7606-5.1-1`](#rfc7606-5.1-1) MP_REACH_NLRI or MP_UNREACH_NLRI (if present) SHALL be encoded as the very first path attribute (§5.1) | {gap}, no test | Ze intentionally emits MP_UNREACH first and MP_REACH last, treating them as NLRI-carrying wire structures rather than descriptive attributes; deliberate design decision recorded in docs/architecture/wire/mp-nlri-ordering.md and disclosed publicly in the docs/features/rfc-status.md RFC 7606 row |
+| [`RFC7606-4-3`](#rfc7606-4-3) "the Total Attribute Length MUST be relied upon to enable the beginning of the NLRI field to be located" when an attribute length conflict is detected (§4) | no test | no test carries this requirement id |
 | [`RFC7606-8-1`](#rfc7606-8-1) A new BGP attribute specification MUST define what constitutes malformation and how to handle it (§8) | no test | no test carries this requirement id; annotated {not-applicable}: an obligation on the authors of FUTURE attribute specifications, not on an implementation; Ze has no code path that could satisfy or violate it |
 
 ## Proof state
@@ -696,6 +700,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. IMPL
 | positive | [`TestRFC7606AttrSetInnerDiscardDoesNotWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attrset_discard_test.go#L25) | unit/verify | unproven |
 | positive | [`TestRFC7606AttrSetValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L252) | unit/verify | unproven |
 
+### [`RFC7606-4-3`](#rfc7606-4-3)
+
+"the Total Attribute Length MUST be relied upon to enable the beginning of the NLRI field to be located" when an attribute length conflict is detected (§4)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC7606-4-3, so no unit is bound to it.
+
 ### [`RFC7606-4-2`](#rfc7606-4-2)
 
 For all path attributes other than those specified as having an attribute length that may be zero, a zero attribute length SHALL be a syntax error handled as a malformed attribute. Of the attributes considered in RFC 7606, only AS_PATH and ATOMIC_AGGREGATE may validly have zero length; the RFC leaves this open for future attributes (§4)
@@ -845,7 +857,67 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 7606, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc7606.txt |
+| Source fingerprint | a291720189c2ff63 |
+| Record | rfc/extraction/rfc7606.json |
+| Mapped sentences | 52 |
+| Declined as scope | 5 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 3 | walked | not stated |
+| `3` | not stated | 15 | walked | not stated |
+| `4` | not stated | 2 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 3 | walked | not stated |
+| `5.2` | not stated | 1 | walked | not stated |
+| `5.3` | not stated | 2 | walked | not stated |
+| `5.4` | not stated | 1 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 1 | walked | not stated |
+| `7.2` | not stated | 1 | walked | not stated |
+| `7.3` | not stated | 1 | walked | not stated |
+| `7.4` | not stated | 1 | walked | not stated |
+| `7.5` | not stated | 3 | walked | not stated |
+| `7.6` | not stated | 2 | walked | not stated |
+| `7.7` | not stated | 2 | walked | not stated |
+| `7.8` | not stated | 2 | walked | not stated |
+| `7.9` | not stated | 3 | walked | not stated |
+| `7.10` | not stated | 2 | walked | not stated |
+| `7.11` | not stated | 1 | walked | not stated |
+| `7.12` | not stated | 0 | walked | not stated |
+| `7.13` | not stated | 1 | walked | not stated |
+| `7.14` | not stated | 3 | walked | not stated |
+| `7.15` | not stated | 3 | walked | not stated |
+| `7.16` | not stated | 3 | walked | not stated |
+| `8` | not stated | 1 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `10.1` | not stated | 0 | walked | not stated |
+| `10.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `3:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Old Text quotation: RFC 7606 Section 3.a prints the superseded RFC 4271 Section 6.3 wording under an explicit 'Old Text:' heading in order to REPLACE it. The obligation in force is the 'New Text' block, mapped at site 3:2. | All errors detected while processing the UPDATE message MUST be indicated by sending the NOTIFICATION message with the Error Code UPDATE Message Error. |
+| `3:4` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Old Text quotation: RFC 7606 Section 3.c prints the superseded RFC 4271 Section 6.3 wording under an explicit 'Old Text:' heading in order to REPLACE it. The obligation in force is the 'New Text' block, mapped at site 3:6. | If any recognized attribute has Attribute Flags that conflict with the Attribute Type Code, then the Error Subcode MUST be set to Attribute Flags Error. |
+| `3:5` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Old Text quotation: RFC 7606 Section 3.c prints the superseded RFC 4271 Section 6.3 wording under an explicit 'Old Text:' heading in order to REPLACE it. The obligation in force is the 'New Text' block, mapped at site 3:6. This sentence is the second half of the same Old Text block; the New Text drops the Data-field mandate along with the Attribute Flags Error subcode. | The Data field MUST contain the erroneous attribute (type, length, and value). |
+| `7.16:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Old Text quotation: RFC 7606 Section 7.16 prints the superseded RFC 6368 Section 5 wording under an explicit 'Old Text:' heading in order to REPLACE it. The obligation in force is the 'New Text' block, mapped at site 7.16:3. | An UPDATE message with a malformed ATTR_SET attribute SHALL be handled as follows. |
+| `7.16:2` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | Old Text quotation: RFC 7606 Section 7.16 prints the superseded RFC 6368 Section 5 wording under an explicit 'Old Text:' heading in order to REPLACE it. The obligation in force is the 'New Text' block, mapped at site 7.16:3. The New Text replaces the Partial/Neighbor-Complete split with one unconditional treat-as-withdraw, so the RFC 4271 Optional Attribute Error branch no longer exists. | Otherwise (i.e., Partial flag is clear or Neighbor-Complete is set), the procedures of the BGP-4 base specification [RFC4271] MUST be followed with respect to an Optional Attribute Error. |
 
 ## Superseded
 

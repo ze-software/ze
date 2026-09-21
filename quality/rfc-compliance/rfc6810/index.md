@@ -10,9 +10,9 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 12.8% | 5 of 39 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 5.1% | 2 of 39 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
-| One polarity, unexcused | 0.0% | 0 of 39 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
+| Tested both ways | 12.5% | 5 of 40 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| One polarity plus reason | 5.0% | 2 of 40 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0.0% | 0 of 40 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Proven by a recorded break | 0.0% | 0 of 13 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
@@ -21,11 +21,11 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 39 | of 67 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
-| Out of scope | 28 | of 39 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
-| Not applicable | 71.8% | 28 of 39 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
-| Met below Ze | 0.0% | 0 of 39 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
-| Optional feature declined | 0.0% | 0 of 39 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
+| Gated MUSTs | 40 | of 68 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| Out of scope | 28 | of 40 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
+| Not applicable | 70.0% | 28 of 40 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
+| Met below Ze | 0.0% | 0 of 40 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
+| Optional feature declined | 0.0% | 0 of 40 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
 
 ### Negative
 
@@ -33,9 +33,9 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| No test at all | 10.3% | 4 of 39 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
+| No test at all | 12.5% | 5 of 40 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
 
-The 7 shares marked as a part above are the whole of the 39 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
+The 7 shares marked as a part above are the whole of the 40 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.
 
 A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.
 
@@ -59,11 +59,11 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 |---|---|
 | Public status | Partial |
 | Enrolment | Enrolled |
-| Requirements | 67 |
-| Gated MUST-level | 39 |
+| Requirements | 68 |
+| Gated MUST-level | 40 |
 | Not applicable, so out of scope | 28 |
 | Declared gaps | 4 |
-| Gated with no test | 0 |
+| Gated with no test | 1 |
 | Nightly-only evidence | 0 |
 | Test tags | 13 |
 | Tagged units | 13 |
@@ -75,7 +75,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: RPKI to Router Protocol v0 / RPKI-RTR (RFC 6810): router / cache-client role. 5 MET + 2 single-polarity positive + 4 gap + 28 not-applicable (cache-server-side obligations ze does not perform)
+Enrolled: RPKI to Router Protocol v0 / RPKI-RTR (RFC 6810): router / cache-client role. 5 MET + 2 single-polarity positive + 4 gap + 28 not-applicable (cache-server-side obligations ze does not perform) + RFC6810-5.1-3, added 2026-09-21 from the Section 5.1 sentence the checklist had not carried, and carrying no test
 
 ## What the public ledger says
 
@@ -89,7 +89,7 @@ Enrolled: RPKI to Router Protocol v0 / RPKI-RTR (RFC 6810): router / cache-clien
 
 **What the ledger says remains**
 
-Four MUST-level gaps, each annotated in [`rfc/short/rfc6810.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc6810.md): [`RFC6810-5.1-2`](#rfc6810-5.1-2) -- no Session ID mismatch detection or cache flush (rtr_session.go adopts the cache Session ID unconditionally); [`RFC6810-4-1`](#rfc6810-4-1) -- no most-preferred-cache selection (rpki.go runs every configured cache concurrently); [`RFC6810-8-1`](#rfc6810-8-1) -- VRPs are not marked by source cache (one shared ROACache, rpki.go, roa_cache.go); [`RFC6810-7-3`](#rfc6810-7-3) -- no protected RTR transport (rtr_session.go dials only unprotected TCP, with no SSH/TLS/TCP-MD5/TCP-AO client).
+Four MUST-level gaps, each annotated in [`rfc/short/rfc6810.md`](https://github.com/ze-software/ze/blob/main/rfc/short/rfc6810.md): [`RFC6810-5.1-2`](#rfc6810-5.1-2) -- no Session ID mismatch detection or cache flush (rtr_session.go adopts the cache Session ID unconditionally); [`RFC6810-4-1`](#rfc6810-4-1) -- no most-preferred-cache selection (rpki.go runs every configured cache concurrently); [`RFC6810-8-1`](#rfc6810-8-1) -- VRPs are not marked by source cache (one shared ROACache, rpki.go, roa_cache.go); [`RFC6810-7-3`](#rfc6810-7-3) -- no protected RTR transport (rtr_session.go dials only unprotected TCP, with no SSH/TLS/TCP-MD5/TCP-AO client). [`RFC6810-5.1-3`](#rfc6810-5.1-3), added 2026-09-21, carries no test: Section 5.1 states that the value of a field shown as zero or reserved MUST be ignored on receipt, where Section 5 states only that such a field MAY be ignored.
 
 ## Coverage
 
@@ -98,14 +98,16 @@ Four MUST-level gaps, each annotated in [`rfc/short/rfc6810.md`](https://github.
 | Positive and negative tests | 5 | one part of the gated population |
 | Annotated instead of tested | 34 | one part of the gated population |
 | One polarity only | 0 | one part of the gated population |
-| No test and no annotation | 0 | one part of the gated population |
+| No test and no annotation | 1 | one part of the gated population |
 | Evidence that runs nightly only | 0 | an overlay: each of these is also counted by the part it falls in |
 | Derived from other rows | 0 | outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count |
-| **Gated MUST-level requirements** | **39** | every gated MUST falls in exactly one bucket above |
+| **Gated MUST-level requirements** | **40** | every gated MUST falls in exactly one bucket above |
 
 **Positive and negative tests (5):** [`RFC6810-5-1`](#rfc6810-5-1), [`RFC6810-5.1-1`](#rfc6810-5.1-1), [`RFC6810-6.3-1`](#rfc6810-6.3-1), [`RFC6810-6.4-1`](#rfc6810-6.4-1), [`RFC6810-8-2`](#rfc6810-8-2)
 
 **Annotated instead of tested (34):** [`RFC6810-5.6-1`](#rfc6810-5.6-1), [`RFC6810-5.5-1`](#rfc6810-5.5-1), [`RFC6810-5.8-1`](#rfc6810-5.8-1), [`RFC6810-5.10-1`](#rfc6810-5.10-1), [`RFC6810-5.10-2`](#rfc6810-5.10-2), [`RFC6810-5.10-3`](#rfc6810-5.10-3), [`RFC6810-5.10-4`](#rfc6810-5.10-4), [`RFC6810-2-1`](#rfc6810-2-1), [`RFC6810-5.1-2`](#rfc6810-5.1-2), [`RFC6810-4-1`](#rfc6810-4-1), [`RFC6810-6.1-1`](#rfc6810-6.1-1), [`RFC6810-6.2-1`](#rfc6810-6.2-1), [`RFC6810-3-1`](#rfc6810-3-1), [`RFC6810-4-2`](#rfc6810-4-2), [`RFC6810-7-1`](#rfc6810-7-1), [`RFC6810-7-2`](#rfc6810-7-2), [`RFC6810-7-3`](#rfc6810-7-3), [`RFC6810-7.1-1`](#rfc6810-7.1-1), [`RFC6810-7.1-2`](#rfc6810-7.1-2), [`RFC6810-8-1`](#rfc6810-8-1), [`RFC6810-7.2-1`](#rfc6810-7.2-1), [`RFC6810-7.2-2`](#rfc6810-7.2-2), [`RFC6810-7.2-3`](#rfc6810-7.2-3), [`RFC6810-7.2-4`](#rfc6810-7.2-4), [`RFC6810-7.2-5`](#rfc6810-7.2-5), [`RFC6810-7.2-6`](#rfc6810-7.2-6), [`RFC6810-7.2-7`](#rfc6810-7.2-7), [`RFC6810-7.2-8`](#rfc6810-7.2-8), [`RFC6810-7.3-1`](#rfc6810-7.3-1), [`RFC6810-7.3-2`](#rfc6810-7.3-2), [`RFC6810-7.4-1`](#rfc6810-7.4-1), [`RFC6810-7.4-2`](#rfc6810-7.4-2), [`RFC6810-7.4-3`](#rfc6810-7.4-3), [`RFC6810-7.4-4`](#rfc6810-7.4-4)
+
+**No test and no annotation (1):** [`RFC6810-5.1-3`](#rfc6810-5.1-3)
 
 ## Requirements
 
@@ -113,6 +115,7 @@ Four MUST-level gaps, each annotated in [`rfc/short/rfc6810.md`](https://github.
 |---|---|---|---|---|
 | `RFC6810-5-1` | Fields with unspecified content MUST be zero on transmission (Section 5) | MUST | 5 | **positive:** `unit/verify` [`TestWriteResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L16). **positive:** `unit/verify` [`TestWriteResetQueryZeroesReservedOverGarbage`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_reserved_test.go#L52). **negative:** `unit/verify` [`TestWriteSerialQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L35) |
 | `RFC6810-5.1-1` | Max Length MUST NOT be less than Prefix Length (Section 5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestParseIPv4Prefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L57). **negative:** `unit/verify` [`TestParseIPv4PrefixMaxLenLessThanPrefixLen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L130) |
+| `RFC6810-5.1-3` | The value of a field shown as zero or reserved MUST be ignored on receipt (Section 5.1) | MUST | 5.1 | **positive:** no positive test. **negative:** no negative test |
 | `RFC6810-5.6-1` | Cache MUST ensure one and only one IPvX PDU for a unique {Prefix, Len, Max-Len, ASN} at any one point in time (Section 5.6) | MUST | 5.6 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** cache-side emission guarantee -- ze is the RTR router; it only parses Prefix PDUs (internal/component/bgp/plugins/rpki/rtr_pdu.go:114 parsePrefixPDU) and has no Prefix PDU writer, so it never emits or enforces one-PDU-per-VRP |
 | `RFC6810-5.5-1` | In response to a Reset Query, the withdraw/announce field in payload PDUs MUST have the value 1 (announce) (Section 5.5) | MUST | 5.5 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** cache-side emission obligation -- ze reads the announce/withdraw flag on receipt (internal/component/bgp/plugins/rpki/rtr_pdu.go:132) but sends no Prefix PDUs, so it never sets this field on transmission |
 | `RFC6810-5.8-1` | Session ID in End of Data MUST be the same as the corresponding Cache Response (Section 5.8) | MUST | 5.8 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** cache-side emission obligation -- ze reads End of Data for its serial only (internal/component/bgp/plugins/rpki/rtr_session.go:291) and emits neither Cache Response nor End of Data PDUs whose Session IDs it would have to match |
@@ -183,6 +186,7 @@ Four MUST-level gaps, each annotated in [`rfc/short/rfc6810.md`](https://github.
 
 | Requirement | State | Reason |
 |---|---|---|
+| [`RFC6810-5.1-3`](#rfc6810-5.1-3) The value of a field shown as zero or reserved MUST be ignored on receipt (Section 5.1) | no test | no test carries this requirement id |
 | [`RFC6810-5.6-1`](#rfc6810-5.6-1) Cache MUST ensure one and only one IPvX PDU for a unique {Prefix, Len, Max-Len, ASN} at any one point in time (Section 5.6) | no test | no test carries this requirement id; annotated {not-applicable}: cache-side emission guarantee -- ze is the RTR router; it only parses Prefix PDUs (internal/component/bgp/plugins/rpki/rtr_pdu.go:114 parsePrefixPDU) and has no Prefix PDU writer, so it never emits or enforces one-PDU-per-VRP |
 | [`RFC6810-5.5-1`](#rfc6810-5.5-1) In response to a Reset Query, the withdraw/announce field in payload PDUs MUST have the value 1 (announce) (Section 5.5) | no test | no test carries this requirement id; annotated {not-applicable}: cache-side emission obligation -- ze reads the announce/withdraw flag on receipt (internal/component/bgp/plugins/rpki/rtr_pdu.go:132) but sends no Prefix PDUs, so it never sets this field on transmission |
 | [`RFC6810-5.8-1`](#rfc6810-5.8-1) Session ID in End of Data MUST be the same as the corresponding Cache Response (Section 5.8) | no test | no test carries this requirement id; annotated {not-applicable}: cache-side emission obligation -- ze reads End of Data for its serial only (internal/component/bgp/plugins/rpki/rtr_session.go:291) and emits neither Cache Response nor End of Data PDUs whose Session IDs it would have to match |
@@ -242,6 +246,14 @@ Audit verdict: not audited: no reader has judged these tests
 |---|---|---|---|
 | negative | [`TestParseIPv4PrefixMaxLenLessThanPrefixLen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L130) | unit/verify | unproven |
 | positive | [`TestParseIPv4Prefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L57) | unit/verify | unproven |
+
+### [`RFC6810-5.1-3`](#rfc6810-5.1-3)
+
+The value of a field shown as zero or reserved MUST be ignored on receipt (Section 5.1)
+
+Audit verdict: not audited: no reader has judged these tests
+
+No test carries RFC6810-5.1-3, so no unit is bound to it.
 
 ### [`RFC6810-5.6-1`](#rfc6810-5.6-1)
 
@@ -554,7 +566,68 @@ No test carries RFC6810-7.4-4, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 6810, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | rfc2119 |
+| Source | rfc/full/rfc6810.txt |
+| Source fingerprint | 6dddd37386e09797 |
+| Record | rfc/extraction/rfc6810.json |
+| Mapped sentences | 39 |
+| Declined as scope | 4 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 0 | walked | not stated |
+| `1.1` | not stated | 0 | walked | not stated |
+| `2` | not stated | 1 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `4` | not stated | 2 | walked | not stated |
+| `5` | not stated | 1 | walked | not stated |
+| `5.1` | not stated | 4 | walked | not stated |
+| `5.2` | not stated | 0 | walked | not stated |
+| `5.3` | not stated | 0 | walked | not stated |
+| `5.4` | not stated | 0 | walked | not stated |
+| `5.5` | not stated | 1 | walked | not stated |
+| `5.6` | not stated | 1 | walked | not stated |
+| `5.7` | not stated | 0 | walked | not stated |
+| `5.8` | not stated | 1 | walked | not stated |
+| `5.9` | not stated | 0 | walked | not stated |
+| `5.10` | not stated | 4 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `6.1` | not stated | 2 | walked | not stated |
+| `6.2` | not stated | 2 | walked | not stated |
+| `6.3` | not stated | 1 | walked | not stated |
+| `6.4` | not stated | 1 | walked | not stated |
+| `7` | not stated | 3 | walked | not stated |
+| `7.1` | not stated | 2 | walked | not stated |
+| `7.2` | not stated | 7 | walked | not stated |
+| `7.3` | not stated | 2 | walked | not stated |
+| `7.4` | not stated | 4 | walked | not stated |
+| `8` | not stated | 2 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `11` | not stated | 1 | walked | not stated |
+| `12` | not stated | 0 | walked | not stated |
+| `13` | not stated | 0 | walked | not stated |
+| `14` | not stated | 0 | walked | not stated |
+| `14.1` | not stated | 0 | walked | not stated |
+| `14.2` | not stated | 0 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `5.1:3` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The Section 5.1 field glossary restates the Section 5 transmission rule already mapped at site 5:1: fields with unspecified content MUST be zero on transmission. | Zero: Fields shown as zero or reserved MUST be zero. |
+| `6.1:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Restates the once-an-hour query cadence of the preceding sentence, mapped at site 6.1:1, as a polling interval ceiling. | As the cache MAY not keep updates for little more than one hour, the router MUST have a polling interval of no greater than once an hour. |
+| `6.2:2` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | Section 6.2 repeats the Section 6.1 sentence word for word; RFC6810-6.1-1 cites both sections. | To limit the length of time a cache must keep old withdraws, a router MUST send either a Serial Query or a Reset Query no less frequently than once an hour. |
+| `11:1` | `duplicate-of` (never bound Ze): the same obligation is already captured under another requirement id | The Security Considerations restate the Section 7 transport rule mapped at site 7:2, that with unprotected TCP the cache and router are on the same trusted and controlled network; the SHOULD half of the same sentence is row RFC6810-11-3. | Protocols that provide integrity and authenticity SHOULD be used, and if they cannot, i.e., TCP is used as the transport, the router and cache MUST be on the same trusted, controlled network. |
 
 ## Superseded
 

@@ -43,11 +43,11 @@ Every homepage number links to the page where you can inspect the test layer, tr
 - Config, FSM, plugins
 - gomu mutates code to check assertions
 
- Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**1,907 of 3,058 RFC MUSTs**
+ Local test, fuzz, and mutation evidence.](https://ze-software.net/quality/unit-fuzz-mutation/) [**1,893 of 3,797 RFC MUSTs**
 
-- 62.4% tested
+- 49.9% tested
 - 147 RFCs Ze claims support for
-- 172 RFCs with requirements extracted
+- 174 requirement lists checked against the RFC
 
  RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**2,000+ end to end tests**
 

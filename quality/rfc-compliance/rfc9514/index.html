@@ -5,9 +5,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 9514 requirement ledger - Ze</title>
-        <meta name="description" content="RFC 9514: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6). 13 gated MUST-level requirements, 13 declared gaps, 0 with no test." />
+        <meta name="description" content="RFC 9514: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6). 20 gated MUST-level requirements, 13 declared gaps, 7 with no test." />
         <meta property="og:title" content="RFC 9514 requirement ledger - Ze" />
-        <meta property="og:description" content="RFC 9514: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6). 13 gated MUST-level requirements, 13 declared gaps, 0 with no test." />
+        <meta property="og:description" content="RFC 9514: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6). 20 gated MUST-level requirements, 13 declared gaps, 7 with no test." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
@@ -15,7 +15,7 @@
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="RFC 9514 requirement ledger - Ze" />
-        <meta name="twitter:description" content="RFC 9514: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6). 13 gated MUST-level requirements, 13 declared gaps, 0 with no test." />
+        <meta name="twitter:description" content="RFC 9514: Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6). 20 gated MUST-level requirements, 13 declared gaps, 7 with no test." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
@@ -116,26 +116,26 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>0.0%</strong><b>0 of 0 tagged units</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>13</strong><b>of 16 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
-<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 13 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
-<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 13 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>20</strong><b>of 23 this summary declares</b><p>MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 20 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
+<article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.0%</strong><b>0 of 20 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>No test at all</span><strong>100.0%</strong><b>13 of 13 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
+<article class="rfc-card rfc-bad"><span>No test at all</span><strong>100.0%</strong><b>20 of 20 gated MUSTs</b><p>no test carries the requirement id, whether or not a gap states why</p></article>
 </div>
-<p>The 7 shares marked as a part above are the whole of the 13 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
+<p>The 7 shares marked as a part above are the whole of the 20 gated MUSTs: they add to 100%. Proven by a recorded break is a share of TAGGED UNITS, a different population, so it is not one of them.</p>
 <details class="rfc-fold"><summary>How to read the colors</summary>
 <p>A color names what the measure MEANS, not how well Ze scores on it. Green is a good outcome at any value, red is a bad one, and neither a population nor a scope count is an outcome, so both take no color. The number under the label is what says how far Ze has got.</p>
 <div class="rfc-table-wrap">
@@ -203,10 +203,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Enrolled</td>
 </tr>
 <tr><td>Requirements</td>
-<td>16</td>
+<td>23</td>
 </tr>
 <tr><td>Gated MUST-level</td>
-<td>13</td>
+<td>20</td>
 </tr>
 <tr><td>Not applicable, so out of scope</td>
 <td>0</td>
@@ -215,7 +215,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>13</td>
 </tr>
 <tr><td>Gated with no test</td>
-<td>0</td>
+<td>7</td>
 </tr>
 <tr><td>Nightly-only evidence</td>
 <td>0</td>
@@ -246,14 +246,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Enrolment</h2>
-<p>Enrolled: BGP-LS SRv6 extensions: 13 gap (all origination/encode MUSTs plus one receive-side SID-Structure sum validation; decode-only plugin, TLVs 1038/1162 unimplemented)</p>
+<p>Enrolled: BGP-LS SRv6 extensions: 13 gap (all origination/encode MUSTs plus one receive-side SID-Structure sum validation; decode-only plugin, TLVs 1038/1162 unimplemented) + 7 untested MUST rows added by the 2026-09-21 extraction walk (3.1-3, 4.1-2, 4.2-2, 5.1-2, 7.1-4, 7.2-5, 7.2-6), the ignore-on-receipt half of seven sentences whose originate-as-zero half the checklist already carried</p>
 </section>
 <section><h2>What the public ledger says</h2>
 <p><strong>Status:</strong> Partial</p>
 <p><strong>What the ledger says is covered:</strong></p>
 SRv6 End.X SID, Endpoint Behavior, BGP PeerNode SID, and SID Structure TLVs decode as part of BGP-LS SRv6 TLV coverage.
 <details class="rfc-fold"><summary>What the ledger says remains</summary>
-Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface); the SRv6 Capabilities (TLV 1038) and SRv6 Locator (TLV 1162) TLVs are not implemented at all, and the SID Structure sum-at-most-128 validation is absent on receipt (see <a href="https://github.com/ze-software/ze/blob/main/rfc/short/rfc9514.md" target="_blank" rel="noopener"><code>rfc/short/rfc9514.md</code></a>).
+Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface); the SRv6 Capabilities (TLV 1038) and SRv6 Locator (TLV 1162) TLVs are not implemented at all, and the SID Structure sum-at-most-128 validation is absent on receipt. Seven ignore-on-receipt MUSTs (3.1-3, 4.1-2, 4.2-2, 5.1-2, 7.1-4, 7.2-5, 7.2-6) carry no test; these are the half of each reserved-field sentence that ze&#39;s decode-only plugin is the entry point for.
 </details>
 </section>
 <section><h2>Coverage</h2>
@@ -274,7 +274,7 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <td>one part of the gated population</td>
 </tr>
 <tr><td>No test and no annotation</td>
-<td><strong>0</strong></td>
+<td><strong>7</strong></td>
 <td>one part of the gated population</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -285,11 +285,12 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <td><strong>0</strong></td>
 <td>outside the gated population: each asserts nothing and derives its state from the rows it names, which the parts above already count</td>
 </tr>
-<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>13</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
+<tr class="rfc-total"><td><strong>Gated MUST-level requirements</strong></td><td><strong>20</strong></td><td>every gated MUST falls in exactly one bucket above</td></tr>
 </tbody>
 </table>
 </div>
 <p class="rfc-id-list"><strong>Annotated instead of tested (13):</strong> <a href="#rfc9514-3.1-1"><code>RFC9514-3.1-1</code></a>, <a href="#rfc9514-3.1-2"><code>RFC9514-3.1-2</code></a>, <a href="#rfc9514-4.1-1"><code>RFC9514-4.1-1</code></a>, <a href="#rfc9514-4.2-1"><code>RFC9514-4.2-1</code></a>, <a href="#rfc9514-5.1-1"><code>RFC9514-5.1-1</code></a>, <a href="#rfc9514-6-1"><code>RFC9514-6-1</code></a>, <a href="#rfc9514-7.1-1"><code>RFC9514-7.1-1</code></a>, <a href="#rfc9514-7.1-2"><code>RFC9514-7.1-2</code></a>, <a href="#rfc9514-7.1-3"><code>RFC9514-7.1-3</code></a>, <a href="#rfc9514-7.2-1"><code>RFC9514-7.2-1</code></a>, <a href="#rfc9514-7.2-2"><code>RFC9514-7.2-2</code></a>, <a href="#rfc9514-7.2-3"><code>RFC9514-7.2-3</code></a>, <a href="#rfc9514-8-1"><code>RFC9514-8-1</code></a></p>
+<p class="rfc-id-list"><strong>No test and no annotation (7):</strong> <a href="#rfc9514-3.1-3"><code>RFC9514-3.1-3</code></a>, <a href="#rfc9514-4.1-2"><code>RFC9514-4.1-2</code></a>, <a href="#rfc9514-4.2-2"><code>RFC9514-4.2-2</code></a>, <a href="#rfc9514-5.1-2"><code>RFC9514-5.1-2</code></a>, <a href="#rfc9514-7.1-4"><code>RFC9514-7.1-4</code></a>, <a href="#rfc9514-7.2-5"><code>RFC9514-7.2-5</code></a>, <a href="#rfc9514-7.2-6"><code>RFC9514-7.2-6</code></a></p>
 </section>
 <section><h2>Requirements</h2>
 <div class="rfc-table-wrap">
@@ -299,7 +300,7 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-3.1-1">RFC9514-3.1-1</code></td><td colspan="3"><span class="rfc-subject">A single instance of the SRv6 Capabilities TLV (1038) MUST be included in the BGP-LS Attribute for each SRv6-capable node (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.1</td>
+<td>3.1 - SRv6 Capabilities TLV</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -308,43 +309,79 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-3.1-2">RFC9514-3.1-2</code></td><td colspan="3"><span class="rfc-subject">Reserved field in SRv6 Capabilities TLV MUST be set to 0 when originated (§3.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>3.1</td>
+<td>3.1 - SRv6 Capabilities TLV</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-3.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> TLV 1038 is neither decoded nor encoded (no struct, unregistered), so this transmit reserved-zero MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go:54-67)</p></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-3.1-3">RFC9514-3.1-3</code></td><td colspan="3"><span class="rfc-subject">The Reserved field of the SRv6 Capabilities TLV MUST be ignored on receipt (§3.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>3.1 - SRv6 Capabilities TLV</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-3.1-3">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-4.1-1">RFC9514-4.1-1</code></td><td colspan="3"><span class="rfc-subject">Reserved field in SRv6 End.X SID TLV MUST be set to 0 when originated (§4.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>4.1</td>
+<td>4.1 - SRv6 End.X SID TLV</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-4.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the LsSRv6EndXSID encoder hardcodes the reserved octet to 0 but ze originates no BGP-LS End.X SID TLV (internal/component/bgp/plugins/nlri/ls/attr_link.go:623, plugin.go:70-71)</p></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-4.1-2">RFC9514-4.1-2</code></td><td colspan="3"><span class="rfc-subject">The Reserved field of the SRv6 End.X SID TLV MUST be ignored on receipt (§4.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.1 - SRv6 End.X SID TLV</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-4.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-4.2-1">RFC9514-4.2-1</code></td><td colspan="3"><span class="rfc-subject">Reserved field in SRv6 LAN End.X SID TLV MUST be set to 0 when originated (§4.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>4.2</td>
+<td>4.2 - SRv6 LAN End.X SID TLV</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-4.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the LAN variants share the same LsSRv6EndXSID.WriteTo that hardcodes reserved to 0, but no production path originates the TLV (internal/component/bgp/plugins/nlri/ls/attr_link.go:623, register_attr.go:56-57)</p></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-4.2-2">RFC9514-4.2-2</code></td><td colspan="3"><span class="rfc-subject">The Reserved field of the SRv6 LAN End.X SID TLV MUST be ignored on receipt (§4.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>4.2 - SRv6 LAN End.X SID TLV</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-4.2-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-5.1-1">RFC9514-5.1-1</code></td><td colspan="3"><span class="rfc-subject">Reserved field in SRv6 Locator TLV MUST be set to 0 when originated (§5.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>5.1</td>
+<td>5.1 - SRv6 Locator TLV</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-5.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> ze neither decodes nor encodes TLV 1162 (SRv6 Locator); it is unregistered with no struct, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go)</p></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-5.1-2">RFC9514-5.1-2</code></td><td colspan="3"><span class="rfc-subject">The Reserved field of the SRv6 Locator TLV MUST be ignored on receipt (§5.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>5.1 - SRv6 Locator TLV</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-5.1-2">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-6-1">RFC9514-6-1</code></td><td colspan="3"><span class="rfc-subject">SRv6 SID Descriptors MUST contain a single SRv6 SID Information TLV (518) (§6)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>6</td>
+<td>6 - SRv6 SID NLRI</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-6-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -353,7 +390,7 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-7.1-1">RFC9514-7.1-1</code></td><td colspan="3"><span class="rfc-subject">The SRv6 Endpoint Behavior TLV (1250) MUST be included in the BGP-LS Attribute associated with the SRv6 SID NLRI (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>7.1</td>
+<td>7.1 - SRv6 Endpoint Behavior TLV</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-7.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -362,16 +399,25 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-7.1-2">RFC9514-7.1-2</code></td><td colspan="3"><span class="rfc-subject">Undefined flags in SRv6 Endpoint Behavior TLV MUST be set to 0 when originating (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>7.1</td>
+<td>7.1 - SRv6 Endpoint Behavior TLV</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-7.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the encoder writes the Flags octet verbatim (no masking) and no production path originates the TLV (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:37, plugin.go:70-71)</p></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-7.1-4">RFC9514-7.1-4</code></td><td colspan="3"><span class="rfc-subject">Undefined flags in the SRv6 Endpoint Behavior TLV MUST be ignored on receipt (§7.1)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.1 - SRv6 Endpoint Behavior TLV</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-7.1-4">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-7.1-3">RFC9514-7.1-3</code></td><td colspan="3"><span class="rfc-subject">Algorithm value in SRv6 Endpoint Behavior TLV MUST be 0 unless an algorithm is associated locally with the SRv6 Locator (§7.1)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>7.1</td>
+<td>7.1 - SRv6 Endpoint Behavior TLV</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-7.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -380,7 +426,7 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-7.2-1">RFC9514-7.2-1</code></td><td colspan="3"><span class="rfc-subject">SRv6 BGP PeerNode SID TLV (1251) MUST be included along with SRv6 SIDs associated with BGP PeerNode or PeerSet functionality (§7.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>7.2</td>
+<td>7.2 - SRv6 BGP Peer Node SID TLV</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-7.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -389,25 +435,43 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-7.2-2">RFC9514-7.2-2</code></td><td colspan="3"><span class="rfc-subject">Reserved bits (3-7) in SRv6 BGP PeerNode SID flags MUST be set to 0 when originating (§7.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>7.2</td>
+<td>7.2 - SRv6 BGP Peer Node SID TLV</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-7.2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the encoder writes the Flags byte verbatim without masking bits 3-7 and no production path originates the TLV (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:81, plugin.go:70-71)</p></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-7.2-5">RFC9514-7.2-5</code></td><td colspan="3"><span class="rfc-subject">The bits reserved for future use in the SRv6 BGP PeerNode SID Flags field MUST be ignored on receipt (§7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2 - SRv6 BGP Peer Node SID TLV</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-7.2-5">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-7.2-3">RFC9514-7.2-3</code></td><td colspan="3"><span class="rfc-subject">Reserved field in SRv6 BGP PeerNode SID TLV MUST be set to 0 when originated (§7.2)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>7.2</td>
+<td>7.2 - SRv6 BGP Peer Node SID TLV</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-7.2-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{gap}:</strong> the encoder hardcodes both reserved octets to 0 but ze originates no SRv6 BGP PeerNode SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:83-84, plugin.go:70-71)</p></td>
 </tr>
+<tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-7.2-6">RFC9514-7.2-6</code></td><td colspan="3"><span class="rfc-subject">The Reserved field of the SRv6 BGP PeerNode SID TLV MUST be ignored on receipt (§7.2)</span></td></tr>
+<tr><td></td>
+<td>MUST</td>
+<td>7.2 - SRv6 BGP Peer Node SID TLV</td>
+<td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-7.2-6">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
+</div></td>
+</tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-8-1">RFC9514-8-1</code></td><td colspan="3"><span class="rfc-subject">SRv6 SID Structure sum (LB Length + LN Length + Fun. Length + Arg. Length) MUST be less than or equal to 128 (§8)</span></td></tr>
 <tr><td></td>
 <td>MUST</td>
-<td>8</td>
+<td>8 - SRv6 SID Structure TLV</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-8-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -416,7 +480,7 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-11-1">RFC9514-11-1</code></td><td colspan="3"><span class="rfc-subject">Isolation of BGP-LS peering sessions is RECOMMENDED to ensure SRv6 topology information is not advertised to external BGP peers outside the SR domain (§11)</span></td></tr>
 <tr><td></td>
 <td>SHOULD</td>
-<td>11</td>
+<td>11 - Security Considerations</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-11-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -425,7 +489,7 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-6-2">RFC9514-6-2</code></td><td colspan="3"><span class="rfc-subject">SRv6 SID Descriptors MAY contain the Multi-Topology Identifier TLV (§6)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>6</td>
+<td>6 - SRv6 SID NLRI</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-6-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -434,7 +498,7 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9514-7.2-4">RFC9514-7.2-4</code></td><td colspan="3"><span class="rfc-subject">A PeerSet SID MAY be assigned to one or more End.X SIDs (§7.2)</span></td></tr>
 <tr><td></td>
 <td>MAY</td>
-<td>7.2</td>
+<td>7.2 - SRv6 BGP Peer Node SID TLV</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9514-7.2-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
@@ -457,17 +521,33 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <td>{gap}, no test</td>
 <td>TLV 1038 is neither decoded nor encoded (no struct, unregistered), so this transmit reserved-zero MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go:54-67)</td>
 </tr>
+<tr><td><a href="#rfc9514-3.1-3"><code>RFC9514-3.1-3</code></a> The Reserved field of the SRv6 Capabilities TLV MUST be ignored on receipt (§3.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
 <tr><td><a href="#rfc9514-4.1-1"><code>RFC9514-4.1-1</code></a> Reserved field in SRv6 End.X SID TLV MUST be set to 0 when originated (§4.1)</td>
 <td>{gap}, no test</td>
 <td>the LsSRv6EndXSID encoder hardcodes the reserved octet to 0 but ze originates no BGP-LS End.X SID TLV (internal/component/bgp/plugins/nlri/ls/attr_link.go:623, plugin.go:70-71)</td>
+</tr>
+<tr><td><a href="#rfc9514-4.1-2"><code>RFC9514-4.1-2</code></a> The Reserved field of the SRv6 End.X SID TLV MUST be ignored on receipt (§4.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
 </tr>
 <tr><td><a href="#rfc9514-4.2-1"><code>RFC9514-4.2-1</code></a> Reserved field in SRv6 LAN End.X SID TLV MUST be set to 0 when originated (§4.2)</td>
 <td>{gap}, no test</td>
 <td>the LAN variants share the same LsSRv6EndXSID.WriteTo that hardcodes reserved to 0, but no production path originates the TLV (internal/component/bgp/plugins/nlri/ls/attr_link.go:623, register_attr.go:56-57)</td>
 </tr>
+<tr><td><a href="#rfc9514-4.2-2"><code>RFC9514-4.2-2</code></a> The Reserved field of the SRv6 LAN End.X SID TLV MUST be ignored on receipt (§4.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
 <tr><td><a href="#rfc9514-5.1-1"><code>RFC9514-5.1-1</code></a> Reserved field in SRv6 Locator TLV MUST be set to 0 when originated (§5.1)</td>
 <td>{gap}, no test</td>
 <td>ze neither decodes nor encodes TLV 1162 (SRv6 Locator); it is unregistered with no struct, so this transmit MUST is entirely unimplemented (internal/component/bgp/plugins/nlri/ls/register_attr.go)</td>
+</tr>
+<tr><td><a href="#rfc9514-5.1-2"><code>RFC9514-5.1-2</code></a> The Reserved field of the SRv6 Locator TLV MUST be ignored on receipt (§5.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
 </tr>
 <tr><td><a href="#rfc9514-6-1"><code>RFC9514-6-1</code></a> SRv6 SID Descriptors MUST contain a single SRv6 SID Information TLV (518) (§6)</td>
 <td>{gap}, no test</td>
@@ -481,6 +561,10 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <td>{gap}, no test</td>
 <td>the encoder writes the Flags octet verbatim (no masking) and no production path originates the TLV (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:37, plugin.go:70-71)</td>
 </tr>
+<tr><td><a href="#rfc9514-7.1-4"><code>RFC9514-7.1-4</code></a> Undefined flags in the SRv6 Endpoint Behavior TLV MUST be ignored on receipt (§7.1)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
 <tr><td><a href="#rfc9514-7.1-3"><code>RFC9514-7.1-3</code></a> Algorithm value in SRv6 Endpoint Behavior TLV MUST be 0 unless an algorithm is associated locally with the SRv6 Locator (§7.1)</td>
 <td>{gap}, no test</td>
 <td>this origination-time semantic choice is unimplemented; ze originates no such TLV and the encoder writes Algorithm verbatim with no locator-association logic (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:38, plugin.go:70-71)</td>
@@ -493,9 +577,17 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <td>{gap}, no test</td>
 <td>the encoder writes the Flags byte verbatim without masking bits 3-7 and no production path originates the TLV (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:81, plugin.go:70-71)</td>
 </tr>
+<tr><td><a href="#rfc9514-7.2-5"><code>RFC9514-7.2-5</code></a> The bits reserved for future use in the SRv6 BGP PeerNode SID Flags field MUST be ignored on receipt (§7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
+</tr>
 <tr><td><a href="#rfc9514-7.2-3"><code>RFC9514-7.2-3</code></a> Reserved field in SRv6 BGP PeerNode SID TLV MUST be set to 0 when originated (§7.2)</td>
 <td>{gap}, no test</td>
 <td>the encoder hardcodes both reserved octets to 0 but ze originates no SRv6 BGP PeerNode SID TLV in production (internal/component/bgp/plugins/nlri/ls/attr_srv6.go:83-84, plugin.go:70-71)</td>
+</tr>
+<tr><td><a href="#rfc9514-7.2-6"><code>RFC9514-7.2-6</code></a> The Reserved field of the SRv6 BGP PeerNode SID TLV MUST be ignored on receipt (§7.2)</td>
+<td>no test</td>
+<td>no test carries this requirement id</td>
 </tr>
 <tr><td><a href="#rfc9514-8-1"><code>RFC9514-8-1</code></a> SRv6 SID Structure sum (LB Length + LN Length + Fun. Length + Arg. Length) MUST be less than or equal to 128 (§8)</td>
 <td>{gap}, no test</td>
@@ -515,18 +607,34 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <p>Reserved field in SRv6 Capabilities TLV MUST be set to 0 when originated (§3.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9514-3.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9514-3.1-3"><code>RFC9514-3.1-3</code></a></h3>
+<p>The Reserved field of the SRv6 Capabilities TLV MUST be ignored on receipt (§3.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9514-3.1-3, so no unit is bound to it.</p>
 <h3><a href="#rfc9514-4.1-1"><code>RFC9514-4.1-1</code></a></h3>
 <p>Reserved field in SRv6 End.X SID TLV MUST be set to 0 when originated (§4.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9514-4.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9514-4.1-2"><code>RFC9514-4.1-2</code></a></h3>
+<p>The Reserved field of the SRv6 End.X SID TLV MUST be ignored on receipt (§4.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9514-4.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9514-4.2-1"><code>RFC9514-4.2-1</code></a></h3>
 <p>Reserved field in SRv6 LAN End.X SID TLV MUST be set to 0 when originated (§4.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9514-4.2-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9514-4.2-2"><code>RFC9514-4.2-2</code></a></h3>
+<p>The Reserved field of the SRv6 LAN End.X SID TLV MUST be ignored on receipt (§4.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9514-4.2-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9514-5.1-1"><code>RFC9514-5.1-1</code></a></h3>
 <p>Reserved field in SRv6 Locator TLV MUST be set to 0 when originated (§5.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9514-5.1-1, so no unit is bound to it.</p>
+<h3><a href="#rfc9514-5.1-2"><code>RFC9514-5.1-2</code></a></h3>
+<p>The Reserved field of the SRv6 Locator TLV MUST be ignored on receipt (§5.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9514-5.1-2, so no unit is bound to it.</p>
 <h3><a href="#rfc9514-6-1"><code>RFC9514-6-1</code></a></h3>
 <p>SRv6 SID Descriptors MUST contain a single SRv6 SID Information TLV (518) (§6)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -539,6 +647,10 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <p>Undefined flags in SRv6 Endpoint Behavior TLV MUST be set to 0 when originating (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9514-7.1-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9514-7.1-4"><code>RFC9514-7.1-4</code></a></h3>
+<p>Undefined flags in the SRv6 Endpoint Behavior TLV MUST be ignored on receipt (§7.1)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9514-7.1-4, so no unit is bound to it.</p>
 <h3><a href="#rfc9514-7.1-3"><code>RFC9514-7.1-3</code></a></h3>
 <p>Algorithm value in SRv6 Endpoint Behavior TLV MUST be 0 unless an algorithm is associated locally with the SRv6 Locator (§7.1)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
@@ -551,17 +663,276 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
 <p>Reserved bits (3-7) in SRv6 BGP PeerNode SID flags MUST be set to 0 when originating (§7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9514-7.2-2, so no unit is bound to it.</p>
+<h3><a href="#rfc9514-7.2-5"><code>RFC9514-7.2-5</code></a></h3>
+<p>The bits reserved for future use in the SRv6 BGP PeerNode SID Flags field MUST be ignored on receipt (§7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9514-7.2-5, so no unit is bound to it.</p>
 <h3><a href="#rfc9514-7.2-3"><code>RFC9514-7.2-3</code></a></h3>
 <p>Reserved field in SRv6 BGP PeerNode SID TLV MUST be set to 0 when originated (§7.2)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9514-7.2-3, so no unit is bound to it.</p>
+<h3><a href="#rfc9514-7.2-6"><code>RFC9514-7.2-6</code></a></h3>
+<p>The Reserved field of the SRv6 BGP PeerNode SID TLV MUST be ignored on receipt (§7.2)</p>
+<p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
+<p>No test carries RFC9514-7.2-6, so no unit is bound to it.</p>
 <h3><a href="#rfc9514-8-1"><code>RFC9514-8-1</code></a></h3>
 <p>SRv6 SID Structure sum (LB Length + LN Length + Fun. Length + Arg. Length) MUST be less than or equal to 128 (§8)</p>
 <p><strong>Audit verdict:</strong> not audited: no reader has judged these tests</p>
 <p>No test carries RFC9514-8-1, so no unit is bound to it.</p>
 </section>
 <section><h2>Extraction sign-off</h2>
-<p>No extraction sign-off exists for RFC 9514, so no reviewer has walked its text sentence by sentence.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Field</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Reviewer</td>
+<td>claude</td>
+</tr>
+<tr><td>Signed off</td>
+<td>2026-09-21</td>
+</tr>
+<tr><td>Register</td>
+<td>prose</td>
+</tr>
+<tr><td>Source</td>
+<td>rfc/full/rfc9514.txt</td>
+</tr>
+<tr><td>Source fingerprint</td>
+<td>9d86d7c4371f0240</td>
+</tr>
+<tr><td>Record</td>
+<td>rfc/extraction/rfc9514.json</td>
+</tr>
+<tr><td>Mapped sentences</td>
+<td>13</td>
+</tr>
+<tr><td>Declined as scope</td>
+<td>5</td>
+</tr>
+<tr><td>Relocated to a spec, which Ze OWES</td>
+<td>0</td>
+</tr>
+<tr><td>Unclassified</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Sections</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Section</th><th>Name</th><th>Sites</th><th>Disposition</th><th>Reason</th></tr></thead>
+<tbody>
+<tr><td><code>front</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>1.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>2</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>3.1</code></td>
+<td>SRv6 Capabilities TLV</td>
+<td>2</td>
+<td>walked</td>
+<td>SRv6 Capabilities TLV. Two sites: the single-instance inclusion MUST (3.1-1) and the Reserved field (3.1-2). Each reserved-field sentence in this document states two obligations, &#34;MUST be set to 0 when originated and ignored on receipt&#34;, and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-3.1-3 carries it.</td>
+</tr>
+<tr><td><code>3.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>4.1</code></td>
+<td>SRv6 End.X SID TLV</td>
+<td>1</td>
+<td>walked</td>
+<td>SRv6 End.X SID TLV. One site, the Reserved field, mapped to 4.1-1. Each reserved-field sentence in this document states two obligations, &#34;MUST be set to 0 when originated and ignored on receipt&#34;, and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-4.1-2 carries it.</td>
+</tr>
+<tr><td><code>4.2</code></td>
+<td>SRv6 LAN End.X SID TLV</td>
+<td>1</td>
+<td>walked</td>
+<td>SRv6 LAN End.X SID TLV. One site, the Reserved field, mapped to 4.2-1. Each reserved-field sentence in this document states two obligations, &#34;MUST be set to 0 when originated and ignored on receipt&#34;, and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-4.2-2 carries it.</td>
+</tr>
+<tr><td><code>4.3</code></td>
+<td>SRv6 Locator TLV reference in the link attribute set</td>
+<td>0</td>
+<td>walked</td>
+<td>SRv6 Locator TLV reference in the link attribute set. No 2119 keyword and no obligation of its own.</td>
+</tr>
+<tr><td><code>5</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>5.1</code></td>
+<td>SRv6 Locator TLV</td>
+<td>1</td>
+<td>walked</td>
+<td>SRv6 Locator TLV. One site, the Reserved field, mapped to 5.1-1. Each reserved-field sentence in this document states two obligations, &#34;MUST be set to 0 when originated and ignored on receipt&#34;, and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-5.1-2 carries it.</td>
+</tr>
+<tr><td><code>6</code></td>
+<td>SRv6 SID NLRI</td>
+<td>1</td>
+<td>walked</td>
+<td>SRv6 SID NLRI. One site carrying two levels: the MUST that the SRv6 SID Descriptors field contain a single SRv6 SID Information TLV (mapped to 6-1) and the MAY that it contain the Multi-Topology Identifier TLV of RFC 7752, declared unsourced as 6-2.</td>
+</tr>
+<tr><td><code>6.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>7.1</code></td>
+<td>SRv6 Endpoint Behavior TLV</td>
+<td>3</td>
+<td>walked</td>
+<td>SRv6 Endpoint Behavior TLV. Three sites: the mandatory inclusion of the TLV in the BGP-LS Attribute of the SRv6 SID NLRI (7.1-1), the algorithm value of 0 unless an algorithm is associated locally with the SRv6 Locator (7.1-3), and undefined flags (7.1-2). Each reserved-field sentence in this document states two obligations, &#34;MUST be set to 0 when originated and ignored on receipt&#34;, and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-7.1-4 carries it for the undefined flags.</td>
+</tr>
+<tr><td><code>7.2</code></td>
+<td>SRv6 BGP Peer Node SID TLV</td>
+<td>3</td>
+<td>walked</td>
+<td>SRv6 BGP Peer Node SID TLV. Three sites: the inclusion MUST for SIDs associated with BGP PeerNode or PeerSet functionality (7.2-1), the bits reserved for future use in the Flags field (7.2-2), and the Reserved field (7.2-3). Each reserved-field sentence in this document states two obligations, &#34;MUST be set to 0 when originated and ignored on receipt&#34;, and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-7.2-5 and RFC9514-7.2-6 carry it. The MAY that a PeerSet SID be assigned to one or more End.X SIDs carries no MUST-level site and is declared unsourced as 7.2-4.</td>
+</tr>
+<tr><td><code>8</code></td>
+<td>SRv6 SID Structure TLV</td>
+<td>1</td>
+<td>walked</td>
+<td>SRv6 SID Structure TLV. One site: the sum of LB Length, LN Length, Function Length and Argument Length MUST be at most 128, mapped to 8-1.</td>
+</tr>
+<tr><td><code>9</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>9.3</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>10</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>11</code></td>
+<td>Security Considerations</td>
+<td>1</td>
+<td>walked</td>
+<td>Security Considerations. No MUST-level site. The RECOMMENDED isolation of BGP-LS peering sessions, so that topology information is not advertised outside the SR domain, is declared unsourced as 11-1.</td>
+</tr>
+<tr><td><code>12</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>12.1</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>12.2</code></td>
+<td>not stated</td>
+<td>0</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+<tr><td><code>A</code></td>
+<td>not stated</td>
+<td>1</td>
+<td>walked</td>
+<td>not stated</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Excluded sentences</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Site</th><th>Excluded kind</th><th>Reason</th><th>Quote</th></tr></thead>
+<tbody>
+<tr><td><code>front:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>RFC boilerplate: the Trust Legal Provisions copyright notice that opens every RFC. Its &#39;must&#39; addresses whoever extracts Code Components from the document and states a licensing condition, not a protocol behaviour.</td>
+<td>Code Components extracted from this document must include Revised BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Revised BSD License.</td>
+</tr>
+<tr><td><code>1:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Introduction prose describing what the extension allows: consumer applications &#39;receive the SRv6 SIDs from nodes across an IGP domain or even across Autonomous Systems (ASes) as required&#39;. The words &#39;as required&#39; qualify the applications&#39; own need and direct no speaker.</td>
+<td>On similar lines, introducing the SRv6-related information in BGP-LS allows consumer applications that require topological visibility to also receive the SRv6 SIDs from nodes across an IGP domain or even across Autonomous Systems (ASes) as required.</td>
+</tr>
+<tr><td><code>2:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Motivation prose in the subjunctive, explaining why a design that was NOT chosen would have been worse: &#39;If the SRv6 SIDs had been advertised within the BGP-LS Link Attribute ... the BGP-LS update would have grown rather large&#39;. It describes a rejected alternative and states no obligation.</td>
+<td>If the SRv6 SIDs had been advertised within the BGP- LS Link Attribute associated with the existing Node NLRI, the BGP-LS update would have grown rather large with the increase in SRv6 SIDs on the node and would have also required a large update message to be generated for any change, even a change to a single SRv6 SID.</td>
+</tr>
+<tr><td><code>11:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>An assumption recorded in the Security Considerations, not an obligation: &#39;The IGP instances originating these TLVs are assumed to support all the required security and authentication mechanisms (as described in [RFC9352] and [RFC9513]).&#39; The mechanisms it names are obligations of RFC 9352 and RFC 9513 on the IGP, and this sentence assumes rather than imposes them.</td>
+<td>The IGP instances originating these TLVs are assumed to support all the required security and authentication mechanisms (as described in [RFC9352] and [RFC9513]).</td>
+</tr>
+<tr><td><code>A:1</code></td>
+<td><code>not-a-requirement</code><br /><strong>never bound Ze</strong><br />the sentence states a fact or describes another document, and directs no implementation</td>
+<td>Appendix prose comparing this document&#39;s encoding with SR-MPLS: &#39;In the case of SR-MPLS, an additional Link NLRI is required to be advertised corresponding to each BGP peering session on the node.&#39; It describes what RFC 9086 does, not what an implementation of this document owes.</td>
+<td>In the case of SR-MPLS, an additional Link NLRI is required to be advertised corresponding to each BGP peering session on the node.</td>
+</tr>
+</tbody>
+</table>
+</div>
 </section>
 <section><h2>Superseded</h2>
 <p>No document obsoletes RFC 9514, so its obligations are stated where they were written.</p>
@@ -595,7 +966,7 @@ Thirteen origination/encode MUSTs unmet (decode-only plugin, no config surface);
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 19 September 2026 02:58 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 08:44 UTC</span>
                 </div>
             </div>
         </footer>

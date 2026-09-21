@@ -22,7 +22,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| MUSTs declared | 11 | of 14 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
+| MUSTs declared | 11 | of 13 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (third-party), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 11 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 11 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -51,8 +51,8 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Not enrolled (enrolled) |
-| Requirements | 14 |
+| Enrolment | Not enrolled (third-party) |
+| Requirements | 13 |
 | Gated MUST-level | 11 |
 | Not applicable, so out of scope | 11 |
 | Declared gaps | 0 |
@@ -68,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Not enrolled (enrolled, a disposition this page has no published meaning for): Generic Routing Encapsulation (GRE) base header: eleven MUST-level requirements, all {not-applicable}. ze builds and parses no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go buildGretun sets only the netlink link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go), delegating all header construction (C bit, Reserved0/Reserved1 zeroing, version 0, protocol type 0x0800), checksum handling, reserved-bit discard, and decapsulation/forwarding (destination lookup, TTL decrement, loop discard) to the kernel ip_gre module and the VPP dataplane. This is the same delegation rationale as the enrolled RFC 2890.
+Not enrolled (third-party, a layer under or beside Ze performs the document and Ze holds no Go code for it, so the reason beside this kind names the component that does): The Linux ip_gre module builds and parses every GRE header. Ze only builds the netlink link descriptor, internal/plugins/iface/netlink/tunnel_linux.go::buildGretun.
 
 ## What the public ledger says
 
@@ -105,7 +105,6 @@ No row in the public ledger, so its summary declares `| Support | - |` and docs/
 | `RFC2784-5.2-1` | Packets from an RFC 1701 transmitter with non-zero bits in bits 1-5 MUST be discarded unless the receiver implements RFC 1701 (§5.2) | MUST | 5.2 | **positive:** no positive test. **negative:** no negative test. **{not-applicable}:** ze builds no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go:129 buildGretun sets only the netlink.Gretun link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go:73), and the kernel ip_gre module and VPP dataplane own the GRE header wire bits and all decapsulation/forwarding, so this receive-side obligation has no ze code path |
 | `RFC2784-2.4-1` | An implementation receiving a Protocol Type not listed in RFC 1700 or ETYPES SHOULD discard the packet (§2.4) | SHOULD | 2.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2784-3.1-4` | Care should be taken when forwarding decapsulated payload to avoid routing loops (§3.1) | SHOULD | 3.1 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2784-5-1` | Implementations MAY support RFC 1701 features (Routing, Key, Sequence) but MUST also accept packets without them (§5) | MAY | 5 | **positive:** no positive test. **negative:** no negative test |
 
 ## Gaps and untested MUSTs
 
@@ -217,7 +216,55 @@ No test carries RFC2784-5.2-1, so no unit is bound to it.
 
 ## Extraction sign-off
 
-No extraction sign-off exists for RFC 2784, so no reviewer has walked its text sentence by sentence.
+| Field | Value |
+|---|---|
+| Reviewer | claude |
+| Signed off | 2026-09-21 |
+| Register | prose |
+| Source | rfc/full/rfc2784.txt |
+| Source fingerprint | dbee3b50697d9b4c |
+| Record | rfc/extraction/rfc2784.json |
+| Mapped sentences | 9 |
+| Declined as scope | 2 |
+| Relocated to a spec, which Ze OWES | 0 |
+| Unclassified | 0 |
+
+### Sections
+
+| Section | Name | Sites | Disposition | Reason |
+|---|---|---|---|---|
+| `front` | not stated | 0 | walked | not stated |
+| `1` | not stated | 1 | walked | not stated |
+| `2` | not stated | 0 | walked | not stated |
+| `2.1` | not stated | 0 | walked | not stated |
+| `2.2` | not stated | 1 | walked | not stated |
+| `2.3` | not stated | 2 | walked | not stated |
+| `2.3.1` | not stated | 1 | walked | not stated |
+| `2.4` | not stated | 0 | walked | not stated |
+| `2.5` | not stated | 0 | walked | not stated |
+| `2.6` | not stated | 1 | walked | not stated |
+| `3` | not stated | 1 | walked | not stated |
+| `3.1` | not stated | 2 | walked | not stated |
+| `4` | not stated | 0 | walked | not stated |
+| `5` | not stated | 0 | walked | not stated |
+| `5.1` | not stated | 0 | walked | not stated |
+| `5.2` | not stated | 1 | walked | not stated |
+| `6` | not stated | 0 | walked | not stated |
+| `7` | not stated | 0 | walked | not stated |
+| `7.1` | not stated | 0 | walked | not stated |
+| `7.2` | not stated | 0 | walked | not stated |
+| `8` | not stated | 0 | walked | not stated |
+| `9` | not stated | 0 | walked | not stated |
+| `10` | not stated | 0 | walked | not stated |
+| `11` | not stated | 0 | walked | not stated |
+| `12` | not stated | 1 | walked | not stated |
+
+### Excluded sentences
+
+| Site | Excluded kind | Reason | Quote |
+|---|---|---|---|
+| `1:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | RFC 2119 boilerplate in the Introduction: it declares how the keywords are to be interpreted and states no protocol obligation. | The keywords MUST, MUST NOT, MAY, OPTIONAL, REQUIRED, RECOMMENDED, SHALL, SHALL NOT, SHOULD, SHOULD NOT are to be interpreted as defined in RFC 2119 [RFC2119]. |
+| `12:1` | `not-a-requirement` (never bound Ze): the sentence states a fact or describes another document, and directs no implementation | ISOC Full Copyright Statement. The lowercase 'must be followed' governs redistribution of the document, not GRE behaviour. | However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English. |
 
 ## Superseded
 
