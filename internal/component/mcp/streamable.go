@@ -37,7 +37,11 @@ const ProtocolVersion = "2026-07-28"
 // Endpoint is the single MCP endpoint path.
 const Endpoint = "/mcp"
 
-// OAuthMetadataPath is the RFC 9728 Protected Resource Metadata discovery URL.
+// OAuthMetadataPath is the well-known URI suffix Ze publishes its RFC 9728
+// Protected Resource Metadata under. It is the registered default
+// (RFC 9728 Section 8.3, "oauth-protected-resource"), and it is inserted
+// between the host and the resource identifier's path, so the served path is
+// this suffix followed by the resource path (resourceMetadataPath).
 const OAuthMetadataPath = "/.well-known/oauth-protected-resource"
 
 // supportedProtocolVersions enumerates every MCP version this server accepts,
@@ -104,8 +108,10 @@ type OAuthConfig struct {
 	Audience            string
 	RequiredScopes      []string
 	// MetadataResource is the absolute URL (with scheme + host + path) the
-	// RFC 9728 `/.well-known/oauth-protected-resource` handler returns as
-	// the `resource` field. Set to `cfg.OAuth.Audience` when blank.
+	// RFC 9728 metadata handler returns as the `resource` field, and the
+	// identifier the well-known suffix is inserted into to locate the
+	// document (resourceMetadataPath). Set to `cfg.OAuth.Audience` when
+	// blank.
 	MetadataResource string
 }
 
@@ -132,6 +138,11 @@ type Streamable struct {
 	// advertised authorization_servers[0] matches the value the token
 	// verifier enforces. Empty for non-OAuth modes.
 	oauthIssuer string
+	// metadataPath is the request path the RFC 9728 document is served at:
+	// the well-known suffix inserted between the host and the resource
+	// identifier's path (resourceMetadataPath). Computed once so ServeHTTP
+	// compares one string per request.
+	metadataPath string
 
 	cachedResources []map[string]any // immutable after construction; from embedded FS walk
 }
@@ -172,6 +183,7 @@ func NewStreamable(cfg StreamableConfig) (*Streamable, error) {
 		auth:            authRes.auth,
 		authMode:        mode,
 		oauthIssuer:     authRes.canonicalIssuer,
+		metadataPath:    resourceMetadataPath(cfg.OAuth),
 		cachedResources: listResources(),
 	}, nil
 }
@@ -189,7 +201,13 @@ func (s *Streamable) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// from whatever domain hosts the SPA. CORS wildcard + OPTIONS
 	// preflight admit those clients without weakening the Origin check
 	// that protects the JSON-RPC endpoint.
-	if r.URL.Path == OAuthMetadataPath {
+	//
+	// RFC 9728 Section 3: the document lives at the well-known suffix
+	// inserted between the host and the resource identifier's path, so
+	// the match is against s.metadataPath and not the bare suffix. A
+	// resource identified as `https://mcp.example/mcp` publishes at
+	// `/.well-known/oauth-protected-resource/mcp` and nowhere else.
+	if r.URL.Path == s.metadataPath {
 		s.handleResourceMetadata(w, r)
 		return
 	}

@@ -10,9 +10,10 @@
 // client which specific check failed.
 //
 // The RFC 9728 metadata handler is a tiny static-JSON endpoint that lists
-// the authorization servers the client should use. It is served on
-// /.well-known/oauth-protected-resource with no authentication (required by
-// the spec so clients can discover the AS without an existing token).
+// the authorization servers the client should use. It is served at the
+// well-known suffix inserted between the host and the resource identifier's
+// path (resourceMetadataPath in streamable_auth.go), with no authentication
+// so clients can discover the AS without an existing token.
 
 package mcp
 

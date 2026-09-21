@@ -260,27 +260,78 @@ func canonicalAudience(raw string) string {
 // audience / metadata-resource so the URL matches what the client sees as
 // the resource identity.
 //
+// RFC 9728 Section 3: "Protected resources supporting metadata MUST make a
+// JSON document containing metadata as specified in Section 2 available at
+// a URL formed by inserting a well-known URI string into the protected
+// resource's resource identifier between the host component and the path
+// and/or query components, if any." So `https://mcp.example/mcp` yields
+// `https://mcp.example/.well-known/oauth-protected-resource/mcp`, never
+// `https://mcp.example/mcp/.well-known/oauth-protected-resource`.
+//
+// RFC 9728 Section 3.1: "If the resource identifier value contains a path
+// or query component, any terminating slash (/) following the host
+// component MUST be removed before inserting /.well-known/ and the
+// well-known URI path suffix". The canonical form carries no trailing
+// slash, so `https://mcp.example/` yields no doubled slash.
+//
 // Returns the empty string when neither is set or when the base is
 // unparseable / carries query / fragment / userinfo -- stray shell quoting
 // in config should not produce a malformed URL in 401 challenge headers.
 // Validate() enforces `Audience` is present for auth-mode=oauth so this
 // returns empty only on misconfigured standalone calls.
 func resourceMetadataURL(cfg OAuthConfig) string {
+	origin, resourcePath, ok := resourceOriginAndPath(cfg)
+	if !ok {
+		return ""
+	}
+	return origin + OAuthMetadataPath + resourcePath
+}
+
+// resourceMetadataPath returns the request path at which THIS server
+// serves its RFC 9728 document: the well-known suffix, then the resource
+// identifier's path (Section 3). It is the path part of resourceMetadataURL.
+// When no usable resource identifier is configured (a non-OAuth mode, or a
+// base canonicalAuthServerURL rejects) the bare well-known path is
+// returned, so the handler still answers there and reports 404 for a mode
+// that publishes nothing.
+func resourceMetadataPath(cfg OAuthConfig) string {
+	_, resourcePath, ok := resourceOriginAndPath(cfg)
+	if !ok {
+		return OAuthMetadataPath
+	}
+	return OAuthMetadataPath + resourcePath
+}
+
+// resourceOriginAndPath splits the canonical resource identifier into its
+// `scheme://host[:port]` origin and its path, the two halves the well-known
+// suffix is inserted between. ok is false when no base is configured or
+// canonicalAuthServerURL rejects it; the callers decide what an absent
+// identifier means for them.
+func resourceOriginAndPath(cfg OAuthConfig) (origin, resourcePath string, ok bool) {
 	base := cfg.MetadataResource
 	if base == "" {
 		base = cfg.Audience
 	}
 	if base == "" {
-		return ""
+		return "", "", false
 	}
 	// canonicalAuthServerURL rejects query/fragment/userinfo; we reuse its
 	// strict canonicalization so a malformed Audience never turns into a
 	// malformed resource_metadata URL the client then tries to fetch.
 	canonical, err := canonicalAuthServerURL(base)
 	if err != nil {
-		return ""
+		return "", "", false
 	}
-	return canonical + OAuthMetadataPath
+	// The canonical form is `scheme://host[:port]` followed by a cleaned
+	// path with no trailing slash, so the path starts at the first slash
+	// after the authority.
+	authorityEnd := strings.Index(canonical, "://") + len("://")
+	slash := strings.IndexByte(canonical[authorityEnd:], '/')
+	if slash < 0 {
+		return canonical, "", true
+	}
+	split := authorityEnd + slash
+	return canonical[:split], canonical[split:], true
 }
 
 // buildOriginSet parses allowed origins into their canonical scheme://host:port

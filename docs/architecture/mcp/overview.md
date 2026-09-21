@@ -60,7 +60,7 @@ caller.
 | POST | `/mcp` | JSON-RPC 2.0 notification (no `id`) | Acknowledged with `202 Accepted` and no body. This revision defines no client-to-server notification on this transport, so nothing is dispatched |
 | OPTIONS | `/mcp` | — | CORS preflight. Answers `204` with the allowed method and header sets |
 | GET, DELETE | `/mcp` | — | `405 Method Not Allowed` with `Allow: POST, OPTIONS`. Earlier revisions used GET for the server-to-client SSE stream and DELETE for session termination. Neither exists here |
-| GET | `/.well-known/oauth-protected-resource` | — | RFC 9728 protected resource metadata. Served before the Origin allowlist and without authentication. Answers `404` unless `auth-mode oauth` |
+| GET | `/.well-known/oauth-protected-resource<resource path>` | — | RFC 9728 protected resource metadata. The well-known suffix is inserted between the host and the path of the resource identifier (`audience`, or `metadata-resource`), so `https://mcp.example/mcp` publishes at `/.well-known/oauth-protected-resource/mcp` and a bare `https://mcp.example/` at `/.well-known/oauth-protected-resource`. Served before the Origin allowlist and without authentication. Answers `404` unless `auth-mode oauth`, and `405` for a method other than GET or OPTIONS |
 
 There is no handshake, no session, and no server-to-client stream. Every request
 carries its own protocol version, client identity, and client capabilities, and

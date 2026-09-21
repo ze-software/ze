@@ -144,10 +144,16 @@ without auth, etc.) before the daemon starts. See
 [`rules/exact-or-reject.md`](../../../ai/rules/protocol.md) for the
 contract.
 
-RFC 9728 metadata: when `auth-mode oauth`, the server publishes
-`/.well-known/oauth-protected-resource` listing the authorization server(s)
-and supported scopes. Clients discover the AS through this URL when they hit
-a 401.
+RFC 9728 metadata: when `auth-mode oauth`, the server publishes a document
+listing the authorization server(s) and supported scopes. Its path is the
+well-known suffix inserted between the host and the path of the resource
+identifier (`audience`, or `metadata-resource` when set): an audience of
+`https://mcp.example/mcp` publishes at
+`https://mcp.example/.well-known/oauth-protected-resource/mcp`, and
+`https://mcp.example/` at `https://mcp.example/.well-known/oauth-protected-resource`.
+The 401 challenge names that URL in `resource_metadata`, so clients discover
+the AS through it. Set `audience` to the URL clients use for the MCP endpoint:
+a client checks the `resource` field against its own URL (RFC 9728 Section 3.3).
 
 ### Constant-time comparison
 
