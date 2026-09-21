@@ -26,6 +26,7 @@
       "id": "3",
       "sites": 1,
       "disposition": "walked",
+      "reason": "The MAY that a DoH server support more than one URI Template is advisory and the MUST-level scan does not raise it.",
       "unsourced-ids": [
         "RFC8484-3-2"
       ]
@@ -39,6 +40,7 @@
       "id": "4.1",
       "sites": 3,
       "disposition": "walked",
+      "reason": "Three advisory directives carry no site: the SHOULD to send an Accept header, the SHOULD to use DNS ID 0, and the MAY to process other DNS-related media types (the second clause of site 4.1:3).",
       "unsourced-ids": [
         "RFC8484-4.1-4",
         "RFC8484-4.1-5",
@@ -74,6 +76,7 @@
       "id": "5.1",
       "sites": 3,
       "disposition": "walked",
+      "reason": "Two advisory directives carry no site: the SHOULD to assign an explicit freshness lifetime, and the RECOMMENDED freshness equal to the smallest Answer-section TTL.",
       "unsourced-ids": [
         "RFC8484-5.1-4",
         "RFC8484-5.1-5"
@@ -83,6 +86,7 @@
       "id": "5.2",
       "sites": 0,
       "disposition": "walked",
+      "reason": "One advisory directive and no MUST-level site: \"HTTP/2 [RFC7540] is the minimum RECOMMENDED version of HTTP for use with DoH\".",
       "unsourced-ids": [
         "RFC8484-5.2-1"
       ]
@@ -96,6 +100,7 @@
       "id": "5.4",
       "sites": 2,
       "disposition": "walked",
+      "reason": "The MAY that other media types be used as defined by HTTP Content Negotiation is advisory.",
       "unsourced-ids": [
         "RFC8484-5.4-3"
       ]
@@ -104,6 +109,7 @@
       "id": "6",
       "sites": 4,
       "disposition": "walked",
+      "reason": "The MAY that a DoH client include EDNS options in the request is advisory.",
       "unsourced-ids": [
         "RFC8484-6-5"
       ]
@@ -132,6 +138,7 @@
       "id": "8.2",
       "sites": 0,
       "disposition": "walked",
+      "reason": "The SHOULD NOT that DoH clients accept HTTP cookies is advisory.",
       "unsourced-ids": [
         "RFC8484-8.2-1"
       ]
@@ -145,6 +152,7 @@
       "id": "10",
       "sites": 0,
       "disposition": "walked",
+      "reason": "The SHOULD NOT that DoH server authentication rely on DNS-based references in the TLS handshake is advisory.",
       "unsourced-ids": [
         "RFC8484-10-1"
       ]

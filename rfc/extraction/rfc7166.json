@@ -35,7 +35,8 @@
     {
       "id": "2.1",
       "sites": 2,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "AT-Bit. Two MUST-level sites stating one obligation; the second restates the first and is excluded as its duplicate."
     },
     {
       "id": "2.2",
@@ -51,6 +52,7 @@
       "id": "3",
       "sites": 2,
       "disposition": "walked",
+      "reason": "OSPFv3 Security Association. Two sites: the MUST ordering KeyStartGenerate of a new key against KeyStopGenerate of the old (3-3), and the MUST NOT transmitting an OSPFv3 packet unauthenticated once the last key expires (3-6). Four advisory directives carry no MUST-level site and are declared unsourced: KeyStartAccept before KeyStartGenerate (3-1), KeyStopGenerate before KeyStopAccept (3-2), key storage persisting across warm or cold restart (3-4), and notifying the network operator on last-key expiry (3-5, the first clause of site 3:2).",
       "unsourced-ids": [
         "RFC7166-3-1",
         "RFC7166-3-2",
@@ -67,6 +69,7 @@
       "id": "4.1",
       "sites": 4,
       "disposition": "walked",
+      "reason": "Authentication Trailer fields. Four sites mapped to 4.1-2, 4.1-3, 4.1-4 and 4.1-5. The SHOULD to set the Reserved field to 0 when sending is the first clause of site 4.1:1 and is declared unsourced as 4.1-1.",
       "unsourced-ids": [
         "RFC7166-4.1-1"
       ]
@@ -74,12 +77,14 @@
     {
       "id": "4.1.1",
       "sites": 1,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Sequence Number Wrap. One site, mapped to 4.1.1-1."
     },
     {
       "id": "4.2",
       "sites": 2,
       "disposition": "walked",
+      "reason": "Checksum handling. Two receive-side MUST sites mapped to 4.2-3 and 4.2-4. The two transmit-side SHOULDs, setting the OSPFv3 header checksum and the LLS data block checksum to 0 before the digest computation, carry no MUST-level site and are declared unsourced as 4.2-1 and 4.2-2.",
       "unsourced-ids": [
         "RFC7166-4.2-1",
         "RFC7166-4.2-2"
@@ -89,6 +94,7 @@
       "id": "4.3",
       "sites": 2,
       "disposition": "walked",
+      "reason": "Cryptographic Authentication algorithms. Two sites mapped to 4.3-1 and 4.3-4. Site 4.3:1 carries two further levels in the same sentence, the SHOULD for HMAC-SHA-1 (4.3-2) and the MAY for HMAC-SHA-384 and HMAC-SHA-512 (4.3-3), declared unsourced here.",
       "unsourced-ids": [
         "RFC7166-4.3-2",
         "RFC7166-4.3-3"
@@ -97,17 +103,20 @@
     {
       "id": "4.4",
       "sites": 1,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Cryptographic Authentication procedure. One site, mapped to 4.4-1, which carries both the OSPFv3 Cryptographic Protocol ID appended to the Authentication Key and the same step for other protocols sharing the key."
     },
     {
       "id": "4.5",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Packet transmission. The section describes how the trailer is appended and the digest computed; it carries no 2119 keyword and states no separate obligation."
     },
     {
       "id": "4.6",
       "sites": 4,
       "disposition": "walked",
+      "reason": "Packet reception. Four sites mapped to 4.6-1, 4.6-3, 4.6-5 and 4.6-6. Two advisory directives are declared unsourced: the RECOMMENDED full support of OSPFv3 Link-Local Signaling (4.6-2) and the SHOULD to log an error event on a dropped or digest-failed packet (4.6-4, the trailing clause of sites 4.6:2 and 4.6:3).",
       "unsourced-ids": [
         "RFC7166-4.6-2",
         "RFC7166-4.6-4"
@@ -117,6 +126,7 @@
       "id": "5",
       "sites": 0,
       "disposition": "walked",
+      "reason": "Migration. No MUST-level site. Two advisory directives declared unsourced: the SHOULD that all routers on a link migrate together (5-1) and the MAY transition mode that adds the trailer without verifying received packets (5-2).",
       "unsourced-ids": [
         "RFC7166-5-1",
         "RFC7166-5-2"
@@ -126,6 +136,7 @@
       "id": "6",
       "sites": 0,
       "disposition": "walked",
+      "reason": "Security Considerations. No MUST-level site. Three advisory directives declared unsourced: the SHOULD for long random Authentication Key values (6-1), the RECOMMENDED 128 pseudorandom bits (6-2) and the SHOULD that management systems support hexadecimal key input (6-3).",
       "unsourced-ids": [
         "RFC7166-6-1",
         "RFC7166-6-2",

@@ -36,6 +36,7 @@
       "id": "3.1",
       "sites": 2,
       "disposition": "walked",
+      "reason": "SRv6 Capabilities TLV. Two sites: the single-instance inclusion MUST (3.1-1) and the Reserved field (3.1-2). Each reserved-field sentence in this document states two obligations, \"MUST be set to 0 when originated and ignored on receipt\", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-3.1-3 carries it.",
       "unsourced-ids": [
         "RFC9514-3.1-3"
       ]
@@ -54,6 +55,7 @@
       "id": "4.1",
       "sites": 1,
       "disposition": "walked",
+      "reason": "SRv6 End.X SID TLV. One site, the Reserved field, mapped to 4.1-1. Each reserved-field sentence in this document states two obligations, \"MUST be set to 0 when originated and ignored on receipt\", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-4.1-2 carries it.",
       "unsourced-ids": [
         "RFC9514-4.1-2"
       ]
@@ -62,6 +64,7 @@
       "id": "4.2",
       "sites": 1,
       "disposition": "walked",
+      "reason": "SRv6 LAN End.X SID TLV. One site, the Reserved field, mapped to 4.2-1. Each reserved-field sentence in this document states two obligations, \"MUST be set to 0 when originated and ignored on receipt\", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-4.2-2 carries it.",
       "unsourced-ids": [
         "RFC9514-4.2-2"
       ]
@@ -69,7 +72,8 @@
     {
       "id": "4.3",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "SRv6 Locator TLV reference in the link attribute set. No 2119 keyword and no obligation of its own."
     },
     {
       "id": "5",
@@ -80,6 +84,7 @@
       "id": "5.1",
       "sites": 1,
       "disposition": "walked",
+      "reason": "SRv6 Locator TLV. One site, the Reserved field, mapped to 5.1-1. Each reserved-field sentence in this document states two obligations, \"MUST be set to 0 when originated and ignored on receipt\", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-5.1-2 carries it.",
       "unsourced-ids": [
         "RFC9514-5.1-2"
       ]
@@ -88,6 +93,7 @@
       "id": "6",
       "sites": 1,
       "disposition": "walked",
+      "reason": "SRv6 SID NLRI. One site carrying two levels: the MUST that the SRv6 SID Descriptors field contain a single SRv6 SID Information TLV (mapped to 6-1) and the MAY that it contain the Multi-Topology Identifier TLV of RFC 7752, declared unsourced as 6-2.",
       "unsourced-ids": [
         "RFC9514-6-2"
       ]
@@ -106,6 +112,7 @@
       "id": "7.1",
       "sites": 3,
       "disposition": "walked",
+      "reason": "SRv6 Endpoint Behavior TLV. Three sites: the mandatory inclusion of the TLV in the BGP-LS Attribute of the SRv6 SID NLRI (7.1-1), the algorithm value of 0 unless an algorithm is associated locally with the SRv6 Locator (7.1-3), and undefined flags (7.1-2). Each reserved-field sentence in this document states two obligations, \"MUST be set to 0 when originated and ignored on receipt\", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-7.1-4 carries it for the undefined flags.",
       "unsourced-ids": [
         "RFC9514-7.1-4"
       ]
@@ -114,6 +121,7 @@
       "id": "7.2",
       "sites": 3,
       "disposition": "walked",
+      "reason": "SRv6 BGP Peer Node SID TLV. Three sites: the inclusion MUST for SIDs associated with BGP PeerNode or PeerSet functionality (7.2-1), the bits reserved for future use in the Flags field (7.2-2), and the Reserved field (7.2-3). Each reserved-field sentence in this document states two obligations, \"MUST be set to 0 when originated and ignored on receipt\", and the MUST-level scan raises one site for the pair. The originate-as-zero half is mapped below. The ignore-on-receipt half shares that same site and is declared unsourced here, because it is the half a decode-only implementation is the entry point for. RFC9514-7.2-5 and RFC9514-7.2-6 carry it. The MAY that a PeerSet SID be assigned to one or more End.X SIDs carries no MUST-level site and is declared unsourced as 7.2-4.",
       "unsourced-ids": [
         "RFC9514-7.2-4",
         "RFC9514-7.2-5",
@@ -123,7 +131,8 @@
     {
       "id": "8",
       "sites": 1,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "SRv6 SID Structure TLV. One site: the sum of LB Length, LN Length, Function Length and Argument Length MUST be at most 128, mapped to 8-1."
     },
     {
       "id": "9",
@@ -154,6 +163,7 @@
       "id": "11",
       "sites": 1,
       "disposition": "walked",
+      "reason": "Security Considerations. No MUST-level site. The RECOMMENDED isolation of BGP-LS peering sessions, so that topology information is not advertised outside the SR domain, is declared unsourced as 11-1.",
       "unsourced-ids": [
         "RFC9514-11-1"
       ]
