@@ -1,5 +1,82 @@
 [
   {
+    "slug": "2026-09-14",
+    "intro": "Ze measures the path MTU to a peer now, and sizes every IPsec tunnel from what it measured. Two of the week's fixes are worth a maintenance window: Graceful Restart told every peer that Ze preserved nothing, and RPKI reported origin validation as active with no cache server reachable.\n\nThe release queue closed the week at 157 required work items and 183 nice-to-have, against 141 and 181 at the start. Four items left it when the path MTU work finished, and most of what joined is checking work. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/",
+    "is_draft": false,
+    "topics": [
+      {
+        "label": "Diagnostics",
+        "category": "observe",
+        "key": "Diagnostics"
+      },
+      {
+        "label": "IPsec",
+        "category": "secure",
+        "key": "IPsec"
+      },
+      {
+        "label": "Security",
+        "category": "secure",
+        "key": "Security"
+      },
+      {
+        "label": "OSPF",
+        "category": "routing",
+        "key": "OSPF"
+      },
+      {
+        "label": "IS-IS",
+        "category": "routing",
+        "key": "IS-IS"
+      },
+      {
+        "label": "BGP",
+        "category": "routing",
+        "key": "BGP"
+      },
+      {
+        "label": "Graceful Restart",
+        "category": "routing",
+        "key": "Graceful Restart"
+      },
+      {
+        "label": "RPKI",
+        "category": "routing",
+        "key": "RPKI"
+      },
+      {
+        "label": "BFD",
+        "category": "routing",
+        "key": "BFD"
+      },
+      {
+        "label": "Interfaces",
+        "category": "platform",
+        "key": "Interfaces"
+      },
+      {
+        "label": "Firewall",
+        "category": "secure",
+        "key": "Firewall"
+      },
+      {
+        "label": "ExaBGP Migration",
+        "category": "automate",
+        "key": "ExaBGP Migration"
+      },
+      {
+        "label": "RFC Compliance",
+        "category": "meta",
+        "key": "RFC Compliance"
+      },
+      {
+        "label": "Quality Improvement",
+        "category": "platform",
+        "key": "Quality Improvement"
+      }
+    ]
+  },
+  {
     "slug": "2026-09-07",
     "intro": "Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an uplink, an IPv6 Router Advertisement sender, and certificate revocation checking on IKE logins. The biggest fix was in BGP. Ze was rewriting AS numbers out of routes it relayed.",
     "is_draft": false,
@@ -53,98 +130,6 @@
         "label": "DDoS",
         "category": "secure",
         "key": "DDoS"
-      },
-      {
-        "label": "Config",
-        "category": "operate",
-        "key": "Config"
-      },
-      {
-        "label": "RFC Compliance",
-        "category": "meta",
-        "key": "RFC Compliance"
-      },
-      {
-        "label": "Quality Improvement",
-        "category": "platform",
-        "key": "Quality Improvement"
-      }
-    ]
-  },
-  {
-    "slug": "2026-08-31",
-    "intro": "Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication bypass on IKE logins, a redistribute block that discarded every route from every peer, and subscriber IPv6 that never worked at all.",
-    "is_draft": false,
-    "topics": [
-      {
-        "label": "BGP",
-        "category": "routing",
-        "key": "BGP"
-      },
-      {
-        "label": "OSPF",
-        "category": "routing",
-        "key": "OSPF"
-      },
-      {
-        "label": "Flowspec",
-        "category": "routing",
-        "key": "Flowspec"
-      },
-      {
-        "label": "Redistribution",
-        "category": "routing",
-        "key": "Redistribution"
-      },
-      {
-        "label": "ExaBGP Migration",
-        "category": "automate",
-        "key": "ExaBGP Migration"
-      },
-      {
-        "label": "Security",
-        "category": "secure",
-        "key": "Security"
-      },
-      {
-        "label": "IPsec",
-        "category": "secure",
-        "key": "IPsec"
-      },
-      {
-        "label": "RADIUS",
-        "category": "services",
-        "key": "RADIUS"
-      },
-      {
-        "label": "AAA",
-        "category": "secure",
-        "key": "AAA"
-      },
-      {
-        "label": "L2TP",
-        "category": "services",
-        "key": "L2TP"
-      },
-      {
-        "label": "PPPoE",
-        "category": "services",
-        "key": "PPPoE"
-      },
-      {
-        "label": "Interfaces",
-        "category": "platform",
-        "key": "Interfaces"
-      },
-      {
-        "label": "Firewall",
-        "category": "secure",
-        "key": "Firewall"
-      },
-      {
-        "label": "CLI",
-        "category": "operate",
-        "key": "CLI"
       },
       {
         "label": "Config",

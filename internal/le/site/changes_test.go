@@ -338,9 +338,9 @@ func TestTheChangesIndexFileIsNewestFirst(t *testing.T) {
 // follow, so the address the changelog had before it moved out of blog/ is
 // still served.
 //
-// Refreshed 2026-09-19 against gh-pages HEAD c98d5b5ef2. The newest week moved
-// from 2026-08-31 to 2026-09-07, because that week's update was written after
-// the fixtures were last refreshed at gh-pages 7a71f67208. Nothing was removed
+// Refreshed 2026-09-21 against gh-pages HEAD 8c3e3c7f7f. The newest week moved
+// from 2026-09-07 to 2026-09-14, because that week's update was published after
+// the fixtures were last refreshed at gh-pages c98d5b5ef2. Nothing was removed
 // from the feed: the oldest-first guard below still names 2025-12-15.
 func TestTheChangesFeedIsPublishedAtBothAddresses(t *testing.T) {
 	paths := changesPaths(t)
@@ -356,16 +356,16 @@ func TestTheChangesFeedIsPublishedAtBothAddresses(t *testing.T) {
 		`<rss version="2.0">`,
 		"<title>Ze weekly updates</title>",
 		"<link>https://ze-software.net/project/changes/</link>",
-		"<lastBuildDate>Mon, 07 Sep 2026 00:00:00 +0000</lastBuildDate>",
-		"<title>Week of 2026-09-07</title>",
-		`<guid isPermaLink="true">https://ze-software.net/project/changes/2026-09-07/</guid>`,
-		"<pubDate>Mon, 07 Sep 2026 00:00:00 +0000</pubDate>",
+		"<lastBuildDate>Mon, 14 Sep 2026 00:00:00 +0000</lastBuildDate>",
+		"<title>Week of 2026-09-14</title>",
+		`<guid isPermaLink="true">https://ze-software.net/project/changes/2026-09-14/</guid>`,
+		"<pubDate>Mon, 14 Sep 2026 00:00:00 +0000</pubDate>",
 	} {
 		if !strings.Contains(feed, want) {
 			t.Errorf("the feed is missing %q", want)
 		}
 	}
-	if first, second := strings.Index(feed, "2026-09-07/"), strings.Index(feed, "2025-12-15/"); first > second {
+	if first, second := strings.Index(feed, "2026-09-14/"), strings.Index(feed, "2025-12-15/"); first > second {
 		t.Errorf("the feed is oldest first")
 	}
 }
