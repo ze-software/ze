@@ -14,6 +14,28 @@
       "citation": "RFC 8955 Section 4"
     },
     {
+      "rid": "RFC8955-6-5",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go::TestRFC8955FlowSpecLosingPathIsNeverPublished",
+      "unit-sha": "6affa96f7315765f",
+      "claim-sha": "bd100247e82e8d38",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/bestpath.go::comparePair",
+      "producer-sha": "4621d8fa353a9262",
+      "break": "body of comparePair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-6-5",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go::TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes",
+      "unit-sha": "56e2ecc0e8d1bf0a",
+      "claim-sha": "bc1bf2bc576ef3f2",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkBestPathChange",
+      "producer-sha": "734d031996032866",
+      "break": "body of checkBestPathChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8955-8-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/flowspec/vpn_rfc8955_test.go::TestRFC8955VPNNLRIStructure",
