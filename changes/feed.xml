@@ -5,7 +5,14 @@
         <link>https://ze-software.net/project/changes/</link>
         <description>What shipped in Ze each week, in Zeledon's voice, mined from git history.</description>
         <language>en</language>
-        <lastBuildDate>Mon, 07 Sep 2026 00:00:00 +0000</lastBuildDate>
+        <lastBuildDate>Mon, 14 Sep 2026 00:00:00 +0000</lastBuildDate>
+        <item>
+            <title>Week of 2026-09-14</title>
+            <link>https://ze-software.net/project/changes/2026-09-14/</link>
+            <guid isPermaLink="true">https://ze-software.net/project/changes/2026-09-14/</guid>
+            <pubDate>Mon, 14 Sep 2026 00:00:00 +0000</pubDate>
+            <description>Ze measures the path MTU to a peer now, and sizes every IPsec tunnel from what it measured. Two of the week's fixes are worth a maintenance window: Graceful Restart told every peer that Ze preserved nothing, and RPKI reported origin validation as active with no cache server reachable. The release queue closed the week at 157 required work items and 183 nice-to-have, against 141 and 181 at the start. Four items left it when the path MTU work finished, and most of what joined is checking work. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/</description>
+        </item>
         <item>
             <title>Week of 2026-09-07</title>
             <link>https://ze-software.net/project/changes/2026-09-07/</link>

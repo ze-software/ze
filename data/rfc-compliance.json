@@ -2,8 +2,8 @@
   "gate": {
     "ok": false,
     "error-count": 7,
-    "gated-must": 3320,
-    "enrolled-rfcs": 184,
+    "gated-must": 3224,
+    "enrolled-rfcs": 174,
     "test-tags": 4735,
     "message": "rfc-requirements: 7 violation(s)",
     "violations": [
@@ -43,8 +43,8 @@
     "proven": 1907,
     "gated": 3058,
     "rfcs": 147,
-    "inspected": 182,
-    "gated-inspected": 3320,
+    "inspected": 172,
+    "gated-inspected": 3224,
     "percent": "62.4"
   },
   "satisfaction": [
@@ -188,7 +188,7 @@
     "fresh": 56,
     "shifted": 0,
     "stale": 0,
-    "missing": 3264
+    "missing": 3168
   },
   "verify": {
     "command": "./le rfc check",

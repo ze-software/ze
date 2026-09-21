@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 0 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 0 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 0.0% | 0 of 0 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 100.0% | 4 of 4 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 50.0% | 2 of 4 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 0 | of 0 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -112,9 +112,9 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go#L33) | unit/verify | revert, verified |
-| negative | [`TestNotificationDeliveredIsNotRecordedAsUnsent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L96) | unit/verify | revert, verified |
+| negative | [`TestNotificationDeliveredIsNotRecordedAsUnsent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L96) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go#L29) | unit/verify | revert, verified |
-| positive | [`TestNotificationRefusedBySocketStillRecordsTheReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L59) | unit/verify | revert, verified |
+| positive | [`TestNotificationRefusedBySocketStillRecordsTheReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L59) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ## Extraction sign-off
 

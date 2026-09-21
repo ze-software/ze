@@ -1,6 +1,6 @@
 # RFC 6071 - IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap
 
-No row in the public ledger. Every requirement this repository extracted from RFC 6071, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+No row in the public ledger. Every requirement this repository extracted from RFC 6071, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
 
 ## Overview
 
@@ -22,7 +22,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 8 | of 20 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| MUSTs declared | 8 | of 20 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 8 | of 8 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 8 of 8 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 8 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -34,7 +34,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -51,7 +51,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Enrolled |
+| Enrolment | Not enrolled (enrolled) |
 | Requirements | 20 |
 | Gated MUST-level | 8 |
 | Not applicable, so out of scope | 8 |
@@ -68,7 +68,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap: eight MUST-level requirements, all {not-applicable}. RFC 6071 is an informational roadmap that catalogs the IPsec/IKE specifications and defines no independent protocol behavior; each gated MUST restates an algorithm-implementation requirement owned by RFC 4835 (ESP/AH algorithms), RFC 4307 (IKEv2 algorithms), or RFC 4109 (IKEv1, which ze does not implement). The concrete algorithm behavior lives in ze's IKEv2 transform negotiation (internal/component/ike/crypto/transform.go) and ESP dataplane (internal/component/ike/dataplane/xfrm_linux.go), governed by those owning RFCs rather than by the roadmap.
+Not enrolled (enrolled, a disposition this page has no published meaning for): IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap: eight MUST-level requirements, all {not-applicable}. RFC 6071 is an informational roadmap that catalogs the IPsec/IKE specifications and defines no independent protocol behavior; each gated MUST restates an algorithm-implementation requirement owned by RFC 4835 (ESP/AH algorithms), RFC 4307 (IKEv2 algorithms), or RFC 4109 (IKEv1, which ze does not implement). The concrete algorithm behavior lives in ze's IKEv2 transform negotiation (internal/component/ike/crypto/transform.go) and ESP dataplane (internal/component/ike/dataplane/xfrm_linux.go), governed by those owning RFCs rather than by the roadmap.
 
 ## What the public ledger says
 

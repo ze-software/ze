@@ -18,14 +18,14 @@
     "tests": "internal/le/testhealth.Render, over the tree this build read"
   },
   "blog_articles": 7,
-  "changes": 40,
+  "changes": 41,
   "cli_commands": 468,
   "config_sections": 36,
   "dependencies": 49,
   "features": {
     "core_experimental": 52
   },
-  "generated_at": "2026-09-20",
+  "generated_at": "2026-09-21",
   "github_stars": 53,
   "interop": {
     "scenario_dirs_raw": 152,
@@ -34,7 +34,7 @@
     "target_display": "9",
     "targets": 9
   },
-  "published_at": "2026-09-20T23:25:27Z",
+  "published_at": "2026-09-21T00:47:24Z",
   "repo": {
     "design_comments": 5120,
     "design_comments_display": "5,100+",
@@ -44,16 +44,16 @@
     "go_packages_display": "790"
   },
   "rfc": {
-    "enrolled": 184,
-    "enrolled_display": "184",
+    "enrolled": 174,
+    "enrolled_display": "174",
     "gated_implemented": 3058,
     "gated_implemented_display": "3,058",
-    "gated_must": 3320,
-    "gated_must_display": "3,320",
+    "gated_must": 3224,
+    "gated_must_display": "3,224",
     "implemented": 147,
     "implemented_display": "147",
-    "inspected": 182,
-    "inspected_display": "182",
+    "inspected": 172,
+    "inspected_display": "172",
     "must": 3599,
     "must_display": "3,599",
     "proven": 1907,

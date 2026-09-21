@@ -4,6 +4,14 @@ The landmarks that mark Ze's path from a bare BGP speaker to a full network oper
 
 ## Q3 2026
 
+### Path MTU diagnostics (Sep 2026)
+
+*observe*
+
+`show mtu` probes every IPsec peer and a reference address, reports the ceiling, the value to set and the TCP MSS that follows, and classifies each tunnel with the `set interface` command that corrects it. A tunnel with a live IKE security association is confirmed a second time by an authenticated padded probe.
+
+[Read the week](../changes/2026-09-14/)
+
 ### IPv6 Router Advertisement sender (Sep 2026)
 
 *services*

@@ -38,9 +38,9 @@ Ze's command and configuration declarations also feed its reference pages. That 
 
  Recently shipped
 
-### [Week of 2026-09-07](https://ze-software.net/project/changes/2026-09-07/)
+### [Week of 2026-09-14](https://ze-software.net/project/changes/2026-09-14/)
 
-Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an…
+Ze measures the path MTU to a peer now, and sizes every IPsec tunnel from what it measured. Two of the…
 
  RFC compliance progress
 
@@ -62,7 +62,7 @@ Every homepage number links to the page where you can inspect the test layer, tr
 
 - 62.4% tested
 - 147 RFCs Ze claims support for
-- 182 RFCs with requirements extracted
+- 172 RFCs with requirements extracted
 
  RFC requirement ledger.](https://ze-software.net/quality/rfc-compliance/) [**2,000+ end to end tests**
 
@@ -240,6 +240,16 @@ Weekly updates come from git history and Discord's `ze-news`. They stay specific
 
  01
 
+Week of 2026-09-14
+
+### [Ze measures the path MTU to a peer now, and sizes every IPsec tunnel from what it measured. Two of the week's fixes are worth a maintenance window: Graceful Restart told every peer that Ze preserved nothing, and RPKI reported origin validation as active with no cache server reachable. The release queue closed the week at 157 required work items and 183 nice-to-have, against 141 and 181 at the start. Four items left it when the path MTU work finished, and most of what joined is checking work. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/](https://ze-software.net/project/changes/2026-09-14/)
+
+ Diagnostics IPsec OSPF Interfaces
+
+**Update**
+
+ 02
+
 Week of 2026-09-07
 
 ### [Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an uplink, an IPv6 Router Advertisement sender, and certificate revocation checking on IKE logins. The biggest fix was in BGP. Ze was rewriting AS numbers out of routes it relayed.](https://ze-software.net/project/changes/2026-09-07/)
@@ -248,23 +258,13 @@ Week of 2026-09-07
 
 **Update**
 
- 02
+ 03
 
 Week of 2026-08-31
 
 ### [Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication bypass on IKE logins, a redistribute block that discarded every route from every peer, and subscriber IPv6 that never worked at all.](https://ze-software.net/project/changes/2026-08-31/)
 
- BGP ExaBGP Migration Security RADIUS
-
-**Update**
-
- 03
-
-Week of 2026-08-24
-
-### [Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.](https://ze-software.net/project/changes/2026-08-24/)
-
- CLI BGP PPPoE IPsec - [See all updates](https://ze-software.net/project/changes/)
+ BGP ExaBGP Migration Security RADIUS - [See all updates](https://ze-software.net/project/changes/)
 `Try safely`
 
 ## Try Ze before the first release.
@@ -13389,9 +13389,9 @@ An FRR or BIRD cell names the evidence: the configuration command, or the source
 
 **Where the open ground is.** RFC 8362 and RFC 8666 travel together, because OSPFv3 Segment Routing is defined over the Extended LSAs. Neither FRR nor BIRD implements either, so this is the one part of the table where Ze is alone.
 
-**A caveat on RFC 8362, stated because the row above would otherwise mislead.** Ze's Extended LSAs carry the U-bit clear. RFC 8362 Section 2 requires it set, "so that the LSAs will be flooded by OSPFv3 routers that do not understand them". The same section assigns LS types 0xA021 through 0xA029, and Ze declares those types less 0x8000.
+**A note on RFC 8362, because the row above says less than it looks.** Ze's Extended LSAs carry the U-bit and the scope bits RFC 8362 Section 2 assigns, 0xA021 through 0xA029, with E-AS-External at AS scope (0xC025) and E-Link at link-local scope (0x8028). RFC 8362 Section 2 wants the U-bit set "so that the LSAs will be flooded by OSPFv3 routers that do not understand them", and that is what Ze now sends. Until 2026-09-17 Ze declared those types less 0x8000, so RFC 5340 Section 4.4.1 held every one of them to the link and Ze's Prefix-SIDs stopped at the first router in a mixed area that did not support them.
 
-With the U-bit clear, RFC 5340 Section 4.4.1 confines an unrecognized LSA to link-local scope. Ze's Prefix-SIDs therefore stop at the first router in a mixed area that does not support them. Having the feature and having it interoperate are different claims. Only the first is true today.
+Ze originates 3 of the 7 Extended LSA types: E-Router, E-Intra-Area-Prefix and E-Inter-Area-Prefix, the three OSPFv3 Segment Routing rides on.
 
 ## BNG Capabilities
 
@@ -13402,7 +13402,7 @@ Ze includes a production BNG stack with two access methods: L2TPv2 (RFC 2661) an
 The detail tables above are useful. The gaps also need to be visible without reading thirteen tables.
 
 - **OSPF as PE/CE (RFC 4577) is absent.** No DN-bit originator, no VRF, and no sham link. FRR has none of it either; BIRD has the DN bit alone.
-- **OSPFv3 Extended LSAs (RFC 8362) do not interoperate.** Ze builds 3 of the 7 LSA types and sets the U-bit wrong on all of them, so they stop at the first OSPFv3 router that does not support them. Neither FRR nor BIRD implements RFC 8362 at all.
+- **OSPFv3 Extended LSAs (RFC 8362) are partial.** Ze builds 3 of the 7 LSA types. They carry the U-bit and their assigned scope since 2026-09-17, so a router that does not understand them floods them on. Neither FRR nor BIRD implements RFC 8362 at all.
 - **BGP confederations (RFC 5065) are missing.** BIRD 3, bio-rd (partial), FRR, GoBGP, BIRD 2, and freeRtr support them.
 - **Privilege separation is missing.** At least one other implementation in this table has it.
 - **BFD integration is partial.** Several other implementations here have full support. Ze does carry BFD strict mode (draft-ietf-idr-bgp-bfd-strict-mode, capability 74), which holds a BGP session out of Established until the BFD session is Up.
@@ -14898,7 +14898,7 @@ This page answers **is our testing correct**, not *is our testing large*. Those 
 
 | Metric | Question | Value | What to do |
 |---|---|---|---|
-| Enrolled RFCs with zero test-proven requirements | Q2 | **33 / 182** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
+| Enrolled RFCs with zero test-proven requirements | Q2 | **24 / 172** (attention) | Pick the largest and complete a pair, or accept it is a single-polarity claim. |
 | Logged known-failing tests | Q3 | **3** (attention) | Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps. |
 
 7 further metric(s) are within threshold and are listed in full below.
@@ -14942,7 +14942,7 @@ A sleep is a guess about timing that hides the race it was added to mask. The ra
 
 ### Enrolled RFCs with zero test-proven requirements
 
-**33 / 182** (attention)
+**24 / 172** (attention)
 
 Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some of these do carry positive-only tests; none carries a pair.
 
@@ -14952,7 +14952,7 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 **1907 / 3058** (ok)
 
-62.4% of the 3058 gated MUSTs the 147 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 3320 gated MUSTs across 182 enrolled RFCs -- and of the 1738 of those not proven in both polarities: 824 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 503 known gap (unimplemented, genuinely untested), 378 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 29 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 4 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work. Apart from every figure above, 2 rows carry {rollup}: each derives its state from rows already counted here, and none is in the denominator.
+62.4% of the 3058 gated MUSTs the 147 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 3224 gated MUSTs across 172 enrolled RFCs -- and of the 1648 of those not proven in both polarities: 735 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 503 known gap (unimplemented, genuinely untested), 377 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 29 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 4 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work. Apart from every figure above, 2 rows carry {rollup}: each derives its state from rows already counted here, and none is in the denominator.
 
 *Action if this degrades:* Write a test for a {gap} requirement, or for one carrying no test and no annotation. A single-polarity requirement is already counted as proven, and not-applicable needs no test.
 
@@ -14964,10 +14964,10 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 | rfc4761 | 18 |
 | rfc3032 | 17 |
 | rfc7166 | 17 |
-| rfc4862 | 16 |
-| rfc2003 | 13 |
 | rfc9514 | 13 |
 | rfc9085 | 12 |
+| rfc9086 | 12 |
+| rfc7012 | 11 |
 
 ### In-repo test inventory
 
@@ -14979,7 +14979,7 @@ Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some o
 
 ### Test files that expect a specific error
 
-**1570 / 4341** (ok)
+**1571 / 4341** (ok)
 
 Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.
 
@@ -15061,7 +15061,7 @@ the populations every share below is taken over
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 3,058 | 5,472 extracted from 201 summaries | MUST-level requirements the gate HOLDS, across the 147 RFCs Ze implements, out of 3,320 across the 182 RFCs inspected. A population, not a result: the shares beside it are what says how Ze stands |
+| Gated MUSTs | 3,058 | 5,472 extracted from 201 summaries | MUST-level requirements the gate HOLDS, across the 147 RFCs Ze implements, out of 3,224 across the 172 RFCs inspected. A population, not a result: the shares beside it are what says how Ze stands |
 | Out of scope | 636 | of 3,058 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 
 ### Positive
@@ -15074,7 +15074,7 @@ what Ze has
 | Tested both ways | 50.6% | 1,546 of 3,058 gated MUSTs | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 11.8% | 361 of 3,058 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 3,058 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Proven by a recorded break | 13.6% | 617 of 4,543 tagged units in enrolled RFCs, 2 escaped and 7 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 13.6% | 617 of 4,530 tagged units in enrolled RFCs, 2 escaped and 7 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 
 ### Neutral
 
@@ -15085,7 +15085,7 @@ measures that are neither good news nor bad
 | Not applicable | 20.7% | 632 of 3,058 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.9% | 29 of 3,058 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
 | Optional feature declined | 0.1% | 4 of 3,058 gated MUSTs | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over |
-| Semantic verdicts | 56 | 0 shifted, 0 stale, 3,264 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
+| Semantic verdicts | 56 | 0 shifted, 0 stale, 3,168 missing | requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC's page |
 
 ### Negative
 
@@ -15119,14 +15119,37 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Metric | Value |
 |---|---:|
 | Gate issues | 7 |
-| Gated MUST-level requirements | 3,320 |
-| Enrolled RFCs | 184 |
+| Gated MUST-level requirements | 3,224 |
+| Enrolled RFCs | 174 |
 | Resolved test tags | 4,735 |
 | Declared gaps | 486 |
 | RFCs with declared gaps | 80 |
 | Fresh semantic audit verdicts | 56 |
 | Shifted semantic audit verdicts | 0 |
 | Stale semantic audit verdicts | 0 |
+
+## Who implements each document
+
+The ledger counts what Ze implements in its own Go. A document another layer performs leaves the gated population and names what performs it, and where Ze can observe the behavior the requirement still carries a test over the state Ze installs.
+
+| Implemented by | Summaries | What it means |
+|---|---:|---|
+| `foundation` | 5 | The document defines, registers or describes, and obliges no implementer. |
+| `mixed` | 14 | Ze implements part in Go and another layer performs the rest. The part Ze's Go answers stays gated. |
+| `third-party` | 9 | A layer under or beside Ze performs it and Ze holds no Go code for it, so its MUSTs are not gated against Ze. |
+| `ze` | 173 | Ze's own Go implements the document, and its MUSTs are gated. |
+
+### foundation
+
+[`RFC 6071`](rfc6071/index.md), [`RFC 7454`](rfc7454/index.md), [`RFC 8195`](rfc8195/index.md), [`RFC 9129`](rfc9129/index.md), [`RFC 9319`](rfc9319/index.md)
+
+### mixed
+
+[`RFC 2385`](rfc2385/index.md), [`RFC 2661`](rfc2661/index.md), [`RFC 3032`](rfc3032/index.md), [`RFC 3948`](rfc3948/index.md), [`RFC 4213`](rfc4213/index.md), [`RFC 4301`](rfc4301/index.md), [`RFC 4302`](rfc4302/index.md), [`RFC 4303`](rfc4303/index.md), [`RFC 4552`](rfc4552/index.md), [`RFC 5082`](rfc5082/index.md), [`RFC 5798`](rfc5798/index.md), [`RFC 792`](rfc792/index.md), [`RFC 7999`](rfc7999/index.md), [`RFC 9568`](rfc9568/index.md)
+
+### third-party
+
+[`RFC 2003`](rfc2003/index.md), [`RFC 2473`](rfc2473/index.md), [`RFC 2784`](rfc2784/index.md), [`RFC 2890`](rfc2890/index.md), [`RFC 3031`](rfc3031/index.md), [`RFC 4862`](rfc4862/index.md), [`RFC 6482`](rfc6482/index.md), [`RFC 7627`](rfc7627/index.md), [`RFC 9582`](rfc9582/index.md)
 
 ## Requirement buckets
 
@@ -15163,7 +15186,7 @@ The bar is every one of the 3,058 gated MUST-level requirements. 636 of them are
 
 A reviewer walks an RFC's own text sentence by sentence and decides which sentences become requirements. One that does not is EXCLUDED, with a kind and a reason, and it never reaches the gated ledger at all. That is a different mechanism from the Out of scope card above, which counts requirements that exist and carry a {not-applicable} annotation. Across the sign-offs done so far, 949 sentences were mapped to a requirement and 540 were declined. 13 of those declines are not scope at all: they are obligations Ze OWES, relocated to a named spec, and they are stated apart below.
 
-62 of 201 summaries carry an extraction sign-off, 59 of them among the 184 enrolled. The other 139 have no exclusion ledger at all, so what follows counts the walks that HAVE been done and is not the whole picture.
+62 of 201 summaries carry an extraction sign-off, 59 of them among the 174 enrolled. The other 139 have no exclusion ledger at all, so what follows counts the walks that HAVE been done and is not the whole picture.
 
 | Excluded kind | Means | Sites | Summaries | What it means |
 |---|---|---|---|---|
@@ -15234,11 +15257,11 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 50 
 | Input | Producer | What it answered here |
 |---|---|---|
 | Reproduce it | `./le rfc check` | 1 of 50 full-mode verify stages run it |
-| Requirement source | `rfc/short/*.md` | 3,320 gated MUST-level requirements |
-| Enrolment | `rfc/short/*.md`, the `\| Enrolment \|` Meta row | 184 enrolled RFCs |
+| Requirement source | `rfc/short/*.md` | 3,224 gated MUST-level requirements |
+| Enrolment | `rfc/short/*.md`, the `\| Enrolment \|` Meta row | 174 enrolled RFCs |
 | Test tags | `internal/`, `pkg/`, `test/` | 4,735 resolved tags |
 | Public ledger | `rfc/short/*.md`, the `\| Support \|` Meta row | 80 RFCs with gaps, 3 Supported with Remaining |
-| Semantic audits | `rfc/audit/*.json` | 56 fresh, 0 shifted, 0 stale, 3,264 missing |
+| Semantic audits | `rfc/audit/*.json` | 56 fresh, 0 shifted, 0 stale, 3,168 missing |
 | Pre-commit verification | `internal/le/verify/engine/stages.go` | ./le rfc check, 1 of 50 full-mode stages |
 | Published artifacts | `data/rfc-compliance.json`, `data/rfc-requirements.json` | the same answers this page renders, machine-readable |
 
@@ -15274,7 +15297,6 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 50 
 | [`RFC 1877`](rfc1877/index.md) PPP Internet Protocol Control Protocol Extensions for Name Server Addresses | Partial | 4 | 1 | 0 |
 | [`RFC 1994`](rfc1994/index.md) PPP Challenge Handshake Authentication Protocol (CHAP) | Partial | 17 | 3 | 0 |
 | [`RFC 1997`](rfc1997/index.md) BGP Communities Attribute | Supported | 5 | 0 | 0 |
-| [`RFC 2003`](rfc2003/index.md) IP Encapsulation within IP | No public row declared | 13 | 0 | 0 |
 | [`RFC 2131`](rfc2131/index.md) Dynamic Host Configuration Protocol | Partial | 64 | 18 | 0 |
 | [`RFC 2132`](rfc2132/index.md) DHCP Options and BOOTP Vendor Extensions | Partial | 34 | 1 | 0 |
 | [`RFC 2181`](rfc2181/index.md) Clarifications to the DNS Specification | Partial | 23 | 1 | 0 |
@@ -15284,20 +15306,16 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 50 
 | [`RFC 2348`](rfc2348/index.md) TFTP Blocksize Option | No public row declared | 5 | 0 | 0 |
 | [`RFC 2349`](rfc2349/index.md) TFTP Timeout Interval and Transfer Size Options | No public row declared | 4 | 0 | 0 |
 | [`RFC 2385`](rfc2385/index.md) Protection of BGP Sessions via the TCP MD5 Signature Option | Supported on Linux; FreeBSD needs a `setkey(8)` SAD entry | 9 | 0 | 0 |
-| [`RFC 2473`](rfc2473/index.md) Generic Packet Tunneling in IPv6 Specification | No public row declared | 11 | 0 | 0 |
 | [`RFC 2516`](rfc2516/index.md) A Method for Transmitting PPP Over Ethernet (PPPoE) | Partial | 22 | 0 | 0 |
 | [`RFC 2545`](rfc2545/index.md) Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing | Supported | 4 | 0 | 0 |
 | [`RFC 2661`](rfc2661/index.md) Layer Two Tunneling Protocol "L2TP" | Partial | 20 | 1 | 0 |
 | [`RFC 2759`](rfc2759/index.md) Microsoft PPP CHAP Extensions, Version 2 | Supported | 12 | 0 | 0 |
 | [`RFC 2782`](rfc2782/index.md) A DNS RR for specifying the location of services (DNS SRV) | No public row declared | 7 | 0 | 0 |
-| [`RFC 2784`](rfc2784/index.md) Generic Routing Encapsulation (GRE) | No public row declared | 11 | 0 | 0 |
 | [`RFC 2865`](rfc2865/index.md) Remote Authentication Dial In User Service (RADIUS) | Supported for subscriber access | 30 | 0 | 0 |
 | [`RFC 2866`](rfc2866/index.md) RADIUS Accounting | Supported for subscriber access | 16 | 0 | 0 |
 | [`RFC 2869`](rfc2869/index.md) RADIUS Extensions | Supported for subscriber access | 11 | 0 | 0 |
-| [`RFC 2890`](rfc2890/index.md) Key and Sequence Number Extensions to GRE | No public row declared | 7 | 0 | 0 |
 | [`RFC 2918`](rfc2918/index.md) Route Refresh Capability for BGP-4 | Supported | 6 | 0 | 0 |
 | [`RFC 2966`](rfc2966/index.md) Domain-wide Prefix Distribution with Two-Level IS-IS | Experimental | 4 | 0 | 0 |
-| [`RFC 3031`](rfc3031/index.md) Multiprotocol Label Switching Architecture | No public row declared | 7 | 0 | 0 |
 | [`RFC 3032`](rfc3032/index.md) MPLS Label Stack Encoding | Partial | 17 | 0 | 0 |
 | [`RFC 3101`](rfc3101/index.md) The OSPF Not-So-Stubby Area (NSSA) Option | Experimental | 17 | 0 | 0 |
 | [`RFC 3209`](rfc3209/index.md) RSVP-TE: Extensions to RSVP for LSP Tunnels | Experimental | 13 | 2 | 0 |
@@ -15332,7 +15350,6 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 50 
 | [`RFC 4724`](rfc4724/index.md) Graceful Restart Mechanism for BGP | Partial | 26 | 8 | 0 |
 | [`RFC 4760`](rfc4760/index.md) Multiprotocol Extensions for BGP-4 | Supported | 6 | 0 | 0 |
 | [`RFC 4761`](rfc4761/index.md) Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling | Partial | 18 | 0 | 0 |
-| [`RFC 4862`](rfc4862/index.md) IPv6 Stateless Address Autoconfiguration | No public row declared | 16 | 0 | 0 |
 | [`RFC 5036`](rfc5036/index.md) LDP Specification | Experimental | 15 | 7 | 0 |
 | [`RFC 5072`](rfc5072/index.md) IP Version 6 over PPP | Partial | 16 | 3 | 0 |
 | [`RFC 5082`](rfc5082/index.md) The Generalized TTL Security Mechanism (GTSM) | Supported on Linux | 4 | 0 | 0 |
@@ -15363,12 +15380,10 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 50 
 | [`RFC 5881`](rfc5881/index.md) Bidirectional Forwarding Detection (BFD) for IPv4 and IPv6 (Single Hop) | Partial | 23 | 6 | 0 |
 | [`RFC 5882`](rfc5882/index.md) Generic Application of Bidirectional Forwarding Detection (BFD) | Partial | 3 | 0 | 0 |
 | [`RFC 5883`](rfc5883/index.md) Bidirectional Forwarding Detection (BFD) for Multihop Paths | Partial | 8 | 2 | 0 |
-| [`RFC 6071`](rfc6071/index.md) IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap | No public row declared | 8 | 0 | 0 |
 | [`RFC 6138`](rfc6138/index.md) LDP IGP Synchronization for Broadcast Networks | No public row declared | 2 | 0 | 0 |
 | [`RFC 6286`](rfc6286/index.md) Autonomous-System-Wide Unique BGP Identifier for BGP-4 | Supported | 4 | 0 | 0 |
 | [`RFC 6396`](rfc6396/index.md) Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format | Supported | 13 | 1 | 0 |
 | [`RFC 6397`](rfc6397/index.md) Multi-Threaded Routing Toolkit (MRT) Border Gateway Protocol (BGP) Routing Information Export Format with Geo-Location Extensions | No public row declared | 4 | 0 | 0 |
-| [`RFC 6482`](rfc6482/index.md) A Profile for Route Origin Authorizations (ROAs) | No public row declared | 9 | 0 | 0 |
 | [`RFC 6549`](rfc6549/index.md) OSPFv2 Multi-Instance Extensions | No public row declared | 1 | 0 | 0 |
 | [`RFC 6608`](rfc6608/index.md) Subcodes for BGP Finite State Machine Error | Partial | 3 | 3 | 0 |
 | [`RFC 6793`](rfc6793/index.md) BGP Support for Four-Octet Autonomous System (AS) Number Space | Partial | 30 | 1 | 0 |
@@ -15432,12 +15447,10 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 50 
 | [`RFC 9234`](rfc9234/index.md) Route Leak Prevention and Detection Using Roles in UPDATE and OPEN Messages | Supported | 19 | 0 | 0 |
 | [`RFC 9252`](rfc9252/index.md) BGP Overlay Services Based on Segment Routing over IPv6 (SRv6) | Partial | 19 | 8 | 0 |
 | [`RFC 9256`](rfc9256/index.md) Segment Routing Policy Architecture | Partial | 22 | 6 | 0 |
-| [`RFC 9319`](rfc9319/index.md) The Use of maxLength in the Resource Public Key Infrastructure (RPKI) | No public row declared | 4 | 0 | 0 |
 | [`RFC 9494`](rfc9494/index.md) Long-Lived Graceful Restart for BGP | Partial | 25 | 5 | 0 |
 | [`RFC 9514`](rfc9514/index.md) Border Gateway Protocol - Link State (BGP-LS) Extensions for Segment Routing over IPv6 (SRv6) | Partial | 13 | 13 | 0 |
 | [`RFC 9552`](rfc9552/index.md) Distribution of Link-State and Traffic Engineering Information Using BGP | Partial | 48 | 1 | 0 |
 | [`RFC 9568`](rfc9568/index.md) Virtual Router Redundancy Protocol (VRRP) Version 3 for IPv4 and IPv6 | Partial | 59 | 2 | 0 |
-| [`RFC 9582`](rfc9582/index.md) The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2 | Unsupported | 10 | 0 | 0 |
 | [`RFC 9687`](rfc9687/index.md) Border Gateway Protocol 4 (BGP-4) Send Hold Timer | Supported | 13 | 0 | 0 |
 | [`RFC 9728`](rfc9728/index.md) OAuth 2.0 Protected Resource Metadata | No public row declared | 7 | 0 | 0 |
 | [`RFC 9830`](rfc9830/index.md) BGP Extensions for the Advertisement of Segment Routing (SR) Policies | Partial | 96 | 20 | 0 |
@@ -15449,15 +15462,24 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 50 
 - `blocked`: something outside the summary stops the extraction, and it is named in the reason
 - `non-normative`: the document imposes no MUST-level obligation on an implementation, so there is nothing to gate
 - `out-of-scope`: the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap
+- `enrolled`: a disposition this page has no published meaning for
 
 | RFC | Disposition | Reason |
 |---|---|---|
 | [`DRAFT-IETF-SIDROPS-8210BIS`](draft-ietf-sidrops-8210bis/index.md) The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2 | backlog | The RPKI to Router Protocol, Version 2. Split out of rfc9582 on 2026-09-01 because the obligations below are stated by this draft and not by RFC 9582, which profiles the ROA certificate. It is not enrolled because its obligations are not yet proven and the draft is still in the RFC Editor queue, so a version bump can restate them. |
 | [`RFC 1035`](rfc1035/index.md) Domain Names - Implementation and Specification | backlog | Domain Names: Implementation and Specification. Re-authored 2026-07-30 and it now declares 27 MUST-level obligations read from the indicative prose of a 1987 document (0 capitalised keywords, 23 lowercase must), so this is no longer an empty checklist. It is not enrolled because the obligations are not all proven and the unproven ones need an owner ruling, not an implementer's annotation. The obligation with no code path in Ze is zone transfer: Ze performs none, and the owner ruled RFC 1035 out of scope on 2026-08-18, so that work is not to be started. The 512-octet UDP bound and the TC bit ARE enforced -- send calls Msg.Truncate(udpReplyLimit(r)) for a datagram reply in internal/core/dnsserver/handler.go, and udpReplyLimit holds the Section 2.3.4 floor while letting an RFC 6891 Section 6.2.3 OPT record raise it. An unsupported inverse query DOES draw Not Implemented: Authoritative branches on the opcode before any zone lookup, in the same file. It was the one obligation the 73-section walk found OUTSIDE the summary's declared scope and added to it. The response TTL is deliberately not raised to the SOA MINIMUM -- RFC 2308 Section 4 withdrew that rule, hdr in internal/plugins/geodns/server.go applies no floor, and TestRFC2308_NoZoneWideTTLFloor holds the decision. About 6 requirements admit only a positive polarity because miekg/dns owns the wire codec and no Ze-side change can break them. Escalated for scoping per OR-1b. |
+| [`RFC 2003`](rfc2003/index.md) IP Encapsulation within IP | enrolled | IP Encapsulation within IP (IP-in-IP, protocol 4): thirteen MUST-level requirements, all {not-applicable}. ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go setting IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go). The kernel ipip module and the VPP dataplane own the outer-header construction (Don't-Fragment copy, TTL-zero encap guard), decapsulation (inner-TTL-zero discard), source-address loop prevention, the ICMP relay/suppression rules, the Time-Exceeded-to-Host-Unreachable mapping, and path-MTU soft state. This is the same delegation rationale as the enrolled RFC 2784 and RFC 2890 (GRE). |
+| [`RFC 2473`](rfc2473/index.md) Generic Packet Tunneling in IPv6 Specification | enrolled | Generic Packet Tunneling in IPv6 (tunnel datapath delegated to kernel ip6_tunnel / VPP; ze configures netdevs only) |
+| [`RFC 2784`](rfc2784/index.md) Generic Routing Encapsulation (GRE) | enrolled | Generic Routing Encapsulation (GRE) base header: eleven MUST-level requirements, all {not-applicable}. ze builds and parses no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go buildGretun sets only the netlink link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go), delegating all header construction (C bit, Reserved0/Reserved1 zeroing, version 0, protocol type 0x0800), checksum handling, reserved-bit discard, and decapsulation/forwarding (destination lookup, TTL decrement, loop discard) to the kernel ip_gre module and the VPP dataplane. This is the same delegation rationale as the enrolled RFC 2890. |
+| [`RFC 2890`](rfc2890/index.md) Key and Sequence Number Extensions to GRE | enrolled | Key and Sequence Number Extensions to GRE: seven MUST-level requirements, all {not-applicable}. ze builds and parses no GRE header: it configures kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go buildGretun sets only IKey/OKey) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go), delegating all C/K/S flag construction, Key/Sequence field encoding, receiver ordering (OUTOFORDER_TIMER), and IPsec protection to the kernel/VPP dataplane. ze has no GRE header-construction, sequence, decapsulation, or receiver code path. |
+| [`RFC 3031`](rfc3031/index.md) Multiprotocol Label Switching Architecture | enrolled | Multiprotocol Label Switching Architecture: seven MUST-level requirements, all {not-applicable}. ze is an MPLS control plane that programs label operations as kernel AF_MPLS routes (internal/plugins/fib/kernel/mplsentry_linux.go addMPLSSwap) and VPP entries (internal/plugins/fib/vpp/mpls.go); the gated MUSTs (NHLFE lookup, empty-label-stack network-layer forwarding, label-stack TTL decrement and TTL-zero discard, top-label-only forwarding, unknown-label discard) are packet forwarding-plane behaviors executed by the kernel/VPP dataplane, and ze has no in-process MPLS packet-forwarding path. Label merging (Section 3.14) is an ATM/Frame-Relay VC-merge concern ze does not implement as a packet LSR. |
 | [`RFC 4762`](rfc4762/index.md) Virtual Private LAN Service (VPLS) Using Label Distribution Protocol (LDP) Signaling | blocked | VPLS using LDP signaling. Written 2026-09-01 so the public row this RFC has always carried is declared by a summary rather than authored on a page nobody could tie back to a document. It is not enrolled because there is no source text at rfc/full/rfc4762.txt: fetch https://www.rfc-editor.org/rfc/rfc4762.txt, then extract. Ze speaks the BGP-signalled VPLS of RFC 4761 and not this one, so the row claims Unsupported and no obligation here is gated. |
+| [`RFC 4862`](rfc4862/index.md) IPv6 Stateless Address Autoconfiguration | enrolled | IPv6 Stateless Address Autoconfiguration (RFC 4862): all 16 gated MUST/MUST-NOTs not-applicable -- host SLAAC (address formation, RA/PIO, DAD, deprecated/invalid source selection) is kernel addrconf; ze enables it via sysctls and classifies kernel-assigned addresses |
 | [`RFC 5065`](rfc5065/index.md) Autonomous System Confederations for BGP | blocked | BGP confederations. Written 2026-09-01 for the same reason as the other six rows that had no summary: the public claim now lives in the document it is about. It is not enrolled because there is no source text at rfc/full/rfc5065.txt: fetch https://www.rfc-editor.org/rfc/rfc5065.txt, then extract. The row claims Unsupported, so no obligation here is gated. |
 | [`RFC 5120`](rfc5120/index.md) M-ISIS: Multi Topology (MT) Routing in Intermediate System to Intermediate Systems (IS-ISs) | blocked | IS-IS multi-topology routing. Written 2026-09-01 so the public row is declared by a summary. It is not enrolled because there is no source text at rfc/full/rfc5120.txt: fetch https://www.rfc-editor.org/rfc/rfc5120.txt, then extract. Ze runs IS-IS single-topology dual-stack only and the row claims Unsupported, so no obligation here is gated. |
 | [`RFC 5925`](rfc5925/index.md) The TCP Authentication Option | blocked | The TCP Authentication Option. Written 2026-09-01 so the public row is declared by a summary. It is not enrolled because there is no source text at rfc/full/rfc5925.txt: fetch https://www.rfc-editor.org/rfc/rfc5925.txt, then extract. Ze implements the RFC 2385 TCP MD5 signature option and not TCP-AO, and the row claims Unsupported, so no obligation here is gated. |
+| [`RFC 6071`](rfc6071/index.md) IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap | enrolled | IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap: eight MUST-level requirements, all {not-applicable}. RFC 6071 is an informational roadmap that catalogs the IPsec/IKE specifications and defines no independent protocol behavior; each gated MUST restates an algorithm-implementation requirement owned by RFC 4835 (ESP/AH algorithms), RFC 4307 (IKEv2 algorithms), or RFC 4109 (IKEv1, which ze does not implement). The concrete algorithm behavior lives in ze's IKEv2 transform negotiation (internal/component/ike/crypto/transform.go) and ESP dataplane (internal/component/ike/dataplane/xfrm_linux.go), governed by those owning RFCs rather than by the roadmap. |
+| [`RFC 6482`](rfc6482/index.md) A Profile for Route Origin Authorizations (ROAs) | enrolled | A Profile for Route Origin Authorizations (ROAs): nine MUST-level requirements, all {not-applicable}. ze is neither a ROA producer nor a relying-party validator: it consumes Validated ROA Payloads (prefix, maxLength, origin AS) over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go) and never parses or constructs the RFC 6482 CMS-signed ROA object. The gated MUSTs (ROA version, CMS content-type OID, addressFamily, maxLength constraint, and the relying-party validation duties -- validate before use, RFC 6488 checks, EE-certificate delegation containment, integrity, X.509 signature verification) all govern producing or validating the ROA object, done by the RPKI cache upstream. The nearest analog (maxLength sanity) ze enforces on the RTR PDU wire per RFC 8210, not on a ROA object. |
 | [`RFC 6514`](rfc6514/index.md) BGP Encodings and Procedures for Multicast in MPLS/BGP IP VPNs | out-of-scope | BGP Encodings and Procedures for Multicast in MPLS/BGP IP VPNs. OUT OF SCOPE by owner decision, 2026-09-01, marked for future development. The extraction is COMPLETE: the source text is at rfc/full/rfc6514.txt and this summary declares all 201 requirements, 133 of them MUST-level, so a later decision to build MVPN starts from the obligations rather than from nothing. What Ze has today is NLRI plumbing and nothing the RFC is about: the Section 4 route-type split (splitMVPN, internal/core/bgp/nlri/nlrisplit/mvpn.go), an NLRI codec, a config route parser for three of the seven route types, and opaque Adj-RIB-In storage. Exactly one MUST-level requirement is met and it is met vacuously -- RFC6514-9.1.1-10 says the Leaf Information Required flag "MUST be set to zero and MUST be ignored on receipt", and Ze ignores it by never parsing a PMSI byte, because knownAttrParsers leaves attribute code 22 nil. Absent entirely: the PMSI Tunnel attribute, the PE Distinguisher Labels attribute (code 27 has no constant), the Source AS and VRF Route Import extended communities, auto-discovery, the C-multicast route exchange, S-PMSI routes, inter-AS and ASBR operation, upstream multicast hop selection (SAFI 129 is unregistered), and every protocol the document leans on -- PIM, mLDP, RSVP-TE P2MP and MSDP. No {gap} annotation is written for any of it: a gap is an ISSUE and this is a DECISION (ai/rules/rfc-compliance.md), and 132 gap rows would record a feature nobody chose to build as 132 conformance failures. |
 | [`RFC 6987`](rfc6987/index.md) OSPF Stub Router Advertisement | backlog | OSPF Stub Router Advertisement. Its five obligations sit behind bare [LSA]-style category tags, which parse_checklist_line reads as prose rather than as requirements, so the summary captures zero at any level while the source is normative. Declared backlog and not non-normative on purpose: calling it non-normative would launder five unparsed obligations into a decision, which is exactly the shape D5 exists to expose. |
 | [`RFC 7454`](rfc7454/index.md) BGP Operations and Security | non-normative | BGP Operations and Security, published as BCP 194 with IETF category Best Current Practice. A capitalised MUST / MUST NOT / SHALL / SHALL NOT scan over rfc/full/rfc7454.txt hits four keywords and all four sit inside the RFC 2119 key-words sentence of section 1.1, which tells a reader how to read the other sentences and states no obligation of its own. Outside that sentence the document uses no MUST-level keyword except one NOT REQUIRED in section 5.1, and that phrase negates a requirement instead of stating one. The summary written 2026-08-08 therefore captures 64 requirements and gates none of them: 42 SHOULD, 12 SHOULD NOT, 8 RECOMMENDED, 1 MAY, and the single NOT REQUIRED of section 5.1 recorded at the OPTIONAL level. The document also addresses network administrators rather than protocol implementers, and section 12 states that it "does not aim to describe existing BGP implementations". A zero-MUST BCP can reach the public ledger two ways, as a non-normative disposition or as a manual-walk extraction sign-off with a register-reason, and that choice is a ledger judgement for the owner. Thomas made it on 2026-08-12: non-normative, on the grounds that the scan recorded above finds no MUST-level keyword outside the key-words sentence, so backlog overstated a debt this text does not create. The choice is no longer open. |
@@ -15468,7 +15490,9 @@ This gate runs before a commit is verified: ./le rfc check is 1 stage of the 50 
 | [`RFC 8538`](rfc8538/index.md) Notification Message Support for BGP Graceful Restart | blocked | Notification message support for BGP graceful restart. Written 2026-09-01 so the public row is declared by a summary. It is not enrolled because there is no source text at rfc/full/rfc8538.txt: fetch https://www.rfc-editor.org/rfc/rfc8538.txt, then extract. The row claims Unsupported, so no obligation here is gated. |
 | [`RFC 9129`](rfc9129/index.md) YANG Data Model for the OSPF Protocol | blocked | YANG Data Model for the OSPF Protocol. No source text at rfc/full/rfc9129.txt or rfc/drafts/rfc9129.txt, so check_enrolment refuses the enrolment. Fetch https://www.rfc-editor.org/rfc/rfc9129.txt, then extract. |
 | [`RFC 9190`](rfc9190/index.md) EAP-TLS 1.3: Using the Extensible Authentication Protocol with TLS 1.3 | backlog | EAP-TLS 1.3: Using EAP with TLS 1.3. Summary written 2026-08-01, extraction sign-off walked 2026-09-08 (rfc/extraction/rfc9190.json, 52 sites in 36 sections, register prose, 48 mapped and 4 excluded). It declares 52 MUST-level obligations over 20 sections. It is NOT enrolled because 33 of them are not proven in both polarities: 26 carry no tagged test at all and 7 carry a positive only. Measured 2026-09-08 by counting `RFC requirement: RFC9190-<id> <polarity>` tags under internal/, test/, cmd/ and pkg/ against the gated rows of this checklist. Enrolment demands every gated MUST proven in both polarities or annotated, and annotating is the conformance judgement ai/rules/rfc-compliance.md reserves to the owner; the owner ruling of 2026-08-01 chose to implement the features and enrol with everything proven, so the annotation route is closed. WHAT IS BUILT AND PROVEN, all in both polarities. Section 2.3 key derivation: exportEAPTLSKeys (internal/core/eap/eap_tls.go) selects the exporter label EXPORTER_EAP_TLS_Key_Material and the EAP Type octet as context whenever the negotiated version is TLS 1.3, asks for the 128-octet length on every version, and cuts the result into MSK = Key_Material(0, 63) and EMSK = Key_Material(64, 127), and test/interop-ipsec/scenarios/eap-tls13 exercises that path against strongSwan. Section 2.5 protected success indication, both roles: tlsMethod.indicateSuccess (same file) writes the encrypted TLS record carrying application data 0x00 in the round that completes the handshake, and PeerSession.requireSuccessIndication (internal/core/eap/peer_indication.go) refuses the EAP-Success without it; scenario responder-eap-tls13 proves the server half against strongSwan, which logs `missing protected success indication for EAP-TLS with TLS 1.3` when the write is reverted. The peer half is STRICTER than the published RFC, which addresses Section 2.5 only to the server, so no requirement id covers it and its tests carry no RFC requirement tag. Section 2.1.2 and 2.1.3 resumption, both roles: Resumption (internal/core/eap/resumption.go) owns the ticket keys and the client cache per peering, and serverChainCheck.rebuildResumedChains (internal/core/eap/peer_chain.go) rebuilds the chain crypto/tls skips on a resumed handshake so the Section 5.4 check still runs. ALL FIVE Section 5.4 requirements are built as of 2026-09-08: checkChainRevocation (internal/core/eap/revocation.go) walks every certificate on each chain except the trust anchor on both roles (5.4-1), newTLSMethod staples the operator's ocsp-response (5.4-2), checkStapledChainStatus (internal/core/eap/ocsp.go) refuses a CertificateEntry with no valid status while certificate-status-request is set (5.4-3), and startServerCertRecheck (internal/component/ike/engine/postauth_revocation.go) re-checks the chain over https once the Child SA is up, refusing an http responder URL before any connection opens (5.4-4 and 5.4-5). Section 5.10-1 is proven by sixteen tagged units in internal/core/eap/rfc9190_attack_mitigation_test.go over the RFC 7457 Section 2 attacks. THE TWO OBLIGATIONS THAT WERE UNMET IN CODE ARE MET AND PROVEN AS OF 2026-09-08. RFC9190-2.1.9-1, the MUST NOT to set the L bit in an unfragmented message: tlsFragmenter.nextFragment (internal/core/eap/eap_tls.go) is the one producer of outbound EAP-TLS TypeData on both roles, and it now declares a length only where the first fragment is not also the last, so a message that fits in one fragment leaves as a bare flags octet with its TLS data at offset 1. RFC9190-2.1.9-2, the receive half of the same sentence, is proven beside it over tlsFragmenter.reassemble, which takes an unfragmented message with the L bit and without it. RFC9190-1-1, the Section 1 MUST to limit the maximum TLS version to 1.3 unless the administrator enables a later one: newTLSMethod (eap_tls.go) and PeerSession.tlsClientConfig (internal/core/eap/peer.go) each set MaxVersion to tls.VersionTLS13, and ze exposes no leaf that raises that ceiling, so the exception has nothing to switch on. RFC9190-1-1 was added to this checklist by the 2026-09-08 extraction walk, which found the summary had missed it. |
+| [`RFC 9319`](rfc9319/index.md) The Use of maxLength in the Resource Public Key Infrastructure (RPKI) | enrolled | The Use of maxLength in the RPKI (BCP 185): four MUST-level requirements, all {not-applicable} to Ze. RFC 9319 is operational guidance directed at RPKI OPERATORS and ROA issuers (5-1 review existing ROAs for minimality, 5-2 replace published ROAs as necessary, 5-3 repeat the review on policy changes) and at operators PROVIDING RTDR/Route-Origin-Validation filtering as a service (6-1 MUST NOT require non-minimal ROAs). Ze is an RPKI Relying Party: it consumes Validated ROA Payloads over RTR (internal/component/bgp/plugins/rpki/roa_cache.go, aspa_cache.go) and validates route origins against the maxLength bound (internal/component/bgp/plugins/rpki/validate.go:45); it never issues, publishes, or reviews ROAs and provides no RTDR filtering service, so none of these operator-side obligations has an applicable code path. Ze re-validates its own routes on VRP change per RFC 6811 Section 4 (origin_tracker.go), which is governed by the already-enrolled RFC 6811, not this operator BCP. No SHOULD/MAY requirements are gated. |
 | [`RFC 9384`](rfc9384/index.md) A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD) | non-normative | A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD), IETF category Standards Track. The document carries the RFC 2119 / RFC 8174 key-words paragraph at Section 2, and a capitalised MUST / MUST NOT / SHALL / SHALL NOT / REQUIRED scan over rfc/full/rfc9384.txt hits those five words on one line only, line 101, which is the key-words sentence itself. That sentence tells a reader how to read the other sentences and states no obligation of its own. Outside it the text uses no MUST-level keyword anywhere. The summary written 2026-09-01 therefore captures three requirements and gates none: RFC9384-3-1 at Section 3, and RFC9384-4-1 and RFC9384-4-2 at Section 4, all three at SHOULD. Section 5 says the subcode "is purely informational and has no impact on the BGP Finite State Machine beyond that already documented by [RFC4271], Sections 6.6 and 6.7", so the document adds one registry value and three recommendations about using it. A zero-MUST document can reach the public ledger two ways, as this disposition or as a manual-walk extraction sign-off with a register-reason. This disposition is the route taken, because the sign-off at rfc/extraction/rfc9384.json declares the register the source derives, prose, and the second route would need it to declare the weaker manual-walk grade instead. That sign-off bounds the three-row checklist against the source text. |
+| [`RFC 9582`](rfc9582/index.md) The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2 | enrolled | RPKI-to-Router Protocol v2 (ASPA PDU parsing + version negotiation): 6 MET + 1 single-polarity (7-1) + 3 not-applicable (cache-side roles ze does not play) |
 
 ---
 
@@ -21249,7 +21273,7 @@ https://ze-software.net/quality/rfc-compliance/rfc2003/
 
 # RFC 2003 - IP Encapsulation within IP
 
-No row in the public ledger. Every requirement this repository extracted from RFC 2003, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+No row in the public ledger. Every requirement this repository extracted from RFC 2003, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
 
 ## Overview
 
@@ -21271,7 +21295,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 13 | of 36 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| MUSTs declared | 13 | of 36 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 13 | of 13 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 13 of 13 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 13 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -21283,7 +21307,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -21300,7 +21324,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Enrolled |
+| Enrolment | Not enrolled (enrolled) |
 | Requirements | 36 |
 | Gated MUST-level | 13 |
 | Not applicable, so out of scope | 13 |
@@ -21317,7 +21341,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: IP Encapsulation within IP (IP-in-IP, protocol 4): thirteen MUST-level requirements, all {not-applicable}. ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go setting IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go). The kernel ipip module and the VPP dataplane own the outer-header construction (Don't-Fragment copy, TTL-zero encap guard), decapsulation (inner-TTL-zero discard), source-address loop prevention, the ICMP relay/suppression rules, the Time-Exceeded-to-Host-Unreachable mapping, and path-MTU soft state. This is the same delegation rationale as the enrolled RFC 2784 and RFC 2890 (GRE).
+Not enrolled (enrolled, a disposition this page has no published meaning for): IP Encapsulation within IP (IP-in-IP, protocol 4): thirteen MUST-level requirements, all {not-applicable}. ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go setting IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go). The kernel ipip module and the VPP dataplane own the outer-header construction (Don't-Fragment copy, TTL-zero encap guard), decapsulation (inner-TTL-zero discard), source-address loop prevention, the ICMP relay/suppression rules, the Time-Exceeded-to-Host-Unreachable mapping, and path-MTU soft state. This is the same delegation rationale as the enrolled RFC 2784 and RFC 2890 (GRE).
 
 ## What the public ledger says
 
@@ -24792,7 +24816,7 @@ https://ze-software.net/quality/rfc-compliance/rfc2473/
 
 # RFC 2473 - Generic Packet Tunneling in IPv6 Specification
 
-No row in the public ledger. Every requirement this repository extracted from RFC 2473, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+No row in the public ledger. Every requirement this repository extracted from RFC 2473, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
 
 ## Overview
 
@@ -24814,7 +24838,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 11 | of 21 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| MUSTs declared | 11 | of 21 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 11 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 11 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -24826,7 +24850,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -24843,7 +24867,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Enrolled |
+| Enrolment | Not enrolled (enrolled) |
 | Requirements | 21 |
 | Gated MUST-level | 11 |
 | Not applicable, so out of scope | 11 |
@@ -24860,7 +24884,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: Generic Packet Tunneling in IPv6 (tunnel datapath delegated to kernel ip6_tunnel / VPP; ze configures netdevs only)
+Not enrolled (enrolled, a disposition this page has no published meaning for): Generic Packet Tunneling in IPv6 (tunnel datapath delegated to kernel ip6_tunnel / VPP; ze configures netdevs only)
 
 ## What the public ledger says
 
@@ -26576,7 +26600,7 @@ https://ze-software.net/quality/rfc-compliance/rfc2784/
 
 # RFC 2784 - Generic Routing Encapsulation (GRE)
 
-No row in the public ledger. Every requirement this repository extracted from RFC 2784, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+No row in the public ledger. Every requirement this repository extracted from RFC 2784, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
 
 ## Overview
 
@@ -26598,7 +26622,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 11 | of 14 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| MUSTs declared | 11 | of 14 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 11 | of 11 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 11 of 11 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 11 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -26610,7 +26634,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -26627,7 +26651,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Enrolled |
+| Enrolment | Not enrolled (enrolled) |
 | Requirements | 14 |
 | Gated MUST-level | 11 |
 | Not applicable, so out of scope | 11 |
@@ -26644,7 +26668,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: Generic Routing Encapsulation (GRE) base header: eleven MUST-level requirements, all {not-applicable}. ze builds and parses no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go buildGretun sets only the netlink link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go), delegating all header construction (C bit, Reserved0/Reserved1 zeroing, version 0, protocol type 0x0800), checksum handling, reserved-bit discard, and decapsulation/forwarding (destination lookup, TTL decrement, loop discard) to the kernel ip_gre module and the VPP dataplane. This is the same delegation rationale as the enrolled RFC 2890.
+Not enrolled (enrolled, a disposition this page has no published meaning for): Generic Routing Encapsulation (GRE) base header: eleven MUST-level requirements, all {not-applicable}. ze builds and parses no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go buildGretun sets only the netlink link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go), delegating all header construction (C bit, Reserved0/Reserved1 zeroing, version 0, protocol type 0x0800), checksum handling, reserved-bit discard, and decapsulation/forwarding (destination lookup, TTL decrement, loop discard) to the kernel ip_gre module and the VPP dataplane. This is the same delegation rationale as the enrolled RFC 2890.
 
 ## What the public ledger says
 
@@ -28226,7 +28250,7 @@ https://ze-software.net/quality/rfc-compliance/rfc2890/
 
 # RFC 2890 - Key and Sequence Number Extensions to GRE
 
-No row in the public ledger. Every requirement this repository extracted from RFC 2890, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+No row in the public ledger. Every requirement this repository extracted from RFC 2890, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
 
 ## Overview
 
@@ -28248,7 +28272,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 7 | of 13 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| MUSTs declared | 7 | of 13 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 7 | of 7 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 7 of 7 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 7 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -28260,7 +28284,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -28277,7 +28301,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Enrolled |
+| Enrolment | Not enrolled (enrolled) |
 | Requirements | 13 |
 | Gated MUST-level | 7 |
 | Not applicable, so out of scope | 7 |
@@ -28294,7 +28318,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: Key and Sequence Number Extensions to GRE: seven MUST-level requirements, all {not-applicable}. ze builds and parses no GRE header: it configures kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go buildGretun sets only IKey/OKey) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go), delegating all C/K/S flag construction, Key/Sequence field encoding, receiver ordering (OUTOFORDER_TIMER), and IPsec protection to the kernel/VPP dataplane. ze has no GRE header-construction, sequence, decapsulation, or receiver code path.
+Not enrolled (enrolled, a disposition this page has no published meaning for): Key and Sequence Number Extensions to GRE: seven MUST-level requirements, all {not-applicable}. ze builds and parses no GRE header: it configures kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go buildGretun sets only IKey/OKey) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go), delegating all C/K/S flag construction, Key/Sequence field encoding, receiver ordering (OUTOFORDER_TIMER), and IPsec protection to the kernel/VPP dataplane. ze has no GRE header-construction, sequence, decapsulation, or receiver code path.
 
 ## What the public ledger says
 
@@ -28843,7 +28867,7 @@ https://ze-software.net/quality/rfc-compliance/rfc3031/
 
 # RFC 3031 - Multiprotocol Label Switching Architecture
 
-No row in the public ledger. Every requirement this repository extracted from RFC 3031, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+No row in the public ledger. Every requirement this repository extracted from RFC 3031, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
 
 ## Overview
 
@@ -28865,7 +28889,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 7 | of 11 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| MUSTs declared | 7 | of 11 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 7 | of 7 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 7 of 7 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 7 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -28877,7 +28901,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -28894,7 +28918,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Enrolled |
+| Enrolment | Not enrolled (enrolled) |
 | Requirements | 11 |
 | Gated MUST-level | 7 |
 | Not applicable, so out of scope | 7 |
@@ -28911,7 +28935,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: Multiprotocol Label Switching Architecture: seven MUST-level requirements, all {not-applicable}. ze is an MPLS control plane that programs label operations as kernel AF_MPLS routes (internal/plugins/fib/kernel/mplsentry_linux.go addMPLSSwap) and VPP entries (internal/plugins/fib/vpp/mpls.go); the gated MUSTs (NHLFE lookup, empty-label-stack network-layer forwarding, label-stack TTL decrement and TTL-zero discard, top-label-only forwarding, unknown-label discard) are packet forwarding-plane behaviors executed by the kernel/VPP dataplane, and ze has no in-process MPLS packet-forwarding path. Label merging (Section 3.14) is an ATM/Frame-Relay VC-merge concern ze does not implement as a packet LSR.
+Not enrolled (enrolled, a disposition this page has no published meaning for): Multiprotocol Label Switching Architecture: seven MUST-level requirements, all {not-applicable}. ze is an MPLS control plane that programs label operations as kernel AF_MPLS routes (internal/plugins/fib/kernel/mplsentry_linux.go addMPLSSwap) and VPP entries (internal/plugins/fib/vpp/mpls.go); the gated MUSTs (NHLFE lookup, empty-label-stack network-layer forwarding, label-stack TTL decrement and TTL-zero discard, top-label-only forwarding, unknown-label discard) are packet forwarding-plane behaviors executed by the kernel/VPP dataplane, and ze has no in-process MPLS packet-forwarding path. Label merging (Section 3.14) is an ATM/Frame-Relay VC-merge concern ze does not implement as a packet LSR.
 
 ## What the public ledger says
 
@@ -42948,7 +42972,7 @@ https://ze-software.net/quality/rfc-compliance/rfc4862/
 
 # RFC 4862 - IPv6 Stateless Address Autoconfiguration
 
-No row in the public ledger. Every requirement this repository extracted from RFC 4862, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+No row in the public ledger. Every requirement this repository extracted from RFC 4862, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
 
 ## Overview
 
@@ -42970,7 +42994,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 16 | of 30 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| MUSTs declared | 16 | of 30 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 16 | of 16 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 16 of 16 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 16 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -42982,7 +43006,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -42999,7 +43023,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Enrolled |
+| Enrolment | Not enrolled (enrolled) |
 | Requirements | 30 |
 | Gated MUST-level | 16 |
 | Not applicable, so out of scope | 16 |
@@ -43016,7 +43040,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: IPv6 Stateless Address Autoconfiguration (RFC 4862): all 16 gated MUST/MUST-NOTs not-applicable -- host SLAAC (address formation, RA/PIO, DAD, deprecated/invalid source selection) is kernel addrconf; ze enables it via sysctls and classifies kernel-assigned addresses
+Not enrolled (enrolled, a disposition this page has no published meaning for): IPv6 Stateless Address Autoconfiguration (RFC 4862): all 16 gated MUST/MUST-NOTs not-applicable -- host SLAAC (address formation, RA/PIO, DAD, deprecated/invalid source selection) is kernel addrconf; ze enables it via sysctls and classifies kernel-assigned addresses
 
 ## What the public ledger says
 
@@ -53831,7 +53855,7 @@ https://ze-software.net/quality/rfc-compliance/rfc6071/
 
 # RFC 6071 - IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap
 
-No row in the public ledger. Every requirement this repository extracted from RFC 6071, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+No row in the public ledger. Every requirement this repository extracted from RFC 6071, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
 
 ## Overview
 
@@ -53853,7 +53877,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 8 | of 20 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| MUSTs declared | 8 | of 20 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 8 | of 8 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 8 of 8 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 8 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -53865,7 +53889,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -53882,7 +53906,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Enrolled |
+| Enrolment | Not enrolled (enrolled) |
 | Requirements | 20 |
 | Gated MUST-level | 8 |
 | Not applicable, so out of scope | 8 |
@@ -53899,7 +53923,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap: eight MUST-level requirements, all {not-applicable}. RFC 6071 is an informational roadmap that catalogs the IPsec/IKE specifications and defines no independent protocol behavior; each gated MUST restates an algorithm-implementation requirement owned by RFC 4835 (ESP/AH algorithms), RFC 4307 (IKEv2 algorithms), or RFC 4109 (IKEv1, which ze does not implement). The concrete algorithm behavior lives in ze's IKEv2 transform negotiation (internal/component/ike/crypto/transform.go) and ESP dataplane (internal/component/ike/dataplane/xfrm_linux.go), governed by those owning RFCs rather than by the roadmap.
+Not enrolled (enrolled, a disposition this page has no published meaning for): IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap: eight MUST-level requirements, all {not-applicable}. RFC 6071 is an informational roadmap that catalogs the IPsec/IKE specifications and defines no independent protocol behavior; each gated MUST restates an algorithm-implementation requirement owned by RFC 4835 (ESP/AH algorithms), RFC 4307 (IKEv2 algorithms), or RFC 4109 (IKEv1, which ze does not implement). The concrete algorithm behavior lives in ze's IKEv2 transform negotiation (internal/component/ike/crypto/transform.go) and ESP dataplane (internal/component/ike/dataplane/xfrm_linux.go), governed by those owning RFCs rather than by the roadmap.
 
 ## What the public ledger says
 
@@ -54932,7 +54956,7 @@ https://ze-software.net/quality/rfc-compliance/rfc6482/
 
 # RFC 6482 - A Profile for Route Origin Authorizations (ROAs)
 
-No row in the public ledger. Every requirement this repository extracted from RFC 6482, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+No row in the public ledger. Every requirement this repository extracted from RFC 6482, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
 
 ## Overview
 
@@ -54954,7 +54978,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 9 | of 10 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| MUSTs declared | 9 | of 10 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 9 | of 9 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 9 of 9 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 9 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -54966,7 +54990,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -54983,7 +55007,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Enrolled |
+| Enrolment | Not enrolled (enrolled) |
 | Requirements | 10 |
 | Gated MUST-level | 9 |
 | Not applicable, so out of scope | 9 |
@@ -55000,7 +55024,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: A Profile for Route Origin Authorizations (ROAs): nine MUST-level requirements, all {not-applicable}. ze is neither a ROA producer nor a relying-party validator: it consumes Validated ROA Payloads (prefix, maxLength, origin AS) over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go) and never parses or constructs the RFC 6482 CMS-signed ROA object. The gated MUSTs (ROA version, CMS content-type OID, addressFamily, maxLength constraint, and the relying-party validation duties -- validate before use, RFC 6488 checks, EE-certificate delegation containment, integrity, X.509 signature verification) all govern producing or validating the ROA object, done by the RPKI cache upstream. The nearest analog (maxLength sanity) ze enforces on the RTR PDU wire per RFC 8210, not on a ROA object.
+Not enrolled (enrolled, a disposition this page has no published meaning for): A Profile for Route Origin Authorizations (ROAs): nine MUST-level requirements, all {not-applicable}. ze is neither a ROA producer nor a relying-party validator: it consumes Validated ROA Payloads (prefix, maxLength, origin AS) over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go) and never parses or constructs the RFC 6482 CMS-signed ROA object. The gated MUSTs (ROA version, CMS content-type OID, addressFamily, maxLength constraint, and the relying-party validation duties -- validate before use, RFC 6488 checks, EE-certificate delegation containment, integrity, X.509 signature verification) all govern producing or validating the ROA object, done by the RPKI cache upstream. The nearest analog (maxLength sanity) ze enforces on the RTR PDU wire per RFC 8210, not on a ROA object.
 
 ## What the public ledger says
 
@@ -68298,7 +68322,7 @@ Loc-RIB route monitoring is provided under RFC 9069.
 | `RFC7854-x-10` | Peer Down must include the reason code (1 byte) (Message Types) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderPeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L244). **positive:** `unit/verify` [`TestHandleSenderStatePeerDown`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L298). **negative:** no negative test. **{single-polarity}:** Peer Down is always written with a reason byte, so there is no valid Peer Down without one to assert against |
 | `RFC7854-x-11` | Termination message must be sent when BMP session is being closed (Session Lifecycle) | MUST | x | **positive:** `unit/verify` [`TestBMPSenderTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_test.go#L359). **positive:** `unit/verify` [`TestSenderStopSendsTerminationToCollector`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/sender_queue_test.go#L561). **negative:** no negative test. **{single-polarity}:** Termination is produced unconditionally when the session is torn down, so there is no valid shutdown that omits it to reject |
 | `RFC7854-x-12` | BMP is unidirectional: router to collector only (Session Lifecycle) | MUST | x | **positive:** `unit/verify` [`TestBMPReceiverUnidirectional`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/session_test.go#L132). **negative:** no negative test. **{single-polarity}:** the receiver loop (internal/component/bgp/plugins/bmp/bmp.go:441-492) issues only reads and the sender hold-loop (sender.go:207-237) reads only to detect close, so neither role writes toward the monitored router on a valid session and there is no reject case to construct |
-| `RFC7854-4.9-1` | Peer Down must carry the Data field when the Reason is 1, 2 or 3: the BGP NOTIFICATION PDU for reason 1 and reason 3, and the 2-byte FSM event code for reason 2 (§4.9, Peer Down Notification) | MUST | 4.9 | **positive:** `unit/verify` [`TestRFC7854PeerDownCarriesTheDataItsReasonRequires`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L88). **negative:** `unit/verify` [`TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L147) |
+| `RFC7854-4.9-1` | Peer Down must carry the Data field when the Reason is 1, 2 or 3: the BGP NOTIFICATION PDU for reason 1 and reason 3, and the 2-byte FSM event code for reason 2 (§4.9, Peer Down Notification) | MUST | 4.9 | **positive:** `unit/verify` [`TestRFC7854PeerDownCarriesTheDataItsReasonRequires`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L88). **negative:** `unit/verify` [`TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L148) |
 | `RFC7854-4.5-2` | The monitoring station must close the TCP session after receiving a termination message (§4.5, Termination Message) | MUST | 4.5 | **positive:** `unit/verify` [`TestBMPReceiverClosesAfterTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_close_test.go#L9). **negative:** `unit/verify` [`TestBMPReceiverKeepsSessionWithoutTermination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/termination_absent_test.go#L9) |
 | `RFC7854-x-13` | Minimum 30 seconds between reconnection attempts (Reconnection) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
 | `RFC7854-x-14` | Maximum 720 seconds between reconnection attempts with exponential backoff (Reconnection) | SHOULD | x | **positive:** no positive test. **negative:** no negative test |
@@ -68456,7 +68480,7 @@ Audit verdict: not audited: no reader has judged these tests
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L147) | unit/verify | unproven |
+| negative | [`TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L148) | unit/verify | unproven |
 | positive | [`TestRFC7854PeerDownCarriesTheDataItsReasonRequires`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/peerdown_data_test.go#L88) | unit/verify | unproven |
 
 ### [`RFC7854-4.5-2`](#rfc7854-4.5-2)
@@ -82928,7 +82952,7 @@ https://ze-software.net/quality/rfc-compliance/rfc9319/
 
 # RFC 9319 - The Use of maxLength in the Resource Public Key Infrastructure (RPKI)
 
-No row in the public ledger. Every requirement this repository extracted from RFC 9319, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+No row in the public ledger. Every requirement this repository extracted from RFC 9319, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
 
 ## Overview
 
@@ -82950,7 +82974,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 4 | of 11 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| MUSTs declared | 4 | of 11 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 4 | of 4 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 100.0% | 4 of 4 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 4 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -82962,7 +82986,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -82979,7 +83003,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | No row in the public ledger |
-| Enrolment | Enrolled |
+| Enrolment | Not enrolled (enrolled) |
 | Requirements | 11 |
 | Gated MUST-level | 4 |
 | Not applicable, so out of scope | 4 |
@@ -82996,7 +83020,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: The Use of maxLength in the RPKI (BCP 185): four MUST-level requirements, all {not-applicable} to Ze. RFC 9319 is operational guidance directed at RPKI OPERATORS and ROA issuers (5-1 review existing ROAs for minimality, 5-2 replace published ROAs as necessary, 5-3 repeat the review on policy changes) and at operators PROVIDING RTDR/Route-Origin-Validation filtering as a service (6-1 MUST NOT require non-minimal ROAs). Ze is an RPKI Relying Party: it consumes Validated ROA Payloads over RTR (internal/component/bgp/plugins/rpki/roa_cache.go, aspa_cache.go) and validates route origins against the maxLength bound (internal/component/bgp/plugins/rpki/validate.go:45); it never issues, publishes, or reviews ROAs and provides no RTDR filtering service, so none of these operator-side obligations has an applicable code path. Ze re-validates its own routes on VRP change per RFC 6811 Section 4 (origin_tracker.go), which is governed by the already-enrolled RFC 6811, not this operator BCP. No SHOULD/MAY requirements are gated.
+Not enrolled (enrolled, a disposition this page has no published meaning for): The Use of maxLength in the RPKI (BCP 185): four MUST-level requirements, all {not-applicable} to Ze. RFC 9319 is operational guidance directed at RPKI OPERATORS and ROA issuers (5-1 review existing ROAs for minimality, 5-2 replace published ROAs as necessary, 5-3 repeat the review on policy changes) and at operators PROVIDING RTDR/Route-Origin-Validation filtering as a service (6-1 MUST NOT require non-minimal ROAs). Ze is an RPKI Relying Party: it consumes Validated ROA Payloads over RTR (internal/component/bgp/plugins/rpki/roa_cache.go, aspa_cache.go) and validates route origins against the maxLength bound (internal/component/bgp/plugins/rpki/validate.go:45); it never issues, publishes, or reviews ROAs and provides no RTDR filtering service, so none of these operator-side obligations has an applicable code path. Ze re-validates its own routes on VRP change per RFC 6811 Section 4 (origin_tracker.go), which is governed by the already-enrolled RFC 6811, not this operator BCP. No SHOULD/MAY requirements are gated.
 
 ## What the public ledger says
 
@@ -83106,7 +83130,7 @@ what Ze has
 | One polarity plus reason | 0.0% | 0 of 0 gated MUSTs | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0.0% | 0 of 0 gated MUSTs | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | No test at all | 0.0% | 0 of 0 gated MUSTs | no test carries the requirement id, whether or not a gap states why |
-| Proven by a recorded break | 100.0% | 4 of 4 tagged units | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
+| Proven by a recorded break | 50.0% | 2 of 4 tagged units, 0 escaped and 2 lapsed | a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed |
 | Audit verdicts | 0 | of 0 gated MUSTs judged | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -83204,9 +83228,9 @@ Audit verdict: not audited: no reader has judged these tests
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go#L33) | unit/verify | revert, verified |
-| negative | [`TestNotificationDeliveredIsNotRecordedAsUnsent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L96) | unit/verify | revert, verified |
+| negative | [`TestNotificationDeliveredIsNotRecordedAsUnsent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L96) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestBgpSummaryLastErrorSeparatesToldFromCouldNotTell`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/peer/last_error_unsent_test.go#L29) | unit/verify | revert, verified |
-| positive | [`TestNotificationRefusedBySocketStillRecordsTheReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L59) | unit/verify | revert, verified |
+| positive | [`TestNotificationRefusedBySocketStillRecordsTheReason`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_last_error_test.go#L59) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ## Extraction sign-off
 
@@ -85527,7 +85551,7 @@ https://ze-software.net/quality/rfc-compliance/rfc9582/
 
 # RFC 9582 - The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2
 
-Unsupported. Every requirement this repository extracted from RFC 9582, the tests bound to it, and what a reader has verified about them. This summary is enrolled and gated by ./le rfc check.
+Unsupported. Every requirement this repository extracted from RFC 9582, the tests bound to it, and what a reader has verified about them. This summary is not enrolled.
 
 ## Overview
 
@@ -85549,7 +85573,7 @@ measures that are neither good news nor bad
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Gated MUSTs | 10 | of 13 this summary declares | MUST-level requirements the gate HOLDS. A population, not a result: the shares beside it are what says how Ze stands |
+| MUSTs declared | 10 | of 13 this summary declares | MUST-level requirements this summary DECLARES. The gate holds none of them, because this RFC is not enrolled (enrolled), so every share below reads what the summary records rather than what the gate enforces |
 | Out of scope | 3 | of 10 gated MUSTs | an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over |
 | Not applicable | 30.0% | 3 of 10 gated MUSTs | a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over |
 | Met below Ze | 0.0% | 0 of 10 gated MUSTs | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads |
@@ -85561,7 +85585,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 | Card | Tone here | Why that color |
 |---|---|---|
-| Gated MUSTs | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
+| MUSTs declared | neutral | no color: a population is a scale, and a larger one is neither good news nor bad. It is the accounting total |
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the share under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
@@ -85578,7 +85602,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Field | Value |
 |---|---|
 | Public status | Unsupported |
-| Enrolment | Enrolled |
+| Enrolment | Not enrolled (enrolled) |
 | Requirements | 13 |
 | Gated MUST-level | 10 |
 | Not applicable, so out of scope | 3 |
@@ -85595,7 +85619,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 
 ## Enrolment
 
-Enrolled: RPKI-to-Router Protocol v2 (ASPA PDU parsing + version negotiation): 6 MET + 1 single-polarity (7-1) + 3 not-applicable (cache-side roles ze does not play)
+Not enrolled (enrolled, a disposition this page has no published meaning for): RPKI-to-Router Protocol v2 (ASPA PDU parsing + version negotiation): 6 MET + 1 single-polarity (7-1) + 3 not-applicable (cache-side roles ze does not play)
 
 ## What the public ledger says
 
@@ -164825,6 +164849,12 @@ https://ze-software.net/project/changes/
 
 What shipped in Ze, newest first: the weekly updates, mined from git history and posted to Discord's `ze-news`. Each week lists the areas it touched; click a week for the full write-up. Ze is pre-release, so the configuration syntax can still change, and the [roadmap](../roadmap/) tracks the path to a stable release. For the landmark features on a timeline, see [Milestones](../milestones/).
 
+## [Week of 2026-09-14](2026-09-14/index.md)
+
+Ze measures the path MTU to a peer now, and sizes every IPsec tunnel from what it measured. Two of the week's fixes are worth a maintenance window: Graceful Restart told every peer that Ze preserved nothing, and RPKI reported origin validation as active with no cache server reachable. The release queue closed the week at 157 required work items and 183 nice-to-have, against 141 and 181 at the start. Four items left it when the path MTU work finished, and most of what joined is checking work. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/
+
+Areas: Diagnostics, IPsec, Security, OSPF, IS-IS, BGP, Graceful Restart, RPKI, BFD, Interfaces, Firewall, ExaBGP Migration, RFC Compliance, Quality Improvement
+
 ## [Week of 2026-09-07](2026-09-07/index.md)
 
 Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an uplink, an IPv6 Router Advertisement sender, and certificate revocation checking on IKE logins. The biggest fix was in BGP. Ze was rewriting AS numbers out of routes it relayed.
@@ -167051,6 +167081,71 @@ Reading continues, and the 125 documents not yet read end to end are the queue. 
 
 ---
 
+### Page: Week of 2026-09-14
+https://ze-software.net/project/changes/2026-09-14/
+
+# Week of 2026-09-14
+
+Ze measures the path MTU to a peer now, and sizes every IPsec tunnel from what it measured. Two of the week's fixes are worth a maintenance window: Graceful Restart told every peer that Ze preserved nothing, and RPKI reported origin validation as active with no cache server reachable.
+
+The release queue closed the week at 157 required work items and 183 nice-to-have, against 141 and 181 at the start. Four items left it when the path MTU work finished, and most of what joined is checking work. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/
+
+## 📏 Path MTU
+
+New:
+
+- `show mtu` probes every IPsec peer and a reference address, then reports the ceiling, the value to set, and the TCP MSS that follows from it. Each tunnel is classified (down, oversized, tight, under-utilized, ok) and carries the `set interface xfrm <name> mtu <n>` that corrects it. `show mtu host <address>` measures one target, `detail` shows every probe, `exhaustive` walks the full ladder, and `environment mtu reference-address` picks the off-net target, default 1.1.1.1.
+- A tunnel whose IKE security association is up is measured a second time over the association itself, with a padded probe the far end has to authenticate. Every row names the prober that produced it, so a figure confirmed that way reads `ike-confirmed`. That settles the paths where a firewall eats ICMP errors.
+- `do-not-fragment honor-cache` and `bypass-cache` on `show ping` and `show traceroute`, and on their `resolve` forms, set the bit and read the router's reported next-hop MTU back off the error queue. A probe no longer needs privilege: where the raw socket is refused, Ze opens Linux's unprivileged ICMP socket instead.
+
+## 🔒 Security
+
+Fixed:
+
+- A typo in a key-chain name left OSPF and IS-IS running unauthenticated, and IS-IS `show` then reported the session as authenticated while it sent unsigned packets. A reference naming no key chain is refused when the configuration is validated, and the error names the chain.
+- A session with GTSM enabled accepted a spoofed ICMP error from off the link. Ze's own ICMP errors to a GTSM peer left with a TTL of 64 as well (RFC 5082 Sections 3 and 6.1). `ze doctor` now reports a GTSM peer whose kernel state did not install.
+- A password typed on a command line was written to the CLI transcript on disk. A fetch URL carrying a username and password reached the log whole, including on the console of a machine being installed.
+
+New:
+
+- AES CCM for the IKEv2 encrypted payload, checked against strongSwan. `encryption aes128ccm8` and its 12 and 16 octet forms sit under `vpn ipsec ike-group <name> proposal <n>`. They are for the IKE security association only, and an `esp-group` that names one is refused at commit.
+
+## 🛰️ BGP
+
+Fixed:
+
+- Graceful Restart was doing nothing, quietly. The capability named `ipv4/unicast` whatever families were configured. It also told every peer that forwarding state survived for none of them, and RFC 4724 Section 4.2 makes that an instruction to drop Ze's routes the moment the session comes back. The families Ze preserves are now `capability graceful-restart family` under the peer, and absent means every family the session carries.
+- `validation-enabled` in `show bgp rpki status` was hardcoded true, so an operator whose cache server was unreachable was told origin validation was protecting them while every route resolved Not-Found. `preference` on a cache server now orders connection and failover, which it never did.
+- Ze advertised the capability that offers an IPv6 link-local forwarding address and had no code able to send one. In the other direction it read the 32-octet next hop of RFC 8950 Section 3 as malformed and reset the session. A conformant peer carrying IPv4 routes over an IPv6 next hop was dropped.
+
+## 🔌 Sessions and interfaces
+
+Fixed:
+
+- A neighbor taking BFD down for maintenance dropped the BGP session at this end. An administrative down is not a path failure (RFC 5882 Section 3.2).
+- A disabled interface still ran a DHCP client, installed the lease it got, and sent IPv6 Router Advertisements. `disable` stops every service on the unit now, not only its addresses.
+- An IRR prefix list too large for one set was truncated and programmed as a partial filter with nothing said. The apply is refused now, the working filter stays in place, and `show firewall irr` reports the reference as oversized.
+
+## 🧩 ExaBGP compatibility
+
+An attached ExaBGP process reads ExaBGP's own JSON, and a batch of fixes closed the places where Ze spelled it differently. An IPv4 route with an IPv6 next hop carried the wrong address. An AS path could not be read as a set or a sequence, attribute 9 printed as a hex blob rather than `originator-id`, and no event named the local end of the session.
+
+## 📚 Standards programme
+
+Ze is being checked against every RFC it implements, one MUST at a time. The work continues.
+
+Of 5,472 requirements, 3,599 are MUST-level and 3,322 are checked. 228 still owe a test, against 237 last week. 59 of the 184 documents have been read end to end, the same as last week: the week went on closing what earlier reading had already found.
+
+The find worth naming is a requirement recorded as met against an encoder with no caller outside its own tests. Nothing it produced ever reached the wire, so nothing was proving the code that really carries the rule. That code was conformant, which is the good news, and the proof now sits on it.
+
+A green run proves everything on the list. It does not yet prove the list is complete, which is what reading each document end to end is for: https://ze-software.net/quality/rfc-compliance/
+
+## 🔭 Coming up
+
+The configuration store becomes ordinary files on disk, and the single-file form stays for backups and seeding. ExaBGP's own handling of the only-to-customer attribute (RFC 9234) goes into the compatibility bridge. Bug fixes and standards closure work carry on.
+
+---
+
 ### Page: Milestones
 https://ze-software.net/project/milestones/
 
@@ -167059,6 +167154,14 @@ https://ze-software.net/project/milestones/
 The landmarks that mark Ze's path from a bare BGP speaker to a full network operating system. Each entry is the first time a whole capability arrived; the week-by-week detail lives in the Changes log and the blog. Newest first, colour-coded by category.
 
 ## Q3 2026
+
+### Path MTU diagnostics (Sep 2026)
+
+*observe*
+
+`show mtu` probes every IPsec peer and a reference address, reports the ceiling, the value to set and the TCP MSS that follows, and classifies each tunnel with the `set interface` command that corrects it. A tunnel with a live IKE security association is confirmed a second time by an authenticated padded probe.
+
+[Read the week](../changes/2026-09-14/)
 
 ### IPv6 Router Advertisement sender (Sep 2026)
 
@@ -167304,26 +167407,26 @@ A year of commits, added lines, and Go composition regenerated from the reposito
 ### Total Code
 
 - Files:** 9,562:**
-- Total lines:** 2,250,381:**
-- Code:** 1,590,394:**
-- Blank:** 220,214:**
-- Comments:** 439,773:**
+- Total lines:** 2,250,715:**
+- Code:** 1,590,574:**
+- Blank:** 220,239:**
+- Comments:** 439,902:**
 
 ### Production
 
 - Files:** 5,206:**
-- Total lines:** 1,120,604:**
-- Code:** 783,722:**
-- Blank:** 99,631:**
-- Comments:** 237,251:**
+- Total lines:** 1,120,910:**
+- Code:** 783,890:**
+- Blank:** 99,652:**
+- Comments:** 237,368:**
 
 ### Test
 
 - Files:** 4,356:**
-- Total lines:** 1,129,777:**
-- Code:** 806,672:**
-- Blank:** 120,583:**
-- Comments:** 202,522:**
+- Total lines:** 1,129,805:**
+- Code:** 806,684:**
+- Blank:** 120,587:**
+- Comments:** 202,534:**
 
 ### Dependencies
 

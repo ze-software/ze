@@ -115,7 +115,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Overall</h3>
 <p>the populations every share below is taken over</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>3,058</strong><b>5,472 extracted from 201 summaries</b><p>MUST-level requirements the gate HOLDS, across the 147 RFCs Ze implements, out of 3,320 across the 182 RFCs inspected. A population, not a result: the shares beside it are what says how Ze stands</p></article>
+<article class="rfc-card rfc-neutral"><span>Gated MUSTs</span><strong>3,058</strong><b>5,472 extracted from 201 summaries</b><p>MUST-level requirements the gate HOLDS, across the 147 RFCs Ze implements, out of 3,224 across the 172 RFCs inspected. A population, not a result: the shares beside it are what says how Ze stands</p></article>
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>636</strong><b>of 3,058 gated MUSTs</b><p>an obligation that does not bind Ze. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. Scope, not coverage: it stays in the denominator every share on this page is taken over</p></article>
 </div>
 <h3>Positive</h3>
@@ -125,7 +125,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>50.6%</strong><b>1,546 of 3,058 gated MUSTs</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>11.8%</strong><b>361 of 3,058 gated MUSTs</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0.0%</strong><b>0 of 3,058 gated MUSTs</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>13.6%</strong><b>617 of 4,543 tagged units in enrolled RFCs, 2 escaped and 7 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
+<article class="rfc-card rfc-ok"><span>Proven by a recorded break</span><strong>13.6%</strong><b>617 of 4,530 tagged units in enrolled RFCs, 2 escaped and 7 lapsed</b><p>a red was observed once under a recorded procedure, and the unit, the claim and the producer it rested on still hash to what was recorded. The break is not re-run. A test pair is not a proof until one has been observed</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>20.7%</strong><b>632 of 3,058 gated MUSTs</b><p>a {not-applicable} annotation says the obligation does not bind Ze, so no test is owed for it. It stays in the denominator every share here is taken over</p></article>
 <article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0.9%</strong><b>29 of 3,058 gated MUSTs</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and is met; Ze proves none of it, because its own boundary carries no value the behavior reads</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0.1%</strong><b>4 of 3,058 gated MUSTs</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed and nothing is missing. It stays in the denominator every share here is taken over</p></article>
-<article class="rfc-card rfc-neutral"><span>Semantic verdicts</span><strong>56</strong><b>0 shifted, 0 stale, 3,264 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
+<article class="rfc-card rfc-neutral"><span>Semantic verdicts</span><strong>56</strong><b>0 shifted, 0 stale, 3,168 missing</b><p>requirements a reader has judged and whose judgement is still current. A missing verdict is not claimed, and the shifted and stale ones are named on their own RFC&#39;s page</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -209,6 +209,38 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>7 open gate issues. Check results below names them, up to the 25 this page inlines.</p>
 <p>Reproduce it with <code>./le rfc check</code>. The gate's own line reads <code>rfc-requirements: 7 violation(s)</code>.</p>
 </div>
+<section><h2>Who implements each document</h2>
+<p>The ledger counts what Ze implements in its own Go. A document another layer performs leaves the gated population and names what performs it, and where Ze can observe the behavior the requirement still carries a test over the state Ze installs.</p>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>Implemented by</th><th>Summaries</th><th>What it means</th></tr></thead>
+<tbody>
+<tr><td><code>foundation</code></td>
+<td><strong>5</strong></td>
+<td>The document defines, registers or describes, and obliges no implementer.</td>
+</tr>
+<tr><td><code>mixed</code></td>
+<td><strong>14</strong></td>
+<td>Ze implements part in Go and another layer performs the rest. The part Ze&#39;s Go answers stays gated.</td>
+</tr>
+<tr><td><code>third-party</code></td>
+<td><strong>9</strong></td>
+<td>A layer under or beside Ze performs it and Ze holds no Go code for it, so its MUSTs are not gated against Ze.</td>
+</tr>
+<tr><td><code>ze</code></td>
+<td><strong>173</strong></td>
+<td>Ze&#39;s own Go implements the document, and its MUSTs are gated.</td>
+</tr>
+</tbody>
+</table>
+</div><h3>foundation</h3>
+<p><a href="rfc6071/"><code>RFC 6071</code></a>, <a href="rfc7454/"><code>RFC 7454</code></a>, <a href="rfc8195/"><code>RFC 8195</code></a>, <a href="rfc9129/"><code>RFC 9129</code></a>, <a href="rfc9319/"><code>RFC 9319</code></a></p>
+<h3>mixed</h3>
+<p><a href="rfc2385/"><code>RFC 2385</code></a>, <a href="rfc2661/"><code>RFC 2661</code></a>, <a href="rfc3032/"><code>RFC 3032</code></a>, <a href="rfc3948/"><code>RFC 3948</code></a>, <a href="rfc4213/"><code>RFC 4213</code></a>, <a href="rfc4301/"><code>RFC 4301</code></a>, <a href="rfc4302/"><code>RFC 4302</code></a>, <a href="rfc4303/"><code>RFC 4303</code></a>, <a href="rfc4552/"><code>RFC 4552</code></a>, <a href="rfc5082/"><code>RFC 5082</code></a>, <a href="rfc5798/"><code>RFC 5798</code></a>, <a href="rfc792/"><code>RFC 792</code></a>, <a href="rfc7999/"><code>RFC 7999</code></a>, <a href="rfc9568/"><code>RFC 9568</code></a></p>
+<h3>third-party</h3>
+<p><a href="rfc2003/"><code>RFC 2003</code></a>, <a href="rfc2473/"><code>RFC 2473</code></a>, <a href="rfc2784/"><code>RFC 2784</code></a>, <a href="rfc2890/"><code>RFC 2890</code></a>, <a href="rfc3031/"><code>RFC 3031</code></a>, <a href="rfc4862/"><code>RFC 4862</code></a>, <a href="rfc6482/"><code>RFC 6482</code></a>, <a href="rfc7627/"><code>RFC 7627</code></a>, <a href="rfc9582/"><code>RFC 9582</code></a></p>
+
+</section>
 <section><h2>Requirement buckets</h2>
 <div class="rfc-tape" role="img" aria-label="How every gated MUST is answered">
 <span class="rfc-tape-both_polarities" style="--w: 50.556%"></span>
@@ -306,7 +338,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Exclusion disclosure</h2>
 <p>A reviewer walks an RFC&#39;s own text sentence by sentence and decides which sentences become requirements. One that does not is EXCLUDED, with a kind and a reason, and it never reaches the gated ledger at all. That is a different mechanism from the Out of scope card above, which counts requirements that exist and carry a {not-applicable} annotation. Across the sign-offs done so far, 949 sentences were mapped to a requirement and 540 were declined. 13 of those declines are not scope at all: they are obligations Ze OWES, relocated to a named spec, and they are stated apart below.</p>
-<p>62 of 201 summaries carry an extraction sign-off, 59 of them among the 184 enrolled. The other 139 have no exclusion ledger at all, so what follows counts the walks that HAVE been done and is not the whole picture.</p>
+<p>62 of 201 summaries carry an extraction sign-off, 59 of them among the 174 enrolled. The other 139 have no exclusion ledger at all, so what follows counts the walks that HAVE been done and is not the whole picture.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Excluded kind</th><th>Means</th><th>Sites</th><th>Summaries</th><th>What it means</th></tr></thead>
@@ -507,11 +539,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Requirement source</td>
 <td><code>rfc/short/*.md</code></td>
-<td>3,320 gated MUST-level requirements</td>
+<td>3,224 gated MUST-level requirements</td>
 </tr>
 <tr><td>Enrolment</td>
 <td><code>rfc/short/*.md</code>, the <code>| Enrolment |</code> Meta row</td>
-<td>184 enrolled RFCs</td>
+<td>174 enrolled RFCs</td>
 </tr>
 <tr><td>Test tags</td>
 <td><code>internal/</code>, <code>pkg/</code>, <code>test/</code></td>
@@ -523,7 +555,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Semantic audits</td>
 <td><code>rfc/audit/*.json</code></td>
-<td>56 fresh, 0 shifted, 0 stale, 3,264 missing</td>
+<td>56 fresh, 0 shifted, 0 stale, 3,168 missing</td>
 </tr>
 <tr><td>Pre-commit verification</td>
 <td><code>internal/le/verify/engine/stages.go</code></td>
@@ -689,12 +721,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 <td>0</td>
 </tr>
-<tr><td><a href="rfc2003/"><code>RFC 2003</code></a> IP Encapsulation within IP</td>
-<td>No public row declared</td>
-<td>13</td>
-<td>0</td>
-<td>0</td>
-</tr>
 <tr><td><a href="rfc2131/"><code>RFC 2131</code></a> Dynamic Host Configuration Protocol</td>
 <td>Partial</td>
 <td>64</td>
@@ -749,12 +775,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 <td>0</td>
 </tr>
-<tr><td><a href="rfc2473/"><code>RFC 2473</code></a> Generic Packet Tunneling in IPv6 Specification</td>
-<td>No public row declared</td>
-<td>11</td>
-<td>0</td>
-<td>0</td>
-</tr>
 <tr><td><a href="rfc2516/"><code>RFC 2516</code></a> A Method for Transmitting PPP Over Ethernet (PPPoE)</td>
 <td>Partial</td>
 <td>22</td>
@@ -785,12 +805,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 <td>0</td>
 </tr>
-<tr><td><a href="rfc2784/"><code>RFC 2784</code></a> Generic Routing Encapsulation (GRE)</td>
-<td>No public row declared</td>
-<td>11</td>
-<td>0</td>
-<td>0</td>
-</tr>
 <tr><td><a href="rfc2865/"><code>RFC 2865</code></a> Remote Authentication Dial In User Service (RADIUS)</td>
 <td>Supported for subscriber access</td>
 <td>30</td>
@@ -809,12 +823,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 <td>0</td>
 </tr>
-<tr><td><a href="rfc2890/"><code>RFC 2890</code></a> Key and Sequence Number Extensions to GRE</td>
-<td>No public row declared</td>
-<td>7</td>
-<td>0</td>
-<td>0</td>
-</tr>
 <tr><td><a href="rfc2918/"><code>RFC 2918</code></a> Route Refresh Capability for BGP-4</td>
 <td>Supported</td>
 <td>6</td>
@@ -824,12 +832,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><a href="rfc2966/"><code>RFC 2966</code></a> Domain-wide Prefix Distribution with Two-Level IS-IS</td>
 <td>Experimental</td>
 <td>4</td>
-<td>0</td>
-<td>0</td>
-</tr>
-<tr><td><a href="rfc3031/"><code>RFC 3031</code></a> Multiprotocol Label Switching Architecture</td>
-<td>No public row declared</td>
-<td>7</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -1037,12 +1039,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 <td>0</td>
 </tr>
-<tr><td><a href="rfc4862/"><code>RFC 4862</code></a> IPv6 Stateless Address Autoconfiguration</td>
-<td>No public row declared</td>
-<td>16</td>
-<td>0</td>
-<td>0</td>
-</tr>
 <tr><td><a href="rfc5036/"><code>RFC 5036</code></a> LDP Specification</td>
 <td>Experimental</td>
 <td>15</td>
@@ -1223,12 +1219,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2</td>
 <td>0</td>
 </tr>
-<tr><td><a href="rfc6071/"><code>RFC 6071</code></a> IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap</td>
-<td>No public row declared</td>
-<td>8</td>
-<td>0</td>
-<td>0</td>
-</tr>
 <tr><td><a href="rfc6138/"><code>RFC 6138</code></a> LDP IGP Synchronization for Broadcast Networks</td>
 <td>No public row declared</td>
 <td>2</td>
@@ -1250,12 +1240,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><a href="rfc6397/"><code>RFC 6397</code></a> Multi-Threaded Routing Toolkit (MRT) Border Gateway Protocol (BGP) Routing Information Export Format with Geo-Location Extensions</td>
 <td>No public row declared</td>
 <td>4</td>
-<td>0</td>
-<td>0</td>
-</tr>
-<tr><td><a href="rfc6482/"><code>RFC 6482</code></a> A Profile for Route Origin Authorizations (ROAs)</td>
-<td>No public row declared</td>
-<td>9</td>
 <td>0</td>
 <td>0</td>
 </tr>
@@ -1637,12 +1621,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>6</td>
 <td>0</td>
 </tr>
-<tr><td><a href="rfc9319/"><code>RFC 9319</code></a> The Use of maxLength in the Resource Public Key Infrastructure (RPKI)</td>
-<td>No public row declared</td>
-<td>4</td>
-<td>0</td>
-<td>0</td>
-</tr>
 <tr><td><a href="rfc9494/"><code>RFC 9494</code></a> Long-Lived Graceful Restart for BGP</td>
 <td>Partial</td>
 <td>25</td>
@@ -1665,12 +1643,6 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>Partial</td>
 <td>59</td>
 <td>2</td>
-<td>0</td>
-</tr>
-<tr><td><a href="rfc9582/"><code>RFC 9582</code></a> The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2</td>
-<td>Unsupported</td>
-<td>10</td>
-<td>0</td>
 <td>0</td>
 </tr>
 <tr><td><a href="rfc9687/"><code>RFC 9687</code></a> Border Gateway Protocol 4 (BGP-4) Send Hold Timer</td>
@@ -1707,6 +1679,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <li><code>blocked</code>: something outside the summary stops the extraction, and it is named in the reason</li>
 <li><code>non-normative</code>: the document imposes no MUST-level obligation on an implementation, so there is nothing to gate</li>
 <li><code>out-of-scope</code>: the requirements ARE extracted and the owner decided not to offer the feature for now, so the absence is a scope decision rather than a conformance gap</li>
+<li><code>enrolled</code>: a disposition this page has no published meaning for</li>
 </ul>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
@@ -1720,9 +1693,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>backlog</td>
 <td>Domain Names: Implementation and Specification. Re-authored 2026-07-30 and it now declares 27 MUST-level obligations read from the indicative prose of a 1987 document (0 capitalised keywords, 23 lowercase must), so this is no longer an empty checklist. It is not enrolled because the obligations are not all proven and the unproven ones need an owner ruling, not an implementer&#39;s annotation. The obligation with no code path in Ze is zone transfer: Ze performs none, and the owner ruled RFC 1035 out of scope on 2026-08-18, so that work is not to be started. The 512-octet UDP bound and the TC bit ARE enforced -- send calls Msg.Truncate(udpReplyLimit(r)) for a datagram reply in internal/core/dnsserver/handler.go, and udpReplyLimit holds the Section 2.3.4 floor while letting an RFC 6891 Section 6.2.3 OPT record raise it. An unsupported inverse query DOES draw Not Implemented: Authoritative branches on the opcode before any zone lookup, in the same file. It was the one obligation the 73-section walk found OUTSIDE the summary&#39;s declared scope and added to it. The response TTL is deliberately not raised to the SOA MINIMUM -- RFC 2308 Section 4 withdrew that rule, hdr in internal/plugins/geodns/server.go applies no floor, and TestRFC2308_NoZoneWideTTLFloor holds the decision. About 6 requirements admit only a positive polarity because miekg/dns owns the wire codec and no Ze-side change can break them. Escalated for scoping per OR-1b.</td>
 </tr>
+<tr><td><a href="rfc2003/"><code>RFC 2003</code></a> IP Encapsulation within IP</td>
+<td>enrolled</td>
+<td>IP Encapsulation within IP (IP-in-IP, protocol 4): thirteen MUST-level requirements, all {not-applicable}. ze constructs no IP-in-IP header and runs no encapsulation, decapsulation, ICMP-relay, or loop-prevention datapath: it programs only the tunnel configuration via netlink buildIptun (internal/plugins/iface/netlink/tunnel_linux.go setting IPPROTO_IPIP) and VPP ipip_add_tunnel (internal/plugins/iface/vpp/tunnel.go). The kernel ipip module and the VPP dataplane own the outer-header construction (Don&#39;t-Fragment copy, TTL-zero encap guard), decapsulation (inner-TTL-zero discard), source-address loop prevention, the ICMP relay/suppression rules, the Time-Exceeded-to-Host-Unreachable mapping, and path-MTU soft state. This is the same delegation rationale as the enrolled RFC 2784 and RFC 2890 (GRE).</td>
+</tr>
+<tr><td><a href="rfc2473/"><code>RFC 2473</code></a> Generic Packet Tunneling in IPv6 Specification</td>
+<td>enrolled</td>
+<td>Generic Packet Tunneling in IPv6 (tunnel datapath delegated to kernel ip6_tunnel / VPP; ze configures netdevs only)</td>
+</tr>
+<tr><td><a href="rfc2784/"><code>RFC 2784</code></a> Generic Routing Encapsulation (GRE)</td>
+<td>enrolled</td>
+<td>Generic Routing Encapsulation (GRE) base header: eleven MUST-level requirements, all {not-applicable}. ze builds and parses no GRE header: it programs kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go buildGretun sets only the netlink link descriptor) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go), delegating all header construction (C bit, Reserved0/Reserved1 zeroing, version 0, protocol type 0x0800), checksum handling, reserved-bit discard, and decapsulation/forwarding (destination lookup, TTL decrement, loop discard) to the kernel ip_gre module and the VPP dataplane. This is the same delegation rationale as the enrolled RFC 2890.</td>
+</tr>
+<tr><td><a href="rfc2890/"><code>RFC 2890</code></a> Key and Sequence Number Extensions to GRE</td>
+<td>enrolled</td>
+<td>Key and Sequence Number Extensions to GRE: seven MUST-level requirements, all {not-applicable}. ze builds and parses no GRE header: it configures kernel GRE tunnels via netlink (internal/plugins/iface/netlink/tunnel_linux.go buildGretun sets only IKey/OKey) and VPP tunnels via gre_tunnel_add_del (internal/plugins/iface/vpp/tunnel.go), delegating all C/K/S flag construction, Key/Sequence field encoding, receiver ordering (OUTOFORDER_TIMER), and IPsec protection to the kernel/VPP dataplane. ze has no GRE header-construction, sequence, decapsulation, or receiver code path.</td>
+</tr>
+<tr><td><a href="rfc3031/"><code>RFC 3031</code></a> Multiprotocol Label Switching Architecture</td>
+<td>enrolled</td>
+<td>Multiprotocol Label Switching Architecture: seven MUST-level requirements, all {not-applicable}. ze is an MPLS control plane that programs label operations as kernel AF_MPLS routes (internal/plugins/fib/kernel/mplsentry_linux.go addMPLSSwap) and VPP entries (internal/plugins/fib/vpp/mpls.go); the gated MUSTs (NHLFE lookup, empty-label-stack network-layer forwarding, label-stack TTL decrement and TTL-zero discard, top-label-only forwarding, unknown-label discard) are packet forwarding-plane behaviors executed by the kernel/VPP dataplane, and ze has no in-process MPLS packet-forwarding path. Label merging (Section 3.14) is an ATM/Frame-Relay VC-merge concern ze does not implement as a packet LSR.</td>
+</tr>
 <tr><td><a href="rfc4762/"><code>RFC 4762</code></a> Virtual Private LAN Service (VPLS) Using Label Distribution Protocol (LDP) Signaling</td>
 <td>blocked</td>
 <td>VPLS using LDP signaling. Written 2026-09-01 so the public row this RFC has always carried is declared by a summary rather than authored on a page nobody could tie back to a document. It is not enrolled because there is no source text at rfc/full/rfc4762.txt: fetch https://www.rfc-editor.org/rfc/rfc4762.txt, then extract. Ze speaks the BGP-signalled VPLS of RFC 4761 and not this one, so the row claims Unsupported and no obligation here is gated.</td>
+</tr>
+<tr><td><a href="rfc4862/"><code>RFC 4862</code></a> IPv6 Stateless Address Autoconfiguration</td>
+<td>enrolled</td>
+<td>IPv6 Stateless Address Autoconfiguration (RFC 4862): all 16 gated MUST/MUST-NOTs not-applicable -- host SLAAC (address formation, RA/PIO, DAD, deprecated/invalid source selection) is kernel addrconf; ze enables it via sysctls and classifies kernel-assigned addresses</td>
 </tr>
 <tr><td><a href="rfc5065/"><code>RFC 5065</code></a> Autonomous System Confederations for BGP</td>
 <td>blocked</td>
@@ -1735,6 +1732,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><a href="rfc5925/"><code>RFC 5925</code></a> The TCP Authentication Option</td>
 <td>blocked</td>
 <td>The TCP Authentication Option. Written 2026-09-01 so the public row is declared by a summary. It is not enrolled because there is no source text at rfc/full/rfc5925.txt: fetch https://www.rfc-editor.org/rfc/rfc5925.txt, then extract. Ze implements the RFC 2385 TCP MD5 signature option and not TCP-AO, and the row claims Unsupported, so no obligation here is gated.</td>
+</tr>
+<tr><td><a href="rfc6071/"><code>RFC 6071</code></a> IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap</td>
+<td>enrolled</td>
+<td>IP Security (IPsec) and Internet Key Exchange (IKE) Document Roadmap: eight MUST-level requirements, all {not-applicable}. RFC 6071 is an informational roadmap that catalogs the IPsec/IKE specifications and defines no independent protocol behavior; each gated MUST restates an algorithm-implementation requirement owned by RFC 4835 (ESP/AH algorithms), RFC 4307 (IKEv2 algorithms), or RFC 4109 (IKEv1, which ze does not implement). The concrete algorithm behavior lives in ze&#39;s IKEv2 transform negotiation (internal/component/ike/crypto/transform.go) and ESP dataplane (internal/component/ike/dataplane/xfrm_linux.go), governed by those owning RFCs rather than by the roadmap.</td>
+</tr>
+<tr><td><a href="rfc6482/"><code>RFC 6482</code></a> A Profile for Route Origin Authorizations (ROAs)</td>
+<td>enrolled</td>
+<td>A Profile for Route Origin Authorizations (ROAs): nine MUST-level requirements, all {not-applicable}. ze is neither a ROA producer nor a relying-party validator: it consumes Validated ROA Payloads (prefix, maxLength, origin AS) over the RTR protocol (RFC 8210; internal/component/bgp/plugins/rpki/rtr_pdu.go) and never parses or constructs the RFC 6482 CMS-signed ROA object. The gated MUSTs (ROA version, CMS content-type OID, addressFamily, maxLength constraint, and the relying-party validation duties -- validate before use, RFC 6488 checks, EE-certificate delegation containment, integrity, X.509 signature verification) all govern producing or validating the ROA object, done by the RPKI cache upstream. The nearest analog (maxLength sanity) ze enforces on the RTR PDU wire per RFC 8210, not on a ROA object.</td>
 </tr>
 <tr><td><a href="rfc6514/"><code>RFC 6514</code></a> BGP Encodings and Procedures for Multicast in MPLS/BGP IP VPNs</td>
 <td>out-of-scope</td>
@@ -1776,9 +1781,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>backlog</td>
 <td>EAP-TLS 1.3: Using EAP with TLS 1.3. Summary written 2026-08-01, extraction sign-off walked 2026-09-08 (rfc/extraction/rfc9190.json, 52 sites in 36 sections, register prose, 48 mapped and 4 excluded). It declares 52 MUST-level obligations over 20 sections. It is NOT enrolled because 33 of them are not proven in both polarities: 26 carry no tagged test at all and 7 carry a positive only. Measured 2026-09-08 by counting `RFC requirement: RFC9190-&lt;id&gt; &lt;polarity&gt;` tags under internal/, test/, cmd/ and pkg/ against the gated rows of this checklist. Enrolment demands every gated MUST proven in both polarities or annotated, and annotating is the conformance judgement ai/rules/rfc-compliance.md reserves to the owner; the owner ruling of 2026-08-01 chose to implement the features and enrol with everything proven, so the annotation route is closed. WHAT IS BUILT AND PROVEN, all in both polarities. Section 2.3 key derivation: exportEAPTLSKeys (internal/core/eap/eap_tls.go) selects the exporter label EXPORTER_EAP_TLS_Key_Material and the EAP Type octet as context whenever the negotiated version is TLS 1.3, asks for the 128-octet length on every version, and cuts the result into MSK = Key_Material(0, 63) and EMSK = Key_Material(64, 127), and test/interop-ipsec/scenarios/eap-tls13 exercises that path against strongSwan. Section 2.5 protected success indication, both roles: tlsMethod.indicateSuccess (same file) writes the encrypted TLS record carrying application data 0x00 in the round that completes the handshake, and PeerSession.requireSuccessIndication (internal/core/eap/peer_indication.go) refuses the EAP-Success without it; scenario responder-eap-tls13 proves the server half against strongSwan, which logs `missing protected success indication for EAP-TLS with TLS 1.3` when the write is reverted. The peer half is STRICTER than the published RFC, which addresses Section 2.5 only to the server, so no requirement id covers it and its tests carry no RFC requirement tag. Section 2.1.2 and 2.1.3 resumption, both roles: Resumption (internal/core/eap/resumption.go) owns the ticket keys and the client cache per peering, and serverChainCheck.rebuildResumedChains (internal/core/eap/peer_chain.go) rebuilds the chain crypto/tls skips on a resumed handshake so the Section 5.4 check still runs. ALL FIVE Section 5.4 requirements are built as of 2026-09-08: checkChainRevocation (internal/core/eap/revocation.go) walks every certificate on each chain except the trust anchor on both roles (5.4-1), newTLSMethod staples the operator&#39;s ocsp-response (5.4-2), checkStapledChainStatus (internal/core/eap/ocsp.go) refuses a CertificateEntry with no valid status while certificate-status-request is set (5.4-3), and startServerCertRecheck (internal/component/ike/engine/postauth_revocation.go) re-checks the chain over https once the Child SA is up, refusing an http responder URL before any connection opens (5.4-4 and 5.4-5). Section 5.10-1 is proven by sixteen tagged units in internal/core/eap/rfc9190_attack_mitigation_test.go over the RFC 7457 Section 2 attacks. THE TWO OBLIGATIONS THAT WERE UNMET IN CODE ARE MET AND PROVEN AS OF 2026-09-08. RFC9190-2.1.9-1, the MUST NOT to set the L bit in an unfragmented message: tlsFragmenter.nextFragment (internal/core/eap/eap_tls.go) is the one producer of outbound EAP-TLS TypeData on both roles, and it now declares a length only where the first fragment is not also the last, so a message that fits in one fragment leaves as a bare flags octet with its TLS data at offset 1. RFC9190-2.1.9-2, the receive half of the same sentence, is proven beside it over tlsFragmenter.reassemble, which takes an unfragmented message with the L bit and without it. RFC9190-1-1, the Section 1 MUST to limit the maximum TLS version to 1.3 unless the administrator enables a later one: newTLSMethod (eap_tls.go) and PeerSession.tlsClientConfig (internal/core/eap/peer.go) each set MaxVersion to tls.VersionTLS13, and ze exposes no leaf that raises that ceiling, so the exception has nothing to switch on. RFC9190-1-1 was added to this checklist by the 2026-09-08 extraction walk, which found the summary had missed it.</td>
 </tr>
+<tr><td><a href="rfc9319/"><code>RFC 9319</code></a> The Use of maxLength in the Resource Public Key Infrastructure (RPKI)</td>
+<td>enrolled</td>
+<td>The Use of maxLength in the RPKI (BCP 185): four MUST-level requirements, all {not-applicable} to Ze. RFC 9319 is operational guidance directed at RPKI OPERATORS and ROA issuers (5-1 review existing ROAs for minimality, 5-2 replace published ROAs as necessary, 5-3 repeat the review on policy changes) and at operators PROVIDING RTDR/Route-Origin-Validation filtering as a service (6-1 MUST NOT require non-minimal ROAs). Ze is an RPKI Relying Party: it consumes Validated ROA Payloads over RTR (internal/component/bgp/plugins/rpki/roa_cache.go, aspa_cache.go) and validates route origins against the maxLength bound (internal/component/bgp/plugins/rpki/validate.go:45); it never issues, publishes, or reviews ROAs and provides no RTDR filtering service, so none of these operator-side obligations has an applicable code path. Ze re-validates its own routes on VRP change per RFC 6811 Section 4 (origin_tracker.go), which is governed by the already-enrolled RFC 6811, not this operator BCP. No SHOULD/MAY requirements are gated.</td>
+</tr>
 <tr><td><a href="rfc9384/"><code>RFC 9384</code></a> A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD)</td>
 <td>non-normative</td>
 <td>A BGP Cease NOTIFICATION Subcode for Bidirectional Forwarding Detection (BFD), IETF category Standards Track. The document carries the RFC 2119 / RFC 8174 key-words paragraph at Section 2, and a capitalised MUST / MUST NOT / SHALL / SHALL NOT / REQUIRED scan over rfc/full/rfc9384.txt hits those five words on one line only, line 101, which is the key-words sentence itself. That sentence tells a reader how to read the other sentences and states no obligation of its own. Outside it the text uses no MUST-level keyword anywhere. The summary written 2026-09-01 therefore captures three requirements and gates none: RFC9384-3-1 at Section 3, and RFC9384-4-1 and RFC9384-4-2 at Section 4, all three at SHOULD. Section 5 says the subcode &#34;is purely informational and has no impact on the BGP Finite State Machine beyond that already documented by [RFC4271], Sections 6.6 and 6.7&#34;, so the document adds one registry value and three recommendations about using it. A zero-MUST document can reach the public ledger two ways, as this disposition or as a manual-walk extraction sign-off with a register-reason. This disposition is the route taken, because the sign-off at rfc/extraction/rfc9384.json declares the register the source derives, prose, and the second route would need it to declare the weaker manual-walk grade instead. That sign-off bounds the three-row checklist against the source text.</td>
+</tr>
+<tr><td><a href="rfc9582/"><code>RFC 9582</code></a> The Resource Public Key Infrastructure (RPKI) to Router Protocol, Version 2</td>
+<td>enrolled</td>
+<td>RPKI-to-Router Protocol v2 (ASPA PDU parsing + version negotiation): 6 MET + 1 single-polarity (7-1) + 3 not-applicable (cache-side roles ze does not play)</td>
 </tr>
 </tbody>
 </table>
@@ -1817,7 +1830,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 00:48 UTC</span>
                 </div>
             </div>
         </footer>

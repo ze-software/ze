@@ -66,7 +66,7 @@
 .th-card table { font-size: .85rem; margin-top: .6rem; }
 .th-card td, .th-card th, .th-attention td, .th-attention th, .th-trends td, .th-trends th { text-align: left; padding: .35rem .5rem; border-bottom: 1px solid rgba(0,0,0,.08); }
 </style>
-<section class="th-attention"><h2>Needs attention</h2><table><thead><tr><th>Metric</th><th>Question</th><th>Value</th><th>What to do</th></tr></thead><tbody><tr><td>Enrolled RFCs with zero test-proven requirements</td><td>Q2</td><td><strong>33 / 182</strong></td><td>Pick the largest and complete a pair, or accept it is a single-polarity claim.</td></tr><tr><td>Logged known-failing tests</td><td>Q3</td><td><strong>3</strong></td><td>Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.</td></tr></tbody></table></section>
+<section class="th-attention"><h2>Needs attention</h2><table><thead><tr><th>Metric</th><th>Question</th><th>Value</th><th>What to do</th></tr></thead><tbody><tr><td>Enrolled RFCs with zero test-proven requirements</td><td>Q2</td><td><strong>24 / 172</strong></td><td>Pick the largest and complete a pair, or accept it is a single-polarity claim.</td></tr><tr><td>Logged known-failing tests</td><td>Q3</td><td><strong>3</strong></td><td>Fix or delete the oldest entry; a permanently logged failure is a deleted test with extra steps.</td></tr></tbody></table></section>
 <section><h2>Sensitivity</h2><p><em>If the code were wrong, would something go red?</em></p>
 <article class="th-card th-ok">
   <h3>Tests with no reachable failure call</h3>
@@ -88,8 +88,8 @@
 <section><h2>Intent coverage</h2><p><em>Are the things that matter checked, or only the happy path?</em></p>
 <article class="th-card th-warn">
   <h3>Enrolled RFCs with zero test-proven requirements</h3>
-  <p class="th-value">33 / 182 <span class="th-status">Needs attention</span></p>
-  <div class="th-meter" role="img" aria-label="33 of 182"><span class="th-meter-fill" style="width:18.1%"></span></div><p class="th-meter-note">33 of 182 (18.1%)</p>
+  <p class="th-value">24 / 172 <span class="th-status">Needs attention</span></p>
+  <div class="th-meter" role="img" aria-label="24 of 172"><span class="th-meter-fill" style="width:14.0%"></span></div><p class="th-meter-note">24 of 172 (14.0%)</p>
   <p>Enrolled and gate-green, but no requirement is proven by BOTH polarities. Some of these do carry positive-only tests; none carries a pair.</p>
   <p class="th-action"><strong>If this degrades:</strong> Pick the largest and complete a pair, or accept it is a single-polarity claim.</p>
   
@@ -98,9 +98,9 @@
   <h3>RFC MUST requirements proven by test, over the RFCs ze implements</h3>
   <p class="th-value">1907 / 3058 <span class="th-status">Within threshold</span></p>
   <div class="th-meter" role="img" aria-label="1907 of 3058"><span class="th-meter-fill" style="width:62.4%"></span></div><p class="th-meter-note">1907 of 3058 (62.4%)</p>
-  <p>62.4% of the 3058 gated MUSTs the 147 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 3320 gated MUSTs across 182 enrolled RFCs -- and of the 1738 of those not proven in both polarities: 824 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 503 known gap (unimplemented, genuinely untested), 378 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 29 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 4 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work. Apart from every figure above, 2 rows carry {rollup}: each derives its state from rows already counted here, and none is in the denominator.</p>
+  <p>62.4% of the 3058 gated MUSTs the 147 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 3224 gated MUSTs across 172 enrolled RFCs -- and of the 1648 of those not proven in both polarities: 735 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 503 known gap (unimplemented, genuinely untested), 377 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 29 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 4 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work. Apart from every figure above, 2 rows carry {rollup}: each derives its state from rows already counted here, and none is in the denominator.</p>
   <p class="th-action"><strong>If this degrades:</strong> Write a test for a {gap} requirement, or for one carrying no test and no annotation. A single-polarity requirement is already counted as proven, and not-applicable needs no test.</p>
-  <table><thead><tr><th>gated</th><th>rfc</th></tr></thead><tbody><tr><td><code>38</code></td><td><code>rfc7871</code></td></tr><tr><td><code>34</code></td><td><code>rfc2132</code></td></tr><tr><td><code>23</code></td><td><code>rfc4213</code></td></tr><tr><td><code>18</code></td><td><code>rfc4761</code></td></tr><tr><td><code>17</code></td><td><code>rfc3032</code></td></tr><tr><td><code>17</code></td><td><code>rfc7166</code></td></tr><tr><td><code>16</code></td><td><code>rfc4862</code></td></tr><tr><td><code>13</code></td><td><code>rfc2003</code></td></tr><tr><td><code>13</code></td><td><code>rfc9514</code></td></tr><tr><td><code>12</code></td><td><code>rfc9085</code></td></tr></tbody></table>
+  <table><thead><tr><th>gated</th><th>rfc</th></tr></thead><tbody><tr><td><code>38</code></td><td><code>rfc7871</code></td></tr><tr><td><code>34</code></td><td><code>rfc2132</code></td></tr><tr><td><code>23</code></td><td><code>rfc4213</code></td></tr><tr><td><code>18</code></td><td><code>rfc4761</code></td></tr><tr><td><code>17</code></td><td><code>rfc3032</code></td></tr><tr><td><code>17</code></td><td><code>rfc7166</code></td></tr><tr><td><code>13</code></td><td><code>rfc9514</code></td></tr><tr><td><code>12</code></td><td><code>rfc9085</code></td></tr><tr><td><code>12</code></td><td><code>rfc9086</code></td></tr><tr><td><code>11</code></td><td><code>rfc7012</code></td></tr></tbody></table>
 </article>
 <article class="th-card th-ok">
   <h3>In-repo test inventory</h3>
@@ -112,8 +112,8 @@
 </article>
 <article class="th-card th-ok">
   <h3>Test files that expect a specific error</h3>
-  <p class="th-value">1570 / 4341 <span class="th-status">Within threshold</span></p>
-  <div class="th-meter" role="img" aria-label="1570 of 4341"><span class="th-meter-fill" style="width:36.2%"></span></div><p class="th-meter-note">1570 of 4341 (36.2%)</p>
+  <p class="th-value">1571 / 4341 <span class="th-status">Within threshold</span></p>
+  <div class="th-meter" role="img" aria-label="1571 of 4341"><span class="th-meter-fill" style="width:36.2%"></span></div><p class="th-meter-note">1571 of 4341 (36.2%)</p>
   <p>Counts files using an error-expectation token (wantErr, ErrorIs, assert.Error, ...), with comments stripped. Setup guards of the form `if err != nil { t.Fatal(err) }` are deliberately NOT counted: those assert the happy path. Blind spot: expecting *an* error is weaker than pinning the right one.</p>
   <p class="th-action"><strong>If this degrades:</strong> Take the lowest-ranked subsystem and add malformed-input or fault-injection cases.</p>
   <table><thead><tr><th>area</th><th>files</th><th>negative</th><th>percent</th></tr></thead><tbody><tr><td><code>internal/chaos/report</code></td><td><code>6</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/chaos/web</code></td><td><code>10</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/rib</code></td><td><code>13</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/core/stats</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/le/hookruntime</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/le/leroot</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/plugins/completion</code></td><td><code>7</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/plugins/init</code></td><td><code>5</code></td><td><code>0</code></td><td><code>0.0</code></td></tr><tr><td><code>internal/component/sysrib</code></td><td><code>23</code></td><td><code>2</code></td><td><code>8.7</code></td></tr><tr><td><code>internal/chaos/peer</code></td><td><code>11</code></td><td><code>1</code></td><td><code>9.1</code></td></tr></tbody></table>
@@ -179,7 +179,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 00:48 UTC</span>
                 </div>
             </div>
         </footer>

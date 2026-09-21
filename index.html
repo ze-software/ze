@@ -177,8 +177,8 @@
                 </article>
                 <article class="whats-new-item tone-sky">
                     <span class="whats-new-label">Recently shipped</span>
-                    <h3><a href="project/changes/2026-09-07/">Week of 2026-09-07</a></h3>
-                    <p>Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an…</p>
+                    <h3><a href="project/changes/2026-09-14/">Week of 2026-09-14</a></h3>
+                    <p>Ze measures the path MTU to a peer now, and sizes every IPsec tunnel from what it measured. Two of the…</p>
                 </article>
                 <article class="whats-new-item tone-pink">
                     <span class="whats-new-label">RFC compliance progress</span>
@@ -226,7 +226,7 @@
                         <ul>
                             <li><span data-ze-stat="rfc.proven_percent">62.4</span>% tested</li>
                             <li><span data-ze-stat="rfc.implemented_display">147</span> RFCs Ze claims support for</li>
-                            <li><span data-ze-stat="rfc.inspected_display">182</span> RFCs with requirements extracted</li>
+                            <li><span data-ze-stat="rfc.inspected_display">172</span> RFCs with requirements extracted</li>
                         </ul>
                         <span class="proof-check">RFC requirement ledger.</span>
                     </a>
@@ -570,6 +570,22 @@
                             <span class="cat">Update</span>
                             <span class="home-update-number">01</span>
                         </div>
+                        <p class="home-update-date">Week of 2026-09-14</p>
+                        <h3><a href="project/changes/2026-09-14/">Ze measures the path MTU to a peer now, and sizes every IPsec tunnel from what it measured. Two of the week&#39;s fixes are worth a maintenance window: Graceful Restart told every peer that Ze preserved nothing, and RPKI reported origin validation as active with no cache server reachable.
+
+The release queue closed the week at 157 required work items and 183 nice-to-have, against 141 and 181 at the start. Four items left it when the path MTU work finished, and most of what joined is checking work. This is an inventory preview. It reads two endpoints, so an item added and finished inside the same week never appears in it, and the counts measure work items rather than readiness: https://ze-software.net/project/roadmap/</a></h3>
+                        <div class="home-update-tags">
+                            <span class="home-update-tag cat-observe">Diagnostics</span>
+                            <span class="home-update-tag cat-secure">IPsec</span>
+                            <span class="home-update-tag cat-routing">OSPF</span>
+                            <span class="home-update-tag cat-platform">Interfaces</span>
+                        </div>
+                    </article>
+                    <article class="card card-post home-update-card tone-pink">
+                        <div class="home-update-head">
+                            <span class="cat">Update</span>
+                            <span class="home-update-number">02</span>
+                        </div>
                         <p class="home-update-date">Week of 2026-09-07</p>
                         <h3><a href="project/changes/2026-09-07/">Five new capabilities: BFD strict mode, OSPF costs priced from link speed, VRRP groups that track an uplink, an IPv6 Router Advertisement sender, and certificate revocation checking on IKE logins. The biggest fix was in BGP. Ze was rewriting AS numbers out of routes it relayed.</a></h3>
                         <div class="home-update-tags">
@@ -579,10 +595,10 @@
                             <span class="home-update-tag cat-services">PPPoE</span>
                         </div>
                     </article>
-                    <article class="card card-post home-update-card tone-pink">
+                    <article class="card card-post home-update-card tone-grape">
                         <div class="home-update-head">
                             <span class="cat">Update</span>
-                            <span class="home-update-number">02</span>
+                            <span class="home-update-number">03</span>
                         </div>
                         <p class="home-update-date">Week of 2026-08-31</p>
                         <h3><a href="project/changes/2026-08-31/">Reading the standards documents end to end is finding real defects faster than it is finding paperwork, and most of the week went on fixing what it found. Three of them mattered: an authentication bypass on IKE logins, a redistribute block that discarded every route from every peer, and subscriber IPv6 that never worked at all.</a></h3>
@@ -591,20 +607,6 @@
                             <span class="home-update-tag cat-automate">ExaBGP Migration</span>
                             <span class="home-update-tag cat-secure">Security</span>
                             <span class="home-update-tag cat-services">RADIUS</span>
-                        </div>
-                    </article>
-                    <article class="card card-post home-update-card tone-grape">
-                        <div class="home-update-head">
-                            <span class="cat">Update</span>
-                            <span class="home-update-number">03</span>
-                        </div>
-                        <p class="home-update-date">Week of 2026-08-24</p>
-                        <h3><a href="project/changes/2026-08-24/">Standards closure was the plan for the week. The build and test tooling took it instead: the Makefile and 256 shell and Python scripts are gone, replaced by Go, and that move is still in progress. Around it, output formatting moved off flags and onto the pipe operators, and a TACACS+ authentication bypass was closed.</a></h3>
-                        <div class="home-update-tags">
-                            <span class="home-update-tag cat-operate">CLI</span>
-                            <span class="home-update-tag cat-routing">BGP</span>
-                            <span class="home-update-tag cat-services">PPPoE</span>
-                            <span class="home-update-tag cat-secure">IPsec</span>
                         </div>
                     </article>
                 </div>
@@ -673,7 +675,7 @@
             <div class="footer-inner">
                 <div class="footer-bottom">
                     <a href="license/">Ze is AGPLv3 open source.</a>
-                    <span class="footer-published">Published 20 September 2026 23:27 UTC</span>
+                    <span class="footer-published">Published 21 September 2026 00:48 UTC</span>
                 </div>
             </div>
         </footer>

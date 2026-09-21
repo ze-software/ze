@@ -14,10 +14,10 @@ This file is intentionally denormalized for AI use. It includes the high-signal 
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 468 CLI commands, 36 config sections, 89 plugin registrations, 49 direct Go dependencies, 40 weekly change entries.
+- Current generated counts: 52 shipped or experimental feature cards, 468 CLI commands, 36 config sections, 89 plugin registrations, 49 direct Go dependencies, 41 weekly change entries.
 - Test evidence counts: 30,800+ unit tests, 84 fuzz targets, 2,000+ end-to-end transcript steps, 152 interop scenarios across 9 target implementations.
 - Release inventory preview pending owner classification: [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
-- Generated date: 2026-09-20.
+- Generated date: 2026-09-21.
 
 ## Quality and verification model
 
@@ -1080,7 +1080,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 ### Progress and history
 - [Project overview](https://ze-software.net/project/index.md): Progress, history, talks, and contribution paths (web: https://ze-software.net/project/)
 - [Roadmap](https://ze-software.net/project/roadmap/index.md): Release work items and nice-to-haves, an inventory preview (web: https://ze-software.net/project/roadmap/)
-- [Changes](https://ze-software.net/project/changes/index.md): 40 weekly updates, newest first (web: https://ze-software.net/project/changes/)
+- [Changes](https://ze-software.net/project/changes/index.md): 41 weekly updates, newest first (web: https://ze-software.net/project/changes/)
 - [Milestones](https://ze-software.net/project/milestones/index.md): Landmark features, oldest to newest (web: https://ze-software.net/project/milestones/)
 - [Activity](https://ze-software.net/project/activity/index.md): A year of commits, at a glance (web: https://ze-software.net/project/activity/)
 - [Project history](https://ze-software.net/project/history/index.md): How ExaBGP's programmable model grew into Ze (web: https://ze-software.net/project/history/)
