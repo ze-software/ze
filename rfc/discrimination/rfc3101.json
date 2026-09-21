@@ -165,6 +165,28 @@
       "producer": "internal/plugins/ospf/lsdb/flooding.go::shouldDropByArea",
       "producer-sha": "d9729416155e899c",
       "break": "body of shouldDropByArea replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-x-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/rfc3101_default_cost_test.go::TestOSPFNSSADefaultCarriesConfiguredMetric",
+      "unit-sha": "cb81b9b39a5da780",
+      "claim-sha": "1357524be4b034b7",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/nssa.go::applyNSSADefaults",
+      "producer-sha": "931425e0f8165873",
+      "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-x-5",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/rfc3101_default_cost_test.go::TestOSPFNSSADefaultMetricIsNotFixed",
+      "unit-sha": "d46aac4aaad6d39b",
+      "claim-sha": "a222134fa9b4d3c2",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/nssa.go::applyNSSADefaults",
+      "producer-sha": "931425e0f8165873",
+      "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
