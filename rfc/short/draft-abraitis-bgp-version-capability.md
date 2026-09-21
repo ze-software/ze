@@ -11,6 +11,8 @@
 | Depends | RFC 5492 (capability advertisement), RFC 3629 (UTF-8), RFC 9072 (extended OPEN parameters) |
 | Enrolment | enrolled |
 | Enrolment reason | Software Version capability for BGP (code 75): eleven MUST-level requirements. Send side is implemented and gated by config -- encodeValue writes one length octet plus the constant ZeVersion and extractSoftverCapabilities declares code 75 only for a peer or group whose config carries a software-version key that is not disable or refuse (internal/component/bgp/plugins/softver/softver.go), which is 3-1, 3-2, 3-3, 3-6, 3-8 and 4-2. Receive side: parseCapability (internal/core/bgp/capability/capability.go) has no case for code 75, so a received capability becomes an Unknown nothing reads, which is how 3-4, 3-5, 3-7 and 4-1 are met. 3.1-1 requires RFC 9072, which is enrolled separately and Partial. No requirement carries a tagged test yet; the coverage rollup names them. |
+| Implementation | ze |
+| Implementation reason | Ze's own Go implements this document; each requirement row cites its producer. |
 | Support | drafts 40 |
 | Support area | BGP Software Version capability code 75 |
 | Support status | Partial |

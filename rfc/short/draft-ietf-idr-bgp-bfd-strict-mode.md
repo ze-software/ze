@@ -12,6 +12,8 @@
 | Depends | RFC 4271 (BGP-4 FSM), RFC 5492 (capabilities), RFC 5880 and RFC 5882 (BFD), RFC 9384 (Cease subcode 10) |
 | Enrolment | enrolled |
 | Enrolment reason | BFD Strict-Mode for BGP (capability code 74): four MUST-level requirements, all four implemented and each proven by a tagged test. Ze advertises the capability from the peer's own bfd block (parsePeerFromTree, internal/component/bgp/reactor/config.go), negotiates it as BfdStrictNegotiated (Negotiate, internal/core/bgp/capability/negotiated.go), and runs the Section 8 FSM procedures in internal/component/bgp/fsm/fsm.go with their wire half in internal/component/bgp/reactor/session_bfd_strict.go. The two Event 20 sections, 8.3.5 and 8.4.5, are conditional on the RFC 4271 DelayOpenTimer, which Ze does not implement (permitted by RFC 4271 Section 8.2.1.3), and they carry no MUST-level keyword site. |
+| Implementation | ze |
+| Implementation reason | Ze's own Go implements this document; each requirement row cites its producer. |
 | Support | drafts 70 |
 | Support area | BFD strict mode for BGP, capability code 74 |
 | Support status | Supported |

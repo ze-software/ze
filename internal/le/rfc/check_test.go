@@ -593,10 +593,10 @@ func TestOneSummaryRendersExactlyOneStatusRow(t *testing.T) {
 	// its single Support key, so that loop cannot fail whatever the corpus
 	// says.
 	clash := map[string]Meta{
-		"rfc1000": {Enrolment: enrolmentEnrolled, EnrolmentReason: "gated",
+		"rfc1000": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, EnrolmentReason: "gated",
 			Support: "bgp-base", Rank: 10, Area: "a", Status: "Partial",
 			Coverage: "c", Remaining: "r"},
-		"rfc1001": {Enrolment: enrolmentEnrolled, EnrolmentReason: "gated",
+		"rfc1001": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, EnrolmentReason: "gated",
 			Support: "bgp-base", Rank: 10, Area: "a", Status: "Partial",
 			Coverage: "c", Remaining: "r"},
 	}
@@ -1774,9 +1774,9 @@ func gatedFixture() []Requirement {
 // compares requirement ids and never reads a Support cell, which the commit
 // message wrongly claimed it did.
 func TestAPublicRowCannotBeDeletedWhileItsRFCStaysEnrolled(t *testing.T) {
-	rowed := Meta{Enrolment: enrolmentEnrolled, EnrolmentReason: "gated",
+	rowed := Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, EnrolmentReason: "gated",
 		Support: "bgp-base", Rank: 10, Status: "Partial"}
-	unrowed := Meta{Enrolment: enrolmentEnrolled, EnrolmentReason: "gated"}
+	unrowed := Meta{Enrolment: enrolmentEnrolled, Implementation: implementationZe, EnrolmentReason: "gated"}
 
 	deleted := checkPublicRowMonotonic(
 		map[string]Meta{selftestStem: unrowed}, map[string]Meta{selftestStem: rowed},
@@ -1872,6 +1872,7 @@ func TestCheckReportsAPublicRowDeletedThroughItsEntryPoint(t *testing.T) {
 	declared := "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n" +
 		"| Title | Widgets |\n| Enrolment | non-normative |\n" +
 		"| Enrolment reason | Informational, and it invokes no RFC 2119 key-words machinery |\n" +
+		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n" +
 		"| Support | bgp-base 10 |\n| Support area | Widgets |\n" +
 		"| Support status | Partial |\n| Support coverage | unit tests |\n" +
 		"| Support remaining | Zero MUST gaps. |\n\n## Compliance Checklist\n\n" +

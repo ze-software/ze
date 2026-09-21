@@ -12,6 +12,8 @@
 | Obsoletes | RFC 8210 (if approved) |
 | Enrolment | backlog |
 | Enrolment reason | The RPKI to Router Protocol, Version 2. Split out of rfc9582 on 2026-09-01 because the obligations below are stated by this draft and not by RFC 9582, which profiles the ROA certificate. It is not enrolled because its obligations are not yet proven and the draft is still in the RFC Editor queue, so a version bump can restate them. |
+| Implementation | ze |
+| Implementation reason | Ze's own Go implements this document; each requirement row cites its producer. |
 | Support | - |
 
 **Purpose:** Defines version 2 of the RPKI-to-Router protocol, which adds ASPA

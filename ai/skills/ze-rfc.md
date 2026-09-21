@@ -162,6 +162,25 @@ requirement rows under their own message or charged a verification-debt row for 
 - Purpose (1-2 sentences)
 - Scope: AFI/SAFI if BGP extension
 
+### Who implements it (owner directive, 2026-09-21)
+
+Say whose code answers the document, in one of four words, with the implementer
+named where it is not Ze:
+
+| Kind | What it says | Counted |
+|------|--------------|---------|
+| `ze` | Ze implements the obligations in Go | yes |
+| `mixed` | Ze implements part in Go, another layer performs the rest | Ze's part only |
+| `third-party` | a layer under or beside Ze performs it, Ze holds no Go code | no |
+| `foundation` | the document defines or registers, and obliges no implementer | no |
+
+Name the component and the mechanism, never "the kernel": Linux XFRM for the
+ESP and AH datapath, the Linux TCP stack for the transport. Out of the count is
+not out of test: where Ze can observe the behavior, assert what Ze produced, the
+selector, the security association, the socket option or the kernel counter.
+Full rule: `ai/rules/rfc-compliance.md`, procedure:
+`docs/contributing/rfc-conformance-gates.md`, "Who implements the document".
+
 ### Wire Formats
 For EACH format defined (message/attribute/capability/NLRI):
 

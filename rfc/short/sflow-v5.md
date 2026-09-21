@@ -15,6 +15,8 @@
 | Transport | UDP, recommended port 6343 |
 | Enrolment | enrolled |
 | Enrolment reason | sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at configured interval) + 11 single-polarity positive (version=5, agent addr, sub-agent seq space, MTU bound, no >1s hold, XDR big-endian, count-prefixed arrays, actual rate, sample_pool, cumulative counters) + 3 gap (split datagram seq, no expanded types, no unavailable sentinel) + 1 not-applicable (collector skip) |
+| Implementation | ze |
+| Implementation reason | Ze's own Go implements this document; each requirement row cites its producer. |
 | Support | drafts 80 |
 | Support area | sFlow export |
 | Support status | Experimental |

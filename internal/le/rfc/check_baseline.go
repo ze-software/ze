@@ -193,7 +193,13 @@ func baselineMetasBeforeMigration(tree string) (map[string]Meta, bool) {
 	out := map[string]Meta{}
 	for line := range strings.SplitSeq(blobs[enrolledRel], "\n") {
 		if stem, reason, ok := legacyLedgerRow(line); ok {
-			out[stem] = Meta{Enrolment: enrolmentEnrolled, EnrolmentReason: reason}
+			// The retired shape predates the implementation fact entirely, and
+			// this baseline answers one question: was the stem GATED at HEAD.
+			// Reading an absent fact as "not Ze's Go" would answer that
+			// question no for every stem the old files held, which retires
+			// every ratchet in silence.
+			out[stem] = Meta{Enrolment: enrolmentEnrolled, EnrolmentReason: reason,
+				Implementation: implementationZe, ImplementationReason: legacyImplementationReason}
 		}
 	}
 	for line := range strings.SplitSeq(blobs[notEnrolledRel], "\n") {
@@ -206,6 +212,10 @@ func baselineMetasBeforeMigration(tree string) (map[string]Meta, bool) {
 	}
 	return out, len(out) > 0
 }
+
+// legacyImplementationReason is what a baseline read from the retired ledger
+// files says about a fact those files never carried.
+const legacyImplementationReason = "read from the retired ledger files, which carried no implementation row"
 
 // legacyLedgerRow reads one row of the two retired ledger files: the first
 // whitespace run separates the stem from the rest.

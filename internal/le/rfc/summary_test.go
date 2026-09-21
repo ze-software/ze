@@ -219,6 +219,7 @@ func TestEnrolmentIsReadFromTheSummaryMetaTable(t *testing.T) {
 
 	meta, err := ParseMeta(head+
 		"| Enrolment | enrolled |\n| Enrolment reason | treat-as-withdraw is proven both ways |\n"+
+		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n"+
 		"| Support | - |\n", "rfc9999", where)
 	if err != nil {
 		t.Fatalf("a summary declaring its enrolment did not parse: %v", err)
@@ -259,6 +260,7 @@ func TestEnrolmentIsReadFromTheSummaryMetaTable(t *testing.T) {
 func TestTheMetaScanStopsAtItsOwnTable(t *testing.T) {
 	const summary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n" +
 		"| Title | Widgets |\n| Enrolment | enrolled |\n| Enrolment reason | gated |\n" +
+		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n" +
 		"| Support | - |\n\n**Scope:**\n| AFI | SAFI | Description |\n|---|---|---|\n" +
 		"| 1 | 4 | Labeled IPv4 Unicast |\n| 1 | 128 | VPN-IPv4 |\n"
 	meta, err := ParseMeta(summary, "rfc9999", "rfc/short/rfc9999.md")
@@ -296,7 +298,9 @@ func TestASummaryTitleComesFromTheMetaRow(t *testing.T) {
 	const summary = "# RFC 9999 -- Widgets, or so it says\n\n## Meta\n\n" +
 		"| Field | Value |\n|-------|-------|\n| RFC | 9999 |\n" +
 		"| Title | The Widget Protocol |\n| Enrolment | enrolled |\n" +
-		"| Enrolment reason | gated |\n| Support | - |\n"
+		"| Enrolment reason | gated |\n" +
+		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n" +
+		"| Support | - |\n"
 	meta, err := ParseMeta(summary, "rfc9999", "rfc/short/rfc9999.md")
 	if err != nil {
 		t.Fatalf("the fixture summary did not parse: %v", err)
@@ -305,7 +309,9 @@ func TestASummaryTitleComesFromTheMetaRow(t *testing.T) {
 		t.Errorf("the title is %q, want the Meta row's own value", meta.Title)
 	}
 	bare, err := ParseMeta("# RFC 9999 -- Widgets\n\n## Meta\n\n| Field | Value |\n|--|--|\n"+
-		"| Enrolment | enrolled |\n| Enrolment reason | gated |\n| Support | - |\n",
+		"| Enrolment | enrolled |\n| Enrolment reason | gated |\n"+
+		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n"+
+		"| Support | - |\n",
 		"rfc9999", "rfc/short/rfc9999.md")
 	if err != nil {
 		t.Fatalf("a summary with no Title row did not parse: %v", err)
@@ -359,7 +365,9 @@ func TestEverySummaryCarriesATitleRow(t *testing.T) {
 // would call the result fresh, because it compares generation with generation.
 func TestAnUnescapedPipeInAMetaValueIsRefused(t *testing.T) {
 	const head = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n" +
-		"| Enrolment | enrolled |\n| Enrolment reason | gated |\n| Support | - |\n"
+		"| Enrolment | enrolled |\n| Enrolment reason | gated |\n" +
+		"| Implementation | ze |\n| Implementation reason | the fixture Go answers it |\n" +
+		"| Support | - |\n"
 
 	_, err := ParseMeta(head+"| Title | MD5(id|secret) |\n", "rfc9999", "rfc/short/rfc9999.md")
 	if err == nil {

@@ -14,6 +14,8 @@
 | Updates | - |
 | Enrolment | enrolled |
 | Enrolment reason | BGP Extensions for Mobile User Plane (MUP) SAFI |
+| Implementation | ze |
+| Implementation reason | Ze's own Go implements this document; each requirement row cites its producer. |
 | Support | drafts 60 |
 | Support area | BGP Mobile User Plane SAFI 85 |
 | Support status | Partial |

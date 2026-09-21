@@ -12,6 +12,8 @@
 | RFC Number | Not yet assigned as of March 2026 |
 | Enrolment | enrolled |
 | Enrolment reason | ASPA AS_PATH verification: 4 MET + 2 single-polarity (6-1, 7-2) + 2 gap (6-4 per-AFI records, 8-1 Invalid-not-preferred) |
+| Implementation | ze |
+| Implementation reason | Ze's own Go implements this document; each requirement row cites its producer. |
 | Support | drafts 20 |
 | Support area | ASPA path verification |
 | Support status | Partial |

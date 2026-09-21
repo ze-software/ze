@@ -43,6 +43,11 @@ const (
 const selftestMeta = "## Meta\n\n| Field | Value |\n|-------|-------|\n" +
 	"| Title | Widgets |\n| Enrolment | enrolled |\n" +
 	"| Enrolment reason | the fixture RFC, gated so the selftest has a population |\n" +
+	// The fixture is a document Ze's own Go answers, which is what keeps its
+	// requirements in the gated population. A case about the four
+	// implementation kinds declares its own table, in meta_implementation_test.go.
+	"| Implementation | ze |\n" +
+	"| Implementation reason | the fixture's own Go answers it |\n" +
 	"| Support | bgp-base 10 |\n| Support area | Widgets |\n" +
 	"| Support status | Partial |\n| Support coverage | unit tests |\n" +
 	"| Support remaining | Zero MUST gaps. |\n"

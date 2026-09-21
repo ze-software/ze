@@ -49,20 +49,71 @@ var enrolmentKinds = map[string]bool{
 // names it in one order.
 func enrolmentKindNames() []string { return sortedSet(enrolmentKinds) }
 
+// The four kinds a summary declares about WHO implements the document (owner
+// directive, 2026-09-21). The ledger answers one question, whether ZE's Go code
+// does what the RFC says, so a document Ze writes no Go for leaves the count
+// and names what implements it instead.
+//
+// This is the DOCUMENT-level parent of the requirement-level `{lower-layer}`
+// annotation, and the two never decide one row. That annotation governs an
+// obligation whose role Ze fills and which a layer under Ze meets on state Ze
+// installs: it stays counted and met, per the owner directive of 2026-08-31. A
+// document Ze merely configures is a document Ze implements part of, which is
+// implementationMixed.
+const (
+	// implementationZe is the ordinary case: Ze's Go answers the document.
+	implementationZe = "ze"
+	// implementationMixed splits one document. Ze's part is counted and the
+	// rest names its implementer, as RFC 4303 does: Ze builds and installs the
+	// security association in Go and the kernel moves every packet.
+	implementationMixed = "mixed"
+	// implementationThirdParty says a layer under or beside Ze performs the
+	// behavior and Ze holds no Go code for it.
+	implementationThirdParty = "third-party"
+	// implementationFoundation says the document defines, registers or
+	// describes, and obliges no implementer. A document nobody implements while
+	// Ze OWES the behavior is not this: that is a gap, and it stays on the
+	// ledger until the behavior exists (ai/rules/rfc-compliance.md).
+	implementationFoundation = "foundation"
+)
+
+// implementationKinds is the closed set, and the ONE declaration of it.
+var implementationKinds = map[string]bool{
+	implementationZe:         true,
+	implementationMixed:      true,
+	implementationThirdParty: true,
+	implementationFoundation: true,
+}
+
+// implementationKindNames answers the closed set sorted, so every refusal
+// naming it names it in one order.
+func implementationKindNames() []string { return sortedSet(implementationKinds) }
+
+// ImplementationKinds answers the closed set to a renderer, sorted.
+func ImplementationKinds() []string { return implementationKindNames() }
+
+// implementationNamesAnImplementer answers whether the kind owes the name of
+// the component that performs what Ze's Go does not.
+func implementationNamesAnImplementer(kind string) bool {
+	return kind == implementationMixed || kind == implementationThirdParty
+}
+
 // The Meta labels this package reads. Each names one fact, and each is the ONLY
 // spelling that names it: a near-miss is refused rather than skipped, by the
 // same rule the obsolescence labels have carried since three summaries naming a
 // real successor were read as current.
 const (
-	metaTitle           = "Title"
-	metaEnrolment       = "Enrolment"
-	metaEnrolmentReason = "Enrolment reason"
-	metaSupport         = "Support"
-	metaSupportName     = "Support name"
-	metaSupportArea     = "Support area"
-	metaSupportStatus   = "Support status"
-	metaSupportCoverage = "Support coverage"
-	metaSupportRemain   = "Support remaining"
+	metaTitle                = "Title"
+	metaEnrolment            = "Enrolment"
+	metaEnrolmentReason      = "Enrolment reason"
+	metaImplementation       = "Implementation"
+	metaImplementationReason = "Implementation reason"
+	metaSupport              = "Support"
+	metaSupportName          = "Support name"
+	metaSupportArea          = "Support area"
+	metaSupportStatus        = "Support status"
+	metaSupportCoverage      = "Support coverage"
+	metaSupportRemain        = "Support remaining"
 )
 
 // supportNone is the `Support` value of a summary that makes no public claim.
@@ -216,6 +267,11 @@ type Meta struct {
 	// Enrolment is a member of enrolmentKinds, and EnrolmentReason is why.
 	Enrolment       string
 	EnrolmentReason string
+	// Implementation is a member of implementationKinds and says WHOSE code
+	// answers the document. ImplementationReason is why, and for the two kinds
+	// that name another layer it carries the implementer.
+	Implementation       string
+	ImplementationReason string
 	// Support is the public page section this RFC's row renders under, and is
 	// empty when the summary claims no row. Rank orders it inside that section.
 	Support string
@@ -234,7 +290,25 @@ type Meta struct {
 }
 
 // Enrolled answers whether this summary's MUST-level requirements are gated.
-func (m Meta) Enrolled() bool { return m.Enrolment == enrolmentEnrolled }
+//
+// A document Ze writes no Go for is never gated, whatever its enrolment row
+// says (owner directive, 2026-09-21). The ledger answers one question, whether
+// ZE's Go code does what the RFC says, so a published share taken over
+// obligations another layer owns measures the wrong thing.
+func (m Meta) Enrolled() bool {
+	return m.Enrolment == enrolmentEnrolled && m.CountsAgainstZe()
+}
+
+// CountsAgainstZe answers whether this document's obligations are Ze's to meet
+// in its own Go.
+//
+// `mixed` counts. A split document keeps the requirements Ze's Go answers, and
+// the rest carry the requirement-level annotations that name the layer meeting
+// them: `{lower-layer}` for an obligation a layer under Ze meets on state Ze
+// installs, which the 2026-08-31 directive keeps MET and counted.
+func (m Meta) CountsAgainstZe() bool {
+	return m.Implementation == implementationZe || m.Implementation == implementationMixed
+}
 
 // OutOfScope answers whether the owner decided not to offer this document's
 // feature for now. Such a summary declares its obligations in full and gates
@@ -259,6 +333,7 @@ var knownMetaLabels = map[string]bool{
 	metaEnrolment: true, metaEnrolmentReason: true, metaSupport: true,
 	metaSupportName: true, metaSupportArea: true, metaSupportStatus: true,
 	metaSupportCoverage: true, metaSupportRemain: true,
+	metaImplementation: true, metaImplementationReason: true,
 }
 
 // knownObsolescenceLabel is the pair of lineage labels that carry a qualifier,
@@ -291,6 +366,9 @@ func ParseMeta(text, stem, where string) (Meta, error) {
 		return Meta{}, err
 	}
 	if err := readEnrolment(values, &out, where); err != nil {
+		return Meta{}, err
+	}
+	if err := readImplementation(values, &out, where); err != nil {
 		return Meta{}, err
 	}
 	if err := readSupport(values, &out, stem, where); err != nil {
@@ -353,6 +431,79 @@ func readEnrolment(values map[string]string, out *Meta, where string) error {
 	out.Enrolment = kind
 	out.EnrolmentReason = reason
 	return nil
+}
+
+// readImplementation fills the two implementation fields, refusing an absent
+// value, a value outside the closed set, a kind with no reason, and a kind that
+// owes an implementer while naming none.
+//
+// "the kernel" alone is refused on purpose. An unnamed implementer is the claim
+// without the showing, and on the public page it reads as work nobody owns
+// (ai/rules/rfc-compliance.md).
+func readImplementation(values map[string]string, out *Meta, where string) error {
+	kind, held := values[metaImplementation]
+	if !held {
+		var tb textbuf.Buffer
+		return parseErr(tb.Str(where).Str(": the Meta table has no `").Str(metaImplementation).
+			Str("` row. Every summary declares whose code answers the document: write one of ").
+			Str(pyRepr(implementationKindNames())).
+			Str(". There is no default -- the ledger counts what ZE implements in Go, so a ").
+			Str("document leaving that count must be a decision, never an absence"))
+	}
+	if !implementationKinds[kind] {
+		var tb textbuf.Buffer
+		return parseErr(tb.Str(where).Str(": `").Str(metaImplementation).Str("` is ").Str(pyRepr(kind)).
+			Str(", which is not one of ").Str(pyRepr(implementationKindNames())).
+			Str(". Use 'ze' when Ze's Go answers the document, 'mixed' when Ze implements ").
+			Str("part in Go and another layer performs the rest, 'third-party' when a layer ").
+			Str("under or beside Ze performs it and Ze holds no Go code for it, and ").
+			Str("'foundation' when the document defines or registers and obliges no ").
+			Str("implementer. A document nobody implements while Ze OWES the behavior is a ").
+			Str("gap rather than any of these"))
+	}
+	reason := values[metaImplementationReason]
+	if reason == "" {
+		var tb textbuf.Buffer
+		return parseErr(tb.Str(where).Str(": `").Str(metaImplementation).Str("` is ").Str(kind).
+			Str(" with no `").Str(metaImplementationReason).
+			Str("` row. A bare kind is an absence with a label on it: say what makes it true"))
+	}
+	if implementationNamesAnImplementer(kind) && !namesAnImplementer(reason) {
+		var tb textbuf.Buffer
+		return parseErr(tb.Str(where).Str(": `").Str(metaImplementation).Str("` is ").Str(kind).
+			Str(" and its reason names no implementer. Name the component and the mechanism ").
+			Str("a reader can go and check, as in 'Linux XFRM builds every ESP packet' or ").
+			Str("'the Linux TCP stack carries the session'. A bare 'the kernel' is refused: ").
+			Str("an unnamed implementer reads on the public page as work nobody owns"))
+	}
+	out.Implementation = kind
+	out.ImplementationReason = reason
+	return nil
+}
+
+// namedComponentRE matches something a reader can go and check: a repository
+// path, a `pkg::Symbol` citation, or a proper noun such as Linux, XFRM, the
+// Go standard library or an RPKI cache.
+//
+// Derived from the shape of a name rather than from a list of names. The thing
+// being named lives OUTSIDE this repository, so no registry here could hold the
+// closed set, and a hand-kept list would refuse the next correct answer
+// somebody writes (ai/rules/principles.md).
+var namedComponentRE = regexp.MustCompile(`(?:\binternal/[\w./-]+|::|\b[A-Z][A-Za-z_0-9]{2,}\b)`)
+
+// vagueImplementerRE matches the gesture this refusal exists to stop: "the
+// kernel", with nothing named beside it.
+var vagueImplementerRE = regexp.MustCompile(`(?i)\bthe\s+kernel\b`)
+
+// namesAnImplementer answers whether the reason names a component a reader can
+// go and check, rather than gesturing at "the kernel".
+//
+// A reason naming the kernel AND a mechanism passes: "Linux XFRM builds every
+// AH header" is exactly what this asks for. What fails is the bare gesture,
+// which on the public page reads as work nobody owns.
+func namesAnImplementer(reason string) bool {
+	stripped := vagueImplementerRE.ReplaceAllString(reason, " ")
+	return namedComponentRE.MatchString(stripped)
 }
 
 // readSupport fills the public row, refusing an absent declaration, an unknown

@@ -6,6 +6,7 @@ severity: blocking
 directives ## Directives
   hold-every-protocol-to-its-own-rfcs
   count-conformance-on-the-whole-stack
+  name-who-implements-each-rfc
   treat-conformance-as-non-negotiable
   read-the-rfc-text-before-claiming-conformance
   prove-a-new-tag-discriminates-its-claim

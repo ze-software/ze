@@ -799,6 +799,11 @@ func rfcComplianceBody(snapshot *rfcCompliance, ledger rfcLedger) string {
 	body.Str(rfcCardGrid(snapshot, ledger))
 	body.Str(rfcGateVerdictHTML(snapshot))
 
+	// Who implements the document comes BEFORE the buckets, because it decides
+	// what the buckets are taken over. A reader meeting a share first has
+	// already been told it measures Ze before anything says whose work it is.
+	body.Str("<section><h2>Who implements each document</h2>\n").
+		Str(rfcImplementationHTML(ledger)).Str("\n</section>\n")
 	body.Str("<section><h2>Requirement buckets</h2>\n").Str(rfcSatisfactionHTML(snapshot)).Str("\n</section>\n")
 	body.Str("<section><h2>Gap disclosure</h2>\n").Str(rfcGapDisclosureHTML(snapshot.Gaps)).Str("\n</section>\n")
 	body.Str("<section><h2>Exclusion disclosure</h2>\n").
@@ -1837,6 +1842,9 @@ func rfcComplianceMirror(snapshot *rfcCompliance, ledger rfcLedger) string {
 	}
 
 	split := rfcBindingOf(snapshot)
+	mirror.Str("\n## Who implements each document\n\n")
+	mirror.Str(rfcImplementationMirror(ledger))
+
 	mirror.Str("\n## Requirement buckets\n\n")
 	mirror.Str(rfcScopeNote(split)).Str("\n\n")
 	mirror.Str("| Bucket | Count | Share of gated | Source condition |\n|---|---:|---:|---|\n")
@@ -2453,6 +2461,105 @@ func rfcExclusionTotalNote(exclusions rfcExclusions) string {
 
 // rfcStemLinksHTML and rfcStemLinksMirror name summaries as links to their own
 // pages, where every exclusion carries the reason that justifies it.
+// rfcImplementationKind is one kind, the summaries that declare it, and what
+// the kind says.
+type rfcImplementationKind struct {
+	Kind    string
+	Stems   []string
+	Meaning string
+}
+
+// rfcImplementationMeaning is what each kind says, in the words a reader uses.
+//
+// Derived from the vocabulary rather than from a second list: rfc.ImplementationKinds
+// is the one declaration, so a fifth kind prints as itself rather than silently
+// as nothing (ai/rules/principles.md).
+func rfcImplementationMeaning(kind string) string {
+	switch kind {
+	case "ze":
+		return "Ze's own Go implements the document, and its MUSTs are gated."
+	case "mixed":
+		return "Ze implements part in Go and another layer performs the rest. " +
+			"The part Ze's Go answers stays gated."
+	case "third-party":
+		return "A layer under or beside Ze performs it and Ze holds no Go code for it, " +
+			"so its MUSTs are not gated against Ze."
+	case "foundation":
+		return "The document defines, registers or describes, and obliges no implementer."
+	}
+	return "A kind this page has no sentence for."
+}
+
+// rfcImplementationsOf groups every summary by the kind it declares.
+func rfcImplementationsOf(ledger rfcLedger) []rfcImplementationKind {
+	byKind := map[string][]string{}
+	for index := range ledger.Stems {
+		stem := &ledger.Stems[index]
+		byKind[stem.Implementation] = append(byKind[stem.Implementation], stem.Stem)
+	}
+	out := make([]rfcImplementationKind, 0, len(byKind))
+	for _, kind := range rfc.ImplementationKinds() {
+		stems := byKind[kind]
+		slices.Sort(stems)
+		out = append(out, rfcImplementationKind{Kind: kind, Stems: stems,
+			Meaning: rfcImplementationMeaning(kind)})
+	}
+	return out
+}
+
+// rfcImplementationHTML renders who implements each document.
+//
+// The question it answers is the one the whole ledger turns on: whether a
+// number on this page measures ZE's work or a dependency's. A document Ze
+// writes no Go for names the component that performs it, so "not counted" is
+// never left reading as "nobody's problem".
+func rfcImplementationHTML(ledger rfcLedger) string {
+	kinds := rfcImplementationsOf(ledger)
+	var out textbuf.Buffer
+	out.Str("<p>").Str(html.EscapeString("The ledger counts what Ze implements in its " +
+		"own Go. A document another layer performs leaves the gated population and names " +
+		"what performs it, and where Ze can observe the behavior the requirement still " +
+		"carries a test over the state Ze installs.")).Str("</p>\n")
+	var rows textbuf.Buffer
+	for _, kind := range kinds {
+		rows.Str(rfcRowCells("<code>"+html.EscapeString(kind.Kind)+"</code>",
+			"<strong>"+strconv.Itoa(len(kind.Stems))+"</strong>",
+			html.EscapeString(kind.Meaning)))
+	}
+	out.Str(rfcTableHTML(rfcHeadCells("Implemented by", "Summaries", "What it means"),
+		rows.String()))
+	for _, kind := range kinds {
+		if kind.Kind == "ze" || len(kind.Stems) == 0 {
+			continue
+		}
+		out.Str("<h3>").Str(html.EscapeString(kind.Kind)).Str("</h3>\n<p>").
+			Str(rfcStemLinksHTML(kind.Stems)).Str("</p>\n")
+	}
+	return out.String()
+}
+
+// rfcImplementationMirror states the same split in Markdown.
+func rfcImplementationMirror(ledger rfcLedger) string {
+	var out textbuf.Buffer
+	out.Str("The ledger counts what Ze implements in its own Go. A document another " +
+		"layer performs leaves the gated population and names what performs it, and where " +
+		"Ze can observe the behavior the requirement still carries a test over the state " +
+		"Ze installs.\n\n")
+	out.Str("| Implemented by | Summaries | What it means |\n|---|---:|---|\n")
+	kinds := rfcImplementationsOf(ledger)
+	for _, kind := range kinds {
+		out.Str("| `").Str(kind.Kind).Str("` | ").Str(strconv.Itoa(len(kind.Stems))).
+			Str(" | ").Str(kind.Meaning).Str(" |\n")
+	}
+	for _, kind := range kinds {
+		if kind.Kind == "ze" || len(kind.Stems) == 0 {
+			continue
+		}
+		out.Str("\n### ").Str(kind.Kind).Str("\n\n").Str(rfcStemLinksMirror(kind.Stems)).Str("\n")
+	}
+	return out.String()
+}
+
 func rfcStemLinksHTML(stems []string) string {
 	parts := make([]string, 0, len(stems))
 	for _, stem := range stems {

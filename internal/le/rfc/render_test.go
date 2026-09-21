@@ -38,6 +38,11 @@ func fixtureMeta(enrolment, reason, support string) string {
 		Str("| Title | Widgets |\n").
 		Str("| Enrolment | ").Str(enrolment).Str(" |\n").
 		Str("| Enrolment reason | ").Str(reason).Str(" |\n").
+		// Every fixture here is a document Ze's own Go answers. A case about
+		// the four implementation kinds declares its own table, in
+		// meta_implementation_test.go, because that is what it asserts.
+		Str("| Implementation | ze |\n").
+		Str("| Implementation reason | the fixture's own Go answers it |\n").
 		Str("| Support | ").Str(support).Str(" |\n")
 	if support == supportNone {
 		return tb.String()

@@ -11,6 +11,8 @@
 | Depends | RFC 5492 (BGP capability advertisement) |
 | Enrolment | enrolled |
 | Enrolment reason | FQDN capability for BGP (code 73). The draft states NO MUST-level obligation: its only RFC 2119 keyword outside the Section 2 key-words paragraph is one SHOULD in Section 4, so the summary declares zero gated rows and rfc/extraction/draft-walton-bgp-hostname-capability.json signs off under 'manual-walk' with the register-reason that says why zero is a property of the document. Ze sends the capability from per-peer config (encodeValue, internal/component/bgp/plugins/hostname/hostname.go), encodes it with (*FQDN).WriteTo and parses a received one with parseFQDN (internal/core/bgp/capability/capability.go). |
+| Implementation | ze |
+| Implementation reason | Ze's own Go implements this document; each requirement row cites its producer. |
 | Support | drafts 50 |
 | Support area | BGP FQDN capability code 73 |
 | Support status | Supported |

@@ -167,7 +167,7 @@ func TestAFeatureDeclinedAnnotationCannotDisplaceAGap(t *testing.T) {
 // which is what would happen if the kind reached CoverageRow.Both or the
 // single-polarity arm of ProvenShareOf.
 func TestAFeatureDeclinedRequirementIsAnnotatedAndNotProven(t *testing.T) {
-	metas := map[string]Meta{"rfc1": {Enrolment: enrolmentEnrolled, Support: "core", Status: "Supported"}}
+	metas := map[string]Meta{"rfc1": {Enrolment: enrolmentEnrolled, Implementation: implementationZe, Support: "core", Status: "Supported"}}
 	tags := []Tag{
 		{RID: "RFC1-1-1", Polarity: PolarityPositive, File: "a_test.go"},
 		{RID: "RFC1-1-1", Polarity: PolarityNegative, File: "a_test.go"},

@@ -198,6 +198,44 @@ Un-enrolment exempts only the MISSING-ROW branch of `checkStatusAgreement`. An
 un-enrolled RFC with no row makes no public claim to contradict; one that HAS a
 row was contradicting its own row in public.
 
+## Who implements the document (owner directive, 2026-09-21)
+
+The ledger answers one question: does ZE's Go code do what the RFC says. A
+document Ze does not write Go for leaves the count and names what implements it
+instead, so a reader can tell Ze's work from a dependency's.
+
+| Kind | What it says | Counted |
+|------|--------------|---------|
+| `ze` | Ze implements the document's obligations in Go | yes |
+| `mixed` | Ze implements part in Go and another layer performs the rest | Ze's part only |
+| `third-party` | a layer under or beside Ze performs it and Ze holds no Go code for it | no |
+| `foundation` | the document defines, registers or describes, and obliges no implementer | no |
+
+`third-party` and `mixed` name the implementer: the component and the mechanism
+a reader can go and check, such as Linux XFRM for the ESP and AH datapath or the
+Linux TCP stack for the transport. "The kernel" alone is refused, because an
+unnamed implementer reads on the public page as work nobody owns.
+
+**Leaving the count never means proving nothing.** Ze installs the state the
+layer below acts on, so the boundary Ze owns stays testable where the packet
+handling is not. Where Ze can observe the behavior it carries a test that
+asserts what Ze produced: the selector, the security association, the socket
+option, the kernel counter.
+
+This is the DOCUMENT-level parent of the requirement-level annotation below.
+The two do not compete. `{lower-layer}` governs one obligation whose role Ze
+fills and which a layer under Ze meets on state Ze installs: that stays counted
+and met, per the 2026-08-31 ruling. This section governs a document Ze does not
+implement in Go at all. A document Ze merely configures is a document Ze
+implements part of, which is `mixed`, and its requirements keep the
+requirement-level rules.
+
+Today the classification is a REVIEWER'S JUDGEMENT recorded per summary, and no
+gate reads it. `plan/spec-rfc-implementation-classification.md` owns making it a
+Meta field with a closed set, a refusal for a `third-party` row that names no
+implementer, and a published split. Until that lands, do not add the row to a
+summary expecting a check to read it.
+
 ## The lower-layer annotation
 
 `{lower-layer}` says a layer UNDER Ze performs the behavior, on state Ze

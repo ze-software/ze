@@ -44,6 +44,12 @@ type rfcLedgerStem struct {
 	// Disposition is why an un-enrolled summary is not enrolled: the kind and
 	// the reason of the same Meta rows. It is absent for an enrolled stem.
 	Disposition *rfcLedgerDisposition `json:"disposition,omitempty"`
+	// Implementation says WHOSE code answers the document, and
+	// ImplementationReason is the sentence beside it. For `third-party` and
+	// `mixed` that sentence names the component performing what Ze's Go does
+	// not (owner directive, 2026-09-21).
+	Implementation       string `json:"implementation"`
+	ImplementationReason string `json:"implementation-reason,omitempty"`
 	// The three cells this RFC's row on docs/features/rfc-status.md carries.
 	// They are the summary's own `| Support status |`, `| Support coverage |`
 	// and `| Support remaining |` Meta rows, which that page is generated from.
@@ -427,6 +433,10 @@ func rfcLedgerStemOf(in *rfcLedgerInput) rfcLedgerStem {
 		// that is not: ParseMeta refuses a kind with no reason, so both sides
 		// carry it.
 		EnrolmentReason: meta.EnrolmentReason,
+		// Every summary declares this pair, and ParseMeta refuses a kind with
+		// no reason, so neither field is ever a silent empty.
+		Implementation:       meta.Implementation,
+		ImplementationReason: meta.ImplementationReason,
 	}
 	if !entry.Enrolled {
 		disposition := meta.Disposition()
