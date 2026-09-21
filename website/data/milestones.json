@@ -189,6 +189,13 @@
       "category": "services",
       "blog": "2026-09-07",
       "blurb": "Ze advertises itself as an IPv6 router on an interface unit (RFC 4861), with prefixes, flags, a router lifetime and RDNSS resolvers, so a host autoconfigures without radvd beside Ze. Sending is per unit and off by default."
+    },
+    {
+      "date": "2026-09-14",
+      "title": "Path MTU diagnostics",
+      "category": "observe",
+      "blog": "2026-09-14",
+      "blurb": "`show mtu` probes every IPsec peer and a reference address, reports the ceiling, the value to set and the TCP MSS that follows, and classifies each tunnel with the `set interface` command that corrects it. A tunnel with a live IKE security association is confirmed a second time by an authenticated padded probe."
     }
   ]
 }
