@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc5308",
+  "records": [
+    {
+      "rid": "RFC5308-2-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/redistribute/ipv6_rfc5308_test.go::TestRFC5308ConnectedIPv6ClearsExternalBit",
+      "unit-sha": "845fec62b960216d",
+      "claim-sha": "2207efee8bed4861",
+      "route": "revert",
+      "producer": "internal/plugins/isis/redistribute/ipv6.go::ConnectedPrefixInfosV6",
+      "producer-sha": "846c19004cdafbe6",
+      "break": "body of ConnectedPrefixInfosV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5308-2-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/redistribute/ipv6_rfc5308_test.go::TestRFC5308RedistributedIPv6SetsExternalBit",
+      "unit-sha": "fb759e2ed8cdf773",
+      "claim-sha": "6716702461550a51",
+      "route": "revert",
+      "producer": "internal/plugins/isis/redistribute/ipv6.go::injectRouteV6",
+      "producer-sha": "f2a2fa88c35aeab2",
+      "break": "body of injectRouteV6 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
