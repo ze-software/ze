@@ -126,11 +126,15 @@ func stubGitHubStars(t *testing.T, stars int, failure error) {
 func fixtureRFCLedger() rfc.Collected {
 	return rfc.Collected{
 		Enrolled: map[string]bool{"rfc4271": true, "rfc7606": true},
+		// Implementation is set on every row, so what keeps two of them out of
+		// the enrolled set is the Enrolment cell alone. Meta.Enrolled() reads
+		// both, and a fixture that left the kind absent would answer "not
+		// enrolled" for the reason the case is not about.
 		Metas: map[string]rfc.Meta{
-			"rfc4271": {Enrolment: "enrolled", Support: "core", Status: "Supported"},
-			"rfc7606": {Enrolment: "enrolled", Support: "core", Status: "Supported"},
-			"rfc9999": {Enrolment: "backlog"},
-			"rfc8654": {Enrolment: "backlog"},
+			"rfc4271": {Enrolment: "enrolled", Implementation: "ze", Support: "core", Status: "Supported"},
+			"rfc7606": {Enrolment: "enrolled", Implementation: "ze", Support: "core", Status: "Supported"},
+			"rfc9999": {Enrolment: "backlog", Implementation: "ze"},
+			"rfc8654": {Enrolment: "backlog", Implementation: "ze"},
 		},
 		Requirements: []rfc.Requirement{
 			{RFC: "rfc4271", RID: "R-1", Level: "MUST"},
@@ -624,7 +628,7 @@ func manyRFCRequirements(total, gated int) rfc.Collected {
 	collected := rfc.Collected{
 		Enrolled: map[string]bool{"rfc4271": true},
 		Metas: map[string]rfc.Meta{
-			"rfc4271": {Enrolment: "enrolled", Support: "core", Status: "Supported"},
+			"rfc4271": {Enrolment: "enrolled", Implementation: "ze", Support: "core", Status: "Supported"},
 		},
 		Requirements: make([]rfc.Requirement, 0, total),
 	}

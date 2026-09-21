@@ -54,6 +54,8 @@ const (
 	rfcLedgerSummary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n" +
 		"| Title | Widgets |\n| Enrolment | enrolled |\n" +
 		"| Enrolment reason | the fixture RFC, gated so the gate has a population |\n" +
+		"| Implementation | ze |\n" +
+		"| Implementation reason | the fixture RFC's own Go answers it (internal/widget) |\n" +
 		"| Support | bgp-base 10 |\n| Support area | Widgets |\n" +
 		"| Support status | Partial |\n| Support coverage | unit tests |\n" +
 		"| Support remaining | Zero MUST gaps. |\n\n" +
