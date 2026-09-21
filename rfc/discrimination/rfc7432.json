@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc7432",
+  "records": [
+    {
+      "rid": "RFC7432-9.2.1-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/evpn/type2_ip_rfc7432_test.go::TestRFC7432Type2IPAddressOctets",
+      "unit-sha": "20b5fac9add082bc",
+      "claim-sha": "1bb184f788dbf28f",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/evpn/types.go::parseEVPNType2",
+      "producer-sha": "f19a9242edb113a1",
+      "break": "body of parseEVPNType2 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7432-9.2.1-6",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/evpn/type2_ip_rfc7432_test.go::TestRFC7432Type2IPAddressOctetsShort",
+      "unit-sha": "611a0c6ebdae729a",
+      "claim-sha": "3f7acde5293bfe51",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/evpn/types.go::parseEVPNType2",
+      "producer-sha": "f19a9242edb113a1",
+      "break": "body of parseEVPNType2 replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
