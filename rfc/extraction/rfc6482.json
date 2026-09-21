@@ -1,0 +1,156 @@
+{
+  "schema-version": 1,
+  "stem": "rfc6482",
+  "register": "prose",
+  "source-path": "rfc/full/rfc6482.txt",
+  "source-sha": "035b0b690b67aecd",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC6482-3.3-3"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC6482-4-3"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF Trust Legal Provisions boilerplate on the status page. The lowercase 'must include Simplified BSD License text' governs reuse of the document's code components, not ROA behaviour."
+    },
+    {
+      "id": "1:1",
+      "quote": "An additional step required to validate ROAs (in addition to the validation steps specified in [RFC6488]).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Item 3 of the Introduction's list of what this document specifies. It describes the document's own contents; the obligation itself is Section 4's 'the relying party MUST perform all the validation checks specified in [RFC6488] as well as the following additional ROA-specific validation step', which site 4:2 maps."
+    },
+    {
+      "id": "2:1",
+      "quote": "This OID MUST appear both within the eContentType in the encapContentInfo object as well as the content-type signed attribute in the signerInfo object (see [RFC6488]).",
+      "disposition": "mapped",
+      "mapped-to": "RFC6482-2-1"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "The version number of the RouteOriginAttestation MUST be 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6482-3.1-1"
+    },
+    {
+      "id": "3.3:1",
+      "quote": "Therefore, addressFamily MUST be either 0001 or 0002.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6482-3.3-1"
+    },
+    {
+      "id": "3.3:2",
+      "quote": "If present, the maxLength MUST be an integer greater than or equal to the length of the accompanying prefix, and less than or equal to the length (in bits) of an IP address in the address family (32 for IPv4 and 128 for IPv6).",
+      "disposition": "mapped",
+      "mapped-to": "RFC6482-3.3-2"
+    },
+    {
+      "id": "4:1",
+      "quote": "Before a relying party can use a ROA to validate a routing announcement, the relying party MUST first validate the ROA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6482-4-1"
+    },
+    {
+      "id": "4:2",
+      "quote": "To validate a ROA, the relying party MUST perform all the validation checks specified in [RFC6488] as well as the following additional ROA-specific validation step.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6482-4-2"
+    },
+    {
+      "id": "5:1",
+      "quote": "Thus, the integrity of a ROA MUST be established.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6482-5-1"
+    },
+    {
+      "id": "5:2",
+      "quote": "Specifically, one MUST verify the signature on the ROA using an X.509 certificate issued under this PKI, and check that the prefix(es) in the ROA match those in the certificate's address space extension.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6482-5-2"
+    }
+  ]
+}

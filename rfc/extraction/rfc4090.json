@@ -1,0 +1,580 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4090",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc4090.txt",
+  "source-sha": "d53e6ba082494f4e",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4090-3.2-1",
+        "RFC4090-3.2-2"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4090-4.1-1"
+      ]
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4090-4.1-2",
+        "RFC4090-4.3-2"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 8,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3.2",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.5",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4090-6.5-2"
+      ]
+    },
+    {
+      "id": "6.5.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4090-6.5-1"
+      ]
+    },
+    {
+      "id": "6.5.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4090-6.5-3"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "4.1:1",
+      "quote": "This object MUST only be inserted into the PATH message by the head-end LER and MUST NOT be changed by downstream LSRs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-4.1-3"
+    },
+    {
+      "id": "4.2.2:1",
+      "quote": "The high-order bit of the Class-Num is zero; LSRs that do not support the DETOUR objects MUST reject any Path message containing a DETOUR object and send a PathErr to notify the PLR.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-4.2-1"
+    },
+    {
+      "id": "4.4:1",
+      "quote": "The PLR may set this whenever the desired bandwidth is guaranteed; the PLR MUST set this flag when the desired bandwidth is guaranteed and the \"bandwidth protection desired\" flag was set in the SESSION_ATTRIBUTE object.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-4.4-5"
+    },
+    {
+      "id": "4.4:2",
+      "quote": "If the requested bandwidth is not guaranteed, the PLR MUST NOT set this flag.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-4.4-6"
+    },
+    {
+      "id": "4.4:3",
+      "quote": "The PLR may set this whenever node protection is provided by the protected LSP's backup path; the PLR MUST set this flag when the node protection is provided and the \"node protection desired\" flag was set in the SESSION_ATTRIBUTE object.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-4.4-3"
+    },
+    {
+      "id": "4.4:4",
+      "quote": "If node protection is not provided, the PLR MUST NOT set this flag.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-4.4-7"
+    },
+    {
+      "id": "5:1",
+      "quote": "To indicate that an LSP should be locally protected, the head-end LSR MUST either set the \"local protection desired\" flag in the SESSION_ATTRIBUTE object or include a FAST_REROUTE object in the PATH message, or both.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-4.3-1"
+    },
+    {
+      "id": "5:2",
+      "quote": "If a head-end LSR signals a FAST_REROUTE object, it MUST be stored for Path refreshes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-5-1"
+    },
+    {
+      "id": "5:3",
+      "quote": "The head-end LSR of a protected LSP MUST set the \"label recording desired\" flag in the SESSION_ATTRIBUTE object.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-5-2"
+    },
+    {
+      "id": "5:4",
+      "quote": "The head-end LSR of a protected LSP MUST support the additional flags defined in Section 4.4 being set or clear in the RRO IPv4 and IPv6 sub-objects.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-5-3"
+    },
+    {
+      "id": "5:5",
+      "quote": "The head-end LSR of a protected LSP MUST support the RRO Label sub-object.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-5-4"
+    },
+    {
+      "id": "6:1",
+      "quote": "Every LSR along a protected LSP (except the egress) MUST follow the PLR behavior described in this document.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-6-1"
+    },
+    {
+      "id": "6:2",
+      "quote": "A PLR MUST consider an LSP to have asked for local protection if the \"local protection desired\" flag is set in the SESSION_ATTRIBUTE object and/or the FAST_REROUTE object is included.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-6-2"
+    },
+    {
+      "id": "6:3",
+      "quote": "- Until a PLR has a backup path available, the PLR MUST clear the relevant four flags in the corresponding RRO IPv4 or IPv6 sub- object.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-6-3"
+    },
+    {
+      "id": "6:4",
+      "quote": "- Whenever the PLR has a backup path available, the PLR MUST set the \"local protection available\" flag.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-4.4-1"
+    },
+    {
+      "id": "6:5",
+      "quote": "If no established one-to-one backup LSP or bypass tunnel exists, or if the one-to-one LSP and the bypass tunnel is in \"DOWN\" state, the PLR MUST clear the \"local protection available\" flag in its IPv4 (or IPv6) address sub-object of the RRO and SHOULD send the updated RESV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-6-4"
+    },
+    {
+      "id": "6:6",
+      "quote": "- The PLR MUST clear the \"local protection in use\" flag unless it is actively redirecting traffic into the backup path instead of along the protected LSP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-6-5"
+    },
+    {
+      "id": "6:7",
+      "quote": "This MUST be done if the \"node protection desired\" flag was set in the SESSION_ATTRIBUTE object.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-6-6"
+    },
+    {
+      "id": "6:8",
+      "quote": "This MUST be done if the \"bandwidth protection desired\" flag was set in the SESSION_ATTRIBUTE object.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-6-7"
+    },
+    {
+      "id": "6.1.1:1",
+      "quote": "If the head-end of a tunnel is also acting as the PLR, it MUST choose an IP address different from the one used in the SENDER_TEMPLATE of the original LSP tunnel.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-6.1-1"
+    },
+    {
+      "id": "6.2:1",
+      "quote": "- For detour LSPs, the destination MUST be the tail-end of the protected LSP.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is the detour LSP destination rule. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "6.2:2",
+      "quote": "For bypass tunnels (Section 7), the destination MUST be the address of the MP. - When one-to-one protection is set up by using the path-specific method, a detour MUST not traverse the upstream links of the protected LSP in the same direction.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-6.2-1"
+    },
+    {
+      "id": "6.3:1",
+      "quote": "- If the sender template-specific method is to be used, then the PLR MUST change the \"IPv4 (or IPv6) tunnel sender address\" of the SENDER_TEMPLATE to an address belonging to the PLR that is not the same as that used for the protected LSP.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is detour SENDER_TEMPLATE rewriting. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "6.3:2",
+      "quote": "- If the path-specific method is to be used, then the PLR MUST add a DETOUR object to the PATH message. - The SESSION_ATTRIBUTE flags \"Local protection desired\", \"Bandwidth protection desired\", and \"Node protection desired\" MUST be cleared.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is the DETOUR object and the detour SESSION_ATTRIBUTE flags. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "6.3:3",
+      "quote": "- If the protected LSP's Path message contained a FAST_REROUTE object, this object MUST be removed from the detour LSP's PATH message.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is FAST_REROUTE removal from a detour PATH. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "6.3:4",
+      "quote": "- The PLR MUST generate an EXPLICIT_ROUTE object toward the egress.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is the detour EXPLICIT_ROUTE object. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "6.3:5",
+      "quote": "- The detour LSPs MUST use the same reservation style as the protected LSP.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is the detour reservation style. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "6.3.2:1",
+      "quote": "The PLR MUST not mix the messages for the protected and the detour LSPs.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is detour message separation. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "6.3.2:2",
+      "quote": "When a PLR receives Resv, ResvTear, and PathErr messages from the downstream detour destination, the messages MUST not be forwarded upstream.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is detour message forwarding. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "6.3.2:3",
+      "quote": "Similarly, when a PLR receives ResvErr and ResvConf messages from a protected LSP, it MUST not propagate them onto the associated detour LSP.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is detour ResvErr/ResvConf propagation. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "6.3.2:4",
+      "quote": "When a PLR node receives a PathTear message from upstream, it MUST delete both the protected and the detour LSPs.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is detour PathTear handling. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "6.3.2:5",
+      "quote": "The PathTear messages MUST propagate to both protected and detour LSPs.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is detour PathTear propagation. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "6.3.2:6",
+      "quote": "When a PLR node receives the ResvTear messages from downstream for a protected LSP, as long as a detour is up, the ResvTear messages MUST not be sent further upstream.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is detour ResvTear propagation. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "6.3.3:1",
+      "quote": "When the PLR detects a failure on the protected LSP, the PLR MUST rapidly switch packets to the protected LSP's backup LSP instead of to the protected LSP's normal out-segment.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-6.3-1"
+    },
+    {
+      "id": "6.4.1:1",
+      "quote": "As described in Section 6, the head-end LSR MUST set the \"label recording requested\" flag in the SESSION_ATTRIBUTE object for LSPs requesting local protection.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the Section 5 head-end obligation to set the label recording desired flag, which RFC4090-5-2 already carries; this sentence says so itself (\"As described in Section 6\").",
+      "mapped-to": "RFC4090-5-2"
+    },
+    {
+      "id": "6.4.3:1",
+      "quote": "- The RSVP_HOP object MUST contain an IP source address belonging to the PLR.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-6.4-1"
+    },
+    {
+      "id": "6.4.3:2",
+      "quote": "- The PLR MUST generate an EXPLICIT_ROUTE object toward the egress.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-6.4-2"
+    },
+    {
+      "id": "6.4.4:1",
+      "quote": "More specifically, the PLR MUST:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-6.4-3"
+    },
+    {
+      "id": "6.5:1",
+      "quote": "The PLR MUST update the IPv4 or IPv6 sub-object it inserted into the RRO by setting the \"Local protection in use\" and \"Local Protection Available\" flags.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-4.4-2"
+    },
+    {
+      "id": "7.1.1:1",
+      "quote": "If merging occurs and one of the Path messages merged was for the protected LSP, then the final Path message to be sent MUST be that of the protected LSP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-7.1-1"
+    },
+    {
+      "id": "7.1.1:2",
+      "quote": "Once the final Path message has been identified, the MP MUST start to refresh it downstream periodically.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-7.1-2"
+    },
+    {
+      "id": "7.1.2:1",
+      "quote": "In this case, Path state merging is REQUIRED.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is detour merging by the path-specific method. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "7.1.2:2",
+      "quote": "Otherwise, the MP MUST record the Path state and the incoming interface.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is detour Path state recording under the path-specific method. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "7.1.2:3",
+      "quote": "If the Path messages do not share an outgoing interface and a next-hop LSR, the MP MUST consider them to be independent LSPs and MUST NOT merge them.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is detour merge eligibility under the path-specific method. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "7.1.2:4",
+      "quote": "Once the final Path message has been identified, the MP MUST start to refresh it downstream periodically.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is detour refresh after merging under the path-specific method. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "7.1.3:1",
+      "quote": "If the LSR does not have an alternate associated LSP, then the MP MUST propagate the ResvTear toward the LSP's ingress, and, for each backup LSP merged into that LSP at this LSR, the ResvTear SHOULD also be propagated along the backup LSP.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "One-to-one detour backup is optional and ze declined it; this site is ResvTear handling for merged detours. RFC 4090 Section 6 makes the method optional: \"A PLR MAY support the DETOUR object.\""
+    },
+    {
+      "id": "7.2:1",
+      "quote": "When a downstream LSR detects a local link failure, for any protected LSPs routed over the failed link, Path and Resv state MUST NOT be cleared, and PathTear and ResvErr messages MUST NOT be sent immediately.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-7.2-1"
+    },
+    {
+      "id": "7.2:2",
+      "quote": "State MUST be removed if it has not been refreshed before the refresh timer expires.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4090-7.2-2"
+    }
+  ]
+}

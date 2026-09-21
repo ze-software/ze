@@ -1,0 +1,77 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4576",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc4576.txt",
+  "source-sha": "b8082c52301f1b60",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "4:1",
+      "quote": "When a type 3, 5, or 7 LSA is sent from a PE to a CE, the DN bit MUST be set.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4576-4-1"
+    },
+    {
+      "id": "4:2",
+      "quote": "The DN bit MUST be clear in all other LSA types. +-------------------------------------+ | DN | * | DC | EA | N/P | MC | E | * | +-------------------------------------+",
+      "disposition": "mapped",
+      "mapped-to": "RFC4576-4-2"
+    },
+    {
+      "id": "4:3",
+      "quote": "When the PE receives, from a CE router, a type 3, 5, or 7 LSA with the DN bit set, the information from that LSA MUST NOT be used during the OSPF route calculation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4576-4-4"
+    },
+    {
+      "id": "4:4",
+      "quote": "The DN bit MUST be ignored in all other LSA types.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4576-4-3"
+    }
+  ]
+}

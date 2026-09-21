@@ -1,0 +1,124 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9072",
+  "register": "prose",
+  "source-path": "rfc/full/rfc9072.txt",
+  "source-sha": "c40d3ab7b84b736b",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9072-2-5",
+        "RFC9072-2-7",
+        "RFC9072-2-8",
+        "RFC9072-2-9"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF Trust copyright boilerplate in the Status of This Memo section: it binds the extraction of code components from the document, not any BGP speaker behavior, and the keyword is lowercase 'must'."
+    },
+    {
+      "id": "2:1",
+      "quote": "(In any case, an implementation MUST accept an OPEN message that uses the encoding of this specification even if the length of the Optional Parameters is 255 or less.)",
+      "disposition": "mapped",
+      "mapped-to": "RFC9072-2-2"
+    },
+    {
+      "id": "2:2",
+      "quote": "However, if the length of the Optional Parameters in the BGP OPEN message does exceed 255, the OPEN message MUST be encoded according to the procedure below.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9072-2-1"
+    },
+    {
+      "id": "2:3",
+      "quote": "The Non-Extended Optional Parameters Length field (Non-Ext OP Len.) SHOULD be set to 255 on transmission and, in any event, MUST NOT be set to 0; it MUST be ignored on receipt once the use of the extended format is determined positively by inspection of the Non-Extended Optional Parameters Type (Non-Ext OP Type) field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9072-2-3"
+    },
+    {
+      "id": "2:4",
+      "quote": "The subsequent one-octet field (which would be the first Optional Parameter Type field in the non-extended format and is called \"Non- Ext OP Type\" in the figure above) MUST be set to 255 on transmission.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9072-2-4"
+    },
+    {
+      "id": "2:5",
+      "quote": "In parsing an OPEN message, if the one-octet Optional Parameters Length field (labeled \"Non-Ext OP Len.\" in Figure 1) is non-zero, a BGP speaker MUST use the value of the octet following the one-octet Optional Parameters Length field (labeled \"Non-Ext OP Type\" in Figure 1) to determine both the encoding of the Optional Parameters length and the size of the Parameter Length field of individual Optional Parameters.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9072-2-6"
+    },
+    {
+      "id": "3:1",
+      "quote": "Although the Optional Parameter type code 255 is used in this specification as the indication that the extended encoding is in use, it is not a bona fide Optional Parameter type code in the usual sense and MUST NOT be used other than as described above.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9072-3-2"
+    },
+    {
+      "id": "3:2",
+      "quote": "If encountered other than as the Non-Ext OP Type, it MUST be treated as an unrecognized Optional Parameter and handled according to [RFC4271], Section 6.2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9072-3-3"
+    },
+    {
+      "id": "3:3",
+      "quote": "It is not considered a fatal error to receive an OPEN message whose (non-extended) Optional Parameters Length value is not 255 and whose first Optional Parameter type code is 255 -- in this case, the encoding of this specification MUST be used for decoding the message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9072-3-1"
+    }
+  ]
+}

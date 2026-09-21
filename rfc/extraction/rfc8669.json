@@ -1,0 +1,332 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8669",
+  "register": "prose",
+  "source-path": "rfc/full/rfc8669.txt",
+  "source-sha": "bf04f41e726679f9",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8669-1-1"
+      ]
+    },
+    {
+      "id": "2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8669-3.1-4",
+        "RFC8669-3.1-6"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8669-3.2-2",
+        "RFC8669-3.2-5",
+        "RFC8669-3.2-6"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8669-4-2"
+      ]
+    },
+    {
+      "id": "4.1",
+      "sites": 9,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8669-4.1-9",
+        "RFC8669-4.1-10",
+        "RFC8669-4.1-11",
+        "RFC8669-4.1-12",
+        "RFC8669-4.1-13",
+        "RFC8669-4.1-14"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8669-5-1",
+        "RFC8669-5-2",
+        "RFC8669-5-3"
+      ]
+    },
+    {
+      "id": "5.1",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8669-5.1-3"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8669-8-2",
+        "RFC8669-8-3"
+      ]
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8669-9-1",
+        "RFC8669-9-2"
+      ]
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF Trust boilerplate on the Simplified BSD License for extracted Code Components; it binds republication of the document, not any protocol behaviour."
+    },
+    {
+      "id": "2:1",
+      "quote": "If traffic engineering within the SR domain is required, each node may also be required to advertise topological information and Peer SIDs for each of its links and peers.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Overview prose in Section 2: 'if traffic engineering ... is required' and 'may also be required' are lowercase and describe what an SR domain deployment needs, not an obligation on a BGP speaker."
+    },
+    {
+      "id": "2:2",
+      "quote": "This information is required to perform the explicit path computation and to express an explicit path as a list of SIDs.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Overview prose: 'This information is required to perform the explicit path computation' is lowercase and describes why the information exists."
+    },
+    {
+      "id": "2:3",
+      "quote": "If a prefix segment is to be included in an MPLS label stack, e.g., for traffic-engineering purposes, knowledge of the prefix originator's SRGB is required in order to compute the local label used by the originator.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Overview prose: 'knowledge of the prefix originator's SRGB is required in order to compute the local label' is lowercase and motivates the Originator SRGB TLV."
+    },
+    {
+      "id": "3:1",
+      "quote": "For future extensibility, unknown TLVs MUST be ignored and propagated unmodified.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-3-1"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "The Label-Index TLV MUST be present in the BGP Prefix-SID attribute attached to IPv4/IPv6 Labeled Unicast prefixes ([RFC8277]).",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-3.1-1"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "It MUST be ignored when received for other BGP AFI/SAFI combinations.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-3.1-2"
+    },
+    {
+      "id": "3.1:3",
+      "quote": "It MUST be clear on transmission and MUST be ignored on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-3.1-3"
+    },
+    {
+      "id": "3.1:4",
+      "quote": "The Flags field MUST be clear on transmission and MUST be ignored on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-3.1-5"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "The Flags field MUST be clear on transmission and MUST be ignored on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-3.2-1"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "The Originator SRGB TLV MUST NOT be changed during the propagation of the BGP update.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-3.2-3"
+    },
+    {
+      "id": "3.2:3",
+      "quote": "It MUST be ignored when received for other BGP AFI/SAFI combinations.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-3.2-4"
+    },
+    {
+      "id": "3.2:4",
+      "quote": "Since the Label-Index TLV is required for IPv4/IPv6 prefix applicability, the Originator SRGB TLV will be ignored if it is not specified in a manner consistent with Section 6.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "'Since the Label-Index TLV is required for IPv4/IPv6 prefix applicability' is lowercase and restates RFC8669-3.1-1; the rest of the sentence states the consequence that Section 6 error handling (RFC8669-6-1) already carries."
+    },
+    {
+      "id": "4:1",
+      "quote": "A BGP speaker receiving a BGP Prefix-SID attribute from an External BGP (EBGP) neighbor residing outside the boundaries of the SR domain MUST discard the attribute unless it is configured to accept the attribute from the EBGP neighbor.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-4-1"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "A BGP session supporting the Multiprotocol BGP Labeled IPv4 or IPv6 Unicast ([RFC8277]) AFI/SAFI is required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "'A BGP session supporting the Multiprotocol BGP Labeled IPv4 or IPv6 Unicast AFI/SAFI is required' is lowercase and states the deployment precondition for the section, not a behaviour a speaker performs."
+    },
+    {
+      "id": "4.1:2",
+      "quote": "When the BGP Prefix-SID attribute is attached to a BGP Labeled IPv4 or IPv6 Unicast [RFC8277] AFI/SAFI, it MUST contain the Label-Index TLV and MAY contain the Originator SRGB TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-4.1-1"
+    },
+    {
+      "id": "4.1:3",
+      "quote": "A BGP Prefix-SID attribute received without a Label-Index TLV MUST be considered to be \"invalid\" by the receiving speaker.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-4.1-2"
+    },
+    {
+      "id": "4.1:4",
+      "quote": "If multiple different prefixes are received with the same label index, all of the different prefixes MUST have their BGP Prefix-SID attribute considered to be \"conflicting\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-4.1-3"
+    },
+    {
+      "id": "4.1:5",
+      "quote": "When a BGP speaker receives a path from a neighbor with an \"invalid\" or \"conflicting\" BGP Prefix-SID attribute, or when a BGP speaker receives a path from a neighbor with a BGP Prefix-SID attribute but is unable to process it (e.g., local policy disables the functionality), it MUST ignore the BGP Prefix-SID attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-4.1-4"
+    },
+    {
+      "id": "4.1:6",
+      "quote": "For the purposes of label allocation, a BGP speaker MUST assign a local (also called dynamic) label (non-SRGB) for such a prefix as per classic Multiprotocol BGP IPv4/IPv6 Labeled Unicast ([RFC8277]) operation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-4.1-5"
+    },
+    {
+      "id": "4.1:7",
+      "quote": "In the case of an \"invalid\" BGP Prefix-SID attribute, a BGP speaker MUST follow the error-handling rules specified in Section 6.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-4.1-6"
+    },
+    {
+      "id": "4.1:8",
+      "quote": "Specifically, a BGP speaker receiving a prefix with a BGP Prefix-SID attribute and a label NLRI field of Implicit NULL [RFC3032] from a neighbor MUST adhere to standard behavior and program its MPLS data plane to pop the top label when forwarding traffic to the prefix.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-4.1-7"
+    },
+    {
+      "id": "4.1:9",
+      "quote": "The label NLRI defines the outbound label that MUST be used by the receiving node.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-4.1-8"
+    },
+    {
+      "id": "5.1:1",
+      "quote": "Since the label-index value must be unique within an SR domain, by default an implementation SHOULD NOT advertise the BGP Prefix-SID attribute outside an AS unless it is explicitly configured to do so.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-5.1-2"
+    },
+    {
+      "id": "5.1:2",
+      "quote": "In all cases, the Label field of the advertised NLRI ([RFC8277] [RFC4364]) MUST be set to the local/incoming label programmed in the MPLS data plane for the given advertised prefix.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-5.1-1"
+    },
+    {
+      "id": "6:1",
+      "quote": "When a BGP speaker receives a BGP UPDATE message containing a malformed or invalid BGP Prefix-SID attribute attached to an IPv4/ IPv6 Labeled Unicast prefix ([RFC8277]), it MUST ignore the received BGP Prefix-SID attribute and not advertise it to other BGP peers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-6-1"
+    },
+    {
+      "id": "6:2",
+      "quote": "As per [RFC7606], if the BGP Prefix-SID attribute appears more than once in an UPDATE message, all the occurrences of the attribute other than the first one SHALL be discarded and the UPDATE message will continue to be processed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-6-2"
+    },
+    {
+      "id": "6:3",
+      "quote": "Similarly, if a recognized TLV appears more than once in a BGP Prefix-SID attribute while the specification only allows for a single occurrence, then all the occurrences of the TLV other than the first one SHALL be discarded and the Prefix-SID attribute will continue to be processed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-6-3"
+    },
+    {
+      "id": "6:4",
+      "quote": "For future extensibility, unknown TLVs MUST be ignored and propagated unmodified.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 6 repeats the Section 3 sentence word for word: 'For future extensibility, unknown TLVs MUST be ignored and propagated unmodified.' Site 3:1 is the source and RFC8669-3-1 already cites both sections.",
+      "mapped-to": "RFC8669-3-1"
+    },
+    {
+      "id": "7:1",
+      "quote": "The designated experts must be good and faithful stewards of the above registries, ensuring that each request is legitimate and corresponds to a viable use case.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IANA Considerations: 'The designated experts must be good and faithful stewards' is lowercase and addresses the registry's designated experts about how they review requests, not a BGP speaker."
+    },
+    {
+      "id": "8:1",
+      "quote": "The propagation to other ASes MUST be explicitly configured.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8669-8-1"
+    }
+  ]
+}

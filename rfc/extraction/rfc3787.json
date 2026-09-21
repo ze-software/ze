@@ -1,0 +1,155 @@
+{
+  "schema-version": 1,
+  "stem": "rfc3787",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc3787.txt",
+  "source-sha": "b5160bf591e297a3",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3787-4-1",
+        "RFC3787-4-2"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3787-8-1"
+      ]
+    },
+    {
+      "id": "9",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.1:1",
+      "quote": "TLV 131 is not used, and MUST be ignored if received.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3787-x-1"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "TLV 133 is not used, and MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3787-x-1"
+    },
+    {
+      "id": "5:1",
+      "quote": "If not all devices in the IS-IS domain support wide metrics, narrow metrics MUST continue to be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3787-5-1"
+    },
+    {
+      "id": "9:1",
+      "quote": "IP capable routers MUST generate a Protocol Supported TLV, and MUST include the IP protocol as a supported protocol.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3787-x-2"
+    },
+    {
+      "id": "10:1",
+      "quote": "For an implementation to interoperate in a such mixed environment, it MUST include an IP Interface address (TLV 132) in its IIH PDUs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3787-x-2"
+    }
+  ]
+}

@@ -1,0 +1,465 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7854",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc7854.txt",
+  "source-sha": "b32c6bf7d6b5d67a",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7854-x-12",
+        "RFC7854-x-13",
+        "RFC7854-x-14"
+      ]
+    },
+    {
+      "id": "3.3",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7854-x-11",
+        "RFC7854-x-15",
+        "RFC7854-x-16",
+        "RFC7854-x-17"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7854-x-2"
+      ]
+    },
+    {
+      "id": "4.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7854-x-3",
+        "RFC7854-x-4",
+        "RFC7854-x-5"
+      ]
+    },
+    {
+      "id": "4.3",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7854-x-7"
+      ]
+    },
+    {
+      "id": "4.4",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.5",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7854-x-9"
+      ]
+    },
+    {
+      "id": "4.7",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7854-x-20"
+      ]
+    },
+    {
+      "id": "4.8",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.9",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7854-x-10",
+        "RFC7854-4.9-1"
+      ]
+    },
+    {
+      "id": "4.10",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7854-x-8",
+        "RFC7854-x-19"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.9",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.10",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.2:1",
+      "quote": "Retries MUST be subject to some variety of backoff.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-3.2-1"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "The router MUST also restrict the rate at which sessions may be established.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-3.2-2"
+    },
+    {
+      "id": "3.3:1",
+      "quote": "It MUST begin by sending an Initiation message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the obligation section 4.3 states at the site this walk maps to RFC7854-x-6: 'An initiation message MUST be sent as the first message after the TCP session comes up.' Section 3.3 states it as the first step of the session lifecycle; section 4.3 states it as the rule of the message itself.",
+      "mapped-to": "RFC7854-x-6"
+    },
+    {
+      "id": "3.3:2",
+      "quote": "Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer; when End-of-RIB has been sent for each monitored peer, the initial table dump has completed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-3.3-1"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "('1' and '2' were used by draft versions of this document.) Version 0 is reserved and MUST NOT be sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-x-1"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "A BMP implementation MUST ignore unrecognized message types upon receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-4.1-1"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "They MUST be transmitted as 0 and their values MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-4.2-1"
+    },
+    {
+      "id": "4.3:1",
+      "quote": "An initiation message MUST be sent as the first message after the TCP session comes up.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-x-6"
+    },
+    {
+      "id": "4.3:2",
+      "quote": "The sysDescr and sysName Information TLVs MUST be sent, any others are optional.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-x-18"
+    },
+    {
+      "id": "4.4:1",
+      "quote": "If multiple strings are included, their ordering MUST be preserved when they are reported. * Type = 1: sysDescr.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-4.4-1"
+    },
+    {
+      "id": "4.4:2",
+      "quote": "The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysDescr MIB-II [RFC1213] object.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-4.4-2"
+    },
+    {
+      "id": "4.4:3",
+      "quote": "The Information field contains an ASCII string whose value MUST be set to be equal to the value of the sysName MIB-II [RFC1213] object.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-4.4-3"
+    },
+    {
+      "id": "4.5:1",
+      "quote": "Once the router has sent a termination message, it MUST close the TCP session without sending any further messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-4.5-1"
+    },
+    {
+      "id": "4.5:2",
+      "quote": "Likewise, the monitoring station MUST close the TCP session after receiving a termination message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-4.5-2"
+    },
+    {
+      "id": "4.5:3",
+      "quote": "Inclusion of this TLV is REQUIRED.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-4.5-3"
+    },
+    {
+      "id": "4.7:1",
+      "quote": "If the BGP Message TLV occurs in the Route Mirroring message, it MUST occur last in the list of TLVs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-4.7-1"
+    },
+    {
+      "id": "4.7:2",
+      "quote": "A BGP Message TLV MUST also occur in the TLV list.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-4.7-2"
+    },
+    {
+      "id": "4.8:1",
+      "quote": "A BMP implementation MUST ignore unrecognized stat types on receipt, and likewise MUST ignore unexpected data in the Stat Data field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-4.8-1"
+    },
+    {
+      "id": "4.8:2",
+      "quote": "However, if an SR message is transmitted, at least one statistic MUST be carried in it.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-4.8-2"
+    },
+    {
+      "id": "5:1",
+      "quote": "When the initial dump is completed for a given peer, this MUST be indicated by sending an End-of-RIB marker for that peer (as specified in Section 2 of [RFC4724], plus the BMP encapsulation header).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the per-peer End-of-RIB obligation section 3.3 states at the site this walk maps to RFC7854-3.3-1: 'Once it has sent all the routes for a given peer, it MUST send an End-of-RIB message for that peer'. Section 5 adds only where the marker is defined (Section 2 of RFC 4724) and that it carries the BMP encapsulation header.",
+      "mapped-to": "RFC7854-3.3-1"
+    },
+    {
+      "id": "5:2",
+      "quote": "Pre-policy routes MUST have their L flag clear in the BMP header (see Section 4), post-policy routes MUST have their L flag set.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-5-1"
+    },
+    {
+      "id": "5:3",
+      "quote": "Otherwise, the BMP Timestamp field MUST be set to 0, indicating that time is not available.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-5-2"
+    },
+    {
+      "id": "5:4",
+      "quote": "The withdraw MUST have its L flag set to correspond to that of any previous announcement; if the route in question was previously announced with L flag both clear and set, the withdraw MUST similarly be sent twice, with L flag clear and set.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-5-3"
+    },
+    {
+      "id": "8.2:1",
+      "quote": "Since in this case no transport session actually exists, the Local and Remote Port fields of the Peer Up message MUST be set to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7854-8.2-1"
+    },
+    {
+      "id": "10.1:1",
+      "quote": "Type values 0 through 127 MUST be assigned using the \"Standards Action\" policy, and values 128 through 250 using the \"Specification Required\" policy defined in [RFC5226].",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one."
+    },
+    {
+      "id": "10.2:1",
+      "quote": "Peer Type values 0 through 127 MUST be assigned using the \"Standards Action\" policy, and values 128 through 250 using the \"Specification Required\" policy, defined in [RFC5226].",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one."
+    },
+    {
+      "id": "10.4:1",
+      "quote": "Stat Type values 0 through 32767 MUST be assigned using the \"Standards Action\" policy, and values 32768 through 65530 using the \"Specification Required\" policy, defined in [RFC5226].",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one."
+    },
+    {
+      "id": "10.5:1",
+      "quote": "Information type values 0 through 32767 MUST be assigned using the \"Standards Action\" policy, and values 32768 through 65530 using the \"Specification Required\" policy, defined in [RFC5226].",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one."
+    },
+    {
+      "id": "10.6:1",
+      "quote": "Information type values 0 through 32767 MUST be assigned using the \"Standards Action\" policy, and values 32768 through 65530 using the \"Specification Required\" policy, defined in [RFC5226].",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one."
+    },
+    {
+      "id": "10.7:1",
+      "quote": "Information type values 0 through 32767 MUST be assigned using the \"Standards Action\" policy, and values 32768 through 65530 using the \"Specification Required\" policy, defined in [RFC5226].",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one."
+    },
+    {
+      "id": "10.8:1",
+      "quote": "Information type values 0 through 32767 MUST be assigned using the \"Standards Action\" policy, and values 32768 through 65530 using the \"Specification Required\" policy, defined in [RFC5226].",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one."
+    },
+    {
+      "id": "10.9:1",
+      "quote": "Information type values 0 through 32767 MUST be assigned using the \"Standards Action\" policy, and values 32768 through 65530 using the \"Specification Required\" policy, defined in [RFC5226].",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one."
+    },
+    {
+      "id": "10.10:1",
+      "quote": "Information type values 0 through 32767 MUST be assigned using the \"Standards Action\" policy, and values 32768 through 65530 using the \"Specification Required\" policy, defined in [RFC5226].",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds IANA, the registry the section addresses: the sentence sets the allocation policy ('Standards Action', 'Specification Required' under RFC 5226) IANA applies when it assigns a value from this registry. Ze holds no code that acts as IANA and could hold none: the role is the registry itself, not a party on the BMP wire. Ze's BMP encoder and decoder (internal/component/bgp/plugins/bmp) read and write the values the registry already holds; nothing in the repository allocates one."
+    }
+  ]
+}

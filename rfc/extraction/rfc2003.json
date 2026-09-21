@@ -1,0 +1,239 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2003",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc2003.txt",
+  "source-sha": "89b0add22ddc2311",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2003-3-1"
+      ]
+    },
+    {
+      "id": "3.1",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2003-3.1-4",
+        "RFC2003-3.1-5",
+        "RFC2003-3.1-6"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2003-3.2-3",
+        "RFC2003-3.2-4"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2003-4-1"
+      ]
+    },
+    {
+      "id": "4.1",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2003-4.1-5",
+        "RFC2003-4.1-6",
+        "RFC2003-4.1-7",
+        "RFC2003-4.1-8"
+      ]
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2003-4.2-1",
+        "RFC2003-4.2-2"
+      ]
+    },
+    {
+      "id": "4.3",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2003-4.3-2"
+      ]
+    },
+    {
+      "id": "4.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.5",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2003-4.5-2"
+      ]
+    },
+    {
+      "id": "4.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2003-5-1"
+      ]
+    },
+    {
+      "id": "5.1",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2003-5.1-2",
+        "RFC2003-5.1-3",
+        "RFC2003-5.1-4",
+        "RFC2003-5.1-5"
+      ]
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2003-5.2-1",
+        "RFC2003-5.2-2",
+        "RFC2003-5.2-3"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2003-6.2-1"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.1:1",
+      "quote": "However, if the \"Don't Fragment\" bit is set in the inner IP header, it MUST be set in the outer IP header; if the \"Don't Fragment\" bit is not set in the inner IP header, it MAY be set in the outer IP header, as described in Section 5.1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2003-3.1-1"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "An encapsulator MUST NOT encapsulate a datagram with TTL = 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2003-3.1-2"
+    },
+    {
+      "id": "3.1:3",
+      "quote": "If, after decapsulation, the inner datagram has TTL = 0, the decapsulator MUST discard the datagram.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2003-3.1-3"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "- If the IP Source Address of the datagram matches the router's own IP address on any of its network interfaces, the router MUST NOT tunnel the datagram; instead, the datagram SHOULD be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2003-3.2-1"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "- If the IP Source Address of the datagram matches the IP address of the tunnel destination (the tunnel exit point is typically chosen by the router based on the Destination Address in the datagram's IP header), the router MUST NOT tunnel the datagram; instead, the datagram SHOULD be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2003-3.2-2"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "Otherwise, if the encapsulator returns a Destination Unreachable message, the Code field MUST be set to 0 (Network Unreachable).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2003-4.1-2"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "It MUST NOT be relayed to the sender of the original unencapsulated datagram.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2003-4.1-3"
+    },
+    {
+      "id": "4.1:3",
+      "quote": "The encapsulator MUST relay ICMP Datagram Too Big messages to the sender of the original unencapsulated datagram.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2003-4.1-1"
+    },
+    {
+      "id": "4.1:4",
+      "quote": "It MUST NOT be relayed to the sender of the original unencapsulated datagram.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2003-4.1-4"
+    },
+    {
+      "id": "4.3:1",
+      "quote": "It MUST NOT not relay the Redirect to the sender of the original unencapsulated datagram.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2003-4.3-1"
+    },
+    {
+      "id": "4.4:1",
+      "quote": "Reception of Time Exceeded messages by the encapsulator MUST be reported to the sender of the original unencapsulated datagram as Host Unreachable (Type 3, Code 1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2003-4.4-1"
+    },
+    {
+      "id": "4.5:1",
+      "quote": "If the Parameter Problem message points to a field copied from the original unencapsulated datagram, the encapsulator MAY relay the ICMP message to the sender of the original unencapsulated datagram; otherwise, if the problem occurs with an IP option inserted by the encapsulator, then the encapsulator MUST NOT relay the ICMP message to the original sender.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2003-4.5-1"
+    },
+    {
+      "id": "5.1:1",
+      "quote": "To support sending nodes which use Path MTU Discovery, all encapsulator implementations MUST support Path MTU Discovery [5, 7] soft state within their tunnels.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2003-5.1-1"
+    }
+  ]
+}

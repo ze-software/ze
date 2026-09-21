@@ -1,0 +1,246 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5305",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc5305.txt",
+  "source-sha": "1bb1a875678e75b2",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5305-2-1"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5305-3.1-1"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.6",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5305-3.6-1"
+      ]
+    },
+    {
+      "id": "3.7",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5305-4.3-2",
+        "RFC5305-4.3-3"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "To preclude overflow within a traffic engineering Shortest Path First (SPF) implementation, all metrics greater than or equal to MAX_PATH_METRIC SHALL be considered to have a metric of MAX_PATH_METRIC.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5305-3-2"
+    },
+    {
+      "id": "3:2",
+      "quote": "If a link is advertised with the maximum link metric (2^24 - 1), this link MUST NOT be considered during the normal SPF computation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5305-3-1"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "Implementations MUST NOT inject a /32 prefix for the interface address into their routing or forwarding table because this can lead to forwarding loops when interacting with systems that do not support this sub-TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5305-3.2-1"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "If a router implements traffic engineering, it MUST include this sub- TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5305-3.2-2"
+    },
+    {
+      "id": "3.3:1",
+      "quote": "Implementations MUST NOT inject a /32 prefix for the neighbor address into their routing or forwarding table because this can lead to forwarding loops when interacting with systems that do not support this sub-TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5305-3.2-1"
+    },
+    {
+      "id": "3.3:2",
+      "quote": "If a router implements traffic engineering, it MUST include this sub- TLV on point-to-point adjacencies.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5305-3.2-2"
+    },
+    {
+      "id": "3.7:1",
+      "quote": "To preclude overflow within a traffic engineering SPF implementation, all metrics greater than or equal to MAX_PATH_METRIC SHALL be considered to have a metric of MAX_PATH_METRIC.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5305-3-2"
+    },
+    {
+      "id": "3.7:2",
+      "quote": "If a link is advertised without this sub-TLV, traffic engineering SPF calculations MUST use the normal default metric of this link, which is advertised in the fixed part of the extended IS reachability TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5305-3.7-1"
+    },
+    {
+      "id": "4:1",
+      "quote": "If a prefix is advertised with a metric larger then MAX_PATH_METRIC (0xFE000000, see paragraph 3.0), this prefix MUST NOT be considered during the normal SPF computation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5305-4-1"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "The up/down bit SHALL be set to 0 when a prefix is first injected into IS-IS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5305-4.1-2"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "If a prefix is advertised from a higher level to a lower level (e.g., level 2 to level 1), the bit MUST be set to 1, indicating that the prefix has traveled down the hierarchy.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5305-4.1-1"
+    },
+    {
+      "id": "4.1:3",
+      "quote": "If a prefix is advertised from one area to another at the same level, then the up/down bit SHALL be set to 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5305-4.1-1"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "If there are no sub-TLVs associated with a prefix, the bit indicating the presence of sub-TLVs SHALL be set to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5305-4.2-1"
+    },
+    {
+      "id": "4.3:1",
+      "quote": "If a router implements traffic engineering, it MUST include this TLV in its LSP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5305-4.3-1"
+    },
+    {
+      "id": "4.3:2",
+      "quote": "Implementations MUST NOT inject a /32 prefix for the router ID into their forwarding table because this can lead to forwarding loops when interacting with systems that do not support this TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5305-3.2-1"
+    }
+  ]
+}

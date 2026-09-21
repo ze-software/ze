@@ -1,0 +1,1031 @@
+{
+  "schema-version": 1,
+  "stem": "rfc6071",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc6071.txt",
+  "source-sha": "a844625658606a3d",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "resign-reason": "Site 2.2.1:1 moved from a mapping onto RFC6071-Key-1 [MAY] to a cross-document exclusion: the bullet quotes \"(MUST)\" for IPsec-v2 while the row records the IPsec-v3 \"(MAY)\", so a capitalised MUST-level keyword was recorded as captured by a row that never gates.",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.4.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.4.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.4.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC6071-5.1-3"
+      ]
+    },
+    {
+      "id": "5.2.3",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC6071-5.1-6"
+      ]
+    },
+    {
+      "id": "5.2.4",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC6071-5.1-5"
+      ]
+    },
+    {
+      "id": "5.2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC6071-5.4-2"
+      ]
+    },
+    {
+      "id": "5.5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.7",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC6071-5.5-1"
+      ]
+    },
+    {
+      "id": "5.7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.7.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.7.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.7.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.7.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 2,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.2.1:1",
+      "quote": "o AH [RFC4302] is mandatory to implement (MUST) in IPsec-v2, optional (MAY) in IPsec-v3",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 6071 is a roadmap document. The bullet reports what the IPsec architecture documents require of AH: the \"(MUST)\" belongs to IPsec-v2 (RFC 2401 with RFC 4302), which this bullet cites, and the \"(MAY)\" to IPsec-v3 (RFC 4301). RFC 6071 states no obligation of its own here."
+    },
+    {
+      "id": "2.2.1:2",
+      "quote": "o NULL authentication, mandatory (MUST) in ESP-v2, is optional (MAY) in ESP-v3",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "A bullet in the IPsec-v2 to IPsec-v3 difference list, restating what RFC 2406 and RFC 4303 require of ESP NULL authentication. Section 1 states the roadmap's own standing: \"This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs.\""
+    },
+    {
+      "id": "5:1",
+      "quote": "For each RFC that describes a cryptographic algorithm, this roadmap will classify its requirement level for each protocol, as either MUST, SHOULD, or MAY [RFC2119]; SHOULD+, SHOULD-, or MUST- [RFC4835]; optional; undefined; or N/A (not applicable).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A description of the vocabulary this roadmap uses to print requirement levels. The keywords name the classification terms, not an obligation on an implementation."
+    },
+    {
+      "id": "5.1:1",
+      "quote": "IPsec-v3 and IKEv2 each have an RFC that specifies their mandatory- to-implement (MUST), recommended (SHOULD), optional (MAY), and deprecated (SHOULD NOT) algorithms.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A description of another system: it says that RFC 4835 and RFC 4307 each classify algorithms as MUST, SHOULD, MAY and SHOULD NOT. The keywords name those documents' vocabulary."
+    },
+    {
+      "id": "5.2.1:1",
+      "quote": "IKEv1 - N/A IKEv2 - N/A ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835]",
+      "disposition": "mapped",
+      "mapped-to": "RFC6071-5.1-1"
+    },
+    {
+      "id": "5.2.2:1",
+      "quote": "IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST- [RFC4835]",
+      "disposition": "mapped",
+      "mapped-to": "RFC6071-5.1-4"
+    },
+    {
+      "id": "5.2.3:1",
+      "quote": "If AES-CBC is implemented, 128-bit keys are MUST; the other sizes are MAY.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The AES-CBC key-size obligation belongs to RFC 3602, the document Section 5.2.3 catalogues. Section 1: \"This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs.\""
+    },
+    {
+      "id": "5.2.3:2",
+      "quote": "IKEv1 - SHOULD [RFC4109] IKEv2 - SHOULD+ [RFC4307] ESP-v2 - MUST [RFC4835] ESP-v3 - MUST [RFC4835]",
+      "disposition": "mapped",
+      "mapped-to": "RFC6071-5.1-2"
+    },
+    {
+      "id": "5.2.4:1",
+      "quote": "If AES-CTR is implemented, 128-bit keys are MUST; 192- and 256-byte keys are MAY.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The AES-CTR key-size obligation belongs to RFC 3686, the document Section 5.2.4 catalogues. Section 1: \"This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs.\""
+    },
+    {
+      "id": "5.2.6:1",
+      "quote": "If Camellia-CBC is implemented, 128-bit keys are MUST; the other sizes are MAY.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The Camellia-CBC key-size obligation belongs to RFC 4312, the document Section 5.2.6 catalogues. Section 1: \"This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs.\""
+    },
+    {
+      "id": "5.3.1:1",
+      "quote": "IKEv1 - MUST [RFC4109] IKEv2 - MUST [RFC4307] IPsec-v2 - MUST [RFC4835] IPsec-v3 - MUST [RFC4835]",
+      "disposition": "mapped",
+      "mapped-to": "RFC6071-5.3-1"
+    },
+    {
+      "id": "5.4.1:1",
+      "quote": "If AES-CCM is implemented, 128-bit keys are MUST; the other sizes are MAY.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The AES-CCM key-size obligation belongs to RFC 4309, the document Section 5.4.1 catalogues. Section 1: \"This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs.\""
+    },
+    {
+      "id": "5.4.1:2",
+      "quote": "ICV sizes of 64 and 128 bits are MUST; 96 bits is MAY.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The AES-CCM ICV-size obligation belongs to RFC 4309, the document Section 5.4.1 catalogues. Section 1: \"This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs.\""
+    },
+    {
+      "id": "5.4.2:1",
+      "quote": "If AES-GCM is implemented, 128-bit keys are MUST; the other sizes are MAY.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The AES-GCM key-size obligation belongs to RFC 4106, the document Section 5.4.2 catalogues. Section 1: \"This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs.\""
+    },
+    {
+      "id": "5.4.2:2",
+      "quote": "An ICV size of 128 bits is a MUST; 64 and 96 bits are MAY.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The AES-GCM ICV-size obligation belongs to RFC 4106, the document Section 5.4.2 catalogues. Section 1: \"This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs.\""
+    },
+    {
+      "id": "5.5:1",
+      "quote": "IKEv1 - MUST [RFC4109] IKEv2 - MUST [RFC4307]",
+      "disposition": "mapped",
+      "mapped-to": "RFC6071-5.4-1"
+    },
+    {
+      "id": "5.7:1",
+      "quote": "IKEv1 - MUST [RFC4109] IKEv2 - MUST- [RFC4307]",
+      "disposition": "mapped",
+      "mapped-to": "RFC6071-5.5-2"
+    },
+    {
+      "id": "A:1",
+      "quote": "+--------------------------+----------------------------------------+ | ALGORITHM | REQUIREMENT LEVEL | | | IKEv1 IKEv2 IPsec-v2 IPsec-v3 | +--------------------------+----------------------------------------+ |Encryption Algorithms: | |--------------------- | | ESP-NULL | N/A N/A MUST MUST | | | | | 3DES-CBC | MUST MUST- MUST MUST- | | | | | Blowfish/CAST/IDEA/RC5 | optional optional optional optional | | | | | AES-CBC 128-bit key | SHOULD SHOULD+ MUST MUST | | | | | AES-CBC 192/256-bit key | optional optional optional optional | | | | | AES-CTR | undefined optional SHOULD SHOULD | | | | | Camellia-CBC | optional optional optional optional | | | | | Camellia-CTR | undefined undefined undefined optional | | | | | SEED-CBC | undefined undefined optional undefined| | | | |Integrity-Protection Algorithms: | |------------------------------ | | HMAC-SHA-1 | MUST MUST MUST MUST | | | | | AES-XCBC-MAC | undefined optional SHOULD+ SHOULD+ | | | | | HMAC-SHA-256/384/512 | optional optional optional optional | | | | | AES-GMAC | N/A N/A undefined optional | | | | | HMAC-MD5 | MAY optional MAY MAY | | | | | AES-CMAC | undefined optional undefined optional | | | | | HMAC-RIPEMD | undefined undefined optional undefined| +--------------------------+----------------------------------------+ Table 1: Algorithm Requirement Levels (continued)",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Appendix A is a reference table that reprints the requirement levels Section 5 already catalogues. Section 1: \"This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs.\""
+    },
+    {
+      "id": "A:2",
+      "quote": "+--------------------------+----------------------------------------+ | ALGORITHM | REQUIREMENT LEVEL | | | IKEv1 IKEv2 IPsec-v2 IPsec-v3 | +--------------------------+----------------------------------------+ |Combined Mode Algorithms: | |------------------------ | | AES-CCM | N/A optional N/A optional | | | | | AES-GCM | N/A optional N/A optional | | | | | AES-GMAC | N/A N/A undefined optional | | | | | Camellia-CCM | N/A undefined N/A optional | | | | |Pseudorandom Functions: | |----------------------- | | PRF-HMAC-SHA1 | MUST MUST | | | | | PRF-HMAC-SHA-256/384/512 | optional optional | | | | | AES-XCBC-PRF | undefined SHOULD+ | | | | | AES-CMAC-PRF | undefined optional | | | | |Diffie-Hellman Algorithms: | |------------------------- | | DH MODP grp 1 | MAY optional | | | | | DH MODP grp 2 | MUST MUST- | | | | | DH MODP grp 5 | optional optional | | | | | DH MODP grp 14 | SHOULD SHOULD+ | | | | | DH MODP grp 15-18 | optional optional | | | | | DH MODP grp 22-24 | optional optional | | | | | DH EC grp 3-4 | MAY undefined | | | | | DH EC grp 19-21 | optional optional | | | | | DH EC grp 25-26 | optional optional | +--------------------------+----------------------------------------+ Authors' Addresses",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Appendix A is a reference table that reprints the requirement levels Section 5 already catalogues. Section 1: \"This document does not define requirement levels; it simply restates those found in the IKE and IPsec RFCs.\""
+    }
+  ]
+}

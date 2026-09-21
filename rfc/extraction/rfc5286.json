@@ -1,0 +1,209 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5286",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc5286.txt",
+  "source-sha": "65181f8363c53cdf",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.1:1",
+      "quote": "Alternate next hops used by implementations following this specification MUST conform to at least the loop-freeness condition stated above in Inequality 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5286-x-1"
+    },
+    {
+      "id": "3.5:1",
+      "quote": "For computing an alternate, a router MUST NOT use an alternate next- hop that is along a link whose cost or reverse cost is LSInfinity (for OSPF) or the maximum cost (for IS-IS) or that has the overload bit set (for IS-IS).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5286-x-2"
+    },
+    {
+      "id": "3.5:2",
+      "quote": "In the case of OSPF, if all links from router S to a neighbor N_i have a reverse cost of LSInfinity, then router S MUST NOT use N_i as an alternate.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5286-x-3"
+    },
+    {
+      "id": "3.5:3",
+      "quote": "Similarly in the case of IS-IS, if N_i has the overload bit set, then S MUST NOT consider using N_i as an alternate.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5286-x-4"
+    },
+    {
+      "id": "4:1",
+      "quote": "The alternate next-hop MUST be used only for traffic types that are routed according to the shortest path.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5286-x-5"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "A router MUST limit the amount of time an alternate next-hop is used after the primary next-hop has become unavailable.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5286-x-6"
+    }
+  ]
+}

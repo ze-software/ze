@@ -1,0 +1,131 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7440",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc7440.txt",
+  "source-sha": "a7ede16e34257a1a",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7440-4-6"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7440-5-1"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7440-6-1",
+        "RFC7440-6-2",
+        "RFC7440-6-3"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7440-7-1"
+      ]
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "Note that all fields except \"opc\" MUST be ASCII strings followed by a single-byte NULL character.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7440-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "The valid values range MUST be between 1 and 65535 blocks, inclusive.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7440-3-2"
+    },
+    {
+      "id": "3:3",
+      "quote": "The specified value MUST be less than or equal to the value specified by the client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7440-3-3"
+    },
+    {
+      "id": "3:4",
+      "quote": "The client MUST then either use the size specified in the OACK or send an ERROR packet, with error code 8, to terminate the transfer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7440-3-4"
+    },
+    {
+      "id": "4:1",
+      "quote": "The DSND MUST cyclically send to the DRCV the agreed windowsize consecutive data blocks before normally stopping and waiting for the ACK of the transferred window.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7440-4-1"
+    },
+    {
+      "id": "4:2",
+      "quote": "The DRCV MUST send to the DSND the ACK of the last data block of the window in order to confirm a successful data block window reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7440-4-2"
+    },
+    {
+      "id": "4:3",
+      "quote": "In the case of an expected ACK not timely reaching the DSND (timeout), the last received ACK SHALL set the beginning of the next windowsize data block window to be sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7440-4-4"
+    },
+    {
+      "id": "4:4",
+      "quote": "The notified DSND SHOULD send a new data block window whose beginning MUST be set based on the ACK received out of sequence.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7440-4-5"
+    },
+    {
+      "id": "4:5",
+      "quote": "Traffic with windowsize = 1 MUST be equivalent to traffic specified by [RFC1350].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7440-4-3"
+    }
+  ]
+}

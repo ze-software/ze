@@ -1,0 +1,275 @@
+{
+  "schema-version": 1,
+  "stem": "rfc3623",
+  "register": "prose",
+  "source-path": "rfc/full/rfc3623.txt",
+  "source-sha": "8c64b96d2a23301e",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3623-2.1-2",
+        "RFC3623-2.1-3",
+        "RFC3623-2.1-4",
+        "RFC3623-2.1-5"
+      ]
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3623-2.3-1",
+        "RFC3623-2.3-2",
+        "RFC3623-2.3-3",
+        "RFC3623-2.3-4",
+        "RFC3623-2.3-5"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3623-3.1-2",
+        "RFC3623-3.1-3"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3623-3.2-2"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 6,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3623-5-3",
+        "RFC3623-5-5"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3623-A-5"
+      ]
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B.2",
+      "sites": 1,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "Then there are the router's neighbors, which must cooperate in order for the restart to be graceful.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Introduction sentence describing what the mechanism needs from the neighbors ('which must cooperate in order for the restart to be graceful'); the helper obligations themselves are in Section 3."
+    },
+    {
+      "id": "2:1",
+      "quote": "After the router restarts/reloads, it must change its OSPF processing somewhat until it re-establishes full adjacencies with all its former fully-adjacent neighbors.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Overview sentence announcing that Sections 2.1-2.3 follow ('it must change its OSPF processing somewhat'); it names no specific behavior."
+    },
+    {
+      "id": "2.1:1",
+      "quote": "In preparation for the graceful restart, Router X must perform the following actions before its software is restarted/reloaded:",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Lead-in to the numbered list that follows ('must perform the following actions'); the obligations are the list items, decided below."
+    },
+    {
+      "id": "2.1:2",
+      "quote": "1) Router X must ensure that its forwarding table(s) is/are up- to-date and will remain in place across the restart. 2) The router may need to preserve the cryptographic sequence numbers being used on each interface in non-volatile storage.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3623-2.1-1"
+    },
+    {
+      "id": "3:1",
+      "quote": "When helping over a virtual link, the helper must also continue to set bit V in its router-LSA for the virtual link's transit area (Section 12.4.1 of [1]).",
+      "disposition": "mapped",
+      "mapped-to": "RFC3623-3-1"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "- If there are any LSAs with LS types 1-5,7 on the list, then they all must be periodic refreshes.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "First half of the helper's retransmission-list check: RFC3623-3.1-1 states the same condition as its refusal ('LSAs whose contents have changed' rather than periodic refreshes).",
+      "mapped-to": "RFC3623-3.1-1"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "- If there are instead LSAs on the list whose contents have changed (see Section 3.3 of [7]), Y must refuse to enter helper mode.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3623-3.1-1"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "If Router Y aggregated adjacencies with Router X when entering helper mode (as described in section 3.1), it must also exit helper mode for all adjacencies with Router X when any one of the exit events occurs for an adjacency with Router X.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3623-3.2-1"
+    },
+    {
+      "id": "5:1",
+      "quote": "In any event, implementors providing the option to recover gracefully from unplanned outages must allow a network operator to turn the option off.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3623-5-1"
+    },
+    {
+      "id": "5:2",
+      "quote": "In contrast to the procedure for planned restart/reloads that was described in Section 2.1, a router attempting graceful restart after an unplanned outage must originate grace-LSAs *after* its control software resumes operation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3623-5-2"
+    },
+    {
+      "id": "5:3",
+      "quote": "The following points must be observed during this grace-LSA origination.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Lead-in to the bullet list that follows ('The following points must be observed'); the obligations are the bullets, decided below."
+    },
+    {
+      "id": "5:4",
+      "quote": "o The grace-LSAs must be originated and be sent *before* the restarted router sends any OSPF Hello Packets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3623-5-2"
+    },
+    {
+      "id": "5:5",
+      "quote": "On broadcast networks, this LSA must be flooded to the AllSPFRouters multicast address (224.0.0.5) since the restarting router is not aware of its previous DR state.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Second sentence of the same bullet; RFC3623-5-2 carries both the before-Hellos ordering and the AllSPFRouters (224.0.0.5) flood target.",
+      "mapped-to": "RFC3623-5-2"
+    },
+    {
+      "id": "5:6",
+      "quote": "o The restart reason in the grace-LSAs must be set to 0 (unknown) or 3 (switch to redundant control processor).",
+      "disposition": "mapped",
+      "mapped-to": "RFC3623-5-4"
+    },
+    {
+      "id": "8:1",
+      "quote": "The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights which may cover technology that may be required to practice this standard.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC boilerplate: the IETF's standard intellectual-property notice inviting parties to disclose patents. It binds no implementation."
+    },
+    {
+      "id": "A:1",
+      "quote": "This TLV must always appear in a grace-LSA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3623-A-2"
+    },
+    {
+      "id": "A:2",
+      "quote": "This TLV must always appear in a grace-LSA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3623-A-3"
+    },
+    {
+      "id": "A:3",
+      "quote": "Required on broadcast, NBMA and Point-to-MultiPoint segments, where the helper uses the IP interface address to identify the restarting router (see Section 3.1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC3623-A-4"
+    },
+    {
+      "id": "A:4",
+      "quote": "Additional Grace-LSA TLVs must be described in an Internet Draft and will be subject to the expert review of the OSPF Working Group.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3623-A-1"
+    },
+    {
+      "id": "B.2:1",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC Editor full-copyright statement ('this document itself may not be modified in any way'); it is a licence term, not a protocol requirement."
+    }
+  ]
+}

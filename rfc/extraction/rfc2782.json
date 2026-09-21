@@ -1,0 +1,106 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2782",
+  "register": "prose",
+  "source-path": "rfc/full/rfc2782.txt",
+  "source-sha": "4fd63a129dc9b1d6",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 12,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2782-Applicability-3",
+        "RFC2782-Priority-2",
+        "RFC2782-Target-2",
+        "RFC2782-Weight-1",
+        "RFC2782-Weight-2",
+        "RFC2782-Weight-3",
+        "RFC2782-Usage-1",
+        "RFC2782-Notes-1"
+      ]
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Currently, one must either know the exact address of a server to contact it, or broadcast a question.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Introduction prose describing the state of the art before SRV; the lowercase 'must' states what a client is forced to do today, and RFC 2782's Definitions names only the capitalised spellings as BCP 14 keywords."
+    },
+    {
+      "id": "front:2",
+      "quote": "Such specification MUST define the symbolic name to be used in the Service field of the SRV record as described below.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2782-Applicability-1"
+    },
+    {
+      "id": "front:3",
+      "quote": "It also MUST include security considerations.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2782-Applicability-2"
+    },
+    {
+      "id": "front:4",
+      "quote": "A client MUST attempt to contact the target host with the lowest-numbered priority it can reach; target hosts with the same priority SHOULD be tried in an order defined by the weight field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2782-Priority-1"
+    },
+    {
+      "id": "front:5",
+      "quote": "There MUST be one or more address records for this name, the name MUST NOT be an alias (in the sense of RFC 1034 or RFC 2181).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2782-Target-1"
+    },
+    {
+      "id": "front:6",
+      "quote": "Implementors are urged, but not required, to return the address record(s) in the Additional Data section.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The sentence says the Additional Data behaviour is urged 'but not required', so it states no obligation on a server or a client."
+    },
+    {
+      "id": "front:7",
+      "quote": "- Hosts that are referenced by backup address records must use the port number specified in Assigned Numbers for the service.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Lowercase 'must' in the Fallback deployment notes, a bullet list of advice to domain administrators alongside 'it probably shouldn't be listed' and 'domain administrators are strongly advised'; RFC 2782's Definitions binds only the capitalised spellings to BCP 14."
+    },
+    {
+      "id": "front:8",
+      "quote": "- If a truncated response comes back from an SRV query, the rules described in [RFC 2181] shall apply.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The truncated-response rules the sentence invokes are RFC 2181's, which the sentence cites; the obligation lives in that document."
+    },
+    {
+      "id": "front:9",
+      "quote": "- A client MUST parse all of the RR's in the reply.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2782-Notes-2"
+    },
+    {
+      "id": "front:10",
+      "quote": "- If the Additional Data section doesn't contain address records for all the SRV RR's and the client may want to connect to the target host(s) involved, the client MUST look up the address record(s).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2782-Notes-3"
+    },
+    {
+      "id": "front:11",
+      "quote": "No other IANA services are required by this document.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IANA Considerations statement that no further IANA action is needed; it records an absence rather than an obligation."
+    },
+    {
+      "id": "front:12",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Full Copyright Statement boilerplate governing reproduction of the document itself, not protocol behaviour."
+    }
+  ]
+}

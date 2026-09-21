@@ -1,0 +1,483 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5216",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc5216.txt",
+  "source-sha": "fbadcfb857b6d879",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1.1",
+      "sites": 11,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5216-2.1.1-2"
+      ]
+    },
+    {
+      "id": "2.1.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1.3",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1.4",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1.5",
+      "sites": 8,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5216-2.3-1"
+      ]
+    },
+    {
+      "id": "2.4",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.1.1:1",
+      "quote": "Once having received the peer's Identity, the EAP server MUST respond with an EAP-TLS/Start packet, which is an EAP-Request packet with EAP-Type=EAP-TLS, the Start (S) bit set, and no data.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.1-3"
+    },
+    {
+      "id": "2.1.1:2",
+      "quote": "The version offered by the peer MUST correspond to TLS v1.0 or later.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.4-1"
+    },
+    {
+      "id": "2.1.1:3",
+      "quote": "The version offered by the server MUST correspond to TLS v1.0 or later.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.4-2"
+    },
+    {
+      "id": "2.1.1:4",
+      "quote": "If the peer's sessionId is null or unrecognized by the server, the server MUST choose the sessionId to establish a new session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.1-4"
+    },
+    {
+      "id": "2.1.1:5",
+      "quote": "If the session matches the peer's, then the ciphersuite MUST match the one negotiated during the handshake protocol execution that established the session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.1-5"
+    },
+    {
+      "id": "2.1.1:6",
+      "quote": "If the EAP server is not resuming a previously established session, then it MUST include a TLS server_certificate handshake message, and a server_hello_done handshake message MUST be the last handshake message encapsulated in this EAP-Request packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.1-6"
+    },
+    {
+      "id": "2.1.1:7",
+      "quote": "In the latter case, a TLS server_key_exchange handshake message MUST also be included to allow the key exchange to take place.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.1-7"
+    },
+    {
+      "id": "2.1.1:8",
+      "quote": "If the peer supports EAP-TLS and is configured to use it, it MUST respond to the EAP-Request with an EAP-Response packet of EAP- Type=EAP-TLS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.1-8"
+    },
+    {
+      "id": "2.1.1:9",
+      "quote": "If the preceding server_hello message sent by the EAP server in the preceding EAP-Request packet did not indicate the resumption of a previous session, the data field of this packet MUST encapsulate one or more TLS records containing a TLS client_key_exchange, change_cipher_spec, and finished messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.1-9"
+    },
+    {
+      "id": "2.1.1:10",
+      "quote": "If the EAP server sent a certificate_request message in the preceding EAP-Request packet, then unless the peer is configured for privacy (see Section 2.1.4) the peer MUST send, in addition, certificate and certificate_verify messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.1-1"
+    },
+    {
+      "id": "2.1.1:11",
+      "quote": "If the preceding server_hello message sent by the EAP server in the preceding EAP-Request packet indicated the resumption of a previous session, then the peer MUST send only the change_cipher_spec and finished handshake messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.1-10"
+    },
+    {
+      "id": "2.1.2:1",
+      "quote": "If the EAP server is resuming a previously established session, then it MUST include only a TLS change_cipher_spec message and a TLS finished handshake message after the server_hello message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.2-1"
+    },
+    {
+      "id": "2.1.3:1",
+      "quote": "To ensure that the peer receives the TLS alert message, the EAP server MUST wait for the peer to reply with an EAP-Response packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.3-3"
+    },
+    {
+      "id": "2.1.3:2",
+      "quote": "The EAP-Response packet sent by the peer MAY encapsulate a TLS client_hello handshake message, in which case the EAP server MAY allow the EAP-TLS conversation to be restarted, or it MAY contain an EAP-Response packet with EAP-Type=EAP-TLS and no data, in which case the EAP-Server MUST send an EAP-Failure packet and terminate the conversation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.3-4"
+    },
+    {
+      "id": "2.1.3:3",
+      "quote": "If the peer authenticates successfully, the EAP server MUST respond with an EAP-Request packet with EAP-Type=EAP-TLS, which includes, in the case of a new TLS session, one or more TLS records containing TLS change_cipher_spec and finished handshake messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.3-5"
+    },
+    {
+      "id": "2.1.3:4",
+      "quote": "To ensure that the EAP Server receives the TLS alert message, the peer MUST wait for the EAP Server to reply before terminating the conversation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.3-6"
+    },
+    {
+      "id": "2.1.3:5",
+      "quote": "The EAP Server MUST reply with an EAP-Failure packet since server authentication failure is a terminal condition.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.3-1"
+    },
+    {
+      "id": "2.1.3:6",
+      "quote": "If the EAP server authenticates successfully, the peer MUST send an EAP-Response packet of EAP-Type=EAP-TLS, and no data.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.3-7"
+    },
+    {
+      "id": "2.1.3:7",
+      "quote": "The EAP Server then MUST respond with an EAP-Success message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.3-8"
+    },
+    {
+      "id": "2.1.4:1",
+      "quote": "In order to avoid disclosing the peer username, an EAP-TLS peer configured for privacy MUST negotiate a TLS ciphersuite supporting confidentiality and MUST provide a client certificate list containing no entries in response to the initial certificate_request from the EAP-TLS server.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Section 2.1.4 makes privacy optional: \"EAP-TLS peer and server implementations MAY support privacy.\" Ze declined it: internal/core/eap carries no privacy mode, no anonymous-NAI identity path and no empty-certificate-list handling, so every obligation this sentence conditions on supporting or being configured for privacy is out of scope."
+    },
+    {
+      "id": "2.1.4:2",
+      "quote": "An EAP-TLS server supporting privacy MUST NOT treat a certificate list containing no entries as a terminal condition; instead, it MUST bring up the TLS session and then send a hello_request.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Section 2.1.4 makes privacy optional: \"EAP-TLS peer and server implementations MAY support privacy.\" Ze declined it: internal/core/eap carries no privacy mode, no anonymous-NAI identity path and no empty-certificate-list handling, so every obligation this sentence conditions on supporting or being configured for privacy is out of scope."
+    },
+    {
+      "id": "2.1.4:3",
+      "quote": "An EAP-TLS peer supporting privacy MUST provide a certificate list containing at least one entry in response to the subsequent certificate_request sent by the server.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Section 2.1.4 makes privacy optional: \"EAP-TLS peer and server implementations MAY support privacy.\" Ze declined it: internal/core/eap carries no privacy mode, no anonymous-NAI identity path and no empty-certificate-list handling, so every obligation this sentence conditions on supporting or being configured for privacy is out of scope."
+    },
+    {
+      "id": "2.1.4:4",
+      "quote": "If the EAP-TLS server supporting privacy does not receive a client certificate in response to the subsequent certificate_request, then it MUST abort the session.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Section 2.1.4 makes privacy optional: \"EAP-TLS peer and server implementations MAY support privacy.\" Ze declined it: internal/core/eap carries no privacy mode, no anonymous-NAI identity path and no empty-certificate-list handling, so every obligation this sentence conditions on supporting or being configured for privacy is out of scope."
+    },
+    {
+      "id": "2.1.4:5",
+      "quote": "EAP-TLS servers supporting privacy MUST request a client certificate, and MUST be able to accept a client certificate offered by the EAP-TLS peer, in order to preserve interoperability with EAP- TLS peers that do not support privacy.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Section 2.1.4 makes privacy optional: \"EAP-TLS peer and server implementations MAY support privacy.\" Ze declined it: internal/core/eap carries no privacy mode, no anonymous-NAI identity path and no empty-certificate-list handling, so every obligation this sentence conditions on supporting or being configured for privacy is out of scope."
+    },
+    {
+      "id": "2.1.5:1",
+      "quote": "As a result, an EAP-TLS implementation MUST provide its own support for fragmentation and reassembly.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.5-1"
+    },
+    {
+      "id": "2.1.5:2",
+      "quote": "The L flag is set to indicate the presence of the four-octet TLS Message Length field, and MUST be set for the first fragment of a fragmented TLS message or set of messages.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 2.1.5 restates the L-flag obligation that Section 3.1 states for the Request packet and RFC5216-3-1 already maps.",
+      "mapped-to": "RFC5216-3-1"
+    },
+    {
+      "id": "2.1.5:3",
+      "quote": "When an EAP-TLS peer receives an EAP-Request packet with the M bit set, it MUST respond with an EAP-Response with EAP-Type=EAP-TLS and no data.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.5-2"
+    },
+    {
+      "id": "2.1.5:4",
+      "quote": "The EAP server MUST wait until it receives the EAP-Response before sending another fragment.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.5-3"
+    },
+    {
+      "id": "2.1.5:5",
+      "quote": "In order to prevent errors in processing of fragments, the EAP server MUST increment the Identifier field for each fragment contained within an EAP-Request, and the peer MUST include this Identifier value in the fragment ACK contained within the EAP-Response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.5-4"
+    },
+    {
+      "id": "2.1.5:6",
+      "quote": "Similarly, when the EAP server receives an EAP-Response with the M bit set, it MUST respond with an EAP-Request with EAP-Type=EAP-TLS and no data.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.5-5"
+    },
+    {
+      "id": "2.1.5:7",
+      "quote": "The EAP peer MUST wait until it receives the EAP-Request before sending another fragment.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.5-6"
+    },
+    {
+      "id": "2.1.5:8",
+      "quote": "In order to prevent errors in the processing of fragments, the EAP server MUST increment the Identifier value for each fragment ACK contained within an EAP-Request, and the peer MUST include this Identifier value in the subsequent fragment contained within an EAP- Response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.1.5-7"
+    },
+    {
+      "id": "2.4:1",
+      "quote": "EAP-TLS implementations MUST support TLS v1.0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.4-7"
+    },
+    {
+      "id": "2.4:2",
+      "quote": "To ensure interoperability, EAP-TLS peers and servers MUST support the TLS [RFC4346] mandatory-to-implement ciphersuite:",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.4-5"
+    },
+    {
+      "id": "2.4:3",
+      "quote": "Since the ciphersuite negotiated within EAP-TLS applies only to the EAP conversation, TLS ciphersuite negotiation MUST NOT be used to negotiate the ciphersuites used to secure data.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.4-4"
+    },
+    {
+      "id": "2.4:4",
+      "quote": "However, during the EAP-TLS conversation the EAP peer and server MUST NOT request or negotiate compression.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-2.4-3"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "The Identifier field MUST be changed on each Request packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-3-3"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "Octets outside the range of the Length field should be treated as Data Link Layer padding and MUST be ignored on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-3-4"
+    },
+    {
+      "id": "3.1:3",
+      "quote": "The L bit (length included) is set to indicate the presence of the four-octet TLS Message Length field, and MUST be set for the first fragment of a fragmented TLS message or set of messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-3-1"
+    },
+    {
+      "id": "3.1:4",
+      "quote": "Implementations of this specification MUST set the reserved bits to zero, and MUST ignore them on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-3-2"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "The Identifier field is one octet and MUST match the Identifier field from the corresponding request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-3-6"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "Octets outside the range of the Length field should be treated as Data Link Layer padding and MUST be ignored on reception.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.2 repeats the Section 3.1 sentence about octets outside the Length field word for word; RFC5216-3-4 maps it.",
+      "mapped-to": "RFC5216-3-4"
+    },
+    {
+      "id": "3.2:3",
+      "quote": "The L bit (length included) is set to indicate the presence of the four-octet TLS Message Length field, and MUST be set for the first fragment of a fragmented TLS message or set of messages.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.2 repeats the Section 3.1 L-bit sentence word for word; RFC5216-3-1 maps it.",
+      "mapped-to": "RFC5216-3-1"
+    },
+    {
+      "id": "3.2:4",
+      "quote": "Implementations of this specification MUST set the reserved bits to zero, and MUST ignore them on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-3-5"
+    },
+    {
+      "id": "5.2:1",
+      "quote": "Where the subjectAltName field is present in the peer or server certificate, the Peer-Id or Server-Id MUST be set to the contents of the subjectAltName.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-5.2-1"
+    },
+    {
+      "id": "5.2:2",
+      "quote": "If subject naming information is present only in the subjectAltName extension of a peer or server certificate, then the subject field MUST be an empty sequence and the subjectAltName extension MUST be critical.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-5.2-2"
+    },
+    {
+      "id": "5.2:3",
+      "quote": "Conforming implementations generating new certificates with Network Access Identifiers (NAIs) MUST use the rfc822Name in the subject alternative name field to describe such identities.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-5.2-3"
+    },
+    {
+      "id": "5.2:4",
+      "quote": "The use of the subject name field to contain an emailAddress Relative Distinguished Name (RDN) is deprecated, and MUST NOT be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-5.2-4"
+    },
+    {
+      "id": "5.2:5",
+      "quote": "Where it is non-empty, the subject name field MUST contain an X.500 distinguished name (DN).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-5.2-5"
+    },
+    {
+      "id": "5.3:1",
+      "quote": "Once a TLS session is established, EAP-TLS peer and server implementations MUST validate that the identities represented in the certificate are appropriate and authorized for use with EAP-TLS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-5.3-2"
+    },
+    {
+      "id": "5.3:2",
+      "quote": "When performing this comparison, implementations MUST follow the validation rules specified in Section 3.1 of [RFC2818].",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-5.3-3"
+    },
+    {
+      "id": "5.4:1",
+      "quote": "EAP-TLS peer and server implementations MUST support the use of Certificate Revocation Lists (CRLs); for details, see Section 3.3 of [RFC3280].",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-5.4-1"
+    },
+    {
+      "id": "5.4:2",
+      "quote": "To enable revocation checking in situations where servers do not support Certificate Status Request messages and network connectivity is not available prior to authentication completion, peer implementations MUST also support checking for certificate revocation after authentication completes and network connectivity is available, and they SHOULD utilize this capability by default.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5216-5.4-2"
+    }
+  ]
+}

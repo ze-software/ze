@@ -1,0 +1,600 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4577",
+  "register": "prose",
+  "source-path": "rfc/full/rfc4577.txt",
+  "source-sha": "3d9527c9cc48bead",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4577-4.1.3-1"
+      ]
+    },
+    {
+      "id": "4.1.4",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4577-4.1.4-2"
+      ]
+    },
+    {
+      "id": "4.1.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.4",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4577-4.2.4-6",
+        "RFC4577-4.2.4-7",
+        "RFC4577-4.2.4-8"
+      ]
+    },
+    {
+      "id": "4.2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.5.1",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4577-4.2.5.1-4"
+      ]
+    },
+    {
+      "id": "4.2.5.2",
+      "sites": 8,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4577-4.2.5.2-5",
+        "RFC4577-4.2.5.2-8",
+        "RFC4577-4.2.5.2-9"
+      ]
+    },
+    {
+      "id": "4.2.5.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.6",
+      "sites": 11,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4577-4.2.6-6",
+        "RFC4577-4.2.6-7",
+        "RFC4577-4.2.6-8",
+        "RFC4577-4.2.6-9",
+        "RFC4577-4.2.6-10",
+        "RFC4577-4.2.6-11"
+      ]
+    },
+    {
+      "id": "4.2.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.7.1",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4577-4.2.7.1-4"
+      ]
+    },
+    {
+      "id": "4.2.7.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.7.3",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4577-4.2.7.3-2"
+      ]
+    },
+    {
+      "id": "4.2.7.4",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4577-4.2.7.4-4"
+      ]
+    },
+    {
+      "id": "4.2.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.8.1",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4577-4.2.8.1-3"
+      ]
+    },
+    {
+      "id": "4.2.8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.8.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4577-6-2"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 1,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "Thus, we need to specify the procedures that must be implemented by a PE router in order to make this possible.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Introductory framing of what the document will do, in the Introduction: it announces that the sections to follow specify the PE procedures. It states no procedure itself, and the obligation it points at is carried by the sections it introduces (4.1 and 4.2), whose sites this walk maps."
+    },
+    {
+      "id": "3:1",
+      "quote": "Assuming that it is desired to have the route via the VPN backbone be preferred to the backdoor route, the VPN backbone itself must be presented to the CE routers at each site as a link between the two PE routers to which the CE routers are respectively attached.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 3 is titled 'Requirements' and states the requirements the SOLUTION must satisfy, not a procedure a PE performs. This sentence describes the model the design adopts (the VPN backbone presented to the CEs as a link between PE routers) as a consequence of wanting the backbone route preferred to the backdoor route. The procedures that realise it are sections 4.2.7.1 to 4.2.7.4, whose sites this walk maps."
+    },
+    {
+      "id": "3:2",
+      "quote": "- The transition from the legacy private OSPF backbone to the VPN service must be simple and straightforward.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A requirement on the SERVICE, stated in section 3 'Requirements': the transition from a legacy private OSPF backbone to the VPN service is to be simple. It binds the design of the specification, names no message, field, timer or decision a PE implements, and no implementation can be tested against it."
+    },
+    {
+      "id": "3:3",
+      "quote": "Complete connectivity among all such sites must be maintained.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A requirement on the SERVICE, stated in section 3 'Requirements': the VPN service must maintain complete connectivity among the sites the legacy backbone connected. It binds the design, and the procedures that deliver it are in section 4."
+    },
+    {
+      "id": "3:4",
+      "quote": "Since the VPN service is to replace the legacy backbone, it must be possible, by suitable adjustment of the OSPF metrics, to make OSPF prefer routes that traverse the SP's VPN backbone to alternative routes that do not.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A requirement on the SERVICE, stated in section 3 'Requirements': it must be possible for an operator to make OSPF prefer backbone routes by adjusting metrics. It binds the design of the solution and names no PE procedure; the sham link procedures of 4.2.7 are what realise it."
+    },
+    {
+      "id": "4.1.1:1",
+      "quote": "A PE router that attaches to more than one OSPF domain MUST run an independent instance of OSPF for each domain.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.1.1-1"
+    },
+    {
+      "id": "4.1.1:2",
+      "quote": "If the PE is running OSPF as its IGP (Interior Gateway Protocol), the instance of OSPF running as the IGP must be separate and independent from any other instance of OSPF that the PE is running.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.1.1-3"
+    },
+    {
+      "id": "4.1.1:3",
+      "quote": "If two interfaces belong to the same OSPF instance, then both interfaces must be associated with the same VRF.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.1.1-2"
+    },
+    {
+      "id": "4.1.4:1",
+      "quote": "If the OSPF domain has any area 0 routers other than the PE routers, then at least one of those MUST be a CE router and MUST have an area 0 link to at least one PE router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.1.4-1"
+    },
+    {
+      "id": "4.2.1:1",
+      "quote": "The PE MUST support one OSPF instance for each OSPF domain to which it attaches.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.1-1"
+    },
+    {
+      "id": "4.2.1:2",
+      "quote": "Each instance of OSPF MUST be associated with a single VRF.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.1-2"
+    },
+    {
+      "id": "4.2.3:1",
+      "quote": "It follows that if the OSPF domain has any area 0 routers other than the PE routers, at least one of those MUST be a CE router, and it MUST have an area 0 link (possibly a virtual link) to at least one PE router.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the area 0 requirement section 4.1.1 states and this walk maps at 4.1.4:1: 'If the OSPF domain has any area 0 routers other than the PE routers, then at least one of those MUST be a CE router and MUST have an area 0 link to at least one PE router.' Section 4.2.3 adds only the parenthesis '(possibly a virtual link)', which the row already carries.",
+      "mapped-to": "RFC4577-4.1.4-1"
+    },
+    {
+      "id": "4.2.4:1",
+      "quote": "Each OSPF instance MUST be associated with one or more Domain Identifiers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.4-1"
+    },
+    {
+      "id": "4.2.4:2",
+      "quote": "This MUST be configurable, and the default value (if none is configured) SHOULD be NULL.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.4-2"
+    },
+    {
+      "id": "4.2.4:3",
+      "quote": "If an OSPF instance has multiple Domain Identifiers, one of these is considered its \"primary\" Domain Identifier; this MUST be determinable by configuration.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.4-3"
+    },
+    {
+      "id": "4.2.4:4",
+      "quote": "If an OSPF instance has more than one Domain Identifier, the NULL Domain Identifier MUST NOT be one of them.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.4-4"
+    },
+    {
+      "id": "4.2.4:5",
+      "quote": "If a particular OSPF instance has a non-NULL Domain Identifier, when routes from that OSPF instance are distributed by BGP as VPN-IPv4 routes, the routes MUST carry the Domain Identifier Extended Communities attribute that corresponds to the OSPF instance's Primary Domain Identifier.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.4-5"
+    },
+    {
+      "id": "4.2.5.1:1",
+      "quote": "When a type 3 LSA is sent from a PE router to a CE router, the DN bit [OSPF-DN] in the LSA Options field MUST be set.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.5.1-1"
+    },
+    {
+      "id": "4.2.5.1:2",
+      "quote": "The DN bit [OSPF-DN] MUST be set in these LSAs to ensure that they will be ignored by any other PE routers that receive them.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.5.1-2"
+    },
+    {
+      "id": "4.2.5.1:3",
+      "quote": "To ensure backward compatibility, all implementations adhering to this specification MUST by default support the VPN Route Tag procedures specified in Sections 4.2.5.2, 4.2.8.1, and 4.2.8.2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.5.1-3"
+    },
+    {
+      "id": "4.2.5.2:1",
+      "quote": "If a particular VRF in a PE is associated with an instance of OSPF, then by default it MUST be configured with a special OSPF route tag value, which we call the VPN Route Tag.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.5.2-1"
+    },
+    {
+      "id": "4.2.5.2:2",
+      "quote": "By default, this route tag MUST be included in the Type 5 LSAs that the PE originates (as the result of receiving a BGP-distributed VPN-IPv4 route, see Section 4.2.8) and sends to any of the attached CEs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.5.2-2"
+    },
+    {
+      "id": "4.2.5.2:3",
+      "quote": "The configuration and inclusion of the VPN Route Tag is required for backward compatibility with deployed implementations that do not set the DN bit in type 5 LSAs.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "States the REASON for the two obligations above it rather than an obligation of its own: the VPN Route Tag is configured and included 'for backward compatibility with deployed implementations that do not set the DN bit in type 5 LSAs'. What a PE must do is carried by RFC4577-4.2.5.2-1 (configure the tag by default) and RFC4577-4.2.5.2-2 (include it in originated Type 5 LSAs), both mapped by this walk."
+    },
+    {
+      "id": "4.2.5.2:4",
+      "quote": "The value of the VPN Route Tag is arbitrary but must be distinct from any OSPF Route Tag being used within the OSPF domain.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.5.2-10"
+    },
+    {
+      "id": "4.2.5.2:5",
+      "quote": "Its value MUST therefore be configurable.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.5.2-3"
+    },
+    {
+      "id": "4.2.5.2:6",
+      "quote": "If the Autonomous System number is four bytes long, then a Route Tag value MUST be configured, and it MUST be distinct from any Route Tag used within the VPN itself.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.5.2-4"
+    },
+    {
+      "id": "4.2.5.2:7",
+      "quote": "Each such Type 5 LSA MUST contain an OSPF route tag whose value is that of the VPN Route Tag.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.5.2-6"
+    },
+    {
+      "id": "4.2.5.2:8",
+      "quote": "The VPN Route Tag MUST be used to ensure that a Type 5 LSA originated by a PE router is not redistributed through the OSPF area to another PE router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.5.2-7"
+    },
+    {
+      "id": "4.2.5.3:1",
+      "quote": "Therefore, extreme care must be taken if there is any mutual redistribution of routes between the OSPF domain and any third routing domain (i.e., not the VPN backbone).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A caution to the network designer, in a section that discusses what happens when a third routing domain is present: 'extreme care must be taken if there is any mutual redistribution of routes'. Care is not a behaviour an implementation performs, and the sentence names no LSA, attribute or decision procedure. The redistribution rules a PE must follow are in 4.2.6 and 4.2.8, whose sites this walk maps."
+    },
+    {
+      "id": "4.2.6:1",
+      "quote": "When a PE router receives, from a CE router, any LSA with the DN bit [OSPF-DN] set, the information from that LSA MUST NOT be used by the route calculation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.6-3"
+    },
+    {
+      "id": "4.2.6:2",
+      "quote": "If a Type 5 LSA is received from the CE, and if it has an OSPF route tag value equal to the VPN Route Tag (see Section 4.2.5.2), then the information from that LSA MUST NOT be used by the route calculation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.6-4"
+    },
+    {
+      "id": "4.2.6:3",
+      "quote": "Otherwise, the PE must examine the corresponding VRF.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The lead-in clause of the procedure the next sentence states, which this walk maps to RFC4577-4.2.6-13: the PE examines the VRF so that 'For every address prefix that was installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP.' Examining the VRF is how that route set is found; it carries no separate obligation.",
+      "mapped-to": "RFC4577-4.2.6-13"
+    },
+    {
+      "id": "4.2.6:4",
+      "quote": "For every address prefix that was installed in the VRF by one of its associated OSPF instances, the PE must create a VPN-IPv4 route in BGP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.6-13"
+    },
+    {
+      "id": "4.2.6:5",
+      "quote": "If the OSPF instance that installed the route has a non-NULL primary Domain Identifier, this MUST be present; if that OSPF instance has only a NULL Domain Identifier, it MAY be omitted.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.6-1"
+    },
+    {
+      "id": "4.2.6:6",
+      "quote": "If the OSPF instance has a NULL Domain Identifier, and the OSPF Domain Identifier Extended Communities attribute is present, then the attribute's value field must be all zeroes, and its type field may be any of 0005, 0105, 0205, or 8005.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.6-14"
+    },
+    {
+      "id": "4.2.6:7",
+      "quote": "This attribute MUST be present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.6-2"
+    },
+    {
+      "id": "4.2.6:8",
+      "quote": "** 5 for external routes (area number must be 0).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.6-15"
+    },
+    {
+      "id": "4.2.6:9",
+      "quote": "Routes that a PE receives in type 4 LSAs MUST NOT be redistributed to BGP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.6-5"
+    },
+    {
+      "id": "4.2.6:10",
+      "quote": "The attributes specified above are in addition to any other attributes that routes must carry in accordance with [VPN].",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The obligation belongs to [VPN], which is RFC 4364, and the sentence cites it: 'The attributes specified above are in addition to any other attributes that routes must carry in accordance with [VPN].' It adds nothing of its own, and what a VPN-IPv4 route must carry is RFC 4364's to state."
+    },
+    {
+      "id": "4.2.6:11",
+      "quote": "The Site of Origin attribute, which is usually required by [VPN], is OPTIONAL for routes that a PE learns from a CE via OSPF.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.6-12"
+    },
+    {
+      "id": "4.2.7.1:1",
+      "quote": "If it is desired to have OSPF prefer the routes through the backbone over the routes through the backdoor link, then the routes through the backbone must be appear to be intra-area routes.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "States the CONDITION under which sham links are wanted, as the motivation of section 4.2.7.1: if backbone routes are to be preferred to a backdoor link, they must appear intra-area. It is the premise of the sham link feature, which section 4.1.3 makes OPTIONAL, and the obligations that follow it in 4.2.7.1 to 4.2.7.4 are the procedures a PE that offers sham links performs. This walk maps each of those."
+    },
+    {
+      "id": "4.2.7.1:2",
+      "quote": "If two VRFs are to be connected by a sham link, each VRF must be associated with a \"Sham Link Endpoint Address\", a 32-bit IPv4 address that is treated as an address of the PE router containing that VRF.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.7.1-5"
+    },
+    {
+      "id": "4.2.7.1:3",
+      "quote": "The Sham Link Endpoint Address associated with a VRF MUST be configurable.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.7.1-1"
+    },
+    {
+      "id": "4.2.7.1:4",
+      "quote": "The Sham Link Endpoint Address MUST be distributed by BGP as a VPN-IPv4 address whose IPv4 address prefix part is 32 bits long.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.7.1-2"
+    },
+    {
+      "id": "4.2.7.1:5",
+      "quote": "The Sham Link Endpoint Address MUST NOT be advertised by OSPF; if there is no BGP route to the Sham Link Endpoint Address, that address is to appear unreachable, so that the sham link appears to be down.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.7.1-3"
+    },
+    {
+      "id": "4.2.7.2:1",
+      "quote": "The sham link endpoint address MUST NOT be used as the endpoint address of an OSPF Virtual Link.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.7.2-1"
+    },
+    {
+      "id": "4.2.7.3:1",
+      "quote": "An OSPF protocol packet sent on a Sham Link from one PE to another must have as its IP source address the Sham Link Endpoint Address of the sender, and as its IP destination address the Sham Link Endpoint Address of the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.7.3-3"
+    },
+    {
+      "id": "4.2.7.3:2",
+      "quote": "As such, its TTL (Time to Live) field must be set appropriately.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.7.3-4"
+    },
+    {
+      "id": "4.2.7.3:3",
+      "quote": "The OSPF metric associated with a sham link MUST be configurable (and there MUST be a configurable default).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.7.3-1"
+    },
+    {
+      "id": "4.2.7.4:1",
+      "quote": "Any other route advertised in an LSA that is transmitted over a sham link MUST also be redistributed (by the PE flooding the LSA over the sham link) into BGP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.7.4-1"
+    },
+    {
+      "id": "4.2.7.4:2",
+      "quote": "However, when forwarding a packet, if the preferred route for that packet has the sham link as its next hop interface, then the packet MUST be forwarded according to the corresponding BGP route.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.7.4-2"
+    },
+    {
+      "id": "4.2.7.4:3",
+      "quote": "Such packets MUST be forwarded according to the corresponding BGP route.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.7.4-3"
+    },
+    {
+      "id": "4.2.8.1:1",
+      "quote": "In general, when two such attributes are compared, all eight bytes must be compared.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.8.1-4"
+    },
+    {
+      "id": "4.2.8.1:2",
+      "quote": "If a VPN-IPv4 route is to be redistributed to a particular instance, it must be determined whether that route and that OSPF instance belong to the same domain.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.8.1-5"
+    },
+    {
+      "id": "4.2.8.1:3",
+      "quote": "The DN bit (Section 4.2.5.1) MUST be set in the LSA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.8.1-1"
+    },
+    {
+      "id": "4.2.8.1:4",
+      "quote": "The VPN Route Tag (see Section 4.2.5.2) MUST be placed in the LSA, unless the use of the VPN Route Tag has been turned off by configuration.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-4.2.8.1-2"
+    },
+    {
+      "id": "6:1",
+      "quote": "The OSPF instances for different VPNs must also be independent OSPF instances, to prevent inadvertent leaking of routes between VPNs.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates in the Security Considerations the separation section 4.2.1 requires and this walk maps at 4.2.1:2: 'Each instance of OSPF MUST be associated with a single VRF.' A VPN is carried by its VRF, so one instance per VRF is what keeps the instances of different VPNs independent; the sentence adds the reason ('to prevent inadvertent leaking of routes between VPNs') and no new behaviour.",
+      "mapped-to": "RFC4577-4.2.1-2"
+    },
+    {
+      "id": "6:2",
+      "quote": "It MUST be implemented on each PE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4577-6-1"
+    },
+    {
+      "id": "9:1",
+      "quote": "The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Boilerplate from the Intellectual Property Statement: it invites parties to disclose IPR to the IETF. It binds no implementation and describes an IETF process."
+    }
+  ]
+}

@@ -1,0 +1,554 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7606",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc7606.txt",
+  "source-sha": "a291720189c2ff63",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7606-2-4",
+        "RFC7606-2-5",
+        "RFC7606-2-6"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 15,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7606-4-3"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7606-5.3-2",
+        "RFC7606-5.3-4",
+        "RFC7606-5.3-5",
+        "RFC7606-5.3-6"
+      ]
+    },
+    {
+      "id": "5.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7606-6-1"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7606-7.2-2",
+        "RFC7606-7.2-3"
+      ]
+    },
+    {
+      "id": "7.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.8",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.9",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.10",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.11",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.13",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.14",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.15",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.16",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7606-8-2"
+      ]
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "o Treat-as-withdraw: In this approach, the UPDATE message containing the path attribute in question MUST be treated as though all contained routes had been withdrawn just as if they had been listed in the WITHDRAWN ROUTES field (or in the MP_UNREACH_NLRI attribute if appropriate) of the UPDATE message, thus causing them to be removed from the Adj-RIB-In according to the procedures of [RFC4271].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-2-1"
+    },
+    {
+      "id": "2:2",
+      "quote": "o Attribute discard: In this approach, the malformed attribute MUST be discarded and the UPDATE message continues to be processed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-2-2"
+    },
+    {
+      "id": "2:3",
+      "quote": "This approach MUST NOT be used except in the case of an attribute that has no effect on route selection or installation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-2-3"
+    },
+    {
+      "id": "3:1",
+      "quote": "All errors detected while processing the UPDATE message MUST be indicated by sending the NOTIFICATION message with the Error Code UPDATE Message Error.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Old Text quotation: RFC 7606 Section 3.a prints the superseded RFC 4271 Section 6.3 wording under an explicit 'Old Text:' heading in order to REPLACE it. The obligation in force is the 'New Text' block, mapped at site 3:2."
+    },
+    {
+      "id": "3:2",
+      "quote": "An error detected while processing the UPDATE message for which a session reset is specified MUST be indicated by sending the NOTIFICATION message with the Error Code UPDATE Message Error.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-3.a-1"
+    },
+    {
+      "id": "3:3",
+      "quote": "If the Withdrawn Routes Length or Total Attribute Length is too large (i.e., if Withdrawn Routes Length + Total Attribute Length + 23 exceeds the message Length), then the Error Subcode MUST be set to Malformed Attribute List.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-3.b-1"
+    },
+    {
+      "id": "3:4",
+      "quote": "If any recognized attribute has Attribute Flags that conflict with the Attribute Type Code, then the Error Subcode MUST be set to Attribute Flags Error.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Old Text quotation: RFC 7606 Section 3.c prints the superseded RFC 4271 Section 6.3 wording under an explicit 'Old Text:' heading in order to REPLACE it. The obligation in force is the 'New Text' block, mapped at site 3:6."
+    },
+    {
+      "id": "3:5",
+      "quote": "The Data field MUST contain the erroneous attribute (type, length, and value).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Old Text quotation: RFC 7606 Section 3.c prints the superseded RFC 4271 Section 6.3 wording under an explicit 'Old Text:' heading in order to REPLACE it. The obligation in force is the 'New Text' block, mapped at site 3:6. This sentence is the second half of the same Old Text block; the New Text drops the Data-field mandate along with the Attribute Flags Error subcode."
+    },
+    {
+      "id": "3:6",
+      "quote": "If the value of either the Optional or Transitive bits in the Attribute Flags is in conflict with their specified values, then the attribute MUST be treated as malformed and the \"treat-as-withdraw\" approach used, unless the specification for the attribute mandates different handling for incorrect Attribute Flags.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-3.c-1"
+    },
+    {
+      "id": "3:7",
+      "quote": "If any of the well-known mandatory attributes are not present in an UPDATE message, then \"treat-as-withdraw\" MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-3.d-1"
+    },
+    {
+      "id": "3:8",
+      "quote": "\"Treat-as-withdraw\" MUST be used for the cases that specify a session reset and involve any of the attributes ORIGIN, AS_PATH, NEXT_HOP, MULTI_EXIT_DISC, or LOCAL_PREF.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-3.e-1"
+    },
+    {
+      "id": "3:9",
+      "quote": "\"Attribute discard\" MUST be used for any of the cases that specify a session reset and involve ATOMIC_AGGREGATE or AGGREGATOR. g.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-3.f-1"
+    },
+    {
+      "id": "3:10",
+      "quote": "If the MP_REACH_NLRI attribute or the MP_UNREACH_NLRI [RFC4760] attribute appears more than once in the UPDATE message, then a NOTIFICATION message MUST be sent with the Error Subcode \"Malformed Attribute List\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-3.g-1"
+    },
+    {
+      "id": "3:11",
+      "quote": "If any other attribute (whether recognized or unrecognized) appears more than once in an UPDATE message, then all the occurrences of the attribute other than the first one SHALL be discarded and the UPDATE message will continue to be processed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-3.g-2"
+    },
+    {
+      "id": "3:12",
+      "quote": "When multiple attribute errors exist in an UPDATE message, if the same approach (as described in Section 2) is specified for the handling of these malformed attributes, then the specified approach MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-3.h-1"
+    },
+    {
+      "id": "3:13",
+      "quote": "Otherwise, the approach with the strongest action MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-3.h-2"
+    },
+    {
+      "id": "3:14",
+      "quote": "The Withdrawn Routes field MUST be checked for syntactic correctness in the same manner as the NLRI field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-3.i-1"
+    },
+    {
+      "id": "3:15",
+      "quote": "If this is not possible, the procedures of [RFC4271] and/or [RFC4760] continue to apply, meaning that the \"session reset\" approach (or the \"AFI/SAFI disable\" approach) MUST be followed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-3.j-1"
+    },
+    {
+      "id": "4:1",
+      "quote": "In either of these cases, an error condition exists and the \"treat- as-withdraw\" approach MUST be used (unless some other, more severe error is encountered dictating a stronger approach), and the Total Attribute Length MUST be relied upon to enable the beginning of the NLRI field to be located.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-4-1"
+    },
+    {
+      "id": "4:2",
+      "quote": "For all path attributes other than those specified as having an attribute length that may be zero, it SHALL be considered a syntax error for the attribute to have a length of zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-4-2"
+    },
+    {
+      "id": "5.1:1",
+      "quote": "o The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL be encoded as the very first path attribute in an UPDATE message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-5.1-1"
+    },
+    {
+      "id": "5.1:2",
+      "quote": "o An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-5.1-2"
+    },
+    {
+      "id": "5.1:3",
+      "quote": "Since older BGP speakers may not implement these restrictions, an implementation MUST still be prepared to receive these fields in any position or combination.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-5.1-3"
+    },
+    {
+      "id": "5.2:1",
+      "quote": "For this reason, if any path attribute errors are encountered in such an UPDATE message and if any encountered error specifies an error-handling approach other than \"attribute discard\", then the \"session reset\" approach MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-5.2-1"
+    },
+    {
+      "id": "5.3:1",
+      "quote": "The NLRI field or Withdrawn Routes field SHALL be considered \"syntactically incorrect\" if either of the following are true:",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-5.3-1"
+    },
+    {
+      "id": "5.3:2",
+      "quote": "Similarly, the MP_REACH_NLRI or MP_UNREACH_NLRI attribute of an update SHALL be considered to be incorrect if any of the following are true:",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-5.3-3"
+    },
+    {
+      "id": "5.4:1",
+      "quote": "A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-5.4-1"
+    },
+    {
+      "id": "7.1:1",
+      "quote": "An UPDATE message with a malformed ORIGIN attribute SHALL be handled using the approach of \"treat-as-withdraw\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.1-1"
+    },
+    {
+      "id": "7.2:1",
+      "quote": "An UPDATE message with a malformed AS_PATH attribute SHALL be handled using the approach of \"treat-as-withdraw\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.2-1"
+    },
+    {
+      "id": "7.3:1",
+      "quote": "An UPDATE message with a malformed NEXT_HOP attribute SHALL be handled using the approach of \"treat-as-withdraw\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.3-1"
+    },
+    {
+      "id": "7.4:1",
+      "quote": "An UPDATE message with a malformed MULTI_EXIT_DISC attribute SHALL be handled using the approach of \"treat-as-withdraw\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.4-1"
+    },
+    {
+      "id": "7.5:1",
+      "quote": "o if the LOCAL_PREF attribute is received from an external neighbor, it SHALL be discarded using the approach of \"attribute discard\"; or",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.5-1"
+    },
+    {
+      "id": "7.5:2",
+      "quote": "o if received from an internal neighbor, it SHALL be considered malformed if its length is not equal to 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.5-2"
+    },
+    {
+      "id": "7.5:3",
+      "quote": "If malformed, the UPDATE message SHALL be handled using the approach of \"treat-as- withdraw\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.5-2"
+    },
+    {
+      "id": "7.6:1",
+      "quote": "The attribute SHALL be considered malformed if its length is not 0 [RFC4271].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.6-1"
+    },
+    {
+      "id": "7.6:2",
+      "quote": "An UPDATE message with a malformed ATOMIC_AGGREGATE attribute SHALL be handled using the approach of \"attribute discard\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.6-1"
+    },
+    {
+      "id": "7.7:1",
+      "quote": "The AGGREGATOR attribute SHALL be considered malformed if any of the following applies:",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.7-1"
+    },
+    {
+      "id": "7.7:2",
+      "quote": "An UPDATE message with a malformed AGGREGATOR attribute SHALL be handled using the approach of \"attribute discard\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.7-1"
+    },
+    {
+      "id": "7.8:1",
+      "quote": "o The Community attribute SHALL be considered malformed if its length is not a non-zero multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.8-1"
+    },
+    {
+      "id": "7.8:2",
+      "quote": "o An UPDATE message with a malformed Community attribute SHALL be handled using the approach of \"treat-as-withdraw\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.8-1"
+    },
+    {
+      "id": "7.9:1",
+      "quote": "o if the ORIGINATOR_ID attribute is received from an external neighbor, it SHALL be discarded using the approach of \"attribute discard\"; or",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.9-1"
+    },
+    {
+      "id": "7.9:2",
+      "quote": "o if received from an internal neighbor, it SHALL be considered malformed if its length is not equal to 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.9-2"
+    },
+    {
+      "id": "7.9:3",
+      "quote": "If malformed, the UPDATE message SHALL be handled using the approach of \"treat-as- withdraw\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.9-2"
+    },
+    {
+      "id": "7.10:1",
+      "quote": "o if the CLUSTER_LIST attribute is received from an external neighbor, it SHALL be discarded using the approach of \"attribute discard\"; or o if received from an internal neighbor, it SHALL be considered malformed if its length is not a non-zero multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.10-1"
+    },
+    {
+      "id": "7.10:2",
+      "quote": "If malformed, the UPDATE message SHALL be handled using the approach of \"treat-as-withdraw\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.10-2"
+    },
+    {
+      "id": "7.11:1",
+      "quote": "Since the next hop precedes the NLRI field in the attribute, in this case it will not be possible to reliably locate the NLRI; thus, the \"session reset\" or \"AFI/SAFI disable\" approach MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.11-1"
+    },
+    {
+      "id": "7.13:1",
+      "quote": "In the interim, an implementation that determines (for whatever reason) that an UPDATE message contains a malformed Traffic Engineering path attribute MUST handle it using the approach of \"treat-as-withdraw\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.13-1"
+    },
+    {
+      "id": "7.14:1",
+      "quote": "o The Extended Community attribute SHALL be considered malformed if its length is not a non-zero multiple of 8.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.14-1"
+    },
+    {
+      "id": "7.14:2",
+      "quote": "o An UPDATE message with a malformed Extended Community attribute SHALL be handled using the approach of \"treat-as-withdraw\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.14-1"
+    },
+    {
+      "id": "7.14:3",
+      "quote": "Note that a BGP speaker MUST NOT treat an unrecognized Extended Community Type or Sub-Type as an error.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.14-2"
+    },
+    {
+      "id": "7.15:1",
+      "quote": "o The IPv6 Address Specific Extended Community attribute SHALL be considered malformed if its length is not a non-zero multiple of 20.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.15-1"
+    },
+    {
+      "id": "7.15:2",
+      "quote": "o An UPDATE message with a malformed IPv6 Address Specific Extended Community attribute SHALL be handled using the approach of \"treat- as-withdraw\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.15-1"
+    },
+    {
+      "id": "7.15:3",
+      "quote": "Note that a BGP speaker MUST NOT treat an unrecognized IPv6 Address Specific Extended Community Type or Sub-Type as an error.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.15-2"
+    },
+    {
+      "id": "7.16:1",
+      "quote": "An UPDATE message with a malformed ATTR_SET attribute SHALL be handled as follows.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Old Text quotation: RFC 7606 Section 7.16 prints the superseded RFC 6368 Section 5 wording under an explicit 'Old Text:' heading in order to REPLACE it. The obligation in force is the 'New Text' block, mapped at site 7.16:3."
+    },
+    {
+      "id": "7.16:2",
+      "quote": "Otherwise (i.e., Partial flag is clear or Neighbor-Complete is set), the procedures of the BGP-4 base specification [RFC4271] MUST be followed with respect to an Optional Attribute Error.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Old Text quotation: RFC 7606 Section 7.16 prints the superseded RFC 6368 Section 5 wording under an explicit 'Old Text:' heading in order to REPLACE it. The obligation in force is the 'New Text' block, mapped at site 7.16:3. The New Text replaces the Partial/Neighbor-Complete split with one unconditional treat-as-withdraw, so the RFC 4271 Optional Attribute Error branch no longer exists."
+    },
+    {
+      "id": "7.16:3",
+      "quote": "An UPDATE message with a malformed ATTR_SET attribute SHALL be handled using the approach of \"treat as withdraw\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-7.16-1"
+    },
+    {
+      "id": "8:1",
+      "quote": "A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7606-8-1"
+    }
+  ]
+}

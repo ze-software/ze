@@ -1,0 +1,325 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5392",
+  "register": "prose",
+  "source-path": "rfc/full/rfc5392.txt",
+  "source-sha": "0833ca775f7d650c",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5392-2.1-1"
+      ]
+    },
+    {
+      "id": "2.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5392-3.1.1-1",
+        "RFC5392-3.1.1-2",
+        "RFC5392-3.1.1-3"
+      ]
+    },
+    {
+      "id": "3.1.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5392-3.1.2-2",
+        "RFC5392-3.1.2-3",
+        "RFC5392-3.1.2-4"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5392-3.2.1-2",
+        "RFC5392-3.2.1-3"
+      ]
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5392-3.3.2-3",
+        "RFC5392-3.3.2-4"
+      ]
+    },
+    {
+      "id": "3.3.3",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5392-3.3.3-3"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5392-4-2",
+        "RFC5392-4-4",
+        "RFC5392-4-5",
+        "RFC5392-4-6",
+        "RFC5392-4-7",
+        "RFC5392-4-8"
+      ]
+    },
+    {
+      "id": "4.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5392-5-1",
+        "RFC5392-5-2"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.2:1",
+      "quote": "The next hop in the ERO shows AS3, and R5 must determine a path segment across AS2 to reach AS3.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 2.2 walks a worked example of a path computation across AS1/AS2/AS3; the lowercase 'must' describes what router R5 in the example has to work out, not an obligation on an implementation."
+    },
+    {
+      "id": "2.2:2",
+      "quote": "In GMPLS networks, further information may also be required to select the correct TE links as defined in [GMPLS-TE].",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Descriptive sentence about GMPLS networks ('further information may also be required'), lowercase and referring the reader to [GMPLS-TE]."
+    },
+    {
+      "id": "2.3:1",
+      "quote": "Each tree consists of the set of paths from all Boundary Nodes located in domain(i) to the destination where each path satisfies the set of required constraints for the TE LSP (bandwidth, affinities, etc.).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Definition of what a BRPC tree of paths consists of; a description of the PCE algorithm, not an obligation."
+    },
+    {
+      "id": "2.3:2",
+      "quote": "In order that the tree of paths provided by one PCE to its neighbor can be correlated, the identities of the ASBRs for each path need to be referenced, so the PCE must know the identities of the ASBRs in the remote AS reached by any inter-AS TE link, and, in order that it provides only suitable paths in the tree, the PCE must know the TE properties of the inter-AS TE links.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Motivational prose stating what a PCE needs to know to correlate trees; lowercase 'must know', describing the information requirement this document exists to satisfy."
+    },
+    {
+      "id": "2.3:3",
+      "quote": "But, to provide suitable path segments, PCE3 must determine which entry boundary nodes provide connectivity to its upstream neighbor AS (identified by its AS number), and must know the TE properties of the inter-AS TE links.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Same BRPC motivation paragraph: lowercase 'must determine' / 'must know' describing the PCE's input needs, not a normative rule."
+    },
+    {
+      "id": "2.3:4",
+      "quote": "Thus, to support Backward Recursive Path Computation the same information listed in Section 2.2 is required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Concluding sentence of the BRPC motivation ('the same information listed in Section 2.2 is required'); it states no obligation of its own."
+    },
+    {
+      "id": "3:1",
+      "quote": "While some of the TE information of an inter-AS TE link may be available within the AS from other protocols, in order to avoid any dependency on where such protocols are processed, this mechanism carries all the information needed for the required TE operations.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Rationale for carrying all TE information in this mechanism rather than depending on other protocols; 'needed'/'required' are descriptive."
+    },
+    {
+      "id": "3.1.2:1",
+      "quote": "The U-bit is always set to 1 to indicate that an OSPFv3 router MUST flood the LSA at its defined flooding scope even if it does not recognize the LS type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5392-3.1.2-1"
+    },
+    {
+      "id": "3.2.1:1",
+      "quote": "The Link ID sub-TLV [OSPF-TE] MUST NOT be used in the Link TLV of an Inter-AS-TE-v2 LSA, and the Neighbor ID sub-TLV [OSPF-V3-TE] MUST NOT be used in the Link TLV of an Inter-AS-TE-v3 LSA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5392-3.2.1-1"
+    },
+    {
+      "id": "3.2.1:2",
+      "quote": "The Remote-AS-Number sub-TLV MUST be included in the Link TLV of both the Inter-AS-TE-v2 LSA and Inter-AS-TE-v3 LSA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5392-3.2.1-4"
+    },
+    {
+      "id": "3.3.1:1",
+      "quote": "The Remote AS Number sub-TLV is REQUIRED in a Link TLV that advertises an inter-AS TE link.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.3.1 restates as REQUIRED the Remote-AS-Number sub-TLV inclusion that Section 3.2.1 states as MUST; RFC5392-3.2.1-4 cites both sections.",
+      "mapped-to": "RFC5392-3.2.1-4"
+    },
+    {
+      "id": "3.3.1:2",
+      "quote": "When only two octets are used for the AS number, as in current deployments, the left (high- order) two octets MUST be set to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5392-3.3.1-1"
+    },
+    {
+      "id": "3.3.2:1",
+      "quote": "In OSPFv2 advertisements, the IPv4 Remote ASBR ID sub-TLV MUST be included if the neighboring ASBR has an IPv4 address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5392-3.3.2-1"
+    },
+    {
+      "id": "3.3.2:2",
+      "quote": "If the neighboring ASBR does not have an IPv4 address (not even an IPv4 TE Router ID), the IPv6 Remote ASBR ID sub-TLV MUST be included instead.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5392-3.3.2-2"
+    },
+    {
+      "id": "3.3.3:1",
+      "quote": "In OSPFv3 advertisements, the IPv6 Remote ASBR ID sub-TLV MUST be included if the neighboring ASBR has an IPv6 address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5392-3.3.3-1"
+    },
+    {
+      "id": "3.3.3:2",
+      "quote": "If the neighboring ASBR does not have an IPv6 address, the IPv4 Remote ASBR ID sub-TLV MUST be included instead.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5392-3.3.3-2"
+    },
+    {
+      "id": "4:1",
+      "quote": "When there are changes to the TE parameters for the link (for example, when the available bandwidth changes), the ASBR SHOULD re-advertise the link, but the ASBR MUST take precautions against excessive re- advertisements as described in [OSPF-TE].",
+      "disposition": "mapped",
+      "mapped-to": "RFC5392-4-3"
+    },
+    {
+      "id": "4:2",
+      "quote": "Hellos MUST NOT be exchanged over the inter-AS link, and consequently, an OSPF adjacency MUST NOT be formed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5392-4-1"
+    },
+    {
+      "id": "4:3",
+      "quote": "This enables Constrained Shortest Path First (CSPF) to do a two-way check on the link when performing path computation and eliminate it from consideration unless both directions of the link satisfy the required constraints.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Explains why two LSAs per TE link exist in normal OSPF-TE ('This enables CSPF to do a two-way check'); it is the rationale for the proxy advertisement, not a rule."
+    },
+    {
+      "id": "4.1:1",
+      "quote": "We note further that it is possible, and may be operationally advantageous, to obtain some of the required configuration information from BGP.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 4.1 is an observation that BGP can supply some of the configuration ('it is possible, and may be operationally advantageous'); no keyword and no obligation."
+    }
+  ]
+}

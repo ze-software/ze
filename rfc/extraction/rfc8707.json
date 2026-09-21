@@ -1,0 +1,134 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8707",
+  "register": "prose",
+  "source-path": "rfc/full/rfc8707.txt",
+  "source-sha": "3b04fcfbb0d22e5a",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8707-3-1",
+        "RFC8707-3-2",
+        "RFC8707-2-5"
+      ]
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8707-2-4"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8707-5-1",
+        "RFC8707-5-2"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF Trust Legal Provisions boilerplate on the front page: it governs Code Components extracted from the document, not any protocol behavior Ze implements."
+    },
+    {
+      "id": "1:1",
+      "quote": "To prevent misuse, several important security assumptions must hold, one of which is that an access token must only be valid for use at a specific protected resource and for a specific scope of access.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Introduction prose describing the security assumption the resource parameter exists to protect, not an obligation placed on an implementation. The resource-server obligation it motivates is declared as RFC8707-5-1 in rfc/short/rfc8707.md and sourced from Section 3."
+    },
+    {
+      "id": "2:1",
+      "quote": "Its value MUST be an absolute URI, as specified by Section 4.3 of [RFC3986].",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "The obligation shapes the value of the resource request parameter, and sending that parameter is optional: RFC 8707 Section 2 says \"In requests to the authorization server, a client MAY indicate the protected resource (a.k.a. resource server, application, API, etc.) to which it is requesting access by including the following parameter in the request.\" Ze is an OAuth resource server (internal/component/mcp) that issues no authorization or token requests, so it never forms a resource parameter value. The same scope decision gates RFC8707-2-1 and RFC8707-2-2 in rfc/short/rfc8707.md."
+    },
+    {
+      "id": "2:2",
+      "quote": "The URI MUST NOT include a fragment component.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8707-2-1"
+    },
+    {
+      "id": "2.2:1",
+      "quote": "As specified in Section 5.1 of [RFC6749], the authorization server must indicate the access token's effective scope to the client in the \"scope\" response parameter value when it differs from the scope requested by the client.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The sentence restates an RFC 6749 obligation it cites by section: \"As specified in Section 5.1 of [RFC6749], the authorization server must indicate the access token's effective scope to the client in the scope response parameter value when it differs from the scope requested by the client.\" The obligation belongs to RFC 6749 Section 5.1."
+    }
+  ]
+}

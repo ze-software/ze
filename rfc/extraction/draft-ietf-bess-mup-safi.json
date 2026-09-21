@@ -1,0 +1,648 @@
+{
+  "schema-version": 1,
+  "stem": "draft-ietf-bess-mup-safi",
+  "register": "rfc2119",
+  "source-path": "rfc/drafts/draft-ietf-bess-mup-safi.txt",
+  "source-sha": "cc8da36f0b20e05b",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.3.1",
+      "sites": 12,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-9",
+        "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-10"
+      ]
+    },
+    {
+      "id": "3.1.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.4.1",
+      "sites": 9,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.1",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.4",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.6",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.7",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.9",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.10",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.11",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.12",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.1:1",
+      "quote": "Any other Route Types MUST be silently ignored upon a receipt if a BGP speaker supports only 3gpp-5G architecture type.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1-1"
+    },
+    {
+      "id": "3.1.1:1",
+      "quote": "A BGP speaker MUST handle such a malformed NLRI as a \"Treat-as-withdraw\" [RFC7606].",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-1"
+    },
+    {
+      "id": "3.1.1:2",
+      "quote": "A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2"
+    },
+    {
+      "id": "3.1.2:1",
+      "quote": "A BGP speaker MUST handle such a malformed NLRI as a \"Treat- as-withdraw\" [RFC7606].",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.2-1"
+    },
+    {
+      "id": "3.1.2:2",
+      "quote": "A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2"
+    },
+    {
+      "id": "3.1.3:1",
+      "quote": "A BGP speaker MUST handle such a malformed NLRI as a \"Treat- as-withdraw\" [RFC7606].",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3-1"
+    },
+    {
+      "id": "3.1.3:2",
+      "quote": "A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2"
+    },
+    {
+      "id": "3.1.3.1:1",
+      "quote": "A BGP speaker MUST handle such a malformed NLRI as a \"Treat-as-withdraw\" [RFC7606].",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-1"
+    },
+    {
+      "id": "3.1.3.1:2",
+      "quote": "A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2"
+    },
+    {
+      "id": "3.1.3.1:3",
+      "quote": "A BGP speaker MUST handle such a malformed NLRI as a \"Treat-as-withdraw\" [RFC7606].",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-2"
+    },
+    {
+      "id": "3.1.3.1:4",
+      "quote": "A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2"
+    },
+    {
+      "id": "3.1.3.1:5",
+      "quote": "A BGP speaker MUST handle such a malformed NLRI as a \"Treat-as-withdraw\" [RFC7606].",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-3"
+    },
+    {
+      "id": "3.1.3.1:6",
+      "quote": "A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2"
+    },
+    {
+      "id": "3.1.3.1:7",
+      "quote": "- < 0: the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6"
+    },
+    {
+      "id": "3.1.3.1:8",
+      "quote": "- 1: encoding is invalid (a valid TLV requires at minimum a Type byte and a Length byte); MUST be treated as Treat-as- withdraw.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7"
+    },
+    {
+      "id": "3.1.3.1:9",
+      "quote": "Parse TLVs one by one per Section 3.1.5; unknown TLV types MUST be ignored for local processing and MUST be propagated unchanged when re- advertising the route to other BGP peers; any TLV parsing error MUST result in Treat-as-withdraw; TLVs are not part of the NLRI key for route processing.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-8"
+    },
+    {
+      "id": "3.1.3.1:10",
+      "quote": "The NLRI architecture field MUST be encoded as shown above if a BGP speaker receives 3gpp-5g specific BGP Type 1 ST route.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-4"
+    },
+    {
+      "id": "3.1.3.1:11",
+      "quote": "A BGP speaker MUST handle such a malformed NLRI as a \"Treat-as-withdraw\" [RFC7606].",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the Treat-as-withdraw consequence of the Type 1 ST architecture encoding rule mapped at site 3.1.3.1:10, which the row already carries as its otherwise clause.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-4"
+    },
+    {
+      "id": "3.1.3.1:12",
+      "quote": "A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2"
+    },
+    {
+      "id": "3.1.4:1",
+      "quote": "A BGP speaker MUST handle such a malformed NLRI as a \"Treat-as-withdraw\" [RFC7606].",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.4-1"
+    },
+    {
+      "id": "3.1.4:2",
+      "quote": "A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2"
+    },
+    {
+      "id": "3.1.4.1:1",
+      "quote": "A BGP speaker MUST handle such a malformed NLRI as a \"Treat-as-withdraw\" [RFC7606].",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-1"
+    },
+    {
+      "id": "3.1.4.1:2",
+      "quote": "A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2"
+    },
+    {
+      "id": "3.1.4.1:3",
+      "quote": "The Endpoint Length MUST NOT extend beyond the TEID field.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-3"
+    },
+    {
+      "id": "3.1.4.1:4",
+      "quote": "- < 0: the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.1.4.1 repeats the Section 3.1.3.1 TLV length computation word for word; the negative-remainder rule is mapped at site 3.1.3.1:7.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-6"
+    },
+    {
+      "id": "3.1.4.1:5",
+      "quote": "- 1: encoding is invalid (a valid TLV requires at minimum a Type byte and a Length byte); MUST be treated as Treat-as- withdraw.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.1.4.1 repeats the Section 3.1.3.1 TLV length computation word for word; the one-octet-remainder rule is mapped at site 3.1.3.1:8.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-7"
+    },
+    {
+      "id": "3.1.4.1:6",
+      "quote": "Parse TLVs one by one per Section 3.1.5; unknown TLV types MUST be ignored for local processing and MUST be propagated unchanged when re- advertising the route to other BGP peers; any TLV parsing error MUST result in Treat-as-withdraw; TLVs are not part of the NLRI key for route processing.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.1.4.1 repeats the Section 3.1.3.1 TLV parsing sentence word for word; it is mapped at site 3.1.3.1:9.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-8"
+    },
+    {
+      "id": "3.1.4.1:7",
+      "quote": "The NLRI architecture field MUST be encoded as shown above if a BGP speaker receives 3gpp-5g specific BGP Type 2 ST route.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-2"
+    },
+    {
+      "id": "3.1.4.1:8",
+      "quote": "A BGP speaker MUST handle such a malformed NLRI as a \"Treat-as-withdraw\" [RFC7606].",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the Treat-as-withdraw consequence of the Type 2 ST architecture encoding rule mapped at site 3.1.4.1:7, which the row already carries as its otherwise clause.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-2"
+    },
+    {
+      "id": "3.1.4.1:9",
+      "quote": "A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2"
+    },
+    {
+      "id": "3.1.5:1",
+      "quote": "A TLV received in a route type for which it is not applicable MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.5-1"
+    },
+    {
+      "id": "3.3:1",
+      "quote": "BGP speakers acting as a PE, and a MUP Controller MUST establish a BGP session to exchange BGP-MUP NLRIs for both, IPv4 and IPv6 AFIs.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3-1"
+    },
+    {
+      "id": "3.3.1:1",
+      "quote": "When advertising the Interwork Segment Discovery route, a PE MUST attach the export BGP Route Target Extended Community of the associated routing instance.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.1-1"
+    },
+    {
+      "id": "3.3.1:2",
+      "quote": "When advertising the Interwork Segment Discovery route, a PE MUST use the IPv6 address of the PE as the nexthop address in the MP_REACH_NLRI attribute.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.1-2"
+    },
+    {
+      "id": "3.3.1:3",
+      "quote": "The Interwork Segment Discovery route update MUST have a prefix SID attribute which the SID consists of the PE locater followed by a function.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.1-3"
+    },
+    {
+      "id": "3.3.1:4",
+      "quote": "In 3GPP 5G specific case, if the BGP AFI is IPv4, the function MUST be GTP4.E [I-D.ietf-dmm-srv6-mobile-uplane], or MUST be GTP6.E [I-D.ietf-dmm-srv6-mobile-uplane] if the BGP AFI is IPv6.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.1-4"
+    },
+    {
+      "id": "3.3.2:1",
+      "quote": "When withdrawing the Interwork Segment Discovery route, a PE MUST attach the export BGP Route Target Extended Community of the associated routing instance.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.2-1"
+    },
+    {
+      "id": "3.3.3:1",
+      "quote": "However, the receiving BGP speaker MUST ensure that the value of Address filed in the NLRI is an address of the originator of the locator value in the prefix SID attribute.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.3-1"
+    },
+    {
+      "id": "3.3.3:2",
+      "quote": "If the result of the match is not identical then the receiving BGP speaker MUST consider it as a malformed NLRI and the \"Treat-as-withdraw procedure of [RFC7606] is applied.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.3-4"
+    },
+    {
+      "id": "3.3.3:3",
+      "quote": "A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2"
+    },
+    {
+      "id": "3.3.3:4",
+      "quote": "When a BGP speaker receives the Interwork Segment Dicovery routes with a MP_REACH_NLRI attribute without a prefix SID attribute, then it MUST be treated as if it contained a malformed prefix SID attribute and the \"Treat-as-withdraw procedure of [RFC7606] is applied.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.3-3"
+    },
+    {
+      "id": "3.3.3:5",
+      "quote": "A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2"
+    },
+    {
+      "id": "3.3.3:6",
+      "quote": "When a BGP speaker receives an MP_UNREACH_NLRI attribute update message it MUST delete the withdrawn Interwork Segment Discovery route from the routing instance table where it was created.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.3-2"
+    },
+    {
+      "id": "3.3.4:1",
+      "quote": "The address in the BGP-MUP NLRI MUST be a unique PE identifier.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.4-1"
+    },
+    {
+      "id": "3.3.4:2",
+      "quote": "When announcing the Direct Segment Discovery route, a PE MUST attach a BGP MUP Extended community of the associated routing instance.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.4-2"
+    },
+    {
+      "id": "3.3.4:3",
+      "quote": "When advertising the Direct Segment Discovery route, a PE MUST use the IPv6 address of the PE as the nexthop address in the MP_REACH_NLRI attribute.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.4-3"
+    },
+    {
+      "id": "3.3.4:4",
+      "quote": "The Direct Segment Discovery route update MUST have a prefix SID attribute which the SID consists of the PE locator followed by a function.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.4-4"
+    },
+    {
+      "id": "3.3.5:1",
+      "quote": "When withdrawing the Direct Segment Discovery route, a BGP speaker MUST attach a BGP MUP Extended community of the associated routing instance.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.5-2"
+    },
+    {
+      "id": "3.3.6:1",
+      "quote": "However, the receiving BGP speaker MUST ensure that the received nexthop value in the MP_REACH_NLRI attribute is identical to the originator of the locator value in the prefix SID attribute.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.6-1"
+    },
+    {
+      "id": "3.3.6:2",
+      "quote": "If the result of the match is not identical then the receiving BGP speaker MUST consider it as a malformed NLRI and the \"Treat-as-withdraw procedure of [RFC7606] is applied.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates for the Direct Segment Discovery route the nexthop-locator mismatch ruling mapped at site 3.3.3:2; the row cites both Section 3.3.3 and Section 3.3.6.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.3-4"
+    },
+    {
+      "id": "3.3.6:3",
+      "quote": "A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2"
+    },
+    {
+      "id": "3.3.6:4",
+      "quote": "When a BGP speaker receives a MP_REACH_NLRI attribute update message with a Direct Segment Discovery route without a prefix SID attribute, than it MUST be treated as if it contained a malformed prefix SID attribute and the \"Treat-as-withdraw procedure of [RFC7606] is applied.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates for the Direct Segment Discovery route the missing-prefix-SID ruling mapped at site 3.3.3:4; the row cites both Section 3.3.3 and Section 3.3.6.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.3-3"
+    },
+    {
+      "id": "3.3.6:5",
+      "quote": "A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The document repeats one sentence after every malformed-NLRI ruling: a BGP speaker MUST skip such NLRIs and continue processing of the rest of the Update message. The checklist carries it once, at Section 3.1.1.",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.1.1-2"
+    },
+    {
+      "id": "3.3.6:6",
+      "quote": "When a BGP speaker receives an MP_UNREACH_NLRI attribute update message it MUST delete the withdrawn Direct Segment Discovery route from the routing instance table where it was created.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.6-2"
+    },
+    {
+      "id": "3.3.7:1",
+      "quote": "The MUP Controller MUST set the nexthop of the route to the address of the controller.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.7-1"
+    },
+    {
+      "id": "3.3.7:2",
+      "quote": "The controller MUST announce this route using a AFI of the route and the SAFI of BGP-MUP to all other BGP speakers within the SRv6 domain.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.7-2"
+    },
+    {
+      "id": "3.3.8:1",
+      "quote": "The controller MUST advertise the withdraws of the Type 1 ST route.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.8-1"
+    },
+    {
+      "id": "3.3.9:1",
+      "quote": "The PE receiving Type 1 ST routes in MP_UNREACH_NLRI attribute MUST delete all the routes from the associated routing instance.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.9-1"
+    },
+    {
+      "id": "3.3.9:2",
+      "quote": "In an event where the received Type 1 ST route in MP_UNREACH_NLRI attribute does not have a Source address a receiving PE MUST delete all the matching Type 1 ST Routes with different Source addresses.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.9-2"
+    },
+    {
+      "id": "3.3.10:1",
+      "quote": "The controller MUST attach a Route Target Extended Community of the routing instances in the PE accommodating the corresponding Interwork Segment.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.10-1"
+    },
+    {
+      "id": "3.3.10:2",
+      "quote": "The controller MUST set the nexthop of the route to the address of the MUP Controller.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.10-2"
+    },
+    {
+      "id": "3.3.11:1",
+      "quote": "The controller MUST advertise the withdraws of the Type 2 ST route.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.11-1"
+    },
+    {
+      "id": "3.3.12:1",
+      "quote": "A PE receiving a Type 2 ST route with a Direct Segment type BGP MUP Extended Community MUST resolve the route using the DSD routes matching that community.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.12-4"
+    },
+    {
+      "id": "3.3.12:2",
+      "quote": "DSD routes MUST NOT be used to resolve Type 2 ST routes that do not carry a Direct Segment type BGP MUP Extended Community.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.12-5"
+    },
+    {
+      "id": "3.3.12:3",
+      "quote": "A PE receiving a Type 2 ST route with an Interwork Segment type BGP MUP Extended Community MUST resolve the route using ISD routes that carry a matching Interwork Segment type BGP MUP Extended Community.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.12-6"
+    },
+    {
+      "id": "3.3.12:4",
+      "quote": "A PE receiving a Type 2 ST route without a BGP MUP Extended Community MUST resolve the route using ISD routes for the default Interwork Segment, i.e., ISD routes that carry no BGP MUP Extended Community.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-BESS-MUP-SAFI-3.3.12-7"
+    }
+  ]
+}

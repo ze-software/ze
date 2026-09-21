@@ -1,0 +1,116 @@
+{
+  "schema-version": 1,
+  "stem": "rfc6549",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc6549.txt",
+  "source-sha": "d65193f7ba300cc9",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC6549-3-1"
+      ]
+    },
+    {
+      "id": "3.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC6549-5-1"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC6549-6-1"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "Received packets with an Instance ID not equal to one of the Instance IDs corresponding to one of the configured OSPFv2 Instances for the receiving interface MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6549-2-1"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "Received packets with an Instance ID not equal to one of the configured OSPFv2 Instance IDs on the receiving interface MUST be discarded.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.1 restates the discard rule the Instance ID field definition in Section 2 already states: 'Received packets with an Instance ID not equal to one of the configured OSPFv2 Instance IDs on the receiving interface MUST be discarded'. The summary declares one requirement for both occurrences and cites them together as (\u00a72, \u00a73.1).",
+      "mapped-to": "RFC6549-2-1"
+    }
+  ]
+}

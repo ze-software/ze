@@ -1,0 +1,102 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8097",
+  "register": "prose",
+  "source-path": "rfc/full/rfc8097.txt",
+  "source-sha": "0e52119a0d75abc0",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8097-2-2",
+        "RFC8097-2-6",
+        "RFC8097-2-7",
+        "RFC8097-2-8",
+        "RFC8097-2-9",
+        "RFC8097-2-10"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF Trust copyright boilerplate in the Status of This Memo section: it binds the extraction of code components from the document, not a BGP speaker, and the keyword is lowercase 'must'."
+    },
+    {
+      "id": "2:1",
+      "quote": "The Reserved field MUST be set to 0 and ignored upon the receipt of this community.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8097-2-1"
+    },
+    {
+      "id": "2:2",
+      "quote": "However, if more than one instance is received, an implementation MUST disregard all instances other than the one with the numerically greatest validation state value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8097-2-3"
+    },
+    {
+      "id": "2:3",
+      "quote": "If the value received is greater than the largest specified value (2), the implementation MUST apply a strategy similar to attribute discard [RFC7606] by discarding the erroneous community and logging the error for further analysis.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8097-2-5"
+    },
+    {
+      "id": "2:4",
+      "quote": "By default, implementations MUST drop the origin validation state extended community if received from an External BGP (EBGP) peer, without processing it further.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8097-2-4"
+    }
+  ]
+}

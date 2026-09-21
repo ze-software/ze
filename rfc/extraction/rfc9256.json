@@ -1,0 +1,523 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9256",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc9256.txt",
+  "source-sha": "765585ef86ff8d01",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-2.1-4",
+        "RFC9256-2.1-5",
+        "RFC9256-2.1-6",
+        "RFC9256-2.1-7"
+      ]
+    },
+    {
+      "id": "2.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-2.3-1",
+        "RFC9256-2.3-2"
+      ]
+    },
+    {
+      "id": "2.4",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-2.4-3"
+      ]
+    },
+    {
+      "id": "2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.6",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-2.6-2"
+      ]
+    },
+    {
+      "id": "2.7",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-2.7-1"
+      ]
+    },
+    {
+      "id": "2.8",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-2.8-1"
+      ]
+    },
+    {
+      "id": "2.9",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.11",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.12",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-2.12-1",
+        "RFC9256-2.12-2"
+      ]
+    },
+    {
+      "id": "2.13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-4-4",
+        "RFC9256-4-1",
+        "RFC9256-4-2",
+        "RFC9256-4-3",
+        "RFC9256-4-5"
+      ]
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-4.1-1"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-5.1-1",
+        "RFC9256-5.1-3",
+        "RFC9256-5.1-6",
+        "RFC9256-5.1-7"
+      ]
+    },
+    {
+      "id": "5.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-6.1-2",
+        "RFC9256-6.1-1"
+      ]
+    },
+    {
+      "id": "6.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-6.2-6",
+        "RFC9256-6.2-9",
+        "RFC9256-6.2-1",
+        "RFC9256-6.2-2",
+        "RFC9256-6.2-3",
+        "RFC9256-6.2-5",
+        "RFC9256-6.2-7",
+        "RFC9256-6.2-8"
+      ]
+    },
+    {
+      "id": "6.2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-6.2.1-1"
+      ]
+    },
+    {
+      "id": "6.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2.3",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-6.2.3-1",
+        "RFC9256-6.2.3-2"
+      ]
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-6.4-1"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-7-2"
+      ]
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-8.2-1"
+      ]
+    },
+    {
+      "id": "8.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-8.4-1",
+        "RFC9256-8.4-2"
+      ]
+    },
+    {
+      "id": "8.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.6",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-8.6-1"
+      ]
+    },
+    {
+      "id": "8.7",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-8.7-1"
+      ]
+    },
+    {
+      "id": "8.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.8.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9256-9.3-1",
+        "RFC9256-9.3-2",
+        "RFC9256-9.3-3",
+        "RFC9256-9.3-4"
+      ]
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.1:1",
+      "quote": "An SR Policy MUST be identified through the tuple <Headend, Color, Endpoint>.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-2.1-1"
+    },
+    {
+      "id": "2.1:2",
+      "quote": "In the context of a specific headend, an SR Policy MUST be identified by the <Color, Endpoint> tuple.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-2.1-2"
+    },
+    {
+      "id": "2.1:3",
+      "quote": "The headend is specified as an IPv4 or IPv6 address and MUST resolve to a unique node in the SR domain [RFC8402].",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-2.1-3"
+    },
+    {
+      "id": "2.2:1",
+      "quote": "* The endpoints of the constituent SR Policies and the parent SR Policy MUST be identical.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-2.2-1"
+    },
+    {
+      "id": "2.2:2",
+      "quote": "* The colors of each of the constituent SR Policies and the parent SR Policy MUST be different.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-2.2-2"
+    },
+    {
+      "id": "2.2:3",
+      "quote": "* The constituent SR Policies MUST NOT use composite candidate paths.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-2.2-3"
+    },
+    {
+      "id": "2.4:1",
+      "quote": "If 2-byte ASNs are in use, the low-order 16 bits MUST be used, and the high-order bits MUST be set to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-2.4-1"
+    },
+    {
+      "id": "2.4:2",
+      "quote": "IPv4 addresses MUST be encoded in the lowest 32 bits, and the high-order bits MUST be set to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-2.4-2"
+    },
+    {
+      "id": "2.6:1",
+      "quote": "The identity of a candidate path MUST be uniquely established in the context of an SR Policy <Headend, Color, Endpoint> to handle add, delete, or modify operations on them in an unambiguous manner regardless of their source(s).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-2.6-1"
+    },
+    {
+      "id": "2.6:2",
+      "quote": "Such symbolic names MUST NOT be considered as identifiers for a candidate path.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-2.6-3"
+    },
+    {
+      "id": "2.9:1",
+      "quote": "Whenever a new path is learned or an active path is deleted, the validity of an existing path changes, or an existing path is changed, the selection process MUST be re-executed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-2.9-1"
+    },
+    {
+      "id": "2.11:1",
+      "quote": "Only the active candidate path MUST be used for forwarding traffic that is being steered onto that policy except for certain scenarios such as fast reroute where a backup candidate path may be used as described in Section 9.3.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-2.11-1"
+    },
+    {
+      "id": "4:1",
+      "quote": "When building the MPLS label stack or the SRv6 SID list from the segment list, the node instantiating the policy MUST interpret the set of Segments as follows:",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-4-6"
+    },
+    {
+      "id": "5.1:1",
+      "quote": "A segment list of an explicit candidate path MUST be declared invalid when any of the following is true:",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-5.1-2"
+    },
+    {
+      "id": "5.1:2",
+      "quote": "Types A or B MUST be used for the SIDs for which the reachability cannot be verified.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-5.1-4"
+    },
+    {
+      "id": "5.1:3",
+      "quote": "Note that the first SID MUST always be reachable regardless of its type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-5.1-5"
+    },
+    {
+      "id": "5.2:1",
+      "quote": "If no solution is found to the optimization objective and constraints, then the dynamic candidate path MUST be declared invalid.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-5.2-1"
+    },
+    {
+      "id": "6.1:1",
+      "quote": "Candidate paths of different SR Policies MUST NOT have the same BSID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-6.1-3"
+    },
+    {
+      "id": "6.2:1",
+      "quote": "When the specified BSID is not available (optionally is not in the SRLB), an alert message MUST be generated via mechanisms like syslog.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-6.2-4"
+    },
+    {
+      "id": "6.2.3:1",
+      "quote": "An alert MUST be triggered for this error via mechanisms like syslog.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-6.2.3-3"
+    },
+    {
+      "id": "6.2.3:2",
+      "quote": "Other candidate paths MUST then be evaluated for becoming the active candidate path.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-6.2.3-4"
+    },
+    {
+      "id": "7:1",
+      "quote": "The SR Policy state MUST also reflect the reason when a policy and/or its candidate path is not active due to validation errors or not being preferred.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9256-7-1"
+    }
+  ]
+}

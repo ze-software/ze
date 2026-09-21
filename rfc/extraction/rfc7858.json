@@ -1,0 +1,257 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7858",
+  "register": "prose",
+  "source-path": "rfc/full/rfc7858.txt",
+  "source-sha": "2a80bd8127e3e113",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 6,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7858-3.1-4",
+        "RFC7858-3.1-8",
+        "RFC7858-3.1-9",
+        "RFC7858-3.1-10"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7858-3.3-2",
+        "RFC7858-3.3-3"
+      ]
+    },
+    {
+      "id": "3.4",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7858-3.4-1",
+        "RFC7858-3.4-2",
+        "RFC7858-3.4-3",
+        "RFC7858-3.4-4",
+        "RFC7858-3.4-6",
+        "RFC7858-3.4-9",
+        "RFC7858-3.4-10",
+        "RFC7858-3.4-11",
+        "RFC7858-3.4-12"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7858-4.2-1",
+        "RFC7858-4.2-2",
+        "RFC7858-4.2-3",
+        "RFC7858-4.2-8"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7858-5-1"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7858-8-2"
+      ]
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF Trust Legal Provisions boilerplate in the front matter, not a protocol obligation: the lowercase 'must' governs republication of code components under the Simplified BSD License."
+    },
+    {
+      "id": "3.1:1",
+      "quote": "By default, a DNS server that supports DNS over TLS MUST listen for and accept TCP connections on port 853, unless it has mutual agreement with its clients to use a port other than 853 for DNS over TLS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-3.1-1"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "By default, a DNS client desiring privacy from DNS over TLS from a particular server MUST establish a TCP connection to port 853 on the server, unless it has mutual agreement with its server to use a port other than port 853 for DNS over TLS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-3.1-2"
+    },
+    {
+      "id": "3.1:3",
+      "quote": "Such another port MUST NOT be port 53 but MAY be from the \"first-come, first-served\" port range.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-3.1-3"
+    },
+    {
+      "id": "3.1:4",
+      "quote": "The first data exchange on this TCP connection MUST be the client and server initiating a TLS handshake using the procedure described in [RFC5246].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-3.1-5"
+    },
+    {
+      "id": "3.1:5",
+      "quote": "DNS clients and servers MUST NOT use port 853 to transport cleartext DNS messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-3.1-6"
+    },
+    {
+      "id": "3.1:6",
+      "quote": "DNS clients MUST NOT send and DNS servers MUST NOT respond to cleartext DNS messages on any port used for DNS over TLS (including, for example, after a failed TLS handshake).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-3.1-7"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "The client will then authenticate the server, if required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Descriptive narration of the handshake sequence with no RFC 2119 keyword; the sentence after it says 'This document does not propose new ideas for authentication', and the authentication policy is set by the privacy profile in Section 4."
+    },
+    {
+      "id": "3.3:1",
+      "quote": "All messages (requests and responses) in the established TLS session MUST use the two-octet length field described in Section 4.2.2 of [RFC1035].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-3.3-1"
+    },
+    {
+      "id": "3.3:2",
+      "quote": "Since pipelined responses can arrive out of order, clients MUST match responses to outstanding queries on the same TLS connection using the Message ID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-3.3-4"
+    },
+    {
+      "id": "3.3:3",
+      "quote": "If the response contains a Question Section, the client MUST match the QNAME, QCLASS, and QTYPE fields.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-3.3-5"
+    },
+    {
+      "id": "3.4:1",
+      "quote": "Clients and servers that keep idle connections open MUST be robust to termination of idle connection by either party.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-3.4-5"
+    },
+    {
+      "id": "3.4:2",
+      "quote": "As with current DNS over TCP, clients MUST handle abrupt closes and be prepared to reestablish connections and/or retry queries.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-3.4-7"
+    },
+    {
+      "id": "3.4:3",
+      "quote": "Underlining the requirement for sending only encrypted DNS data on a DNS-over-TLS port (Section 3.2), when using TCP Fast Open, the client and server MUST immediately initiate or resume a TLS handshake (cleartext DNS MUST NOT be exchanged).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-3.4-8"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "The user MUST be alerted whenever possible that the DNS is not private during such bootstrap.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-4.2-4"
+    },
+    {
+      "id": "4.2:2",
+      "quote": "Otherwise, the client MUST treat the SPKI validation failure as a non-recoverable error.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-4.2-5"
+    },
+    {
+      "id": "4.2:3",
+      "quote": "Implementations of this privacy profile MUST support the calculation of a fingerprint as the SHA-256 [RFC6234] hash of the DER-encoded ASN.1 representation of the SPKI of an X.509 certificate.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-4.2-6"
+    },
+    {
+      "id": "4.2:4",
+      "quote": "Implementations MUST support the representation of a SHA-256 fingerprint as a base64-encoded character string [RFC4648].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-4.2-7"
+    },
+    {
+      "id": "8:1",
+      "quote": "Clients and servers MUST adhere to the TLS implementation recommendations and security considerations of [BCP195].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7858-8-1"
+    }
+  ]
+}

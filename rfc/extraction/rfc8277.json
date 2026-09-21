@@ -1,0 +1,361 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8277",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc8277.txt",
+  "source-sha": "570bb26257004cc5",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "resign-reason": "Site 2.4:2 moved from a mapping onto RFC8277-2.4-2 [SHOULD] to a duplicate-of exclusion against RFC8277-2.4-1: the sentence carries \"it is REQUIRED that it be ignored upon reception\", and a capitalised MUST-level keyword mapped to an advisory row records an obligation as captured that nothing gates.",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 17,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8277-2.1-16"
+      ]
+    },
+    {
+      "id": "2.2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8277-2.2-2",
+        "RFC8277-2.2-4"
+      ]
+    },
+    {
+      "id": "2.3",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.5",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8277-2.5-4",
+        "RFC8277-2.5-5"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8277-4-1"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8277-5-1"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "o Unless this Capability is sent on a given BGP session by both of that session's BGP speakers, a SAFI-4 or SAFI-128 UPDATE message sent on that session from either speaker MUST bind a prefix to only a single label and MUST use the encoding of Section 2.2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2-1"
+    },
+    {
+      "id": "2:2",
+      "quote": "o If this Capability is sent by both BGP speakers on a given session, an UPDATE message on that session, from either speaker, MUST use the encoding of Section 2.3 and MAY bind a prefix to a sequence of more than one label.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The Section 2 overview bullet announcing the Section 2.3 encoding rule that Section 2.1 states in full; site 2.1:13 carries it. The bullet's other half, \"MAY bind a prefix to a sequence of more than one label\", is the permission the same row's condition already grants.",
+      "mapped-to": "RFC8277-2.1-1"
+    },
+    {
+      "id": "2.1:1",
+      "quote": "If a BGP speaker has not sent the Multiple Labels Capability in its BGP OPEN message on a particular BGP session, or if it has not received the Multiple Labels Capability in the BGP OPEN message from its peer on that BGP session, that BGP speaker MUST NOT send on that session any UPDATE message that binds more than one MPLS label to any given prefix.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2-3"
+    },
+    {
+      "id": "2.1:2",
+      "quote": "Further, when advertising the binding of a single label to a prefix, the BGP speaker MUST use the encoding specified in Section 2.2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2-2"
+    },
+    {
+      "id": "2.1:3",
+      "quote": "Any implementation that sends a Multiple Labels Capability MUST be able to support at least two labels in the NLRI.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.1-3"
+    },
+    {
+      "id": "2.1:4",
+      "quote": "If the Capability contains more than one triple with a given AFI/ SAFI, all but the first MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.1-7"
+    },
+    {
+      "id": "2.1:5",
+      "quote": "A triple of the form <AFI=x, SAFI=y, Count=0> or <AFI=x, SAFI=y, Count=1> MUST NOT be sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.1-5"
+    },
+    {
+      "id": "2.1:6",
+      "quote": "If such a triple is received, it MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.1-6"
+    },
+    {
+      "id": "2.1:7",
+      "quote": "A Multiple Labels Capability whose length is not a multiple of four MUST be considered to be malformed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.1-4"
+    },
+    {
+      "id": "2.1:8",
+      "quote": "If the Multiple Labels Capability for a given AFI/SAFI was exchanged on the failed session but has not been exchanged on the restarted session, then any prefixes advertised in that AFI/SAFI with multiple labels MUST be explicitly withdrawn.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.1-11"
+    },
+    {
+      "id": "2.1:9",
+      "quote": "Similarly, if the maximum label count (specified in the Capability for a given AFI/SAFI) is reduced, any prefixes advertised with more labels than are valid for the current session MUST be explicitly withdrawn.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.1-12"
+    },
+    {
+      "id": "2.1:10",
+      "quote": "These procedures MUST NOT be applied if either of the following conditions hold:",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.1-14"
+    },
+    {
+      "id": "2.1:11",
+      "quote": "If either of these conditions hold, the complete set of routes for the given AFI/SAFI MUST be exchanged.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.1-13"
+    },
+    {
+      "id": "2.1:12",
+      "quote": "If a BGP OPEN message contains multiple copies of the Multiple Labels Capability, only the first copy is significant; subsequent copies MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.1-8"
+    },
+    {
+      "id": "2.1:13",
+      "quote": "If (a) a BGP speaker has sent the Multiple Labels Capability in its BGP OPEN message for a particular BGP session, (b) it has received the Multiple Labels Capability in its peer's BGP OPEN message for that session, and (c) both Capabilities specify AFI/SAFI x/y, then when using an UPDATE of AFI x and SAFI y to advertise the binding of a label or sequence of labels to a given prefix, the BGP speaker MUST use the encoding of Section 2.3.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.1-1"
+    },
+    {
+      "id": "2.1:14",
+      "quote": "This encoding MUST be used even if only one label is being bound to a given prefix.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.1-2"
+    },
+    {
+      "id": "2.1:15",
+      "quote": "If both BGP speakers of a given BGP session have sent the Multiple Labels Capability, but AFI/SAFI x/y has not been specified in both Capabilities, then UPDATEs of AFI/SAFI x/y on that session MUST use the encoding of Section 2.2, and such UPDATEs can only bind one label to a prefix.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.1-15"
+    },
+    {
+      "id": "2.1:16",
+      "quote": "If a BGP speaker receives an UPDATE that binds more labels to a given prefix than the number of labels the BGP speaker is prepared to receive (as announced in its Multiple Labels Capability), the BGP speaker MUST apply the \"treat-as-withdraw\" strategy of [RFC7606] to that UPDATE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.1-9"
+    },
+    {
+      "id": "2.1:17",
+      "quote": "Notwithstanding the number of labels that a BGP speaker has claimed to be able to receive, its peer MUST NOT attempt to send more labels than can be properly encoded in the NLRI field of the MP_REACH_NLRI attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.1-10"
+    },
+    {
+      "id": "2.2:1",
+      "quote": "This 3-bit field SHOULD be set to zero on transmission and MUST be ignored on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.2-3"
+    },
+    {
+      "id": "2.2:2",
+      "quote": "This 1-bit field MUST be set to one on transmission and MUST be ignored on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.2-1"
+    },
+    {
+      "id": "2.3:1",
+      "quote": "This 3-bit field SHOULD be set to zero on transmission and MUST be ignored on reception.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The Section 2.3 Rsrv paragraph repeats the Section 2.2 sentence word for word (\"This 3-bit field SHOULD be set to zero on transmission and MUST be ignored on reception\"); row RFC8277-2.2-3 cites both sections.",
+      "mapped-to": "RFC8277-2.2-3"
+    },
+    {
+      "id": "2.3:2",
+      "quote": "In all labels except the last (i.e., in all labels except the one immediately preceding the prefix), the S bit MUST be 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.3-1"
+    },
+    {
+      "id": "2.3:3",
+      "quote": "In the last label, the S bit MUST be 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.3-2"
+    },
+    {
+      "id": "2.4:1",
+      "quote": "Upon reception, the value of the Compatibility field MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.4-1"
+    },
+    {
+      "id": "2.4:2",
+      "quote": "In order to ensure backwards compatibility, it is RECOMMENDED by this document that the Compatibility field be set to 0x800000, but it is REQUIRED that it be ignored upon reception.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The section 2.4 summary sentence restates the reception obligation site 2.4:1 states on its own (\"Upon reception, the value of the Compatibility field MUST be ignored.\"), which maps RFC8277-2.4-1. Its RECOMMENDED half is row RFC8277-2.4-2 and is advisory.",
+      "mapped-to": "RFC8277-2.4-1"
+    },
+    {
+      "id": "2.5:1",
+      "quote": "o If [RFC7911] is not being used, UPDATE U2 MUST be interpreted as meaning that L2 is now bound to P at N1 and that L1 is no longer bound to P at N1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.5-1"
+    },
+    {
+      "id": "2.5:2",
+      "quote": "* If I1 is the same as I2, UPDATE U2 MUST be interpreted as meaning that L2 is now bound to P at N1 and that L1 is no longer bound to P at N1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.5-2"
+    },
+    {
+      "id": "2.5:3",
+      "quote": "* If I1 is not the same as I2, U2 MUST be interpreted as meaning that L2 is now bound to P at N1, but U2 MUST NOT be interpreted as meaning that L1 is no longer bound to P at N1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-2.5-3"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "These two routes MUST be considered to be comparable, even if they specify different labels.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-3.1-1"
+    },
+    {
+      "id": "3.2.1:1",
+      "quote": "When a SAFI-4 or SAFI-128 route is propagated, if the Network Address of Next Hop field is left unchanged, the Label field(s) MUST also be left unchanged.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-3.2.1-1"
+    },
+    {
+      "id": "3.2.1:2",
+      "quote": "Note that a given route MUST NOT be propagated to a given peer if the route's NLRI has multiple labels, but the Multiple Labels Capability was not negotiated with the peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-3.2.1-2"
+    },
+    {
+      "id": "3.2.1:3",
+      "quote": "Similarly, a given route MUST NOT be propagated to a given peer if the route's NLRI has more labels than the peer has announced (through its Multiple Labels Capability) that it can handle.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-3.2.1-3"
+    },
+    {
+      "id": "3.2.1:4",
+      "quote": "In either case, if a previous route with the same AFI, SAFI, and prefix (but with fewer labels) has already been propagated to the peer, that route MUST be withdrawn from that peer using the procedure specified in Section 2.4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-3.2.1-4"
+    },
+    {
+      "id": "3.2.2:1",
+      "quote": "If the Network Address of Next Hop field is changed before a SAFI-4 or SAFI-128 route is propagated, the Label field(s) of the propagated route MUST contain the label(s) that is (are) bound to the prefix at the new next hop.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-3.2.2-1"
+    },
+    {
+      "id": "3.2.2:2",
+      "quote": "A BGP speaker MUST NOT send multiple labels to a peer with which it has not exchanged the Multiple Labels Capability and MUST NOT send more labels to a given peer than the peer has announced (via the Multiple Labels Capability) than it can handle.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8277-3.2.2-2"
+    },
+    {
+      "id": "3.2.2:3",
+      "quote": "In that case, if a previous route with the same AFI, SAFI, and prefix (but with fewer labels) has already been propagated to that peer, that route MUST be withdrawn from that peer using the procedure of Section 2.4.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.2.2 repeats the Section 3.2.1 withdrawal rule for the changed-next-hop case (\"that route MUST be withdrawn from that peer using the procedure of Section 2.4\"); row RFC8277-3.2.1-4 cites both sections.",
+      "mapped-to": "RFC8277-3.2.1-4"
+    }
+  ]
+}

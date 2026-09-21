@@ -1,0 +1,226 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5838",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc5838.txt",
+  "source-sha": "1bfe0cda3cd218f9",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.5",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5838-2.5-2"
+      ]
+    },
+    {
+      "id": "2.6",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.7",
+      "sites": 6,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5838-2.7-5",
+        "RFC5838-2.7-6",
+        "RFC5838-2.7-7",
+        "RFC5838-2.7-9",
+        "RFC5838-2.7-10",
+        "RFC5838-2.7-12",
+        "RFC5838-2.7-13",
+        "RFC5838-2.7-14"
+      ]
+    },
+    {
+      "id": "2.8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5838-5-1",
+        "RFC5838-5-2"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.2:1",
+      "quote": "AF-bit When an OSPFv3 router is supporting AFs as described in this specification, it MUST set the AF-bit in the OSPFv3 Options field of Hello packets, Database Description packets, and LSAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-2.2-1"
+    },
+    {
+      "id": "2.3:1",
+      "quote": "Prefixes that don't conform to the AF of an OSPFv3 instance MUST NOT be used in the route computation for that instance.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-2.3-1"
+    },
+    {
+      "id": "2.4:1",
+      "quote": "o When an OSPFv3 router participates in an AF (sets the AF-bit in the Options field), it MUST discard Hello packets having the AF- bit clear in the Options field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-2.4-1"
+    },
+    {
+      "id": "2.4:2",
+      "quote": "The only exception is the Base IPv6 unicast AF, where this check MUST NOT be done (for backward compatibility).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-2.4-2"
+    },
+    {
+      "id": "2.5:1",
+      "quote": "The remaining bits MUST be set to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-2.5-1"
+    },
+    {
+      "id": "2.6:1",
+      "quote": "For IPv4 unicast and IPv4 multicast AFs, the Forwarding Address in AS-external-LSAs and NSSA-LSAs MUST encode an IPv4 address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-2.6-1"
+    },
+    {
+      "id": "2.6:2",
+      "quote": "The remaining bits MUST be set to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-2.6-2"
+    },
+    {
+      "id": "2.7:1",
+      "quote": "For address families other than IPv6, both the MTU for the instance address family and the IPv6 MTU used for OSPFv3 maximum packet determination MUST be considered.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-2.7-1"
+    },
+    {
+      "id": "2.7:2",
+      "quote": "The MTU in the Database Description packet MUST always contain the MTU corresponding to the advertised address family.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-2.7-2"
+    },
+    {
+      "id": "2.7:3",
+      "quote": "For example, if the instance corresponds to an IPv4 address family, the IPv4 MTU for the interface MUST be specified in the interface MTU field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-2.7-3"
+    },
+    {
+      "id": "2.7:4",
+      "quote": "The value used for OSPFv3 maximum packet size determination MUST also be compatible for an adjacency to be established.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-2.7-4"
+    },
+    {
+      "id": "2.7:5",
+      "quote": "If the IPv6 and IPv4 MTUs differ, the M6-bit MUST be set for non-IPv6 address families.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-2.7-8"
+    },
+    {
+      "id": "2.7:6",
+      "quote": "If the M6-bit is set in a received Database Description packet for a non-IPv6 address family, the receiving router MUST NOT check the Interface MTU in the Database Description packet against the receiving interface's IPv6 MTU.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-2.7-11"
+    },
+    {
+      "id": "2.8:1",
+      "quote": "Therefore, there MUST be a global IPv6 address associated with the virtual link so that OSPFv3 control packets are forwarded correctly by the intermediate hops between virtual link endpoints.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-2.8-1"
+    },
+    {
+      "id": "4:1",
+      "quote": "When multiple OSPFv3 instances use the same interface, they all MUST use the same Security Association (SA), since the SA selectors do not provide selection based on data in OSPFv3 Header fields (e.g., the Instance ID).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-4-1"
+    },
+    {
+      "id": "5:1",
+      "quote": "Before any assignments can be made in this range, there MUST be a Standards Track RFC including an IANA Considerations section explicitly specifying the AF Instance IDs being assigned.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5838-5-3"
+    }
+  ]
+}

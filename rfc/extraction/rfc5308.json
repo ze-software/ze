@@ -1,0 +1,133 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5308",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc5308.txt",
+  "source-sha": "5357f43116f448ce",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5308-5-3"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "Link-local prefixes MUST NOT be advertised using this TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5308-2-1"
+    },
+    {
+      "id": "2:2",
+      "quote": "As is described in [RFC5305]: \"The up/down bit SHALL be set to 0 when a prefix is first injected into IS-IS.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The sentence is inside a verbatim quotation of RFC 5305 that the text introduces with 'As is described in [RFC5305]:'; the up/down bit obligation is RFC 5305's, and RFC 5308 repeats it for the reader."
+    },
+    {
+      "id": "2:3",
+      "quote": "If a prefix is advertised from a higher level to a lower level (e.g. level 2 to level 1), the bit SHALL be set to 1, indicating that the prefix has traveled down the hierarchy.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "Second sentence of the same verbatim RFC 5305 quotation opened by 'As is described in [RFC5305]:' and closed after 'i.e., to lower levels'; the up/down bit obligation belongs to RFC 5305."
+    },
+    {
+      "id": "2:4",
+      "quote": "If the prefix was distributed into IS-IS from another routing protocol, the external bit SHALL be set to 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5308-2-3"
+    },
+    {
+      "id": "2:5",
+      "quote": "Just as in [RFC5305], if a prefix is advertised with a metric larger than MAX_V6_PATH_METRIC (0xFE000000), this prefix MUST not be considered during the normal Shortest Path First (SPF) computation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5308-2-2"
+    },
+    {
+      "id": "3:1",
+      "quote": "For Hello PDUs, the \"Interface Address\" TLV MUST contain only the link-local IPv6 addresses assigned to the interface that is sending the Hello.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5308-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "For LSPs, the \"Interface Address\" TLVs MUST contain only the non-link-local IPv6 addresses assigned to the IS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5308-3-2"
+    },
+    {
+      "id": "4:1",
+      "quote": "As with [RFC1195] and IPv4, if the IS supports IPv6 routing using IS-IS, it MUST advertise this in the \"NLPID\" TLV by adding the IPv6 NLPID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5308-4-1"
+    },
+    {
+      "id": "5:1",
+      "quote": "If, during the SPF, a path metric would exceed MAX_V6_PATH_METRIC, it SHALL be considered to be MAX_V6_PATH_METRIC.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5308-5-2"
+    },
+    {
+      "id": "5:2",
+      "quote": "The order of preference between paths for a given prefix MUST be modified to consider the up/down bit.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5308-5-1"
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "schema-version": 1,
+  "stem": "rfc792",
+  "register": "prose",
+  "source-path": "rfc/full/rfc792.txt",
+  "source-sha": "1cc33872d3b2a6af",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 8,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC792-Echo-1",
+        "RFC792-Echo-2",
+        "RFC792-Echo-3",
+        "RFC792-Echo-4",
+        "RFC792-Echo-6",
+        "RFC792-Echo-7",
+        "RFC792-Echo-8",
+        "RFC792-Echo-9",
+        "RFC792-Echo-10"
+      ]
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "ICMP, uses the basic support of IP as if it were a higher level protocol, however, ICMP is actually an integral part of IP, and must be implemented by every IP module.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The Introduction's placement sentence, which says where ICMP lives rather than adding an obligation of its own: 'ICMP, uses the basic support of IP as if it were a higher level protocol, however, ICMP is actually an integral part of IP, and must be implemented by every IP module.' It is a conformance umbrella over the message obligations this document then specifies, and each of those is decided on its own site. The IP module in ze's stack is the Linux IP stack, which implements ICMP."
+    },
+    {
+      "id": "front:2",
+      "quote": "The higher level protocols that use IP must implement their own reliability procedures if reliable communication is required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The Introduction's statement that ICMP is not a reliability mechanism, addressed to protocols above IP rather than to an ICMP implementation. The two sentences before it read 'These ICMP messages ... report problems in the communication environment, not to make IP reliable. There are still no guarantees that a datagram will be delivered'. No ICMP behavior answers this sentence; the reliability it names is TCP's."
+    },
+    {
+      "id": "front:3",
+      "quote": "Any field labeled \"unused\" is reserved for later extensions and must be zero when sent, but receivers should not use these fields (except to include them in the checksum).",
+      "disposition": "mapped",
+      "mapped-to": "RFC792-Format-1"
+    },
+    {
+      "id": "front:4",
+      "quote": "Another case is when a datagram must be fragmented to be forwarded by a gateway yet the Don't Fragment flag is on.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Descriptive, not normative: 'Another case is when a datagram must be fragmented to be forwarded by a gateway yet the Don't Fragment flag is on.' The 'must' says what the forwarding case requires, it obliges no role. The obligation of that case is the next sentence, site front:5."
+    },
+    {
+      "id": "front:5",
+      "quote": "In this case the gateway must discard the datagram and may return a destination unreachable message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC792-Unreachable-1"
+    },
+    {
+      "id": "front:6",
+      "quote": "is zero it must discard the datagram.",
+      "disposition": "mapped",
+      "mapped-to": "RFC792-TimeExceeded-1"
+    },
+    {
+      "id": "front:7",
+      "quote": "If the gateway or host processing a datagram finds a problem with the header parameters such that it cannot complete processing the datagram it must discard the datagram.",
+      "disposition": "mapped",
+      "mapped-to": "RFC792-ParamProblem-1"
+    },
+    {
+      "id": "front:8",
+      "quote": "The data received in the echo message must be returned in the echo reply message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC792-Echo-5"
+    }
+  ]
+}

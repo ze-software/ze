@@ -1,0 +1,115 @@
+{
+  "schema-version": 1,
+  "stem": "rfc6397",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc6397.txt",
+  "source-sha": "ac8d364817918651",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC6397-4.1-4"
+      ]
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "4.1:1",
+      "quote": "The Collector Latitude and Collector Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6397-4.1-1"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "The order of the Peer Entries in the GEO_PEER_TABLE MUST match the order and number as existing in the PEER_INDEX_TABLE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6397-4.1-3"
+    },
+    {
+      "id": "4.1:3",
+      "quote": "The Peer Latitude and Peer Longitude MUST NOT be a mix of WGS84 [WGS-84] datum coordinates and NAN values for a single peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6397-4.1-2"
+    },
+    {
+      "id": "6:1",
+      "quote": "Location information derived from a location object with more restrictive privacy rules MUST NOT be included in an MRT geo-location record unless there are non-technical measures in place that enforce and communicate the constraints on the use of the location information in the MRT geo-location format (e.g., contractual agreements between peers).",
+      "disposition": "mapped",
+      "mapped-to": "RFC6397-6-1"
+    }
+  ]
+}

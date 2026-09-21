@@ -1,0 +1,378 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8666",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc8666.txt",
+  "source-sha": "4b07a65a8931185d",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8666-5-4",
+        "RFC8666-5-5",
+        "RFC8666-5-6"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 15,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8666-6-15",
+        "RFC8666-6-16",
+        "RFC8666-6-17"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8666-7.1-4",
+        "RFC8666-7.1-5",
+        "RFC8666-7.1-6",
+        "RFC8666-7.1-7",
+        "RFC8666-7.1-8",
+        "RFC8666-7.1-9",
+        "RFC8666-7.1-10"
+      ]
+    },
+    {
+      "id": "7.2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8666-7.2-3",
+        "RFC8666-7.2-4",
+        "RFC8666-7.2-5"
+      ]
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8666-8.1-4"
+      ]
+    },
+    {
+      "id": "8.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8666-8.3-1",
+        "RFC8666-8.3-2"
+      ]
+    },
+    {
+      "id": "8.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4.1",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8666-8.4.1-2",
+        "RFC8666-8.4.1-3"
+      ]
+    },
+    {
+      "id": "8.4.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8666-8.4.2-1",
+        "RFC8666-8.4.2-2"
+      ]
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8666-10-2"
+      ]
+    },
+    {
+      "id": "11",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8666-11-2",
+        "RFC8666-11-3",
+        "RFC8666-11-4"
+      ]
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "5:1",
+      "quote": "The Range Size MUST NOT exceed the number of prefixes that could be satisfied by the Prefix Length without including:",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-5-1"
+    },
+    {
+      "id": "5:2",
+      "quote": "MUST be zero when sent and are ignored when received.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-5-2"
+    },
+    {
+      "id": "5:3",
+      "quote": "Reserved: SHOULD be set to 0 on transmission and MUST be ignored on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-5-7"
+    },
+    {
+      "id": "5:4",
+      "quote": "If the OSPFv3 Extended Prefix Range TLVs advertising the exact same range appears in multiple LSAs of the same type, originated by the same OSPFv3 router, the LSA with the numerically smallest Instance ID MUST be used, and subsequent instances of the OSPFv3 Extended Prefix Range TLVs MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-5-3"
+    },
+    {
+      "id": "6:1",
+      "quote": "If set, then the penultimate hop MUST NOT pop the Prefix-SID before delivering packets to the node that advertised the Prefix- SID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-6-1"
+    },
+    {
+      "id": "6:2",
+      "quote": "If set, any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with the Explicit NULL label (0 for IPv4, 2 for IPv6) before forwarding the packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-6-2"
+    },
+    {
+      "id": "6:3",
+      "quote": "These MUST be zero when sent and are ignored when received.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-6-3"
+    },
+    {
+      "id": "6:4",
+      "quote": "Reserved: SHOULD be set to 0 on transmission and MUST be ignored on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-6-4"
+    },
+    {
+      "id": "6:5",
+      "quote": "A router receiving a Prefix-SID from a remote node and with an algorithm value that the remote node has not advertised in the SR-Algorithm TLV [RFC8665] MUST ignore the Prefix-SID sub-TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-6-5"
+    },
+    {
+      "id": "6:6",
+      "quote": "All other combinations of V-Flag and L-Flag are invalid and any SID Advertisement received with an invalid setting for V- and L-Flags MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-6-6"
+    },
+    {
+      "id": "6:7",
+      "quote": "If an OSPFv3 router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all of them MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-6-7"
+    },
+    {
+      "id": "6:8",
+      "quote": "When calculating the outgoing label for the prefix, the router MUST take into account, as described below, the E-, NP-, and M-Flags advertised by the next-hop router if that router advertised the SID for the prefix.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-6-8"
+    },
+    {
+      "id": "6:9",
+      "quote": "This MUST be done regardless of whether the next-hop router contributes to the best path to the prefix.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Second sentence of the same paragraph; RFC8666-6-8 already carries 'regardless of whether the next-hop router contributes to the best path' as part of the outgoing-label rule.",
+      "mapped-to": "RFC8666-6-8"
+    },
+    {
+      "id": "6:10",
+      "quote": "The NP-Flag (No-PHP) MUST be set and the E-Flag MUST be clear for Prefix-SIDs allocated to prefixes that are propagated between areas by an ABR based on intra-area or inter-area reachability, unless the advertised prefix is directly attached to such ABR.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-6-9"
+    },
+    {
+      "id": "6:11",
+      "quote": "The NP-Flag (No-PHP) MUST be set and the E-Flag MUST be clear for Prefix-SIDs allocated to redistributed prefixes, unless the redistributed prefix is directly attached to the advertising ASBR.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-6-10"
+    },
+    {
+      "id": "6:12",
+      "quote": "Any upstream neighbor of the Prefix-SID originator MUST pop the Prefix-SID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-6-11"
+    },
+    {
+      "id": "6:13",
+      "quote": "Any upstream neighbor of the Prefix-SID originator MUST keep the Prefix-SID on top of the stack.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-6-12"
+    },
+    {
+      "id": "6:14",
+      "quote": "Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-6-13"
+    },
+    {
+      "id": "6:15",
+      "quote": "When the M-Flag is set, the NP-Flag and the E-Flag MUST be ignored on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-6-14"
+    },
+    {
+      "id": "7.1:1",
+      "quote": "These MUST be zero when sent and are ignored when received.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-7.1-1"
+    },
+    {
+      "id": "7.1:2",
+      "quote": "Reserved: SHOULD be set to 0 on transmission and MUST be ignored on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-7.1-2"
+    },
+    {
+      "id": "7.1:3",
+      "quote": "When the P-Flag is set, the Adj-SID MUST be persistent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-7.1-3"
+    },
+    {
+      "id": "7.2:1",
+      "quote": "Reserved: SHOULD be set to 0 on transmission and MUST be ignored on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-7.2-1"
+    },
+    {
+      "id": "7.2:2",
+      "quote": "When the P-Flag is set, the LAN Adjacency SID MUST be persistent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-7.2-2"
+    },
+    {
+      "id": "8.1:1",
+      "quote": "Multiple Mapping Servers can advertise Prefix-SIDs for the same prefix, in which case the same Prefix-SID MUST be advertised by all of them.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-8.1-1"
+    },
+    {
+      "id": "8.1:2",
+      "quote": "The NU-bit [RFC5340] MUST be set in the PrefixOptions field of the LSA, which is used by the Mapping Server to advertise SID or SID Range, which prevents the advertisement from contributing to prefix reachability.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-8.1-3"
+    },
+    {
+      "id": "8.1:3",
+      "quote": "An SR Mapping Server MUST use the OSPFv3 Extended Prefix Range TLVs when advertising SIDs for prefixes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-8.1-2"
+    },
+    {
+      "id": "8.2:1",
+      "quote": "In order to support SR in a multiarea environment, OSPFv3 MUST propagate Prefix-SID information between areas.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-8.2-1"
+    },
+    {
+      "id": "8.4.1:1",
+      "quote": "If the adjacency transitions to a state lower than 2-Way, then the Adj-SID Advertisement MUST be withdrawn from the area.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-8.4.1-1"
+    },
+    {
+      "id": "10:1",
+      "quote": "For any new TLVs/sub-TLVs defined in this document, if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-10-1"
+    },
+    {
+      "id": "11:1",
+      "quote": "Implementations MUST ensure that malformed TLVs and sub-TLVs defined in this document are detected and that they do not provide a vulnerability for attackers to crash the OSPFv3 router or routing process.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8666-11-1"
+    }
+  ]
+}

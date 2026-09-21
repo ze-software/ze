@@ -1,0 +1,475 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2181",
+  "register": "prose",
+  "source-path": "rfc/full/rfc2181.txt",
+  "source-sha": "b86942be6a672cdb",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-4.1-2",
+        "RFC2181-4.1-3"
+      ]
+    },
+    {
+      "id": "4.2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-4.2-3"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-5-1"
+      ]
+    },
+    {
+      "id": "5.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-5.2-2",
+        "RFC2181-5.2-4",
+        "RFC2181-5.2-5"
+      ]
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.1",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-5.3.1-1"
+      ]
+    },
+    {
+      "id": "5.3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-5.4-3",
+        "RFC2181-5.4-4"
+      ]
+    },
+    {
+      "id": "5.4.1",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-5.4.1-1",
+        "RFC2181-5.4.1-2",
+        "RFC2181-5.4.1-4",
+        "RFC2181-5.4.1-6",
+        "RFC2181-5.4.1-7",
+        "RFC2181-5.4.1-10",
+        "RFC2181-5.4.1-11",
+        "RFC2181-5.4.1-12"
+      ]
+    },
+    {
+      "id": "5.5",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-5.5-1"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-6.1-1",
+        "RFC2181-6.1-2"
+      ]
+    },
+    {
+      "id": "6.2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-6.2-2",
+        "RFC2181-6.2-3"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-7.1-1"
+      ]
+    },
+    {
+      "id": "7.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-7.2-2"
+      ]
+    },
+    {
+      "id": "7.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-7.3-1",
+        "RFC2181-7.3-2"
+      ]
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-8-2",
+        "RFC2181-8-3"
+      ]
+    },
+    {
+      "id": "9",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-9-2",
+        "RFC2181-9-3",
+        "RFC2181-9-4",
+        "RFC2181-9-5"
+      ]
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-10.1-1",
+        "RFC2181-10.1-2",
+        "RFC2181-10.1-3",
+        "RFC2181-10.1-4"
+      ]
+    },
+    {
+      "id": "10.1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-10.2-2"
+      ]
+    },
+    {
+      "id": "10.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2181-11-1",
+        "RFC2181-11-4",
+        "RFC2181-11-5"
+      ]
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "15",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "This memo does not use the oft used expressions MUST, SHOULD, MAY, or their negative forms.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 3 states the memo's own drafting convention ('This memo does not use the oft used expressions MUST, SHOULD, MAY'); it names no behaviour a DNS implementation performs."
+    },
+    {
+      "id": "3:2",
+      "quote": "Anywhere that this memo suggests that some action should be carried out, or must be carried out, or that some behaviour is acceptable, or not, that is to be considered as a fundamental aspect of this specification, regardless of the specific words used.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The reading instruction for the whole document: it tells a reader to treat the lowercase words as fundamental. It carries no obligation of its own, and the rfc/short/rfc2181.md checklist preamble quotes it as the rule under which every row's level was assigned."
+    },
+    {
+      "id": "4.1:1",
+      "quote": "To avoid these problems, servers when responding to queries using UDP must cause the reply to be sent with the source address field in the IP header set to the address that was in the destination address field of the IP header of the packet containing the query causing the response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-4.1-1"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "Replies to all queries must be directed to the port from which they were sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-4.2-1"
+    },
+    {
+      "id": "4.2:2",
+      "quote": "For queries received by UDP the server must take note of the source port and use that as the destination port in the response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-4.2-2"
+    },
+    {
+      "id": "5.1:1",
+      "quote": "The response must be marked as \"truncated\" if the entire RRSet will not fit in the response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.1-1"
+    },
+    {
+      "id": "5.2:1",
+      "quote": "Consequently the use of differing TTLs in an RRSet is hereby deprecated, the TTLs of all RRs in an RRSet must be the same.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.2-1"
+    },
+    {
+      "id": "5.2:2",
+      "quote": "If the RRSet concerned is from a non-authoritative source for this data, the client should simply ignore the RRSet, and if the values were required, seek to acquire them from an authoritative source.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.2-3"
+    },
+    {
+      "id": "5.3.1:1",
+      "quote": "However, where SIG records are being returned in the answer section, in response to a query for SIG records, or a query for all records associated with a name (type=ANY) the entire SIG RRSet must be included, as for any other RR type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.3.1-2"
+    },
+    {
+      "id": "5.3.1:2",
+      "quote": "Servers that receive responses containing SIG records in the authority section, or (probably incorrectly) as additional data, must understand that the entire RRSet has almost certainly not been included.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.3.1-3"
+    },
+    {
+      "id": "5.3.1:3",
+      "quote": "Thus, they must not cache that SIG record in a way that would permit it to be returned should a query for SIG records be received at that server.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.3.1-4"
+    },
+    {
+      "id": "5.3.1:4",
+      "quote": "Then the server can determine when it is safe to reply from the cache, and when the answer is not available and the query must be forwarded.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Descriptive prose closing the SIG-forwarding discussion: it says what a server that already follows RFC2181-5.3.1-4 can then determine about its own cache. 'the query must be forwarded' names the outcome of that determination, not a new obligation."
+    },
+    {
+      "id": "5.3.2:1",
+      "quote": "However, servers are not required to treat this as a special case when receiving NXT records in a response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.3.2-1"
+    },
+    {
+      "id": "5.4:1",
+      "quote": "Servers must never merge RRs from a response with RRs in their cache to form an RRSet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.4-1"
+    },
+    {
+      "id": "5.4:2",
+      "quote": "If a response contains data that would form an RRSet with data in a server's cache the server must either ignore the RRs in the response, or discard the entire RRSet currently in the cache, as appropriate.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.4-2"
+    },
+    {
+      "id": "5.4.1:1",
+      "quote": "Trustworthiness shall be, in order from most to least:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.4.1-3"
+    },
+    {
+      "id": "5.4.1:2",
+      "quote": "Where authoritative answers are required, the client should query again, using the canonical name associated with the alias.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.4.1-5"
+    },
+    {
+      "id": "5.4.1:3",
+      "quote": "When DNS security [RFC2065] is in use, and an authenticated reply has been received and verified, the data thus authenticated shall be considered more trustworthy than unauthenticated data of the same type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.4.1-8"
+    },
+    {
+      "id": "5.4.1:4",
+      "quote": "However DNSSEC aware servers must still correctly set the AA bit in responses to enable correct operation with servers that are not security aware (almost all currently).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.4.1-9"
+    },
+    {
+      "id": "5.5:1",
+      "quote": "It may occur in any of the Answer, Authority, or Additional Information sections, as required.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.5-2"
+    },
+    {
+      "id": "5.5:2",
+      "quote": "However it should not be repeated in the same, or any other, section, except where explicitly required by a specification.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.5-3"
+    },
+    {
+      "id": "5.5:3",
+      "quote": "Where duplicates are required this way, the TTL transmitted in each case must be the same.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-5.5-4"
+    },
+    {
+      "id": "6.2:1",
+      "quote": "In particular the NXT (\"next\") RR type contains information about which names exist in a zone, and hence which do not, and thus must necessarily relate to the zone in which it exists.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A statement of fact about the NXT RR type: it 'must necessarily relate to the zone in which it exists' describes what the record's contents mean, not an action an implementation takes."
+    },
+    {
+      "id": "6.2:2",
+      "quote": "Since NXT records are intended to be automatically generated, rather than configured by DNS operators, servers may, but are not required to, retain all differing NXT records they receive regardless of the rules in section 5.4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-6.2-1"
+    },
+    {
+      "id": "7.2:1",
+      "quote": "Implementations should not assume that SOA records will have a TTL of zero, nor are they required to send SOA records with a TTL of zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-7.2-1"
+    },
+    {
+      "id": "8:1",
+      "quote": "When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-8-1"
+    },
+    {
+      "id": "9:1",
+      "quote": "The TC bit should be set in responses only when an RRSet is required as a part of the response, but could not be included in its entirety.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-9-1"
+    },
+    {
+      "id": "10.1.1:1",
+      "quote": "Care must therefore be taken to be very clear whether the label, or the value (the canonical name) of a CNAME resource record is intended.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-10.1.1-1"
+    },
+    {
+      "id": "10.2:1",
+      "quote": "Note that while the value of a PTR record must not be an alias, there is no requirement that the process of resolving a PTR record not encounter any aliases.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-10.2-1"
+    },
+    {
+      "id": "10.2:2",
+      "quote": "This final result, the value of the PTR RR, is the label which must not be an alias.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The closing sentence of Section 10.2 restates the obligation site 10.2:1 carries: 'This final result, the value of the PTR RR, is the label which must not be an alias.'",
+      "mapped-to": "RFC2181-10.2-1"
+    },
+    {
+      "id": "10.3:1",
+      "quote": "The domain name used as the value of a NS resource record, or part of the value of a MX resource record must not be an alias.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-10.3-1"
+    },
+    {
+      "id": "10.3:2",
+      "quote": "This domain name must have as its value one or more address records.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-10.3-2"
+    },
+    {
+      "id": "11:1",
+      "quote": "Implementations of the DNS protocols must not place any restrictions on the labels that can be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-11-2"
+    },
+    {
+      "id": "11:2",
+      "quote": "In particular, DNS servers must not refuse to serve a zone because it contains labels that might not be acceptable to some DNS client programs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2181-11-3"
+    }
+  ]
+}

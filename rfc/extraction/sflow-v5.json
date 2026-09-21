@@ -1,0 +1,539 @@
+{
+  "schema-version": 1,
+  "stem": "sflow-v5",
+  "register": "prose",
+  "source-path": "rfc/full/sflow-v5.txt",
+  "source-sha": "cd9e27ebcba6e68b",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 30,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "SFLOW-V5-x-1",
+        "SFLOW-V5-x-3",
+        "SFLOW-V5-x-4",
+        "SFLOW-V5-x-7",
+        "SFLOW-V5-x-8",
+        "SFLOW-V5-x-9",
+        "SFLOW-V5-x-10",
+        "SFLOW-V5-x-11",
+        "SFLOW-V5-x-15",
+        "SFLOW-V5-x-16"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "SFLOW-V5-x-14"
+      ]
+    },
+    {
+      "id": "4.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 18,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "SFLOW-V5-x-2",
+        "SFLOW-V5-x-5"
+      ]
+    },
+    {
+      "id": "6.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "5:1",
+      "quote": "The use of UDP reduces the amount of memory required to buffer data.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "States why UDP was chosen ('The use of UDP reduces the amount of memory required to buffer data'). The word 'required' is part of a noun phrase describing buffering, and the sentence places no obligation on an implementation."
+    },
+    {
+      "id": "5:2",
+      "quote": "While the sFlow Datagram structure permits multiple samples to be included in each datagram, the sFlow Agent must not wait for a buffer to fill with samples before sending the sFlow Datagram. sFlow is intended to provide timely information on traffic.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-25"
+    },
+    {
+      "id": "5:3",
+      "quote": "The sFlow Agent may at most delay a sample by 1 second before it is required to send the datagram.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-6"
+    },
+    {
+      "id": "5:4",
+      "quote": "If counters must be sent in order to satisfy the maximum sampling interval then a datagram must be sent containing the outstanding counters.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-26"
+    },
+    {
+      "id": "5:5",
+      "quote": "Any changes that would alter or invalidate fields in published structure definitions must be implemented using a new structure number.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Binds whoever publishes a new or changed sFlow structure format, as versioning discipline for the specification's own registry of structure numbers. Ze defines no sFlow structure of its own: internal/plugins/flowexport/sflow emits the structures this document already numbers. The producer would be an author of a new sFlow structure definition, a role Ze does not fill."
+    },
+    {
+      "id": "5:6",
+      "quote": "Applications receiving sFlow data must always use the opaque length information when decoding opaque<> structures so that encountering extended structures will not cause decoding errors.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-13"
+    },
+    {
+      "id": "5:7",
+      "quote": "An application receiving sFlow must be prepared to accept additional reason codes.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the receiver of sFlow datagrams. Ze fills the sFlow AGENT role only: internal/plugins/flowexport/sflow encodes samples and sends datagrams to a configured collector, and no package decodes an inbound sFlow datagram. The producer would be an sFlow Collector, a receiving role Ze does not ship."
+    },
+    {
+      "id": "5:8",
+      "quote": "An agent must not mix compact/expanded encodings.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-27"
+    },
+    {
+      "id": "5:9",
+      "quote": "If an agent will never use ifIndex numbers >= 2^24 then it must use compact encodings for all interfaces.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The compact-encoding half of the same no-mixing rule, which the mapped row states in full.",
+      "mapped-to": "SFLOW-V5-x-27"
+    },
+    {
+      "id": "5:10",
+      "quote": "Otherwise the expanded formats must be used for all interfaces.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The expanded-encoding half of the same no-mixing rule, which the mapped row states in full.",
+      "mapped-to": "SFLOW-V5-x-27"
+    },
+    {
+      "id": "5:11",
+      "quote": "/* Compact Format Flow/Counter samples If ifIndex numbers are always < 2^24 then the compact must be used. */",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The XDR comment repeats the compact-encoding rule the mapped row carries.",
+      "mapped-to": "SFLOW-V5-x-27"
+    },
+    {
+      "id": "5:12",
+      "quote": "Note: If the agent resets the sample_pool then it must also reset the sequence_number.*/ sflow_data_source source_id; /* sFlowDataSource */ unsigned int sampling_rate; /* sFlowPacketSamplingRate */ unsigned int sample_pool; /* Total number of packets that could have been sampled (i.e. packets skipped by sampling process + total number of samples) */ unsigned int drops; /* Number of times that the sFlow agent detected that a packet marked to be sampled was dropped due to lack of resources.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-28"
+    },
+    {
+      "id": "5:13",
+      "quote": "struct counters_sample { unsigned int sequence_number; /* Incremented with each counter sample generated by this source_id Note: If the agent resets any of the counters then it must also reset the sequence_number.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-29"
+    },
+    {
+      "id": "5:14",
+      "quote": "In the case of ifIndex-based source_id's the sequence number must be reset each time ifCounterDiscontinuityTime changes. */ sflow_data_source source_id; /* sFlowDataSource */ counter_record counters<>; /* Counters polled for this source */ }",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-30"
+    },
+    {
+      "id": "5:15",
+      "quote": "/* Expanded Format Flow/Counter samples If ifIndex numbers may be >= 2^24 then the expanded must be used. */ struct sflow_data_source_expanded { unsigned int source_id_type; /* sFlowDataSource type */ unsigned int source_id_index; /* sFlowDataSource index */ }",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-12"
+    },
+    {
+      "id": "5:16",
+      "quote": "Note: If the agent resets the sample_pool then it must also reset the sequence_number.*/ sflow_data_source_expanded source_id; /* sFlowDataSource */ unsigned int sampling_rate; /* sFlowPacketSamplingRate */ unsigned int sample_pool; /* Total number of packets that could have been sampled (i.e. packets skipped by sampling process + total number of samples) */ unsigned int drops; /* Number of times that the sFlow agent detected that a packet marked to be sampled was dropped due to lack of resources.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The same sample_pool reset rule, repeated in the expanded flow sample definition.",
+      "mapped-to": "SFLOW-V5-x-28"
+    },
+    {
+      "id": "5:17",
+      "quote": "/* Format of a single expanded counter sample */ /* opaque = sample_data; enterprise = 0; format = 4 */ struct counters_sample_expanded { unsigned int sequence_number; /* Incremented with each counter sample generated by this source_id Note: If the agent resets any of the counters then it must also reset the sequence_number.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The same counter reset rule, repeated in the expanded counter sample definition.",
+      "mapped-to": "SFLOW-V5-x-29"
+    },
+    {
+      "id": "5:18",
+      "quote": "In the case of ifIndex-based source_id's the sequence number must be reset each time ifCounterDiscontinuityTime changes. */ sflow_data_source_expanded source_id; /* sFlowDataSource */ counter_record counters<>; /* Counters polled for this source */ }",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The same ifCounterDiscontinuityTime reset rule, repeated in the expanded counter sample definition.",
+      "mapped-to": "SFLOW-V5-x-30"
+    },
+    {
+      "id": "5:19",
+      "quote": "Each sFlowDataSource must be associated with only one sub-agent.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-31"
+    },
+    {
+      "id": "5:20",
+      "quote": "The association between sFlowDataSource and sub-agent must remain constant for the entire duration of an sFlow session. */",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The constancy half of the same sFlowDataSource-to-sub-agent binding, which the mapped row states in full.",
+      "mapped-to": "SFLOW-V5-x-31"
+    },
+    {
+      "id": "5:21",
+      "quote": "Note: While a sub-agents should try and track the global sysUptime value a receiver of sFlow packets must not assume that values are synchronised between sub-agents. */ sample_record samples<>; /* An array of sample records */ }",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the receiver of sFlow datagrams. Ze fills the sFlow AGENT role only: internal/plugins/flowexport/sflow encodes samples and sends datagrams to a configured collector, and no package decodes an inbound sFlow datagram. The producer would be an sFlow Collector, a receiving role Ze does not ship."
+    },
+    {
+      "id": "5:22",
+      "quote": "However, an sFlow Agent is not required to support all the different record types, only those applicable to its treatment of the particular packet being reporting on.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A relaxation, not an obligation: 'an sFlow Agent is not required to support all the different record types, only those applicable to its treatment of the particular packet being reporting on'."
+    },
+    {
+      "id": "5:23",
+      "quote": "Within any given sFlow session a particular counter must be always available, or always unavailable.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-32"
+    },
+    {
+      "id": "5:24",
+      "quote": "A flow_sample must contain packet header information.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-33"
+    },
+    {
+      "id": "5:25",
+      "quote": "Applications receiving sFlow must be prepared to receive sampled_header structures with unknown sampled_header values.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the receiver of sFlow datagrams. Ze fills the sFlow AGENT role only: internal/plugins/flowexport/sflow encodes samples and sends datagrams to a configured collector, and no package decodes an inbound sFlow datagram. The producer would be an sFlow Collector, a receiving role Ze does not ship."
+    },
+    {
+      "id": "5:26",
+      "quote": "Any octets added to the frame_length to compensate for encapsulations removed by the underlying hardware must also be added to the stripped count. */ unsigned int stripped; /* The number of octets removed from the packet before extracting the header<> octets.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-34"
+    },
+    {
+      "id": "5:27",
+      "quote": "Trailing encapsulation data corresponding to any leading encapsulations that were stripped must also be stripped.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The leading-encapsulation half of the same stripping rule, which the mapped row states in full.",
+      "mapped-to": "SFLOW-V5-x-35"
+    },
+    {
+      "id": "5:28",
+      "quote": "Trailing encapsulation data for the outermost protocol layer included in the sampled header must be stripped.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-35"
+    },
+    {
+      "id": "5:29",
+      "quote": "Outer encapsulations that are ambiguous, or not one of the standard header_protocol must be stripped. */ opaque header<>; /* Header bytes */ }",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The ambiguous-encapsulation half of the same stripping rule, which the mapped row states in full.",
+      "mapped-to": "SFLOW-V5-x-35"
+    },
+    {
+      "id": "5:30",
+      "quote": "Reporting extended_vlantunnel information is not a substitute for reporting extended_switch information. extended_switch data must always be reported to describe the ingress/egress VLAN information for the packet.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-36"
+    },
+    {
+      "id": "8:1",
+      "quote": "The essential property of the random number generator is that the mean value of the numbers it generates converges to the required sampling rate.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Describes the property a generator is judged by ('The essential property of the random number generator is that the mean value of the numbers it generates converges to the required sampling rate'). The obligation it introduces is stated in the next sentence, which is classified at 8:2."
+    },
+    {
+      "id": "8:2",
+      "quote": "The random number generator must ensure that all numbers in the range between its maximum and minimum values of the distribution are possible; a random number generator only capable of generating even numbers, or numbers with any common divisor is unsuitable.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-37"
+    },
+    {
+      "id": "8:3",
+      "quote": "A new skip value is only required every time a sample is taken.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Describes when the algorithm needs a new skip value ('A new skip value is only required every time a sample is taken'). It grants a licence to compute lazily rather than imposing a duty."
+    },
+    {
+      "id": "3.1:1",
+      "quote": "The Packet Flow Sampling mechanism carried out by each sFlow Instance must ensure that any packet observed at a Data Source has an equal chance of being sampled, irrespective of the Packet Flow(s) to which it belongs.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-38"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "Calculation of an appropriate threshold value depends on the characteristics of the random number generator, however, the resulting sample stream must still satisfy (1).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates that a threshold-based sampler must still satisfy the equal-chance property the mapped row carries.",
+      "mapped-to": "SFLOW-V5-x-38"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "Counters are only added to the datagram if the sources are within a short period, 5 seconds say, of failing to meet the required Sampling Interval (see sFlowCounterSamplingInterval in SFLOW MIB).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Describes the counter-polling algorithm's piggyback condition; 'required Sampling Interval' is a noun phrase naming the configured interval, and the sentence states no obligation of its own."
+    },
+    {
+      "id": "4.1:1",
+      "quote": "The resulting translated MIB must be semantically equivalent, except where objects or events are omitted because no translation is possible (use of Counter64).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship."
+    },
+    {
+      "id": "4.2.1:1",
+      "quote": "Before making any configuration changes, an sFlow Collector must first find a free row in the receiver table and then claim it by writing its owner string and a reservation time into a free row in the receiver table.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the receiver of sFlow datagrams. Ze fills the sFlow AGENT role only: internal/plugins/flowexport/sflow encodes samples and sends datagrams to a configured collector, and no package decodes an inbound sFlow datagram. The producer would be an sFlow Collector, a receiving role Ze does not ship."
+    },
+    {
+      "id": "4.2.2:1",
+      "quote": "The sampling rate must stay at its new value and never automatically return to the originally configured value.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-42"
+    },
+    {
+      "id": "4.3:1",
+      "quote": "Each packet must only be considered once for sampling, irrespective of the number of ports it will be forwarded to.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-39"
+    },
+    {
+      "id": "4.3:2",
+      "quote": "Note: Each sFlow sampler instance must operate independently of all other instances.",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-40"
+    },
+    {
+      "id": "4.3:3",
+      "quote": "Setting an attribute of one sampler must not alter the the behavior and settings of other sampler instances.\" SYNTAX Integer32 (1..65535)",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The second sentence of the same sampler-independence rule, which the mapped row states in full.",
+      "mapped-to": "SFLOW-V5-x-40"
+    },
+    {
+      "id": "4.3:4",
+      "quote": "If non-zero the value must correspond to a valid, active sFlowRcvrIndex.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship."
+    },
+    {
+      "id": "4.3:5",
+      "quote": "If an entry in the sFlowRcvrTable expires, either because the sFlowRcvrOwner is set to the empty string or because the sFlowRcvrTimeout reaches zero, then the agent must mark all associated resources as available (by setting the associated SFlowReceiver entry to zero) and all values in these records must be restored to their default values.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship."
+    },
+    {
+      "id": "4.3:6",
+      "quote": "The version string must have the following structure: <MIB Version>;<Organization>;<Software Revision> where: <MIB Version> must be '1.3', the version of this MIB. <Organization> the name of the organization responsible for the agent implementation. <Revision> the specific software build of this agent.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship."
+    },
+    {
+      "id": "4.3:7",
+      "quote": "Management entities must check the MIB Version and not attempt to manage agents with MIB Versions greater than that for which they were designed.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the management entity that configures an sFlow agent over SNMP, not to the agent. Ze manages no other device's sFlow MIB: its own configuration is YANG (internal/plugins/flowexport/yang). The producer would be an SNMP management station reading the SFLOW-MIB, which Ze does not ship."
+    },
+    {
+      "id": "4.3:8",
+      "quote": "The sFlowAgent address must provide SNMP connectivity to the agent.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship."
+    },
+    {
+      "id": "4.3:9",
+      "quote": "An entity wishing to claim an sFlowRcvrTable entry must ensure that the entry is unclaimed before trying to claim it.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship."
+    },
+    {
+      "id": "4.3:10",
+      "quote": "The entry must be claimed before any changes can be made to other sampler objects.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship."
+    },
+    {
+      "id": "4.3:11",
+      "quote": "In order to avoid a race condition, the entity taking control of the sampler must set both the owner and a value for sFlowRcvrTimeout in the same SNMP set request.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship."
+    },
+    {
+      "id": "4.3:12",
+      "quote": "The agent must restore all other entities this row to their default values when the owner is set to unclaimed.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship."
+    },
+    {
+      "id": "4.3:13",
+      "quote": "It must also free all other resources associated with this sFlowRcvrTable entry.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship."
+    },
+    {
+      "id": "4.3:14",
+      "quote": "It must also free all other resources associated with this sFlowRcvrTable entry.\" DEFVAL { 0 } ::= { sFlowRcvrEntry 3 }",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship."
+    },
+    {
+      "id": "4.3:15",
+      "quote": "When read, the agent must return the actual sampling rate it will be using (after the adjustments previously described).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship."
+    },
+    {
+      "id": "4.3:16",
+      "quote": "The sampling algorithm must converge so that over time the number of packets sampled approaches 1/Nth of the total number of packets in the monitored flows.\" DEFVAL { 0 } ::= { sFlowFsEntry 4 }",
+      "disposition": "mapped",
+      "mapped-to": "SFLOW-V5-x-41"
+    },
+    {
+      "id": "4.3:17",
+      "quote": "When read, the agent must return the actual sampling interval it will be using (after the adjustments previously described).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "This sentence is part of the SFLOW-MIB object definition in Section 4.3 (SYNTAX, DEFVAL and OBJECT IDENTIFIER clauses surround it) and binds the SNMP configuration interface of an sFlow agent. Ze configures sFlow export through YANG (internal/plugins/flowexport/yang) and exposes no SNMP write path, so no receiver table, owner string or reservation timeout exists in the tree. The producer would be an SNMP agent implementing the SFLOW-MIB, which Ze does not ship."
+    },
+    {
+      "id": "4.3:18",
+      "quote": "The sampling algorithm must converge so that over time the number of packets sampled approaches 1/Nth of the total number of packets in the monitored flows.\" DEFVAL { 0 } ::= { sFlowCpEntry 4 }",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The same convergence sentence, repeated in the counter-polling MIB object description.",
+      "mapped-to": "SFLOW-V5-x-41"
+    },
+    {
+      "id": "6.1:1",
+      "quote": "The following arguments are required to configure sFlow sampling on an interface.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Introduces the list of configuration arguments that follows ('The following arguments are required to configure sFlow sampling on an interface'). The arguments are named in the list, and no behavior is required by this sentence."
+    }
+  ]
+}

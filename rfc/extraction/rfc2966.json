@@ -1,0 +1,242 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2966",
+  "register": "prose",
+  "source-path": "rfc/full/rfc2966.txt",
+  "source-sha": "69c5c5a8b8142a19",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2966-3.3-1"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2966-x-2"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 1,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1.2:1",
+      "quote": "It must also be noted that the domain-wide distribution of prefixes has no effect whatsoever on the first aspect of scalability, namely the existence of areas and the limitation of the distribution of the link state database.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "'It must also be noted' is the author addressing the reader, not an obligation on an implementation. The sentence records that domain-wide prefix distribution leaves the link state database boundary untouched."
+    },
+    {
+      "id": "2:1",
+      "quote": "RFC 1195 defines that these L1->L2 inter-area routes must be advertised in L2 LSPs in the \"IP Internal Reachability Information\" TLV (TLV 128).",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The obligation belongs to RFC 1195, which the sentence names: 'RFC 1195 defines that these L1->L2 inter-area routes must be advertised in L2 LSPs in the IP Internal Reachability Information TLV (TLV 128).' RFC 2966 reports it as the starting point for the up/down bit."
+    },
+    {
+      "id": "2:2",
+      "quote": "However, to prevent routing-loops, L1L2 routers must never advertise L2->L1 inter-area routes that they learn via L1 routing, back into L2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2966-2-3"
+    },
+    {
+      "id": "2:3",
+      "quote": "Therefore, there must be a way to distinguish L2->L1 inter-area routes from L1 intra-area routes.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "States the design need that motivates the up/down bit, and the next sentences supply the mechanism: 'Draft-ietf-isis-traffic-01.txt defines the up/down bit for this purpose.' The obligations are sites 2:5, 2:6 and 2:7."
+    },
+    {
+      "id": "2:4",
+      "quote": "Routers must set this bit to zero on transmission, and ignore it on receipt.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1195's rule for the bit it reserved, introduced two sentences earlier as 'RFC 1195 defines TLVs 128 and 130 to contain IP routes... the default metric, has the high-order bit reserved (bit 8).' RFC 2966 then supersedes it: 'This document redefines this high-order bit in the default metric field in TLVs 128 and 130 to be the up/down bit.'"
+    },
+    {
+      "id": "2:5",
+      "quote": "L1L2 routers must set this bit to one for prefixes that are derived from L2 routing and are advertised into L1 LSPs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2966-2-1"
+    },
+    {
+      "id": "2:6",
+      "quote": "The bit must be set to zero for all other IP prefixes in L1 or L2 LSPs.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The zero half of the same sender rule the previous sentence states: RFC2966-2-1 reads 'Set the up/down bit to one for L2-derived prefixes advertised into L1 LSPs, zero otherwise'.",
+      "mapped-to": "RFC2966-2-1"
+    },
+    {
+      "id": "2:7",
+      "quote": "Prefixes with the up/down bit set that are learned via L1 routing, must never be advertised by L1L2 routers back into L2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2966-2-2"
+    },
+    {
+      "id": "2.1:1",
+      "quote": "To prevent confusion, this document states again that when a router computes IP routes, it must give the same preference to IP routes advertised in an \"IP Internal Reachability Information\" TLV and IP routes advertised in an \"IP External Reachability Information\" TLV.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The preference rule belongs to RFC 1195, which the same paragraph cites and this document declines to change: 'RFC 1195 states this quite clearly in the note in paragraph 3.10.2, item 2c). This document does not alter this rule of preference.'"
+    },
+    {
+      "id": "2.1:2",
+      "quote": "However, IP routes advertised in \"IP External Reachability Information\" with external metric-type must be given less preference than the same IP routes advertised with internal-metric type, regardless of the value of the metrics.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "Also an RFC 1195 rule, which section 3.2 of this document attributes: 'RFC 1195 defines that external routes with internal metric-type are preferred over external routes with external metric type.' Section 2.1 is titled 'Clarification of external route-type and external metric-type' and restates it."
+    },
+    {
+      "id": "2.1:3",
+      "quote": "While IS-IS routers must not give different preference to IP prefixes learned via \"IP Internal Reachability Information\" and \"IP External Reachability Information\" when executing the Dijkstra calculation, routers that implement multiple IGPs are free to use this distinction between internal and external routes when comparing routes derived from different IGPs for inclusion in their global RIB.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The must-not clause restates the same RFC 1195 rule the paragraph already attributed to 'the note in paragraph 3.10.2, item 2c)'. What this sentence adds is a permission, not an obligation: routers running several IGPs 'are free to use this distinction' when filling their global RIB."
+    },
+    {
+      "id": "2.2:1",
+      "quote": "RFC 1195 defines that IP routes learned via L1 routing must always be advertised in L2 LSPs in a \"IP Internal Reachability Information\" TLV.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The obligation belongs to RFC 1195, which the sentence names: 'RFC 1195 defines that IP routes learned via L1 routing must always be advertised in L2 LSPs in a IP Internal Reachability Information TLV.'"
+    },
+    {
+      "id": "2.2:2",
+      "quote": "Of course in this case also the up/down bit must be set.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the up/down bit sender rule for the external-prefix case of section 2.2. RFC2966-2-1 already requires the bit set to one for prefixes derived from L2 routing and advertised into L1 LSPs.",
+      "mapped-to": "RFC2966-2-1"
+    },
+    {
+      "id": "2.2:3",
+      "quote": "RFC 1195 defines that if a router sees the same external prefix advertised by two or more routers with the same external metric, it must select the route that is advertised by the router that is closest to itself.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The obligation belongs to RFC 1195, which the sentence names: 'RFC 1195 defines that if a router sees the same external prefix advertised by two or more routers with the same external metric, it must select the route that is advertised by the router that is closest to itself.'"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "Some types of routes must always preferred over others, regardless of the costs that were computed in the Dijkstra calculation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2966-3.2-1"
+    },
+    {
+      "id": "3.3:1",
+      "quote": "Upon receipt of an IP prefix with this combination, routers must ignore this prefix.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2966-x-1"
+    },
+    {
+      "id": "4:1",
+      "quote": "As has been stated before, L1L2 routers must never advertise L2->L1 inter-area routes back into L2.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The sentence opens 'As has been stated before', and restates the section 2 loop-prevention rule that RFC2966-2-3 already carries: an L1L2 router never advertises an L2->L1 inter-area route learned via L1 routing back into L2.",
+      "mapped-to": "RFC2966-2-3"
+    },
+    {
+      "id": "4:2",
+      "quote": "Therefore, if L2 routes are advertised down into L1 area, it is required that all L1L2 routers in that area run software that understands the new up/down bit.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A precondition on the deployed network rather than on an implementation: every L1L2 router in the area has to understand the up/down bit before L2 routes are leaked down. The same paragraph turns it into the implementation obligation the summary carries as RFC2966-x-2: 'it is recommended that implementations by default do not advertise any L2 routes into L1. Implementations should force the network administrator to manually configure L1L2 routers to advertise any L2 routes into L1.'"
+    },
+    {
+      "id": "5:1",
+      "quote": "To make full use of the wider metric space, network administrators must deploy both new TLVs at the same time.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 5 compares this document with the proposal it calls [3], and the sentence describes what deploying [3] costs a network administrator. RFC 2966 places no obligation here; the section closes by offering its own solution as the alternative that 'requires only an upgrade of L1L2 routers in selected areas'."
+    },
+    {
+      "id": "9:1",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The ISOC full copyright statement in the back matter. It governs republication of the document text and carries no protocol obligation."
+    }
+  ]
+}

@@ -1,0 +1,188 @@
+{
+  "schema-version": 1,
+  "stem": "rfc1071",
+  "register": "prose",
+  "source-path": "rfc/full/rfc1071.txt",
+  "source-sha": "14cc1f9826f8d215",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC1071-1-1",
+        "RFC1071-1-3",
+        "RFC1071-1-4",
+        "RFC1071-1-5",
+        "RFC1071-2-1",
+        "RFC1071-2-2",
+        "RFC1071-2-3",
+        "RFC1071-x-1",
+        "RFC1071-x-2"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4",
+      "sites": 16,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "On a 2's complement machine, the 1's complement sum must be computed by means of an \"end around carry\", i.e., any overflows from the most significant bits are added into the least significant bits.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1071-1-2"
+    },
+    {
+      "id": "1:2",
+      "quote": "Each 16-bit addition may produce new end-around carries that must be added.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1071-1-6"
+    },
+    {
+      "id": "4.4:1",
+      "quote": "* Registers RADDR and RCOUNT contain the address and length of * the block to be checksummed. * * (RCARRY, RSUM) must be an even/odd register pair. * (RCOUNT, RMOD) must be an even/odd register pair. * CHECKSUM SR RSUM,RSUM Clear working registers.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A comment block inside the IBM 370 assembly listing of Section 4.4, stating a register-pairing constraint of that example program (\"(RCARRY, RSUM) must be an even/odd register pair\"). A code comment in a machine-specific sample, not an obligation on an implementation."
+    },
+    {
+      "id": "4.4:2",
+      "quote": "The focus in this paper is on checksum functions for protocols such as TCP where the required reliable delivery is achieved by retransmission.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Prose from the IEN-45 paper \"Checksum Function Design\" by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (\"Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC\"). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase \"must\"/\"required\" here is a statement of the paper's own scope (\"The focus in this paper is on checksum functions for protocols such as TCP\")."
+    },
+    {
+      "id": "4.4:3",
+      "quote": "Albeit imprecise, another property which must be preserved in any future checksum scheme is:",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Prose from the IEN-45 paper \"Checksum Function Design\" by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (\"Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC\"). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase \"must\"/\"required\" here is the paper introducing its own property list P1-P7 for evaluating candidate schemes."
+    },
+    {
+      "id": "4.4:4",
+      "quote": "The \"extra\" instruction in the loops above are required to convert the two's complement ADD instruction(s) into a one's complement add by making the carries be end-around.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Prose from the IEN-45 paper \"Checksum Function Design\" by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (\"Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC\"). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase \"must\"/\"required\" here is a description of why the sample loops carry an extra instruction."
+    },
+    {
+      "id": "4.4:5",
+      "quote": "K must be relatively prime to the base chosen to express the message.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Prose from the IEN-45 paper \"Checksum Function Design\" by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (\"Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC\"). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase \"must\"/\"required\" here is a mathematical precondition of a candidate residue-code scheme the paper evaluates and does not adopt."
+    },
+    {
+      "id": "4.4:6",
+      "quote": "In order to form Ms, the sender must multiply the multiple precision \"number\" Mo by 2**16 - 1.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Prose from the IEN-45 paper \"Checksum Function Design\" by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (\"Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC\"). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase \"must\"/\"required\" here is a step in the paper's description of a candidate product-code scheme."
+    },
+    {
+      "id": "4.4:7",
+      "quote": "Since carries must propagate between digits, but it is only the current digit which is of interest, one's complement arithmetic is used.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Prose from the IEN-45 paper \"Checksum Function Design\" by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (\"Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC\"). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase \"must\"/\"required\" here is an explanation of why the candidate scheme uses one's complement arithmetic."
+    },
+    {
+      "id": "4.4:8",
+      "quote": "In general the original copy, Mo, will have to be retained by the sender for retransmission purposes and therefore must remain readable.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Prose from the IEN-45 paper \"Checksum Function Design\" by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (\"Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC\"). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase \"must\"/\"required\" here is a description of sender retransmission buffers under a candidate scheme."
+    },
+    {
+      "id": "4.4:9",
+      "quote": "Thus the MOV R0,(R3)+ is required which accounts for 2 of the 8 memory cycles per loop.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Prose from the IEN-45 paper \"Checksum Function Design\" by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (\"Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC\"). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase \"must\"/\"required\" here is an accounting of memory cycles in a PDP-11 sample loop."
+    },
+    {
+      "id": "4.4:10",
+      "quote": "A slight refinement of the procedure is required in order to protect against an all-zero message passing to the destination.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Prose from the IEN-45 paper \"Checksum Function Design\" by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (\"Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC\"). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase \"must\"/\"required\" here is a refinement the paper proposes for one of its candidate schemes."
+    },
+    {
+      "id": "4.4:11",
+      "quote": "The product code checksum must be evaluated in terms of the desired properties P1 - P7.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Prose from the IEN-45 paper \"Checksum Function Design\" by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (\"Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC\"). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase \"must\"/\"required\" here is the paper announcing its own evaluation of a candidate against its P1-P7 list."
+    },
+    {
+      "id": "4.4:12",
+      "quote": "In general this is not a very good solution since such a processor must be constructed for every different host machine which uses TCP messages.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Prose from the IEN-45 paper \"Checksum Function Design\" by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (\"Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC\"). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase \"must\"/\"required\" here is a criticism of a hardware checksum-processor option the paper rejects."
+    },
+    {
+      "id": "4.4:13",
+      "quote": "A separate, small protocol must be developed to cover this link.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Prose from the IEN-45 paper \"Checksum Function Design\" by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (\"Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC\"). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase \"must\"/\"required\" here is a consequence the paper draws for a frontend-processor architecture it discusses."
+    },
+    {
+      "id": "4.4:14",
+      "quote": "The reason this scheme reduces the computing burden on the host is that all that is required in order to validate the message using the end-to-end checksum is to send it back to the frontend machine.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Prose from the IEN-45 paper \"Checksum Function Design\" by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (\"Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC\"). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase \"must\"/\"required\" here is an explanation of why a frontend offload reduces host cost."
+    },
+    {
+      "id": "4.4:15",
+      "quote": "In the case of the PDP-10, this requires only 0.5 memory cycles per 16-bit byte of Internet message, and only a few processor cycles to setup the required transfers.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Prose from the IEN-45 paper \"Checksum Function Design\" by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (\"Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC\"). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase \"must\"/\"required\" here is a PDP-10 memory-cycle measurement."
+    },
+    {
+      "id": "4.4:16",
+      "quote": "It suffers mainly in that messages must be (at least partially) decoded by intermediate gateways in order that they can be forwarded.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Prose from the IEN-45 paper \"Checksum Function Design\" by Bill Plummer, which Section 1 says is reproduced here as an extended appendix (\"Since IEN-45 has not been widely available, we include it as an extended appendix to this RFC\"). The splitter absorbed it into Section 4.4. It is a 1978 design study of candidate checksum functions, not an obligation of this memo; the lowercase \"must\"/\"required\" here is a drawback the paper attributes to one of its candidate schemes."
+    }
+  ]
+}

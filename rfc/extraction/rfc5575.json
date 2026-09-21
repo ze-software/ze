@@ -1,0 +1,218 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5575",
+  "register": "prose",
+  "source-path": "rfc/full/rfc5575.txt",
+  "source-sha": "f57a08b1d5469245",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5575-3-1"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5575-4-5",
+        "RFC5575-4-6",
+        "RFC5575-4-7"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5575-6-3",
+        "RFC5575-6-4"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5575-7-1",
+        "RFC5575-7-2"
+      ]
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5575-9-1",
+        "RFC5575-9-2"
+      ]
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Additionally, it defines two applications of that encoding format: one that can be used to automate inter-domain coordination of traffic filtering, such as what is required in order to mitigate (distributed) denial-of-service attacks, and a second application to provide traffic filtering in the context of a BGP/MPLS VPN service.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Abstract prose describing what the document defines; the lowercase 'required' is part of the phrase 'such as what is required in order to mitigate (distributed) denial-of-service attacks', not an obligation on an implementation."
+    },
+    {
+      "id": "1:1",
+      "quote": "Additionally, we define the required mechanisms to utilize this definition to the problem of immediate concern to the authors: intra- and inter-provider distribution of traffic filtering rules to filter (distributed) denial-of-service (DoS) attacks.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Introduction prose stating the document's own scope ('we define the required mechanisms'); no obligation on an implementation."
+    },
+    {
+      "id": "1:2",
+      "quote": "The key technology components required to address the class of problems targeted by this document are:",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Introduction sentence heading a descriptive list of technology components; 'required to address the class of problems' describes the problem space, not an implementation obligation."
+    },
+    {
+      "id": "1:3",
+      "quote": "This specification defines required protocol extensions to address most common applications of IPv4 unicast and VPNv4 unicast filtering.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Introduction prose stating the document's own scope ('defines required protocol extensions'); the obligations themselves are in Sections 4, 6 and 7."
+    },
+    {
+      "id": "4:1",
+      "quote": "Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5575-4-8"
+    },
+    {
+      "id": "4:2",
+      "quote": "Flow specification components must follow strict type ordering.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5575-4-3"
+    },
+    {
+      "id": "4:3",
+      "quote": "A given component type may or may not be present in the specification, but if present, it MUST precede any component of higher numeric type value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5575-4-4"
+    },
+    {
+      "id": "4:4",
+      "quote": "Implementations wishing to exchange flow specification rules MUST use BGP's Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) as defined in RFC 4760 [RFC4760].",
+      "disposition": "mapped",
+      "mapped-to": "RFC5575-4-1"
+    },
+    {
+      "id": "4:5",
+      "quote": "The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be the same as the one used to identify a particular application that uses this NLRI-type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5575-4-2"
+    },
+    {
+      "id": "5.1:1",
+      "quote": "This ordering function must be such that it must not depend on the arrival order of the flow specification's rules and must be constant in the network.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5575-5.1-1"
+    },
+    {
+      "id": "6:1",
+      "quote": "Although the forwarding attributes of two routes for the same flow specification prefix may be the same, BGP is still required to perform its path selection algorithm in order to select the correct set of attributes to advertise.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The obligation to run path selection is RFC 4271's, which the same paragraph cites: 'The first step of the BGP Route Selection procedure (Section 9.1.2 of [RFC4271])'. This sentence only states that flow specification routes are not exempt from it."
+    },
+    {
+      "id": "6:2",
+      "quote": "A flow specification NLRI must be validated such that it is considered feasible if and only if:",
+      "disposition": "mapped",
+      "mapped-to": "RFC5575-6-2"
+    },
+    {
+      "id": "6:3",
+      "quote": "BGP implementations MUST also enforce that the AS_PATH attribute of a route received via the External Border Gateway Protocol (eBGP) contains the neighboring AS in the left-most position of the AS_PATH attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5575-6-1"
+    },
+    {
+      "id": "8:1",
+      "quote": "The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5575-8-1"
+    },
+    {
+      "id": "11:1",
+      "quote": "Types must be assigned and interpreted uniquely.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "IANA Considerations: the sentence directs IANA in its administration of the 'Flow Spec Component Types' registry ('Types must be assigned and interpreted uniquely'). The producer is IANA, and Ze holds no code for that role and could hold none: it consumes code points and operates no code-point registry."
+    },
+    {
+      "id": "11:2",
+      "quote": "+--------------+-------------------------------+ | Range | Policy | +--------------+-------------------------------+ | 0 | Invalid value | | [1 .. 12] | Defined by this specification | | [13 .. 127] | Specification Required | | [128 .. 255] | First Come First Served | +--------------+-------------------------------+",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "An IANA allocation-policy table (Invalid value / Defined by this specification / Specification Required / First Come First Served), not a sentence stating an obligation on a BGP speaker."
+    },
+    {
+      "id": "11:3",
+      "quote": "The specification of a particular \"flow component type\" must clearly identify what the criteria used to match packets forwarded by the router is.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "IANA Considerations: the sentence states what a registering document must say, so the producer is the author of a future specification registering a flow component type under the 'Specification Required' policy. Ze holds no code for that role: it registers no new component type and publishes no such specification."
+    }
+  ]
+}

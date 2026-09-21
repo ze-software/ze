@@ -1,0 +1,529 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7752",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc7752.txt",
+  "source-sha": "6245dec342b27f9d",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1.4",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.1.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.2.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.2.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.2.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.2.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.2.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.3.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.1:1",
+      "quote": "Unrecognized types MUST be preserved and propagated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.1-1"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "In order to compare NLRIs with unknown TLVs, all TLVs MUST be ordered in ascending order by TLV Type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.1-2"
+    },
+    {
+      "id": "3.1:3",
+      "quote": "If there are more TLVs of the same type, then the TLVs MUST be ordered in ascending order of the TLV value within the TLVs with the same type by treating the entire Value field as an opaque hexadecimal string and comparing leftmost octets first, regardless of the length of the string.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.1-3"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "All non-VPN link, node, and prefix information SHALL be encoded using AFI 16388 / SAFI 71.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.2-5"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "VPN link, node, and prefix information SHALL be encoded using AFI 16388 / SAFI 72.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.2-6"
+    },
+    {
+      "id": "3.2:3",
+      "quote": "In order for two BGP speakers to exchange Link-State NLRI, they MUST use BGP Capabilities Advertisement to ensure that they are both capable of properly processing such NLRI.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.2-1"
+    },
+    {
+      "id": "3.2:4",
+      "quote": "For all information derived from other protocols, the corresponding Protocol-ID MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.2-2"
+    },
+    {
+      "id": "3.2:5",
+      "quote": "The NLRIs representing link-state objects (nodes, links, or prefixes) from the same routing universe MUST have the same 'Identifier' value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.2-3"
+    },
+    {
+      "id": "3.2:6",
+      "quote": "NLRIs with different 'Identifier' values MUST be considered to be from different routing universes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.2-4"
+    },
+    {
+      "id": "3.2.1:1",
+      "quote": "These auxiliary Router-IDs MUST be included in the link attribute described in Section 3.3.2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.2.1-1"
+    },
+    {
+      "id": "3.2.1.1:1",
+      "quote": "(A) The same node MUST NOT be represented by two keys (otherwise, one node will look like two nodes).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.2.1.1-1"
+    },
+    {
+      "id": "3.2.1.1:2",
+      "quote": "(B) Two different nodes MUST NOT be represented by the same key (otherwise, two nodes will look like one node).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.2.1.1-2"
+    },
+    {
+      "id": "3.2.1.4:1",
+      "quote": "The combination of ASN and BGP-LS ID MUST be globally unique.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.2.1.4-1"
+    },
+    {
+      "id": "3.2.1.4:2",
+      "quote": "All BGP-LS speakers within an IGP flooding-set (set of IGP nodes within which an LSP/LSA is flooded) MUST use the same ASN, BGP-LS ID tuple.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.2.1.4-2"
+    },
+    {
+      "id": "3.2.1.4:3",
+      "quote": "The sub-TLVs within a Node Descriptor MUST be arranged in ascending order by sub-TLV type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.2.1.4-3"
+    },
+    {
+      "id": "3.2.1.5:1",
+      "quote": "If the value in the MT-ID TLV is derived from OSPF, then the upper 9 bits MUST be set to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.2.1.5-1"
+    },
+    {
+      "id": "3.3:1",
+      "quote": "This attribute MUST be ignored for all other address families.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.3-1"
+    },
+    {
+      "id": "3.3.2.1:1",
+      "quote": "All auxiliary Router-IDs of both the local and the remote node MUST be included in the link attribute of each Link NLRI.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.3.2.1-1"
+    },
+    {
+      "id": "3.3.2.2:1",
+      "quote": "The MPLS Protocol Mask TLV MUST NOT be included in NLRIs with the other Protocol-IDs listed in Table 2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.3.2.2-1"
+    },
+    {
+      "id": "3.3.2.3:1",
+      "quote": "If a source protocol uses a metric width of less than 32 bits, then the high- order bits of this field MUST be padded with zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.3.2.3-1"
+    },
+    {
+      "id": "3.3.3:1",
+      "quote": "Prefixes are learned from the IGP topology (IS-IS or OSPF) with a set of IGP attributes (such as metric, route tags, etc.) that MUST be reflected into the BGP-LS attribute with a prefix NLRI.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.3.3-1"
+    },
+    {
+      "id": "3.4:1",
+      "quote": "The next-hop address MUST be encoded as described in [RFC4760].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-3.4-1"
+    },
+    {
+      "id": "6.2.2:1",
+      "quote": "If an implementation of BGP-LS detects a malformed attribute, then it MUST use the 'Attribute Discard' action as per [RFC7606], Section 2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-6.2.2-1"
+    },
+    {
+      "id": "6.2.2:2",
+      "quote": "An implementation of BGP-LS MUST perform the following syntactic checks for determining if a message is malformed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-6.2.2-2"
+    },
+    {
+      "id": "6.2.6:1",
+      "quote": "An implementation MUST have the means to limit inbound updates.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-6.2.6-1"
+    },
+    {
+      "id": "8:1",
+      "quote": "In the context of the BGP peerings associated with this document, a BGP speaker MUST NOT accept updates from a consumer peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7752-8-1"
+    }
+  ]
+}

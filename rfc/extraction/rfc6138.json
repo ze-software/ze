@@ -1,0 +1,95 @@
+{
+  "schema-version": 1,
+  "stem": "rfc6138",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc6138.txt",
+  "source-sha": "5a82958400e2e887",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "4:1",
+      "quote": "If the interface is a \"cut-edge\", then the updating of the LSA MUST NOT be delayed by LDP's operational state.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6138-4-1"
+    },
+    {
+      "id": "A:1",
+      "quote": "If an SPF run was scheduled but is pending execution, that SPF MUST be executed immediately before any procedure checks whether an interface is a \"cut-edge\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC6138-x-1"
+    }
+  ]
+}

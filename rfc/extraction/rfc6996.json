@@ -1,0 +1,74 @@
+{
+  "schema-version": 1,
+  "stem": "rfc6996",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc6996.txt",
+  "source-sha": "38ea131bbe5b38d2",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "4:1",
+      "quote": "If Private Use ASNs are used and prefixes originate from these ASNs, Private Use ASNs MUST be removed from AS path attributes (including AS4_PATH if utilizing a four-octet AS number space) before being advertised to the global Internet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC6996-4-1"
+    }
+  ]
+}

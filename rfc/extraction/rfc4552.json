@@ -1,0 +1,383 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4552",
+  "register": "prose",
+  "source-path": "rfc/full/rfc4552.txt",
+  "source-sha": "13a1f16d1a8257fb",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4552-2-1"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4552-3-3"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4552-4-1"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 9,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4552-6-7",
+        "RFC4552-6-8",
+        "RFC4552-6-10"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4552-8-1"
+      ]
+    },
+    {
+      "id": "9",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4552-10-1"
+      ]
+    },
+    {
+      "id": "10.1",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4552-10.1-1"
+      ]
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4552-10.3-1"
+      ]
+    },
+    {
+      "id": "11",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4552-11-5"
+      ]
+    },
+    {
+      "id": "12",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "15",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "15.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "15.2",
+      "sites": 1,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "The SA must be a tunnel mode SA if either end of the security association is a router/gateway.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Descriptive of the IPsec architecture, not of an OSPFv3 implementation: the lowercase 'must' restates when the IPsec architecture calls for a tunnel mode SA. The same paragraph then removes the case from OSPFv3: 'since the packets are locally delivered, the routers assume the role of hosts in the context of tunnel mode SA.'"
+    },
+    {
+      "id": "2:2",
+      "quote": "All implementations conforming to this specification MUST support transport mode SA to provide required IPsec security to OSPFv3 packets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-2-2"
+    },
+    {
+      "id": "2:3",
+      "quote": "They MAY also support tunnel mode SA to provide required IPsec security to OSPFv3 packets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-2-3"
+    },
+    {
+      "id": "3:1",
+      "quote": "Implementations conforming to this specification MUST support authentication for OSPFv3.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "In order to provide authentication to OSPFv3, implementations MUST support ESP and MAY support AH.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-3-2"
+    },
+    {
+      "id": "3:3",
+      "quote": "o OSPFv3 packets that are not protected with AH or ESP MUST be silently discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-3-4"
+    },
+    {
+      "id": "3:4",
+      "quote": "o OSPFv3 packets that fail the authentication checks MUST be silently discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-3-5"
+    },
+    {
+      "id": "4:1",
+      "quote": "If confidentiality is provided, ESP MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-4-2"
+    },
+    {
+      "id": "4:2",
+      "quote": "o OSPFv3 packets that are not protected with ESP MUST be silently discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-4-3"
+    },
+    {
+      "id": "4:3",
+      "quote": "o OSPFv3 packets that fail the confidentiality checks MUST be silently discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-4-4"
+    },
+    {
+      "id": "6:1",
+      "quote": "In order to implement this specification, the following IPsec capabilities are required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The lead-in sentence that introduces the capability list in section 6. It carries no obligation of its own; the obligations are the numbered capability entries that follow, sites 6:2 through 6:9."
+    },
+    {
+      "id": "6:2",
+      "quote": "Transport mode IPsec in transport mode MUST be supported.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-6-1"
+    },
+    {
+      "id": "6:3",
+      "quote": "Multiple Security Policy Databases (SPDs) The implementation MUST support multiple SPDs with an SPD selection function that provides an ability to choose a specific SPD based on interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-6-2"
+    },
+    {
+      "id": "6:4",
+      "quote": "Selectors The implementation MUST be able to use source address, destination address, protocol, and direction as selectors in the SPD.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-6-3"
+    },
+    {
+      "id": "6:5",
+      "quote": "Interface ID tagging The implementation MUST be able to tag the inbound packets with the ID of the interface (physical or virtual) via which it arrived.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-6-4"
+    },
+    {
+      "id": "6:6",
+      "quote": "Manual key support Manually configured keys MUST be able to secure the specified traffic.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-6-5"
+    },
+    {
+      "id": "6:7",
+      "quote": "[N3] Encryption and authentication algorithms The implementation MUST NOT allow the user to choose stream ciphers as the encryption algorithm for securing OSPFv3 packets since the stream ciphers are not suitable for manual keys.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-6-6"
+    },
+    {
+      "id": "6:8",
+      "quote": "Encapsulation of ESP packet IP encapsulation of ESP packets MUST be supported.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-6-9"
+    },
+    {
+      "id": "6:9",
+      "quote": "Different SAs for different Differentiated Services Code Points (DSCPs) As per [N3], the IPsec implementation MUST support the establishment and maintenance of multiple SAs with the same selectors between a given sender and receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-6-11"
+    },
+    {
+      "id": "7:1",
+      "quote": "While running OSPFv3 over a broadcast interface, the authentication/confidentiality required is \"one to many\".",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Describes the shape of the problem on a broadcast interface. 'required' names the security service OSPFv3 needs, and the sentence states no obligation on an implementation."
+    },
+    {
+      "id": "7:2",
+      "quote": "Since IKE is based on the Diffie-Hellman key agreement protocol and works only for two communicating parties, it is not possible to use IKE for providing the required \"one to many\" authentication/confidentiality.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Describes IKE, another system: it explains why a Diffie-Hellman two-party protocol cannot serve the one-to-many case. It places no obligation on an OSPFv3 implementation."
+    },
+    {
+      "id": "7:3",
+      "quote": "The following discussion explains that it is not scalable and is practically infeasible to use different security associations for inbound and outbound traffic to provide the required \"one to many\" security.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A forward reference to the scalability discussion that follows. It is the rationale for the obligation in site 7:4, not an obligation itself."
+    },
+    {
+      "id": "7:4",
+      "quote": "Therefore, the implementations MUST use manually configured keys with the same SA parameters (Security Parameter Index (SPI), keys, etc.) for both inbound and outbound SAs (as shown in Figure 3).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-7-1"
+    },
+    {
+      "id": "9:1",
+      "quote": "A different SA than the SA of the underlying interface MUST be provided for virtual links.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-9-1"
+    },
+    {
+      "id": "9:2",
+      "quote": "In order to protect these exchanges, the routing module must install the corresponding SPD/SAD entries before starting these exchanges.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-6-8"
+    },
+    {
+      "id": "9:3",
+      "quote": "In order to install the required security rules for virtual links, the source address also needs to be predictable.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The rationale sentence for the address-selection obligations that follow. 'the source address also needs to be predictable' explains why sites 9:4, 9:5 and 9:6 exist; the obligations are those three sentences."
+    },
+    {
+      "id": "9:4",
+      "quote": "Hence, routers that implement this specification MUST change the way the source and destination addresses are chosen for packets exchanged over virtual links when IPsec is enabled.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-9-2"
+    },
+    {
+      "id": "9:5",
+      "quote": "The first IPv6 address with the \"LA-bit\" set in the list of prefixes advertised in intra-area-prefix-LSAs in the transit area MUST be used as the source address for packets exchanged over the virtual link.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-9-3"
+    },
+    {
+      "id": "9:6",
+      "quote": "The first IPv6 address with the \"LA-bit\" set in the list of prefixes received in intra-area-prefix-LSAs from the virtual neighbor in the transit area MUST be used as the destination address for packets exchanged over the virtual link.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-9-4"
+    },
+    {
+      "id": "10.1:1",
+      "quote": "Note that all routers on the link must complete step 1 before any begin step 2.",
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "A step-ordering note inside the rekey procedure, which section 10.1 opens as 'The following three-step procedure SHOULD be provided to rekey the routers on a link without dropping OSPFv3 protocol packets or disrupting the adjacency.' The enclosing construction is a SHOULD, recorded as RFC4552-10.1-1."
+    },
+    {
+      "id": "10.1:2",
+      "quote": "Likewise, all the routers on the link must complete step 2 before any begin step 3.",
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "The second half of the same step-ordering note, inside the same construction: 'The following three-step procedure SHOULD be provided to rekey the routers on a link without dropping OSPFv3 protocol packets or disrupting the adjacency.' Recorded as RFC4552-10.1-1."
+    },
+    {
+      "id": "11:1",
+      "quote": "The IPsec protection barrier MUST be around the OSPF protocol.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-11-1"
+    },
+    {
+      "id": "11:2",
+      "quote": "The SPD selection function MUST return an SPD with the following rule for all the interfaces that have OSPFv3 authentication/confidentiality disabled.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-11-2"
+    },
+    {
+      "id": "11:3",
+      "quote": "No. source destination protocol action 1 any any OSPF bypass The SPD selection function MUST return an SPD with the following rules for all the interfaces that have OSPFv3 authentication/confidentiality enabled.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-11-3"
+    },
+    {
+      "id": "11:4",
+      "quote": "These rules MUST be installed in the SPD for the interfaces that are connected to the transit area for the virtual link.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-11-4"
+    },
+    {
+      "id": "12:1",
+      "quote": "The implementations MUST allow the administrator to configure the cryptographic and authentication keys in hexadecimal format rather than restricting it to a subset of ASCII characters (letters, numbers, etc.).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4552-12-1"
+    },
+    {
+      "id": "15.2:1",
+      "quote": "The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF intellectual property boilerplate in the back matter. It addresses any interested party about patent disclosure and carries no protocol obligation."
+    }
+  ]
+}

@@ -1,0 +1,1321 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4271",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc4271.txt",
+  "source-sha": "d5034568e80da453",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-3-1"
+      ]
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-3.1-1"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-4.2-3"
+      ]
+    },
+    {
+      "id": "4.3",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-4.3-4",
+        "RFC4271-4.3-6",
+        "RFC4271-4.3-7"
+      ]
+    },
+    {
+      "id": "4.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 8,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-5-7"
+      ]
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-5.1.1-1"
+      ]
+    },
+    {
+      "id": "5.1.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-5.1.2-1",
+        "RFC4271-5.1.2-3"
+      ]
+    },
+    {
+      "id": "5.1.3",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.4",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.5",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.6",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-5.1.6-2",
+        "RFC4271-5.1.6-3"
+      ]
+    },
+    {
+      "id": "5.1.7",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-5.1.7-2"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 9,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-6.2-4"
+      ]
+    },
+    {
+      "id": "6.3",
+      "sites": 25,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-6.3-2",
+        "RFC4271-6.3-3"
+      ]
+    },
+    {
+      "id": "6.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.7",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-6.7-2",
+        "RFC4271-6.7-3"
+      ]
+    },
+    {
+      "id": "6.8",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2.1.4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-8.2.1.4-1"
+      ]
+    },
+    {
+      "id": "8.2.1.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-8.2.2-1",
+        "RFC4271-8.2.2-2",
+        "RFC4271-8.2.2-3",
+        "RFC4271-8.2.2-4",
+        "RFC4271-8.2.2-5",
+        "RFC4271-8.2.2-6",
+        "RFC4271-8.2.2-7",
+        "RFC4271-8.2.2-8",
+        "RFC4271-8.2.2-9",
+        "RFC4271-8.2.2-10",
+        "RFC4271-8.2.2-11",
+        "RFC4271-8.2.2-12",
+        "RFC4271-8.2.2-13",
+        "RFC4271-8.2.2-14",
+        "RFC4271-8.2.2-15",
+        "RFC4271-8.2.2-16",
+        "RFC4271-8.2.2-17",
+        "RFC4271-8.2.2-18"
+      ]
+    },
+    {
+      "id": "9",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1.2",
+      "sites": 6,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-9.1.2-5"
+      ]
+    },
+    {
+      "id": "9.1.2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-9.1.2.1-3",
+        "RFC4271-9.1.2.1-4",
+        "RFC4271-9.1.2.1-5"
+      ]
+    },
+    {
+      "id": "9.1.2.2",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-9.1.2.2-4"
+      ]
+    },
+    {
+      "id": "9.1.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1.4",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-9.2-1",
+        "RFC4271-9.2-11",
+        "RFC4271-9.2-12"
+      ]
+    },
+    {
+      "id": "9.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.1.1",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-9.2.1.1-1"
+      ]
+    },
+    {
+      "id": "9.2.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.2.2",
+      "sites": 11,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-9.2.2.2-6"
+      ]
+    },
+    {
+      "id": "9.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-9.3-1",
+        "RFC4271-9.3-2"
+      ]
+    },
+    {
+      "id": "9.4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-9.4-1"
+      ]
+    },
+    {
+      "id": "10",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-10-2",
+        "RFC4271-10-3"
+      ]
+    },
+    {
+      "id": "A",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "C",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "D",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "E",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4271-Appendix-1",
+        "RFC4271-Appendix-2"
+      ]
+    },
+    {
+      "id": "F",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "F.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "F.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "F.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "F.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "F.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "F.6",
+      "sites": 1,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.2:1",
+      "quote": "The next hop for each of these routes MUST be resolvable via the local BGP speaker's Routing Table.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-3.1-2"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "This 16-octet field is included for compatibility; it MUST be set to all ones.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-4.1-1"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "The value of the Length field MUST always be at least 19 and no greater than 4096, and MAY be further constrained, depending on the message type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-4.1-3"
+    },
+    {
+      "id": "4.1:3",
+      "quote": "Therefore, the Length field MUST have the smallest value required, given the rest of the message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-4.1-2"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "Upon receipt of an OPEN message, a BGP speaker MUST calculate the value of the Hold Timer by using the smaller of its configured Hold Time and the Hold Time received in the OPEN message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-4.2-2"
+    },
+    {
+      "id": "4.2:2",
+      "quote": "The Hold Time MUST be either zero or at least three seconds.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-4.2-1"
+    },
+    {
+      "id": "4.3:1",
+      "quote": "For well-known attributes, the Transitive bit MUST be set to 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-4.3-1"
+    },
+    {
+      "id": "4.3:2",
+      "quote": "For well-known attributes and for optional non-transitive attributes, the Partial bit MUST be set to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-4.3-2"
+    },
+    {
+      "id": "4.3:3",
+      "quote": "They MUST be zero when sent and MUST be ignored when received.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-4.3-3"
+    },
+    {
+      "id": "4.3:4",
+      "quote": "However, a BGP speaker MUST be able to process UPDATE messages in this form.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-4.3-5"
+    },
+    {
+      "id": "4.4:1",
+      "quote": "KEEPALIVE messages MUST NOT be sent more frequently than one per second.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-4.4-1"
+    },
+    {
+      "id": "4.4:2",
+      "quote": "If the negotiated Hold Time interval is zero, then periodic KEEPALIVE messages MUST NOT be sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-4.4-2"
+    },
+    {
+      "id": "5:1",
+      "quote": "BGP implementations MUST recognize all well-known attributes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5-1"
+    },
+    {
+      "id": "5:2",
+      "quote": "Some of these attributes are mandatory and MUST be included in every UPDATE message that contains NLRI.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5-2"
+    },
+    {
+      "id": "5:3",
+      "quote": "Once a BGP peer has updated any well-known attributes, it MUST pass these attributes to its peers in any updates it transmits.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5-8"
+    },
+    {
+      "id": "5:4",
+      "quote": "If a path with an unrecognized transitive optional attribute is accepted and passed to other BGP peers, then the unrecognized transitive optional attribute of that path MUST be passed, along with the path, to other BGP peers with the Partial bit in the Attribute Flags octet set to 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5-3"
+    },
+    {
+      "id": "5:5",
+      "quote": "If a path with a recognized, transitive optional attribute is accepted and passed along to other BGP peers and the Partial bit in the Attribute Flags octet is set to 1 by some previous AS, it MUST NOT be set back to 0 by the current AS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5-4"
+    },
+    {
+      "id": "5:6",
+      "quote": "Unrecognized non-transitive optional attributes MUST be quietly ignored and not passed along to other BGP peers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5-5"
+    },
+    {
+      "id": "5:7",
+      "quote": "The receiver of an UPDATE message MUST be prepared to handle path attributes within UPDATE messages that are out of order.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5-6"
+    },
+    {
+      "id": "5:8",
+      "quote": "The mandatory category refers to an attribute that MUST be present in both IBGP and EBGP exchanges if NLRI are contained in the UPDATE message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the sentence defines the mandatory category by restating the obligation site 5:2 already carries, that a mandatory attribute be present when the UPDATE contains NLRI",
+      "mapped-to": "RFC4271-5-2"
+    },
+    {
+      "id": "5.1.2:1",
+      "quote": "a) When a given BGP speaker advertises the route to an internal peer, the advertising speaker SHALL NOT modify the AS_PATH attribute associated with the route.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5.1.2-2"
+    },
+    {
+      "id": "5.1.3:1",
+      "quote": "A BGP speaker MUST be able to support the disabling advertisement of third party NEXT_HOP attributes in order to handle imperfectly bridged media.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5.1.3-3"
+    },
+    {
+      "id": "5.1.3:2",
+      "quote": "A route originated by a BGP speaker SHALL NOT be advertised to a peer using an address of that peer as NEXT_HOP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5.1.3-1"
+    },
+    {
+      "id": "5.1.3:3",
+      "quote": "A BGP speaker SHALL NOT install a route with itself as the next hop.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5.1.3-2"
+    },
+    {
+      "id": "5.1.4:1",
+      "quote": "The MULTI_EXIT_DISC attribute received from a neighboring AS MUST NOT be propagated to other neighboring ASes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5.1.4-1"
+    },
+    {
+      "id": "5.1.4:2",
+      "quote": "A BGP speaker MUST implement a mechanism (based on local configuration) that allows the MULTI_EXIT_DISC attribute to be removed from a route.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5.1.4-4"
+    },
+    {
+      "id": "5.1.4:3",
+      "quote": "If a BGP speaker is configured to remove the MULTI_EXIT_DISC attribute from a route, then this removal MUST be done prior to determining the degree of preference of the route and prior to performing route selection (Decision Process phases 1 and 2).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5.1.4-2"
+    },
+    {
+      "id": "5.1.4:4",
+      "quote": "If a BGP speaker is configured to alter the value of the MULTI_EXIT_DISC attribute received over EBGP, then altering the value MUST be done prior to determining the degree of preference of the route and prior to performing route selection (Decision Process phases 1 and 2).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5.1.4-3"
+    },
+    {
+      "id": "5.1.5:1",
+      "quote": "LOCAL_PREF is a well-known attribute that SHALL be included in all UPDATE messages that a given BGP speaker sends to other internal peers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5.1.5-1"
+    },
+    {
+      "id": "5.1.5:2",
+      "quote": "A BGP speaker SHALL calculate the degree of preference for each external route based on the locally-configured policy, and include the degree of preference when advertising a route to its internal peers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5.1.5-5"
+    },
+    {
+      "id": "5.1.5:3",
+      "quote": "The higher degree of preference MUST be preferred.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5.1.5-4"
+    },
+    {
+      "id": "5.1.5:4",
+      "quote": "A BGP speaker MUST NOT include this attribute in UPDATE messages it sends to external peers, except in the case of BGP Confederations [RFC3065].",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5.1.5-2"
+    },
+    {
+      "id": "5.1.5:5",
+      "quote": "If it is contained in an UPDATE message that is received from an external peer, then this attribute MUST be ignored by the receiving speaker, except in the case of BGP Confederations [RFC3065].",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5.1.5-3"
+    },
+    {
+      "id": "5.1.6:1",
+      "quote": "A BGP speaker that receives a route with the ATOMIC_AGGREGATE attribute MUST NOT make any NLRI of that route more specific (as defined in 9.1.4) when advertising this route to other BGP speakers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5.1.6-1"
+    },
+    {
+      "id": "5.1.7:1",
+      "quote": "A BGP speaker that performs route aggregation MAY add the AGGREGATOR attribute, which SHALL contain its own AS number and IP address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-5.1.7-1"
+    },
+    {
+      "id": "6:1",
+      "quote": "If no Error Subcode is specified, then a zero MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6-1"
+    },
+    {
+      "id": "6.1:1",
+      "quote": "All errors detected while processing the Message Header MUST be indicated by sending the NOTIFICATION message with the Error Code Message Header Error.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.1-1"
+    },
+    {
+      "id": "6.1:2",
+      "quote": "If the Marker field of the message header is not as expected, then a synchronization error has occurred and the Error Subcode MUST be set to Connection Not Synchronized.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.1-2"
+    },
+    {
+      "id": "6.1:3",
+      "quote": "then the Error Subcode MUST be set to Bad Message Length.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.1-3"
+    },
+    {
+      "id": "6.1:4",
+      "quote": "The Data field MUST contain the erroneous Length field.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Data field clause belongs to the Bad Message Length obligation, and the row already states both halves",
+      "mapped-to": "RFC4271-6.1-3"
+    },
+    {
+      "id": "6.1:5",
+      "quote": "If the Type field of the message header is not recognized, then the Error Subcode MUST be set to Bad Message Type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.1-4"
+    },
+    {
+      "id": "6.1:6",
+      "quote": "The Data field MUST contain the erroneous Type field.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Data field clause belongs to the Bad Message Type obligation, and the row already states both halves",
+      "mapped-to": "RFC4271-6.1-4"
+    },
+    {
+      "id": "6.2:1",
+      "quote": "All errors detected while processing the OPEN message MUST be indicated by sending the NOTIFICATION message with the Error Code OPEN Message Error.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.2-3"
+    },
+    {
+      "id": "6.2:2",
+      "quote": "If the version number in the Version field of the received OPEN message is not supported, then the Error Subcode MUST be set to Unsupported Version Number.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.2-5"
+    },
+    {
+      "id": "6.2:3",
+      "quote": "If the Autonomous System field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Bad Peer AS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.2-6"
+    },
+    {
+      "id": "6.2:4",
+      "quote": "If the Hold Time field of the OPEN message is unacceptable, then the Error Subcode MUST be set to Unacceptable Hold Time.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.2-7"
+    },
+    {
+      "id": "6.2:5",
+      "quote": "An implementation MUST reject Hold Time values of one or two seconds.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.2-1"
+    },
+    {
+      "id": "6.2:6",
+      "quote": "An implementation that accepts a Hold Time MUST use the negotiated value for the Hold Time.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.2-2"
+    },
+    {
+      "id": "6.2:7",
+      "quote": "If the BGP Identifier field of the OPEN message is syntactically incorrect, then the Error Subcode MUST be set to Bad BGP Identifier.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.2-8"
+    },
+    {
+      "id": "6.2:8",
+      "quote": "If one of the Optional Parameters in the OPEN message is not recognized, then the Error Subcode MUST be set to Unsupported Optional Parameters.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.2-9"
+    },
+    {
+      "id": "6.2:9",
+      "quote": "If one of the Optional Parameters in the OPEN message is recognized, but is malformed, then the Error Subcode MUST be set to 0 (Unspecific).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.2-10"
+    },
+    {
+      "id": "6.3:1",
+      "quote": "All errors detected while processing the UPDATE message MUST be indicated by sending the NOTIFICATION message with the Error Code UPDATE Message Error.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.3-1"
+    },
+    {
+      "id": "6.3:2",
+      "quote": "If the Withdrawn Routes Length or Total Attribute Length is too large (i.e., if Withdrawn Routes Length + Total Attribute Length + 23 exceeds the message Length), then the Error Subcode MUST be set to Malformed Attribute List.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.3-4"
+    },
+    {
+      "id": "6.3:3",
+      "quote": "If any recognized attribute has Attribute Flags that conflict with the Attribute Type Code, then the Error Subcode MUST be set to Attribute Flags Error.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.3-5"
+    },
+    {
+      "id": "6.3:4",
+      "quote": "The Data field MUST contain the erroneous attribute (type, length, and value).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Data field clause belongs to the Attribute Flags Error obligation, and the row states both halves",
+      "mapped-to": "RFC4271-6.3-5"
+    },
+    {
+      "id": "6.3:5",
+      "quote": "If any recognized attribute has an Attribute Length that conflicts with the expected length (based on the attribute type code), then the Error Subcode MUST be set to Attribute Length Error.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.3-6"
+    },
+    {
+      "id": "6.3:6",
+      "quote": "The Data field MUST contain the erroneous attribute (type, length, and value).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Data field clause belongs to the Attribute Length Error obligation, and the row states both halves",
+      "mapped-to": "RFC4271-6.3-6"
+    },
+    {
+      "id": "6.3:7",
+      "quote": "If any of the well-known mandatory attributes are not present, then the Error Subcode MUST be set to Missing Well-known Attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.3-7"
+    },
+    {
+      "id": "6.3:8",
+      "quote": "The Data field MUST contain the Attribute Type Code of the missing, well-known attribute.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Data field clause belongs to the Missing Well-known Attribute obligation, and the row states both halves",
+      "mapped-to": "RFC4271-6.3-7"
+    },
+    {
+      "id": "6.3:9",
+      "quote": "If any of the well-known mandatory attributes are not recognized, then the Error Subcode MUST be set to Unrecognized Well-known Attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.3-8"
+    },
+    {
+      "id": "6.3:10",
+      "quote": "The Data field MUST contain the unrecognized attribute (type, length, and value).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Data field clause belongs to the Unrecognized Well-known Attribute obligation, and the row states both halves",
+      "mapped-to": "RFC4271-6.3-8"
+    },
+    {
+      "id": "6.3:11",
+      "quote": "If the ORIGIN attribute has an undefined value, then the Error Sub- code MUST be set to Invalid Origin Attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.3-9"
+    },
+    {
+      "id": "6.3:12",
+      "quote": "The Data field MUST contain the unrecognized attribute (type, length, and value).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Data field clause belongs to the Invalid Origin Attribute obligation, and the row states both halves",
+      "mapped-to": "RFC4271-6.3-9"
+    },
+    {
+      "id": "6.3:13",
+      "quote": "If the NEXT_HOP attribute field is syntactically incorrect, then the Error Subcode MUST be set to Invalid NEXT_HOP Attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.3-10"
+    },
+    {
+      "id": "6.3:14",
+      "quote": "The Data field MUST contain the incorrect attribute (type, length, and value).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Data field clause belongs to the Invalid NEXT_HOP Attribute obligation, and the row states both halves",
+      "mapped-to": "RFC4271-6.3-10"
+    },
+    {
+      "id": "6.3:15",
+      "quote": "The IP address in the NEXT_HOP MUST meet the following criteria to be considered semantically correct:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.3-11"
+    },
+    {
+      "id": "6.3:16",
+      "quote": "a) It MUST NOT be the IP address of the receiving speaker.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "criterion a) is one of the two criteria the row states",
+      "mapped-to": "RFC4271-6.3-11"
+    },
+    {
+      "id": "6.3:17",
+      "quote": "b) In the case of an EBGP, where the sender and receiver are one IP hop away from each other, either the IP address in the NEXT_HOP MUST be the sender's IP address that is used to establish the BGP connection, or the interface associated with the NEXT_HOP IP address MUST share a common subnet with the receiving BGP speaker.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "criterion b) is the other of the two criteria the row states",
+      "mapped-to": "RFC4271-6.3-11"
+    },
+    {
+      "id": "6.3:18",
+      "quote": "If the path is syntactically incorrect, then the Error Subcode MUST be set to Malformed AS_PATH.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.3-12"
+    },
+    {
+      "id": "6.3:19",
+      "quote": "If the check determines this is not the case, the Error Subcode MUST be set to Malformed AS_PATH.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.3-13"
+    },
+    {
+      "id": "6.3:20",
+      "quote": "If an optional attribute is recognized, then the value of this attribute MUST be checked.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.3-14"
+    },
+    {
+      "id": "6.3:21",
+      "quote": "If an error is detected, the attribute MUST be discarded, and the Error Subcode MUST be set to Optional Attribute Error.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the discard and the Optional Attribute Error subcode are the consequence half of the same obligation, and the row states them",
+      "mapped-to": "RFC4271-6.3-14"
+    },
+    {
+      "id": "6.3:22",
+      "quote": "The Data field MUST contain the attribute (type, length, and value).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Data field clause belongs to the Optional Attribute Error obligation, and the row states it",
+      "mapped-to": "RFC4271-6.3-14"
+    },
+    {
+      "id": "6.3:23",
+      "quote": "If any attribute appears more than once in the UPDATE message, then the Error Subcode MUST be set to Malformed Attribute List.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.3-15"
+    },
+    {
+      "id": "6.3:24",
+      "quote": "If the field is syntactically incorrect, then the Error Subcode MUST be set to Invalid Network Field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.3-16"
+    },
+    {
+      "id": "6.3:25",
+      "quote": "An UPDATE message that contains correct path attributes, but no NLRI, SHALL be treated as a valid UPDATE message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.3-17"
+    },
+    {
+      "id": "6.7:1",
+      "quote": "However, the Cease NOTIFICATION message MUST NOT be used when a fatal error indicated by this section does exist.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.7-1"
+    },
+    {
+      "id": "6.7:2",
+      "quote": "If the BGP speaker decides to terminate its BGP connection with a neighbor because the number of address prefixes received from the neighbor exceeds the locally-configured, upper bound, then the speaker MUST send the neighbor a NOTIFICATION message with the Error Code Cease.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.7-4"
+    },
+    {
+      "id": "6.8:1",
+      "quote": "In the event of connection collision, one of the connections MUST be closed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.8-1"
+    },
+    {
+      "id": "6.8:2",
+      "quote": "Upon receipt of an OPEN message, the local system MUST examine all of its connections that are in the OpenConfirm state.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-6.8-2"
+    },
+    {
+      "id": "7:1",
+      "quote": "In order to support BGP version negotiation, future versions of BGP MUST retain the format of the OPEN and NOTIFICATION messages.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "the sentence binds the DESIGN of future BGP versions, not the behavior of a BGP-4 implementation: it tells whoever specifies BGP-5 to keep the OPEN and NOTIFICATION formats. No code ze runs can conform to it or violate it, because the obligation is discharged by a future document rather than by a speaker on the wire"
+    },
+    {
+      "id": "8.2.1:1",
+      "quote": "BGP MUST maintain a separate FSM for each configured peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-8.2.1-1"
+    },
+    {
+      "id": "8.2.1:2",
+      "quote": "A BGP implementation MUST connect to and listen on TCP port 179 for incoming connections in addition to trying to connect to peers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-8.2.1-2"
+    },
+    {
+      "id": "8.2.1:3",
+      "quote": "For each incoming connection, a state machine MUST be instantiated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-8.2.1-3"
+    },
+    {
+      "id": "8.2.2:1",
+      "quote": "In response to an indication that the TCP connection is successfully established (Event 16 or Event 17), the second connection SHALL be tracked until it sends an OPEN message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-8.2.2-19"
+    },
+    {
+      "id": "9:1",
+      "quote": "If the UPDATE message contains a non-empty WITHDRAWN ROUTES field, the previously advertised routes, whose destinations (expressed as IP prefixes) are contained in this field, SHALL be removed from the Adj-RIB-In.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9-1"
+    },
+    {
+      "id": "9:2",
+      "quote": "This BGP speaker SHALL run its Decision Process because the previously advertised route is no longer available for use.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "running the Decision Process is the second half of the withdrawal obligation, and the row states both halves",
+      "mapped-to": "RFC4271-9-1"
+    },
+    {
+      "id": "9:3",
+      "quote": "If the UPDATE message contains a feasible route, the Adj-RIB-In will be updated with this route as follows: if the NLRI of the new route is identical to the one the route currently has stored in the Adj- RIB-In, then the new route SHALL replace the older route in the Adj- RIB-In, thus implicitly withdrawing the older route from service.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9-2"
+    },
+    {
+      "id": "9:4",
+      "quote": "Otherwise, if the Adj-RIB-In has no route with NLRI identical to the new route, the new route SHALL be placed in the Adj-RIB-In.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9-4"
+    },
+    {
+      "id": "9:5",
+      "quote": "Once the BGP speaker updates the Adj-RIB-In, the speaker SHALL run its Decision Process.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9-3"
+    },
+    {
+      "id": "9.1:1",
+      "quote": "The function that calculates the degree of preference for a given route SHALL NOT use any of the following as its inputs: the existence of other routes, the non-existence of other routes, or the path attributes of other routes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.1.1-1"
+    },
+    {
+      "id": "9.1.1:1",
+      "quote": "If the return value indicates the route is ineligible, the route MAY NOT serve as an input to the next phase of route selection; otherwise, the return value MUST be used as the LOCAL_PREF value in any IBGP readvertisement.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.1.1-2"
+    },
+    {
+      "id": "9.1.2:1",
+      "quote": "If the NEXT_HOP attribute of a BGP route depicts an address that is not resolvable, or if it would become unresolvable if the route was installed in the routing table, the BGP route MUST be excluded from the Phase 2 decision function.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.1.2-1"
+    },
+    {
+      "id": "9.1.2:2",
+      "quote": "The local speaker SHALL then install that route in the Loc-RIB, replacing any route to the same destination that is currently being held in the Loc-RIB.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.1.2-2"
+    },
+    {
+      "id": "9.1.2:3",
+      "quote": "The local speaker MUST determine the immediate next-hop address from the NEXT_HOP attribute of the selected route (see Section 5.1.3).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.1.2-3"
+    },
+    {
+      "id": "9.1.2:4",
+      "quote": "If either the immediate next-hop or the IGP cost to the NEXT_HOP (where the NEXT_HOP is resolved through an IGP route) changes, Phase 2 Route Selection MUST be performed again.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.1.2-4"
+    },
+    {
+      "id": "9.1.2:5",
+      "quote": "Notice that even though BGP routes do not have to be installed in the Routing Table with the immediate next-hop(s), implementations MUST take care that, before any packets are forwarded along a BGP route, its associated NEXT_HOP address is resolved to the immediate (directly connected) next-hop address, and that this address (or multiple addresses) is finally used for actual packet forwarding.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.1.2.1-1"
+    },
+    {
+      "id": "9.1.2:6",
+      "quote": "Unresolvable routes SHALL be removed from the Loc-RIB and the routing table.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.1.2.1-2"
+    },
+    {
+      "id": "9.1.2.2:1",
+      "quote": "The criteria MUST be applied in the order specified.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.1.2.2-1"
+    },
+    {
+      "id": "9.1.2.2:2",
+      "quote": "If an implementation chooses to remove MULTI_EXIT_DISC, then the optional comparison on MULTI_EXIT_DISC, if performed, MUST be performed only among EBGP-learned routes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.1.2.2-2"
+    },
+    {
+      "id": "9.1.2.2:3",
+      "quote": "For IBGP- learned routes, the MULTI_EXIT_DISC MUST be used in route comparisons that reach this step in the Decision Process.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.1.2.2-3"
+    },
+    {
+      "id": "9.1.3:1",
+      "quote": "A route SHALL NOT be installed in the Adj-Rib-Out unless the destination, and NEXT_HOP described by this route, may be forwarded appropriately by the Routing Table.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2-2"
+    },
+    {
+      "id": "9.1.3:2",
+      "quote": "If a route in Loc-RIB is excluded from a particular Adj-RIB-Out, the previously advertised route in that Adj-RIB-Out MUST be withdrawn from service by means of an UPDATE message (see 9.2).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2-3"
+    },
+    {
+      "id": "9.1.4:1",
+      "quote": "If a BGP speaker receives overlapping routes, the Decision Process MUST consider both routes based on the configured acceptance policy.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2-4"
+    },
+    {
+      "id": "9.1.4:2",
+      "quote": "If both a less and a more specific route are accepted, then the Decision Process MUST install, in Loc-RIB, either both the less and the more specific routes or aggregate the two routes and install, in Loc-RIB, the aggregated route, provided that both routes have the same value of the NEXT_HOP attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2-5"
+    },
+    {
+      "id": "9.1.4:3",
+      "quote": "In particular, a route that carries the ATOMIC_AGGREGATE attribute MUST NOT be de-aggregated.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the next sentence defines the act: 'That is, the NLRI of this route cannot be more specific.' That is the Section 5.1.6 prohibition on making the NLRI of an ATOMIC_AGGREGATE route more specific, restated where overlapping routes are discussed",
+      "mapped-to": "RFC4271-5.1.6-1"
+    },
+    {
+      "id": "9.2:1",
+      "quote": "When a BGP speaker receives an UPDATE message from an internal peer, the receiving BGP speaker SHALL NOT re-distribute the routing information contained in that UPDATE message to other internal peers (unless the speaker acts as a BGP Route Reflector [RFC2796]).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2-6"
+    },
+    {
+      "id": "9.2:2",
+      "quote": "All newly installed routes and all newly unfeasible routes for which there is no replacement route SHALL be advertised to its peers by means of an UPDATE message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2-7"
+    },
+    {
+      "id": "9.2:3",
+      "quote": "Any routes in the Loc-RIB marked as unfeasible SHALL be removed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2-8"
+    },
+    {
+      "id": "9.2:4",
+      "quote": "Changes to the reachable destinations within its own autonomous system SHALL also be advertised in an UPDATE message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2-9"
+    },
+    {
+      "id": "9.2:5",
+      "quote": "If, due to the limits on the maximum size of an UPDATE message (see Section 4), a single route doesn't fit into the message, the BGP speaker MUST not advertise the route to its peers and MAY choose to log an error locally.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2-10"
+    },
+    {
+      "id": "9.2.1.1:1",
+      "quote": "Two UPDATE messages sent by a BGP speaker to a peer that advertise feasible routes and/or withdrawal of unfeasible routes to some common set of destinations MUST be separated by at least MinRouteAdvertisementIntervalTimer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2.1.1-2"
+    },
+    {
+      "id": "9.2.1.1:2",
+      "quote": "If new routes are selected multiple times while awaiting the expiration of MinRouteAdvertisementIntervalTimer, the last route selected SHALL be advertised at the end of MinRouteAdvertisementIntervalTimer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2.1.1-3"
+    },
+    {
+      "id": "9.2.2.2:1",
+      "quote": "Routes that have different MULTI_EXIT_DISC attributes SHALL NOT be aggregated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2.2.2-1"
+    },
+    {
+      "id": "9.2.2.2:2",
+      "quote": "NEXT_HOP: When aggregating routes that have different NEXT_HOP attributes, the NEXT_HOP attribute of the aggregated route SHALL identify an interface on the BGP speaker that performs the aggregation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2.2.2-3"
+    },
+    {
+      "id": "9.2.2.2:3",
+      "quote": "ORIGIN attribute: If at least one route among routes that are aggregated has ORIGIN with the value INCOMPLETE, then the aggregated route MUST have the ORIGIN attribute with the value INCOMPLETE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2.2.2-2"
+    },
+    {
+      "id": "9.2.2.2:4",
+      "quote": "Otherwise, if at least one route among routes that are aggregated has ORIGIN with the value EGP, then the aggregated route MUST have the ORIGIN attribute with the value EGP.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the EGP arm is the second clause of the aggregated ORIGIN rule, and the row states both arms",
+      "mapped-to": "RFC4271-9.2.2.2-2"
+    },
+    {
+      "id": "9.2.2.2:5",
+      "quote": "If the routes to be aggregated have different AS_PATH attributes, then the aggregated AS_PATH attribute SHALL satisfy all of the following conditions:",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation is conditional on aggregating, and ze performs no route aggregation (the scope decision recorded in the Support remaining row of rfc/short/rfc4271.md). The RFC makes the choice the speaker's: \"If a BGP speaker chooses to aggregate, then it SHOULD either include\""
+    },
+    {
+      "id": "9.2.2.2:6",
+      "quote": "- all tuples of type AS_SEQUENCE in the aggregated AS_PATH SHALL appear in all of the AS_PATHs in the initial set of routes to be aggregated.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "an AS_SEQUENCE condition on an aggregated AS_PATH ze never builds, because ze performs no route aggregation. The RFC makes the choice the speaker's: \"If a BGP speaker chooses to aggregate, then it SHOULD either include\""
+    },
+    {
+      "id": "9.2.2.2:7",
+      "quote": "- all tuples of type AS_SET in the aggregated AS_PATH SHALL appear in at least one of the AS_PATHs in the initial set (they may appear as either AS_SET or AS_SEQUENCE types).",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "an AS_SET condition on an aggregated AS_PATH ze never builds, because ze performs no route aggregation. The RFC makes the choice the speaker's: \"If a BGP speaker chooses to aggregate, then it SHOULD either include\""
+    },
+    {
+      "id": "9.2.2.2:8",
+      "quote": "- No tuple of type AS_SET with the same value SHALL appear more than once in the aggregated AS_PATH.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "a duplicate-AS_SET condition on an aggregated AS_PATH ze never builds, because ze performs no route aggregation. The RFC makes the choice the speaker's: \"If a BGP speaker chooses to aggregate, then it SHOULD either include\""
+    },
+    {
+      "id": "9.2.2.2:9",
+      "quote": "At a minimum, a conformant implementation SHALL be able to perform the following algorithm that meets all of the above conditions:",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the conformance floor is an aggregation algorithm, and ze performs no route aggregation. The RFC makes the choice the speaker's: \"If a BGP speaker chooses to aggregate, then it SHOULD either include\""
+    },
+    {
+      "id": "9.2.2.2:10",
+      "quote": "ATOMIC_AGGREGATE: If at least one of the routes to be aggregated has ATOMIC_AGGREGATE path attribute, then the aggregated route SHALL have this attribute as well.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2.2.2-4"
+    },
+    {
+      "id": "9.2.2.2:11",
+      "quote": "AGGREGATOR: Any AGGREGATOR attributes from the routes to be aggregated MUST NOT be included in the aggregated route.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-9.2.2.2-5"
+    },
+    {
+      "id": "10:1",
+      "quote": "An implementation of BGP MUST allow the HoldTimer to be configurable on a per-peer basis, and MAY allow the other timers to be configurable.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-10-1"
+    },
+    {
+      "id": "10:2",
+      "quote": "The suggested default amount of jitter SHALL be determined by multiplying the base value of the appropriate timer by a random factor, which is uniformly distributed in the range from 0.75 to 1.0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-10-4"
+    },
+    {
+      "id": "A:1",
+      "quote": "Implementations MUST support TCP MD5 [RFC2385] for authentication.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4271-Security-1"
+    },
+    {
+      "id": "E:1",
+      "quote": "An implementation MUST support the TCP MD5 option [RFC2385].",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Appendix E restates the Security Considerations obligation to support the TCP MD5 option of RFC 2385",
+      "mapped-to": "RFC4271-Security-1"
+    },
+    {
+      "id": "F.6:1",
+      "quote": "A BGP implementation MUST support the authentication mechanism specified in RFC 2385 [RFC2385].",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Appendix F.6 restates the same RFC 2385 authentication obligation as a change from RFC 1771",
+      "mapped-to": "RFC4271-Security-1"
+    }
+  ]
+}

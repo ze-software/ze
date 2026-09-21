@@ -1,0 +1,223 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7770",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc7770.txt",
+  "source-sha": "7eec57f4cf8e66b8",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7770-1-1"
+      ]
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7770-2.1-1"
+      ]
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7770-2.2-1"
+      ]
+    },
+    {
+      "id": "2.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7770-2.4-3",
+        "RFC7770-2.4-4"
+      ]
+    },
+    {
+      "id": "2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.6",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7770-2.6-4",
+        "RFC7770-2.6-5",
+        "RFC7770-2.6-6"
+      ]
+    },
+    {
+      "id": "2.7",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7770-2.7-2",
+        "RFC7770-2.7-3",
+        "RFC7770-2.7-4"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7770-3-1"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7770-5.2-3"
+      ]
+    },
+    {
+      "id": "5.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.3:1",
+      "quote": "When a new Router Information LSA TLV is defined, the specification MUST explicitly state whether the TLV is applicable to OSPFv2 only, OSPFv3 only, or both OSPFv2 and OSPFv3.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7770-2.3-1"
+    },
+    {
+      "id": "2.4:1",
+      "quote": "If included, it MUST be the first TLV in the first instance, i.e., Instance 0, of the OSPF RI LSA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7770-2.4-1"
+    },
+    {
+      "id": "2.4:2",
+      "quote": "Additionally, the TLV MUST accurately reflect the OSPF router's capabilities in the scope advertised.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7770-2.4-2"
+    },
+    {
+      "id": "2.6:1",
+      "quote": "If included, it MUST be the included in the first instance of the LSA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7770-2.6-1"
+    },
+    {
+      "id": "2.6:2",
+      "quote": "Additionally, the TLV MUST reflect the advertising OSPF router's actual functional capabilities since the information will be used to dictate OSPF protocol operation in the flooding scope of the containing OSPF RI LSA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7770-2.6-2"
+    },
+    {
+      "id": "2.6:3",
+      "quote": "The specifications for functional capabilities advertised in this TLV MUST describe protocol behavior and address backwards compatibility.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7770-2.6-3"
+    },
+    {
+      "id": "2.7:1",
+      "quote": "TLV flooding-scope rules will be specified on a per- TLV basis and MUST be specified in the accompanying specifications for future Router Information LSA TLVs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7770-2.7-1"
+    },
+    {
+      "id": "5.2:1",
+      "quote": "New values are assigned through RFCs that have been shepherded through the IESG as AD-Sponsored or IETF WG documents [IANA-GUIDE]. o OSPFv3 LSA function codes in the range 8176-8183 are for experimental use; these will not be registered with IANA and MUST NOT be mentioned by RFCs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7770-5.2-2"
+    },
+    {
+      "id": "5.2:2",
+      "quote": "o OSPFv3 LSAs with an LSA Function Code in the Vendor Private Use range 8184-8190 MUST include the Enterprise Code [ENTERPRISE-CODE] as the first 4 octets following the 20 octets of LSA header.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7770-5.2-1"
+    },
+    {
+      "id": "5.2:3",
+      "quote": "o If a new LSA Function Code is documented, the documentation MUST include the valid combinations of the U, S2, and S1 bits for the LSA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7770-2-1"
+    },
+    {
+      "id": "5.3:1",
+      "quote": "Before any assignments can be made in this range, there MUST be a Standards Track RFC that specifies IANA Considerations that cover the range being assigned.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7770-5.3-1"
+    }
+  ]
+}

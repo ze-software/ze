@@ -1,0 +1,868 @@
+{
+  "schema-version": 1,
+  "stem": "rfc3209",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc3209.txt",
+  "source-sha": "976eb5437f567b6f",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3209-x-1"
+      ]
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3209-2.5-1",
+        "RFC3209-6-1",
+        "RFC3209-6-2"
+      ]
+    },
+    {
+      "id": "2.6",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3209-4.1-3"
+      ]
+    },
+    {
+      "id": "4.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.1.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3209-4.2-1"
+      ]
+    },
+    {
+      "id": "4.2.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.2",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.3",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.4",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.3.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3209-4.3.4-1"
+      ]
+    },
+    {
+      "id": "4.3.4.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.4.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.3",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6.1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6.1.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6.2.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6.2.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.7.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.7.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.7.4",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 13,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.6:1",
+      "quote": "Using the terminology defined in [5], an LSR MUST execute the following algorithm:",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-2.6-1"
+    },
+    {
+      "id": "2.6:2",
+      "quote": "(a) the datagram MUST be broken into fragments, each of whose size is no greater than M, and",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-2.6-2"
+    },
+    {
+      "id": "2.6:3",
+      "quote": "(b) each fragment MUST be labeled and then forwarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-2.6-3"
+    },
+    {
+      "id": "2.6:4",
+      "quote": "(a) the datagram MUST NOT be forwarded",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-2.6-4"
+    },
+    {
+      "id": "2.6:5",
+      "quote": "When the size of an IPv6 datagram (without labels) exceeds the value of M, (a) the datagram MUST NOT be forwarded",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-2.6-5"
+    },
+    {
+      "id": "3:1",
+      "quote": "In Resv messages they MUST appear after the associated FILTER_SPEC and prior to any subsequent FILTER_SPEC.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "The ordering of these objects is not important, so an implementation MUST be prepared to accept objects in any order.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-3-2"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "The label for a sender MUST immediately follow the FILTER_SPEC for that sender in the Resv message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.1-1"
+    },
+    {
+      "id": "4.1.1.1:1",
+      "quote": "If a label range has been specified in the label request, the label MUST be drawn from that range.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.1.1.1-1"
+    },
+    {
+      "id": "4.1.1.1:2",
+      "quote": "Note that if a node intends to police individual senders to a session, it MUST assign unique labels to those senders.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.1.1.1-2"
+    },
+    {
+      "id": "4.1.1.1:3",
+      "quote": "If for any senders the M-bit is not set, the downstream node MUST assign unique labels to those senders.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.1.1.1-3"
+    },
+    {
+      "id": "4.2.1:1",
+      "quote": "It MUST be set to zero on transmission and MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.2.1-1"
+    },
+    {
+      "id": "4.2.2:1",
+      "quote": "It MUST be set to zero on transmission and MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.2.2-1"
+    },
+    {
+      "id": "4.2.2:2",
+      "quote": "If the VPI is less than 12-bits it MUST be right justified in this field and preceding bits MUST be set to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.2.2-2"
+    },
+    {
+      "id": "4.2.2:3",
+      "quote": "If the VCI is less than 16-bits it MUST be right justified in this field and preceding bits MUST be set to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.2.2-3"
+    },
+    {
+      "id": "4.2.2:4",
+      "quote": "If the VPI is less than 12-bits it MUST be right justified in this field and preceding bits MUST be set to zero.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Maximum VPI field repeats the right-justification rule the Minimum VPI field states; site 4.2.2:2 maps it",
+      "mapped-to": "RFC3209-4.2.2-2"
+    },
+    {
+      "id": "4.2.2:5",
+      "quote": "If the VCI is less than 16-bits it MUST be right justified in this field and preceding bits MUST be set to zero.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Maximum VCI field repeats the right-justification rule the Minimum VCI field states; site 4.2.2:3 maps it",
+      "mapped-to": "RFC3209-4.2.2-3"
+    },
+    {
+      "id": "4.2.3:1",
+      "quote": "It MUST be set to zero on transmission and ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.2.3-1"
+    },
+    {
+      "id": "4.2.3:2",
+      "quote": "The DLCI MUST be right justified in this field and unused bits MUST be set to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.2.3-2"
+    },
+    {
+      "id": "4.2.3:3",
+      "quote": "The DLCI MUST be right justified in this field and unused bits MUST be set to 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Maximum DLCI field repeats the right-justification rule the Minimum DLCI field states; site 4.2.3:2 maps it",
+      "mapped-to": "RFC3209-4.2.3-2"
+    },
+    {
+      "id": "4.2.4:1",
+      "quote": "If a label range was specified, the label MUST be allocated from that range.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "section 4.2.4 restates the section 4.1.1.1 rule that a label is allocated from a specified label range; site 4.1.1.1:1 maps it",
+      "mapped-to": "RFC3209-4.1.1.1-1"
+    },
+    {
+      "id": "4.2.4:2",
+      "quote": "A receiver that accepts a LABEL_REQUEST object MUST include a LABEL object in Resv messages pertaining to that Path message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.2.4-1"
+    },
+    {
+      "id": "4.2.4:3",
+      "quote": "If a LABEL_REQUEST object was not present in the Path message, a node MUST NOT include a LABEL object in a Resv message for that Path message's session and PHOP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.2.4-2"
+    },
+    {
+      "id": "4.2.4:4",
+      "quote": "A node that sends a LABEL_REQUEST object MUST be ready to accept and correctly process a LABEL object in the corresponding Resv messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.2.4-3"
+    },
+    {
+      "id": "4.2.4:5",
+      "quote": "A node which receives and forwards a Path message each with a LABEL_REQUEST object, MUST copy the L3PID from the received LABEL_REQUEST object to the forwarded LABEL_REQUEST object.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.2.4-4"
+    },
+    {
+      "id": "4.2.5:1",
+      "quote": "This means that if a router has a neighbor that is known to not be RSVP capable, the router MUST NOT advertise the LABEL_REQUEST object when sending messages that pass through the non-RSVP routers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.2.5-1"
+    },
+    {
+      "id": "4.3.3:1",
+      "quote": "The Length MUST be at least 4, and MUST be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.3.3-1"
+    },
+    {
+      "id": "4.3.3.1:1",
+      "quote": "The path between a strict node and its preceding node MUST include only network nodes from the strict node and its preceding abstract node.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.3.3.1-1"
+    },
+    {
+      "id": "4.3.4.1:1",
+      "quote": "1) The node receiving the RSVP message MUST first evaluate the first subobject.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.3.4.1-1"
+    },
+    {
+      "id": "4.3.4.2:1",
+      "quote": "Each subobject in this series MUST denote an abstract node that is a subset of the current abstract node.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.3.4.2-1"
+    },
+    {
+      "id": "4.4.1:1",
+      "quote": "The length MUST always be a multiple of 4, and at least 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.4.1-1"
+    },
+    {
+      "id": "4.4.3:1",
+      "quote": "The newly added subobject MUST be this router's IP address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.4.3-1"
+    },
+    {
+      "id": "4.4.3:2",
+      "quote": "A node MUST NOT push on a Label Record subobject without also pushing on an IPv4 or IPv6 subobject.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.4.3-2"
+    },
+    {
+      "id": "4.4.3:3",
+      "quote": "If the newly added subobject causes the RRO to be too big to fit in a Path (or Resv) message, the RRO object SHALL be dropped from the message and message processing continues as normal.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.4.3-3"
+    },
+    {
+      "id": "4.4.3:4",
+      "quote": "Subsequent Resv messages SHALL NOT contain an RRO.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.4.3-4"
+    },
+    {
+      "id": "4.6.1.1:1",
+      "quote": "0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | IPv4 tunnel end point address | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | MUST be zero | Tunnel ID | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | Extended Tunnel ID | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.6.1-1"
+    },
+    {
+      "id": "4.6.1.2:1",
+      "quote": "0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | | + + | IPv6 tunnel end point address | + + | (16 bytes) | + + | | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | MUST be zero | Tunnel ID | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | | + + | Extended Tunnel ID | + + | (16 bytes) | + + | | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.6.1-2"
+    },
+    {
+      "id": "4.6.2.1:1",
+      "quote": "Class = SENDER_TEMPLATE, LSP_TUNNEL_IPv4 C-Type = 7 0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | IPv4 tunnel sender address | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | MUST be zero | LSP ID | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.6.2-1"
+    },
+    {
+      "id": "4.6.2.2:1",
+      "quote": "0 1 2 3 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | | + + | IPv6 tunnel sender address | + + | (16 bytes) | + + | | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ | MUST be zero | LSP ID | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.6.2-2"
+    },
+    {
+      "id": "4.7.3:1",
+      "quote": "The Length MUST always be a multiple of 4 and MUST be at least 8.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.7.3-1"
+    },
+    {
+      "id": "4.7.4:1",
+      "quote": "In order to be validated a link MUST pass the three tests below.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.7.4-1"
+    },
+    {
+      "id": "4.7.4:2",
+      "quote": "When a node is choosing links in order to extend a loose node of an ERO, the node MUST validate the resource classes of those links against the resource affinities.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.7.4-2"
+    },
+    {
+      "id": "4.7.4:3",
+      "quote": "In order to be validated a link MUST pass the following three tests.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the second statement of the same three-test validation rule, for the second of the two resource-affinity cases; site 4.7.4:1 maps it",
+      "mapped-to": "RFC3209-4.7.4-1"
+    },
+    {
+      "id": "4.7.4:4",
+      "quote": "For a link to be acceptable, all three tests MUST pass.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "'For a link to be acceptable, all three tests MUST pass' restates the validation rule the preceding sentence states; site 4.7.4:1 maps it",
+      "mapped-to": "RFC3209-4.7.4-1"
+    },
+    {
+      "id": "4.7.4:5",
+      "quote": "All RSVP routers, whether they support the SESSION_ATTRIBUTE object or not, SHALL forward the object unmodified.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-4.7.4-3"
+    },
+    {
+      "id": "5.2.2:1",
+      "quote": "This value MUST change when the sender is reset, when the node reboots, or when communication is lost to the neighboring node and otherwise remains the same.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.2.2-1"
+    },
+    {
+      "id": "5.2.2:2",
+      "quote": "This field MUST NOT be set to zero (0).",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.2.2-2"
+    },
+    {
+      "id": "5.2.2:3",
+      "quote": "This field MUST be set to zero (0) when no value has ever been seen from the neighbor.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.2.2-3"
+    },
+    {
+      "id": "5.3:1",
+      "quote": "In particular, the use of MUST and SHOULD with respect to the receiver applies only to a node that supports Hello message processing.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a scoping statement about how the RFC 2119 keywords in section 5.3 are to be read ('the use of MUST and SHOULD with respect to the receiver applies only to a node that supports Hello message processing'), not an obligation of its own"
+    },
+    {
+      "id": "5.3:2",
+      "quote": "This value MUST NOT change while the agent is exchanging Hellos with the corresponding neighbor.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.3-1"
+    },
+    {
+      "id": "5.3:3",
+      "quote": "On receipt of a message containing a HELLO REQUEST object, the receiver MUST generate a Hello message containing a HELLO ACK object.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.3-2"
+    },
+    {
+      "id": "5.3:4",
+      "quote": "If the value differs or the Src_Instance field is zero, then the node MUST treat the neighbor as if communication has been lost.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.3-3"
+    },
+    {
+      "id": "5.3:5",
+      "quote": "If the neighbor continues to advertise a wrong non-zero value after a configured number of intervals, then the node MUST treat the neighbor as if communication has been lost.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.3-4"
+    },
+    {
+      "id": "5.3:6",
+      "quote": "On receipt of a message containing a HELLO ACK object, the receiver MUST verify that the neighbor has not reset.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.3-5"
+    },
+    {
+      "id": "5.3:7",
+      "quote": "If the value differs or the Src_Instance field is zero, then the node MUST treat the neighbor as if communication has been lost.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the HELLO ACK path repeats the HELLO REQUEST sentence word for word; site 5.3:4 maps it",
+      "mapped-to": "RFC3209-5.3-3"
+    },
+    {
+      "id": "5.3:8",
+      "quote": "The receiver of a HELLO ACK object MUST also verify that the neighbor is reflecting back the receiver's Instance value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.3-6"
+    },
+    {
+      "id": "5.3:9",
+      "quote": "If the neighbor advertises a wrong value in the Dst_Instance field, then a node MUST treat the neighbor as if communication has been lost.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.3-7"
+    },
+    {
+      "id": "5.3:10",
+      "quote": "If no Instance values are received, via either REQUEST or ACK objects, from a neighbor within a configured number of hello_intervals, then a node MUST presume that it cannot communicate with the neighbor.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.3-8"
+    },
+    {
+      "id": "5.3:11",
+      "quote": "If a node does re-initiate it MUST use a Src_Instance value different than the one advertised in the previous HELLO message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.3-9"
+    },
+    {
+      "id": "5.3:12",
+      "quote": "This new value MUST continue to be advertised to the corresponding neighbor until a reset or reboot occurs, or until another communication failure is detected.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.3-10"
+    },
+    {
+      "id": "5.3:13",
+      "quote": "If a new instance value has not been received from the neighbor, then the node MUST advertise zero in the Dst_instance value field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.3-11"
+    },
+    {
+      "id": "5.4:1",
+      "quote": "When the links between neighbors are numbered, then Hellos MUST be run on each link and the previously described mechanisms apply.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.4-1"
+    },
+    {
+      "id": "5.4:2",
+      "quote": "When the links are unnumbered, link failure detection MUST be provided by some means other than Hellos.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3209-5.4-2"
+    }
+  ]
+}

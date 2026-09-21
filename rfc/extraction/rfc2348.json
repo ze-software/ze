@@ -1,0 +1,49 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2348",
+  "register": "prose",
+  "source-path": "rfc/full/rfc2348.txt",
+  "source-sha": "5603bbee0abe1b05",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2348-x-3",
+        "RFC2348-x-4",
+        "RFC2348-x-5"
+      ]
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "The specified value must be less than or equal to the value specified by the client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2348-x-1"
+    },
+    {
+      "id": "front:2",
+      "quote": "The client must then either use the size specified in the OACK, or send an ERROR packet, with error code 8, to terminate the transfer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2348-x-2"
+    },
+    {
+      "id": "front:3",
+      "quote": "For example, by increasing the blocksize from 512 octets to 1024 octets, not only are the number of data packets halved, but the number of acknowledgement packets is also halved (along with the number of times the data transmitter must wait for an ACK).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Description, not an obligation: the sentence sits in the Proof of Concept section explaining why measured transfer time falls as blocksize rises. 'the data transmitter must wait for an ACK' describes the lock-step behavior RFC 1350 already defines, and imposes nothing on an implementation of this option."
+    },
+    {
+      "id": "front:4",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Boilerplate: the sentence is part of the RFC's Full Copyright Statement and constrains redistribution of the document, not the behavior of a TFTP implementation."
+    }
+  ]
+}

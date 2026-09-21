@@ -1,0 +1,301 @@
+{
+  "schema-version": 1,
+  "stem": "draft-ietf-sidrops-aspa-verification",
+  "register": "rfc2119",
+  "source-path": "rfc/drafts/draft-ietf-sidrops-aspa-verification.txt",
+  "source-sha": "d11e36f2253bad3f",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5-2"
+      ]
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1"
+      ]
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1",
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2"
+      ]
+    },
+    {
+      "id": "5.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-2",
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-4",
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-3"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-3"
+      ]
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.3-1",
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.3-2"
+      ]
+    },
+    {
+      "id": "6.4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.4-2",
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.4-1"
+      ]
+    },
+    {
+      "id": "6.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.6",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.6-1"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-8.4-1"
+      ]
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "4:1",
+      "quote": "An AS MUST list in its SPAS the union of all its Provider AS(es) and non-transparent RS AS(es) at which it is an RS-client.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "An AS MUST list its Provider ASes and non-transparent RS ASes in its SPAS. The obligation binds the AS that REGISTERS the ASPA object in the RPKI, not the BGP speaker that verifies an AS_PATH with it. A SPAS is a field of a signed ASPA object published by the resource holder's certification authority. Ze's entire ASPA surface is an RTR client: producer internal/component/bgp/plugins/rpki/aspa_cache.go consumes ASPA PDUs (Type 11) into a read-only cache, and internal/component/bgp/plugins/rpki/rpki.go reads that cache during verification. Ze holds no certification authority, no ASPA object signing and no RPKI publication path, so no producer in the tree can list a Provider AS in a SPAS. Producer: the RPKI ASPA issuer: the resource holder's certification authority that signs and publishes the ASPA object carrying the SPAS; ze holds no code for this role."
+    },
+    {
+      "id": "4:2",
+      "quote": "An AS MUST include a Provider AS in its SPAS regardless of whether it provides connectivity for only IPv4 or only IPv6 or both.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "An AS MUST include a Provider AS in its SPAS whatever address families that provider serves. The obligation binds the AS that REGISTERS the ASPA object in the RPKI, not the BGP speaker that verifies an AS_PATH with it. A SPAS is a field of a signed ASPA object published by the resource holder's certification authority. Ze's entire ASPA surface is an RTR client: producer internal/component/bgp/plugins/rpki/aspa_cache.go consumes ASPA PDUs (Type 11) into a read-only cache, and internal/component/bgp/plugins/rpki/rpki.go reads that cache during verification. Ze holds no certification authority, no ASPA object signing and no RPKI publication path, so no producer in the tree can list a Provider AS in a SPAS. Producer: the RPKI ASPA issuer: the resource holder's certification authority that signs and publishes the ASPA object carrying the SPAS; ze holds no code for this role."
+    },
+    {
+      "id": "4:3",
+      "quote": "In the Complex relationship case (Section 3 and [RFC9234]), an AS MUST include the neighbor AS in its SPAS if the neighbor plays the Provider role for all or a subset of received or sent prefixes.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "In the Complex relationship case an AS MUST include the neighbor AS in its SPAS. The obligation binds the AS that REGISTERS the ASPA object in the RPKI, not the BGP speaker that verifies an AS_PATH with it. A SPAS is a field of a signed ASPA object published by the resource holder's certification authority. Ze's entire ASPA surface is an RTR client: producer internal/component/bgp/plugins/rpki/aspa_cache.go consumes ASPA PDUs (Type 11) into a read-only cache, and internal/component/bgp/plugins/rpki/rpki.go reads that cache during verification. Ze holds no certification authority, no ASPA object signing and no RPKI publication path, so no producer in the tree can list a Provider AS in a SPAS. Producer: the RPKI ASPA issuer: the resource holder's certification authority that signs and publishes the ASPA object carrying the SPAS; ze holds no code for this role."
+    },
+    {
+      "id": "4:4",
+      "quote": "The ASes on the boundary of an AS Confederation MUST register ASPAs using the Confederation's global AS number (ASN) as the CAS.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The ASes on the boundary of an AS Confederation MUST register ASPAs under the Confederation's global ASN. The obligation binds the AS that REGISTERS the ASPA object in the RPKI, not the BGP speaker that verifies an AS_PATH with it. A SPAS is a field of a signed ASPA object published by the resource holder's certification authority. Ze's entire ASPA surface is an RTR client: producer internal/component/bgp/plugins/rpki/aspa_cache.go consumes ASPA PDUs (Type 11) into a read-only cache, and internal/component/bgp/plugins/rpki/rpki.go reads that cache during verification. Ze holds no certification authority, no ASPA object signing and no RPKI publication path, so no producer in the tree can list a Provider AS in a SPAS. Producer: the RPKI ASPA issuer: the resource holder's certification authority that signs and publishes the ASPA object carrying the SPAS; ze holds no code for this role."
+    },
+    {
+      "id": "4:5",
+      "quote": "If that statement is true, then the AS MUST register an AS0 ASPA.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "An AS with no transit providers MUST register an AS0 ASPA. The obligation binds the AS that REGISTERS the ASPA object in the RPKI, not the BGP speaker that verifies an AS_PATH with it. A SPAS is a field of a signed ASPA object published by the resource holder's certification authority. Ze's entire ASPA surface is an RTR client: producer internal/component/bgp/plugins/rpki/aspa_cache.go consumes ASPA PDUs (Type 11) into a read-only cache, and internal/component/bgp/plugins/rpki/rpki.go reads that cache during verification. Ze holds no certification authority, no ASPA object signing and no RPKI publication path, so no producer in the tree can list a Provider AS in a SPAS. Producer: the RPKI ASPA issuer: the resource holder's certification authority that signs and publishes the ASPA object carrying the SPAS; ze holds no code for this role."
+    },
+    {
+      "id": "5:1",
+      "quote": "If the check fails, then the AS_PATH is considered semantically invalid, and the UPDATE SHALL be handled using the approach of \"treat-as-withdraw\" [RFC7606].",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5-1"
+    },
+    {
+      "id": "5:2",
+      "quote": "[RFC9774] specifies that \"treat-as-withdraw\" error handling [RFC7606] MUST be applied to routes with AS_SET in the AS_PATH.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The sentence attributes the obligation to the document it cites: \"[RFC9774] specifies that 'treat-as-withdraw' error handling [RFC7606] MUST be applied to routes with AS_SET in the AS_PATH.\" This draft's own directive on AS_SET is the next sentence, \"routes with AS_SET are given Invalid evaluation in the AS_PATH verification procedures (Section 5.4 and Section 5.5)\", which is carried by DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2."
+    },
+    {
+      "id": "5.6:1",
+      "quote": "*Invalid*: If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (see Section 3) and MUST be kept in the Adj-RIB-In for potential future re-evaluation (see [RFC9324]).",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1"
+    },
+    {
+      "id": "6.2:1",
+      "quote": "The verification procedures described in this document MUST be applied to BGP routes with {AFI, SAFI} combinations {AFI 1 (IPv4), SAFI 1} and {AFI 2 (IPv6), SAFI 1} [IANA-AF] [IANA-SAF].",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1"
+    },
+    {
+      "id": "6.2:2",
+      "quote": "The procedures MUST NOT be applied to other address families by default.",
+      "disposition": "mapped",
+      "mapped-to": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-2"
+    },
+    {
+      "id": "6.5:1",
+      "quote": "The AS operator MUST notify its customer ASes and advise them to update ASPA records to include both the globally configured ASN and the legacy ASN in their SPAS.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "\"The AS operator MUST notify its customer ASes and advise them to update ASPA records to include both the globally configured ASN and the legacy ASN in their SPAS.\" The role is the AS operator conducting an out-of-band notification of its customers during AS migration, and the action it demands is performed by the customers' RPKI registrations, not by any router. Ze's ASPA surface is the RTR client at internal/component/bgp/plugins/rpki/aspa_cache.go, which consumes ASPA records and neither issues them nor addresses customers; no producer in the tree could send such a notification. Producer: the AS operator's out-of-band notification of its customer ASes during AS migration; ze holds no code for this role."
+    }
+  ]
+}

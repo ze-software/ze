@@ -14,13 +14,13 @@
 | Encoding | XDR (RFC 1832 / RFC 4506) |
 | Transport | UDP, recommended port 6343 |
 | Enrolment | enrolled |
-| Enrolment reason | sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at configured interval) + 11 single-polarity positive (version=5, agent addr, sub-agent seq space, MTU bound, no >1s hold, XDR big-endian, count-prefixed arrays, actual rate, sample_pool, cumulative counters) + 3 gap (split datagram seq, no expanded types, no unavailable sentinel) + 1 not-applicable (collector skip) |
+| Enrolment reason | sFlow Version 5 export: exporter/agent role. 1 MET (counter poll at configured interval) + 11 single-polarity positive (version=5, agent addr, sub-agent seq space, MTU bound, no >1s hold, XDR big-endian, count-prefixed arrays, actual rate, sample_pool, cumulative counters) + 3 gap (split datagram seq, no expanded types, no unavailable sentinel) + 1 not-applicable (collector skip) + 18 added by the 2026-09-21 extraction walk from sentences this summary did not carry, none of them tested (SFLOW-V5-x-25 through x-42: the no-batching send rule, the outstanding-counter datagram, the compact/expanded encoding choice, the three sequence-number reset rules, the data-source-to-sub-agent binding, counter availability within a session, the header-information and stripping rules, extended_switch reporting, and the sampling-algorithm obligations on randomness, once-per-packet consideration, sampler independence, convergence and rate persistence) |
 | Implementation | ze |
 | Implementation reason | Ze's own Go implements this document; each requirement row cites its producer. |
 | Support | drafts 80 |
 | Support area | sFlow export |
 | Support status | Experimental |
-| Support coverage | Flow export protocol alongside NetFlow v9 and IPFIX. Three MUST gaps in rfc/short/sflow-v5.md: datagram-level sequence numbers split across two independent counters per sub-agent (SFLOW-V5-x-9); no expanded sample types, so ifIndex > 2^24-1 is truncated by the 24-bit source_id mask (SFLOW-V5-x-12); unavailable if_counters fields are exported as 0 instead of the max-value unavailable sentinel (SFLOW-V5-x-16). |
+| Support coverage | Flow export protocol alongside NetFlow v9 and IPFIX. Three MUST gaps in rfc/short/sflow-v5.md: datagram-level sequence numbers split across two independent counters per sub-agent (SFLOW-V5-x-9); no expanded sample types, so ifIndex > 2^24-1 is truncated by the 24-bit source_id mask (SFLOW-V5-x-12); unavailable if_counters fields are exported as 0 instead of the max-value unavailable sentinel (SFLOW-V5-x-16). Eighteen further MUST rows (SFLOW-V5-x-25 through x-42) were added by the 2026-09-21 extraction walk and none of them is tested. |
 | Support remaining | - |
 
 **Purpose:** sFlow defines a sampling-based mechanism for monitoring traffic
@@ -551,6 +551,24 @@ Note: sFlow v5 is an industry specification, not an IETF RFC. The following requ
 - [ ] [SFLOW-V5-x-14] [MUST] Counter samples MUST be produced at the configured polling interval for each data source (Counter Polling)
 - [ ] [SFLOW-V5-x-15] [MUST] All counters MUST be cumulative since boot (Counter Polling) {single-polarity: positive; interfaceCountersFrom copies the raw cumulative kernel counters straight through with no differencing, so exported if_counters are cumulative by construction (internal/plugins/flowexport/register.go:343-358, snapshot.go:10-13)}
 - [ ] [SFLOW-V5-x-16] [MUST] Unavailable counter fields MUST be set to max value for the type (0xFFFFFFFF for u32, 0xFFFFFFFFFFFFFFFF for u64) (Implementation Guidance) {gap: interfaceCountersFrom leaves fields the kernel does not expose (ifInUnknownProtos, ifInBroadcastPkts, ifOutMulticastPkts, ifOutBroadcastPkts) at zero rather than the required max-value unavailable sentinel, so a collector cannot distinguish true-zero from unavailable (internal/plugins/flowexport/register.go:343-361)}
+- [ ] [SFLOW-V5-x-25] [MUST] "the sFlow Agent must not wait for a buffer to fill with samples before sending the sFlow Datagram" (Transport)
+- [ ] [SFLOW-V5-x-26] [MUST] "If counters must be sent in order to satisfy the maximum sampling interval then a datagram must be sent containing the outstanding counters." (Counter Polling)
+- [ ] [SFLOW-V5-x-27] [MUST NOT] "An agent must not mix compact/expanded encodings." An agent that will never use ifIndex numbers >= 2^24 "must use compact encodings for all interfaces", otherwise "the expanded formats must be used for all interfaces" (Expanded Flow/Counter Sample)
+- [ ] [SFLOW-V5-x-28] [MUST] "If the agent resets the sample_pool then it must also reset the sequence_number" of the flow sample (Flow Sample)
+- [ ] [SFLOW-V5-x-29] [MUST] "If the agent resets any of the counters then it must also reset the sequence_number" of the counter sample (Counter Sample)
+- [ ] [SFLOW-V5-x-30] [MUST] "In the case of ifIndex-based source_id's the sequence number must be reset each time ifCounterDiscontinuityTime changes." (Counter Sample)
+- [ ] [SFLOW-V5-x-31] [MUST] "Each sFlowDataSource must be associated with only one sub-agent", and "The association between sFlowDataSource and sub-agent must remain constant for the entire duration of an sFlow session." (Agent Architecture)
+- [ ] [SFLOW-V5-x-32] [MUST] "Within any given sFlow session a particular counter must be always available, or always unavailable." (Counter Polling)
+- [ ] [SFLOW-V5-x-33] [MUST] "A flow_sample must contain packet header information." (Flow Sample)
+- [ ] [SFLOW-V5-x-34] [MUST] "Any octets added to the frame_length to compensate for encapsulations removed by the underlying hardware must also be added to the stripped count." (Raw Packet Header)
+- [ ] [SFLOW-V5-x-35] [MUST] "Trailing encapsulation data for the outermost protocol layer included in the sampled header must be stripped", as must trailing data "corresponding to any leading encapsulations that were stripped" and "Outer encapsulations that are ambiguous, or not one of the standard header_protocol" (Raw Packet Header)
+- [ ] [SFLOW-V5-x-36] [MUST] "extended_switch data must always be reported to describe the ingress/egress VLAN information for the packet." (Extended Switch)
+- [ ] [SFLOW-V5-x-37] [MUST] "The random number generator must ensure that all numbers in the range between its maximum and minimum values of the distribution are possible" (Packet Sampling)
+- [ ] [SFLOW-V5-x-38] [MUST] Packet Flow Sampling "must ensure that any packet observed at a Data Source has an equal chance of being sampled, irrespective of the Packet Flow(s) to which it belongs" (Packet Sampling)
+- [ ] [SFLOW-V5-x-39] [MUST] "Each packet must only be considered once for sampling, irrespective of the number of ports it will be forwarded to." (Packet Sampling)
+- [ ] [SFLOW-V5-x-40] [MUST] "Each sFlow sampler instance must operate independently of all other instances", and "Setting an attribute of one sampler must not alter the the behavior and settings of other sampler instances." (Agent Architecture)
+- [ ] [SFLOW-V5-x-41] [MUST] "The sampling algorithm must converge so that over time the number of packets sampled approaches 1/Nth of the total number of packets in the monitored flows." (Packet Sampling)
+- [ ] [SFLOW-V5-x-42] [MUST] After an agent adjusts a configured sampling rate, "The sampling rate must stay at its new value and never automatically return to the originally configured value." (Packet Sampling)
 - [ ] [SFLOW-V5-x-17] [SHOULD] Default datagram max size SHOULD be 1400 bytes (Transport)
 - [ ] [SFLOW-V5-x-18] [SHOULD] Default max header size SHOULD be 128 bytes for sampled_header (Raw Packet Header)
 - [ ] [SFLOW-V5-x-19] [SHOULD] Counter polls SHOULD be staggered across sources with randomized initial offset (Counter Polling)

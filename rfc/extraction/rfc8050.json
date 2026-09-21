@@ -1,0 +1,106 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8050",
+  "register": "prose",
+  "source-path": "rfc/full/rfc8050.txt",
+  "source-sha": "8bd154a2aa1b4659",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8050-x-4"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8050-x-3"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8050-4.1-1",
+        "RFC8050-x-2"
+      ]
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8050-4.2-1"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Boilerplate: the sentence is part of the IETF Trust Copyright Notice and constrains how code extracted from the document is licensed, not the behavior of an MRT writer or parser."
+    },
+    {
+      "id": "2:1",
+      "quote": "Therefore, new BGP4MP/BGP4MP_ET subtypes as defined in [RFC6396] are required to signal to an MRT parser how to parse the NLRI.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8050-x-1"
+    },
+    {
+      "id": "2:2",
+      "quote": "The following two sections define the required subtypes.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Document roadmap: 'The following two sections define the required subtypes' names what Sections 3 and 4 contain. 'required' is an adjective on the subtypes the previous paragraphs called for, and the sentence imposes nothing on an implementation. The obligation it points at is carried by site 2:1, mapped to RFC8050-x-1."
+    }
+  ]
+}

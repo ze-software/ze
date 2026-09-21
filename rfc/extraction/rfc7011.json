@@ -1,0 +1,1020 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7011",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc7011.txt",
+  "source-sha": "21fa7c3fe6dbb5b9",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7011-3-1"
+      ]
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7011-3.1-1"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.1",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7011-3.4.1-1"
+      ]
+    },
+    {
+      "id": "3.4.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7011-3.4.2-2"
+      ]
+    },
+    {
+      "id": "3.4.2.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.2.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.6",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.9",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2.6",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7011-x-3"
+      ]
+    },
+    {
+      "id": "10.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.3.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.3.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.3.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.4.1",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7011-x-4"
+      ]
+    },
+    {
+      "id": "10.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.4.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.4.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.1",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.3",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.4.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.5.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.2:1",
+      "quote": "When the Enterprise bit is set to 0, the corresponding Information Element appears in [IANA-IPFIX], and the Enterprise Number MUST NOT be present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-3.2-1"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "When the Enterprise bit is set to 1, the corresponding Information Element identifier identified an enterprise-specific Information Element; the Enterprise Number MUST be present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-3.2-2"
+    },
+    {
+      "id": "3.2:3",
+      "quote": "If this bit is zero, the Information Element identifier identifies an Information Element in [IANA-IPFIX], and the four-octet Enterprise Number field MUST NOT be present.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the E=0 prohibition already mapped at site 3.2:1, in the field-specifier field description",
+      "mapped-to": "RFC7011-3.2-1"
+    },
+    {
+      "id": "3.2:4",
+      "quote": "If this bit is one, the Information Element identifier identifies an enterprise-specific Information Element, and the Enterprise Number field MUST be present.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the E=1 obligation already mapped at site 3.2:2, in the field-specifier field description",
+      "mapped-to": "RFC7011-3.2-2"
+    },
+    {
+      "id": "3.3.1:1",
+      "quote": "The record types MUST NOT be mixed within a Set.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-3.3.1-3"
+    },
+    {
+      "id": "3.3.1:2",
+      "quote": "For security reasons, the padding octet(s) MUST be composed of octets with value zero (0).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-3.3.1-1"
+    },
+    {
+      "id": "3.3.1:3",
+      "quote": "The padding length MUST be shorter than any allowable record in this Set.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-3.3.1-2"
+    },
+    {
+      "id": "3.3.2:1",
+      "quote": "Because an individual Set MAY contain multiple records, the Length value MUST be used to determine the position of the next Set.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "binds the IPFIX Collecting Process, which walks Sets to find the next one; ze implements no collector. The ipfix package encodes and sends only (producer internal/plugins/flowexport/ipfix/encoder.go WriteMessageHeader), and the single transport is the connected UDP socket at internal/plugins/flowexport/sender.go:81 net.DialUDP, which never listens No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "3.4.1:1",
+      "quote": "As Exporting Processes are free to allocate Template IDs as they see fit, Collecting Processes MUST NOT assume incremental Template IDs, or anything about the contents of a Template based on its Template ID alone.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names Collecting Processes; ze implements no IPFIX collector. Producer that would act as the role is absent: internal/plugins/flowexport/sender.go:81 net.DialUDP is a connected sender and internal/plugins/flowexport/ipfix/ holds encoders only No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "3.4.2.1:1",
+      "quote": "If a different order of Scope Fields would result in a Record having a different semantic meaning, then the order of Scope Fields MUST be preserved by the Exporting Process.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-3.4.2.1-1"
+    },
+    {
+      "id": "3.4.2.2:1",
+      "quote": "As Exporting Processes are free to allocate Template IDs as they see fit, Collecting Processes MUST NOT assume incremental Template IDs, or anything about the contents of an Options Template based on its Template ID alone.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names Collecting Processes reading Options Template IDs; ze implements no IPFIX collector. Producer absent: internal/plugins/flowexport/sender.go:81 net.DialUDP sends only, internal/plugins/flowexport/ipfix/ decodes nothing No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "3.4.2.2:2",
+      "quote": "The Scope Field Count MUST NOT be zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-3.4.2-1"
+    },
+    {
+      "id": "4:1",
+      "quote": "The Collecting Process MUST check the possible combinations of Information Elements within the Options Template Records to correctly interpret the following Options Templates.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names the Collecting Process checking Options Template Records; ze implements no IPFIX collector. Producer absent: internal/plugins/flowexport/ipfix/ encodes only and internal/plugins/flowexport/sender.go:81 net.DialUDP never listens No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "4.1:1",
+      "quote": "This Information Element MUST be defined as a Scope Field and MUST be present, unless the Observation Domain ID of the enclosing Message is non-zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-4.1-1"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "If present, this Information Element MUST be defined as a Scope Field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-4.1-2"
+    },
+    {
+      "id": "4.1:3",
+      "quote": "Note that if several Metering Processes are available on the Exporter Observation Domain, the Information Element meteringProcessId MUST be specified as an additional Scope Field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-4.1-3"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "This Information Element MUST be defined as a Scope Field and MUST be present, unless the Observation Domain ID of the enclosing Message is non-zero.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Exporting Process Statistics Options Template repeats the Metering Process Statistics sentence already mapped at site 4.1:1, word for word",
+      "mapped-to": "RFC7011-4.1-1"
+    },
+    {
+      "id": "4.2:2",
+      "quote": "If present, this Information Element MUST be defined as a Scope Field.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "repeats the sentence already mapped at site 4.1:2, word for word",
+      "mapped-to": "RFC7011-4.1-2"
+    },
+    {
+      "id": "4.2:3",
+      "quote": "Note that if several Metering Processes are available on the Exporter Observation Domain, the Information Element meteringProcessId MUST be specified as an additional Scope Field.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "repeats the meteringProcessId sentence already mapped at site 4.1:3, word for word",
+      "mapped-to": "RFC7011-4.1-3"
+    },
+    {
+      "id": "4.3:1",
+      "quote": "This Information Element MUST be defined as a Scope Field.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Metering Process Reliability Statistics template restates the scope-field obligation mapped at site 4.1:2 for its own scope Information Element",
+      "mapped-to": "RFC7011-4.1-2"
+    },
+    {
+      "id": "4.4:1",
+      "quote": "This Information Element MUST be defined as a Scope Field.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Flow Keys Options Template restates the scope-field obligation mapped at site 4.1:2 for its own scope Information Element",
+      "mapped-to": "RFC7011-4.1-2"
+    },
+    {
+      "id": "6.1.1:1",
+      "quote": "Integral data types -- unsigned8, unsigned16, unsigned32, unsigned64, signed8, signed16, signed32, and signed64 -- MUST be encoded using the default canonical format in network byte order.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-6.1.1-1"
+    },
+    {
+      "id": "6.1.2:1",
+      "quote": "Address types -- macAddress, ipv4Address, and ipv6Address -- MUST be encoded the same way as the integral data types, as six, four, and sixteen octets in network byte order, respectively.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-6.1.2-1"
+    },
+    {
+      "id": "6.1.3:1",
+      "quote": "The float32 data type MUST be encoded as an IEEE binary32 floating point type as specified in [IEEE.754.2008], in network byte order as specified in Section 3.6 of [RFC1014].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-6.1.3-1"
+    },
+    {
+      "id": "6.1.4:1",
+      "quote": "The float64 data type MUST be encoded as an IEEE binary64 floating point type as specified in [IEEE.754.2008], in network byte order as specified in Section 3.7 of [RFC1014].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-6.1.4-1"
+    },
+    {
+      "id": "6.1.6:1",
+      "quote": "The string data type MUST be encoded in UTF-8 [RFC3629] format.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-6.1.6-1"
+    },
+    {
+      "id": "6.1.6:2",
+      "quote": "IPFIX Exporting Processes MUST NOT send IPFIX Messages containing ill-formed UTF-8 string values for Information Elements of the string data type; Collecting Processes SHOULD detect and ignore such values.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-6.1.6-2"
+    },
+    {
+      "id": "6.1.9:1",
+      "quote": "Therefore, the bottom 11 bits of the Fraction field SHOULD be zero and MUST be ignored for all Information Elements of this data type (as 2^11 x 233 picoseconds = .477 microseconds).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the MUST binds the process that DECODES a dateTimeNanoseconds value and must ignore the bottom 11 bits of the Fraction field; ze implements no IPFIX collector, so nothing on its side reads the field. Producer absent: internal/plugins/flowexport/ipfix/ holds encoders only and internal/plugins/flowexport/sender.go:81 net.DialUDP never listens No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "6.2:1",
+      "quote": "The signed versus unsigned property of the reported value MUST be preserved.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-6.2-3"
+    },
+    {
+      "id": "6.2:2",
+      "quote": "Reduced-size encoding MUST NOT be applied to any other data type defined in [RFC7012] that implies a fixed length, as these types either have internal structure (such as ipv4Address or dateTimeMicroseconds) or restricted ranges that are not suitable for reduced-size encoding (such as dateTimeMilliseconds).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-6.2-1"
+    },
+    {
+      "id": "7:1",
+      "quote": "Where an Information Element has a variable length, the following mechanism MUST be used to carry the length information for both the IANA-assigned and enterprise-specific Information Elements.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-x-1"
+    },
+    {
+      "id": "7:2",
+      "quote": "In this case, the first octet of the Length field MUST be 255, and the length is carried in the second and third octets, as shown in Figure S.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-x-2"
+    },
+    {
+      "id": "7:3",
+      "quote": "The octets carrying the length (either the first or the first three octets) MUST NOT be included in the length of the Information Element.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-7-1"
+    },
+    {
+      "id": "8:1",
+      "quote": "The Collecting Process MUST store all received Template Record information for the duration of each Transport Session until reuse or withdrawal as described in Section 8.1, or expiry over UDP as described in Section 8.4, so that it can interpret the corresponding Data Records.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names the Collecting Process storing Template Records; ze implements no IPFIX collector. Producer absent: internal/plugins/flowexport/ipfix/ encodes only, internal/plugins/flowexport/sender.go:81 net.DialUDP never listens No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "8:2",
+      "quote": "The Collecting Process MUST NOT assume that the Template IDs from a given Exporting Process refer to the same Templates as they did in previous Transport Sessions from the same Exporting Process; a Collecting Process MUST NOT use Templates from one Transport Session to decode Data Sets in a subsequent Transport Session.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names the Collecting Process and Template reuse across Transport Sessions; ze implements no IPFIX collector (internal/plugins/flowexport/sender.go:81 net.DialUDP sends only) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "8:3",
+      "quote": "Collecting Processes MUST properly handle Templates with multiple identical Information Elements.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names Collecting Processes handling identical Information Elements; ze implements no IPFIX collector (internal/plugins/flowexport/ipfix/ encodes only) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "8:4",
+      "quote": "However, a Collecting Process MUST NOT assume that the Data Set and the associated Template Set (or Options Template Set) are exported in the same IPFIX Message.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names the Collecting Process and what it may assume about Message layout; ze implements no IPFIX collector (internal/plugins/flowexport/sender.go:81 net.DialUDP sends only) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "8:5",
+      "quote": "Different Observation Domains within a Transport Session MAY use the same Template ID value to refer to different Templates; Collecting Processes MUST properly handle this case.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the MUST names Collecting Processes handling one Template ID in several Observation Domains; ze implements no IPFIX collector (internal/plugins/flowexport/ipfix/ encodes only) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "8.1:1",
+      "quote": "After receiving a Template Withdrawal, a Collecting Process MUST stop using the Template to interpret subsequently exported Data Sets.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names the Collecting Process reacting to a Template Withdrawal; ze implements no IPFIX collector (internal/plugins/flowexport/sender.go:81 net.DialUDP sends only) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "8.1:2",
+      "quote": "Figure T: Template Withdrawal Format The Set ID field MUST contain the value 2 for Template Set Withdrawal or the value 3 for Options Template Set Withdrawal.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-8.1-1"
+    },
+    {
+      "id": "8.1:3",
+      "quote": "The continued receipt and interpretation of Data Records are still possible, but the Collecting Process MUST ignore the Template Withdrawal and SHOULD log the error.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names the Collecting Process ignoring an out-of-order Template Withdrawal; ze implements no IPFIX collector (internal/plugins/flowexport/ipfix/ encodes only) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "8.2:1",
+      "quote": "Since there is no guarantee of the ordering of exported IPFIX Messages across SCTP Streams or over UDP, an Exporting Process MUST sequence all Template management actions (i.e., Template Records defining new Templates and Template Withdrawals withdrawing them) using the Export Time field in the IPFIX Message Header.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-8.2-1"
+    },
+    {
+      "id": "8.2:2",
+      "quote": "An Exporting Process MUST NOT export a Data Set described by a new Template in an IPFIX Message with an Export Time before the Export Time of the IPFIX Message containing that Template.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-8.2-2"
+    },
+    {
+      "id": "8.2:3",
+      "quote": "If a new Template and a Data Set described by it appear in the same IPFIX Message, the Template Set containing the Template MUST appear before the Data Set in the Message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-8.2-3"
+    },
+    {
+      "id": "8.2:4",
+      "quote": "An Exporting Process MUST NOT export any Data Sets described by a withdrawn Template in IPFIX Messages with an Export Time after the Export Time of the IPFIX Message containing the Template Withdrawal withdrawing that Template.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-8.2-4"
+    },
+    {
+      "id": "8.3:1",
+      "quote": "Template Sets and Options Template Sets MUST be sent reliably, using SCTP ordered delivery.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-10-2"
+    },
+    {
+      "id": "8.3:2",
+      "quote": "Template Withdrawals MUST be sent reliably, using SCTP ordered delivery.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the SCTP ordered-delivery obligation mapped at site 8.3:1, for Template Withdrawals instead of Template Sets",
+      "mapped-to": "RFC7011-10-2"
+    },
+    {
+      "id": "8.4:1",
+      "quote": "Since UDP provides no method for reliable transmission of Templates, Exporting Processes using UDP as the transport protocol MUST periodically retransmit each active Template at regular intervals.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-8-1"
+    },
+    {
+      "id": "8.4:2",
+      "quote": "The Template retransmission interval MUST be configurable via, for example, the templateRefreshTimeout and optionsTemplateRefreshTimeout parameters as defined in [RFC6728].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-8-2"
+    },
+    {
+      "id": "8.4:3",
+      "quote": "Template Withdrawals (Section 8.1) MUST NOT be sent by Exporting Processes exporting via UDP and MUST be ignored by Collecting Processes collecting via UDP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-8-3"
+    },
+    {
+      "id": "8.4:4",
+      "quote": "When a Collecting Process receives a new Template Record or Options Template Record for an already-allocated Template ID, and that Template or Options Template is different from the already-received Template or Options Template, the Collecting Process MUST replace the Template or Options Template for that Template ID with the newly received Template or Options Template.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names the Collecting Process replacing a Template on UDP redefinition; ze implements no IPFIX collector (internal/plugins/flowexport/sender.go:81 net.DialUDP sends only) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "9:1",
+      "quote": "The Collecting Process MUST listen for association requests / connections to start new Transport Sessions from the Exporting Process.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names the Collecting Process listening for association requests; ze implements no IPFIX collector and opens no listening socket (internal/plugins/flowexport/sender.go:81 net.DialUDP is a connected sender) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "9:2",
+      "quote": "The Collecting Process MUST note the Information Element identifier of any Information Element that it does not understand and MAY discard that Information Element from received Data Records.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names the Collecting Process noting unknown Information Elements; ze implements no IPFIX collector (internal/plugins/flowexport/ipfix/ encodes only) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "9:3",
+      "quote": "The Collecting Process MUST accept padding in Data Records and Template Records.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names the Collecting Process accepting padding; ze implements no IPFIX collector (internal/plugins/flowexport/ipfix/ encodes only) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "9.1:1",
+      "quote": "If the Collecting Process receives a malformed IPFIX Message, it MUST discard the IPFIX Message and SHOULD log the error.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names the Collecting Process discarding a malformed IPFIX Message; ze implements no IPFIX collector (internal/plugins/flowexport/sender.go:81 net.DialUDP sends only) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "9.2:1",
+      "quote": "As an Exporting Process may request and support more than one stream per SCTP association, the Collecting Process MUST support the opening of multiple SCTP Streams.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names the Collecting Process opening multiple SCTP Streams; ze implements no IPFIX collector and no SCTP transport (internal/plugins/flowexport/sender.go:81 net.DialUDP) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "10:1",
+      "quote": "A Collecting Process MUST be able to handle IPFIX Message lengths of up to 65535 octets.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names the Collecting Process handling 65535-octet Messages; ze implements no IPFIX collector (internal/plugins/flowexport/ipfix/ encodes only) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "10:2",
+      "quote": "Transport Session state MUST NOT be migrated by an Exporting Process or Collecting Process among Transport Sessions using different transport protocols between the same Exporting Process and Collecting Process pair.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-10-5"
+    },
+    {
+      "id": "10.1:1",
+      "quote": "SCTP [RFC4960] using the Partially Reliable SCTP (PR-SCTP) extension as specified in [RFC3758] MUST be implemented by all compliant implementations.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-10-1"
+    },
+    {
+      "id": "10.1:2",
+      "quote": "It MUST be possible to configure both the Exporting and Collecting Processes to use different ports than the default.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-10.1-1"
+    },
+    {
+      "id": "10.2.2:1",
+      "quote": "If Data Records are discarded, the IPFIX Sequence Numbers used for export MUST reflect the loss of data.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-10.2.2-1"
+    },
+    {
+      "id": "10.2.4:1",
+      "quote": "When a Collecting Process detects that the SCTP association has been abnormally terminated, it MUST continue to listen for a new association establishment.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names the Collecting Process re-listening after an aborted SCTP association; ze implements no IPFIX collector and no SCTP transport (internal/plugins/flowexport/sender.go:81 net.DialUDP) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "10.3.2:1",
+      "quote": "UDP MUST NOT be used unless the application can tolerate some loss of IPFIX Messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-10.3.2-1"
+    },
+    {
+      "id": "10.3.2:2",
+      "quote": "Exporting Processes exporting IPFIX Messages via UDP MUST include a valid UDP checksum [UDP] in UDP datagrams including IPFIX Messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-10.3.2-2"
+    },
+    {
+      "id": "10.3.3:1",
+      "quote": "The maximum size of exported messages MUST be configured such that the total packet size does not exceed the PMTU.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-10.3.3-1"
+    },
+    {
+      "id": "10.4.1:1",
+      "quote": "The dropped Data Records MUST be accounted for, so that the number of lost records can later be reported as described in Section 4.3.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-10.4.1-1"
+    },
+    {
+      "id": "10.4.4:1",
+      "quote": "When a Collecting Process detects that the TCP connection to the Exporting Process has terminated abnormally, it MUST continue to listen for a new connection.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names the Collecting Process re-listening after an abnormal TCP close; ze implements no IPFIX collector and no TCP transport (internal/plugins/flowexport/sender.go:81 net.DialUDP) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    },
+    {
+      "id": "10.4.4:2",
+      "quote": "In the default configuration, an Exporting Process MUST NOT attempt to establish a connection more frequently than once per minute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-10.4.4-1"
+    },
+    {
+      "id": "11.1:1",
+      "quote": "IPFIX Exporting Processes and Collecting Processes using TCP MUST support TLS version 1.1 and SHOULD support TLS version 1.2 [RFC5246], including the mandatory ciphersuite(s) specified in each version.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-11.1-1"
+    },
+    {
+      "id": "11.1:2",
+      "quote": "IPFIX Exporting Processes and Collecting Processes using UDP or SCTP MUST support DTLS version 1.0 and SHOULD support DTLS version 1.2 [RFC6347], including the mandatory ciphersuite(s) specified in each version.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-11.1-2"
+    },
+    {
+      "id": "11.1:3",
+      "quote": "When using DTLS over SCTP, the Exporting Process MUST ensure that each IPFIX Message is sent over the same SCTP Stream that would be used when sending the same IPFIX Message directly over SCTP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-11.1-3"
+    },
+    {
+      "id": "11.1:4",
+      "quote": "Exporting and Collecting Processes MUST NOT request, offer, or use any version of the Secure Socket Layer (SSL), or any version of TLS prior to 1.1, due to known security vulnerabilities in prior versions of TLS; see Appendix E of [RFC5246] for more information.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-11.1-4"
+    },
+    {
+      "id": "11.3:1",
+      "quote": "To prevent man-in-the-middle attacks from impostor Exporting or Collecting Processes, the acceptance of data from an unauthorized Exporting Process, or the export of data to an unauthorized Collecting Process, mutual authentication MUST be used for both TLS and DTLS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-11-1"
+    },
+    {
+      "id": "11.3:2",
+      "quote": "Exporting Processes MUST verify the reference identifiers of the Collecting Processes to which they are exporting IPFIX Messages against those stored in the certificates.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-11.3-1"
+    },
+    {
+      "id": "11.3:3",
+      "quote": "Likewise, Collecting Processes MUST verify the reference identifiers of the Exporting Processes from which they are receiving IPFIX Messages against those stored in the certificates.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the sentence opens with Likewise and restates for the Collecting Process the reference-identifier verification mapped at site 11.3:2",
+      "mapped-to": "RFC7011-11.3-1"
+    },
+    {
+      "id": "11.3:4",
+      "quote": "Exporting Processes MUST NOT export to non-verified Collecting Processes, and Collecting Processes MUST NOT accept IPFIX Messages from non-verified Exporting Processes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-11.3-2"
+    },
+    {
+      "id": "11.3:5",
+      "quote": "Exporting Processes and Collecting Processes MUST support the verification of certificates against an explicitly authorized list of peer certificates identified by Common Name and SHOULD support the verification of reference identifiers by matching the DNS-ID or CN-ID with a DNS lookup of the peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-11.3-3"
+    },
+    {
+      "id": "11.3:6",
+      "quote": "IPFIX Exporting Processes and Collecting Processes MUST use non-NULL ciphersuites for authentication, integrity, and confidentiality.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7011-11.3-4"
+    },
+    {
+      "id": "11.6:1",
+      "quote": "IPFIX Collecting Processes MUST detect potential IPFIX Message insertion or loss conditions by tracking the IPFIX Sequence Number and SHOULD provide a logging mechanism for reporting out-of-sequence messages.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence names IPFIX Collecting Processes detecting insertion or loss by Sequence Number; ze implements no IPFIX collector (internal/plugins/flowexport/sender.go:81 net.DialUDP sends only) No producer acts as the IPFIX Collecting Process in this tree: internal/plugins/flowexport/sender.go (line 81, net.DialUDP) is the only IPFIX transport and it is a connected sender that never listens."
+    }
+  ]
+}

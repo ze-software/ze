@@ -1,0 +1,1268 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2328",
+  "register": "prose",
+  "source-path": "rfc/full/rfc2328.txt",
+  "source-sha": "e2e865f4d247d1bf",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 9,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 9,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2328-10.1-1",
+        "RFC2328-9.1-1"
+      ]
+    },
+    {
+      "id": "8",
+      "sites": 15,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 17,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 16,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 14,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2328-12.1.7-1"
+      ]
+    },
+    {
+      "id": "13",
+      "sites": 29,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2328-13-2",
+        "RFC2328-13-3",
+        "RFC2328-13-4"
+      ]
+    },
+    {
+      "id": "14",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2328-14-1"
+      ]
+    },
+    {
+      "id": "15",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "16",
+      "sites": 21,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2328-16.2-2"
+      ]
+    },
+    {
+      "id": "A",
+      "sites": 9,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2328-A.3.3-1"
+      ]
+    },
+    {
+      "id": "B",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "C",
+      "sites": 16,
+      "disposition": "walked"
+    },
+    {
+      "id": "D",
+      "sites": 9,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2328-D.3-1",
+        "RFC2328-D.3-2"
+      ]
+    },
+    {
+      "id": "E",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "F",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "G",
+      "sites": 3,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "The Designated Router concept enables a reduction in the number of adjacencies required on a broadcast or NBMA network.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "non-normative description of the Designated Router concept's effect on the number of adjacencies; no obligation is stated"
+    },
+    {
+      "id": "1:2",
+      "quote": "The Designated Router concept has been greatly enhanced to further reduce the amount of routing traffic required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "non-normative history of the protocol's development; 'enhanced' prose, no obligation"
+    },
+    {
+      "id": "1:3",
+      "quote": "Implementations of the protocol are required to support the functionality described, but need not use the precise data structures that appear in this memo.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "non-normative document convention: it states that the memo's data structures are illustrative, imposing no specific protocol behavior"
+    },
+    {
+      "id": "3:1",
+      "quote": "The backbone must be contiguous.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "constraint on the AS topology a network operator builds (the backbone must be contiguous), not a behavior the router produces"
+    },
+    {
+      "id": "3:2",
+      "quote": "Also, RT3 and RT4 must advertise into Area 1 the location of the AS boundary routers RT5 and RT7.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "narrative about Figure 6's sample AS, naming RT3 and RT4; an example, not an obligation"
+    },
+    {
+      "id": "3:3",
+      "quote": "Routers RT3 and RT4 must also summarize Area 1's topology for ........................... . + . . | 3+---+ .",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "figure text for the sample AS of Figure 6, garbled by the extractor; an example, not an obligation"
+    },
+    {
+      "id": "3:4",
+      "quote": "Subnet masks must be assigned so that the best match for any IP destination is unambiguous.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "constraint on the operator's addressing plan (mask assignment), not a behavior the router produces"
+    },
+    {
+      "id": "3:5",
+      "quote": "In order to take advantage of the OSPF stub area support, default routing must be used in the stub area.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "statement of what an operator must do to use stub areas (configure default routing), not a router behavior"
+    },
+    {
+      "id": "3:6",
+      "quote": "One or more of the stub area's area border routers must advertise a default route into the stub area via summary-LSAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-3.6-1"
+    },
+    {
+      "id": "3:7",
+      "quote": "For example, Area 3 in Figure 6 could be configured as a stub area, because all external traffic must travel though its single area border router RT11.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "example reading 'For example, Area 3 in Figure 6 could be configured as a stub area'; an illustration, not an obligation"
+    },
+    {
+      "id": "3:8",
+      "quote": "However, in order to maintain full routing after the partition, an address range must not be split across multiple components of the area partition.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "constraint on the operator's address-range plan across an area partition, not a router behavior"
+    },
+    {
+      "id": "3:9",
+      "quote": "Also, the backbone itself must not partition.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "constraint on the AS topology an operator builds (the backbone must not partition), not a router behavior"
+    },
+    {
+      "id": "4:1",
+      "quote": "To utilize external routing information, the path to all routers advertising external information must be known throughout the AS (excepting the stub areas).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "non-normative rationale for flooding AS-external information throughout the AS; no discrete behavior is required"
+    },
+    {
+      "id": "4:2",
+      "quote": "Timers Two different kind of timers are required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "describes the implementation's internal timer facilities (single-shot and interval timers), not a protocol behavior"
+    },
+    {
+      "id": "4:3",
+      "quote": "Support for receiving and sending IP multicast datagrams, along with the appropriate lower-level protocol support, is required.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-4.4-1"
+    },
+    {
+      "id": "4:4",
+      "quote": "For this reason, the ability to forward IP multicast datagrams is not required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "states a NON-requirement: 'the ability to forward IP multicast datagrams is not required'"
+    },
+    {
+      "id": "4:5",
+      "quote": "Variable-length subnet support The router's IP protocol support must include the ability to divide a single IP class A, B, or C network number into many subnets of various sizes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-4.4-2"
+    },
+    {
+      "id": "4:6",
+      "quote": "IP supernetting support The router's IP protocol support must include the ability to aggregate contiguous collections of IP class A, B, and C networks into larger quantities called supernets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-4.4-2"
+    },
+    {
+      "id": "4:7",
+      "quote": "Indications must be passed from these protocols to OSPF as the network interface goes up and down.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-4.4-3"
+    },
+    {
+      "id": "4:8",
+      "quote": "Some capabilities must be supported by all routers attached to a specific area.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "introductory sentence to the area-capability discussion; the obligation it introduces is the E-bit consistency stated in the next sentence"
+    },
+    {
+      "id": "4:9",
+      "quote": "In order to ensure consistent configuration of stub areas, all routers interfacing to such an area must have the E-bit clear in their Hello packets (see Sections 9.5 and 10.5).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-9.5-1"
+    },
+    {
+      "id": "5:1",
+      "quote": "In order to have configured virtual links, the router itself must be an area border router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-15-1"
+    },
+    {
+      "id": "5:2",
+      "quote": "These two endpoint routers must be attached to a common area, called the virtual link's Transit area.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-15-1"
+    },
+    {
+      "id": "8:1",
+      "quote": "For this reason, there must be at least one IP address assigned to the router.[2] Note that, for most purposes, virtual links act precisely the same as unnumbered point-to-point networks.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.1-1"
+    },
+    {
+      "id": "8:2",
+      "quote": "In order for the packet to be accepted at the IP level, it must pass a number of tests, even before the packet is passed to OSPF for processing:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.2-1"
+    },
+    {
+      "id": "8:3",
+      "quote": "o The IP checksum must be correct.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.2-1"
+    },
+    {
+      "id": "8:4",
+      "quote": "o The packet's IP destination address must be the IP address of the receiving interface, or one of the IP multicast addresses AllSPFRouters or AllDRouters.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.2-1"
+    },
+    {
+      "id": "8:5",
+      "quote": "o The IP protocol specified must be OSPF (89).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.2-1"
+    },
+    {
+      "id": "8:6",
+      "quote": "The fields specified in the header must match those configured for the receiving interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.2-2"
+    },
+    {
+      "id": "8:7",
+      "quote": "o The version number field must specify protocol version 2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-A.3.1-1"
+    },
+    {
+      "id": "8:8",
+      "quote": "o The Area ID found in the OSPF header must be verified.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.2-2"
+    },
+    {
+      "id": "8:9",
+      "quote": "The Area ID specified in the header must either: (1) Match the Area ID of the receiving interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.2-2"
+    },
+    {
+      "id": "8:10",
+      "quote": "Therefore, the packet's IP source address is required to be on the same network as the receiving interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.2-1"
+    },
+    {
+      "id": "8:11",
+      "quote": "The receiving router must be an area border router, and the Router ID specified in the packet (the source router) must be the other end of a configured virtual link.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.2-2"
+    },
+    {
+      "id": "8:12",
+      "quote": "The receiving interface must also attach to the virtual link's configured Transit area.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.2-2"
+    },
+    {
+      "id": "8:13",
+      "quote": "o The AuType specified in the packet must match the AuType specified for the associated area.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.2-3"
+    },
+    {
+      "id": "8:14",
+      "quote": "o The packet must be authenticated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.2-3"
+    },
+    {
+      "id": "8:15",
+      "quote": "This means that the packet must have been sent by one of the router's active neighbors.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.2-3"
+    },
+    {
+      "id": "9:1",
+      "quote": "Note that a number of these items are actually configuration for the attached network; such items must be the same for all routers connected to the network.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.5-1"
+    },
+    {
+      "id": "9:2",
+      "quote": "This value should take into account transmission and propagation delays; it must be greater than zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.3-2"
+    },
+    {
+      "id": "9:3",
+      "quote": "The cost of an interface must be greater than zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-C.3-1"
+    },
+    {
+      "id": "9:4",
+      "quote": "The router must also originate a network-LSA for the network node.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-9.1-1"
+    },
+    {
+      "id": "9:5",
+      "quote": "WaitTimer The Wait Timer has fired, indicating the end of the waiting period that is required before electing a (Backup) Designated Router.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "glossary entry for the Wait Timer in the interface data structure's timer list; it names the timer, it states no behavior"
+    },
+    {
+      "id": "9:6",
+      "quote": "In either case there must be bidirectional communication with the neighbor, i.e., the router must also appear in the neighbor's Hello Packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.5-1"
+    },
+    {
+      "id": "9:7",
+      "quote": "Each entry in the state machine describes the resulting new interface state and the required set of additional actions.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "explains how the interface state machine table is read ('Each entry ... describes the resulting new interface state'); document convention, not an obligation"
+    },
+    {
+      "id": "9:8",
+      "quote": "Some of the required actions below involve generating events for the neighbor state machine.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "explains that state machine actions generate neighbor events; document convention, not an obligation"
+    },
+    {
+      "id": "9:9",
+      "quote": "For example, when an interface becomes inoperative, all neighbor connections associated with the interface must be destroyed.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "illustrative example opening 'For example, when an interface becomes inoperative'; the normative action is the state machine entry it illustrates"
+    },
+    {
+      "id": "9:10",
+      "quote": "(6) If the attached network is an NBMA network, and the router itself has just become either Designated Router or Backup Designated Router, it must start sending Hello Packets to those neighbors that are not eligible to become Designated Router (see Section 9.5.1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-9.5.1-1"
+    },
+    {
+      "id": "9:11",
+      "quote": "The Hello Packet also indicates how often a neighbor must be heard from to remain active (RouterDeadInterval).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "describes the meaning of the RouterDeadInterval field carried in the Hello packet; no behavior is required by this sentence"
+    },
+    {
+      "id": "9:12",
+      "quote": "Both HelloInterval and RouterDeadInterval must be the same for all routers attached to a common network.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.5-1"
+    },
+    {
+      "id": "9:13",
+      "quote": "The interface state must be at least Waiting for any Hello Packets to be sent out the NBMA interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-9.5.1-1"
+    },
+    {
+      "id": "9:14",
+      "quote": "If the router is eligible to become Designated Router, it must periodically send Hello Packets to all neighbors that are also eligible.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-9.5.1-1"
+    },
+    {
+      "id": "9:15",
+      "quote": "In addition, if the router is itself the Designated Router or Backup Designated Router, it must also send periodic Hello Packets to all other neighbors.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-9.5.1-1"
+    },
+    {
+      "id": "9:16",
+      "quote": "If the router is not eligible to become Designated Router, it must periodically send Hello Packets to both the Designated Router and the Backup Designated Router (if they exist).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-9.5.1-1"
+    },
+    {
+      "id": "9:17",
+      "quote": "It must also send an Hello Packet in reply to an Hello Packet received from any eligible neighbor (other than the current Designated Router and Backup Designated Router).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-9.5.1-1"
+    },
+    {
+      "id": "10:1",
+      "quote": "A decision must be made as to whether an adjacency should be established/maintained with the neighbor.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "introductory pointer to Section 10.4 ('whether to become adjacent'); it names where the decision is specified, it does not state it"
+    },
+    {
+      "id": "10:2",
+      "quote": "Each entry in the state machine describes the resulting new neighbor state and the required set of additional actions.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "explains how the neighbor state machine table is read; document convention, not an obligation"
+    },
+    {
+      "id": "10:3",
+      "quote": "Action: The router must list the contents of its entire area link state database in the neighbor Database summary list.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.1-1"
+    },
+    {
+      "id": "10:4",
+      "quote": "No other action is required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "state machine table entry reading 'No other action is required'; it states the absence of an action"
+    },
+    {
+      "id": "10:5",
+      "quote": "Action: No action required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "state machine table entry reading 'No action required'; it states the absence of an action"
+    },
+    {
+      "id": "10:6",
+      "quote": "Otherwise, the (possibly partially formed) adjacency must be destroyed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.2-1"
+    },
+    {
+      "id": "10:7",
+      "quote": "Action: No action required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "state machine table entry reading 'No action required'; it states the absence of an action"
+    },
+    {
+      "id": "10:8",
+      "quote": "Action: No action required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "state machine table entry reading 'No action required'; it states the absence of an action"
+    },
+    {
+      "id": "10:9",
+      "quote": "Next, the values of the Network Mask, HelloInterval, and RouterDeadInterval fields in the received Hello packet must be checked against the values configured for the receiving interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.5-1"
+    },
+    {
+      "id": "10:10",
+      "quote": "The setting of the E-bit found in the Hello Packet's Options field must match this area's ExternalRoutingCapability.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-9.5-1"
+    },
+    {
+      "id": "10:11",
+      "quote": "If AS-external-LSAs are not flooded into/throughout the area (i.e, the area is a \"stub\") the E-bit must be clear in received Hello Packets, otherwise the E-bit must be set.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-9.5-1"
+    },
+    {
+      "id": "10:12",
+      "quote": "o Database Description packets must be processed in sequence, as indicated by the packets' DD sequence numbers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.6-1"
+    },
+    {
+      "id": "10:13",
+      "quote": "The slave must respond to duplicates by repeating the last Database Description packet that it had sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.6-1"
+    },
+    {
+      "id": "10:14",
+      "quote": "The slave must send a Database Description Packet in reply.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.6-1"
+    },
+    {
+      "id": "10:15",
+      "quote": "In states Loading and Full the slave must resend its last Database Description packet in response to duplicate Database Description packets received from the master.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.6-1"
+    },
+    {
+      "id": "10:16",
+      "quote": "For this reason the slave must wait RouterDeadInterval seconds before freeing the last Database Description packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.6-1"
+    },
+    {
+      "id": "12:1",
+      "quote": "It must then be determined which instance is more recent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.1-1"
+    },
+    {
+      "id": "12:2",
+      "quote": "Otherwise, the LS sequence number, LS age and LS checksum fields must also be referenced.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.1-1"
+    },
+    {
+      "id": "12:3",
+      "quote": "It must be incremented by InfTransDelay on every hop of the flooding procedure.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.3-2"
+    },
+    {
+      "id": "12:4",
+      "quote": "When an attempt is made to increment the sequence number past the maximum value of N - 1 (0x7fffffff; also referred to as MaxSequenceNumber), the current instance of the LSA must first be flushed from the routing domain.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-12.1.6-1"
+    },
+    {
+      "id": "12:5",
+      "quote": "An implementation of OSPF must be able to access individual pieces of an area database.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-12.2-1"
+    },
+    {
+      "id": "12:6",
+      "quote": "Whenever an LSA is deleted from the database it must also be removed from all neighbors' Link state retransmission lists (see Section 10).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-5"
+    },
+    {
+      "id": "12:7",
+      "quote": "The router must then originate summary-LSAs into the newly attached area for all pertinent intra-area and inter-area routes in the router's routing table.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-12.4.3-1"
+    },
+    {
+      "id": "12:8",
+      "quote": "With the exception of links to stub networks, the output cost must always be non-zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-C.3-1"
+    },
+    {
+      "id": "12:9",
+      "quote": "In addition, in those rare cases where a router's Router ID has changed, any network-LSAs that were originated with the router's previous Router ID must be flushed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.4-1"
+    },
+    {
+      "id": "12:10",
+      "quote": "In general, this information must be condensed before appearing in summary-LSAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-12.4.3-1"
+    },
+    {
+      "id": "12:11",
+      "quote": "If a router advertises a summary-LSA for a destination which then becomes unreachable, the router must then flush the LSA from the routing domain by setting its age to MaxAge and reflooding (see Section 14.1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-12.4-1"
+    },
+    {
+      "id": "12:12",
+      "quote": "If a router advertises an AS-external-LSA for a destination which then becomes unreachable, the router must then flush the LSA from the routing domain by setting its age to MaxAge and reflooding (see Section 14.1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-12.4-1"
+    },
+    {
+      "id": "12:13",
+      "quote": "RTA must then originate AS- external-LSAs for those destinations it has learned from RTX.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "narrative about the sample routers RTA and RTX in the Section 12.4.4 example; an illustration, not an obligation"
+    },
+    {
+      "id": "12:14",
+      "quote": "However, it must be unambiguously defined as to which router originates the LSAs (otherwise neither may, or the identity of the originator may oscillate).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "design note on the configuration of two routers advertising the same external route; it requires an unambiguous configuration, not a behavior the router produces"
+    },
+    {
+      "id": "13:1",
+      "quote": "To make the flooding procedure reliable, each LSA must be acknowledged separately.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.5-1"
+    },
+    {
+      "id": "13:2",
+      "quote": "An LSA's area must be deduced from the Link State Update packet header.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-1"
+    },
+    {
+      "id": "13:3",
+      "quote": "If there is no database copy, or the received LSA is more recent than the database copy (see Section 13.1 below for the determination of which LSA is more recent) the following steps must be performed:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-1"
+    },
+    {
+      "id": "13:4",
+      "quote": "(f) If this new LSA indicates that it was originated by the receiving router itself (i.e., is considered a self- originated LSA), the router must take special action, either updating the LSA or in some cases flushing it from the routing domain.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.4-1"
+    },
+    {
+      "id": "13:5",
+      "quote": "(In this case, the LSA's LS sequence number is wrapping, and the MaxSequenceNumber LSA must be completely flushed before any new LSA instance can be introduced).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-12.1.6-1"
+    },
+    {
+      "id": "13:6",
+      "quote": "When a router encounters two instances of an LSA, it must determine which is more recent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.1-1"
+    },
+    {
+      "id": "13:7",
+      "quote": "This comparison must also be done during the Database Exchange procedure which occurs during adjacency bring-up.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.1-1"
+    },
+    {
+      "id": "13:8",
+      "quote": "If the contents are different, the following pieces of the routing table must be recalculated, depending on the new LSA's LS type field:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-6"
+    },
+    {
+      "id": "13:9",
+      "quote": "Router-LSAs and network-LSAs The entire routing table must be recalculated, starting with the shortest path calculations for each area (not just the area whose link-state database has changed).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-6"
+    },
+    {
+      "id": "13:10",
+      "quote": "Summary-LSAs The best route to the destination described by the summary- LSA must be recalculated (see Section 16.5).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-6"
+    },
+    {
+      "id": "13:11",
+      "quote": "AS-external-LSAs The best route to the destination described by the AS- external-LSA must be recalculated (see Section 16.6).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-6"
+    },
+    {
+      "id": "13:12",
+      "quote": "Also, any old instance of the LSA must be removed from the database when the new LSA is installed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-5"
+    },
+    {
+      "id": "13:13",
+      "quote": "This old instance must also be removed from all neighbors' Link state retransmission lists (see Section 10).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-5"
+    },
+    {
+      "id": "13:14",
+      "quote": "When a new (and more recent) LSA has been received, it must be flooded out some set of the router's interfaces.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.3-1"
+    },
+    {
+      "id": "13:15",
+      "quote": "Link state databases must remain synchronized over all adjacencies associated with the above eligible interfaces.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.3-1"
+    },
+    {
+      "id": "13:16",
+      "quote": "However, in these cases the flooding procedure must be absolutely sure that the neighbors eventually do receive the LSA, so the LSA is still added to each adjacency's Link state retransmission list.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.3-1"
+    },
+    {
+      "id": "13:17",
+      "quote": "(1) Each of the neighbors attached to this interface are examined, to determine whether they must receive the new LSA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.3-1"
+    },
+    {
+      "id": "13:18",
+      "quote": "(2) The router must now decide whether to flood the new LSA out this interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.3-1"
+    },
+    {
+      "id": "13:19",
+      "quote": "(5) If this step is reached, the LSA must be flooded out the interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.3-1"
+    },
+    {
+      "id": "13:20",
+      "quote": "The LSA's LS age must be incremented by InfTransDelay (which must be > 0) when it is copied into the outgoing Link State Update packet (until the LS age field reaches the maximum value of MaxAge).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.3-2"
+    },
+    {
+      "id": "13:21",
+      "quote": "On non-broadcast networks, separate Link State Update packets must be sent, as unicasts, to each adjacent neighbor (i.e., those in state Exchange or greater).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.3-3"
+    },
+    {
+      "id": "13:22",
+      "quote": "However, if the received self-originated LSA is newer than the last instance that the router actually originated, the router must take special action.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.4-1"
+    },
+    {
+      "id": "13:23",
+      "quote": "In most cases, the router must then advance the LSA's LS sequence number one past the received LS sequence number, and originate a new instance of the LSA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.4-1"
+    },
+    {
+      "id": "13:24",
+      "quote": "Each newly received LSA must be acknowledged.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.5-1"
+    },
+    {
+      "id": "13:25",
+      "quote": "The fixed interval between a router's delayed transmissions must be short (less than RxmtInterval) or needless retransmissions will ensue.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.5-2"
+    },
+    {
+      "id": "13:26",
+      "quote": "Delayed acknowledgments must be delivered to all adjacent routers associated with the interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.5-1"
+    },
+    {
+      "id": "13:27",
+      "quote": "On non-broadcast networks, delayed Link State Acknowledgment packets must be unicast separately over each adjacency (i.e., neighbor whose state is >= Exchange).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.3-3"
+    },
+    {
+      "id": "13:28",
+      "quote": "These routers will not flood the LSA back onto net N3, but they still must ensure that their link-state databases remain synchronized with their adjacent neighbors.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.3-1"
+    },
+    {
+      "id": "13:29",
+      "quote": "Each LSA's LS age must be incremented by InfTransDelay (which must be > 0) when it is copied into the outgoing Link State Update packet (until the LS age field reaches the maximum value of MaxAge).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.3-2"
+    },
+    {
+      "id": "14:1",
+      "quote": "As a router ages its link state database, an LSA's LS age may reach MaxAge.[21] At this time, the router must attempt to flush the LSA from the routing domain.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-14-2"
+    },
+    {
+      "id": "14:2",
+      "quote": "A MaxAge LSA must be removed immediately from the router's link state database as soon as both a) it is no longer contained on any neighbor Link state retransmission lists and b) none of the router's neighbors are in states Exchange or Loading.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-14-2"
+    },
+    {
+      "id": "14:3",
+      "quote": "At this point, the current LSA instance (having LS sequence number MaxSequenceNumber) must be prematurely aged and flushed from the routing domain before a new instance with sequence number equal to InitialSequenceNumber can be originated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-12.1.6-1"
+    },
+    {
+      "id": "15:1",
+      "quote": "The virtual link must be configured in both routers.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "constraint on the operator's configuration of a virtual link (both endpoints configure it); the router cannot observe the other end's configuration"
+    },
+    {
+      "id": "15:2",
+      "quote": "(The entry's associated area must be the configured Transit area).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-15-2"
+    },
+    {
+      "id": "16:1",
+      "quote": "At each step, the router must access individual pieces of the link state databases (e.g., a router-LSA originated by a certain router).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-12.2-1"
+    },
+    {
+      "id": "16:2",
+      "quote": "Note that when there is a choice of vertices closest to the root, network vertices must be chosen before router vertices in order to necessarily find all equal-cost paths.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-16.1-3"
+    },
+    {
+      "id": "16:3",
+      "quote": "(2) If this step is reached, the stub network's routing table entry must be updated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-16.1-1"
+    },
+    {
+      "id": "16:4",
+      "quote": "However, if another algorithm is used, an identical tree must be produced.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-16.1-2"
+    },
+    {
+      "id": "16:5",
+      "quote": "For this reason, it is important to note that links between transit vertices must be bidirectional in order to be included in the above tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-16.1-1"
+    },
+    {
+      "id": "16:6",
+      "quote": "If the destination is a directly connected network, or a router which connects to the calculating router via a point-to-point interface, no next hop IP address is required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "states a NON-requirement: 'no next hop IP address is required' for a directly connected destination"
+    },
+    {
+      "id": "16:7",
+      "quote": "In any case, the area associated with N's routing table entry must remain the backbone area, and the path type (either intra-area or inter-area) must also remain the same.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-16.2-1"
+    },
+    {
+      "id": "16:8",
+      "quote": "If the forwarding address is non-zero, look up the forwarding address in the routing table.[24] The matching routing table entry must specify an intra-area or inter-area path; if no such path exists, do nothing with the LSA and consider the next in the list.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-16.4-1"
+    },
+    {
+      "id": "16:9",
+      "quote": "In this case, the path to use must be determined based on cost, as described in Section 16.4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-16.4-1"
+    },
+    {
+      "id": "16:10",
+      "quote": "In this case, the following calculations must be performed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-6"
+    },
+    {
+      "id": "16:11",
+      "quote": "In addition, if the router is an area border router attached to one or more transit areas, the calculation in Section 16.3 must be run again for the single destination.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-6"
+    },
+    {
+      "id": "16:12",
+      "quote": "Otherwise, if N is now newly unreachable, the calculation in Section 16.4 must be rerun for the single destination N, in case an alternate external route to N exists.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-6"
+    },
+    {
+      "id": "16:13",
+      "quote": "In this case, the following calculations must be performed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-6"
+    },
+    {
+      "id": "16:14",
+      "quote": "Next the calculation in Section 16.3 must be run again for the single destination N.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-6"
+    },
+    {
+      "id": "16:15",
+      "quote": "If the results of this calculation have caused the cost to N to increase, the complete routing table calculation must be rerun starting with the Dijkstra algorithm specified in Section 16.1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-6"
+    },
+    {
+      "id": "16:16",
+      "quote": "Otherwise, if N is now newly unreachable, the calculation in Section 16.4 must be rerun for the single destination N, in case an alternate external route to N exists.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-6"
+    },
+    {
+      "id": "16:17",
+      "quote": "If a previously advertised entry has been deleted, or is no longer advertisable to a particular area, the LSA must be flushed from the routing domain by setting its LS age to MaxAge and reflooding (see Section 14.1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-12.4-1"
+    },
+    {
+      "id": "16:18",
+      "quote": "If the cost of the entry has changed, and there is a fully established virtual adjacency, a new router-LSA for the backbone must be originated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-15-2"
+    },
+    {
+      "id": "16:19",
+      "quote": "In this case, an IP address must be assigned to the router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.1-1"
+    },
+    {
+      "id": "16:20",
+      "quote": "[14]There is one instance where a lookup must be done based on partial information.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-12.2-1"
+    },
+    {
+      "id": "16:21",
+      "quote": "This is during the routing table calculation, when a network-LSA must be found based solely on its Link State ID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-12.2-1"
+    },
+    {
+      "id": "A:1",
+      "quote": "To ensure that these packets will not travel multiple hops, their IP TTL must be set to 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-A.1-1"
+    },
+    {
+      "id": "A:2",
+      "quote": "Both the Designated Router and Backup Designated Router must be prepared to receive packets destined to this address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-A.1-2"
+    },
+    {
+      "id": "A:3",
+      "quote": "All routers connected to a common network must agree on certain parameters (Network mask, HelloInterval and RouterDeadInterval).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.5-1"
+    },
+    {
+      "id": "A:4",
+      "quote": "It contains all the information required to uniquely identify both the LSA and the LSA's current instance.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "describes what the LSA header contains ('all the information required to uniquely identify the LSA'); a field description, not an obligation"
+    },
+    {
+      "id": "A:5",
+      "quote": "It contains all the information required to uniquely identify both the LSA and the LSA's current instance.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "describes what the LSA header contains ('all the information required to uniquely identify the LSA'); a field description, not an obligation"
+    },
+    {
+      "id": "A:6",
+      "quote": "All of the router's links to the area must be described in a single router-LSA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-12.4.1-1"
+    },
+    {
+      "id": "A:7",
+      "quote": "This must be the total collection of router links (i.e., interfaces) to the area.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-12.4.1-1"
+    },
+    {
+      "id": "A:8",
+      "quote": "See Section 16.1.1 for more details. # TOS The number of different TOS metrics given for this link, not counting the required link metric (referred to as the TOS 0 metric in [Ref9]).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "describes the # TOS field's meaning, counting metrics 'not counting the required link metric'; a field description, not an obligation"
+    },
+    {
+      "id": "A:9",
+      "quote": "This field is not meaningful and must be zero for Type 4 summary-LSAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-A.4.4-1"
+    },
+    {
+      "id": "B:1",
+      "quote": "MinLSArrival For any particular LSA, the minimum time that must elapse between reception of new LSA instances during flooding.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13-7"
+    },
+    {
+      "id": "C:1",
+      "quote": "For example, all routers in an area must agree on that area's parameters, and all routers attached to a network must agree on that network's IP network number and mask.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.5-1"
+    },
+    {
+      "id": "C:2",
+      "quote": "All routers belonging to an area must agree on that area's configuration.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "statement that the operator configures an area's parameters consistently on all its routers; a configuration constraint, not a behavior the router produces"
+    },
+    {
+      "id": "C:3",
+      "quote": "The following items must be configured for an area:",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "preamble to the list of an area's configurable items ('The following items must be configured for an area:'); a configuration inventory"
+    },
+    {
+      "id": "C:4",
+      "quote": "Some of the configurable router interface parameters (such as IP interface address and subnet mask) actually imply properties of the attached networks, and therefore must be consistent across all the routers attached to that network.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.5-1"
+    },
+    {
+      "id": "C:5",
+      "quote": "The parameters that must be configured for a router interface are: IP interface address The IP protocol address for this interface.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "preamble to the list of a router interface's configurable parameters; a configuration inventory"
+    },
+    {
+      "id": "C:6",
+      "quote": "An IP address is not required on point-to-point networks.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "states a NON-requirement: 'An IP address is not required on point-to-point networks'"
+    },
+    {
+      "id": "C:7",
+      "quote": "The interface output cost must always be greater than 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-C.3-1"
+    },
+    {
+      "id": "C:8",
+      "quote": "LSAs contained in the update packet must have their age incremented by this amount before transmission.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.3-2"
+    },
+    {
+      "id": "C:9",
+      "quote": "It must be greater than 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-13.3-2"
+    },
+    {
+      "id": "C:10",
+      "quote": "It must be the same for all routers attached to a common network.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.5-1"
+    },
+    {
+      "id": "C:11",
+      "quote": "This value again must be the same for all routers attached to a common network.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.5-1"
+    },
+    {
+      "id": "C:12",
+      "quote": "This value must be the same for all routers attached to the network.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-10.5-1"
+    },
+    {
+      "id": "C:13",
+      "quote": "The virtual link must be configured in both of the area border routers.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "constraint on the operator's configuration of a virtual link (both area border routers configure it); the router cannot observe the other end's configuration"
+    },
+    {
+      "id": "C:14",
+      "quote": "The parameter RxmtInterval must be configured, and should be well over the expected round-trip delay between the two routers.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "entry in the interface configuration inventory naming RxmtInterval, with a sizing recommendation; the protocol behavior that uses it is stated in Section 13.3"
+    },
+    {
+      "id": "C:15",
+      "quote": "Also, for each router listed, that router's eligibility to become Designated Router must be defined.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "entry in the NBMA configuration inventory: the operator defines each listed router's Designated Router eligibility"
+    },
+    {
+      "id": "C:16",
+      "quote": "For each host directly connected to the router, the following items must be configured:",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "preamble to the list of a directly connected host's configurable items; a configuration inventory"
+    },
+    {
+      "id": "D:1",
+      "quote": "All packets sent on a particular network must have this configured value in their OSPF header 64-bit authentication field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-D.2-1"
+    },
+    {
+      "id": "D:2",
+      "quote": "Simple password authentication guards against routers inadvertently joining the routing domain; each router must first be configured with its attached networks' passwords before it can participate in routing.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-D.2-1"
+    },
+    {
+      "id": "D:3",
+      "quote": "When a new key replaces an old, the KeyStartGenerate time for the new key must be less than or equal to the KeyStopGenerate time of the old key.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-D.3-3"
+    },
+    {
+      "id": "D:4",
+      "quote": "When an OSPF packet has been received on an interface, it must be authenticated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-8.2-3"
+    },
+    {
+      "id": "D:5",
+      "quote": "When using Null authentication, the checksum field in the OSPF header must be verified.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-A.3.1-2"
+    },
+    {
+      "id": "D:6",
+      "quote": "It must be set to the 16-bit one's complement of the one's complement sum of all the 16- bit words in the packet, excepting the authentication field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-A.3.1-2"
+    },
+    {
+      "id": "D:7",
+      "quote": "(1) The checksum field in the OSPF header must be verified.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-A.3.1-2"
+    },
+    {
+      "id": "D:8",
+      "quote": "It must be set to the 16-bit one's complement of the one's complement sum of all the 16-bit words in the packet, excepting the authentication field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-A.3.1-2"
+    },
+    {
+      "id": "D:9",
+      "quote": "(2) The 64-bit authentication field in the OSPF packet header must be equal to the 64-bit password (i.e., authentication key) that has been configured for the interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-D.2-1"
+    },
+    {
+      "id": "G:1",
+      "quote": "However, intra-area paths through the backbone area (Area 0) and inter-area paths are now of equal preference, and must be compared solely based on cost.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-C.1-1"
+    },
+    {
+      "id": "G:2",
+      "quote": "Hence, intra-area backbone paths and inter-area paths must be of equal preference.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2328-C.1-1"
+    },
+    {
+      "id": "G:3",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "ISOC copyright boilerplate on modification and translation of the document; it states no protocol obligation"
+    }
+  ]
+}

@@ -1,0 +1,385 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2516",
+  "register": "prose",
+  "source-path": "rfc/full/rfc2516.txt",
+  "source-sha": "260dccfe0a8a3e8c",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2516-x-3"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2516-5.1-2",
+        "RFC2516-5.1-3"
+      ]
+    },
+    {
+      "id": "5.2",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2516-5.2-3",
+        "RFC2516-5.2-5"
+      ]
+    },
+    {
+      "id": "5.3",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2516-5.3-3",
+        "RFC2516-5.3-4"
+      ]
+    },
+    {
+      "id": "5.4",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2516-5.4-1"
+      ]
+    },
+    {
+      "id": "5.5",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2516-5.5-1",
+        "RFC2516-5.5-2"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 12,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "To provide a point-to-point connection over Ethernet, each PPP session must learn the Ethernet address of the remote peer, as well as establish a unique session identifier.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 is the Introduction. The lowercase 'must learn' describes why the Discovery stage exists; the obligations it names are stated normatively in sections 4 and 5 and are mapped from those sections."
+    },
+    {
+      "id": "2:1",
+      "quote": "The keywords MUST, MUST NOT, REQUIRED, SHALL, SHALL NOT, SHOULD, SHOULD NOT, RECOMMENDED, MAY, and OPTIONAL, when they appear in this document, are to be interpreted as described in [2].",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The RFC 2119 conventions boilerplate of section 2. It tells the reader how to read the keywords and states no obligation of its own."
+    },
+    {
+      "id": "3:1",
+      "quote": "When a Host wishes to initiate a PPPoE session, it must first perform Discovery to identify the Ethernet MAC address of the peer and establish a PPPoE SESSION_ID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "Once a PPP session is established, both the Host and the Access Concentrator MUST allocate the resources for a PPP virtual interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-3-1"
+    },
+    {
+      "id": "4:1",
+      "quote": "For PPP session traffic, this field MUST contain the peer's unicast address as determined from the Discovery stage.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-x-6"
+    },
+    {
+      "id": "4:2",
+      "quote": "The SOURCE_ADDR field MUST contains the Ethernet MAC address of the source device.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-x-7"
+    },
+    {
+      "id": "4:3",
+      "quote": "The VER field is four bits and MUST be set to 0x1 for this version of the PPPoE specification.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-x-1"
+    },
+    {
+      "id": "4:4",
+      "quote": "The TYPE field is four bits and MUST be set to 0x1 for this version of the PPPoE specification.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-x-2"
+    },
+    {
+      "id": "4:5",
+      "quote": "A value of 0xffff is reserved for future use and MUST NOT be used",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-4-1"
+    },
+    {
+      "id": "5:1",
+      "quote": "If a discovery packet is received with a TAG of unknown TAG_TYPE, the TAG MUST be ignored unless otherwise specified in this document.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-x-8"
+    },
+    {
+      "id": "5.1:1",
+      "quote": "The CODE field is set to 0x09 and the SESSION_ID MUST be set to 0x0000.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-5.1-4"
+    },
+    {
+      "id": "5.1:2",
+      "quote": "The PADI packet MUST contain exactly one TAG of TAG_TYPE Service- Name, indicating the service the Host is requesting, and any number of other TAG types.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-5.1-1"
+    },
+    {
+      "id": "5.1:3",
+      "quote": "An entire PADI packet (including the PPPoE header) MUST NOT exceed 1484 octets so as to leave sufficient room for a relay agent to add a Relay-Session-Id TAG.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-5.1-5"
+    },
+    {
+      "id": "5.2:1",
+      "quote": "The CODE field is set to 0x07 and the SESSION_ID MUST be set to 0x0000.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-5.2-6"
+    },
+    {
+      "id": "5.2:2",
+      "quote": "The PADO packet MUST contain one AC-Name TAG containing the Access Concentrator's name, a Service-Name TAG identical to the one in the PADI, and any number of other Service-Name TAGs indicating other services that the Access Concentrator offers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-5.2-2"
+    },
+    {
+      "id": "5.2:3",
+      "quote": "If the Access Concentrator can not serve the PADI it MUST NOT respond with a PADO.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-5.2-4"
+    },
+    {
+      "id": "5.3:1",
+      "quote": "The CODE field is set to 0x19 and the SESSION_ID MUST be set to 0x0000.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-5.3-5"
+    },
+    {
+      "id": "5.3:2",
+      "quote": "The PADR packet MUST contain exactly one TAG of TAG_TYPE Service- Name, indicating the service the Host is requesting, and any number of other TAG types.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-5.3-2"
+    },
+    {
+      "id": "5.4:1",
+      "quote": "The CODE field is set to 0x65 and the SESSION_ID MUST be set to the unique value generated for this PPPoE session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-5.4-3"
+    },
+    {
+      "id": "5.4:2",
+      "quote": "If the Access Concentrator does not like the Service-Name in the PADR, then it MUST reply with a PADS containing a TAG of TAG_TYPE Service-Name-Error (and any number of other TAG types).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-5.4-2"
+    },
+    {
+      "id": "5.4:3",
+      "quote": "In this case the SESSION_ID MUST be set to 0x0000.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The second half of the Service-Name-Error reply rule the previous sentence states. RFC2516-5.4-2 already carries it: the Access Concentrator 'MUST reply with a PADS carrying a Service-Name-Error tag, and MUST set SESSION_ID to 0x0000 in that reply'.",
+      "mapped-to": "RFC2516-5.4-2"
+    },
+    {
+      "id": "5.5:1",
+      "quote": "The DESTINATION_ADDR field is a unicast Ethernet address, the CODE field is set to 0xa7 and the SESSION_ID MUST be set to indicate which session is to be terminated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-5.5-3"
+    },
+    {
+      "id": "5.5:2",
+      "quote": "No TAGs are required.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-5.5-4"
+    },
+    {
+      "id": "5.5:3",
+      "quote": "Even normal PPP termination packets MUST NOT be sent after sending or receiving a PADT.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-5.5-4"
+    },
+    {
+      "id": "6:1",
+      "quote": "The PPPoE CODE MUST be set to 0x00.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-6-1"
+    },
+    {
+      "id": "6:2",
+      "quote": "The SESSION_ID MUST NOT change for that PPPoE session and MUST be the value assigned in the Discovery stage.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-7-1"
+    },
+    {
+      "id": "7:1",
+      "quote": "An implementation MUST NOT request any of the following options, and MUST reject a request for such an option:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-7-2"
+    },
+    {
+      "id": "7:2",
+      "quote": "The Maximum-Receive-Unit (MRU) option MUST NOT be negotiated to a larger size than 1492.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-x-9"
+    },
+    {
+      "id": "7:3",
+      "quote": "Since Ethernet has a maximum payload size of 1500 octets, the PPPoE header is 6 octets and the PPP Protocol ID is 2 octets, the PPP MTU MUST NOT be greater than 1492.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The same 1492 ceiling the previous sentence sets on the MRU option, restated as the PPP MTU with its arithmetic: 1500 octets of Ethernet payload less the 6-octet PPPoE header and the 2-octet PPP Protocol ID.",
+      "mapped-to": "RFC2516-x-9"
+    },
+    {
+      "id": "7:4",
+      "quote": "When LCP terminates, the Host and Access concentrator MUST stop using that PPPoE session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-7-3"
+    },
+    {
+      "id": "7:5",
+      "quote": "If the Host wishes to start another PPP session, it MUST return to the PPPoE Discovery stage.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-7-4"
+    },
+    {
+      "id": "11:1",
+      "quote": "The TAG_LENGTH of this TAG MUST always be zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-x-4"
+    },
+    {
+      "id": "11:2",
+      "quote": "Use of this TAG is not required, but remains for backwards compatibility.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-5.2-1"
+    },
+    {
+      "id": "11:3",
+      "quote": "If the Access Concentrator receives this TAG, it MUST include the TAG unmodified in the associated PADO or PADS response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-5.3-1"
+    },
+    {
+      "id": "11:4",
+      "quote": "If a Host receives this TAG, it MUST return the TAG unmodified in the following PADR.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-x-5"
+    },
+    {
+      "id": "11:5",
+      "quote": "If either the Host or Access Concentrator receives this TAG they MUST include it unmodified in any discovery packet they send as a response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-x-10"
+    },
+    {
+      "id": "11:6",
+      "quote": "All PADI packets MUST guarantee sufficient room for the addition of a Relay-Session-Id TAG with a TAG_VALUE length of 12 octets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-x-11"
+    },
+    {
+      "id": "11:7",
+      "quote": "A Relay-Session-Id TAG MUST NOT be added if the discovery packet already contains one.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-x-12"
+    },
+    {
+      "id": "11:8",
+      "quote": "If there is data, and the first octet of the data is nonzero, then it MUST be a printable UTF-8 string which explains why the request was denied.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-x-13"
+    },
+    {
+      "id": "11:9",
+      "quote": "If there is data, and the first octet of the data is nonzero, then it MUST be a printable UTF-8 string which explains the nature of the error.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-x-14"
+    },
+    {
+      "id": "11:10",
+      "quote": "If there is data then it MUST be an UTF-8 string which explains the nature of the error.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-x-15"
+    },
+    {
+      "id": "11:11",
+      "quote": "This string MUST NOT be NULL terminated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2516-x-15"
+    },
+    {
+      "id": "11:12",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The RFC's Full Copyright Statement. It is document boilerplate the site scan did not strip, and it states no protocol obligation."
+    }
+  ]
+}

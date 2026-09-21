@@ -1,0 +1,1375 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2661",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc2661.txt",
+  "source-sha": "5e39a4a0368bb9a6",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 8,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2661-24.12-1"
+      ]
+    },
+    {
+      "id": "4.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.1",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.3",
+      "sites": 25,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.4",
+      "sites": 22,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.5",
+      "sites": 14,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.6",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.0",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2661-24.10-1"
+      ]
+    },
+    {
+      "id": "5.4",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2661-10-1"
+      ]
+    },
+    {
+      "id": "5.7",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2661-9-1"
+      ]
+    },
+    {
+      "id": "5.8",
+      "sites": 8,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.0",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.5",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.9",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.10",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.11",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.12",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.13",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.14",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13.0",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.1:1",
+      "quote": "This bit MUST be set to 1 for control messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-3.1-1"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "All reserved bits MUST be set to 0 on outgoing messages and ignored on incoming messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-x-1"
+    },
+    {
+      "id": "3.1:3",
+      "quote": "The S bit MUST be set to 1 for control messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-3.1-2"
+    },
+    {
+      "id": "3.1:4",
+      "quote": "The O bit MUST be set to 0 (zero) for control messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-3.1-3"
+    },
+    {
+      "id": "3.1:5",
+      "quote": "The P bit MUST be set to 0 for all control messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-3.1-4"
+    },
+    {
+      "id": "3.1:6",
+      "quote": "Ver MUST be 2, indicating the version of the L2TP data message header described in this document.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-3.1-5"
+    },
+    {
+      "id": "3.1:7",
+      "quote": "Packets received with an unknown Ver field MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-3.1-6"
+    },
+    {
+      "id": "3.1:8",
+      "quote": "In data messages, Nr is reserved and, if present (as indicated by the S-bit), MUST be ignored upon receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-3.1-7"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "Reserved bits MUST be set to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.1-1"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "An AVP received with a reserved bit set to 1 MUST be treated as an unrecognized AVP.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the reserved-bit handling the same paragraph states, which RFC2661-4.1-1 carries: a reserved bit set to 1 makes the AVP unrecognized.",
+      "mapped-to": "RFC2661-4.1-1"
+    },
+    {
+      "id": "4.1:3",
+      "quote": "If the M bit is set on an unrecognized AVP within a message associated with a particular session, the session associated with this message MUST be terminated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.1-3"
+    },
+    {
+      "id": "4.1:4",
+      "quote": "If the M bit is set on an unrecognized AVP within a message associated with the overall tunnel, the entire tunnel (and all sessions within) MUST be terminated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.1-4"
+    },
+    {
+      "id": "4.1:5",
+      "quote": "If the M bit is not set, an unrecognized AVP MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.1-5"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "Use of the M-bit with new AVPs (those not defined in this document) MUST provide the ability to configure the associated feature off, such that the AVP is either not sent, or sent with the M-bit not set.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.2-2"
+    },
+    {
+      "id": "4.3:1",
+      "quote": "The H bit MUST only be set if a shared secret exists between the LAC and LNS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.3-3"
+    },
+    {
+      "id": "4.3:2",
+      "quote": "If the H bit is set in any AVP(s) in a given control message, a Random Vector AVP must also be present in the message and MUST precede the first AVP having an H bit of 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.3-1"
+    },
+    {
+      "id": "4.4.1:1",
+      "quote": "The Message Type AVP MUST be the first AVP in a message, immediately following the control message header (defined in section 3.1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.1-2"
+    },
+    {
+      "id": "4.4.1:2",
+      "quote": "Thus, if the M-bit is set within the Message Type AVP and the Message Type is unknown to the implementation, the tunnel MUST be cleared.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.1-1"
+    },
+    {
+      "id": "4.4.1:3",
+      "quote": "The M-bit MUST be set to 1 for all message types defined in this document.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.1-2"
+    },
+    {
+      "id": "4.4.1:4",
+      "quote": "This AVP may not be hidden (the H-bit MUST be 0).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4-3"
+    },
+    {
+      "id": "4.4.1:5",
+      "quote": "This AVP MUST precede the first AVP with the H bit set.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the Random Vector ordering Section 4.3 states, which RFC2661-4.3-1 carries: the Random Vector AVP precedes the first AVP with the H bit set.",
+      "mapped-to": "RFC2661-4.3-1"
+    },
+    {
+      "id": "4.4.1:6",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.1:7",
+      "quote": "This AVP MUST NOT be hidden (the H-bit MUST be 0).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"This AVP MUST NOT be hidden (the H-bit MUST be 0).\" once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-3"
+    },
+    {
+      "id": "4.4.2:1",
+      "quote": "Human readable text in all error messages MUST be provided in the UTF-8 charset using the Default Language [RFC2277].",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.2-1"
+    },
+    {
+      "id": "4.4.2:2",
+      "quote": "This AVP MUST NOT be hidden (the H-bit MUST be 0).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"This AVP MUST NOT be hidden (the H-bit MUST be 0).\" once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-3"
+    },
+    {
+      "id": "4.4.2:3",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.3:1",
+      "quote": "This AVP MUST NOT be hidden (the H-bit MUST be 0).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"This AVP MUST NOT be hidden (the H-bit MUST be 0).\" once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-3"
+    },
+    {
+      "id": "4.4.3:2",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.3:3",
+      "quote": "A peer MUST NOT request an incoming or outgoing call with a Framing Type AVP specifying a value not advertised in the Framing Capabilities AVP it received during control connection establishment.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.3-1"
+    },
+    {
+      "id": "4.4.3:4",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.3:5",
+      "quote": "This AVP MUST be present if the sender can place outgoing calls when requested.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.3-2"
+    },
+    {
+      "id": "4.4.3:6",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.3:7",
+      "quote": "The lower value \"wins\", and the \"loser\" MUST silently discard its tunnel.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.3-3"
+    },
+    {
+      "id": "4.4.3:8",
+      "quote": "In the case where a tie breaker is present on both sides, and the value is equal, both sides MUST discard their tunnels.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.3-4"
+    },
+    {
+      "id": "4.4.3:9",
+      "quote": "This AVP MUST NOT be hidden (the H-bit MUST be 0).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"This AVP MUST NOT be hidden (the H-bit MUST be 0).\" once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-3"
+    },
+    {
+      "id": "4.4.3:10",
+      "quote": "The M-bit for this AVP MUST be set to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4-2"
+    },
+    {
+      "id": "4.4.3:11",
+      "quote": "The M-bit for this AVP MUST be set to 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-2"
+    },
+    {
+      "id": "4.4.3:12",
+      "quote": "The Host Name is of arbitrary length, but MUST be at least 1 octet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.3-5"
+    },
+    {
+      "id": "4.4.3:13",
+      "quote": "This AVP MUST NOT be hidden (the H-bit MUST be 0).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"This AVP MUST NOT be hidden (the H-bit MUST be 0).\" once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-3"
+    },
+    {
+      "id": "4.4.3:14",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.3:15",
+      "quote": "Human readable text for this AVP MUST be provided in the UTF-8 charset using the Default Language [RFC2277].",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the UTF-8 Default Language obligation for human readable text that RFC2661-4.4.2-1 carries.",
+      "mapped-to": "RFC2661-4.4.2-1"
+    },
+    {
+      "id": "4.4.3:16",
+      "quote": "The M-bit for this AVP MUST be set to 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-2"
+    },
+    {
+      "id": "4.4.3:17",
+      "quote": "The L2TP peer MUST place this value in the Tunnel ID header field of all control and data messages that it subsequently transmits over the associated tunnel.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.3-6"
+    },
+    {
+      "id": "4.4.3:18",
+      "quote": "Before the Assigned Tunnel ID AVP is received from a peer, messages MUST be sent to that peer with a Tunnel ID value of 0 in the header of all control messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.3-7"
+    },
+    {
+      "id": "4.4.3:19",
+      "quote": "In the StopCCN control message, the Assigned Tunnel ID AVP MUST be the same as the Assigned Tunnel ID AVP first sent to the receiving peer, permitting the peer to identify the appropriate tunnel even if a StopCCN is sent before an Assigned Tunnel ID AVP is received.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.3-8"
+    },
+    {
+      "id": "4.4.3:20",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.3:21",
+      "quote": "This AVP MUST NOT be hidden (the H-bit MUST be 0).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"This AVP MUST NOT be hidden (the H-bit MUST be 0).\" once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-3"
+    },
+    {
+      "id": "4.4.3:22",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.3:23",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.3:24",
+      "quote": "This AVP MUST be present in an SCCRP or SCCCN if a challenge was received in the preceding SCCRQ or SCCRP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.3-9"
+    },
+    {
+      "id": "4.4.3:25",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.4:1",
+      "quote": "This AVP MUST NOT be hidden (the H-bit MUST be 0).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"This AVP MUST NOT be hidden (the H-bit MUST be 0).\" once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-3"
+    },
+    {
+      "id": "4.4.4:2",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.4:3",
+      "quote": "The L2TP peer MUST place this value in the Session ID header field of all control and data messages that it subsequently transmits over the tunnel that belong to this session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.4-1"
+    },
+    {
+      "id": "4.4.4:4",
+      "quote": "Before the Assigned Session ID AVP is received from a peer, messages MUST be sent to that peer with a Session ID of 0 in the header of all control messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.4-2"
+    },
+    {
+      "id": "4.4.4:5",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.4:6",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.4:7",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.4:8",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.4:9",
+      "quote": "Bits in the Value field of this AVP MUST only be set by the LNS for an OCRQ if it was set in the Bearer Capabilities AVP received from the LAC during control connection establishment.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.4-3"
+    },
+    {
+      "id": "4.4.4:10",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.4:11",
+      "quote": "Bits in the Value field of this AVP MUST only be set by the LNS for an OCRQ if it was set in the Framing Capabilities AVP received from the LAC during control connection establishment.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.4-4"
+    },
+    {
+      "id": "4.4.4:12",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.4:13",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.4:14",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.4:15",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.4:16",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.4:17",
+      "quote": "The M-bit for this AVP MUST be set to 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-2"
+    },
+    {
+      "id": "4.4.4:18",
+      "quote": "The M-bit for this AVP MUST be set to 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-2"
+    },
+    {
+      "id": "4.4.4:19",
+      "quote": "The M-bit for this AVP MUST be set to 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-2"
+    },
+    {
+      "id": "4.4.4:20",
+      "quote": "The Sequencing Required AVP, Attribute Type 39, indicates to the LNS that Sequence Numbers MUST always be present on the data channel.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.4-5"
+    },
+    {
+      "id": "4.4.4:21",
+      "quote": "This AVP MUST NOT be hidden (the H-bit MUST be 0).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"This AVP MUST NOT be hidden (the H-bit MUST be 0).\" once per AVP that may not be hidden; RFC2661-4.4-3 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-3"
+    },
+    {
+      "id": "4.4.4:22",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.5:1",
+      "quote": "The M-bit for this AVP MUST be set to 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-2"
+    },
+    {
+      "id": "4.4.5:2",
+      "quote": "The M-bit for this AVP MUST be set to 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-2"
+    },
+    {
+      "id": "4.4.5:3",
+      "quote": "The M-bit for this AVP MUST be set to 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-2"
+    },
+    {
+      "id": "4.4.5:4",
+      "quote": "The M-bit for this AVP MUST be set to 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-2"
+    },
+    {
+      "id": "4.4.5:5",
+      "quote": "This AVP MUST be present if proxy authentication is to be utilized.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.5-1"
+    },
+    {
+      "id": "4.4.5:6",
+      "quote": "This AVP MUST be present in messages containing a Proxy Authen Type AVP with an Authen Type of 1, 2, 3 or 5.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.5-2"
+    },
+    {
+      "id": "4.4.5:7",
+      "quote": "The M-bit for this AVP MUST be set to 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-2"
+    },
+    {
+      "id": "4.4.5:8",
+      "quote": "This AVP MUST be present for Proxy Authen Types 2 and 5.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.5-3"
+    },
+    {
+      "id": "4.4.5:9",
+      "quote": "The M-bit for this AVP MUST be set to 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-2"
+    },
+    {
+      "id": "4.4.5:10",
+      "quote": "ID is a 2 octet unsigned integer, the most significant octet MUST be 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.5-4"
+    },
+    {
+      "id": "4.4.5:11",
+      "quote": "The Proxy Authen ID AVP MUST be present for Proxy authen types 2, 3 and 5.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.5-5"
+    },
+    {
+      "id": "4.4.5:12",
+      "quote": "The M-bit for this AVP MUST be set to 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-2"
+    },
+    {
+      "id": "4.4.5:13",
+      "quote": "This AVP MUST be present for Proxy authen types 1, 2, 3 and 5.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.5-6"
+    },
+    {
+      "id": "4.4.5:14",
+      "quote": "The M-bit for this AVP MUST be set to 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 0.\" once per optional AVP definition; RFC2661-4.4-2 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-2"
+    },
+    {
+      "id": "4.4.6:1",
+      "quote": "Reserved - Not used, MUST be 0 CRC Errors - Number of PPP frames received with CRC errors since call was established Framing Errors - Number of improperly framed PPP packets received Hardware Overruns - Number of receive buffer over-runs since call was established Buffer Overruns - Number of buffer over-runs detected since call was established Time-out Errors - Number of time-outs since call was established Alignment Errors - Number of alignment errors since call was established",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-4.4.6-1"
+    },
+    {
+      "id": "4.4.6:2",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "4.4.6:3",
+      "quote": "The M-bit for this AVP MUST be set to 1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.4 repeats the sentence \"The M-bit for this AVP MUST be set to 1.\" once per mandatory AVP definition; RFC2661-4.4-1 carries that obligation.",
+      "mapped-to": "RFC2661-4.4-1"
+    },
+    {
+      "id": "5.0:1",
+      "quote": "The Tunnel and corresponding Control Connection MUST be established before an incoming or outgoing call is initiated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.0-1"
+    },
+    {
+      "id": "5.0:2",
+      "quote": "An L2TP Session MUST be established before L2TP can begin to tunnel PPP frames.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.0-2"
+    },
+    {
+      "id": "5.1.1:1",
+      "quote": "If a Challenge AVP is received in an SCCRQ or SCCRP, a Challenge Response AVP MUST be sent in the following SCCRP or SCCCN, respectively.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.1.1-1"
+    },
+    {
+      "id": "5.1.1:2",
+      "quote": "If the expected response and response received from a peer does not match, establishment of the tunnel MUST be disallowed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.1.1-2"
+    },
+    {
+      "id": "5.1.1:3",
+      "quote": "To participate in tunnel authentication, a single shared secret MUST exist between the LAC and LNS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.1.1-3"
+    },
+    {
+      "id": "5.3:1",
+      "quote": "The value of 0 for Session ID and Tunnel ID is special and MUST NOT be used as an Assigned Session ID or Assigned Tunnel ID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-10-2"
+    },
+    {
+      "id": "5.3:2",
+      "quote": "For the cases where a Session ID has not yet been assigned by the peer (i.e., during establishment of a new session or tunnel), the Session ID field MUST be sent as 0, and the Assigned Session ID AVP within the message MUST be used to identify the session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.3-1"
+    },
+    {
+      "id": "5.3:3",
+      "quote": "Similarly, for cases where the Tunnel ID has not yet been assigned from the peer, the Tunnel ID MUST be sent as 0 and Assigned Tunnel ID AVP used to identify the tunnel.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.3-2"
+    },
+    {
+      "id": "5.4:1",
+      "quote": "If this AVP is present during session setup, sequence numbers MUST be present at all times.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.4-1"
+    },
+    {
+      "id": "5.4:2",
+      "quote": "Thus, if the LAC receives a data message without sequence numbers present, it MUST stop sending sequence numbers in future data messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.4-2"
+    },
+    {
+      "id": "5.4:3",
+      "quote": "If the LAC receives a data message with sequence numbers present, it MUST begin sending sequence numbers in future outgoing data messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.4-3"
+    },
+    {
+      "id": "5.7:1",
+      "quote": "The receiver of a StopCCN MUST send a ZLB ACK to acknowledge receipt of the message and maintain enough control connection state to properly accept StopCCN retransmissions over at least a full retransmission cycle (in case the ZLB ACK is lost).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.7-1"
+    },
+    {
+      "id": "5.8:1",
+      "quote": "However, in order to ensure that all messages are acknowledged properly (particularly in the case of a lost ZLB ACK message), receipt of duplicate messages MUST be acknowledged by the reliable transport.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.8-5"
+    },
+    {
+      "id": "5.8:2",
+      "quote": "The retransmitted message contains the same Ns value, but the Nr value MUST be updated with the sequence number of the next expected message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.8-4"
+    },
+    {
+      "id": "5.8:3",
+      "quote": "Each subsequent retransmission of a message MUST employ an exponential backoff interval.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.8-1"
+    },
+    {
+      "id": "5.8:4",
+      "quote": "This cap MUST be no less than 8 seconds per retransmission.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.8-2"
+    },
+    {
+      "id": "5.8:5",
+      "quote": "If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.8-3"
+    },
+    {
+      "id": "5.8:6",
+      "quote": "When a tunnel is being shut down for reasons other than loss of connectivity, the state and reliable delivery mechanisms MUST be maintained and operated for the full retransmission interval after the final message exchange has occurred.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.8-7"
+    },
+    {
+      "id": "5.8:7",
+      "quote": "An implementation may support a receive window of only 1 (i.e., by sending out a Receive Window Size AVP with a value of 1), but MUST accept a window of up to 4 from its peer (e.g. have the ability to send 4 messages before backing off).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.8-6"
+    },
+    {
+      "id": "5.8:8",
+      "quote": "A peer MUST NOT withhold acknowledgment of messages as a technique for flow controlling control messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-5.8-10"
+    },
+    {
+      "id": "6.0:1",
+      "quote": "Any \"reserved\" or \"empty\" fields MUST be sent as 0 values to allow for protocol extensibility.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.0-1"
+    },
+    {
+      "id": "6.1:1",
+      "quote": "The following AVPs MUST be present in the SCCRQ:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.1-1"
+    },
+    {
+      "id": "6.2:1",
+      "quote": "The following AVPs MUST be present in the SCCRP:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.2-1"
+    },
+    {
+      "id": "6.3:1",
+      "quote": "The following AVP MUST be present in the SCCCN:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.3-1"
+    },
+    {
+      "id": "6.4:1",
+      "quote": "The following AVPs MUST be present in the StopCCN:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.4-1"
+    },
+    {
+      "id": "6.5:1",
+      "quote": "A peer MUST NOT expect HELLO messages at any time or interval.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.5-1"
+    },
+    {
+      "id": "6.5:2",
+      "quote": "The Session ID in a HELLO message MUST be 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.5-2"
+    },
+    {
+      "id": "6.5:3",
+      "quote": "The Following AVP MUST be present in the HELLO message:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.5-3"
+    },
+    {
+      "id": "6.6:1",
+      "quote": "The following AVPs MUST be present in the ICRQ:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.6-1"
+    },
+    {
+      "id": "6.7:1",
+      "quote": "The following AVPs MUST be present in the ICRP:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.7-1"
+    },
+    {
+      "id": "6.8:1",
+      "quote": "The following AVPs MUST be present in the ICCN:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.8-1"
+    },
+    {
+      "id": "6.9:1",
+      "quote": "An LNS MUST have received a Bearer Capabilities AVP during tunnel establishment from an LAC in order to request an outgoing call to that LAC.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.9-1"
+    },
+    {
+      "id": "6.9:2",
+      "quote": "The following AVPs MUST be present in the OCRQ:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.9-2"
+    },
+    {
+      "id": "6.10:1",
+      "quote": "The following AVPs MUST be present in the OCRP:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.10-1"
+    },
+    {
+      "id": "6.11:1",
+      "quote": "The following AVPs MUST be present in the OCCN:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.11-1"
+    },
+    {
+      "id": "6.12:1",
+      "quote": "The peer MUST clean up any resources, and does not send back any indication of success or failure for such cleanup.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.12-1"
+    },
+    {
+      "id": "6.12:2",
+      "quote": "The following AVPs MUST be present in the CDN:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.12-2"
+    },
+    {
+      "id": "6.13:1",
+      "quote": "The following AVPs MUST be present in the WEN:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.13-1"
+    },
+    {
+      "id": "6.14:1",
+      "quote": "These options can change at any time during the life of the call, thus the LAC MUST be able to update its internal call information and behavior on an active PPP session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.14-1"
+    },
+    {
+      "id": "6.14:2",
+      "quote": "The following AVPs MUST be present in the SLI:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-6.14-2"
+    },
+    {
+      "id": "7.1:1",
+      "quote": "This MUST NOT be considered a license to send malformed AVPs, but simply a guide towards how to handle an improperly formatted message if one is received.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A reading instruction for Section 7.1, not an obligation on the wire: it tells the reader that the section's tolerant receive handling is not permission to send malformed AVPs. No sender or receiver behavior is constrained by it."
+    },
+    {
+      "id": "7.2.1:1",
+      "quote": "If the version is earlier and not supported, a StopCCN MUST be sent to the peer and the originator cleans up and terminates the tunnel.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-7.2.1-1"
+    },
+    {
+      "id": "7.2.1:2",
+      "quote": "In the event of a local termination, the originator MUST send a Stop-Control-Connection-Notification and clean up the tunnel.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-7.2.1-2"
+    },
+    {
+      "id": "7.2.1:3",
+      "quote": "If the originator receives a Stop-Control-Connection-Notification it MUST also clean up the tunnel.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-7.2.1-3"
+    },
+    {
+      "id": "7.5:1",
+      "quote": "The LAC MUST respond to the Outgoing-Call-Request message with an Outgoing-Call-Reply message once the LAC determines that the proper facilities exist to place the call and the call is administratively authorized.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-7.5-1"
+    },
+    {
+      "id": "7.5.1:1",
+      "quote": "established If a Call-Disconnect-Notify is received by the LAC, the telco call MUST be released via appropriate mechanisms and the session cleaned up.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-7.5.1-1"
+    },
+    {
+      "id": "7.5.1:2",
+      "quote": "If the call is disconnected by the client or the called interface, a Call-Disconnect-Notify message MUST be sent to the LNS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-7.5.1-2"
+    },
+    {
+      "id": "8.1:1",
+      "quote": "Once the source and destination ports and addresses are established, they MUST remain static for the life of the tunnel.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-8.1-1"
+    },
+    {
+      "id": "8.1:2",
+      "quote": "The default for any L2TP implementation is that UDP checksums MUST be enabled for both control and data messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-8.1-2"
+    },
+    {
+      "id": "8.1:3",
+      "quote": "An L2TP implementation running on a system which does not support L2F MUST silently discard all L2F packets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-8.1-3"
+    },
+    {
+      "id": "8.2:1",
+      "quote": "When operating in IP environments, L2TP MUST offer the UDP encapsulation described in 8.1 as its default configuration for IP operation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-8.2-1"
+    },
+    {
+      "id": "9.1:1",
+      "quote": "For authentication to occur, the LAC and LNS MUST share a single secret.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the shared-secret requirement for tunnel authentication that Section 5.1.1 states and RFC2661-5.1.1-3 carries.",
+      "mapped-to": "RFC2661-5.1.1-3"
+    },
+    {
+      "id": "9.5:1",
+      "quote": "If the LNS chooses to implement proxy authentication, it MUST be able to be configured off, requiring a new round a PPP authentication initiated by the LNS (which may or may not include a new round of LCP negotiation).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2661-9.5-2"
+    }
+  ]
+}

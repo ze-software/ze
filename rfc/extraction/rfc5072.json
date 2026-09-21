@@ -1,0 +1,208 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5072",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc5072.txt",
+  "source-sha": "b75abcda38d89696",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5072-3-1",
+        "RFC5072-3-2",
+        "RFC5072-3-3"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 15,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5072-4.1-13",
+        "RFC5072-4.1-14",
+        "RFC5072-4.1-15",
+        "RFC5072-4.1-16",
+        "RFC5072-4.1-17",
+        "RFC5072-4.1-18"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5072-5-1",
+        "RFC5072-5-2",
+        "RFC5072-5-3",
+        "RFC5072-5-4"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "Before any IPv6 packets may be communicated, PPP MUST reach the network-layer protocol phase, and the IPv6 Control Protocol MUST reach the Opened state.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5072-2-1"
+    },
+    {
+      "id": "2:2",
+      "quote": "PPP links supporting IPv6 MUST allow the information field to be at least as large as the minimum link MTU size required for IPv6 [2].",
+      "disposition": "mapped",
+      "mapped-to": "RFC5072-2-2"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "A Configure- Request MUST contain exactly one instance of the interface-identifier option [1].",
+      "disposition": "mapped",
+      "mapped-to": "RFC5072-4.1-1"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "The interface identifier MUST be unique within the PPP link; i.e., upon completion of the negotiation, different interface- identifier values are to be selected for the ends of the PPP link.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5072-4.1-2"
+    },
+    {
+      "id": "4.1:3",
+      "quote": "In this case, the \"u\" bit of the interface identifier MUST be set to zero (0).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5072-4.1-10"
+    },
+    {
+      "id": "4.1:4",
+      "quote": "In this case, the \"u\" bit of the interface identifier MUST be set to zero (0).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5072-4.1-11"
+    },
+    {
+      "id": "4.1:5",
+      "quote": "Depending on the result of the comparison, an implementation MUST respond in one of the following ways:",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The sentence is the lead-in to the three enumerated responses that follow it; each response carries its own MUST and its own site (4.1:8 Ack, 4.1:9 Nak, 4.1:11 Reject), so the lead-in adds no obligation of its own.",
+      "mapped-to": "RFC5072-4.1-3"
+    },
+    {
+      "id": "4.1:6",
+      "quote": "Such a suggested interface identifier MUST be different from the interface identifier of the last Configure-Request sent to the peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5072-4.1-5"
+    },
+    {
+      "id": "4.1:7",
+      "quote": "The \"u\" (universal/local) bit of the suggested identifier MUST be set to zero (0) regardless of its source unless the globally unique EUI-48/EUI-64 derived identifier is provided for the exclusive use by the remote peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5072-4.1-9"
+    },
+    {
+      "id": "4.1:8",
+      "quote": "If the two interface identifiers are different and the received interface identifier is not zero, the interface identifier MUST be acknowledged, i.e., a Configure-Ack is sent with the requested interface identifier, meaning that the responding peer agrees with the interface identifier requested.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5072-4.1-3"
+    },
+    {
+      "id": "4.1:9",
+      "quote": "If the two interface identifiers are equal and are not zero, Configure-Nak MUST be sent specifying a different non-zero interface-identifier value suggested for use by the remote peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5072-4.1-4"
+    },
+    {
+      "id": "4.1:10",
+      "quote": "The \"u\" (universal/local) bit of the suggested identifier MUST be set to zero (0) regardless of its source unless the globally unique EUI-48/EUI-64 derived identifier is provided for the exclusive use by the remote peer.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Word-for-word repeat of site 4.1:7, restated inside the Configure-Nak bullet; 4.1:7 already maps the u-bit obligation on a suggested identifier.",
+      "mapped-to": "RFC5072-4.1-9"
+    },
+    {
+      "id": "4.1:11",
+      "quote": "If the two interface identifiers are equal to zero, the interface identifier's negotiation MUST be terminated by transmitting the Configure-Reject with the interface-identifier value set to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5072-4.1-6"
+    },
+    {
+      "id": "4.1:12",
+      "quote": "A new Configure-Request MUST NOT contain the interface-identifier option if a valid Interface-Identifier Configure-Reject is received.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5072-4.1-12"
+    },
+    {
+      "id": "4.1:13",
+      "quote": "In this case, a new Configure-Request MUST be sent with the identifier value suggested in the last Configure-Nak from the peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5072-4.1-7"
+    },
+    {
+      "id": "4.1:14",
+      "quote": "But if the received interface identifier is equal to the one sent in the last Configure-Nak, a new interface identifier MUST be chosen.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5072-4.1-8"
+    },
+    {
+      "id": "4.1:15",
+      "quote": "If the next Configure-Request does not include this option, the peer MUST NOT send another Configure-Nak with this option included.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5072-4.1-19"
+    }
+  ]
+}

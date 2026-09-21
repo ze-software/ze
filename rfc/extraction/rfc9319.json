@@ -1,0 +1,142 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9319",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc9319.txt",
+  "source-sha": "0b377f370cf81004",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9319-5-4",
+        "RFC9319-5-5"
+      ]
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9319-5.1-1",
+        "RFC9319-5.1-2",
+        "RFC9319-5.1-3"
+      ]
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9319-6-2"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9319-7-1"
+      ]
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "5:1",
+      "quote": "Operators that implement these recommendations and have existing ROAs published in the RPKI system MUST perform a review of such objects, especially where they make use of the maxLength attribute, to ensure that the set of included prefixes is \"minimal\" with respect to the current BGP origination and routing policies.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9319-5-1"
+    },
+    {
+      "id": "5:2",
+      "quote": "Published ROAs MUST be replaced as necessary.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9319-5-2"
+    },
+    {
+      "id": "5:3",
+      "quote": "Such an exercise MUST be repeated whenever the operator makes changes to either policy.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9319-5-3"
+    },
+    {
+      "id": "6:1",
+      "quote": "* Operators providing a means for operators of neighboring autonomous systems to advertise RTDR routes via BGP MUST NOT make the creation of non-minimal ROAs a pre-requisite for its use.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9319-6-1"
+    }
+  ]
+}

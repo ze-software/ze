@@ -1,0 +1,167 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4684",
+  "register": "prose",
+  "source-path": "rfc/full/rfc4684.txt",
+  "source-sha": "2189a4bee8739009",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4684-3.2-2",
+        "RFC4684-3.2-3"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4684-5-1"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4684-6-2",
+        "RFC4684-6-3"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4684-8-1"
+      ]
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 1,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.1:1",
+      "quote": "Using RT membership information that includes both route-target and originator AS number allows BGP speakers to use standard path selection rules concerning as-path length (and other policy mechanisms) to prune duplicate paths in the RT membership information flooding graph, while maintaining the information required to reach all autonomous systems advertising the Route Target.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Non-normative description of what the NLRI shape buys, inside the worked example of Figure 1: the sentence says including the originator AS 'allows BGP speakers to use standard path selection rules' to prune duplicate paths. It states no obligation on any role, and the paragraph after it reasons about the same example ('In the example above, AS e needs to maintain a path to AS a')."
+    },
+    {
+      "id": "3.2:1",
+      "quote": "In addition, when advertising Route Target membership information sourced by the local autonomous system to an iBGP peer, a BGP speaker shall modify its procedure to calculate the BGP attributes such that the following apply:",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The lead-in that carries the 'shall' for the two lettered rules that follow it, not a third obligation: 'a BGP speaker shall modify its procedure to calculate the BGP attributes such that the following apply:'. Rule (i) is site 3.2:2 and maps to RFC4684-3.2-1. Rule (ii) carries no keyword of its own, so section 3.2 records RFC4684-3.2-2 as unsourced.",
+      "mapped-to": "RFC4684-3.2-1"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "When advertising RT membership NLRI to a route-reflector client, the Originator attribute shall be set to the router-id of the advertiser, and the Next-hop attribute shall be set of the local address for that session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4684-3.2-1"
+    },
+    {
+      "id": "3.2:3",
+      "quote": "For instance, route reflection clusters must be contiguous.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "An assumption about the operator's topology, not an obligation on an implementation. The enclosing construction is 'These procedures assume that the autonomous-system route reflection topology is configured such that IPv4 unicast routing would work correctly. For instance, route reflection clusters must be contiguous.' The 'must' states what the assumed configuration looks like; no code of ze's could satisfy or violate it."
+    },
+    {
+      "id": "4:1",
+      "quote": "The Next Hop field of MP_REACH_NLRI attribute shall be interpreted as an IPv4 address whenever the length of NextHop address is 4 octets, and as a IPv6 address whenever the length of the NextHop address is 16 octets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4684-4-1"
+    },
+    {
+      "id": "5:1",
+      "quote": "A BGP speaker that wishes to exchange Route Target membership information must use the Multiprotocol Extensions Capability Code, as defined in RFC 2858 [5], to advertise the corresponding (AFI, SAFI) pair.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4684-5-2"
+    },
+    {
+      "id": "6:1",
+      "quote": "If a BGP speaker chooses to delay the advertisement of BGP VPN route updates until it receives this End-of-RIB marker, it MUST limit that delay to an upper bound.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4684-6-1"
+    },
+    {
+      "id": "7:1",
+      "quote": "By default, a reflector must scale in terms of the total number of VPN routes present on the network.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Deployment Considerations describing the scaling situation WITHOUT this mechanism, not an obligation: 'This mechanism reduces the scaling requirements that are imposed on route reflectors ... By default, a reflector must scale in terms of the total number of VPN routes present on the network.' The 'must' names a consequence of not deploying RT constraint, and no implementation behavior answers it."
+    },
+    {
+      "id": "10.2:1",
+      "quote": "The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF boilerplate from the Intellectual Property Statement, addressed to 'any interested party' about bringing copyrights and patents to the IETF's attention. It is not part of the protocol specification."
+    }
+  ]
+}

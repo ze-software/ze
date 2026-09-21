@@ -1,0 +1,255 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4659",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc4659.txt",
+  "source-sha": "675026b53c92cac3",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4659-1-1"
+      ]
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4659-2-1",
+        "RFC4659-2-2"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4659-3.1-1"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1.1",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4659-3.2.1.1-2"
+      ]
+    },
+    {
+      "id": "3.2.1.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 7,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4659-4-8"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "15",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "16",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.2:1",
+      "quote": "When distributing IPv6 VPN routes, the advertising PE router MUST assign and distribute MPLS labels with the IPv6 VPN routes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-3.2-1"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "The Address Family Identifier (AFI) and Subsequent Address Family Identifier (SAFI) fields MUST be set as follows:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-3.2-2"
+    },
+    {
+      "id": "3.2.1.1:1",
+      "quote": "When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv6 tunneling (e.g., IPv6 MPLS LSPs, IPsec-protected IPv6 tunnels), the BGP speaker SHALL advertise a Next Hop Network Address field containing a VPN-IPv6 address",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-3.2.1.1-1"
+    },
+    {
+      "id": "3.2.1.2:1",
+      "quote": "When the IPv6 VPN traffic is to be transported to the BGP speaker using IPv4 tunneling (e.g., IPv4 MPLS LSPs, IPsec-protected IPv4 tunnels), the BGP speaker SHALL advertise to its peer a Next Hop Network Address field containing a VPN-IPv6 address:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-3.2.1.2-1"
+    },
+    {
+      "id": "3.4:1",
+      "quote": "In order for two PEs to exchange labeled IPv6 VPN NLRIs, they MUST use BGP Capabilities Negotiation to ensure that they both are capable of properly processing such NLRIs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-3.4-1"
+    },
+    {
+      "id": "4:1",
+      "quote": "The ingress PE Router MUST tunnel IPv6 VPN data over the backbone towards the Egress PE router identified as the BGP Next Hop for the corresponding destination IPv6 VPN prefix.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-4-1"
+    },
+    {
+      "id": "4:2",
+      "quote": "When the 16-octet IPv6 address contained in the BGP Next Hop field is encoded as an IPv4-mapped IPv6 address (see Section 3.2.1.2), the ingress PE MUST use IPv4 tunneling unless explicitly configured to do otherwise.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-4-2"
+    },
+    {
+      "id": "4:3",
+      "quote": "When the 16-octet IPv6 address contained in the BGP Next Hop field is not encoded as an IPv4-mapped address (see Section 3.2.1.1), the ingress PE MUST use IPv6 tunneling.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-4-3"
+    },
+    {
+      "id": "4:4",
+      "quote": "When tunneling is done using IPv4 tunnels (whether IPsec secured or not), the Ingress PE Router MUST use the IPv4 address that is encoded in the IPv4-mapped IPv6 address field of the BGP next hop field as the destination address of the prepended IPv4 tunneling header.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-4-4"
+    },
+    {
+      "id": "4:5",
+      "quote": "When tunneling is done using IPv6 tunnels (whether IPsec secured or not), the Ingress PE Router MUST use the IPv6 address that is contained in the IPv6 address field of the BGP next hop field as the destination address of the prepended IPv6 tunneling header.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-4-5"
+    },
+    {
+      "id": "4:6",
+      "quote": "When tunneling is done using MPLS LSPs, the ingress PE Router MUST directly push the LSP tunnel label on the label stack of the labeled IPv6 VPN packet (i.e., without prepending any IPv4 or IPv6 header).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-4-6"
+    },
+    {
+      "id": "4:7",
+      "quote": "To ensure interoperability among systems that implement this VPN architecture, all such systems MUST support tunneling using MPLS LSPs established by LDP [LDP].",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-4-7"
+    },
+    {
+      "id": "8:1",
+      "quote": "The exchange of IPv6 routes MUST be carried out as per [BGP-IPv6].",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-8-1"
+    },
+    {
+      "id": "8:2",
+      "quote": "The exchange of labeled VPN-IPv6 routes MUST be carried out as per [BGP-IPv6] and [MPLS-BGP].",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-8-2"
+    },
+    {
+      "id": "8:3",
+      "quote": "When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-8-3"
+    },
+    {
+      "id": "8:4",
+      "quote": "When the VPN-IPv6 traffic is to be transported using IPv4 tunneling, the BGP Next Hop Field SHALL contain an IPv4 address encoded as an IPv4-mapped IPv6 address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4659-8-4"
+    }
+  ]
+}

@@ -1,0 +1,1007 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8907",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc8907.txt",
+  "source-sha": "8bc695c4b9949009",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.7",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8907-4-1",
+        "RFC8907-4-2",
+        "RFC8907-4-4",
+        "RFC8907-4-5"
+      ]
+    },
+    {
+      "id": "4.1",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.5",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8907-5-1"
+      ]
+    },
+    {
+      "id": "5.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.2.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.2.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.2.3",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.2.4",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.2.5",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.2.6",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.2.7",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8907-7-1",
+        "RFC8907-7-2"
+      ]
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.5",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.5.1",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.5.2",
+      "sites": 10,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.5.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.5.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.5.5",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.6:1",
+      "quote": "If an error occurs but the type of the incoming packet cannot be determined, a packet with the identical cleartext header but with a sequence number incremented by one and the length set to zero MUST be returned to indicate an error.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "3.7:1",
+      "quote": "Usernames MUST be encoded and handled using the UsernameCasePreserved Profile specified in [RFC8265].",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-3.7-1"
+    },
+    {
+      "id": "3.7:2",
+      "quote": "All other text fields in TACACS+ MUST be treated as printable byte arrays of US-ASCII as defined by [RFC0020].",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-3.7-2"
+    },
+    {
+      "id": "3.7:3",
+      "quote": "The term \"printable\" used here means the fields MUST exclude the \"Control Characters\" defined in Section 5.2 of [RFC0020].",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Defines the word 'printable' used by the sentence the mapped id already carries; the same obligation on the same fields.",
+      "mapped-to": "RFC8907-3.7-2"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "Such fields MUST be ignored, and treated as if not present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-4.1-1"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "The first packet in a session MUST have the sequence number 1, and each subsequent packet will increment the sequence number by one.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-4.1-2"
+    },
+    {
+      "id": "4.1:3",
+      "quote": "This option MUST NOT be used in production.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the ban on TAC_PLUS_UNENCRYPTED_FLAG that the client-side row already carries.",
+      "mapped-to": "RFC8907-10-2"
+    },
+    {
+      "id": "4.1:4",
+      "quote": "All other bits MUST be ignored when reading, and SHOULD be set to zero when writing.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-4.1-3"
+    },
+    {
+      "id": "4.1:5",
+      "quote": "This number MUST be generated by a cryptographically strong random number generation method.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-4-3"
+    },
+    {
+      "id": "4.1:6",
+      "quote": "Implementations MUST allow control over maximum packet sizes accepted by TACACS+ Servers.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "4.3:1",
+      "quote": "The client MUST NOT send a second packet on a connection until single-connect status has been established.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-4.3-1"
+    },
+    {
+      "id": "4.3:2",
+      "quote": "No provision is made for changing Single Connection Mode after the first two packets; the client and server MUST ignore the flag after the second packet on a connection.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-4.3-2"
+    },
+    {
+      "id": "4.3:3",
+      "quote": "For example, a server MUST be configured to time out a Single Connection Mode TCP connection after a specific period of inactivity to preserve its resources.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "4.3:4",
+      "quote": "The client MUST accommodate such closures on a TCP session even after Single Connection Mode has been established.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-4.3-3"
+    },
+    {
+      "id": "4.4:1",
+      "quote": "The client cannot apply the result, and it MUST behave as if the server could not be connected to.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-4.4-1"
+    },
+    {
+      "id": "4.4:2",
+      "quote": "* If Single Connection Mode was enabled, but an ERROR occurred due to connection issues (such as an incorrect secret (see Section 4.5)), then any further new sessions MUST NOT be accepted on the connection.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-4.4-2"
+    },
+    {
+      "id": "4.4:3",
+      "quote": "Once all active sessions are completed, then the connection MUST be closed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-4.4-3"
+    },
+    {
+      "id": "4.5:1",
+      "quote": "The secret keys MUST remain secret.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The secrecy of the shared key, stated once here and once as an obligation on servers and clients in Section 10.5.1, which the mapped row carries.",
+      "mapped-to": "RFC8907-10.5.1-1"
+    },
+    {
+      "id": "4.5:2",
+      "quote": "Server implementations MUST allow a unique secret key to be associated with each client.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "4.5:3",
+      "quote": "The flag field MUST be configured with TAC_PLUS_UNENCRYPTED_FLAG set to 0 so that the packet body is obfuscated by XORing it bytewise with a pseudo-random pad:",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The same obligation seen from the sender: the flag is set to 0 so the body is obfuscated, which is what the client row already requires.",
+      "mapped-to": "RFC8907-10-2"
+    },
+    {
+      "id": "4.5:4",
+      "quote": "When a server detects that the secrets it has configured for the device do not match, it MUST return ERROR.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "4.5:5",
+      "quote": "This option is deprecated and MUST NOT be used in production.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the deprecation of the unencrypted option that the client row already carries.",
+      "mapped-to": "RFC8907-10-2"
+    },
+    {
+      "id": "4.5:6",
+      "quote": "A request MUST be dropped if TAC_PLUS_UNENCRYPTED_FLAG is set to true.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "4.5:7",
+      "quote": "If the sum is not identical to the cleartext datalength value from the header, the packet MUST be discarded and an ERROR signaled.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-4.6-1"
+    },
+    {
+      "id": "5.1:1",
+      "quote": "If it is absent, the client MUST set user_len to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-5.1-1"
+    },
+    {
+      "id": "5.4:1",
+      "quote": "The client MUST then return a CONTINUE packet containing the requested information in the user_msg field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-5.4-1"
+    },
+    {
+      "id": "5.4:2",
+      "quote": "When the client queries the user for the information, the response MUST NOT be reflected in the user interface as it is entered.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-5.4-2"
+    },
+    {
+      "id": "5.4.2:1",
+      "quote": "If the server does not implement an option, it MUST respond with TAC_PLUS_AUTHEN_STATUS_FAIL.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "5.4.2.1:1",
+      "quote": "If the user does not include the username, then the server MUST obtain it from the client with a CONTINUE TAC_PLUS_AUTHEN_STATUS_GETUSER.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "5.4.2.1:2",
+      "quote": "If the user does not provide a username, then the server can send another TAC_PLUS_AUTHEN_STATUS_GETUSER request, but the server MUST limit the number of retries that are permitted; the recommended limit is three attempts.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "5.4.2.1:3",
+      "quote": "The data fields in both the START and CONTINUE packets are not used for ASCII logins; any content MUST be ignored.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "5.4.2.2:1",
+      "quote": "The entire exchange MUST consist of a single START packet and a single REPLY.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-5.4.2.2-1"
+    },
+    {
+      "id": "5.4.2.2:2",
+      "quote": "The START packet MUST contain a username and the data field MUST contain the PAP ASCII password.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-5.4.2.2-2"
+    },
+    {
+      "id": "5.4.2.2:3",
+      "quote": "The REPLY from the server MUST be either a PASS, FAIL, or ERROR.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "5.4.2.3:1",
+      "quote": "The entire exchange MUST consist of a single START packet and a single REPLY.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-5.4.2.3-1"
+    },
+    {
+      "id": "5.4.2.3:2",
+      "quote": "The START packet MUST contain the username in the user field, and the data field is a concatenation of the PPP id, the challenge, and the response.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The second half of the same CHAP START construction, which the mapped row states in full.",
+      "mapped-to": "RFC8907-5.4.2.3-1"
+    },
+    {
+      "id": "5.4.2.3:3",
+      "quote": "The REPLY from the server MUST be a PASS, FAIL, or ERROR.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "5.4.2.4:1",
+      "quote": "The entire exchange MUST consist of a single START packet and a single REPLY.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-5.4.2.4-1"
+    },
+    {
+      "id": "5.4.2.4:2",
+      "quote": "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The second half of the same MS-CHAP v1 START construction, which the mapped row states in full.",
+      "mapped-to": "RFC8907-5.4.2.4-1"
+    },
+    {
+      "id": "5.4.2.4:3",
+      "quote": "The REPLY from the server MUST be a PASS or FAIL.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "5.4.2.4:4",
+      "quote": "The TACACS+ server MUST reject authentications where the challenge deviates from 8 bytes as defined in the RFC.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "5.4.2.5:1",
+      "quote": "The entire exchange MUST consist of a single START packet and a single REPLY.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-5.4.2.5-1"
+    },
+    {
+      "id": "5.4.2.5:2",
+      "quote": "The START packet MUST contain the username in the user field, and the data field will be a concatenation of the PPP id, the MS-CHAP challenge, and the MS-CHAP response.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The second half of the same MS-CHAP v2 START construction, which the mapped row states in full.",
+      "mapped-to": "RFC8907-5.4.2.5-1"
+    },
+    {
+      "id": "5.4.2.5:3",
+      "quote": "The REPLY from the server MUST be a PASS or FAIL.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "5.4.2.5:4",
+      "quote": "The TACACS+ server MUST reject authentications where the challenge deviates from 16 bytes as defined in the RFC.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "5.4.2.6:1",
+      "quote": "In order to readily distinguish \"ENABLE\" requests from other types of request, the value of the authen_service field MUST be set to TAC_PLUS_AUTHEN_SVC_ENABLE when requesting an ENABLE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-5.4.2.6-1"
+    },
+    {
+      "id": "5.4.2.6:2",
+      "quote": "It MUST NOT be set to this value when requesting any other operation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-5.4.2.6-2"
+    },
+    {
+      "id": "5.4.2.7:1",
+      "quote": "The status value TAC_PLUS_AUTHEN_STATUS_GETPASS MUST only be used when requesting the \"new\" password.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "5.4.2.7:2",
+      "quote": "When requesting the \"old\" password, the status value MUST be set to TAC_PLUS_AUTHEN_STATUS_GETDATA.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "5.4.3:1",
+      "quote": "If a client does not implement the TAC_PLUS_AUTHEN_STATUS_RESTART option, then it MUST process the response as if the status was TAC_PLUS_AUTHEN_STATUS_FAIL.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-5.4.3-1"
+    },
+    {
+      "id": "6.1:1",
+      "quote": "As this information is not always subject to verification, it MUST NOT be used in policy evaluation.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "6.1:2",
+      "quote": "The user_len MUST indicate the length of the user field, in bytes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-6.1-1"
+    },
+    {
+      "id": "6.1:3",
+      "quote": "An argument name MUST NOT contain either of the separators.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-6.1-2"
+    },
+    {
+      "id": "6.1:4",
+      "quote": "If the client receives a mandatory argument that it cannot handle, it MUST consider the authorization to have failed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-6-1"
+    },
+    {
+      "id": "6.2:1",
+      "quote": "If the status equals TAC_PLUS_AUTHOR_STATUS_PASS_ADD, then the arguments specified in the request are authorized and the arguments in the response MUST be applied according to the rules described above.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-6.2-1"
+    },
+    {
+      "id": "6.2:2",
+      "quote": "If the status equals TAC_PLUS_AUTHOR_STATUS_PASS_REPL, then the client MUST use the authorization argument-value pairs (if any) in the response instead of the authorization argument- value pairs from the request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-6.2-2"
+    },
+    {
+      "id": "6.2:3",
+      "quote": "If the status equals TAC_PLUS_AUTHOR_STATUS_FAIL, then the requested authorization MUST be denied.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-6.2-3"
+    },
+    {
+      "id": "6.2:4",
+      "quote": "When the status equals TAC_PLUS_AUTHOR_STATUS_FOLLOW, the arg_cnt MUST be 0.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "7.2:1",
+      "quote": "The server MUST reply with success only when the accounting request has been recorded.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "7.2:2",
+      "quote": "If the server did not record the accounting request, then it MUST reply with ERROR.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "7.2:3",
+      "quote": "If the START flag is not set, then this indicates only that task is still running, and no new information is provided (servers MUST ignore any arguments).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "7.2:4",
+      "quote": "The STOP flag MUST NOT be set in conjunction with the WATCHDOG flag.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-7.2-1"
+    },
+    {
+      "id": "7.2:5",
+      "quote": "The server MUST respond with TAC_PLUS_ACCT_STATUS_ERROR if the client requests an INVALID option.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "8:1",
+      "quote": "Clients MUST use these arguments when supporting the corresponding use cases.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-8-1"
+    },
+    {
+      "id": "8.1:1",
+      "quote": "All arguments include a length field, and TACACS+ implementations MUST verify that they can accommodate the lengths of numeric arguments before attempting to process them.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-8.1-1"
+    },
+    {
+      "id": "8.1:2",
+      "quote": "If the length cannot be accommodated, then the argument MUST be regarded as not handled and the logic in \"Authorization\" (Section 6.1) regarding the processing of arguments MUST be applied.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The consequence clause of the same numeric-argument obligation, which the mapped row states in full.",
+      "mapped-to": "RFC8907-8.1-1"
+    },
+    {
+      "id": "8.1:3",
+      "quote": "The time zone MUST be UTC unless a time zone argument is specified.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-8.1-2"
+    },
+    {
+      "id": "8.2:1",
+      "quote": "This argument MUST always be included.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-8.2-1"
+    },
+    {
+      "id": "8.2:2",
+      "quote": "The \"cmd\" argument MUST be specified if service equals \"shell\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-8.2-2"
+    },
+    {
+      "id": "8.3:1",
+      "quote": "They MUST precede any argument-value pairs that are defined in \"Authorization\" (Section 6).",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-8.3-1"
+    },
+    {
+      "id": "8.3:2",
+      "quote": "Start and stop records for the same event MUST have matching task_id argument values.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-8.3-2"
+    },
+    {
+      "id": "8.3:3",
+      "quote": "The client MUST ensure that active task_ids are not duplicated; a client MUST NOT reuse a task_id in a start record until it has sent a stop record for that task_id.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-8.3-3"
+    },
+    {
+      "id": "8.3:4",
+      "quote": "Servers MUST NOT make assumptions about the format of a task_id.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "8.3:5",
+      "quote": "To support this mode of operation, TACACS+ client devices MUST be configured to send an accounting start packet for every command entered, irrespective of how the commands were authorized.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-8.3-4"
+    },
+    {
+      "id": "8.3:6",
+      "quote": "These \"Command Accounting\" packets MUST include the \"service\" and \"cmd\" arguments, and if needed, the \"cmd-arg\" arguments detailed in Section 8.2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-8.3-5"
+    },
+    {
+      "id": "10.1:1",
+      "quote": "For these reasons, users deploying the TACACS+ protocol in their environments MUST limit access to known clients and MUST control the security of the entire transmission path.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the operator of the deployment, not to an implementation: the obligation is discharged by how the network is built and who may reach it. The producer would be the deploying network administrator, for whom Ze holds no code path, so no Ze function can satisfy or violate it."
+    },
+    {
+      "id": "10.2:1",
+      "quote": "This mechanism MUST NOT be used in modern deployments.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-x-2"
+    },
+    {
+      "id": "10.2:2",
+      "quote": "It MUST NOT be used outside a secured deployment.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the ban on the TAC_PLUS_AUTHEN_STATUS_FOLLOW redirection that the mapped row carries.",
+      "mapped-to": "RFC8907-x-2"
+    },
+    {
+      "id": "10.5:1",
+      "quote": "With respect to the observations about the security issues described above, a network administrator MUST NOT rely on the obfuscation of the TACACS+ protocol.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the operator of the deployment, not to an implementation: the obligation is discharged by how the network is built and who may reach it. The producer would be the deploying network administrator, for whom Ze holds no code path, so no Ze function can satisfy or violate it."
+    },
+    {
+      "id": "10.5:2",
+      "quote": "TACACS+ MUST be used within a secure deployment; TACACS+ MUST be deployed over networks that ensure privacy and integrity of the communication and MUST be deployed over a network that is separated from other traffic.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the operator of the deployment, not to an implementation: the obligation is discharged by how the network is built and who may reach it. The producer would be the deploying network administrator, for whom Ze holds no code path, so no Ze function can satisfy or violate it."
+    },
+    {
+      "id": "10.5:3",
+      "quote": "New implementations, and upgrades of current implementations, MUST implement these recommendations.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-10.5-1"
+    },
+    {
+      "id": "10.5.1:1",
+      "quote": "TACACS+ servers and clients MUST treat shared secrets as sensitive data to be managed securely, as would be expected for other sensitive data such as identity credential information.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-10.5.1-1"
+    },
+    {
+      "id": "10.5.1:2",
+      "quote": "TACACS+ servers MUST NOT leak sensitive data.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "10.5.1:3",
+      "quote": "* TACACS+ servers MUST NOT expose shared secrets in logs.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "10.5.1:4",
+      "quote": "* TACACS+ servers MUST allow a dedicated secret key to be defined for each client.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "10.5.1:5",
+      "quote": "* TACACS+ server management systems MUST provide a mechanism to track secret key lifetimes and notify administrators to update them periodically.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "10.5.1:6",
+      "quote": "* TACACS+ servers and clients MUST support shared keys that are at least 32 characters long.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-10.5.1-2"
+    },
+    {
+      "id": "10.5.1:7",
+      "quote": "* TACACS+ servers MUST support policy to define minimum complexity for shared keys.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "10.5.2:1",
+      "quote": "TACACS+ servers MUST allow the definition of individual clients.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "10.5.2:2",
+      "quote": "The servers MUST only accept network connection attempts from these defined known clients.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "10.5.2:3",
+      "quote": "TACACS+ servers MUST reject connections that have TAC_PLUS_UNENCRYPTED_FLAG set.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "10.5.2:4",
+      "quote": "There MUST always be a shared secret set on the server for the client requesting the connection.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "10.5.2:5",
+      "quote": "If an invalid shared secret is detected when processing packets for a client, TACACS+ servers MUST NOT accept any new sessions on that connection.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "10.5.2:6",
+      "quote": "TACACS+ servers MUST terminate the connection on completion of any sessions that were previously established with a valid shared secret on that connection.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "10.5.2:7",
+      "quote": "TACACS+ clients MUST NOT set TAC_PLUS_UNENCRYPTED_FLAG.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-10-2"
+    },
+    {
+      "id": "10.5.2:8",
+      "quote": "Clients MUST be implemented in a way that requires explicit configuration to enable the use of TAC_PLUS_UNENCRYPTED_FLAG.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-10-1"
+    },
+    {
+      "id": "10.5.2:9",
+      "quote": "This option MUST NOT be used when the client is in production.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the production ban on TAC_PLUS_UNENCRYPTED_FLAG that the client row carries.",
+      "mapped-to": "RFC8907-10-2"
+    },
+    {
+      "id": "10.5.2:10",
+      "quote": "the TACACS+ client MUST close the TCP session, and process the response in the same way that a TAC_PLUS_AUTHEN_STATUS_FAIL (authentication sessions) or TAC_PLUS_AUTHOR_STATUS_FAIL (authorization sessions) was received.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-10.5.2-1"
+    },
+    {
+      "id": "10.5.3:1",
+      "quote": "To help TACACS+ administrators select stronger authentication options, TACACS+ servers MUST allow the administrator to configure the server to only accept challenge/response options for authentication (TAC_PLUS_AUTHEN_TYPE_CHAP or TAC_PLUS_AUTHEN_TYPE_MSCHAP or TAC_PLUS_AUTHEN_TYPE_MSCHAPV2 for authen_type).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "10.5.3:2",
+      "quote": "If they must be implemented, the servers MUST default to the options being disabled and MUST warn the administrator that these options are not secure.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "10.5.4:1",
+      "quote": "The cost of the flexibility is that administrators and implementers MUST ensure that the argument and value pairs shared between the clients and servers have consistent interpretation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8907-10.5.4-1"
+    },
+    {
+      "id": "10.5.4:2",
+      "quote": "TACACS+ clients that receive an unrecognized mandatory argument MUST evaluate server response as if they received TAC_PLUS_AUTHOR_STATUS_FAIL.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The same client obligation as Section 6.1: an unrecognized mandatory argument is evaluated as TAC_PLUS_AUTHOR_STATUS_FAIL.",
+      "mapped-to": "RFC8907-6-1"
+    },
+    {
+      "id": "10.5.5:1",
+      "quote": "TACACS+ servers MUST deprecate the redirection mechanism.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    },
+    {
+      "id": "10.5.5:2",
+      "quote": "If the redirection mechanism is implemented, then TACACS+ servers MUST disable it by default and MUST warn TACACS+ server administrators that it must only be enabled within a secure deployment due to the risks of revealing shared secrets.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to the TACACS+ server, the role that accepts connections, receives requests and returns replies. Ze implements the client (NAS) side only: internal/component/tacacs dials out, sends START/REQUEST packets and reads replies, and it never listens on port 49. The producer would be a TACACS+ server daemon, which Ze does not ship."
+    }
+  ]
+}

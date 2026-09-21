@@ -1,0 +1,97 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2890",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc2890.txt",
+  "source-sha": "a51de7afc69fbb42",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2890-1.1-1",
+        "RFC2890-1.1-2"
+      ]
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2890-2.2-5",
+        "RFC2890-2.2-8"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.2:1",
+      "quote": "The Sequence Number MUST be used by the receiver to establish the order in which packets have been transmitted from the encapsulator to the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2890-2.2-3"
+    },
+    {
+      "id": "2.2:2",
+      "quote": "If a packet has been waiting that long, the receiver MUST immediately traverse the buffer in sorted order, decapsulating packets (and ignoring any sequence number gaps) until there are no more packets in the buffer that have been waiting longer than OUTOFORDER_TIMER milliseconds.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2890-2.2-4"
+    },
+    {
+      "id": "3:1",
+      "quote": "In order to protect against such attacks, IP security protocols [4] MUST be used to protect the GRE header and the tunneled payload.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2890-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "Either ESP (Encapsulating Security Payload) [5] or AH (Authentication Header)[6] MUST be used to protect the GRE header.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the obligation site 3:1 already maps. Row RFC2890-3-1 already names the two protocols: 'IP security protocols (ESP or AH) MUST be used to protect the GRE header and tunneled payload'.",
+      "mapped-to": "RFC2890-3-1"
+    }
+  ]
+}

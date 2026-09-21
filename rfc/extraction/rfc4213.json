@@ -1,0 +1,284 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4213",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc4213.txt",
+  "source-sha": "00b5a45164be1272",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4213-3.2-3"
+      ]
+    },
+    {
+      "id": "3.2.1",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.6",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.8",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 2,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.2:1",
+      "quote": "DNS resolver libraries on IPv6/IPv4 nodes MUST be capable of handling both AAAA and A records.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-2.2-1"
+    },
+    {
+      "id": "2.2:2",
+      "quote": "If there is not an application choice, or if the application has requested both, the resolver library MUST NOT filter out any records.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-2.2-2"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "However, such a scheme would be inefficient or non-interoperable for three reasons and therefore MUST NOT be used:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.2-2"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "Hence, the encapsulator MUST NOT treat the tunnel as an interface with an MTU of 64 kilobytes, but instead either use the fixed static MTU or OPTIONAL dynamic MTU determination based on the IPv4 path MTU to the tunnel endpoint.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.2-1"
+    },
+    {
+      "id": "3.2.1:1",
+      "quote": "By default, the MTU MUST be between 1280 and 1480 bytes (inclusive), but it SHOULD be 1280 bytes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.2.1-1"
+    },
+    {
+      "id": "3.2.1:2",
+      "quote": "If the default is not 1280 bytes, the implementation MUST have a configuration knob that can be used to change the MTU value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.2.1-2"
+    },
+    {
+      "id": "3.2.1:3",
+      "quote": "This memo also includes requirements (see Section 3.6) for the amount of IPv4 reassembly and IPv6 MRU that MUST be supported by all the decapsulators.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.2.1-3"
+    },
+    {
+      "id": "3.2.1:4",
+      "quote": "When using the static tunnel MTU, the Don't Fragment bit MUST NOT be set in the encapsulating IPv4 header.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.2.1-4"
+    },
+    {
+      "id": "3.6:1",
+      "quote": "The decapsulator MUST verify that the tunnel source address is correct before further processing packets, to mitigate the problems with address spoofing (see Section 4).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.6-1"
+    },
+    {
+      "id": "3.6:2",
+      "quote": "Packets for which the IPv4 source address does not match MUST be discarded and an ICMP message SHOULD NOT be generated; however, if the implementation normally sends an ICMP message when receiving an unknown protocol packet, such an error message MAY be sent (e.g., ICMPv4 Protocol 41 Unreachable).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.6-2"
+    },
+    {
+      "id": "3.6:3",
+      "quote": "The decapsulator MUST be capable of having, on the tunnel interfaces, an IPv6 MRU of at least the maximum of 1500 bytes and the largest (IPv6) interface MTU on the decapsulator.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.6-3"
+    },
+    {
+      "id": "3.6:4",
+      "quote": "The decapsulator MUST be capable of reassembling an IPv4 packet that is (after the reassembly) the maximum of 1500 bytes and the largest (IPv4) interface MTU on the decapsulator.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.6-4"
+    },
+    {
+      "id": "3.6:5",
+      "quote": "An implementation MAY have a configuration knob that can be used to set a larger value of the tunnel reassembly buffers than the above number, but it MUST NOT be set below the above number.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.6-5"
+    },
+    {
+      "id": "3.6:6",
+      "quote": "When reconstructing the IPv6 packet, the length MUST be determined from the IPv6 payload length since the IPv4 packet might be padded (thus have a length that is larger than the IPv6 packet plus the IPv4 header being removed).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.6-6"
+    },
+    {
+      "id": "3.6:7",
+      "quote": "After the decapsulation, the node MUST silently discard a packet with an invalid IPv6 source address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.6-7"
+    },
+    {
+      "id": "3.7:1",
+      "quote": "The configured tunnels are IPv6 interfaces (over the IPv4 \"link layer\") and thus MUST have link-local addresses.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.7-1"
+    },
+    {
+      "id": "3.8:1",
+      "quote": "Configured tunnel implementations MUST at least accept and respond to the probe packets used by Neighbor Unreachability Detection (NUD) [RFC2461].",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.8-1"
+    },
+    {
+      "id": "3.8:2",
+      "quote": "- the receiver MUST, while otherwise processing the Neighbor Discovery packet, silently ignore the content of any Source Link Layer Address options or Target Link Layer Address options received on the tunnel link.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-3.8-2"
+    },
+    {
+      "id": "5:1",
+      "quote": "- IPv4 source address of the packet MUST be the same as configured for the tunnel end-point;",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-5-1"
+    },
+    {
+      "id": "5:2",
+      "quote": "- IPv6 packets with several, obviously invalid IPv6 source addresses received from the tunnel MUST be discarded (see Section 3.6 for details); and",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-5-2"
+    },
+    {
+      "id": "5:3",
+      "quote": "In addition, an implementation MUST treat interfaces to different links as separate, e.g., to ensure that Neighbor Discovery packets arriving on one link do not affect other links.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-5-3"
+    },
+    {
+      "id": "5:4",
+      "quote": "For that reason, the specification says that such packets MUST be discarded, and an ICMP error message SHOULD NOT be generated, unless the implementation normally sends ICMP destination unreachable messages for unknown protocols; in such a case, the same code MAY be sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4213-5-4"
+    },
+    {
+      "id": "8:1",
+      "quote": "- Added stronger wording for source address checks: both IPv4 and IPv6 source addresses MUST be checked, and RPF-like ingress filtering is optional.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 8 is the changelog from RFC 2893. The sentence restates the source-address check obligation already mapped at site 3.6:1 (decapsulator MUST verify the tunnel source address) and at 5:2 (invalid IPv6 source addresses MUST be discarded).",
+      "mapped-to": "RFC4213-3.6-1"
+    },
+    {
+      "id": "8:2",
+      "quote": "- Removed/clarified DNS record filtering; an API is a SHOULD and if it does not exist, MUST NOT filter anything.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 8 changelog entry restating the section 2.2 resolver obligation already mapped at site 2.2:2 (the resolver library MUST NOT filter out any records).",
+      "mapped-to": "RFC4213-2.2-2"
+    }
+  ]
+}

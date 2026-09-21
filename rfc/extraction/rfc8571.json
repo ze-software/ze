@@ -1,0 +1,135 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8571",
+  "register": "prose",
+  "source-path": "rfc/full/rfc8571.txt",
+  "source-sha": "4418647079d036e7",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8571-x-4"
+      ]
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8571-x-4"
+      ]
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8571-x-4"
+      ]
+    },
+    {
+      "id": "2.4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8571-x-4"
+      ]
+    },
+    {
+      "id": "2.5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8571-x-4"
+      ]
+    },
+    {
+      "id": "2.6",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8571-x-4"
+      ]
+    },
+    {
+      "id": "2.7",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8571-x-4"
+      ]
+    },
+    {
+      "id": "2.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF Trust Legal Provisions boilerplate in the copyright notice. It binds whoever extracts code components from the document, not a BGP-LS implementation."
+    },
+    {
+      "id": "1:1",
+      "quote": "New BGP-LS Link Attribute TLVs are required in order to carry the Traffic Engineering Metric Extensions defined in [RFC8570] and [RFC7471].",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The Introduction states why the document exists: new TLVs are needed to carry metrics RFC 8570 and RFC 7471 already define. It places no obligation on an implementation, and this document carries no RFC 2119 keyword anywhere in its text."
+    },
+    {
+      "id": "3:1",
+      "quote": "It is assumed that the IGP instances originating these TLVs will support all the required security and authentication mechanisms (as described in [RFC8570] and [RFC7471]) in order to prevent any security issues when propagating the TLVs into BGP-LS.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The security and authentication mechanisms this sentence calls required are those of RFC 8570 and RFC 7471, which the sentence cites, and they bind the IGP instance that originates the metrics. RFC 8571 states its own position in the next paragraph: the advertisement presents no additional risk beyond the link attribute information RFC 7752 already carries."
+    }
+  ]
+}

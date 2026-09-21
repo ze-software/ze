@@ -1,0 +1,273 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7166",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc7166.txt",
+  "source-sha": "619d0a7d4824469d",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7166-3-1",
+        "RFC7166-3-2",
+        "RFC7166-3-4",
+        "RFC7166-3-5"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7166-4.1-1"
+      ]
+    },
+    {
+      "id": "4.1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7166-4.2-1",
+        "RFC7166-4.2-2"
+      ]
+    },
+    {
+      "id": "4.3",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7166-4.3-2",
+        "RFC7166-4.3-3"
+      ]
+    },
+    {
+      "id": "4.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7166-4.6-2",
+        "RFC7166-4.6-4"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7166-5-1",
+        "RFC7166-5-2"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7166-6-1",
+        "RFC7166-6-2",
+        "RFC7166-6-3"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.1:1",
+      "quote": "OSPFv3 routers MUST set the AT-bit in OSPFv3 Hello and Database Description packets to indicate that all the packets on this link will include an Authentication Trailer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-2.1-1"
+    },
+    {
+      "id": "2.1:2",
+      "quote": "The AT-bit, as shown in the figure above, MUST be set in all OSPFv3 Hello and Database Description packets that contain an Authentication Trailer.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The sentence restates the obligation site 2.1:1 already carries. Site 2.1:1 introduces the AT-bit and says OSPFv3 routers MUST set it in Hello and Database Description packets; this one repeats it against the figure, \"The AT-bit, as shown in the figure above, MUST be set in all OSPFv3 Hello and Database Description packets that contain an Authentication Trailer.\" RFC7166-2.1-1 is worded from this restatement and covers both.",
+      "mapped-to": "RFC7166-2.1-1"
+    },
+    {
+      "id": "3:1",
+      "quote": "When a new key replaces an old key, the KeyStartGenerate time for the new key MUST be less than or equal to the KeyStopGenerate time of the old key.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-3-3"
+    },
+    {
+      "id": "3:2",
+      "quote": "In the event that the last key associated with an interface expires, the network operator SHOULD be notified, and the OSPFv3 packet MUST NOT be transmitted unauthenticated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-3-6"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "It SHOULD be set to 0 when sending protocol packets and MUST be ignored when receiving protocol packets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-4.1-2"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "The 64-bit sequence number MUST be incremented for every OSPFv3 packet sent by the OSPFv3 router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-4.1-3"
+    },
+    {
+      "id": "4.1:3",
+      "quote": "Upon reception, the sequence number MUST be greater than the sequence number in the last accepted OSPFv3 packet of the same OSPFv3 packet type from the sending OSPFv3 neighbor.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-4.1-4"
+    },
+    {
+      "id": "4.1:4",
+      "quote": "OSPFv3 routers implementing this specification MUST use available mechanisms to preserve the sequence number's strictly increasing property for the deployed life of the OSPFv3 router (including cold restarts).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-4.1-5"
+    },
+    {
+      "id": "4.1.1:1",
+      "quote": "If by some chance the OSPFv3 router is deployed long enough that there is a possibility that the 64-bit sequence number may wrap, all keys, independent of their key distribution mechanism, MUST be reset to avoid the possibility of replay attacks.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-4.1.1-1"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "o For received OSPFv3 packets including an OSPFv3 Authentication Trailer, OSPFv3 header checksum verification MUST be omitted.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-4.2-3"
+    },
+    {
+      "id": "4.2:2",
+      "quote": "o For received OSPFv3 packets including an LLS data block and OSPFv3 Authentication Trailer, LLS data block checksum verification MUST be omitted.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-4.2-4"
+    },
+    {
+      "id": "4.3:1",
+      "quote": "Of the above, implementations of this specification MUST include support for at least HMAC-SHA-256 and SHOULD include support for HMAC-SHA-1 and MAY also include support for HMAC-SHA-384 and HMAC-SHA-512.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-4.3-1"
+    },
+    {
+      "id": "4.3:2",
+      "quote": "Implementations of this specification MUST use HMAC-SHA-256 as the default authentication algorithm.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-4.3-4"
+    },
+    {
+      "id": "4.4:1",
+      "quote": "Other protocols using Cryptographic Authentication as specified herein MUST similarly append their respective Cryptographic Protocol IDs to their keys in this step.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-4.4-1"
+    },
+    {
+      "id": "4.6:1",
+      "quote": "Due to the placement of the AT following the LLS data block and the fact that the LLS data block is included in the Cryptographic Authentication computation, OSPFv3 routers supporting this specification MUST minimally support examining the L-bit in the OSPFv3 options and using the length in the LLS data block to access the AT.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-4.6-1"
+    },
+    {
+      "id": "4.6:2",
+      "quote": "If the cryptographic sequence number in the AT is less than or equal to the last sequence number in the last OSPFv3 packet of the same OSPFv3 type successfully received from the neighbor, the OSPFv3 packet MUST be dropped, and an error event SHOULD be logged.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-4.6-3"
+    },
+    {
+      "id": "4.6:3",
+      "quote": "If the two do not match, the packet MUST be discarded, and an error event SHOULD be logged.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-4.6-5"
+    },
+    {
+      "id": "4.6:4",
+      "quote": "After the OSPFv3 packet has been successfully authenticated, implementations MUST store the 64-bit cryptographic sequence number for each OSPFv3 packet type received from the neighbor.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7166-4.6-6"
+    }
+  ]
+}

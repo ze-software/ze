@@ -1,0 +1,278 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4724",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc4724.txt",
+  "source-sha": "2941f918826e837a",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4724-2-1"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4724-4-3",
+        "RFC4724-4-4"
+      ]
+    },
+    {
+      "id": "4.1",
+      "sites": 7,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4724-4.1-2"
+      ]
+    },
+    {
+      "id": "4.2",
+      "sites": 11,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4724-4.2-12",
+        "RFC4724-4.2-13"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "When set (value 1), this bit indicates that the BGP speaker has restarted, and its peer MUST NOT wait for the End-of-RIB marker from the speaker before advertising routing information to the speaker.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-3-5"
+    },
+    {
+      "id": "3:2",
+      "quote": "The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-3-2"
+    },
+    {
+      "id": "3:3",
+      "quote": "The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-3-3"
+    },
+    {
+      "id": "3:4",
+      "quote": "A BGP speaker MUST NOT include more than one instance of the Graceful Restart Capability in the capability advertisement [BGP-CAP].",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-3-1"
+    },
+    {
+      "id": "3:5",
+      "quote": "If more than one instance of the Graceful Restart Capability is carried in the capability advertisement, the receiver of the advertisement MUST ignore all but the last instance of the Graceful Restart Capability.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-3-4"
+    },
+    {
+      "id": "4:1",
+      "quote": "The End-of-RIB marker MUST be sent by a BGP speaker to its peer once it completes the initial routing update (including the case when there is no update to send) for an address family after the BGP session is established.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4-1"
+    },
+    {
+      "id": "4:2",
+      "quote": "It is noted that the normal BGP procedures MUST be followed when the TCP session terminates due to the sending or receiving of a BGP NOTIFICATION message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4-2"
+    },
+    {
+      "id": "4:3",
+      "quote": "The following sections detail the procedures that MUST be followed by the Restarting Speaker as well as the Receiving Speaker once the Restarting Speaker restarts.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A pointer sentence that hands the reader to sections 4.1 and 4.2. It adds no obligation of its own; the procedures it promises are the sites in those two sections."
+    },
+    {
+      "id": "4.1:1",
+      "quote": "When the Restarting Speaker restarts, it MUST retain, if possible, the forwarding state for the BGP routes in the Loc-RIB and MUST mark them as stale.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.1-1"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "It MUST NOT differentiate between stale and other information during forwarding.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.1-3"
+    },
+    {
+      "id": "4.1:3",
+      "quote": "To re-establish the session with its peer, the Restarting Speaker MUST set the \"Restart State\" bit in the Graceful Restart Capability of the OPEN message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.1-4"
+    },
+    {
+      "id": "4.1:4",
+      "quote": "However, it MUST defer route selection for an address family until it either (a) receives the End-of-RIB marker from all its peers (excluding the ones with the \"Restart State\" bit set in the received capability and excluding the ones that do not advertise the graceful restart capability) or (b) the Selection_Deferral_Timer referred to below has expired.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.1-5"
+    },
+    {
+      "id": "4.1:5",
+      "quote": "After the BGP speaker performs route selection, the forwarding state of the speaker MUST be updated and any previously marked stale information MUST be removed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.1-6"
+    },
+    {
+      "id": "4.1:6",
+      "quote": "Once the initial update is complete for an address family (including the case that there is no routing update to send), the End-of-RIB marker MUST be sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.1-7"
+    },
+    {
+      "id": "4.1:7",
+      "quote": "To put an upper bound on the amount of time a router defers its route selection, an implementation MUST support a (configurable) timer that imposes this upper bound.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.1-8"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "In case it does not detect the termination of the old TCP session and still considers the BGP session as being established, it MUST treat the subsequent open connection from the peer as an indication of the termination of the old TCP session and act accordingly (when the Graceful Restart Capability has been received from the peer).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.2-1"
+    },
+    {
+      "id": "4.2:2",
+      "quote": "\"Acting accordingly\" in this context means that the previous TCP session MUST be closed, and the new one retained.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.2-2"
+    },
+    {
+      "id": "4.2:3",
+      "quote": "When the Receiving Speaker detects termination of the TCP session for a BGP session with a peer that has advertised the Graceful Restart Capability, it MUST retain the routes received from the peer for all the address families that were previously received in the Graceful Restart Capability and MUST mark them as stale routing information.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.2-3"
+    },
+    {
+      "id": "4.2:4",
+      "quote": "To deal with possible consecutive restarts, a route (from the peer) previously marked as stale MUST be deleted.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.2-4"
+    },
+    {
+      "id": "4.2:5",
+      "quote": "The router MUST NOT differentiate between stale and other routing information during forwarding.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.2-5"
+    },
+    {
+      "id": "4.2:6",
+      "quote": "In re-establishing the session, the \"Restart State\" bit in the Graceful Restart Capability of the OPEN message sent by the Receiving Speaker MUST NOT be set unless the Receiving Speaker has restarted.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.2-6"
+    },
+    {
+      "id": "4.2:7",
+      "quote": "If the session does not get re-established within the \"Restart Time\" that the peer advertised previously, the Receiving Speaker MUST delete all the stale routes from the peer that it is retaining.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.2-7"
+    },
+    {
+      "id": "4.2:8",
+      "quote": "Once the session is re-established, if the \"Forwarding State\" bit for a specific address family is not set in the newly received Graceful Restart Capability, or if a specific address family is not included in the newly received Graceful Restart Capability, or if the Graceful Restart Capability is not received in the re-established session at all, then the Receiving Speaker MUST immediately remove all the stale routes from the peer that it is retaining for that address family.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.2-8"
+    },
+    {
+      "id": "4.2:9",
+      "quote": "The Receiving Speaker MUST send the End-of-RIB marker once it completes the initial update for an address family (including the case that it has no routes to send) to the peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.2-9"
+    },
+    {
+      "id": "4.2:10",
+      "quote": "The Receiving Speaker MUST replace the stale routes by the routing updates received from the peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.2-10"
+    },
+    {
+      "id": "4.2:11",
+      "quote": "Once the End-of-RIB marker for an address family is received from the peer, it MUST immediately remove any routes from the peer that are still marked as stale for that address family.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4724-4.2-11"
+    },
+    {
+      "id": "5:1",
+      "quote": "In response to an indication that the TCP connection is successfully established (Event 16 or Event 17), the second connection SHALL be tracked until it sends an OPEN message.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "The quoted [BGP-4] sentence that section 5 removes. It sits under 'Replace this text:' and the next site carries the replacement, so this is the text RFC 4724 deletes rather than an obligation it imposes."
+    },
+    {
+      "id": "5:2",
+      "quote": "with If the Graceful Restart Capability with one or more AFIs/SAFIs has not been received for the session, then in response to an indication that a TCP connection is successfully established (Event 16 or Event 17), the second connection SHALL be tracked until it sends an OPEN message.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The replacement keeps [BGP-4] Section 8.2.2's own collision handling for the case the Graceful Restart Capability was not received; section 5 opens 'The specific state machine modifications to [BGP-4], Section 8.2.2, are as follows.' RFC 4724 adds only the guard. The branch it does add, where the capability WAS received, is recorded as RFC4724-4.2-1 and RFC4724-4.2-2."
+    }
+  ]
+}

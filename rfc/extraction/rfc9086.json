@@ -1,0 +1,212 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9086",
+  "register": "prose",
+  "source-path": "rfc/full/rfc9086.txt",
+  "source-sha": "0e661e69fa88a113",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9086-3-3",
+        "RFC9086-3-4",
+        "RFC9086-3-5"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9086-4.3-1",
+        "RFC9086-4.3-2"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9086-5-5",
+        "RFC9086-5-7",
+        "RFC9086-5-8",
+        "RFC9086-5-9"
+      ]
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9086-5.2-2"
+      ]
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF Trust boilerplate on the Simplified BSD License for extracted Code Components; it binds republication of the document, not any protocol behaviour."
+    },
+    {
+      "id": "3:1",
+      "quote": "Each BGP session MUST be described by a PeerNode SID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9086-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "* One PeerNode SID MUST be instantiated to describe the BGP peer session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9086-3-2"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "The following Node Descriptor TLVs MUST be included in BGP-LS NLRI as Local Node Descriptors when distributing BGP information:",
+      "disposition": "mapped",
+      "mapped-to": "RFC9086-4.2-1"
+    },
+    {
+      "id": "4.2:2",
+      "quote": "The following Node Descriptor TLVs MUST be included in BGP-LS Link NLRI as Remote Node Descriptors when distributing BGP information:",
+      "disposition": "mapped",
+      "mapped-to": "RFC9086-4.2-2"
+    },
+    {
+      "id": "5:1",
+      "quote": "- Rsvd bits: Reserved for future use and MUST be zero when originated and ignored when received.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9086-5-3"
+    },
+    {
+      "id": "5:2",
+      "quote": "In this case, the V- and L-Flags MUST be SET.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9086-5-2"
+    },
+    {
+      "id": "5:3",
+      "quote": "In this case, the SRGB MUST be advertised using the extensions defined in [RFC9085].",
+      "disposition": "mapped",
+      "mapped-to": "RFC9086-5-10"
+    },
+    {
+      "id": "5:4",
+      "quote": "When enabled for Egress Peer Engineering, the BGP router MUST include the PeerNode SID TLV in the BGP-LS Attribute for the BGP-LS Link NLRI corresponding to its BGP peering sessions.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9086-5-1"
+    },
+    {
+      "id": "5.2:1",
+      "quote": "* Link Descriptors MUST include the following TLV, as defined in [RFC7752]:",
+      "disposition": "mapped",
+      "mapped-to": "RFC9086-5.2-1"
+    },
+    {
+      "id": "7:1",
+      "quote": "The operator MUST be provided with the options of configuring, enabling, and disabling the advertisement of each of the PeerNode SID, PeerAdj SID, and PeerSet SID as well as control of which information is advertised to which internal or external peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9086-7-1"
+    },
+    {
+      "id": "7:2",
+      "quote": "This is not different from what is required by a BGP speaker in terms of information origination and advertisement.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A comparative remark closing the operator-control paragraph: 'what is required by a BGP speaker' is lowercase and states that this control is nothing new, imposing no behaviour of its own."
+    },
+    {
+      "id": "8:1",
+      "quote": "The isolation of BGP-LS peering sessions is also required to ensure that BGP-LS topology information (including the newly added BGP peering topology) is not advertised to an external BGP peering session outside an administrative domain.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Security Considerations prose: 'is also required to ensure' is lowercase and describes a deployment expectation about session isolation that RFC 7752 Section 8 defines, not an obligation this document places on the encoder or decoder."
+    }
+  ]
+}

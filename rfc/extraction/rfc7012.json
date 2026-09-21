@@ -1,0 +1,357 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7012",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc7012.txt",
+  "source-sha": "484167319fbb3a09",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.14",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.15",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.16",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.17",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.18",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.19",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.20",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.21",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.22",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.23",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7012-4-1",
+        "RFC7012-4-2"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.1:1",
+      "quote": "All Information Elements specified for the IPFIX protocol MUST have the following properties defined:",
+      "disposition": "mapped",
+      "mapped-to": "RFC7012-2.1-1"
+    },
+    {
+      "id": "2.1:2",
+      "quote": "Information Elements of dataType string or octetArray that have length constraints (fixed length, minimum and/or maximum length) MUST note these constraints in their descriptions.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The obligation is on the DESCRIPTION written for an Information Element: a string or octetArray IE with length constraints must note them in its description. The description is a registry field, written when the IE is defined, and it never travels on the IPFIX wire. Producer: the author of an Information Element definition in the IANA IPFIX Information Elements registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers."
+    },
+    {
+      "id": "2.1:3",
+      "quote": "Enterprise-specific Information Elements MUST have the following property defined:",
+      "disposition": "mapped",
+      "mapped-to": "RFC7012-2.1-2"
+    },
+    {
+      "id": "2.1:4",
+      "quote": "If specifications of enterprise-specific Information Elements are made public and/or if enterprise-specific identifiers are used by the IPFIX protocol outside the enterprise, then the enterprise- specific identifier MUST be made globally unique by combining it with an enterprise identifier.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7012-2.1-3"
+    },
+    {
+      "id": "2.1:5",
+      "quote": "If this is the case, the valid inclusive range SHOULD be specified; values for this Information Element outside the range are invalid and MUST NOT be exported.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7012-2.1-5"
+    },
+    {
+      "id": "2.3:1",
+      "quote": "o Names of Information Elements MUST be unique within the \"IPFIX Information Elements\" registry [IANA-IPFIX].",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Names of Information Elements must be unique within the IANA registry. Uniqueness is a property of the registry, enforced when an entry is added to it. Producer: the author of an Information Element definition in the IANA IPFIX Information Elements registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers."
+    },
+    {
+      "id": "2.3:2",
+      "quote": "o Names of Information Elements MUST start with lowercase letters.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Names of Information Elements must start with lowercase letters. This is a naming convention binding whoever writes the name into the registry. Producer: the author of an Information Element definition in the IANA IPFIX Information Elements registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers."
+    },
+    {
+      "id": "2.3:3",
+      "quote": "o Composed names MUST use capital letters for the first letter of each component (except for the first one).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Composed names must capitalise the first letter of each component after the first. This is a naming convention binding whoever writes the name into the registry. Producer: the author of an Information Element definition in the IANA IPFIX Information Elements registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers."
+    },
+    {
+      "id": "3.2.4:1",
+      "quote": "Identifiers MUST be one of the signed or unsigned data types.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "An Information Element with 'identifier' data type semantics must be declared with a signed or unsigned data type. The constraint is on the dataType field of the registry entry, chosen when the IE is defined. Producer: the author of an Information Element definition in the IANA IPFIX Information Elements registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers."
+    },
+    {
+      "id": "3.2.5:1",
+      "quote": "Flags MUST always be of an unsigned data type.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "An Information Element with 'flags' data type semantics must be declared with an unsigned data type. The constraint is on the dataType field of the registry entry, chosen when the IE is defined. Producer: the author of an Information Element definition in the IANA IPFIX Information Elements registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers."
+    },
+    {
+      "id": "6:1",
+      "quote": "New abstract data types and semantics are subject to Standards Action [RFC5226] and MUST be defined in IETF Standards Track documents updating this document.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "\"New abstract data types and semantics are subject to Standards Action [RFC5226] and MUST be defined in IETF Standards Track documents updating this document.\" The obligation is on the IANA allocation policy and on the document that defines a new type. Producer: IANA and the author of an IETF Standards Track document that extends this registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers."
+    },
+    {
+      "id": "7.2:1",
+      "quote": "The specification of new MPLS label types MUST be published using a well-established and persistent publication medium.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "\"The specification of new MPLS label types MUST be published using a well-established and persistent publication medium.\" The obligation is on whoever specifies a new MPLS label type for the IPFIX mplsTopLabelType subregistry. Producer: IANA and the author of an IETF Standards Track document that extends this registry; ze holds no code for this role. Ze consumes the registry instead: internal/plugins/flowexport/ipfix/ie.go names registered IEs by numeric elementId and defines no registry entry, and internal/plugins/flowexport/ipfix/flow_template.go builds every field specifier from those numbers."
+    }
+  ]
+}

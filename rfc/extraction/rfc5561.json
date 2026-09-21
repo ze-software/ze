@@ -1,0 +1,247 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5561",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc5561.txt",
+  "source-sha": "f521ece72256d999",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5561-4-1"
+      ]
+    },
+    {
+      "id": "10",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.1:1",
+      "quote": "The capability document MUST also describe the interpretation and processing of associated capability data, if present.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The role is the AUTHOR of an LDP capability document, a document role and not a wire role: Section 2.1 addresses 'a document that' specifies an LDP enhancement, and the sentence obliges that document to describe how its capability data is interpreted and processed. Ze publishes no capability document. The producer that acts as the role in this tree is rfc/full/rfc5561.txt, whose Section 9 is itself such a document for the Dynamic Capability Announcement TLV. Ze would CONSUME the result: internal/plugins/ldp/wire.go decodes what such a document defines."
+    },
+    {
+      "id": "3:1",
+      "quote": "The value of this bit MUST be 0 since a Capability Parameter TLV is sent only in Initialization and Capability messages, which are not forwarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "The method for interpreting and processing this data is specific to the TLV code point and MUST be described in the document specifying the capability.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The role is the AUTHOR of the document specifying a capability, a document role and not a wire role: the sentence obliges that document to describe how the Capability Data is interpreted and processed. Ze publishes no capability document. The producer that acts as the role in this tree is rfc/full/rfc5561.txt, whose Section 9 defines the Dynamic Capability Announcement TLV and states it carries no Capability Data. Ze would CONSUME the result: internal/plugins/ldp/wire.go decodes what such a document defines."
+    },
+    {
+      "id": "3:3",
+      "quote": "An LDP speaker MUST NOT include more than one instance of a Capability Parameter (as identified by the same TLV code point) in an Initialization or Capability message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-3-2"
+    },
+    {
+      "id": "3:4",
+      "quote": "The Status Code in the Status TLV of the Notification message MUST be Malformed TLV value, and the message SHOULD contain the second Capability Parameter TLV of the same type (code point) that is received in the message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-3-5"
+    },
+    {
+      "id": "4:1",
+      "quote": "Note that Backward Compatibility TLVs (see Section 3.1) MUST NOT be included in Capability messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-4-1"
+    },
+    {
+      "id": "6:1",
+      "quote": "The S-bit of a Capability Parameter in an Initialization message MUST be 1 and SHOULD be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-6-1"
+    },
+    {
+      "id": "6:2",
+      "quote": "The document specifying procedures for the capability MUST describe the behavior in this situation.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "The role is the AUTHOR of the document specifying procedures for a capability, a document role and not a wire role: Section 6 first says 'It is the responsibility of the capability designer to specify the behavior', then obliges that document to describe the behavior when a peer did not advertise the capability. Ze publishes no capability document. The producer that acts as the role in this tree is rfc/full/rfc5561.txt, whose Section 9 specifies the procedures for the Dynamic Capability Announcement capability. Ze would CONSUME the result in internal/plugins/ldp/session.go."
+    },
+    {
+      "id": "6:3",
+      "quote": "The Status Code in the Status TLV of the Notification message MUST be Unsupported Capability, and the message SHOULD contain the unsupported capability (see Section 8 for more details).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-6-2"
+    },
+    {
+      "id": "6:4",
+      "quote": "An LDP speaker that supports capability advertisement and includes a Capability Parameter in its Initialization message MUST set the TLV U-bit to 0 or 1, as specified by Capability document.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-6-3"
+    },
+    {
+      "id": "6:5",
+      "quote": "If the U-bit is 1, then the speaker MUST silently ignore the Capability Parameter and allow the session to be established.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-6-4"
+    },
+    {
+      "id": "6:6",
+      "quote": "The Status Code in the Status TLV of the Notification message MUST be Unsupported Capability, and the message SHOULD contain the unsupported capability (see Section 8 for more details).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 6 states the same obligation twice: site 6:3 carries it for the speaker whose peer never advertised the capability, and this site repeats it for the speaker that meets an unsupported capability with the U-bit 0. Both sentences read 'The Status Code in the Status TLV of the Notification message MUST be Unsupported Capability, and the message SHOULD contain the unsupported capability'. Site 6:3 maps RFC5561-6-2.",
+      "mapped-to": "RFC5561-6-2"
+    },
+    {
+      "id": "7:1",
+      "quote": "An LDP speaker MUST NOT send a Capability message to a peer unless its peer advertised the Dynamic Capability Announcement capability in its session Initialization message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-4-2"
+    },
+    {
+      "id": "8:1",
+      "quote": "The E-bit of the Status TLV carried in a Notification message that includes this status code MUST be set to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-8-1"
+    },
+    {
+      "id": "8:2",
+      "quote": "When the Notification message specifies the unsupported capabilities, it MUST include a Returned TLVs TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-8-2"
+    },
+    {
+      "id": "8:3",
+      "quote": "The Returned TLVs TLV MUST include only the Capability Parameters for unsupported capabilities, and the Capability Parameter for each such capability SHOULD be encoded as received from the peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-8-3"
+    },
+    {
+      "id": "8:4",
+      "quote": "When the Notification message specifies the TLV that was unknown, it MUST include the unknown TLV in a Returned TLVs TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-8-4"
+    },
+    {
+      "id": "9:1",
+      "quote": "(0x0506) | Length (1) | +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ |1| Reserved | +-+-+-+-+-+-+-+-+ The value of the U-bit for the Dynamic Capability Announcement Parameter TLV MUST be set to 1 so that a receiver MUST silently ignore this TLV if unknown to it, and continue processing the rest of the message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-9-1"
+    },
+    {
+      "id": "9:2",
+      "quote": "There is no \"Capability Data\" associated with this TLV and hence the TLV length MUST be set to 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-9-2"
+    },
+    {
+      "id": "9:3",
+      "quote": "An LDP speaker MUST NOT include the Dynamic Capability Announcement Parameter in Capability messages sent to its peers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-9-3"
+    },
+    {
+      "id": "10:1",
+      "quote": "To ensure compatibility with an [RFC5036]-compliant peer, LDP implementations that support capability advertisement have label distribution for IPv4 enabled until it is explicitly disabled and MUST assume that their peers do as well.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5561-10-1"
+    }
+  ]
+}

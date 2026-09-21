@@ -1,0 +1,584 @@
+{
+  "schema-version": 1,
+  "stem": "rfc8210",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc8210.txt",
+  "source-sha": "d55f8b529fb430bf",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8210-5.1-4"
+      ]
+    },
+    {
+      "id": "5.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.10",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.11",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 7,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC8210-9.2-10",
+        "RFC8210-9.2-3",
+        "RFC8210-9.2-6"
+      ]
+    },
+    {
+      "id": "9.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.4",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "15",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "15.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "15.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "While a cache is receiving updates, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-2-1"
+    },
+    {
+      "id": "3:1",
+      "quote": "A Relying Party, e.g., router or other client, MUST have a trust relationship with, and a trusted transport channel to, any cache(s) it uses.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-3-1"
+    },
+    {
+      "id": "4:1",
+      "quote": "The router MUST choose the most preferred, by configuration, cache or set of caches so that the operator may control load on their caches and the Global RPKI.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-4-1"
+    },
+    {
+      "id": "4:2",
+      "quote": "Note that the Serial Number comparison used to determine \"since the given Serial Number\" MUST take wrap-around into account; see [RFC1982].",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-4-3"
+    },
+    {
+      "id": "4:3",
+      "quote": "As a cache server must evaluate certificates and ROAs (Route Origin Authorizations; see [RFC6480]), which are time dependent, servers' clocks MUST be correct to a tolerance of approximately an hour.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-4-2"
+    },
+    {
+      "id": "5:1",
+      "quote": "Reserved fields (marked \"zero\" in PDU diagrams) MUST be zero on transmission and MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5-1"
+    },
+    {
+      "id": "5.1:1",
+      "quote": "If, at any time after the protocol version has been negotiated (Section 7), either the router or the cache finds that the value of the Session ID is not the same as the other's, the party which detects the mismatch MUST immediately terminate the session with an Error Report PDU with code 0 (\"Corrupt Data\"), and the router MUST flush all data learned from that cache.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.1-3"
+    },
+    {
+      "id": "5.1:2",
+      "quote": "To reduce the risk of confusion, cache servers SHOULD NOT use the same Session ID across multiple protocol versions, but even if they do, routers MUST treat sessions with different Protocol Version fields as separate sessions even if they do happen to have the same Session ID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.1-5"
+    },
+    {
+      "id": "5.1:3",
+      "quote": "In protocol version 1, they MUST be zero on transmission and MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.1-1"
+    },
+    {
+      "id": "5.1:4",
+      "quote": "This MUST NOT be less than the Prefix Length element.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.1-2"
+    },
+    {
+      "id": "5.2:1",
+      "quote": "If the router receives a Serial Notify PDU during the initial startup period where the router and cache are still negotiating to agree on a protocol version, the router MUST simply ignore the Serial Notify PDU, even if the Serial Notify PDU is for an unexpected protocol version.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.2-1"
+    },
+    {
+      "id": "5.3:1",
+      "quote": "When replying to a Serial Query, the cache MUST return the minimum set of changes needed to bring the router into sync with the cache.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.3-1"
+    },
+    {
+      "id": "5.3:2",
+      "quote": "That is, if a particular prefix or router key underwent multiple changes between the Serial Number specified by the router and the cache's current Serial Number, the cache MUST merge those changes to present the simplest possible view of those changes to the router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.3-2"
+    },
+    {
+      "id": "5.5:1",
+      "quote": "When replying to a Reset Query (Section 5.4), the cache sends the set of all data records it has; in this case, the withdraw/announce field in the payload PDUs MUST have the value 1 (announce).",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.5-1"
+    },
+    {
+      "id": "5.6:1",
+      "quote": "The cache server MUST ensure that it has told the router client to have one and only one IPvX PDU for a unique {Prefix, Len, Max-Len, ASN} at any one point in time.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.6-1"
+    },
+    {
+      "id": "5.8:1",
+      "quote": "The Session ID and Protocol Version MUST be the same as that of the corresponding Cache Response which began the (possibly null) sequence of payload PDUs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.8-1"
+    },
+    {
+      "id": "5.10:1",
+      "quote": "The cache server MUST ensure that it has told the router client to have one and only one Router Key PDU for a unique {SKI, ASN, Subject Public Key} at any one point in time.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.10-1"
+    },
+    {
+      "id": "5.10:2",
+      "quote": "For this reason, implementations MUST compare Subject Public Key values as well as SKIs when detecting duplicate PDUs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.10-2"
+    },
+    {
+      "id": "5.11:1",
+      "quote": "If the error is generic (e.g., \"Internal Error\") and not associated with the PDU to which it is responding, the Erroneous PDU field MUST be empty and the Length of Encapsulated PDU field MUST be zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.11-2"
+    },
+    {
+      "id": "5.11:2",
+      "quote": "An Error Report PDU MUST NOT be sent for an Error Report PDU.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.11-1"
+    },
+    {
+      "id": "5.11:3",
+      "quote": "The diagnostic text is optional; if not present, the Length of Error Text field MUST be zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.11-4"
+    },
+    {
+      "id": "5.11:4",
+      "quote": "If error text is present, it MUST be a string in UTF-8 encoding (see [RFC3629]). 0 8 16 24 31 .-------------------------------------------. | Protocol | PDU | | | Version | Type | Error Code | | 1 | 10 | | +-------------------------------------------+ | | | Length | | | +-------------------------------------------+ | | | Length of Encapsulated PDU | | | +-------------------------------------------+ | | ~ Erroneous PDU ~ | | +-------------------------------------------+ | | | Length of Error Text | | | +-------------------------------------------+ | | | Arbitrary Text | | of | ~ Error Diagnostic Message ~ | | `-------------------------------------------'",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-5.11-3"
+    },
+    {
+      "id": "6:1",
+      "quote": "The router MUST NOT retain the data past the time indicated by this parameter.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-6-2"
+    },
+    {
+      "id": "6:2",
+      "quote": "Caches MUST set Expire Interval to a value larger than either Refresh Interval or Retry Interval.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-6-1"
+    },
+    {
+      "id": "7:1",
+      "quote": "A router MUST start each transport connection by issuing either a Reset Query or a Serial Query.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-7-1"
+    },
+    {
+      "id": "7:2",
+      "quote": "If a cache which supports version 1 receives a query from a router which specifies version 0, the cache MUST downgrade to protocol version 0 [RFC6810] or send a version 1 Error Report PDU with Error Code 4 (\"Unsupported Protocol Version\") and terminate the connection.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-7-2"
+    },
+    {
+      "id": "7:3",
+      "quote": "In this case, the router MUST either downgrade to version 0 or terminate the connection.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-7-3"
+    },
+    {
+      "id": "7:4",
+      "quote": "If either party receives a PDU containing an unrecognized Protocol Version (neither 0 nor 1) during this negotiation, it MUST either downgrade to a known version or terminate the connection, with an Error Report PDU unless the received PDU is itself an Error Report PDU.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-7-7"
+    },
+    {
+      "id": "7:5",
+      "quote": "The router MUST ignore any Serial Notify PDUs it might receive from the cache during this initial startup period, regardless of the Protocol Version field in the Serial Notify PDU.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-7-8"
+    },
+    {
+      "id": "7:6",
+      "quote": "Routers, however, MUST handle such notifications (by ignoring them) for backwards compatibility with caches serving protocol version 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the ignore-Serial-Notify-before-negotiation obligation already mapped at site 7:5, adding only the backwards-compatibility reason",
+      "mapped-to": "RFC8210-7-8"
+    },
+    {
+      "id": "7:7",
+      "quote": "If either party receives a PDU for a different Protocol Version once the above negotiation completes, that party MUST drop the session; unless the PDU containing the unexpected Protocol Version was itself an Error Report PDU, the party dropping the session SHOULD send an Error Report with an error code of 8 (\"Unexpected Protocol Version\").",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-7-4"
+    },
+    {
+      "id": "8.1:1",
+      "quote": "When a transport connection is first established, the router MUST send either a Reset Query or a Serial Query.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-8.1-2"
+    },
+    {
+      "id": "8.1:2",
+      "quote": "In all other cases, the router lacks the necessary data for fast resynchronization and therefore MUST fall back to a Reset Query.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-8.1-3"
+    },
+    {
+      "id": "8.1:3",
+      "quote": "To limit the length of time a cache must keep the data necessary to generate incremental updates, a router MUST send either a Serial Query or a Reset Query periodically.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-8.1-1"
+    },
+    {
+      "id": "8.2:1",
+      "quote": "The cache MUST rate-limit Serial Notifies to no more frequently than one per minute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-8.2-1"
+    },
+    {
+      "id": "8.2:2",
+      "quote": "To limit the length of time a cache must keep old withdraws, a router MUST send either a Serial Query or a Reset Query periodically.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the periodic Serial-or-Reset Query obligation already mapped at site 8.1:3, here for the old-withdraw case",
+      "mapped-to": "RFC8210-8.1-1"
+    },
+    {
+      "id": "8.3:1",
+      "quote": "If there are no more-preferred caches, it MUST issue a Reset Query and get an entire new load from the cache.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-8.3-1"
+    },
+    {
+      "id": "8.4:1",
+      "quote": "If no other caches are available, the router MUST issue periodic Reset Queries until it gets a new usable load from the cache.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-8.4-1"
+    },
+    {
+      "id": "9:1",
+      "quote": "Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 14.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9-1"
+    },
+    {
+      "id": "9:2",
+      "quote": "If unprotected TCP is the transport, the cache and routers MUST be on the same trusted and controlled network.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9-2"
+    },
+    {
+      "id": "9:3",
+      "quote": "If available to the operator, caches and routers MUST use one of the following more protected protocols:",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9-3"
+    },
+    {
+      "id": "9.1:1",
+      "quote": "Cache servers supporting SSH transport MUST accept RSA authentication and SHOULD accept Elliptic Curve Digital Signature Algorithm (ECDSA) authentication.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9.1-1"
+    },
+    {
+      "id": "9.1:2",
+      "quote": "User authentication MUST be supported; host authentication MAY be supported.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9.1-2"
+    },
+    {
+      "id": "9.2:1",
+      "quote": "Client routers using TLS transport MUST present client-side certificates to authenticate themselves to the cache in order to allow the cache to manage the load by rejecting connections from unauthorized routers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9.2-1"
+    },
+    {
+      "id": "9.2:2",
+      "quote": "Certificates used to authenticate client routers in this protocol MUST include a subjectAltName extension [RFC5280] containing one or more iPAddress identities; when authenticating the router's certificate, the cache MUST check the IP address of the TLS connection against these iPAddress identities and SHOULD reject the connection if none of the iPAddress identities match the connection.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9.2-2"
+    },
+    {
+      "id": "9.2:3",
+      "quote": "Routers MUST also verify the cache's TLS server certificate, using subjectAltName dNSName identities as described in [RFC6125], to avoid MITM attacks.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9.2-4"
+    },
+    {
+      "id": "9.2:4",
+      "quote": "o Support for the DNS-ID identifier type (that is, the dNSName identity in the subjectAltName extension) is REQUIRED in rpki-rtr server and client implementations which use TLS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9.2-11"
+    },
+    {
+      "id": "9.2:5",
+      "quote": "Certification authorities which issue rpki-rtr server certificates MUST support the DNS-ID identifier type, and the DNS-ID identifier type MUST be present in rpki-rtr server certificates.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9.2-9"
+    },
+    {
+      "id": "9.2:6",
+      "quote": "o rpki-rtr implementations which use TLS MUST NOT use Common Name (CN-ID) identifiers; a CN field may be present in the server certificate's subject name but MUST NOT be used for authentication within the rules described in [RFC6125].",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9.2-5"
+    },
+    {
+      "id": "9.2:7",
+      "quote": "o The client router MUST set its \"reference identifier\" to the DNS name of the rpki-rtr cache.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9.2-8"
+    },
+    {
+      "id": "9.3:1",
+      "quote": "If TCP MD5 is used, implementations MUST support key lengths of at least 80 printable ASCII bytes, per Section 4.5 of [RFC2385].",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9.3-1"
+    },
+    {
+      "id": "9.3:2",
+      "quote": "Implementations MUST also support hexadecimal sequences of at least 32 characters, i.e., 128 bits.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9.3-2"
+    },
+    {
+      "id": "9.4:1",
+      "quote": "Implementations MUST support key lengths of at least 80 printable ASCII bytes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9.4-1"
+    },
+    {
+      "id": "9.4:2",
+      "quote": "Implementations MUST also support hexadecimal sequences of at least 32 characters, i.e., 128 bits.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9.4-2"
+    },
+    {
+      "id": "9.4:3",
+      "quote": "Message Authentication Code (MAC) lengths of at least 96 bits MUST be supported, per Section 5.1 of [RFC5925].",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the MAC-length half of the TCP-AO support obligation the row already states: \"key lengths of at least 80 printable ASCII bytes and MAC lengths of at least 96 bits\"",
+      "mapped-to": "RFC8210-9.4-1"
+    },
+    {
+      "id": "9.4:4",
+      "quote": "The cryptographic algorithms and associated parameters described in [RFC5926] MUST be supported.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-9.4-3"
+    },
+    {
+      "id": "10:1",
+      "quote": "A client may hold data from multiple caches but MUST keep the data marked as to source, as later updates MUST affect the correct data.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-10-2"
+    },
+    {
+      "id": "10:2",
+      "quote": "If data from multiple caches are held, implementations MUST NOT distinguish between data sources when performing validation of BGP announcements.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-10-1"
+    },
+    {
+      "id": "12:1",
+      "quote": "Errors which are considered fatal MUST cause the session to be dropped.",
+      "disposition": "mapped",
+      "mapped-to": "RFC8210-12-1"
+    },
+    {
+      "id": "13:1",
+      "quote": "Protocols which provide integrity and authenticity SHOULD be used, and if they cannot, i.e., TCP is used as the transport, the router and cache MUST be on the same trusted, controlled network.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Security Considerations restatement of the section 9 rule that an unprotected TCP transport puts the router and cache on the same trusted, controlled network",
+      "mapped-to": "RFC8210-9-2"
+    }
+  ]
+}

@@ -1,0 +1,793 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2132",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc2132.txt",
+  "source-sha": "671b4cd5878737e5",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-2-4"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-3.5-2"
+      ]
+    },
+    {
+      "id": "3.6",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-3.6-2"
+      ]
+    },
+    {
+      "id": "3.7",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-3.7-2"
+      ]
+    },
+    {
+      "id": "3.8",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-3.8-2"
+      ]
+    },
+    {
+      "id": "3.9",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-3.9-2"
+      ]
+    },
+    {
+      "id": "3.10",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-3.10-2"
+      ]
+    },
+    {
+      "id": "3.11",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-3.11-2"
+      ]
+    },
+    {
+      "id": "3.12",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-3.12-2"
+      ]
+    },
+    {
+      "id": "3.13",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-3.13-2"
+      ]
+    },
+    {
+      "id": "3.14",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.15",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.16",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.17",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.18",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.19",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.20",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-8.2-2"
+      ]
+    },
+    {
+      "id": "8.3",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-8.3-2"
+      ]
+    },
+    {
+      "id": "8.4",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-8.4-2",
+        "RFC2132-8.4-3",
+        "RFC2132-8.4-4",
+        "RFC2132-8.4-5",
+        "RFC2132-8.4-6"
+      ]
+    },
+    {
+      "id": "8.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.9",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-8.9-2"
+      ]
+    },
+    {
+      "id": "8.10",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-8.10-2"
+      ]
+    },
+    {
+      "id": "8.11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.12",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-8.12-2"
+      ]
+    },
+    {
+      "id": "8.13",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-8.13-2"
+      ]
+    },
+    {
+      "id": "8.14",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-8.14-2"
+      ]
+    },
+    {
+      "id": "8.15",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-8.15-2"
+      ]
+    },
+    {
+      "id": "8.16",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-8.16-2"
+      ]
+    },
+    {
+      "id": "8.17",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-8.17-2"
+      ]
+    },
+    {
+      "id": "8.18",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-8.18-2"
+      ]
+    },
+    {
+      "id": "8.19",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-8.19-2"
+      ]
+    },
+    {
+      "id": "8.20",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-8.20-2"
+      ]
+    },
+    {
+      "id": "8.21",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-8.21-2"
+      ]
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.8",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-9.8-2"
+      ]
+    },
+    {
+      "id": "9.9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.13",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-9.13-2"
+      ]
+    },
+    {
+      "id": "9.14",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2132-9.14-2",
+        "RFC2132-9.14-3",
+        "RFC2132-9.14-4"
+      ]
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1.1:1",
+      "quote": "o \"MUST\"",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1.1 is the document's RFC 2119 terminology section: it lists the keywords and defines them ('This word or the adjective \"REQUIRED\" means that the item is an absolute requirement of this specification.'). The keyword is the subject of the sentence rather than an obligation on a DHCP implementation."
+    },
+    {
+      "id": "1.1:2",
+      "quote": "This word or the adjective \"REQUIRED\" means that the item is an absolute requirement of this specification.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1.1 is the document's RFC 2119 terminology section: it lists the keywords and defines them ('This word or the adjective \"REQUIRED\" means that the item is an absolute requirement of this specification.'). The keyword is the subject of the sentence rather than an obligation on a DHCP implementation."
+    },
+    {
+      "id": "1.1:3",
+      "quote": "o \"MUST NOT\"",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1.1 is the document's RFC 2119 terminology section: it lists the keywords and defines them ('This word or the adjective \"REQUIRED\" means that the item is an absolute requirement of this specification.'). The keyword is the subject of the sentence rather than an obligation on a DHCP implementation."
+    },
+    {
+      "id": "2:1",
+      "quote": "Options containing NVT ASCII data SHOULD NOT include a trailing NULL; however, the receiver of such options MUST be prepared to delete trailing nulls if they exist.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-2-2"
+    },
+    {
+      "id": "2:2",
+      "quote": "The receiver MUST NOT require that a trailing null be included in the data.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-2-3"
+    },
+    {
+      "id": "2:3",
+      "quote": "Any options defined subsequent to this document MUST contain a length octet even if the length is fixed or zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-2-1"
+    },
+    {
+      "id": "3.3:1",
+      "quote": "If both the subnet mask and the router option are specified in a DHCP reply, the subnet mask option MUST be first.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-3.3-1"
+    },
+    {
+      "id": "3.5:1",
+      "quote": "The minimum length for the router option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-3.5-1"
+    },
+    {
+      "id": "3.6:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-3.6-1"
+    },
+    {
+      "id": "3.7:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-3.7-1"
+    },
+    {
+      "id": "3.8:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-3.8-1"
+    },
+    {
+      "id": "3.9:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-3.9-1"
+    },
+    {
+      "id": "3.10:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-3.10-1"
+    },
+    {
+      "id": "3.11:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-3.11-1"
+    },
+    {
+      "id": "3.12:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-3.12-1"
+    },
+    {
+      "id": "3.13:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-3.13-1"
+    },
+    {
+      "id": "4.3:1",
+      "quote": "The minimum length of this option is 8, and the length MUST be a multiple of 8.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-4.3-1"
+    },
+    {
+      "id": "4.7:1",
+      "quote": "Its minimum length is 2, and the length MUST be a multiple of 2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-4.7-1"
+    },
+    {
+      "id": "5.8:1",
+      "quote": "The minimum length of this option is 8, and the length MUST be a multiple of 8.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-5.8-1"
+    },
+    {
+      "id": "8.2:1",
+      "quote": "Its minimum length is 4, and the length MUST be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-8.2-1"
+    },
+    {
+      "id": "8.3:1",
+      "quote": "Its minimum length is 4, and the length MUST be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-8.3-1"
+    },
+    {
+      "id": "8.4:1",
+      "quote": "Servers not equipped to interpret the vendor-specific information sent by a client MUST ignore it (although it may be reported).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-8.4-1"
+    },
+    {
+      "id": "8.9:1",
+      "quote": "The minimum length of this option is 4 octets, and the length MUST be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-8.9-1"
+    },
+    {
+      "id": "8.10:1",
+      "quote": "The minimum length of this option is 4, and the length MUST be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-8.10-1"
+    },
+    {
+      "id": "8.12:1",
+      "quote": "Its minimum length is 4, and the length MUST be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-8.12-1"
+    },
+    {
+      "id": "8.13:1",
+      "quote": "Its minimum length is 0 (indicating no home agents are available) and the length MUST be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-8.13-1"
+    },
+    {
+      "id": "8.14:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-8.14-1"
+    },
+    {
+      "id": "8.15:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-8.15-1"
+    },
+    {
+      "id": "8.16:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-8.16-1"
+    },
+    {
+      "id": "8.17:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-8.17-1"
+    },
+    {
+      "id": "8.18:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-8.18-1"
+    },
+    {
+      "id": "8.19:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-8.19-1"
+    },
+    {
+      "id": "8.20:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-8.20-1"
+    },
+    {
+      "id": "8.21:1",
+      "quote": "The minimum length for this option is 4 octets, and the length MUST always be a multiple of 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-8.21-1"
+    },
+    {
+      "id": "9.8:1",
+      "quote": "The DHCP server is not required to return the options in the requested order, but MUST try to insert the requested options in the order requested by the client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-9.8-1"
+    },
+    {
+      "id": "9.13:1",
+      "quote": "Servers not equipped to interpret the class-specific information sent by a client MUST ignore it (although it may be reported).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-9.13-1"
+    },
+    {
+      "id": "9.14:1",
+      "quote": "For correct identification of clients, each client's client- identifier MUST be unique among the client-identifiers used on the subnet to which the client is attached.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2132-9.14-1"
+    }
+  ]
+}

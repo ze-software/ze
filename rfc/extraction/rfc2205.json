@@ -1,0 +1,872 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2205",
+  "register": "prose",
+  "source-path": "rfc/full/rfc2205.txt",
+  "source-sha": "81606f8d5072deae",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 9,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 23,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 77,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2205-3.1-1",
+        "RFC2205-3.1-2",
+        "RFC2205-3.1-3",
+        "RFC2205-3.10-1"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 14,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "Because the UDP/TCP port numbers are used for packet classification, each router must be able to examine these fields.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-1-1"
+    },
+    {
+      "id": "1:2",
+      "quote": "If the link-layer technology implements its own QoS management capability, then RSVP must negotiate with the link layer to obtain the requested QoS.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-1-2"
+    },
+    {
+      "id": "1:3",
+      "quote": "More importantly, reservations from different downstream branches of the multicast tree(s) from the same sender (or set of senders) must be \" merged\" as reservations travel upstream.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-1-3"
+    },
+    {
+      "id": "1:4",
+      "quote": "In an explicit sender-selection reservation, each filter spec must match exactly one sender, while in a wildcard sender-selection no filter spec is needed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-1-4"
+    },
+    {
+      "id": "1:5",
+      "quote": "Packetized audio is an example of an application suitable for shared reservations; since a limited number of people talk at once, each receiver might issue a WF or SE reservation request for twice the bandwidth required for one sender (to allow some over-speaking).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "an illustrative example about packetized audio and what a receiver might issue; it imposes nothing"
+    },
+    {
+      "id": "1:6",
+      "quote": "We must also specify the multicast routes within the node of Figure 4.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "authorial voice about the worked example: the authors must specify the multicast routes within Figure 4 for the example to be readable"
+    },
+    {
+      "id": "1:7",
+      "quote": "Figure 5, showing the WF style, illustrates two distinct situations in which merging is required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a caption sentence describing what Figure 5 illustrates"
+    },
+    {
+      "id": "1:8",
+      "quote": "(1) Each of the two next hops on interface (d) results in a separate RSVP reservation request, as shown; these two requests must be merged into the effective flowspec, 3B, that is used to make the reservation on interface (d).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the worked example of Figure 5 restating the merging obligation for two next hops on one interface",
+      "mapped-to": "RFC2205-1-3"
+    },
+    {
+      "id": "1:9",
+      "quote": "(2) The reservations on the interfaces (c) and (d) must be merged in order to forward the reservation requests upstream; as a result, the larger flowspec 4B is forwarded upstream to each previous hop. | Sends | Reserves Receives | | _______ WF( *{4B} ) <- (a) | (c) | * {4B}| (c) <- WF( *{4B} ) | |_______| | -----------------------|---------------------------------------- | _______ WF( *{4B} ) <- (b) | (d) | * {3B}| (d) <- WF( *{3B} ) | |_______| <- WF( *{2B} )",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the worked example of Figure 5 restating the merging obligation for forwarding upstream",
+      "mapped-to": "RFC2205-1-3"
+    },
+    {
+      "id": "2:1",
+      "quote": "These messages must follow exactly the reverse of the path(s) the data packets will use, upstream to all the sender hosts included in the sender selection.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-2-1"
+    },
+    {
+      "id": "2:2",
+      "quote": "Resv messages must finally be delivered to the sender hosts themselves, so that the hosts can set up appropriate traffic control parameters for the first hop.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-2-2"
+    },
+    {
+      "id": "2:3",
+      "quote": "A Path message is required to carry a Sender Template, which describes the format of data packets that the sender will originate.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-2-3"
+    },
+    {
+      "id": "2:4",
+      "quote": "A Path message is required to carry a Sender Tspec, which defines the traffic characteristics of the data flow that the sender will generate.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-2-4"
+    },
+    {
+      "id": "2:5",
+      "quote": "Since flowspecs are opaque to RSVP, the actual rules for comparing flowspecs must be defined and implemented outside RSVP proper.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "the sentence sends the obligation outside this RFC: flowspecs are opaque to RSVP and the comparison rules are defined by the integrated services specifications, not here"
+    },
+    {
+      "id": "2:6",
+      "quote": "In such a case, instead of taking the larger, the service-specific merging routines must be able to return a third flowspec that is at least as large as each; mathematically, this is the \"least upper bound\" (LUB).",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "the obligation binds the service-specific merging routines that site 2:5 places outside RSVP proper; the least upper bound is defined by the integrated services specification"
+    },
+    {
+      "id": "2:7",
+      "quote": "If this update results in modification of state to be forwarded in refresh messages, these refresh messages must be generated and forwarded immediately, so that state changes can be propagated end-to-end without delay.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-2-5"
+    },
+    {
+      "id": "2:8",
+      "quote": "Conversely, state that is forwarded out interface I* must be computed using only state that arrived on interfaces different from I*.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-2-6"
+    },
+    {
+      "id": "2:9",
+      "quote": "Once initiated, a teardown request must be forwarded hop-by-hop without delay.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-2-7"
+    },
+    {
+      "id": "2:10",
+      "quote": "Since a request that fails may be the result of merging a number of requests, a reservation error must be reported to all of the responsible receivers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-2-8"
+    },
+    {
+      "id": "2:11",
+      "quote": "This must not deny service to Q0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-2-9"
+    },
+    {
+      "id": "2:12",
+      "quote": "This must not prevent a different receiver from now establishing a smaller reservation Q0 that would succeed if not merged with Q1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same blockade state rule, stated for a different receiver establishing a smaller reservation",
+      "mapped-to": "RFC2205-2-9"
+    },
+    {
+      "id": "2:13",
+      "quote": "The blockade state in each downstream router must not remove the state or prevent its immediate refresh.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same blockade state rule, stated for the downstream routers' state and its refresh",
+      "mapped-to": "RFC2205-2-9"
+    },
+    {
+      "id": "2:14",
+      "quote": "To prevent abuse, some form of back pressure will generally be required on users who make reservations.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a deployment observation that back pressure 'will generally be required on users'; it names no protocol behaviour"
+    },
+    {
+      "id": "2:15",
+      "quote": "The term \"policy control\" is used for the mechanisms required to support access policies and back pressure for RSVP reservations.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a definition of the term policy control"
+    },
+    {
+      "id": "2:16",
+      "quote": "When a new reservation is requested, each node must answer two questions: \"Are enough resources available to meet this request?\" and \"Is this user allowed to make this reservation?\" These two decisions are termed the \"admission control\" decision and the \"policy control\" decision, respectively, and both must be favorable in order for RSVP to make a reservation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-2-10"
+    },
+    {
+      "id": "2:17",
+      "quote": "Like flowspecs, policy data is opaque to RSVP, which simply passes it to policy control when required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "descriptive: policy data is opaque to RSVP, which passes it to policy control"
+    },
+    {
+      "id": "2:18",
+      "quote": "Similarly, merging of policy data must be done by the policy control mechanism rather than by RSVP itself.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "the sentence assigns the obligation to the policy control mechanism 'rather than by RSVP itself'; RFC 2750 defines that mechanism"
+    },
+    {
+      "id": "2:19",
+      "quote": "Until that infrastructure becomes available, manual key management will be required to secure RSVP message integrity.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a statement about key management infrastructure availability at the time of writing, not a protocol obligation"
+    },
+    {
+      "id": "2:20",
+      "quote": "RSVP must therefore provide correct protocol operation even when two RSVP-capable routers are joined by an arbitrary \"cloud\" of non-RSVP routers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-2-11"
+    },
+    {
+      "id": "2:21",
+      "quote": "An RSVP process must be prepared to handle either situation.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the non-RSVP cloud obligation as a requirement on the RSVP process",
+      "mapped-to": "RFC2205-2-11"
+    },
+    {
+      "id": "2:22",
+      "quote": "If the destination address does not match any local interface and the message is not a Path or PathTear, the message must be forwarded without further processing by this node.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-2-12"
+    },
+    {
+      "id": "2:23",
+      "quote": "Before a session can be created, the session identification (DestAddress, ProtocolId [, DstPort]) must be assigned and communicated to all the senders and receivers by some out-of-band mechanism.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a precondition on the application and the operator: the session identification is assigned and communicated out of band before RSVP runs, so no RSVP behaviour is required"
+    },
+    {
+      "id": "3:1",
+      "quote": "Must always be a multiple of 4, and at least 4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3.1.2-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "An RSVP implementation must recognize the following classes:",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-1"
+    },
+    {
+      "id": "3:3",
+      "quote": "Its length must be at least 4, but can be any multiple of 4.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the object length rule of the same section",
+      "mapped-to": "RFC2205-3.1.2-1"
+    },
+    {
+      "id": "3:4",
+      "quote": "Required in every RSVP message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3.1.3-1"
+    },
+    {
+      "id": "3:5",
+      "quote": "Required in every Path and Resv message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "one line of the per-object required-in table the mandatory object rule already covers",
+      "mapped-to": "RFC2205-3.1.3-1"
+    },
+    {
+      "id": "3:6",
+      "quote": "Required in every Resv message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "one line of the per-object required-in table the mandatory object rule already covers",
+      "mapped-to": "RFC2205-3.1.3-1"
+    },
+    {
+      "id": "3:7",
+      "quote": "Required in a Path message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "one line of the per-object required-in table the mandatory object rule already covers",
+      "mapped-to": "RFC2205-3.1.3-1"
+    },
+    {
+      "id": "3:8",
+      "quote": "Required in a Path message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "one line of the per-object required-in table the mandatory object rule already covers",
+      "mapped-to": "RFC2205-3.1.3-1"
+    },
+    {
+      "id": "3:9",
+      "quote": "The IP source address of a Path message must be an address of the sender it describes, while the destination address must be the DestAddress for the session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-2"
+    },
+    {
+      "id": "3:10",
+      "quote": "If the INTEGRITY object is present, it must immediately follow the common header.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-3"
+    },
+    {
+      "id": "3:11",
+      "quote": "Path messages must satisfy the rules on SrcPort and DstPort in Section 3.2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-4"
+    },
+    {
+      "id": "3:12",
+      "quote": "The RSVP process forwards Path messages and replicates them as required by multicast sessions, using routing information it obtains from the appropriate uni-/multicast routing process.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "descriptive: the RSVP process forwards and replicates Path messages using routing information; the obligation on which interface it may use is site 3:14"
+    },
+    {
+      "id": "3:13",
+      "quote": "Multicast routing allows a stable distribution tree in which Path messages from the same sender arrive from more than one PHOP, and RSVP must be prepared to maintain all such path state.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-5"
+    },
+    {
+      "id": "3:14",
+      "quote": "RSVP must not forward (according to the rules of Section 3.9) Path messages that arrive on an incoming interface different from that provided by routing.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-6"
+    },
+    {
+      "id": "3:15",
+      "quote": "If the INTEGRITY object is present, it must immediately follow the common header.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the INTEGRITY placement rule restated for the Resv message",
+      "mapped-to": "RFC2205-3-3"
+    },
+    {
+      "id": "3:16",
+      "quote": "The STYLE object followed by the flow descriptor list must occur at the end of the message, and objects within the flow descriptor list must follow the BNF given below.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-7"
+    },
+    {
+      "id": "3:17",
+      "quote": "The NHOP (i.e., the RSVP_HOP) object contains the IP address of the interface through which the Resv message was sent and the LIH for the logical interface on which the reservation is required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a field description of the RSVP_HOP object; 'the reservation is required' names the logical interface, it imposes nothing"
+    },
+    {
+      "id": "3:18",
+      "quote": "A FLOWSPEC object can be omitted if it is identical to the most recent such object that appeared in the list; the first FF flow descriptor must contain a FLOWSPEC.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-8"
+    },
+    {
+      "id": "3:19",
+      "quote": "This match must follow the rules of Section 3.2. o Wildcard sender selection",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same pointer at the Section 3.2 port rules, for filter spec matching",
+      "mapped-to": "RFC2205-3-4"
+    },
+    {
+      "id": "3:20",
+      "quote": "Whenever a Resv message with wildcard sender selection is forwarded to more than one previous hop, a SCOPE object must be included in the message (see Section 3.4 below); in this case, the scope for forwarding the reservation is constrained to just the sender IP addresses explicitly listed in the SCOPE object.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-9"
+    },
+    {
+      "id": "3:21",
+      "quote": "Matching state must have match the SESSION, SENDER_TEMPLATE, and PHOP objects.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-10"
+    },
+    {
+      "id": "3:22",
+      "quote": "A unicast PathTear must not be forwarded if there is path state for the same (session, sender) pair but a different PHOP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-11"
+    },
+    {
+      "id": "3:23",
+      "quote": "A PathTear message must be routed exactly like the corresponding Path message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-12"
+    },
+    {
+      "id": "3:24",
+      "quote": "Therefore, its IP destination address must be the session DestAddress, and its IP source address must be the sender address from the path state being torn down.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the addressing consequence of routing a PathTear exactly like its Path, in the same paragraph",
+      "mapped-to": "RFC2205-3-12"
+    },
+    {
+      "id": "3:25",
+      "quote": "A PathTear message may include a SENDER_TSPEC or ADSPEC object in its sender descriptor, but these must be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-13"
+    },
+    {
+      "id": "3:26",
+      "quote": "Deletion of path state as the result of a PathTear message or a timeout must also adjust related reservation state as required to maintain consistency in the local node.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-14"
+    },
+    {
+      "id": "3:27",
+      "quote": "These reservation changes should not trigger an immediate Resv refresh message, since the PathTear message has already made the required changes upstream.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-15"
+    },
+    {
+      "id": "3:28",
+      "quote": "Matching reservation state must match the SESSION, STYLE, and FILTER_SPEC objects as well as the LIH in the RSVP_HOP object.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-16"
+    },
+    {
+      "id": "3:29",
+      "quote": "A ResvTear message must be routed like the corresponding Resv message, and its IP destination address will be the unicast address of a previous hop.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-17"
+    },
+    {
+      "id": "3:30",
+      "quote": "A ResvTear message may include a SCOPE object, but it must be ignored.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same ignore-on-receipt rule for an object a teardown message may carry, stated for SCOPE in ResvTear",
+      "mapped-to": "RFC2205-3-13"
+    },
+    {
+      "id": "3:31",
+      "quote": "Each flow descriptor in a FF-style Resv message must be processed independently, and a separate ResvErr message must be generated for each one that is in error.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-18"
+    },
+    {
+      "id": "3:32",
+      "quote": "This ResvErr message must contain the information required to define the error and to route the error message in later hops.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-19"
+    },
+    {
+      "id": "3:33",
+      "quote": "If the error is an admission control failure while attempting to increase an existing reservation, then the existing reservation must be left in place and the InPlace flag bit must be on in the ERROR_SPEC of the ResvErr message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-20"
+    },
+    {
+      "id": "3:34",
+      "quote": "Destination ports must be consistent.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the heading of the destination port consistency rule the row carries",
+      "mapped-to": "RFC2205-3-4"
+    },
+    {
+      "id": "3:35",
+      "quote": "Path state and reservation state for the same DestAddress and ProtocolId must each have DstPort values that are all zero or all non-zero.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the all-zero or all-non-zero DstPort rule of the same Section 3.2 port usage rules",
+      "mapped-to": "RFC2205-3-4"
+    },
+    {
+      "id": "3:36",
+      "quote": "If DstPort in a session definition is zero, all SrcPort fields used for that session must also be zero.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the zero DstPort implies zero SrcPort rule of the same Section 3.2 port usage rules",
+      "mapped-to": "RFC2205-3-4"
+    },
+    {
+      "id": "3:37",
+      "quote": "Source Ports must be consistent.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the heading of the source port consistency rule the row carries",
+      "mapped-to": "RFC2205-3-4"
+    },
+    {
+      "id": "3:38",
+      "quote": "A sender host must not send path state both with and without a zero SrcPort.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the sender host half of the same Section 3.2 port usage rules",
+      "mapped-to": "RFC2205-3-4"
+    },
+    {
+      "id": "3:39",
+      "quote": "Path, PathTear, and ResvConf messages must be sent with the Router Alert IP option [RFC 2113] in their IP headers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-x-1"
+    },
+    {
+      "id": "3:40",
+      "quote": "Upon the arrival of an RSVP message M that changes the state, a node must forward the state modification immediately.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the immediate forwarding of a state change, stated in Section 2 and again here",
+      "mapped-to": "RFC2205-2-5"
+    },
+    {
+      "id": "3:41",
+      "quote": "However, this must not trigger sending a message out the interface through which M arrived (which could happen if the implementation simply triggered an immediate refresh of all state for the session).",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-21"
+    },
+    {
+      "id": "3:42",
+      "quote": "In this version of the spec, each RSVP message must occupy exactly one IP datagram.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-22"
+    },
+    {
+      "id": "3:43",
+      "quote": "To establish RSVP reservations within the tunnel, additional machinery will be required, to be defined in the future.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "the sentence defers the work: additional machinery for reservations within a tunnel is 'to be defined in the future', so nothing is required here"
+    },
+    {
+      "id": "3:44",
+      "quote": "Forwarding of RSVP messages must avoid looping.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-23"
+    },
+    {
+      "id": "3:45",
+      "quote": "If the topology has no loops, then looping of Resv and ResvErr messages with wildcard sender selection can be avoided by simply enforcing the rule given earlier: state that is received through a particular interface must never be forwarded out the same interface.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same rule that state received on an interface is never forwarded out of it",
+      "mapped-to": "RFC2205-2-6"
+    },
+    {
+      "id": "3:46",
+      "quote": "If reservation state from some NHOP does not contain a SCOPE object, a substitute sender list must be created and included in the union.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-24"
+    },
+    {
+      "id": "3:47",
+      "quote": "However, the ResvErr message forwarded out OI must contain a SCOPE object derived from L by including only those senders that route to OI.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-25"
+    },
+    {
+      "id": "3:48",
+      "quote": "Since RSVP sends periodic refresh messages, it must avoid message synchronization and ensure that any synchronization that may occur is not stable.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-26"
+    },
+    {
+      "id": "3:49",
+      "quote": "To avoid premature loss of state, L must satisfy L >= (K + 0.5)*1.5*R, where K is a small integer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-27"
+    },
+    {
+      "id": "3:50",
+      "quote": "Specifically, the ratio of two successive values R2/R1 must not exceed 1 + Slew.Max.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-28"
+    },
+    {
+      "id": "3:51",
+      "quote": "RSVP knows where such points occur and must so indicate to the traffic control mechanism.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-29"
+    },
+    {
+      "id": "3:52",
+      "quote": "For example, sender hosts must implement RSVP but currently many of them do not implement traffic control.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "an example sentence about the state of deployed sender hosts, introduced by 'For example'"
+    },
+    {
+      "id": "3:53",
+      "quote": "RSVP must also test for the presence of non-RSVP hops in the path and pass this information to traffic control.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-30"
+    },
+    {
+      "id": "3:54",
+      "quote": "However, the TTL is not always a reliable indicator of non-RSVP hops, and other means must sometimes be used.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "'other means must sometimes be used' names no mechanism and no addressee; the mechanisms are the sentences that follow, sites 3:55 and 3:56"
+    },
+    {
+      "id": "3:55",
+      "quote": "For example, if the routing protocol uses IP encapsulating tunnels, then the routing protocol must inform RSVP when non-RSVP hops are included.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-31"
+    },
+    {
+      "id": "3:56",
+      "quote": "If no automatic mechanism will work, manual configuration will be required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a fallback statement that manual configuration will be required where no automatic mechanism works; it binds the operator, not the protocol"
+    },
+    {
+      "id": "3:57",
+      "quote": "The RSVP process must be aware of the default, and if an application sets a specific interface, it must also pass that information to RSVP. o Sending Data",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-32"
+    },
+    {
+      "id": "3:58",
+      "quote": "If it is set by the application, this parameter must be the interface address for sending the data packets; otherwise, the system default interface is implied.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the parameter description of the same application-set interface rule",
+      "mapped-to": "RFC2205-3-32"
+    },
+    {
+      "id": "3:59",
+      "quote": "The RSVP process must determine which case holds by examining the path state, to decide which incoming interface to use for sending Resv messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-33"
+    },
+    {
+      "id": "3:60",
+      "quote": "The path state on Iapp should only match a reservation from the local application; it must be marked \"Local_only\" by the RSVP process.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-34"
+    },
+    {
+      "id": "3:61",
+      "quote": "When Path and PathTear messages are forwarded, path state marked \"Local_Only\" must be ignored.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the forwarding half of the same Local_Only rule",
+      "mapped-to": "RFC2205-3-34"
+    },
+    {
+      "id": "3:62",
+      "quote": "The original order of such unknown-class objects need not be retained; however, the message that is forwarded must obey the general order requirements for its message type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-35"
+    },
+    {
+      "id": "3:63",
+      "quote": "Forwarding objects with unknown class enables incremental deployment of new objects; however, the scaling limitations of doing so must be carefully examined before a new object class is deployed with both high bits on.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "advice to whoever defines a new object class, about examining scaling limitations before deployment"
+    },
+    {
+      "id": "3:64",
+      "quote": "Merging of RSVP reservations is required because of multicast data delivery, which replicates data packets for delivery to different next-hop nodes.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates why merging is required, which the Section 1 merging row carries",
+      "mapped-to": "RFC2205-1-3"
+    },
+    {
+      "id": "3:65",
+      "quote": "At each such replication point, RSVP must merge reservation requests from the corresponding next hops by computing the \"maximum\" of their flowspecs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-36"
+    },
+    {
+      "id": "3:66",
+      "quote": "In this case, RSVP must merge the reservations that are in place on the corresponding outgoing interfaces in order to forward a request upstream.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same merging rule for reservations on corresponding outgoing interfaces",
+      "mapped-to": "RFC2205-3-36"
+    },
+    {
+      "id": "3:67",
+      "quote": "In these cases, RSVP must merge the reservations from the different next hops in order to make the reservation on the single outgoing interface.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same merging rule for several next hops on one outgoing interface",
+      "mapped-to": "RFC2205-3-36"
+    },
+    {
+      "id": "3:68",
+      "quote": "It must also merge reservations requests from all outgoing interfaces in order to forward a request upstream.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same merging rule for forwarding a request upstream",
+      "mapped-to": "RFC2205-3-36"
+    },
+    {
+      "id": "3:69",
+      "quote": "In general, these complexities do not impact the protocol processing that is required by RSVP, except to determine exactly what reservation requests need to be merged.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a statement that these complexities do not change the protocol processing required"
+    },
+    {
+      "id": "3:70",
+      "quote": "To forward Path and PathTear messages, an RSVP process must be able to query the routing process(s) for routes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-37"
+    },
+    {
+      "id": "3:71",
+      "quote": "RSVP must be able to learn what real and virtual interfaces are active, with their IP addresses.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-38"
+    },
+    {
+      "id": "3:72",
+      "quote": "Packets received for IP protocol 46 but not addressed to the node must be diverted to the RSVP program for processing, without being forwarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-39"
+    },
+    {
+      "id": "3:73",
+      "quote": "On a router or multi-homed host, the identity of the interface (real or virtual) on which a diverted message is received, as well as the IP source address and IP TTL with which it arrived, must also be available to the RSVP process.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-40"
+    },
+    {
+      "id": "3:74",
+      "quote": "RSVP must be able to force a (multicast) datagram to be sent on a specific outgoing real or virtual link, bypassing the normal routing mechanism.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-41"
+    },
+    {
+      "id": "3:75",
+      "quote": "RSVP must be able to specify the IP source address and IP TTL to be used when sending Path messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-42"
+    },
+    {
+      "id": "3:76",
+      "quote": "RSVP must be able to cause Path, PathTear, and ResvConf message to be sent with the Router Alert IP option. 3.11.6 Service-Dependent Manipulations",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the interface requirement behind the Router Alert obligation the row already carries",
+      "mapped-to": "RFC2205-x-1"
+    },
+    {
+      "id": "3:77",
+      "quote": "In order to manipulate these objects, RSVP process must have available to it the following service-dependent routines.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-3-43"
+    },
+    {
+      "id": "4:1",
+      "quote": "This field must be non-zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-4-1"
+    },
+    {
+      "id": "4:2",
+      "quote": "This field must be non-zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-4-2"
+    },
+    {
+      "id": "4:3",
+      "quote": "The addresses must be listed in ascending numerical order.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-4-3"
+    },
+    {
+      "id": "4:4",
+      "quote": "Must be non-zero.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the bare 'Must be non-zero.' of a later object field description in the same appendix, repeating the non-zero field constraint",
+      "mapped-to": "RFC2205-4-1"
+    },
+    {
+      "id": "4:5",
+      "quote": "Reservation or path message has been rejected for administrative reasons, for example, required credentials not submitted, insufficient quota or balance, or administrative preemption.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "the description of an error code value: what Error Code 2 means, with credentials named as an example"
+    },
+    {
+      "id": "4:6",
+      "quote": "Error Value field contains an API error code, for an API error that was detected asynchronously and must be reported via an upcall. o Error Code = 21: Traffic Control Error",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "the description of an error code value carrying an API error, not an obligation on the protocol"
+    },
+    {
+      "id": "4:7",
+      "quote": "Similarly, each node is required to verify the correct construction of each RSVP message it receives.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-4-4"
+    },
+    {
+      "id": "4:8",
+      "quote": "o Required object class (specify) missing",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "one bullet of the list of construction faults the verification at site 4:7 detects",
+      "mapped-to": "RFC2205-4-4"
+    },
+    {
+      "id": "4:9",
+      "quote": "o Violation of required object order o Flow descriptor count wrong for style or message type",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "two more bullets of the same list of construction faults",
+      "mapped-to": "RFC2205-4-4"
+    },
+    {
+      "id": "4:10",
+      "quote": "To use RSVP, such hosts must encapsulate RSVP messages in UDP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2205-4-5"
+    },
+    {
+      "id": "4:11",
+      "quote": "The UDP encapsulation scheme must allow RSVP interoperation among an arbitrary topology of Hr hosts, Hu hosts, and routers.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the interoperation property of the same UDP encapsulation scheme",
+      "mapped-to": "RFC2205-4-5"
+    },
+    {
+      "id": "4:12",
+      "quote": "Here Ta must be the TTL to exactly reach R.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "a TTL detail of the same UDP encapsulation scheme",
+      "mapped-to": "RFC2205-4-5"
+    },
+    {
+      "id": "4:13",
+      "quote": "The host Hu must be explicitly configured with Ra and Ta.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the configuration detail of the same UDP encapsulation scheme",
+      "mapped-to": "RFC2205-4-5"
+    },
+    {
+      "id": "4:14",
+      "quote": "An RSVP session defines one simplex unicast or multicast data flow for which reservations are required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "the definition of an RSVP session: one simplex unicast or multicast data flow"
+    }
+  ]
+}

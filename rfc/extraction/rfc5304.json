@@ -1,0 +1,151 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5304",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc5304.txt",
+  "source-sha": "125142e8956ce6f3",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 9,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5304-2-10",
+        "RFC5304-2-11",
+        "RFC5304-2-12",
+        "RFC5304-2-13"
+      ]
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5304-2.1-1"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "When calculating the HMAC-MD5 result for Sequence Number PDUs, Level 1 Sequence Number PDUs SHALL use the Area Authentication string as in Level 1 Link State PDUs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5304-2-1"
+    },
+    {
+      "id": "2:2",
+      "quote": "Level 2 Sequence Number PDUs SHALL use the domain authentication string as in Level 2 Link State PDUs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5304-2-2"
+    },
+    {
+      "id": "2:3",
+      "quote": "IS-IS Hello PDUs SHALL use the Link Level Authentication String, which MAY be different from that of Link State PDUs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5304-2-3"
+    },
+    {
+      "id": "2:4",
+      "quote": "The HMAC-MD5 result for the IS-IS Hello PDUs SHALL be calculated after the packet is padded to the MTU size, if padding is not disabled.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5304-2-4"
+    },
+    {
+      "id": "2:5",
+      "quote": "Implementations that support the optional checksum for the Sequence Number PDUs and IS-IS Hello PDUs MUST NOT include the Checksum TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5304-2-5"
+    },
+    {
+      "id": "2:6",
+      "quote": "An implementation that implements HMAC-MD5 authentication and receives HMAC-MD5 Authentication Information MUST discard the PDU if the Authentication Value is incorrect.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5304-2-6"
+    },
+    {
+      "id": "2:7",
+      "quote": "ISes (routers) that implement HMAC-MD5 authentication and initiate LSP purges MUST remove the body of the LSP and add the authentication TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5304-2-7"
+    },
+    {
+      "id": "2:8",
+      "quote": "ISes implementing HMAC-MD5 authentication MUST NOT accept unauthenticated purges.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5304-2-8"
+    },
+    {
+      "id": "2:9",
+      "quote": "ISes MUST NOT accept purges that contain TLVs other than the authentication TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5304-2-9"
+    }
+  ]
+}

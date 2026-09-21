@@ -11,13 +11,13 @@
 | Authors | A. Azimov (Yandex), E. Bogomazov (Qrator Labs), R. Bush (IIJ & Arrcus), K. Patel (Arrcus), K. Sriram (NIST) |
 | RFC Number | Not yet assigned as of March 2026 |
 | Enrolment | enrolled |
-| Enrolment reason | ASPA AS_PATH verification: 4 MET + 2 single-polarity (6-1, 7-2) + 2 gap (6-4 per-AFI records, 8-1 Invalid-not-preferred) |
+| Enrolment reason | ASPA AS_PATH verification: 4 tested rows (4-1, 5.1-1, 5.4-2, 5.6-1) + 1 single-polarity positive (5.4-1 upstream application) + 1 gap (5.6-2 Invalid route not made ineligible for route selection) + 3 untested MUST rows added by the 2026-09-21 extraction walk (5-1 treat-as-withdraw on neighbor mismatch, 6.2-1 and 6.2-2 AFI/SAFI scope). That walk also re-anchored every id to the section it cites: the rows had been written against an earlier draft revision, so they named sections 6, 7 and 8, which in draft-24 are Deployment Recommendations, Security Considerations and Relation to Other Technologies. The section 4 registration MUSTs and the section 6.5 operator-notification MUST bind the ASPA registrant and are excluded in rfc/extraction/. |
 | Implementation | ze |
 | Implementation reason | Ze's own Go implements this document; each requirement row cites its producer. |
 | Support | drafts 20 |
 | Support area | ASPA path verification |
 | Support status | Partial |
-| Support coverage | Section 6 verification algorithm (upstream/downstream), AS_SET to Unknown, prepend collapse, AS0-in-provider rejection, RTR ASPA PDU (Type 11) consumption, and re-validation on cache change. Two MUSTs unmet: per-AFI ASPA records (6-4, the AFI flag is parsed then discarded and the cache is keyed by customer AS alone, so per-AFI records overwrite each other); Invalid-not-preferred (8-1, ASPA state drives only reject/keep with default LogOnly, so an accepted Invalid route can outrank a Valid one for the same prefix). |
+| Support coverage | Section 5 verification algorithm (upstream/downstream), prepend compression, AS0-in-provider rejection, RTR ASPA PDU (Type 11) consumption, and re-validation on cache change. Three defects against draft-24 remain. (1) AS_SET: sections 5.4 and 5.5 step 3 halt with "Invalid"; ze returns Unknown, and three tagged tests in internal/component/bgp/plugins/rpki/aspa_verify_test.go assert the Unknown outcome (row 5.4-2). (2) Row 5.6-2: the default Invalid action is LogOnly, so an ASPA-Invalid route is never made ineligible for route selection. (3) Rows 5-1, 6.2-1 and 6.2-2 carry no test. |
 | Support remaining | - |
 
 **Purpose:** Defines a procedure for BGP speakers to verify the AS_PATH attribute of received routes using ASPA (Autonomous System Provider Authorization) objects from RPKI, detecting route leaks and path manipulation.
@@ -57,132 +57,118 @@ For an adjacent pair (AS_a, AS_b) in the AS_PATH where AS_b is the customer (clo
 | Invalid | At least one hop is provably unauthorized (route leak or path manipulation detected) | Reject or deprioritize |
 | Unknown | Some hops cannot be verified (missing ASPA records for some ASes in path) | Accept (insufficient data to judge) |
 
-## Algorithm
+## Algorithm (Section 5)
 
-### Upstream Path Verification (Section 6)
+The draft verifies the AS_PATH by measuring an up-ramp and a down-ramp of
+customer-to-provider hops, not by walking every adjacent pair to a single
+verdict.
 
-This algorithm verifies routes received from a customer or lateral peer. It checks that the AS_PATH represents a valid "valley-free" forwarding path from the perspective of provider authorization.
+### COMPRESSED_AS_PATH (Section 5.1)
 
-```
-Input:  as_path (list of AS hops from receiver toward origin),
-        aspa_database (Customer-AS -> Provider-AS-Set mapping),
-        neighbor_as (the AS that sent this route)
-Output: validation_state (Valid, Invalid, Unknown)
+`COMPRESSED_AS_PATH {AS(N), AS(N-1), ..., AS(2), AS(1)}` is "the AS_PATH after
+removing consecutive duplicate ASNs", where AS(1) is the origin AS and AS(N) is
+the most recently added neighbor AS. AS(N+1) is the receiving AS and does not
+appear in the path.
 
-// Step 0: Normalize AS_PATH
-//   - Remove prepends (consecutive duplicate ASNs)
-//   - If any segment is AS_SET or AS_CONFED_SET: return Unknown
-//   - Collapse AS_CONFED_SEQUENCE segments (remove confederation members)
-//   - Result: unique_path = [AS_n, AS_n-1, ..., AS_1] where AS_n is neighbor, AS_1 is origin
+"The AS_PATH is invalid if apexes of the up-ramp and down-ramp (AS(K) and AS(L),
+respectively) of the COMPRESSED_AS_PATH are apart by more than one hop; else, it
+is valid."
 
-unique_path = normalize(as_path)
-if unique_path contains AS_SET:
-    return Unknown
+### Provider authorization function (Section 5.2)
 
-if len(unique_path) <= 1:
-    return Valid  // Single-hop path, nothing to verify
+`authorized(AS x, AS y)` answers whether AS y is an attested provider of AS x
+per the U-SPAS of AS x:
 
-// Step 1: Upstream check (from receiver toward origin)
-// Walk from index 0 (neighbor) toward origin.
-// For each adjacent pair (unique_path[i], unique_path[i+1]):
-//   unique_path[i+1] is the "customer" (closer to origin)
-//   unique_path[i] is the potential "provider" (closer to receiver)
+| Condition | Result |
+|-----------|--------|
+| No entry in the U-SPAS table for CAS = AS x | `No Attestation` |
+| The U-SPAS entry for CAS = AS x includes AS y | `Provider+` |
+| Else | `Not Provider+` |
 
-for i := 0; i < len(unique_path) - 1; i++:
-    customer_as = unique_path[i+1]
-    provider_candidate = unique_path[i]
+The U-SPAS is the union of the SPAS of every cryptographically valid ASPA the
+CAS holds. `No Attestation` "is returned only when no ASPA is retrieved for the
+CAS or none of its ASPAs are cryptographically valid".
 
-    hop_result = check_pair(provider_candidate, customer_as, aspa_database)
+### Ramp bounds (Section 5.3)
 
-    if hop_result == "Not Provider+":
-        return Invalid
+| Parameter | Definition |
+|-----------|------------|
+| `max_up_ramp` | I, the minimum index for which `authorized(A(I), A(I+1))` returns `Not Provider+`; N if there is no such I |
+| `min_up_ramp` | I, the minimum index for which it returns `No Attestation` or `Not Provider+`; N if there is no such I |
+| `max_down_ramp` | N - J + 1, where J is the maximum index for which `authorized(A(J), A(J-1))` returns `Not Provider+`; N if there is no such J |
+| `min_down_ramp` | N - J + 1, where J is the maximum index for which it returns `No Attestation` or `Not Provider+`; N if there is no such J |
 
-    // If hop_result is "No Attestation" or "Provider+", continue
+### Upstream paths (Section 5.4)
 
-// Step 2: Determine final state
-// If all hops were "Provider+": Valid
-// If any hop was "No Attestation" (but none "Not Provider+"): Unknown
+Applied "when a route is received from a Customer or Peer, or is received by an
+RS from an RS-client, or is received by an RS-client from an RS". `max_down_ramp`
+and `min_down_ramp` are set to 0.
 
-has_unknown = false
-for i := 0; i < len(unique_path) - 1; i++:
-    customer_as = unique_path[i+1]
-    provider_candidate = unique_path[i]
-    if not has_aspa_record(customer_as, aspa_database):
-        has_unknown = true
+1. If the AS_PATH is empty, halt with `Invalid`.
+2. If the receiving AS is not an RS-client and the most recently added AS in the
+   AS_PATH does not match the neighbor AS, halt with `Invalid`.
+3. If the AS_PATH has an AS_SET, halt with `Invalid`.
+4. If `max_up_ramp < N`, halt with `Invalid`.
+5. If `min_up_ramp < N`, halt with `Unknown`.
+6. Else, halt with `Valid`.
 
-if has_unknown:
-    return Unknown
-return Valid
-```
+### Downstream paths (Section 5.5)
 
-### check_pair Function
+Applied "when a route is received from a Provider".
 
-```
-Input:  provider_candidate (uint32), customer_as (uint32), aspa_db
-Output: "Provider+" | "Not Provider+" | "No Attestation"
+1. If the AS_PATH is empty, halt with `Invalid`.
+2. If the most recently added AS in the AS_PATH does not match the neighbor AS,
+   halt with `Invalid`.
+3. If the AS_PATH has an AS_SET, halt with `Invalid`.
+4. If `max_up_ramp + max_down_ramp < N`, halt with `Invalid`.
+5. If `min_up_ramp + min_down_ramp < N`, halt with `Unknown`.
+6. Else, halt with `Valid`.
 
-record = aspa_db.lookup(customer_as)
-if record == nil:
-    return "No Attestation"
-
-if provider_candidate in record.provider_set:
-    return "Provider+"
-
-return "Not Provider+"
-```
-
-### AS_PATH Normalization
-
-```
-Input:  raw AS_PATH segments
-Output: normalized unique hop list, or "contains AS_SET" flag
-
-1. Flatten AS_SEQUENCE segments into a single list
-2. If any AS_SET or AS_CONFED_SET segment exists: flag as "contains AS_SET"
-3. Remove AS_CONFED_SEQUENCE members (confederation-internal hops)
-4. Remove consecutive duplicates (prepending artifacts)
-5. Result: ordered list of unique ASNs from neighbor (leftmost) to origin (rightmost)
-```
-
-**Critical:** Prepend removal is consecutive-duplicate only. The sequence [A, B, A] is NOT reduced to [A, B]; only [A, A, B, B, B] becomes [A, B].
+**Critical:** compression removes consecutive duplicate ASNs only. [A, A, B, B, B]
+becomes [A, B]; [A, B, A] is not reduced.
 
 ## MUST Requirements
 
-### Verification Procedure
-
 | Requirement | Section | Context |
 |-------------|---------|---------|
-| Implementation MUST apply upstream verification to routes from customers and lateral peers | 6 | Scope of verification |
-| AS_SET in path MUST result in Unknown state | 6 | Cannot verify unordered sets |
-| Prepend removal MUST only collapse consecutive duplicates | 6 | Preserve path structure |
-| Implementation MUST support per-AFI ASPA records if provided by cache | 6 | AFI-specific authorization |
-| Invalid routes MUST NOT be preferred over Valid or Unknown routes | 8 | Policy integration |
+| A failed neighbor-AS match makes the AS_PATH semantically invalid and the UPDATE SHALL be treat-as-withdraw | 5 | Leak author stripping its own ASN |
+| An AS_SET in the AS_PATH halts the procedure with `Invalid` | 5.4, 5.5 | Step 3 of both algorithms |
+| COMPRESSED_AS_PATH removes consecutive duplicate ASNs | 5.1 | Prepend compression |
+| An Invalid route MUST be kept in the Adj-RIB-In for future re-evaluation | 5.6 | RFC 9324 |
+| The procedures MUST be applied to {AFI 1, SAFI 1} and {AFI 2, SAFI 1} | 6.2 | Address-family scope |
+| The procedures MUST NOT be applied to other address families by default | 6.2 | Address-family scope |
 
-### Data Handling
-
-| Requirement | Section | Context |
-|-------------|---------|---------|
-| Router MUST re-run verification when ASPA data changes | 7 | Cache update triggers re-validation |
-| Router MUST use the most recent ASPA data available | 7 | No stale cache usage |
+The five registration MUSTs of section 4 and the AS-migration notification MUST
+of section 6.5 bind the AS registering the ASPA object, not the verifying BGP
+speaker.
 
 ## SHOULD/MAY
 
 | Type | Requirement | Section | Notes |
 |------|-------------|---------|-------|
-| [SHOULD] | Reject Invalid routes by default | 8 | Strictest useful policy |
-| [SHOULD] | Accept Unknown routes (treat as unverified) | 8 | Graceful during ASPA deployment |
-| [SHOULD] | Log Invalid results for operational visibility | 8 | Debugging route leaks |
-| [MAY] | Assign local-pref based on ASPA state | 8 | Prefer Valid over Unknown |
-| [MAY] | Skip verification for routes from upstream providers | 6 | Upstream routes have different trust model |
-| [MAY] | Apply to IBGP-learned routes | 6 | Optional; usually applied at eBGP ingress only |
+| [SHOULD] | Perform the neighbor-AS match per RFC 4271 section 6.3, except for a route from a transparent IX | 5 | |
+| [SHOULD] | An Invalid route is ineligible for route selection | 5.6 | Within the RECOMMENDED mitigation policy |
+| [SHOULD] | An Unknown route is treated at the same preference level as a Valid route | 5.6 | Not a lower preference |
+| [SHOULD] | Log the cause of the Invalid state for any route with an Invalid AS_PATH | 6.6 | List the `Not Provider+` hops |
+| [SHOULD] | Use the configured BGP Roles to automate upstream/downstream algorithm selection | 6.3 | |
+| [SHOULD] | Select the algorithm per session from its peering relation type when a Complex relationship can be segregated | 6.4 | |
+| [RECOMMENDED] | The mitigation policy of section 5.6 | 5.6 | Configuration is at operator discretion |
+| [RECOMMENDED] | BGP Role configuration and its BGP OPEN cross-check (RFC 9234) | 6.3 | |
+| [RECOMMENDED] | Implement the OTC Attribute procedures to complement ASPA | 8.4 | |
+| [NOT RECOMMENDED] | Use on iBGP sessions or on eBGP sessions internal to an AS Confederation | 6.2 | |
+| [MAY] | Apply the downstream algorithm when a Complex relation cannot be segregated and per-prefix application is not feasible | 6.4 | Avoids false positives |
 
-## Policy Integration (Section 8)
+## Mitigation Policy (Section 5.6)
 
-| ASPA State | Recommended Action |
-|------------|-------------------|
-| Valid | Accept, highest preference |
-| Unknown | Accept, normal preference (insufficient coverage to judge) |
-| Invalid | Reject, or accept with lowest preference |
+"The specific configuration of a mitigation policy based on AS_PATH verification
+using ASPA is at the discretion of the network operator.  However, the following
+mitigation policy is RECOMMENDED."
+
+| ASPA State | Draft's mitigation policy |
+|------------|---------------------------|
+| Valid | Eligible for route selection |
+| Unknown | "SHOULD be treated at the same preference level as a route evaluated as Valid" |
+| Invalid | "SHOULD be considered ineligible for route selection" and "MUST be kept in the Adj-RIB-In for potential future re-evaluation" |
 
 ASPA state is orthogonal to ROA state. Both should be evaluated:
 
@@ -197,27 +183,37 @@ ASPA state is orthogonal to ROA state. Both should be evaluated:
 
 ## Special Cases
 
-### Single-Hop AS_PATH
-
-A path with only one AS (the origin, which is also the neighbor) is trivially Valid. No adjacent pairs to check.
-
 ### Empty AS_PATH
 
-An empty AS_PATH means the route is from an IBGP peer or was originated locally. Result: Valid (nothing to verify).
+Step 1 of both algorithms: "If the AS_PATH is empty, then the procedure halts
+with the outcome \"Invalid\"."
 
 ### AS_PATH with AS_SET
 
-Any AS_SET segment makes the entire path unverifiable. Result: Unknown.
+Step 3 of both algorithms: "If the AS_PATH has an AS_SET, then the procedure
+halts with the outcome \"Invalid\"." Section 5 adds that "[RFC9774] specifies
+that \"treat-as-withdraw\" error handling [RFC7606] MUST be applied to routes
+with AS_SET in the AS_PATH".
 
-Rationale: AS_SET represents route aggregation where the original paths are collapsed into an unordered set. The customer-provider relationships between set members cannot be determined.
+### Neighbor AS mismatch
 
-### Confederation AS_PATH
+"a check is necessary to match the most recently added AS in the AS_PATH to the
+BGP neighbor's ASN". If it fails, "the UPDATE SHALL be handled using the approach
+of \"treat-as-withdraw\"". Step 2 of the upstream algorithm exempts a receiving
+AS that is an RS-client.
 
-AS_CONFED_SEQUENCE and AS_CONFED_SET segments represent internal confederation structure. They are stripped during normalization (only the confederation's external ASN matters for inter-domain verification).
+### Confederations
 
-### Route Server Transparent AS_PATH
+The draft specifies no AS_CONFED stripping in COMPRESSED_AS_PATH. It requires the
+ASes on the boundary of a Confederation to register ASPAs under the
+Confederation's global ASN (section 4), and it makes the procedures NOT
+RECOMMENDED on eBGP sessions internal to a Confederation (section 6.2).
 
-Route servers (RFC 7947) that use transparent mode do not insert their own ASN. The AS_PATH seen by the receiver starts with the originating network's peer, not the route server. Verification proceeds normally on the visible path.
+### IPv4 / IPv6 incongruence
+
+There are no per-AFI ASPA records: "The U-SPAS contains the union of Providers
+for a CAS for both IPv4 and IPv6 unicast connectivity" (section 7.1). A
+relationship present in one family makes verification in the other as permissive.
 
 ## Constants
 
@@ -236,7 +232,7 @@ No IANA registry defined for ASPA validation states.
 - **Prepending vs loops:** [64500, 64500, 64501] normalizes to [64500, 64501]. But [64500, 64501, 64500] does NOT normalize further (not consecutive duplicates). This is a potential loop or unusual topology.
 - **Missing ASPA for neighbor:** If the first hop (neighbor AS) has no ASPA record, verification of that hop yields "No Attestation" but verification continues for remaining hops. A single unauthorized hop later still yields Invalid.
 - **Partial ASPA deployment:** During early deployment, most ASes lack ASPA records. Result will be Unknown for nearly all paths. This is expected and correct.
-- **AS0 in ASPA:** A provider AS of 0 in an ASPA record is invalid and MUST be ignored. AS0 means "not authorized" in ROA context; it has no meaning in ASPA.
+- **AS0 in ASPA:** "Normally, a SPAS (see Section 3) is not expected to contain both an AS 0 and other Provider ASes, but an unexpected presence of AS 0 has no influence on the AS_PATH verification procedures" (section 4). An ASPA showing only AS 0 as a provider is an AS0 ASPA, a statement that the registering AS has no transit providers.
 - **Self-loop in path:** An AS appearing multiple times non-consecutively in the path is unusual but possible (e.g., traffic engineering). Each hop pair is verified independently.
 
 ### Interop
@@ -280,17 +276,22 @@ Not applicable (Internet-Draft, no RFC number assigned).
 
 ## Compliance Checklist
 
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-1] [MUST] Apply upstream verification to routes received from customers and lateral peers (Section 6) {single-polarity: positive; verifyASPA runs on every received UPDATE carrying an AS_PATH whenever ASPA is enabled (a superset that includes customer and peer routes), and there is no required case where such a route must NOT be verified (internal/component/bgp/plugins/rpki/rpki.go:338)}
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-2] [MUST] AS_SET in path must result in Unknown validation state (Section 6)
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-3] [MUST] Prepend removal must only collapse consecutive duplicates (Section 6)
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-4] [MUST] Support per-AFI ASPA records if provided by cache (Section 6) {gap: the ASPA PDU AFI-flags byte is read only to reject unknown AFI and is then discarded; ASPARecord carries no AFI field and the cache is keyed by customer AS alone, so per-AFI records for one customer overwrite each other and one AS_PATH state is applied to both IPv4 and IPv6 NLRIs (internal/component/bgp/plugins/rpki/aspa_cache.go:10-13, rpki.go:344)}
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-x-1] [MUST] AS0 in ASPA provider set must be ignored (Pitfalls)
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-8-1] [MUST NOT] Invalid routes must not be preferred over Valid or Unknown routes (Section 8) {gap: ASPA state drives only a binary reject/keep decision with no local-pref demotion or best-path tiebreak, and the default Invalid action is LogOnly (retain), so an accepted ASPA-Invalid route competes on ordinary BGP attributes and can outrank an ASPA-Valid route for the same prefix (internal/component/bgp/plugins/rpki/rpki.go:92-100, rpki_config.go:110)}
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-7-1] [MUST] Re-run verification when ASPA data changes (Section 7)
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-7-2] [MUST] Use the most recent ASPA data available (Section 7) {single-polarity: positive; ApplyDelta atomically replaces cache entries at each End of Data and verifyASPA reads the live cache under lock, so verification always reflects the applied delta; there is no stale-data mode to test negatively (internal/component/bgp/plugins/rpki/aspa_cache.go:110-129)}
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-8-2] [SHOULD] Reject Invalid routes by default (Section 8)
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-8-3] [SHOULD] Accept Unknown routes as unverified (Section 8)
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-8-4] [SHOULD] Log Invalid results for operational visibility (Section 8)
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-8-5] [MAY] Assign local-pref based on ASPA validation state (Section 8)
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-5] [MAY] Skip verification for routes from upstream providers (Section 6)
-- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6-6] [MAY] Apply verification to IBGP-learned routes (Section 6)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1] [MUST] An unexpected presence of AS 0 in a SPAS has no influence on the AS_PATH verification procedures (Section 4)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5-1] [SHALL] If the check matching the most recently added AS in the AS_PATH to the BGP neighbor's ASN fails, then the AS_PATH is considered semantically invalid, and the UPDATE SHALL be handled using the approach of "treat-as-withdraw" [RFC7606] (Section 5)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1] [MUST] The COMPRESSED_AS_PATH is the AS_PATH after removing consecutive duplicate ASNs (Section 5.1)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1] [MUST] The upstream verification algorithm is applied when a route is received from a Customer or Peer, or is received by an RS from an RS-client, or is received by an RS-client from an RS (Section 5.4) {single-polarity: positive; verifyASPA runs on every received UPDATE carrying an AS_PATH whenever ASPA is enabled (a superset that includes customer and peer routes), and there is no required case where such a route must NOT be verified (internal/component/bgp/plugins/rpki/rpki.go:338)}
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2] [MUST] If the AS_PATH has an AS_SET, then the procedure halts with the outcome "Invalid" (Section 5.4)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1] [MUST] A route whose AS_PATH is determined to be Invalid MUST be kept in the Adj-RIB-In for potential future re-evaluation (Section 5.6)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1] [MUST] The verification procedures described in this document MUST be applied to BGP routes with {AFI 1 (IPv4), SAFI 1} and {AFI 2 (IPv6), SAFI 1} (Section 6.2)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-2] [MUST NOT] The procedures MUST NOT be applied to other address families by default (Section 6.2)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5-2] [SHOULD] The check matching the most recently added AS in the AS_PATH to the BGP neighbor's ASN SHOULD be performed as specified in Section 6.3 of [RFC4271] with the exception when a route is received from a transparent Internet Exchange (IX) (Section 5)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-2] [SHOULD] If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (Section 5.6) {gap: the default Invalid action is LogOnly (retain) and ASPA state drives only a binary reject/keep decision, so an ASPA-Invalid route that is retained stays eligible for best-path selection (internal/component/bgp/plugins/rpki/rpki.go:92-100, rpki_config.go:110)}
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-3] [SHOULD] When a route is evaluated as Unknown, it SHOULD be treated at the same preference level as a route evaluated as Valid (Section 5.6)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-4] [RECOMMENDED] The specific configuration of a mitigation policy based on AS_PATH verification using ASPA is at the discretion of the network operator; however, the mitigation policy of Section 5.6 is RECOMMENDED (Section 5.6)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-3] [NOT RECOMMENDED] The procedures are NOT RECOMMENDED for use on internal BGP (iBGP) sessions or eBGP sessions internal to an AS Confederation (Section 6.2)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.3-1] [RECOMMENDED] The BGP Role configuration parameter and its cross-check in the BGP OPEN message as specified in [RFC9234] are RECOMMENDED (Section 6.3)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.3-2] [SHOULD] The configured BGP Roles SHOULD be used to automate the use of the AS_PATH verification procedures, helping to distinguish whether upstream or downstream procedures should be applied (Section 6.3)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.4-1] [SHOULD] If multiple eBGP sessions can segregate the Complex peering relationship into eBGP sessions with normal peering relationships, the receiving/verifying AS SHOULD select the algorithm (per Section 5.4 or Section 5.5) for each of the normal sessions based on its peering relation type (Section 6.4)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.6-1] [SHOULD] For any route with an Invalid AS_PATH, the cause of the Invalid state SHOULD be logged for monitoring and diagnostic purposes (Section 6.6)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-8.4-1] [RECOMMENDED] The implementation of the procedures utilizing the OTC Attribute is RECOMMENDED to complement the ASPA-based AS_PATH verification (Section 8.4)
+- [ ] [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.4-2] [MAY] If a Complex peering relation cannot be segregated and per-prefix application is not feasible, then an operator MAY apply the algorithm for downstream paths (Section 5.5) to avoid false positive outcomes (Section 6.4)

@@ -1,0 +1,392 @@
+{
+  "schema-version": 1,
+  "stem": "rfc3101",
+  "register": "prose",
+  "source-path": "rfc/full/rfc3101.txt",
+  "source-sha": "7061642290964ece",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.3",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3101-2.3-2"
+      ]
+    },
+    {
+      "id": "2.4",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.5",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3101-2.5-1"
+      ]
+    },
+    {
+      "id": "2.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.7",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3101-3.2-1",
+        "RFC3101-3.2-2"
+      ]
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.0",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.0",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.0",
+      "sites": 9,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1.1:1",
+      "quote": "In order to run OSPF out to BR18, BR18 must be a member of a non-stub area or the OSPF backbone before it can import routes other than its directly connected network(s).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1.1 is the transit-network motivation: the sentence describes the deployment problem NSSA exists to solve and binds no implementation."
+    },
+    {
+      "id": "1.2:1",
+      "quote": "Any solution to this dilemma must also honor Area 1's path of choice to 192.168.192/20 through A0 with redundancy through B0 while at the same time honoring Area 2's path of choice to 192.168.208/20 through B0 with redundancy through A0.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1.2 is the corporate-network motivation: the sentence states what any solution has to achieve, as a design goal, not an obligation on an implementation."
+    },
+    {
+      "id": "1.3:1",
+      "quote": "Similar to the stub area's use of the \"E\" bit, both NSSA neighbors must agree on the setting of the \"N\" bit or the OSPF neighbor adjacency will not form.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.1-2"
+    },
+    {
+      "id": "1.3:2",
+      "quote": "Default routes are necessary because NSSAs do not receive full routing information and must have a default route in order to route to AS-external destinations.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 1.3 is the overview; it restates the border-router default-origination obligation Section 2.4 states.",
+      "mapped-to": "RFC3101-2.4-5"
+    },
+    {
+      "id": "1.3:3",
+      "quote": "When summary routes are not imported into an NSSA, the default LSA originated into it by its border routers must be a Type-3 summary- LSA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.7-2"
+    },
+    {
+      "id": "2.1:1",
+      "quote": "As explained in [OSPF] Section 10.5, if Type-5 LSAs are not flooded into/throughout the area, the E-bit must be clear in the option field of the received Hello packets.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The sentence quotes [OSPF] Section 10.5 to state the E-bit condition the Section 2.1 Hello check verifies.",
+      "mapped-to": "RFC3101-2.1-1"
+    },
+    {
+      "id": "2.1:2",
+      "quote": "Therefore, if the N-bit is set in the options field, the E-bit must be clear.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 2.1 restates the Appendix A rule that the E-bit is clear whenever the N-bit is set.",
+      "mapped-to": "RFC3101-x-1"
+    },
+    {
+      "id": "2.1:3",
+      "quote": "To support the NSSA option an additional check must be made in the function that handles the receiving of the Hello packet to verify that both the N-bit and the E-bit found in the Hello packet's option field match the area type and ExternalRoutingCapability of the area of the receiving interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.1-1"
+    },
+    {
+      "id": "2.3:1",
+      "quote": "To support NSSAs the link- state database must therefore be expanded to contain Type-7 LSAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.3-1"
+    },
+    {
+      "id": "2.3:2",
+      "quote": "Those Type-7 LSAs that are to be translated into Type-5 LSAs must have their forwarding address set.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The sentence restates the non-zero forwarding address obligation Section 2.4 states for a P-bit Type-7 LSA.",
+      "mapped-to": "RFC3101-2.4-2"
+    },
+    {
+      "id": "2.3:3",
+      "quote": "Also the non-zero forwarding addresses of Type-7 LSAs ease the process of their translation into Type-5 LSAs, as NSSA border routers are not required to compute them.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Explanatory aside: it says non-zero forwarding addresses ease translation because border routers are not required to compute them, and states no obligation."
+    },
+    {
+      "id": "2.3:4",
+      "quote": "If the P-bit is set, the forwarding address must be non-zero; otherwise it may be 0.0.0.0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.4-2"
+    },
+    {
+      "id": "2.3:5",
+      "quote": "When the interface whose IP address is the LSA's forwarding address transitions to a Down state (see [OSPF] Section 9.3), the router must select a new forwarding address for the LSA and then re- originate it.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.3-3"
+    },
+    {
+      "id": "2.4:1",
+      "quote": "An NSSA internal AS boundary router must set the P-bit in the LSA header's option field of any Type-7 LSA whose network it wants advertised into the OSPF domain's full transit topology.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.4-1"
+    },
+    {
+      "id": "2.4:2",
+      "quote": "The LSAs of these networks must have a valid non-zero forwarding address.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "\"The LSAs of these networks must have a valid non-zero forwarding address\" restates the same obligation in the same section.",
+      "mapped-to": "RFC3101-2.4-2"
+    },
+    {
+      "id": "2.4:3",
+      "quote": "When an NSSA border router originates both a Type-5 LSA and a Type-7 LSA for the same network, then the P-bit must be clear in the Type-7 LSA so that it isn't translated into a Type-5 LSA by another NSSA border router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.4-3"
+    },
+    {
+      "id": "2.4:4",
+      "quote": "The Type-7 default LSA originated by an NSSA border router must have the P-bit clear.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.4-4"
+    },
+    {
+      "id": "2.4:5",
+      "quote": "NSSA border routers must originate an LSA for the default destination into all their directly attached NSSAs in order to support intra-AS routing and inter-AS routing.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.4-5"
+    },
+    {
+      "id": "2.5:1",
+      "quote": "This calculation must be run when Type-7 LSAs are processed during the AS external route calculation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.5-5"
+    },
+    {
+      "id": "2.5:2",
+      "quote": "Since the flooding scope of a Type-7 LSA is restricted to the originating NSSA, the routing table entry of its ASBR must be found in the originating NSSA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.5-2"
+    },
+    {
+      "id": "2.5:3",
+      "quote": "Since a Type-7 LSA only has area-wide flooding scope, when its forwarding address is set to 0.0.0.0, its ASBR's routing table entry must be chosen from the originating NSSA.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The zero-forwarding-address case restates the rule that the ASBR entry is chosen from the originating NSSA.",
+      "mapped-to": "RFC3101-2.5-2"
+    },
+    {
+      "id": "2.5:4",
+      "quote": "For a Type-5 LSA the matching routing table entry must specify an intra-area or inter-area path through a Type-5 capable area.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.5-3"
+    },
+    {
+      "id": "2.5:5",
+      "quote": "For a Type-7 LSA the matching routing table entry must specify an intra-area path through the LSA's originating NSSA.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.5-4"
+    },
+    {
+      "id": "2.7:1",
+      "quote": "In order for OSPF's summary routing to not be obscured by an NSSA's Type-7 AS-external-LSAs, all NSSA border router implementations must support the optional import of summary routes into NSSAs as Type-3 summary-LSAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.7-1"
+    },
+    {
+      "id": "2.7:2",
+      "quote": "When summary routes are imported into the NSSA, the default LSA originated by an NSSA border router must not be a Type-3 summary-LSA; otherwise its default route would be chosen over the potentially more preferred default routes of Type-7 default LSAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.7-3"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "It is not recommended that multiple NSSA border routers perform Type-7 to Type-5 translation unless it is required to route packets efficiently through Area 0 to an NSSA partitioned by Type-7 address ranges.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-3.1-3"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "All NSSA border routers must set the E-bit in the Type-1 router-LSAs of their directly attached non-stub areas, even when they are not translating.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-3.1-1"
+    },
+    {
+      "id": "3.1:3",
+      "quote": "An NSSA border router whose NSSA's NSSATranslatorRole is set to Candidate must maintain a list of the NSSA's border routers that are reachable both over the NSSA and as ASBRs over the AS's transit topology.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-3.1-2"
+    },
+    {
+      "id": "3.1:4",
+      "quote": "If an elected translator determines its services are no longer required, it continues to perform its translation duties for the additional time interval defined by a new area configuration parameter, TranslatorStabilityInterval.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-x-2"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "(3) Else the Type-7 LSA must be aggregated by the most specific Type-7 address range that subsumes it.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-2.2-1"
+    },
+    {
+      "id": "4.0:1",
+      "quote": "[DIGI] describes the extensions to OSPF required to add digital signature authentication to Link State data and to provide a certification mechanism for router data.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 4.0 describes what the [DIGI] document contains; it is a pointer, not an obligation of this document."
+    },
+    {
+      "id": "7.0:1",
+      "quote": "If the N-bit is set in the options field, the E-bit must be clear.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-x-1"
+    },
+    {
+      "id": "7.0:2",
+      "quote": "All of the router's links to the area must be described in a single router-LSA.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "Appendix B describes the Type-1 router-LSA and defers outright: \"For details concerning the construction of router-LSAs, see [OSPF] Section 12.4.1.\" The single-router-LSA rule is RFC 2328's."
+    },
+    {
+      "id": "7.0:3",
+      "quote": "The Options field must have the N/P bit set as described in Appendix A when the originating router desires that the external route be propagated throughout the OSPF domain.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Appendix C's Type-7 packet format restates the Section 2.4 P-bit origination rule.",
+      "mapped-to": "RFC3101-2.4-1"
+    },
+    {
+      "id": "7.0:4",
+      "quote": "If the P-bit is set, the forwarding address must be non-zero, otherwise it may be 0.0.0.0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Appendix C restates the Section 2.4 forwarding address rule word for word.",
+      "mapped-to": "RFC3101-2.4-2"
+    },
+    {
+      "id": "7.0:5",
+      "quote": "Implementations must provide a vehicle for setting the P-bit when external routes are imported into the NSSA as Type-7 LSAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-x-3"
+    },
+    {
+      "id": "7.0:6",
+      "quote": "For NSSAs the ExternalRoutingCapability area configuration parameter must be set to accept Type-7 external routes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-x-4"
+    },
+    {
+      "id": "7.0:7",
+      "quote": "Additionally there must be a way of configuring the metric of the default LSA that a border router advertises into its directly attached NSSAs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3101-x-5"
+    },
+    {
+      "id": "7.0:8",
+      "quote": "When summary routes are not imported into an NSSA, the default LSA originated by its border routers must be a Type-3 summary-LSA.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Appendix F's differences list restates the Section 2.7 no-summary default rule.",
+      "mapped-to": "RFC3101-2.7-2"
+    },
+    {
+      "id": "7.0:9",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Internet Society copyright boilerplate."
+    }
+  ]
+}

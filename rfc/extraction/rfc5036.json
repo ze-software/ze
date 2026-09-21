@@ -1,0 +1,1369 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5036",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc5036.txt",
+  "source-sha": "4e8e1f1d87e26ed1",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "the RFC title block, status-of-memo and copyright notice"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5036-2.4.1-1"
+      ]
+    },
+    {
+      "id": "2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.5.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.5.3",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5036-2.5.1-1",
+        "RFC5036-2.5.1-3",
+        "RFC5036-2.5.1-4"
+      ]
+    },
+    {
+      "id": "2.5.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.5.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.5.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.6.1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5036-2.6.1.1-1"
+      ]
+    },
+    {
+      "id": "2.6.1.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.6.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.6.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.7",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5036-2.7-1"
+      ]
+    },
+    {
+      "id": "2.8",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5036-2.8-1"
+      ]
+    },
+    {
+      "id": "2.8.1",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.8.2",
+      "sites": 13,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.8.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.9",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5036-x-1"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.2.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.2.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.4.1",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.5.1.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.5.1.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.1.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5036-3.5.1-1"
+      ]
+    },
+    {
+      "id": "3.5.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.1.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.1.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.1.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.1.2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.1.2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.1.2.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.1.2.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.1.2.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5036-3.5.2-1"
+      ]
+    },
+    {
+      "id": "3.5.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.3",
+      "sites": 20,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5036-x-3",
+        "RFC5036-3.5.3-1"
+      ]
+    },
+    {
+      "id": "3.5.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.4.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.7.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.7.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.7.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.7.1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.8.1",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.9.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.10.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5.11.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.6.1.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.6.1.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.10.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA Considerations: name space management guidelines addressed to IANA"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "message type name space allocation policy"
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "TLV type name space allocation policy"
+    },
+    {
+      "id": "4.3",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "FEC type name space allocation policy"
+    },
+    {
+      "id": "4.4",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "status code name space allocation policy"
+    },
+    {
+      "id": "4.5",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "experiment ID name space allocation policy"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "acknowledgements",
+      "reason": "Acknowledgments"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "References"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Normative References"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "Informative References"
+    },
+    {
+      "id": "A",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5036-A.1-1"
+      ]
+    },
+    {
+      "id": "A.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.14",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.15",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2.8",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.5.2:1",
+      "quote": "An LSR MUST advertise the same transport address in all Hellos that advertise the same label space.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.5.2-1"
+    },
+    {
+      "id": "2.5.3:1",
+      "quote": "If a message other than those listed in the procedures above is received, a Shutdown msg MUST be transmitted and the transport connection MUST be closed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.5.3-2"
+    },
+    {
+      "id": "2.5.3:2",
+      "quote": "An LSR MUST throttle its session setup retry attempts with an exponential backoff in situations where Initialization messages are being NAK'd.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.5.3-3"
+    },
+    {
+      "id": "2.5.3:3",
+      "quote": "The session establishment setup attempt following a NAK'd Initialization message MUST be delayed no less than 15 seconds, and subsequent delays MUST grow to a maximum delay of no less than 2 minutes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.5.3-4"
+    },
+    {
+      "id": "2.6.1.2:1",
+      "quote": "For each FEC for which the LSR is not the egress and no mapping exists, the LSR MUST wait until a label from a downstream LSR is received before mapping the FEC and passing corresponding labels to upstream LSRs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.6.1.2-2"
+    },
+    {
+      "id": "2.8:1",
+      "quote": "For these paragraphs, and only these paragraphs, \"MUST\" is redefined to mean \"MUST if configured for Loop Detection\".",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a definition of the document's own keyword usage: it redefines MUST for the Loop Detection paragraphs and states no behavior of its own"
+    },
+    {
+      "id": "2.8:2",
+      "quote": "The paragraphs specify messages that MUST carry Path Vector and Hop Count TLVs.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "an announcement of what the paragraphs that follow specify, not an obligation; the obligations are the paragraphs themselves"
+    },
+    {
+      "id": "2.8.1:1",
+      "quote": "- The Label Request message MUST include a Hop Count TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.1-1"
+    },
+    {
+      "id": "2.8.1:2",
+      "quote": "- If R is sending the Label Request because it is a FEC ingress, it MUST include a Hop Count TLV with hop count value 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.1-2"
+    },
+    {
+      "id": "2.8.1:3",
+      "quote": "- If R is sending the Label Request as a result of having received a Label Request from an upstream LSR, and if the received Label Request contains a Hop Count TLV, R MUST increment the received hop count value by 1 and MUST pass the resulting value in a Hop Count TLV to its next hop along with the Label Request message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.1-3"
+    },
+    {
+      "id": "2.8.1:4",
+      "quote": "- If R is sending the Label Request because it is a FEC ingress, then if R is non-merge capable, it MUST include a Path Vector TLV of length 1 containing its own LSR Id.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.1-4"
+    },
+    {
+      "id": "2.8.1:5",
+      "quote": "R MUST add its own LSR Id to the Path Vector, and MUST pass the resulting Path Vector to its next hop along with the Label Request message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.1-5"
+    },
+    {
+      "id": "2.8.1:6",
+      "quote": "If the Label Request contains no Path Vector TLV, R MUST include a Path Vector TLV of length 1 containing its own LSR Id.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.1-6"
+    },
+    {
+      "id": "2.8.1:7",
+      "quote": "When R detects a loop, it MUST send a Loop Detected Notification message to the source of the Label Request message and drop the Label Request message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.1-7"
+    },
+    {
+      "id": "2.8.2:1",
+      "quote": "- R MUST include a Hop Count TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.2-1"
+    },
+    {
+      "id": "2.8.2:2",
+      "quote": "- If R is the egress, the hop count value MUST be 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.2-2"
+    },
+    {
+      "id": "2.8.2:3",
+      "quote": "- If the Label Mapping message is being sent to propagate a Label Mapping message received from the next hop to an upstream peer, the hop count value MUST be determined as follows:",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.2-3"
+    },
+    {
+      "id": "2.8.2:4",
+      "quote": "o If R is a member of the edge set of an LSR domain whose LSRs do not perform 'TTL-decrement' (e.g., an ATM LSR domain or a Frame Relay LSR domain) and the upstream peer is within that domain, R MUST reset the hop count to 1 before propagating the message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.2-4"
+    },
+    {
+      "id": "2.8.2:5",
+      "quote": "o Otherwise, R MUST increment the hop count received from the next hop before propagating the message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.2-5"
+    },
+    {
+      "id": "2.8.2:6",
+      "quote": "- If the Label Mapping message is not being sent to propagate a Label Mapping message, the hop count value MUST be the result of incrementing R's current knowledge of the hop count learned from previous Label Mapping messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.2-6"
+    },
+    {
+      "id": "2.8.2:7",
+      "quote": "- If R is sending the Label Mapping message to propagate a Label Mapping message received from the next hop to an upstream peer, then: o If R is merge capable and if R has not previously sent a Label Mapping message to the upstream peer, then it MUST include a Path Vector TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.2-7"
+    },
+    {
+      "id": "2.8.2:8",
+      "quote": "o If the received message contains an unknown hop count, then R MUST include a Path Vector TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.2-8"
+    },
+    {
+      "id": "2.8.2:9",
+      "quote": "o If R has previously sent a Label Mapping message to the upstream peer, then it MUST include a Path Vector TLV if the received message reports an LSP hop count increase, a change in hop count from unknown to known, or a change from known to unknown.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.2-9"
+    },
+    {
+      "id": "2.8.2:10",
+      "quote": "o If the received Label Mapping message included a Path Vector, the Path Vector sent upstream MUST be the result of adding R's LSR Id to the received Path Vector.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.2-10"
+    },
+    {
+      "id": "2.8.2:11",
+      "quote": "o If the received message had no Path Vector, the Path Vector sent upstream MUST be a Path Vector of length 1 containing R's LSR Id.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.2-11"
+    },
+    {
+      "id": "2.8.2:12",
+      "quote": "- If the Label Mapping message is not being sent to propagate a received message upstream, the Label Mapping message MUST include a Path Vector of length 1 containing R's LSR Id.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.2-12"
+    },
+    {
+      "id": "2.8.2:13",
+      "quote": "When R detects a loop, it MUST stop using the label for forwarding, drop the Label Mapping message, and signal Loop Detected status to the source of the Label Mapping message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.8.2-13"
+    },
+    {
+      "id": "2.9:1",
+      "quote": "The use of this mechanism MUST be supported as a configurable option.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.9-1"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "The first four octets identify the LSR and MUST be a globally unique value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.1-1"
+    },
+    {
+      "id": "3.3:1",
+      "quote": "Upon receipt of an unknown TLV, if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored; if U is set (=1), the unknown TLV MUST be silently ignored and the rest of the message processed as if the unknown TLV did not exist.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.3-1"
+    },
+    {
+      "id": "3.4.2.2:1",
+      "quote": "It MUST be set to zero on transmission and MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.4.2.2-1"
+    },
+    {
+      "id": "3.4.2.2:2",
+      "quote": "If the VCI is less than 16-bits, it SHOULD be right justified in the field and the preceding bits MUST be set to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.4.2.2-2"
+    },
+    {
+      "id": "3.4.2.2:3",
+      "quote": "If Virtual Path switching is indicated in the V-bits field, then this field MUST be ignored by the receiver and set to 0 by the sender.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.4.2.2-3"
+    },
+    {
+      "id": "3.4.2.3:1",
+      "quote": "It MUST be set to zero on transmission and MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.4.2.3-1"
+    },
+    {
+      "id": "3.4.4.1:1",
+      "quote": "- If the message is a Label Request message, R MUST increment the received hop count; - If the message is a Label Mapping message, R determines the hop count as follows:",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Hop Count TLV section restates the Loop Detection increment rule for the Label Request message that site 2.8.1:3 maps",
+      "mapped-to": "RFC5036-2.8.1-3"
+    },
+    {
+      "id": "3.4.4.1:2",
+      "quote": "o If R is a member of the edge set of an LSR domain whose LSRs do not perform 'TTL-decrement' and the upstream peer is within that domain, R MUST reset the hop count to 1 before propagating the message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the edge-set reset-to-1 rule for a propagated Label Mapping that site 2.8.2:4 maps",
+      "mapped-to": "RFC5036-2.8.2-4"
+    },
+    {
+      "id": "3.4.4.1:3",
+      "quote": "o Otherwise, R MUST increment the received hop count.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the otherwise-increment rule for a propagated Label Mapping that site 2.8.2:5 maps",
+      "mapped-to": "RFC5036-2.8.2-5"
+    },
+    {
+      "id": "3.4.4.1:4",
+      "quote": "If an LSR receives a message containing a Hop Count TLV, it MUST check the hop count value to determine whether the hop count has exceeded its configured maximum allowable value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.4.4.1-1"
+    },
+    {
+      "id": "3.4.4.1:5",
+      "quote": "If so, it MUST behave as if the containing message has traversed a loop by sending a Notification message signaling Loop Detected in reply to the sender of the message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.4.4.1-2"
+    },
+    {
+      "id": "3.4.4.1:6",
+      "quote": "If Loop Detection is configured, the LSR MUST follow the procedures specified in Section \"Loop Detection\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.4.4.1-3"
+    },
+    {
+      "id": "3.4.5.1.1:1",
+      "quote": "An LSR that receives a Path Vector in a Label Request message MUST perform the procedures described in Section \"Loop Detection\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.4.5.1.1-1"
+    },
+    {
+      "id": "3.4.5.1.1:2",
+      "quote": "If the LSR detects a loop, it MUST reject the Label Request message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.4.5.1.1-2"
+    },
+    {
+      "id": "3.4.5.1.1:3",
+      "quote": "The LSR MUST:",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.4.5.1.1-3"
+    },
+    {
+      "id": "3.4.5.1.2:1",
+      "quote": "An LSR that receives a Path Vector in a Label Mapping message MUST perform the procedures described in Section \"Loop Detection\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.4.5.1.2-1"
+    },
+    {
+      "id": "3.4.5.1.2:2",
+      "quote": "If the LSR detects a loop, it MUST reject the Label Mapping message in order to prevent a forwarding loop.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.4.5.1.2-2"
+    },
+    {
+      "id": "3.4.5.1.2:3",
+      "quote": "The LSR MUST:",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.4.5.1.2-3"
+    },
+    {
+      "id": "3.5:1",
+      "quote": "For messages that have required parameters, the required parameters MUST appear in the order specified by the individual message specifications in the sections that follow.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5-1"
+    },
+    {
+      "id": "3.5.2:1",
+      "quote": "It MUST be set to zero on transmission and ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-x-2"
+    },
+    {
+      "id": "3.5.3:1",
+      "quote": "The receiving LSR MUST calculate the value of the KeepAlive Timer by using the smaller of its proposed KeepAlive Time and the KeepAlive Time received in the PDU.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.5.1-2"
+    },
+    {
+      "id": "3.5.3:2",
+      "quote": "- If the session is for a label-controlled ATM link or a label-controlled Frame Relay link, then Downstream on Demand MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.3-2"
+    },
+    {
+      "id": "3.5.3:3",
+      "quote": "- Otherwise, Downstream Unsolicited MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.3-3"
+    },
+    {
+      "id": "3.5.3:4",
+      "quote": "If the label advertisement discipline determined in this way is unacceptable to an LSR, it MUST send a Session Rejected/Parameters Advertisement Mode Notification message in response to the Initialization message and not establish the session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.3-4"
+    },
+    {
+      "id": "3.5.3:5",
+      "quote": "MUST be 0 if Loop Detection is disabled (D = 0).",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.3-5"
+    },
+    {
+      "id": "3.5.3:6",
+      "quote": "It MUST be set to zero on transmission and ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.3-6"
+    },
+    {
+      "id": "3.5.3:7",
+      "quote": "The receiving LSR MUST calculate the maximum PDU length for the session by using the smaller of its and its peer's proposals for Max PDU Length.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.3-7"
+    },
+    {
+      "id": "3.5.3:8",
+      "quote": "If the maximum PDU length determined this way is unacceptable to an LSR, it MUST send a Session Rejected/Parameters Max PDU Length Notification message in response to the Initialization message and not establish the session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.3-8"
+    },
+    {
+      "id": "3.5.3:9",
+      "quote": "If there is no matching Hello adjacency, the LSR MUST send a Session Rejected/No Hello Notification message in response to the Initialization message and not establish the session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.3-9"
+    },
+    {
+      "id": "3.5.3:10",
+      "quote": "It MUST be set to zero on transmission and ignored on receipt.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "another Reserved field of the session parameter TLVs carrying the identical zero-on-transmit, ignore-on-receipt obligation",
+      "mapped-to": "RFC5036-3.5.3-6"
+    },
+    {
+      "id": "3.5.3:11",
+      "quote": "A receiving LSR MUST calculate the intersection between the received range and its own supported label range.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.3-10"
+    },
+    {
+      "id": "3.5.3:12",
+      "quote": "LSRs MUST NOT establish a session with neighbors for which the intersection of ranges is NULL.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.3-11"
+    },
+    {
+      "id": "3.5.3:13",
+      "quote": "In this case, the LSR MUST send a Session Rejected/Parameters Label Range Notification message in response to the Initialization message and not establish the session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.3-12"
+    },
+    {
+      "id": "3.5.3:14",
+      "quote": "It MUST be set to zero on transmission and MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.3-13"
+    },
+    {
+      "id": "3.5.3:15",
+      "quote": "When peer LSRs are connected indirectly by means of an ATM VP, the sending LSR SHOULD set the Minimum and Maximum VPI fields to 0, and the receiving LSR MUST ignore the Minimum and Maximum VPI fields.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.3-14"
+    },
+    {
+      "id": "3.5.3:16",
+      "quote": "It MUST be set to zero on transmission and ignored on receipt.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "another Reserved field of the session parameter TLVs carrying the identical zero-on-transmit, ignore-on-receipt obligation",
+      "mapped-to": "RFC5036-3.5.3-6"
+    },
+    {
+      "id": "3.5.3:17",
+      "quote": "A receiving LSR MUST calculate the intersection between the received range and its own supported label range.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Frame Relay Session Parameters repeat the ATM label range intersection sentence word for word",
+      "mapped-to": "RFC5036-3.5.3-10"
+    },
+    {
+      "id": "3.5.3:18",
+      "quote": "LSRs MUST NOT establish a session with neighbors for which the intersection of ranges is NULL.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Frame Relay Session Parameters repeat the NULL-intersection prohibition word for word",
+      "mapped-to": "RFC5036-3.5.3-11"
+    },
+    {
+      "id": "3.5.3:19",
+      "quote": "In this case, the LSR MUST send a Session Rejected/Parameters Label Range Notification message in response to the Initialization message and not establish the session.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Frame Relay Session Parameters repeat the Session Rejected/Parameters Label Range sentence word for word",
+      "mapped-to": "RFC5036-3.5.3-12"
+    },
+    {
+      "id": "3.5.3:20",
+      "quote": "It MUST be set to zero on transmission and ignored on receipt.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "another Reserved field of the session parameter TLVs carrying the identical zero-on-transmit, ignore-on-receipt obligation",
+      "mapped-to": "RFC5036-3.5.3-6"
+    },
+    {
+      "id": "3.5.4.1:1",
+      "quote": "An LSR MUST arrange that its peer receive an LDP message from it at least every KeepAlive Time period.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.4.1-1"
+    },
+    {
+      "id": "3.5.4.1:2",
+      "quote": "Any LDP protocol message will do but, in circumstances where no other LDP protocol messages have been sent within the period, a KeepAlive message MUST be sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.5.3-1"
+    },
+    {
+      "id": "3.5.7:1",
+      "quote": "Label Request Message ID If this Label Mapping message is a response to a Label Request message, it MUST include the Label Request Message ID optional parameter.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.7-1"
+    },
+    {
+      "id": "3.5.8.1:1",
+      "quote": "Unless its routing table includes an entry that exactly matches the requested Prefix, the LSR MUST respond with a No Route Notification message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.8.1-1"
+    },
+    {
+      "id": "3.5.8.1:2",
+      "quote": "When the receiving LSR responds with a Label Mapping message, the mapping message MUST include a Label Request/Returned Message ID TLV optional parameter that includes the message ID of the Label Request message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.8.1-2"
+    },
+    {
+      "id": "3.5.8.1:3",
+      "quote": "When resources become available, the LSR MUST notify the requesting LSR by sending a Notification message with the Label Resources Available Status Code.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.8.1-3"
+    },
+    {
+      "id": "3.5.8.1:4",
+      "quote": "An LSR that receives a No Label Resources response to a Label Request message MUST NOT issue further Label Request messages until it receives a Notification message with the Label Resources Available Status Code.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.8.1-4"
+    },
+    {
+      "id": "3.5.9.1:1",
+      "quote": "When an LSR receives a Label Abort Request message, if it has not previously responded to the Label Request being aborted with a Label Mapping message or some other Notification message, it MUST acknowledge the abort by responding with a Label Request Aborted Notification message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.9.1-1"
+    },
+    {
+      "id": "3.5.9.1:2",
+      "quote": "The Notification MUST include a Label Request Message ID TLV that carries the message ID of the aborted Label Request message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.9.1-2"
+    },
+    {
+      "id": "3.5.9.1:3",
+      "quote": "An LSR receiving a Label Abort Request message MUST process it immediately, regardless of the downstream state of the LSP, responding with a Label Request Aborted Notification or ignoring it, as appropriate.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.9.1-3"
+    },
+    {
+      "id": "3.5.10.1:1",
+      "quote": "An LSR that receives a Label Withdraw message MUST respond with a Label Release message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.6.1.3-1"
+    },
+    {
+      "id": "3.5.11.1:1",
+      "quote": "An LSR MUST transmit a Label Release message under any of the following conditions:",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.5.11.1-1"
+    },
+    {
+      "id": "3.6.1.1:1",
+      "quote": "Upon receipt of an unknown TLV, if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored; if U is set (=1), the unknown TLV is silently ignored and the rest of the message is processed as if the unknown TLV did not exist.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the vendor-private TLV section repeats the unknown-TLV U-bit rule of the TLV encoding section word for word",
+      "mapped-to": "RFC5036-3.3-1"
+    },
+    {
+      "id": "3.6.1.1:2",
+      "quote": "Implementations that support vendor-private TLVs MUST support a user-accessible configuration interface that causes the U-bit to be set on all transmitted vendor-private TLVs; this requirement MAY be satisfied by a user-accessible configuration interface that prevents transmission of all vendor-private TLVs for which the U- bit is clear.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.6.1.1-1"
+    },
+    {
+      "id": "3.6.1.2:1",
+      "quote": "Implementations that support Vendor-Private messages MUST support a user-accessible configuration interface that causes the U-bit to be set on all transmitted Vendor-Private messages; this requirement MAY be satisfied by a user-accessible configuration interface that prevents transmission of all Vendor-Private messages for which the U-bit is clear.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-3.6.1.2-1"
+    },
+    {
+      "id": "A:1",
+      "quote": "Whenever an LSR breaks the binding between a label and a FEC, it MUST withdraw the FEC label mapping from all LDP peers to which it has previously sent the mapping.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-2.6.1.2-1"
+    },
+    {
+      "id": "A.1.2:1",
+      "quote": "An LSR operating in Downstream Unsolicited mode MUST process any Label Request messages it receives.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-A.1.2-1"
+    },
+    {
+      "id": "A.1.7:1",
+      "quote": "Regardless of the Label Request procedure in use by the LSR, it MUST send a label request if the conditions in NH.13 hold.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5036-A.1.7-1"
+    },
+    {
+      "id": "A.1.14:1",
+      "quote": "An LSR that does so MUST send a Label Withdraw message for the FEC to the peer.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the detect-change-in-FEC-next-hop algorithm restates the Appendix A obligation to withdraw a broken FEC label binding from the peers it was sent to",
+      "mapped-to": "RFC5036-2.6.1.2-1"
+    }
+  ]
+}

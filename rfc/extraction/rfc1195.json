@@ -1,0 +1,997 @@
+{
+  "schema-version": 1,
+  "stem": "rfc1195",
+  "register": "prose",
+  "source-path": "rfc/full/rfc1195.txt",
+  "source-sha": "4adf2025be11a7dd",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.4",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.5",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 9,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.9",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC1195-3.9-1"
+      ]
+    },
+    {
+      "id": "3.10",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.10.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.5",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.4",
+      "sites": 10,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.5",
+      "sites": 19,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 22,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 4,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "This RFC is considered a companion to the OSI IS-IS Routing spec, and will only describe the required additional features.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "descriptive scoping sentence about what this RFC documents; 'required additional features' names the document's contents, not an obligation on an implementation"
+    },
+    {
+      "id": "1.1:1",
+      "quote": "IP-only and dual routers are required to conform to the requirements of Internet Gateways [4].",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "the obligation is the Requirements for Internet Gateways document the sentence cites as reference [4]; RFC 1195 only points at it"
+    },
+    {
+      "id": "1.2:1",
+      "quote": "External links (to other routing domains) must be from level 2 routers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-1.2-1"
+    },
+    {
+      "id": "1.2:2",
+      "quote": "Since the standard does not specify that the end system MUST autoconfigure its area address, an end system may be configured with an area address.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "the keyword sits inside a statement that the standard does NOT specify the behaviour: 'Since the standard does not specify that the end system MUST autoconfigure its area address'. The sentence grants a permission (an end system may be configured) rather than imposing an obligation"
+    },
+    {
+      "id": "1.4:1",
+      "quote": "In a pure IP routing domain, all routers must be IP-capable.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-1.4-2"
+    },
+    {
+      "id": "1.4:2",
+      "quote": "In a pure OSI routing domain, all routers must be OSI-capable.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the pure-OSI mirror of the domain-capability rule already carried by the dual/OSI row; ze runs pure-IP Integrated IS-IS and routes no CLNP",
+      "mapped-to": "RFC1195-1.4-1"
+    },
+    {
+      "id": "1.4:3",
+      "quote": "Within a dual domain, if both IP and OSI traffic are to be routed between areas then all level 2 routers must be dual.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-1.4-1"
+    },
+    {
+      "id": "1.5:1",
+      "quote": "A primary advantage of the integrated IS-IS relates to the network management effort required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a sentence comparing the integrated approach with ships-in-the-night; 'required' describes network management effort, not an implementation obligation"
+    },
+    {
+      "id": "1.5:2",
+      "quote": "Note that the operation of two routing protocols with the S.I.N. approach are not really independent, since they must share common resources.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "descriptive observation that two independent protocols share resources; it imposes nothing on an implementation"
+    },
+    {
+      "id": "1.5:3",
+      "quote": "Note that the operation of two routing protocols with the S.I.N. approach are not really independent, since they must share common resources.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same descriptive sentence as site 1.5:2, cut twice by the splitter; neither carries an obligation",
+      "mapped-to": "RFC1195-1.4-1"
+    },
+    {
+      "id": "1.5:4",
+      "quote": "However, in all routing protocols, there are real time guarantees which must be met in order to ensure correct operation.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a general observation about real time guarantees in routing protocols, with no addressee and no protocol behaviour"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "This is required for sending ICMP redirects (when an IP-capable router sends an ICMP redirect to a host, it must include the IP address of the appropriate interface of the correct next-hop router).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a parenthetical rationale for carrying the IP Interface Address field; the ICMP redirect obligation it describes belongs to the IP host and router requirements, and the RFC 1195 obligation it motivates is at site 3.1:2"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "An IP-capable router is required to include at least one of its IP addresses in its LSPs, and may optionally include several or all of its IP addresses.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-5.2-2"
+    },
+    {
+      "id": "3.1:3",
+      "quote": "Where a single router operates as both a level 1 and a level 2 router, it is required to include the same IP address(es) in its level 1 and level 2 LSPs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-5.2-3"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "Note: If this sum results in a metric value greater than 63 (the maximum value that can be reported in level 2 LSPs), then the value 63 must be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-3.2-1"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "In this case (assuming the entry is not superceded by a manually configured entry), then only one such entry shall be included in the level 2 LSP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-3.2-2"
+    },
+    {
+      "id": "3.2:3",
+      "quote": "If a level 2 router receives an IP packet whose IP address matches a manually configured address which it is including in its level 2 LSP, but which is not reachable via level 1 routing in the area, then the packet must be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-3.2-3"
+    },
+    {
+      "id": "3.3:1",
+      "quote": "Reserved 2 octets must be \"00 00\"",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "figure annotation for the NSAP layout; the prose sentence carrying the same obligation is site 3.3:4",
+      "mapped-to": "RFC1195-3.3-1"
+    },
+    {
+      "id": "3.3:2",
+      "quote": "Area 2 octets must be assigned as described below",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "figure annotation pointing at the assignment prose below it, which sites 3.3:5 to 3.3:7 carry",
+      "mapped-to": "RFC1195-3.3-1"
+    },
+    {
+      "id": "3.3:3",
+      "quote": "ID 6 octets must be assigned as described below",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "figure annotation pointing at the assignment prose below it, which sites 3.3:6 and 3.3:7 carry",
+      "mapped-to": "RFC1195-3.3-1"
+    },
+    {
+      "id": "3.3:4",
+      "quote": "The reserved field must contain \"00 00\", as specified in GOSIP version 2.0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-3.3-1"
+    },
+    {
+      "id": "3.3:5",
+      "quote": "The Area field must be assigned by the authority responsible for the routing domain, such that each area in the routing domain must have a unique Area value.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence addresses the authority responsible for the routing domain, the numbering role that allocates area values; ze consumes the allocated NET rather than assigning it The role has no producer in this tree: internal/plugins/isis/types/net.go parses the NET the operator supplies and ze assigns no area value or system ID of its own."
+    },
+    {
+      "id": "3.3:6",
+      "quote": "The ID must be assigned by the authority responsible for the routing domain.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "the sentence addresses the authority responsible for the routing domain, which assigns system IDs; ze consumes the configured NET rather than assigning it The role has no producer in this tree: internal/plugins/isis/types/net.go parses the NET the operator supplies and ze assigns no area value or system ID of its own."
+    },
+    {
+      "id": "3.3:7",
+      "quote": "The ID must be assigned such that every router in the routing domain has a unique value.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "uniqueness of the assigned system ID across the routing domain is the allocating authority's obligation; ze cannot observe the whole domain, it only parses and uses the NET it was given The role has no producer in this tree: internal/plugins/isis/types/net.go parses the NET the operator supplies and ze assigns no area value or system ID of its own."
+    },
+    {
+      "id": "3.3:8",
+      "quote": "IEEE 802 addresses, if used, must appear in IEEE canonical format.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-3.3-2"
+    },
+    {
+      "id": "3.3:9",
+      "quote": "Note that within an area, whether ISO addresses are configured into the routers through ISO address assignment, or whether the ISO-style address is generated directly from the AS number and IP address, all routers within an area must have the same high order part of address (AFI, ICD, DFI, AA, RD, and Area).",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "a constraint on the operator's addressing plan: every router in one area must be configured with the same high order address part. ze checks area match when forming a Level 1 adjacency but does not assign the addresses The role has no producer in this tree: internal/plugins/isis/types/net.go parses the NET the operator supplies and ze assigns no area value or system ID of its own."
+    },
+    {
+      "id": "3.4:1",
+      "quote": "When an external route using external metrics must be used, the lowest value of the external metric is preferred regardless of the internal cost to reach the appropriate exit point.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-3.4-1"
+    },
+    {
+      "id": "3.6:1",
+      "quote": "Some specific variable length fields may be required to occur in LSP number 0.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "indicative prose ('may be required to occur in LSP number 0') introducing the per-field rules; the obligations themselves are stated at the fields, sites 5.3.4:1 and 5.3.5:1"
+    },
+    {
+      "id": "3.8:1",
+      "quote": "Routers complying with the Integrated IS-IS are not required to implement encapsulation nor decapsulation.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "the sentence removes an obligation rather than imposing one: routers are NOT required to implement encapsulation or decapsulation"
+    },
+    {
+      "id": "3.9:1",
+      "quote": "Routers are not required to be able to interpret authentication information.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "the sentence removes an obligation: routers are NOT required to interpret authentication information. The obligation section 3.9 does impose, discarding a packet whose authentication is invalid, is the row RFC1195-3.9-1"
+    },
+    {
+      "id": "3.10:1",
+      "quote": "The Dijkstra calculation must calculate routes to each distinct IP reachability entry.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-3.10-1"
+    },
+    {
+      "id": "3.10:2",
+      "quote": "If level 2 routes must be used, then routes within the routing domain (specifically, those routes using internal metrics) are prefered to routes outside of the routing domain (using external metrics).",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-3.10-2"
+    },
+    {
+      "id": "3.10:3",
+      "quote": "However, the default metric must always be available.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-3.10-3"
+    },
+    {
+      "id": "3.10.2:1",
+      "quote": "3) If the specified destination is not reachable via level 1 routing, and the manually configured summary address advertised by this router (the router which has received the packet and is trying to forward it) represents the most desireable route, then the destination is unreachable and the packet must be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-3.10.2-1"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "For any particular link type, a method must be defined for encapsulation of both OSI and IP packets.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "the sentence binds whoever defines a link type, and the RFC says so in the next sentence: 'Definition of such methods for common link types is outside of the scope of this specification'"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "This implies that all IS-IS routers, including IP-only routers, must be able to receive IS-IS packets using the normal encapsulation for OSI packets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-4.1-1"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "However, IP-capable routers must be able to interact correctly with other routers which assign multiple IP addresses per physical interface (up to the maximum of 63 addresses per interface).",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-4.2-1"
+    },
+    {
+      "id": "4.4:1",
+      "quote": "IP-capable IS-IS routers therefore must be able to forward IP packets over existing adjacencies to routers with which they share physical connectivity, even when the IP address of the adjacent interface of the neighboring router is on a different logical IP subnet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-4.4-1"
+    },
+    {
+      "id": "4.4:2",
+      "quote": "All IS-IS routers are therefore required to transmit and receive ISO 9542 ISH packets on point-to-point links.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-4.4-2"
+    },
+    {
+      "id": "4.4:3",
+      "quote": "The \"protocols supported\" field (defined in section 5 below) must be present in all IS-IS Hello packets sent by dual and IP-only routers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-5.2-1"
+    },
+    {
+      "id": "4.4:4",
+      "quote": "Similarly, those 9542 ISHs sent over point-to-point links, where there is (or may be) another IS-IS router at the other end of the point-to-point link, must also contains the \"protocols supported\" field.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates for ISO 9542 ISHs the Protocols Supported obligation the row already carries, as section 5.2 states it again at site 5.2:2",
+      "mapped-to": "RFC1195-5.2-1"
+    },
+    {
+      "id": "4.4:5",
+      "quote": "Note that if this field is mistakenly sent in a 9542 ISH where there is an ordinary OSI-only End System at the other end of the link, then (in accordance to ISO 9542) the End System is required to ignore the field and interpret the ISH correctly.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "the sentence attributes the obligation to ISO 9542 itself ('in accordance to ISO 9542, the End System is required to ignore the field'); it binds an OSI End System under that standard, not an IS-IS router under RFC 1195"
+    },
+    {
+      "id": "4.4:6",
+      "quote": "Dual routers must operate in a dual fashion on every link in the routing domain over which they are running IS-IS.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the dual-router operating constraint the dual-domain row already carries; ze runs pure-IP Integrated IS-IS and is not a dual router",
+      "mapped-to": "RFC1195-1.4-1"
+    },
+    {
+      "id": "4.4:7",
+      "quote": "Thus, the value of the \"protocols supported\" field must be identical on every link (i.e., for any one router running IS-IS, all of the Hellos and LSPs transmitted by it must contain the same \"protocols supported\" values).",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-4.4-3"
+    },
+    {
+      "id": "4.5:1",
+      "quote": "In this case the packet must be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-4.5-1"
+    },
+    {
+      "id": "4.5:2",
+      "quote": "Again, the packet must be discarded, as specified above.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the sentence says so itself: 'Again, the packet must be discarded, as specified above', restating site 4.5:1 for the IP-only router case",
+      "mapped-to": "RFC1195-4.5-1"
+    },
+    {
+      "id": "5.1:1",
+      "quote": "All routers implementing IS-IS (whether IP-only, OSI-only, or dual), if they have any interfaces on point-to-point links, must therefore be able to transmit ISO 9542 ISHs on their point-to-point links.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the ISO 9542 ISH obligation on point-to-point links that section 4.4 states at site 4.4:2",
+      "mapped-to": "RFC1195-4.4-2"
+    },
+    {
+      "id": "5.2:1",
+      "quote": "This field must be included in all IS-IS Hello packets and all LSPs with LSP number 0 transmitted by IP- capable routers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-5.2-1"
+    },
+    {
+      "id": "5.2:2",
+      "quote": "The \"Protocols Supported\" field must also be included in ISO 9542 ISHs send by IP-capable routers over point-to-point links to other IS-IS routers.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the ISO 9542 ISH clause of the same Protocols Supported obligation, cut into its own sentence by the splitter",
+      "mapped-to": "RFC1195-5.2-1"
+    },
+    {
+      "id": "5.2:3",
+      "quote": "Each IP-capable router must include this field in its LSPs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-5.2-2"
+    },
+    {
+      "id": "5.2:4",
+      "quote": "Each entry must contain a default metric, and may contain delay, expense, and error metrics.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-5.2-4"
+    },
+    {
+      "id": "5.2:5",
+      "quote": "Each entry must contain a default metric, and may contain delay, expense, and error metrics.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same default-metric sentence, written once for IP Internal Reachability and once for IP External Reachability",
+      "mapped-to": "RFC1195-5.2-4"
+    },
+    {
+      "id": "5.2:6",
+      "quote": "Any codes in a received PDU that are not recognised shall be ignored and, for those packets which are forwarded (specifically Link State Packets), passed on unchanged.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-3.1-1"
+    },
+    {
+      "id": "5.3.4:1",
+      "quote": "This must appear once in LSP number 0. x CODE - 129",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the field description of CODE 129 restating that Protocols Supported appears once in LSP number 0, which the row already carries",
+      "mapped-to": "RFC1195-5.2-1"
+    },
+    {
+      "id": "5.3.4:2",
+      "quote": "However, this field must not appear in pseudonode LSPs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-5.3.4-2"
+    },
+    {
+      "id": "5.3.4:3",
+      "quote": "Bit 8 of this field is reserved, and must be set to zero on tranmission and ignored on reception.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.4:4",
+      "quote": "Bit 7 of this field (marked I/E) indicates the metric type (internal or external) for all four TOS metrics, and must be set to zero indicating internal metrics.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-5.3.4-1"
+    },
+    {
+      "id": "5.3.4:5",
+      "quote": "If this IS does not support this metric it shall set the bit \"S\" to 1 to indicate that the metric is unsupported.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the S bit reports an unsupported TOS metric, and RFC 1195 section 3.5 makes the feature optional: 'The support for TOS/QOS is optional.' ze offers only the default metric and encodes the RFC 5305 wide metric (internal/plugins/isis/types/metric.go), so it advertises no delay, expense or error metric at all"
+    },
+    {
+      "id": "5.3.4:6",
+      "quote": "Bit 7 of this field is reserved, and must be set to zero on transmission and ignored on reception.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the reserved-bit rule repeated for each of the delay, expense and error metric octets",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.4:7",
+      "quote": "If this IS does not support this metric it shall set the bit \"S\" to 1 to indicate that the metric is unsupported.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the unsupported-metric S bit rule repeated for the expense metric octet; the TOS feature it belongs to is out of scope as recorded at site 5.3.4:5",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.4:8",
+      "quote": "Bit 7 of this field is reserved, and must be set to zero on transmission and ignored on reception.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the reserved-bit rule repeated for the expense metric octet",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.4:9",
+      "quote": "If this IS does not support this metric it shall set the bit \"S\" to 1 to indicate that the metric is unsupported.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the unsupported-metric S bit rule repeated for the error metric octet; the TOS feature it belongs to is out of scope as recorded at site 5.3.4:5",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.4:10",
+      "quote": "Bit 7 of this field is reserved, and must be set to zero on transmission and ignored on reception.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the reserved-bit rule repeated for the error metric octet",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.5:1",
+      "quote": "This must appear once in LSP number 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the field description restating that the field appears once in LSP number 0, the obligation section 5.2 carries for Protocols Supported",
+      "mapped-to": "RFC1195-5.2-1"
+    },
+    {
+      "id": "5.3.5:2",
+      "quote": "Where a router is both a level 1 and level 2 router, it must include the same IP addresses in its level 1 and level 2 LSPs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-5.2-3"
+    },
+    {
+      "id": "5.3.5:3",
+      "quote": "However, this field must not appear in pseudonode LSPs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-5.3.4-2"
+    },
+    {
+      "id": "5.3.5:4",
+      "quote": "Bit 8 of this field is reserved, and must be set to zero on transmission and ignored on reception.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the bit 8 reserved rule of the default metric octet, repeated in the external reachability field description",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.5:5",
+      "quote": "Bit 7 of this field indicates the metric type (internal or external) for all four TOS metrics, and must be set to zero indicating internal metrics.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the I/E bit rule repeated in the section 5.3.5 field descriptions",
+      "mapped-to": "RFC1195-5.3.4-1"
+    },
+    {
+      "id": "5.3.5:6",
+      "quote": "If this IS does not support this metric it shall set the bit \"S\" to 1 to indicate that the metric is unsupported.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the unsupported-metric S bit rule repeated for a TOS metric octet; the TOS feature is out of scope as recorded at site 5.3.4:5",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.5:7",
+      "quote": "Bit 7 of this field is reserved, and must be set to zero on transmission and ignored on reception.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the reserved-bit rule repeated for a TOS metric octet",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.5:8",
+      "quote": "If this IS does not support this metric it shall set the bit \"S\" to 1 to indicate that the metric is unsupported.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the unsupported-metric S bit rule repeated for a TOS metric octet; the TOS feature is out of scope as recorded at site 5.3.4:5",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.5:9",
+      "quote": "Bit 7 of this field is reserved, and must be set to zero on transmission and ignored on reception.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the reserved-bit rule repeated for a TOS metric octet",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.5:10",
+      "quote": "If this IS does not support this metric it shall set the bit \"S\" to 1 to indicate that the metric is unsupported.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the unsupported-metric S bit rule repeated for a TOS metric octet; the TOS feature is out of scope as recorded at site 5.3.4:5",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.5:11",
+      "quote": "Bit 7 of this field is reserved, and must be set to zero on transmission and ignored on reception.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the reserved-bit rule repeated for a TOS metric octet",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.5:12",
+      "quote": "However, this field must not appear in pseudonode LSPs.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the pseudonode prohibition repeated for the Inter-Domain Routing Protocol Information field, which the row already names",
+      "mapped-to": "RFC1195-5.3.4-2"
+    },
+    {
+      "id": "5.3.5:13",
+      "quote": "Bit 8 of this field is reserved, and must be set to zero on transmission and ignored on reception.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the bit 8 reserved rule repeated in a second metric octet description",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.5:14",
+      "quote": "If this IS does not support this metric it shall set the bit \"S\" to 1 to indicate that the metric is unsupported.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the unsupported-metric S bit rule repeated for a TOS metric octet; the TOS feature is out of scope as recorded at site 5.3.4:5",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.5:15",
+      "quote": "Bit 7 of this field is reserved, and must be set to zero on transmission and ignored on reception.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the reserved-bit rule repeated for a TOS metric octet",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.5:16",
+      "quote": "If this IS does not support this metric it shall set the bit \"S\" to 1 to indicate that the metric is unsupported.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the unsupported-metric S bit rule repeated for a TOS metric octet; the TOS feature is out of scope as recorded at site 5.3.4:5",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.5:17",
+      "quote": "Bit 7 of this field is reserved, and must be set to zero on transmission and ignored on reception.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the reserved-bit rule repeated for a TOS metric octet",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.5:18",
+      "quote": "If this IS does not support this metric it shall set the bit \"S\" to 1 to indicate that the metric is unsupported.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the unsupported-metric S bit rule repeated for a TOS metric octet; the TOS feature is out of scope as recorded at site 5.3.4:5",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "5.3.5:19",
+      "quote": "Bit 7 of this field is reserved, and must be set to zero on transmission and ignored on reception.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the reserved-bit rule repeated for the last TOS metric octet",
+      "mapped-to": "RFC1195-5.3.4-3"
+    },
+    {
+      "id": "7:1",
+      "quote": "The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet).",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-7-1"
+    },
+    {
+      "id": "7:2",
+      "quote": "if they appear more than once, shall appear sorted into ascending LSPID order.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the ascending LSPID ordering rule, repeated for the option fields of the same Sequence Number PDU description",
+      "mapped-to": "RFC1195-7-1"
+    },
+    {
+      "id": "7:3",
+      "quote": "The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the ascending LSPID ordering rule repeated for the next Sequence Number PDU type",
+      "mapped-to": "RFC1195-7-1"
+    },
+    {
+      "id": "7:4",
+      "quote": "if they appear more than once, shall appear sorted into ascending LSPID order.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the ascending LSPID ordering rule repeated for the option fields of that PDU type",
+      "mapped-to": "RFC1195-7-1"
+    },
+    {
+      "id": "7:5",
+      "quote": "The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the ascending LSPID ordering rule repeated for the next Sequence Number PDU type",
+      "mapped-to": "RFC1195-7-1"
+    },
+    {
+      "id": "7:6",
+      "quote": "if they appear more than once, shall appear sorted into ascending LSPID order.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the ascending LSPID ordering rule repeated for the option fields of that PDU type",
+      "mapped-to": "RFC1195-7-1"
+    },
+    {
+      "id": "7:7",
+      "quote": "The entries shall be sorted into ascending LSPID order (the LSP number octet of the LSPID is the least significant octet).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the ascending LSPID ordering rule repeated for the last Sequence Number PDU type",
+      "mapped-to": "RFC1195-7-1"
+    },
+    {
+      "id": "7:8",
+      "quote": "However, a full update must be done periodically to ensure recovery from data corruption, and studies suggest that with a very small number of link changes (perhaps 2) the expected computation complexity of the incremental update exceeds the complete recalculation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-7-2"
+    },
+    {
+      "id": "7:9",
+      "quote": "The 8 octet system identifiers which specify IP reachability entries must always be distinguishable from other system identifiers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-7-3"
+    },
+    {
+      "id": "7:10",
+      "quote": "The Decision Process Algorithm must be run once for each supported routing metric (i.e., for each supported Type of Service).",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "running the Decision Process once per supported routing metric is an obligation conditional on supporting more than the default metric, and RFC 1195 section 3.5 makes that optional: 'The support for TOS/QOS is optional.' ze supports the default metric only (internal/plugins/isis/types/metric.go), so the algorithm runs once"
+    },
+    {
+      "id": "7:11",
+      "quote": "IP-capable level 2 routers must keep level 2 internal IP routes separate from level 2 external IP routes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-7-4"
+    },
+    {
+      "id": "7:12",
+      "quote": "Note that this implies that routers which are both level 1 and level 2 routers, and which support all four routing metrics, must run the SPF algorithm 8 times (assuming partition repair is not implemented).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a note deriving a consequence ('Note that this implies that routers ... must run the SPF algorithm 8 times') from the rule at site 7:10; it adds no obligation of its own"
+    },
+    {
+      "id": "7:13",
+      "quote": "If this system is a Level 2 Router which supports the partition repair optional function the Decision Process algorithm for computing Level 1 paths must be run twice for the default metric.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the sentence names the feature as optional itself: 'If this system is a Level 2 Router which supports the partition repair optional function the Decision Process algorithm for computing Level 1 paths must be run twice for the default metric.' ze implements no partition repair: internal/plugins/isis holds no partition-repair path, only the L1/L2 decision process"
+    },
+    {
+      "id": "7:14",
+      "quote": "2) Now pre-load TENT with the local adjacency database (Each entry made to TENT must be marked as being either an End System or a router to enable the check at the end of Step 2 to be made correctly - Note that each local IP reachability entry is included as an adjacency, and is marked as being an End System).",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-7-5"
+    },
+    {
+      "id": "7:15",
+      "quote": "Note: d(N) must be less than dist(P,N), or else N would not have been put into PATHS.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a mathematical note about the Dijkstra invariant ('d(N) must be less than dist(P,N), or else N would not have been put into PATHS'), not an obligation on an implementation"
+    },
+    {
+      "id": "7:16",
+      "quote": "The password shall be configured on a per-link, per-area, and per- domain basis.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-7-6"
+    },
+    {
+      "id": "7:17",
+      "quote": "- IS-IS Hello and 9542 IS Hello packets shall contain the per-link password",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-7-7"
+    },
+    {
+      "id": "7:18",
+      "quote": "- Level 1 Link State Packets shall contain the per-area password",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "one bullet of the same per-PDU password list, for Level 1 Link State Packets",
+      "mapped-to": "RFC1195-7-7"
+    },
+    {
+      "id": "7:19",
+      "quote": "- Level 2 Link State Packets shall contain the per-domain password",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "one bullet of the same per-PDU password list, for Level 2 Link State Packets",
+      "mapped-to": "RFC1195-7-7"
+    },
+    {
+      "id": "7:20",
+      "quote": "- Level 1 Sequence Number Packets shall contain the per-area password",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "one bullet of the same per-PDU password list, for Level 1 Sequence Number Packets",
+      "mapped-to": "RFC1195-7-7"
+    },
+    {
+      "id": "7:21",
+      "quote": "- Level 2 Sequence Number Packets shall contain the per-domain password",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "one bullet of the same per-PDU password list, for Level 2 Sequence Number Packets",
+      "mapped-to": "RFC1195-7-7"
+    },
+    {
+      "id": "7:22",
+      "quote": "Also, each of these three passwords shall be configured with: (i) \"Transmit Password\", whose value is a single password, and (ii) \"Receive Passwords\", whose value is a set of passwords.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-7-8"
+    },
+    {
+      "id": "8:1",
+      "quote": "In this case the inter-domain routing protocol information entry must include a single AS number, which is used to tag all subsequent External IP Reachability entries until the end of the LSP, or until the next occurence of the Inter-Domain Routing Protocol Information field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-8-1"
+    },
+    {
+      "id": "8:2",
+      "quote": "Type = 0 is reserved (must not be sent, and must be ignored on receipt).",
+      "disposition": "mapped",
+      "mapped-to": "RFC1195-8-2"
+    },
+    {
+      "id": "8:3",
+      "quote": "In this case, this \"inter-domain routing protocol information\" entry must contain precisely one 2 octet AS number.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the single 2 octet AS number rule for the same Inter-Domain Information Type",
+      "mapped-to": "RFC1195-8-1"
+    },
+    {
+      "id": "8:4",
+      "quote": "The option fields, if they appear more than once, shall appear sorted into ascending LSPID order.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the ascending LSPID ordering rule for option fields, already carried by the Sequence Number PDU row",
+      "mapped-to": "RFC1195-7-1"
+    }
+  ]
+}

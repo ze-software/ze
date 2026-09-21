@@ -1,0 +1,817 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9012",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc9012.txt",
+  "source-sha": "0d9a9771610007d7",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9012-3.1-3"
+      ]
+    },
+    {
+      "id": "3.1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.2",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.6",
+      "sites": 8,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9012-3.6-8"
+      ]
+    },
+    {
+      "id": "3.7",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9012-4.3-2"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 8,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 16,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9012-13-9",
+        "RFC9012-13-14",
+        "RFC9012-13-19"
+      ]
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "15",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "16",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.1:1",
+      "quote": "It MUST be disregarded on receipt, and it MUST be propagated unchanged.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.1-2"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "If the Address Family subfield contains the value for IPv4, the Address subfield MUST contain an IPv4 address (a /32 IPv4 prefix).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.1-4"
+    },
+    {
+      "id": "3.1:3",
+      "quote": "If the Address Family subfield contains the value for IPv6, the Address subfield MUST contain an IPv6 address (a /128 IPv6 prefix).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.1-5"
+    },
+    {
+      "id": "3.1:4",
+      "quote": "In this case, the Length field of Tunnel Egress Endpoint sub-TLV MUST contain the value 6 (0x06).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.1-7"
+    },
+    {
+      "id": "3.1:5",
+      "quote": "When the Tunnel Encapsulation attribute is carried in an UPDATE message of one of the AFI/SAFIs specified in this document (see the first paragraph of Section 6), each TLV MUST have one, and only one, Tunnel Egress Endpoint sub-TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.1-8"
+    },
+    {
+      "id": "3.1.1:1",
+      "quote": "Note that if the forwarding route changes, this procedure MUST be reapplied.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.1.1-3"
+    },
+    {
+      "id": "3.2.1:1",
+      "quote": "They MUST always be set to 0 by the originator of the sub-TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.2.1-1"
+    },
+    {
+      "id": "3.2.1:2",
+      "quote": "Intermediate routers MUST propagate them without modification.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.2.1-2"
+    },
+    {
+      "id": "3.2.1:3",
+      "quote": "Any receiving routers MUST ignore these bits upon receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.2.1-3"
+    },
+    {
+      "id": "3.2.1:4",
+      "quote": "If the V bit is set to 0, the VN-ID field MUST be set to zero on transmission and disregarded on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.2.1-4"
+    },
+    {
+      "id": "3.2.1:5",
+      "quote": "If the M bit is set to 0, this field MUST be set to all zeroes on transmission and disregarded on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.2.1-5"
+    },
+    {
+      "id": "3.2.1:6",
+      "quote": "Reserved: MUST be set to zero on transmission and disregarded on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.2.1-6"
+    },
+    {
+      "id": "3.2.2:1",
+      "quote": "They MUST always be set to 0 by the originator of the sub-TLV.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.2.2 (NVGRE Encapsulation sub-TLV) repeats Section 3.2.1's flag and field rules word for word; the mapped row states the obligation for both sub-TLVs and cites both sections.",
+      "mapped-to": "RFC9012-3.2.1-1"
+    },
+    {
+      "id": "3.2.2:2",
+      "quote": "Intermediate routers MUST propagate them without modification.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.2.2 (NVGRE Encapsulation sub-TLV) repeats Section 3.2.1's flag and field rules word for word; the mapped row states the obligation for both sub-TLVs and cites both sections.",
+      "mapped-to": "RFC9012-3.2.1-2"
+    },
+    {
+      "id": "3.2.2:3",
+      "quote": "Any receiving routers MUST ignore these bits upon receipt.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.2.2 (NVGRE Encapsulation sub-TLV) repeats Section 3.2.1's flag and field rules word for word; the mapped row states the obligation for both sub-TLVs and cites both sections.",
+      "mapped-to": "RFC9012-3.2.1-3"
+    },
+    {
+      "id": "3.2.2:4",
+      "quote": "If the V bit is set to 0, the VN-ID field MUST be set to zero on transmission and disregarded on receipt.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.2.2 (NVGRE Encapsulation sub-TLV) repeats Section 3.2.1's flag and field rules word for word; the mapped row states the obligation for both sub-TLVs and cites both sections.",
+      "mapped-to": "RFC9012-3.2.1-4"
+    },
+    {
+      "id": "3.2.2:5",
+      "quote": "If the M bit is set to 0, this field MUST be set to all zeroes on transmission and disregarded on receipt.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.2.2 (NVGRE Encapsulation sub-TLV) repeats Section 3.2.1's flag and field rules word for word; the mapped row states the obligation for both sub-TLVs and cites both sections.",
+      "mapped-to": "RFC9012-3.2.1-5"
+    },
+    {
+      "id": "3.2.2:6",
+      "quote": "Reserved: MUST be set to zero on transmission and disregarded on receipt.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.2.2 (NVGRE Encapsulation sub-TLV) repeats Section 3.2.1's flag and field rules word for word; the mapped row states the obligation for both sub-TLVs and cites both sections.",
+      "mapped-to": "RFC9012-3.2.1-6"
+    },
+    {
+      "id": "3.2.4:1",
+      "quote": "Unless a key value is being advertised, the GRE Encapsulation sub-TLV MUST NOT be present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.2.4-1"
+    },
+    {
+      "id": "3.2.5:1",
+      "quote": "Unless a key value is being advertised, the MPLS-in-GRE Encapsulation sub-TLV MUST NOT be present.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.2.5 repeats Section 3.2.4's rule for the MPLS-in-GRE Encapsulation sub-TLV; the mapped row states the obligation for both sub-TLVs and cites both sections.",
+      "mapped-to": "RFC9012-3.2.4-1"
+    },
+    {
+      "id": "3.3:1",
+      "quote": "If an outer Encapsulation sub-TLV occurs in a TLV for a tunnel type that does not use the corresponding outer encapsulation, the sub-TLV MUST be treated as if it were an unrecognized type of sub-TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.3-1"
+    },
+    {
+      "id": "3.3.2:1",
+      "quote": "If the reserved value zero is received, the sub-TLV MUST be treated as malformed, according to the rules of Section 13.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.3.2-1"
+    },
+    {
+      "id": "3.4.1:1",
+      "quote": "Packets with other payload types MUST NOT be encapsulated in the relevant tunnel.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.4.1-2"
+    },
+    {
+      "id": "3.4.1:2",
+      "quote": "If the reserved value 0xFFFF is received, the sub-TLV MUST be treated as malformed according to the rules of Section 13.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.4.1-3"
+    },
+    {
+      "id": "3.4.1:3",
+      "quote": "Also, for \"X-in-Y\" type tunnels, a Protocol Type sub-TLV specifying anything other than \"X\" MUST be ignored; this is discussed further in Section 13.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.4.1-4"
+    },
+    {
+      "id": "3.4.2:1",
+      "quote": "If the Length field of a Color sub-TLV has a value other than 8, or the first two octets of its Value field are not 0x030b, the sub-TLV MUST be treated as if it were an unrecognized sub-TLV (see Section 13).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.4.2-2"
+    },
+    {
+      "id": "3.5:1",
+      "quote": "If the Tunnel Encapsulation attribute is attached to an UPDATE of a non-labeled address family, then the sub-TLV MUST be disregarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.5-1"
+    },
+    {
+      "id": "3.5:2",
+      "quote": "If the sub-TLV is contained in a TLV whose tunnel type does not have a virtual network identifier in its encapsulation header, the sub-TLV MUST be disregarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.5-2"
+    },
+    {
+      "id": "3.5:3",
+      "quote": "In those cases where the sub-TLV is ignored, it MUST NOT be stripped from the TLV before the route is propagated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.5-3"
+    },
+    {
+      "id": "3.5:4",
+      "quote": "If any value other than 1 or 2 is carried, the sub-TLV MUST be considered malformed, according to the procedures of Section 13.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.5-4"
+    },
+    {
+      "id": "3.6:1",
+      "quote": "When this label stack is pushed onto a packet, this ordering MUST be preserved.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.6-1"
+    },
+    {
+      "id": "3.6:2",
+      "quote": "If a packet is to be sent through the tunnel identified in a particular TLV, and if that TLV contains an MPLS Label Stack sub-TLV, then the label stack appearing in the sub-TLV MUST be pushed onto the packet before any other labels are pushed onto the packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.6-2"
+    },
+    {
+      "id": "3.6:3",
+      "quote": "In particular, if the Tunnel Encapsulation attribute is attached to a BGP UPDATE of a labeled address family, the contents of the MPLS Label Stack sub-TLV MUST be pushed onto the packet before the label embedded in the NLRI is pushed onto the packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.6-3"
+    },
+    {
+      "id": "3.6:4",
+      "quote": "If the MPLS Label Stack sub-TLV is included in a TLV identifying a tunnel type that uses virtual network identifiers (see Section 9), the contents of the MPLS Label Stack sub-TLV MUST be pushed onto the packet before the procedures of Section 9 are applied.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.6-4"
+    },
+    {
+      "id": "3.6:5",
+      "quote": "The number of label stack entries in the sub-TLV MUST be determined from the Sub-TLV Length field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.6-5"
+    },
+    {
+      "id": "3.6:6",
+      "quote": "When the label stack entries are pushed onto a packet that already has a label stack, the S bits of all the entries being pushed MUST be cleared.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.6-6"
+    },
+    {
+      "id": "3.6:7",
+      "quote": "When the label stack entries are pushed onto a packet that does not already have a label stack, the S bit of the bottommost label stack entry MUST be set, and the S bit of all the other label stack entries MUST be cleared.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.6-7"
+    },
+    {
+      "id": "3.6:8",
+      "quote": "If any label stack entry in the sub-TLV has a TTL value of zero, the router that is pushing the stack onto a packet MUST change the value to a non-zero value, either 255 or some other value as determined by policy as discussed above.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.6-13"
+    },
+    {
+      "id": "3.7:1",
+      "quote": "If included in a BGP UPDATE for any other address family, it MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.7-2"
+    },
+    {
+      "id": "3.7:2",
+      "quote": "If an Originator SRGB is specified in the sub-TLV, that SRGB MUST be interpreted to be the SRGB used by the tunnel's egress endpoint.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.7-3"
+    },
+    {
+      "id": "3.7:3",
+      "quote": "If a Label-Index is present in the Prefix-SID sub-TLV, then when a packet is sent through the tunnel identified by the TLV, if that tunnel is from a labeled address family, the corresponding MPLS label MUST be pushed on the packet's label stack.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-3.7-4"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "In situations where a tunnel could be encoded using a barebones TLV, it MUST be encoded using the corresponding Encapsulation Extended Community.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-4.1-1"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "Notwithstanding, an implementation MUST be prepared to process a tunnel received encoded as a barebones TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-4.1-2"
+    },
+    {
+      "id": "4.1:3",
+      "quote": "Packets with other payload types MUST NOT be carried through such tunnels.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-4.1-3"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "In case of such a conflict, the information in the Router's MAC Extended Community MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-4.2-1"
+    },
+    {
+      "id": "4.3:1",
+      "quote": "No flags are defined in this document; this field MUST be set to zero by the originator and ignored by the receiver; the value MUST NOT be changed when propagating this extended community.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-4.3-1"
+    },
+    {
+      "id": "6:1",
+      "quote": "Then router R MUST send packet P through one of the feasible tunnels identified in the Tunnel Encapsulation attribute of UPDATE U.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-6-2"
+    },
+    {
+      "id": "7.1:1",
+      "quote": "If a route includes the Tunnel Encapsulation attribute, and if that attribute includes no tunnel that is feasible, then that route MUST NOT be considered resolvable for the purposes of the route resolvability condition ([RFC4271], Section 9.1.2.1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-7.1-1"
+    },
+    {
+      "id": "8:1",
+      "quote": "Then packet P MUST be sent through one of the tunnels identified in the Tunnel Encapsulation attribute of UPDATE U2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-8-1"
+    },
+    {
+      "id": "8:2",
+      "quote": "In that case, packet P MUST NOT be sent through the tunnel contained in that TLV, unless U1 is carrying a Color Extended Community that is identified in one of U2's Color sub-TLVs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-8-2"
+    },
+    {
+      "id": "10:1",
+      "quote": "Any document specifying such joint use MUST provide details as to how interactions should be handled.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-10-1"
+    },
+    {
+      "id": "11:1",
+      "quote": "However, the Tunnel Encapsulation attribute MUST be used only within a well-defined scope, for example, within a set of ASes that belong to a single administrative entity.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-11-1"
+    },
+    {
+      "id": "11:2",
+      "quote": "To prevent the Tunnel Encapsulation attribute from being distributed beyond its intended scope, any BGP speaker that understands the attribute MUST be able to filter the attribute from incoming BGP UPDATE messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-11-2"
+    },
+    {
+      "id": "11:3",
+      "quote": "For each external BGP (EBGP) session, filtering of the attribute on incoming UPDATEs MUST be enabled by default.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-11-5"
+    },
+    {
+      "id": "11:4",
+      "quote": "In addition, any BGP speaker that understands the attribute MUST be able to filter the attribute from outgoing BGP UPDATE messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-11-6"
+    },
+    {
+      "id": "11:5",
+      "quote": "For each EBGP session, filtering of the attribute on outgoing UPDATEs MUST be enabled by default.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-11-8"
+    },
+    {
+      "id": "11:6",
+      "quote": "* Any BGP speaker that understands it MUST be able to filter it from incoming BGP UPDATE messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-11-9"
+    },
+    {
+      "id": "11:7",
+      "quote": "* It MUST be possible to filter the Encapsulation Extended Community from outgoing messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-11-10"
+    },
+    {
+      "id": "11:8",
+      "quote": "* In both cases, this filtering MUST be enabled by default for EBGP sessions.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-11-11"
+    },
+    {
+      "id": "13:1",
+      "quote": "The final octet of a TLV MUST also be the final octet of its final sub-TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-1"
+    },
+    {
+      "id": "13:2",
+      "quote": "If this is not the case, the TLV MUST be considered to be malformed, and the \"Treat-as- withdraw\" procedure of [RFC7606] is applied.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-2"
+    },
+    {
+      "id": "13:3",
+      "quote": "If a Tunnel Encapsulation attribute can be parsed correctly but contains a TLV whose tunnel type is not recognized by a particular BGP speaker, that BGP speaker MUST NOT consider the attribute to be malformed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-3"
+    },
+    {
+      "id": "13:4",
+      "quote": "Rather, it MUST interpret the attribute as if that TLV had not been present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-4"
+    },
+    {
+      "id": "13:5",
+      "quote": "If the route carrying the Tunnel Encapsulation attribute is propagated with the attribute, the unrecognized TLV MUST remain in the attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-5"
+    },
+    {
+      "id": "13:6",
+      "quote": "The following sub-TLVs defined in this document MUST NOT occur more than once in a given Tunnel TLV: Tunnel Egress Endpoint (discussed below), Encapsulation, DS, UDP Destination Port, Embedded Label Handling, MPLS Label Stack, and Prefix-SID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-6"
+    },
+    {
+      "id": "13:7",
+      "quote": "If a Tunnel TLV has more than one of any of these sub-TLVs, all but the first occurrence of each such sub-TLV type MUST be disregarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-7"
+    },
+    {
+      "id": "13:8",
+      "quote": "However, the Tunnel TLV containing them MUST NOT be considered to be malformed, and all the sub-TLVs MUST be propagated if the route carrying the Tunnel Encapsulation attribute is propagated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-8"
+    },
+    {
+      "id": "13:9",
+      "quote": "If a TLV of a Tunnel Encapsulation attribute contains a sub-TLV that is not recognized by a particular BGP speaker, the BGP speaker MUST process that TLV as if the unrecognized sub-TLV had not been present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-10"
+    },
+    {
+      "id": "13:10",
+      "quote": "If the route carrying the Tunnel Encapsulation attribute is propagated with the attribute, the unrecognized sub-TLV MUST remain in the attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-11"
+    },
+    {
+      "id": "13:11",
+      "quote": "In general, if a TLV contains a sub-TLV that is malformed, the sub- TLV MUST be treated as if it were an unrecognized sub-TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-12"
+    },
+    {
+      "id": "13:12",
+      "quote": "There is one exception to this rule: if a TLV contains a malformed Tunnel Egress Endpoint sub-TLV (as defined in Section 3.1), the entire TLV MUST be ignored and MUST be removed from the Tunnel Encapsulation attribute before the route carrying that attribute is distributed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-13"
+    },
+    {
+      "id": "13:13",
+      "quote": "Within a Tunnel Encapsulation attribute that is carried by a BGP UPDATE whose AFI/SAFI is one of those explicitly listed in the first paragraph of Section 6, a TLV that does not contain exactly one Tunnel Egress Endpoint sub-TLV MUST be treated as if it contained a malformed Tunnel Egress Endpoint sub-TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-15"
+    },
+    {
+      "id": "13:14",
+      "quote": "Sub-TLVs of this sort MUST be disregarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-16"
+    },
+    {
+      "id": "13:15",
+      "quote": "That is, they MUST NOT affect the creation of the encapsulation header.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-17"
+    },
+    {
+      "id": "13:16",
+      "quote": "However, the sub-TLV MUST NOT be considered to be malformed and MUST NOT be removed from the TLV before the route carrying the Tunnel Encapsulation attribute is distributed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-13-18"
+    },
+    {
+      "id": "15:1",
+      "quote": "RFC 8402 specifies that \"SR domain boundary routers MUST filter any external traffic\" ([RFC8402], Section 8.1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9012-15-1"
+    }
+  ]
+}

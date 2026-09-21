@@ -1,0 +1,317 @@
+{
+  "schema-version": 1,
+  "stem": "rfc3954",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc3954.txt",
+  "source-sha": "4274d093e24b4bad",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 8,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3954-x-9"
+      ]
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "15",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "4:1",
+      "quote": "The Exporter MUST code all binary integers of the Packet Header and the different FlowSets in network byte order (also known as the big-endian byte ordering).",
+      "disposition": "mapped",
+      "mapped-to": "RFC3954-x-3"
+    },
+    {
+      "id": "5.1:1",
+      "quote": "This value MUST be cumulative, and SHOULD be used by the Collector to identify whether any Export Packets have been missed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3954-x-8"
+    },
+    {
+      "id": "5.2:1",
+      "quote": "Because an individual Template FlowSet MAY contain multiple Template Records, the Length value MUST be used to determine the position of the next FlowSet record, which could be any type of FlowSet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3954-x-5"
+    },
+    {
+      "id": "5.3:1",
+      "quote": "The Collector MUST use the FlowSet ID to find the corresponding Template Record and decode the Flow Records from the FlowSet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3954-x-4"
+    },
+    {
+      "id": "6.1:1",
+      "quote": "Thus, the Length value MUST be used to determine the position of the next FlowSet record, which could be either a Template FlowSet or Data FlowSet.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the Length-determines-next-FlowSet obligation already mapped at site 5.2:1",
+      "mapped-to": "RFC3954-x-5"
+    },
+    {
+      "id": "6.2:1",
+      "quote": "The Collector MUST use the FlowSet ID to map the appropriate type and length to any field values that follow.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the FlowSet-ID-selects-the-template obligation already mapped at site 5.3:1",
+      "mapped-to": "RFC3954-x-4"
+    },
+    {
+      "id": "7:1",
+      "quote": "As such, the NetFlow Collector MUST store the Template Record to interpret the corresponding Flow Data Records that are received in subsequent data packets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3954-x-22"
+    },
+    {
+      "id": "7:2",
+      "quote": "A NetFlow Collector that receives Export Packets from several Observation Domains from the same Exporter MUST be aware that the uniqueness of the Template ID is not guaranteed across Observation Domains.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3954-x-23"
+    },
+    {
+      "id": "7:3",
+      "quote": "If a Collector should receive a new definition for an already existing Template ID, it MUST discard the previous template definition and use the new one.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3954-x-7"
+    },
+    {
+      "id": "7:4",
+      "quote": "After a NetFlow process restarts, the Exporter MUST NOT send any Data FlowSet without sending the corresponding Template FlowSet and the required Options Template FlowSet in a previous packet or including it in the same Export Packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3954-x-1"
+    },
+    {
+      "id": "7:5",
+      "quote": "On a regular basis, the Exporter MUST send all the Template Records and Options Template Records to refresh the Collector.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3954-x-2"
+    },
+    {
+      "id": "7:6",
+      "quote": "Template IDs have a limited lifetime at the Collector and MUST be periodically refreshed.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the periodic template refresh obligation already mapped at site 7:5",
+      "mapped-to": "RFC3954-x-2"
+    },
+    {
+      "id": "7:7",
+      "quote": "Both options MUST be configurable by the user on the Exporter.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the configurability of the two refresh intervals is part of the same refresh obligation mapped at site 7:5",
+      "mapped-to": "RFC3954-x-2"
+    },
+    {
+      "id": "7:8",
+      "quote": "When one of these expiry conditions is met, the Exporter MUST send the Template FlowSet and Options Template.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the send-on-expiry half of the refresh obligation already mapped at site 7:5",
+      "mapped-to": "RFC3954-x-2"
+    },
+    {
+      "id": "9:1",
+      "quote": "A Collector device MUST NOT assume that the Data FlowSet and the associated Template FlowSet (or Options Template FlowSet) are exported in the same Export Packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3954-x-24"
+    },
+    {
+      "id": "9:2",
+      "quote": "The Collector MUST NOT assume that one and only one Template FlowSet is present in an Export Packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3954-x-25"
+    },
+    {
+      "id": "9:3",
+      "quote": "The Collector MUST NOT attempt to decode the Flow or Options Data Records with an expired Template.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3954-x-26"
+    },
+    {
+      "id": "9:4",
+      "quote": "If the Collector receives a new Template Record (for example, in the case of an Exporter restart) it MUST immediately override the existing Template Record.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "restates the override-on-redefinition obligation already mapped at site 7:3",
+      "mapped-to": "RFC3954-x-7"
+    },
+    {
+      "id": "9:5",
+      "quote": "Finally, note that the Collector MUST accept padding in the Data FlowSet and Options Template FlowSet, which means for the Flow Data Records, the Options Data Records and the Template Records.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3954-x-6"
+    }
+  ]
+}

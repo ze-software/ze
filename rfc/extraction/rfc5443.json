@@ -1,0 +1,97 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5443",
+  "register": "prose",
+  "source-path": "rfc/full/rfc5443.txt",
+  "source-sha": "2400d8b588b794a6",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5443-2-1",
+        "RFC5443-2-2",
+        "RFC5443-2-3",
+        "RFC5443-2-4",
+        "RFC5443-2-5",
+        "RFC5443-2-6",
+        "RFC5443-2-7",
+        "RFC5443-2-8"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5443-3-1",
+        "RFC5443-3-2",
+        "RFC5443-3-3"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5443-4-1",
+        "RFC5443-4-2"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5443-5-1"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "This means that all the links along the IP shortest path from one PE router to the other need to have operational LDP sessions, and the necessary label binding must have been exchanged over those sessions.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 problem statement, describing why an L2/L3 VPN service depends on an edge-to-edge LSP. The lowercase 'must have been exchanged' states a property of the network the document then sets out to protect, not an obligation on an implementation: the sentence is followed by 'If only one link along the IP shortest path is not covered by an LDP session, a blackhole exists'. Section 2 carries the obligations this document places on a router."
+    }
+  ]
+}

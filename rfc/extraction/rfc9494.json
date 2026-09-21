@@ -1,0 +1,356 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9494",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc9494.txt",
+  "source-sha": "c6e4d6c4836c4b4e",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9494-3.2-1"
+      ]
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9494-3.3-1"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 12,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9494-4.2-11",
+        "RFC9494-4.2-12"
+      ]
+    },
+    {
+      "id": "4.3",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9494-4.3-3"
+      ]
+    },
+    {
+      "id": "4.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9494-4.6-4"
+      ]
+    },
+    {
+      "id": "4.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.7.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9494-4.7.1-1",
+        "RFC9494-4.7.1-2",
+        "RFC9494-4.7.1-3",
+        "RFC9494-4.7.1-4"
+      ]
+    },
+    {
+      "id": "4.7.2",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9494-4.7.2-3"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.1:1",
+      "quote": "If the LLGR capability is advertised, the Graceful Restart capability [RFC4724] MUST also be advertised; see Section 4.1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-3.1-1"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "The remaining bits are reserved and MUST be set to zero by the sender and ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-3.1-2"
+    },
+    {
+      "id": "4:1",
+      "quote": "If a BGP speaker is configured to support the procedures of this document, it MUST use BGP Capabilities Advertisement [RFC5492] to advertise the Long-Lived Graceful Restart Capability.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4-1"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "If the LLGR Capability is advertised, the Graceful Restart capability MUST also be advertised.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4.1 restates the Section 3.1 obligation verbatim; site 3.1:1 carries it and cites Section 4.1 itself (\"see Section 4.1\").",
+      "mapped-to": "RFC9494-3.1-1"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "If it is not so advertised, the LLGR Capability MUST be disregarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.1-1"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "| If the session does not get re-established within the \"Restart | Time\" that the peer advertised previously, the Receiving Speaker | MUST delete all the stale routes from the peer that it is | retaining.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "A quotation of superseded RFC 4724 text, introduced by \"The following text in Section 4.2 of [RFC4724] no longer applies\" and followed by \"and the following procedures are specified instead\". The block is set off with change bars and states no obligation of this document."
+    },
+    {
+      "id": "4.2:2",
+      "quote": "After the session goes down, and before the session is re- established, the stale routes for an AFI/SAFI MUST be retained.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.2-1"
+    },
+    {
+      "id": "4.2:3",
+      "quote": "Once the Restart Time period ends (including the case in which the Restart Time is zero), the LLGR period is said to have begun and the following procedures MUST be performed:",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The chapeau introducing the LLGR-period bullet list. Each enumerated procedure carries its own MUST and is mapped separately (sites 4.2:4 through 4.2:8); the chapeau's own content, that the procedures begin once the Restart Time period ends, is carried in RFC9494-4.2-2.",
+      "mapped-to": "RFC9494-4.2-2"
+    },
+    {
+      "id": "4.2:4",
+      "quote": "* For each AFI/SAFI for which it has received a nonzero Long-Lived Stale Time, the helper router MUST start a timer for that Long- Lived Stale Time.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.2-2"
+    },
+    {
+      "id": "4.2:5",
+      "quote": "If the timer for the Long-Lived Stale Time for a given AFI/SAFI expires before the session is re-established, the helper MUST delete all stale routes of that AFI/SAFI from the neighbor that it is retaining.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.2-3"
+    },
+    {
+      "id": "4.2:6",
+      "quote": "* The helper router MUST attach the LLGR_STALE community to the stale routes being retained.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.2-4"
+    },
+    {
+      "id": "4.2:7",
+      "quote": "* If any of the routes from the peer have been marked with the NO_LLGR community, either as sent by the peer or as the result of a configured policy, they MUST NOT be retained and MUST be removed as per the normal operation of [RFC4271].",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.2-5"
+    },
+    {
+      "id": "4.2:8",
+      "quote": "* The helper router MUST perform the procedures listed in Section 4.3.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.2-6"
+    },
+    {
+      "id": "4.2:9",
+      "quote": "However, in the case of consecutive restarts, the previously marked stale routes MUST NOT be deleted before the timer for the Long-Lived Stale Time expires.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.2-7"
+    },
+    {
+      "id": "4.2:10",
+      "quote": "Similar to [RFC4724], once the LLGR Period begins, the Helper MUST immediately remove all the stale routes from the peer that it is retaining for that address family if any of the following occur:",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.2-8"
+    },
+    {
+      "id": "4.2:11",
+      "quote": "If a Long-Lived Stale Time timer is running for routes with a given AFI/SAFI received from a peer, it MUST NOT be updated (other than by manual operator intervention) until the peer has established and synchronized a new session.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.2-9"
+    },
+    {
+      "id": "4.2:12",
+      "quote": "If the session subsequently resets prior to becoming synchronized, any remaining routes (for the AFI/SAFI whose LLST timer expired) MUST be removed immediately.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.2-10"
+    },
+    {
+      "id": "4.3:1",
+      "quote": "A BGP speaker that has advertised the Long-Lived Graceful Restart Capability to a neighbor MUST perform the following upon receiving a route from that neighbor with the LLGR_STALE community or upon attaching the LLGR_STALE community itself per Section 4.2:",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.3-1"
+    },
+    {
+      "id": "4.3:2",
+      "quote": "* The LLGR_STALE community MUST NOT be removed when the route is further advertised.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.3-2"
+    },
+    {
+      "id": "4.4:1",
+      "quote": "A least preferred route MUST be treated as less preferred than any other route that is not also least preferred.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.4-1"
+    },
+    {
+      "id": "4.5:1",
+      "quote": "If the LLGR Capability is received without an accompanying GR Capability, the LLGR Capability MUST be ignored, that is, the implementation MUST behave as though no LLGR Capability has been received.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.5-1"
+    },
+    {
+      "id": "4.6:1",
+      "quote": "* The neighbors MUST be internal (Internal BGP (IBGP) or Confederation) neighbors.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.6-1"
+    },
+    {
+      "id": "4.6:2",
+      "quote": "* The NO_EXPORT community [RFC1997] MUST be attached to the stale routes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.6-2"
+    },
+    {
+      "id": "4.6:3",
+      "quote": "* The stale routes MUST have their LOCAL_PREF set to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.6-3"
+    },
+    {
+      "id": "4.7.2:1",
+      "quote": "In addition to including the path attributes derived from the ATTR_SET attribute in the advertised route as per [RFC6368], the PE router MUST also include the LLGR_STALE community if it is present in the path attributes of the imported route, even if it is not present in the ATTR_SET attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.7.2-1"
+    },
+    {
+      "id": "4.7.2:2",
+      "quote": "In addition to including in the VPN route the ATTR_SET derived from the path attributes as per [RFC6368], the PE router MUST also include the LLGR_STALE community in the VPN route if it is present in the path attributes of the route as received from the CE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-4.7.2-2"
+    },
+    {
+      "id": "5:1",
+      "quote": "Implementations MUST NOT enable these procedures by default.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-5-1"
+    },
+    {
+      "id": "5:2",
+      "quote": "They MUST require affirmative configuration per AFI/SAFI in order to enable them.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9494-5-2"
+    }
+  ]
+}

@@ -1,0 +1,716 @@
+{
+  "schema-version": 1,
+  "stem": "rfc1661",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc1661.txt",
+  "source-sha": "2547412836baf372",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC1661-1.2-1"
+      ]
+    },
+    {
+      "id": "2",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC1661-2-2"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.6",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.7",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC1661-4.2-1"
+      ]
+    },
+    {
+      "id": "4.3",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 8,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.7",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.8",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.9",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC1661-6-1",
+        "RFC1661-6-2"
+      ]
+    },
+    {
+      "id": "6.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4",
+      "sites": 8,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.5",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.6",
+      "sites": 2,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1.1:1",
+      "quote": "MUST This word, or the adjective \"required\", means that the definition is an absolute requirement of the specification.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1.1 'Specification of Requirements' defines the keyword MUST itself. The capitalised word is the term being defined, not an obligation on an implementation."
+    },
+    {
+      "id": "1.1:2",
+      "quote": "MUST NOT This phrase means that the definition is an absolute prohibition of the specification.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1.1 'Specification of Requirements' defines the phrase MUST NOT itself. The capitalised words are the term being defined, not an obligation on an implementation."
+    },
+    {
+      "id": "1.1:3",
+      "quote": "An implementation which does not include this option MUST be prepared to interoperate with another implementation which does include the option.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Part of the Section 1.1 definition of MAY: it states what the word 'optional' means for a reader of this document. The interoperation obligation it describes is discharged by the option-by-option rows, not by this definition."
+    },
+    {
+      "id": "2:1",
+      "quote": "All Protocols MUST be odd; the least significant bit of the least significant octet MUST equal \"1\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-2-1"
+    },
+    {
+      "id": "2:2",
+      "quote": "Also, all Protocols MUST be assigned such that the least significant bit of the most significant octet equals \"0\".",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The second half of the same Protocol-field parity rule, which the mapped row states in full: odd least-significant octet, even most-significant octet.",
+      "mapped-to": "RFC1661-2-1"
+    },
+    {
+      "id": "2:3",
+      "quote": "Frames received which don't comply with these rules MUST be treated as having an unrecognized Protocol.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The receive-side consequence of the same parity rule, which the mapped row carries: a frame failing the rule is treated as an unrecognized Protocol.",
+      "mapped-to": "RFC1661-2-1"
+    },
+    {
+      "id": "2:4",
+      "quote": "Developers of new protocols MUST obtain a number from the Internet Assigned Numbers Authority (IANA), at IANA@isi.edu.",
+      "disposition": "excluded",
+      "excluded-kind": "binds-another-role",
+      "reason": "Addressed to whoever defines a NEW PPP protocol number, as a registration action with IANA. Ze defines no new PPP protocol: internal/component/l2tp/pppoe and the LCP code speak the numbers this document and its successors already assign. The producer would be the developer of a new PPP protocol, who registers with IANA and is not a Ze code path."
+    },
+    {
+      "id": "3.1:1",
+      "quote": "In order to establish communications over a point-to-point link, each end of the PPP link MUST first send LCP packets to configure and test the data link.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-3.1-1"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "Then, PPP MUST send NCP packets to choose and configure one or more network-layer protocols.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-3.1-2"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "The following semantics MUST be followed.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Introduces the phase descriptions that follow ('Not all transitions are specified in this diagram. The following semantics MUST be followed.'). It states no obligation of its own; every phase obligation is carried at its own site in Sections 3.4 to 3.7."
+    },
+    {
+      "id": "3.4:1",
+      "quote": "Any non-LCP packets received during this phase MUST be silently discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-3.4-1"
+    },
+    {
+      "id": "3.5:1",
+      "quote": "If an implementation desires that the peer authenticate with some specific authentication protocol, then it MUST request the use of that authentication protocol during Link Establishment phase.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-3.5-1"
+    },
+    {
+      "id": "3.5:2",
+      "quote": "An implementation MUST NOT allow the exchange of link quality determination packets to delay authentication indefinitely.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-3.5-2"
+    },
+    {
+      "id": "3.5:3",
+      "quote": "Advancement from the Authentication phase to the Network-Layer Protocol phase MUST NOT occur until authentication has completed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-3.5-3"
+    },
+    {
+      "id": "3.5:4",
+      "quote": "All other packets received during this phase MUST be silently discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-3.5-4"
+    },
+    {
+      "id": "3.6:1",
+      "quote": "Once PPP has finished the previous phases, each network-layer protocol (such as IP, IPX, or AppleTalk) MUST be separately configured by the appropriate Network Control Protocol (NCP).",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-3.6-1"
+    },
+    {
+      "id": "3.6:2",
+      "quote": "Any supported network-layer protocol packets received when the corresponding NCP is not in the Opened state MUST be silently discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-3.6-2"
+    },
+    {
+      "id": "3.6:3",
+      "quote": "While LCP is in the Opened state, any protocol packet which is unsupported by the implementation MUST be returned in a Protocol- Reject (described later).",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-3.6-3"
+    },
+    {
+      "id": "3.7:1",
+      "quote": "The receiver of a Terminate-Request SHOULD wait for the peer to disconnect, and MUST NOT disconnect until at least one Restart time has passed after sending a Terminate-Ack.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-3.7-1"
+    },
+    {
+      "id": "3.7:2",
+      "quote": "Any non-LCP packets received during this phase MUST be silently discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-3.7-2"
+    },
+    {
+      "id": "4.3:1",
+      "quote": "The implementation MUST be prepared to immediately renegotiate the Configuration Options.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-4.3-1"
+    },
+    {
+      "id": "4.3:2",
+      "quote": "The implementation MUST be prepared to receive a new Configure-Request without network administrator intervention.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-4.3-2"
+    },
+    {
+      "id": "4.3:3",
+      "quote": "The implementation MUST stop sending the offending packet type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-4.3-3"
+    },
+    {
+      "id": "4.4:1",
+      "quote": "In addition to setting the Restart counter, the implementation MUST set the timeout period to the initial value when Restart timer backoff is used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-4.4-1"
+    },
+    {
+      "id": "4.4:2",
+      "quote": "In addition to zeroing the Restart counter, the implementation MUST set the timeout period to an appropriate value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-4.4-2"
+    },
+    {
+      "id": "4.6:1",
+      "quote": "The Restart timer MUST be configurable, but SHOULD default to three (3) seconds.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-4.6-1"
+    },
+    {
+      "id": "4.6:2",
+      "quote": "Max-Terminate MUST be configurable, but SHOULD default to two (2) transmissions.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-4.6-2"
+    },
+    {
+      "id": "4.6:3",
+      "quote": "Max-Configure MUST be configurable, but SHOULD default to ten (10) transmissions.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-4.6-3"
+    },
+    {
+      "id": "4.6:4",
+      "quote": "Max-Failure MUST be configurable, but SHOULD default to five (5) transmissions.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-4.6-4"
+    },
+    {
+      "id": "5:1",
+      "quote": "The Length MUST NOT exceed the MRU of the link.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5-1"
+    },
+    {
+      "id": "5.1:1",
+      "quote": "An implementation wishing to open a connection MUST transmit a Configure-Request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.1-1"
+    },
+    {
+      "id": "5.1:2",
+      "quote": "Upon reception of a Configure-Request, an appropriate reply MUST be transmitted.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.1-2"
+    },
+    {
+      "id": "5.1:3",
+      "quote": "The Identifier field MUST be changed whenever the contents of the Options field changes, and whenever a valid reply has been received for a previous request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.1-3"
+    },
+    {
+      "id": "5.2:1",
+      "quote": "If every Configuration Option received in a Configure-Request is recognizable and all values are acceptable, then the implementation MUST transmit a Configure-Ack.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.2-1"
+    },
+    {
+      "id": "5.2:2",
+      "quote": "The acknowledged Configuration Options MUST NOT be reordered or modified in any way.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.2-2"
+    },
+    {
+      "id": "5.2:3",
+      "quote": "On reception of a Configure-Ack, the Identifier field MUST match that of the last transmitted Configure-Request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.2-3"
+    },
+    {
+      "id": "5.2:4",
+      "quote": "Additionally, the Configuration Options in a Configure-Ack MUST exactly match those of the last transmitted Configure-Request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.2-4"
+    },
+    {
+      "id": "5.3:1",
+      "quote": "If every instance of the received Configuration Options is recognizable, but some values are not acceptable, then the implementation MUST transmit a Configure-Nak.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.3-1"
+    },
+    {
+      "id": "5.3:2",
+      "quote": "All acceptable Configuration Options are filtered out of the Configure-Nak, but otherwise the Configuration Options from the Configure-Request MUST NOT be reordered.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.3-6"
+    },
+    {
+      "id": "5.3:3",
+      "quote": "Options which have no value fields (boolean options) MUST use the Configure-Reject reply instead.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.3-2"
+    },
+    {
+      "id": "5.3:4",
+      "quote": "Each Configuration Option which is allowed only a single instance MUST be modified to a value acceptable to the Configure-Nak sender.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.3-3"
+    },
+    {
+      "id": "5.3:5",
+      "quote": "When a particular type of Configuration Option can be listed more than once with different values, the Configure-Nak MUST include a list of all values for that option which are acceptable to the Configure-Nak sender.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.3-4"
+    },
+    {
+      "id": "5.3:6",
+      "quote": "Any value fields for the option MUST indicate values acceptable to the Configure-Nak sender.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.3-5"
+    },
+    {
+      "id": "5.3:7",
+      "quote": "On reception of a Configure-Nak, the Identifier field MUST match that of the last transmitted Configure-Request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.3-7"
+    },
+    {
+      "id": "5.3:8",
+      "quote": "Since the Nak'd Option has been modified by the peer, the implementation MUST be able to handle an Option length which is different from the original Configure-Request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.3-8"
+    },
+    {
+      "id": "5.4:1",
+      "quote": "If some Configuration Options received in a Configure-Request are not recognizable or are not acceptable for negotiation (as configured by a network administrator), then the implementation MUST transmit a Configure-Reject.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.4-1"
+    },
+    {
+      "id": "5.4:2",
+      "quote": "All recognizable and negotiable Configuration Options are filtered out of the Configure-Reject, but otherwise the Configuration Options MUST NOT be reordered or modified in any way.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.4-2"
+    },
+    {
+      "id": "5.4:3",
+      "quote": "On reception of a Configure-Reject, the Identifier field MUST match that of the last transmitted Configure-Request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.4-3"
+    },
+    {
+      "id": "5.4:4",
+      "quote": "Additionally, the Configuration Options in a Configure-Reject MUST be a proper subset of those in the last transmitted Configure- Request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.4-4"
+    },
+    {
+      "id": "5.4:5",
+      "quote": "Reception of a valid Configure-Reject indicates that when a new Configure-Request is sent, it MUST NOT include any of the Configuration Options listed in the Configure-Reject.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.4-5"
+    },
+    {
+      "id": "5.5:1",
+      "quote": "Upon reception of a Terminate-Request, a Terminate-Ack MUST be transmitted.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.5-1"
+    },
+    {
+      "id": "5.5:2",
+      "quote": "On transmission, the Identifier field MUST be changed whenever the content of the Data field changes, and whenever a valid reply has been received for a previous request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.5-2"
+    },
+    {
+      "id": "5.6:1",
+      "quote": "This MUST be reported back to the sender of the unknown Code by transmitting a Code- Reject.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.6-1"
+    },
+    {
+      "id": "5.6:2",
+      "quote": "The Identifier field MUST be changed for each Code-Reject sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.6-2"
+    },
+    {
+      "id": "5.6:3",
+      "quote": "The Rejected-Packet MUST be truncated to comply with the peer's established MRU.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.6-3"
+    },
+    {
+      "id": "5.7:1",
+      "quote": "If the LCP automaton is in the Opened state, then this MUST be reported back to the peer by transmitting a Protocol-Reject.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.7-1"
+    },
+    {
+      "id": "5.7:2",
+      "quote": "Upon reception of a Protocol-Reject, the implementation MUST stop sending packets of the indicated protocol at the earliest opportunity.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.7-2"
+    },
+    {
+      "id": "5.7:3",
+      "quote": "The Identifier field MUST be changed for each Protocol-Reject sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.7-3"
+    },
+    {
+      "id": "5.7:4",
+      "quote": "The Rejected-Information MUST be truncated to comply with the peer's established MRU.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.7-4"
+    },
+    {
+      "id": "5.8:1",
+      "quote": "Upon reception of an Echo-Request in the LCP Opened state, an Echo-Reply MUST be transmitted.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.8-1"
+    },
+    {
+      "id": "5.8:2",
+      "quote": "Echo-Request and Echo-Reply packets MUST only be sent in the LCP Opened state.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.8-2"
+    },
+    {
+      "id": "5.8:3",
+      "quote": "On transmission, the Identifier field MUST be changed whenever the content of the Data field changes, and whenever a valid reply has been received for a previous request.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.8-4"
+    },
+    {
+      "id": "5.8:4",
+      "quote": "Until the Magic-Number Configuration Option has been successfully negotiated, the Magic- Number MUST be transmitted as zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.8-5"
+    },
+    {
+      "id": "5.9:1",
+      "quote": "Discard-Request packets MUST only be sent in the LCP Opened state.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.9-1"
+    },
+    {
+      "id": "5.9:2",
+      "quote": "On reception, the receiver MUST silently discard any Discard- Request that it receives.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.9-2"
+    },
+    {
+      "id": "5.9:3",
+      "quote": "The Identifier field MUST be changed for each Discard-Request sent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-5.9-3"
+    },
+    {
+      "id": "5.9:4",
+      "quote": "Until the Magic-Number Configuration Option has been successfully negotiated, the Magic- Number MUST be transmitted as zero.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The identical sentence appears under Echo-Request/Echo-Reply and under Discard-Request; the mapped row covers all three packet types.",
+      "mapped-to": "RFC1661-5.8-5"
+    },
+    {
+      "id": "6.1:1",
+      "quote": "If smaller packets are requested, an implementation MUST still be able to receive the full 1500 octet information field in case link synchronization is lost.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-6.1-1"
+    },
+    {
+      "id": "6.2:1",
+      "quote": "An implementation MUST NOT include multiple Authentication- Protocol Configuration Options in its Configure-Request packets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-6.2-1"
+    },
+    {
+      "id": "6.4:1",
+      "quote": "Before this Configuration Option is requested, an implementation MUST choose its Magic-Number.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-6.4-5"
+    },
+    {
+      "id": "6.4:2",
+      "quote": "To determine this, a Configure-Nak MUST be sent specifying a different Magic-Number value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-6.4-6"
+    },
+    {
+      "id": "6.4:3",
+      "quote": "If the Magic-Number is equal to the one sent in the last Configure-Nak, the possibility of a looped-back link is increased, and a new Magic-Number MUST be chosen.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-6.4-7"
+    },
+    {
+      "id": "6.4:4",
+      "quote": "If an implementation does transmit a Configure-Request with a Magic-Number Configuration Option, then it MUST NOT respond with a Configure-Reject when it receives a Configure-Request with a Magic-Number Configuration Option.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-6.4-1"
+    },
+    {
+      "id": "6.4:5",
+      "quote": "That is, if an implementation desires to use Magic Numbers, then it MUST also allow its peer to do so.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the preceding sentence: an implementation that uses Magic Numbers must let its peer use them, which is the ban on Configure-Reject the mapped row carries.",
+      "mapped-to": "RFC1661-6.4-1"
+    },
+    {
+      "id": "6.4:6",
+      "quote": "If Magic-Number has been successfully negotiated, an implementation MUST transmit these packets with the Magic-Number field set to its negotiated Magic-Number.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-6.4-2"
+    },
+    {
+      "id": "6.4:7",
+      "quote": "All received Magic-Number fields MUST be equal to either zero or the peer's unique Magic-Number, depending on whether or not the peer negotiated a Magic-Number.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-6.4-8"
+    },
+    {
+      "id": "6.4:8",
+      "quote": "A Magic-Number of zero is illegal and MUST always be Nak'd, if it is not Rejected outright.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-6.4-3"
+    },
+    {
+      "id": "6.5:1",
+      "quote": "By default, all implementations MUST transmit packets with two octet PPP Protocol fields.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-6.5-1"
+    },
+    {
+      "id": "6.5:2",
+      "quote": "Compressed Protocol fields MUST NOT be transmitted unless this Configuration Option has been negotiated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-6.5-2"
+    },
+    {
+      "id": "6.5:3",
+      "quote": "When negotiated, PPP implementations MUST accept PPP packets with either double-octet or single-octet Protocol fields, and MUST NOT distinguish between them.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-6.5-3"
+    },
+    {
+      "id": "6.6:1",
+      "quote": "By default, all implementations MUST transmit frames with Address and Control fields appropriate to the link framing.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-6.6-1"
+    },
+    {
+      "id": "6.6:2",
+      "quote": "The Address and Control fields MUST NOT be compressed when sending any LCP packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1661-6.6-2"
+    }
+  ]
+}

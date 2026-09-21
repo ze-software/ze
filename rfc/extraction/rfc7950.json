@@ -1,0 +1,3041 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7950",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc7950.txt",
+  "source-sha": "e4e6e164b23abaf7",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "front-matter",
+      "reason": "boilerplate and bibliography carrying no protocol obligation"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6.4",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6.5",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7950-5.1-1"
+      ]
+    },
+    {
+      "id": "7.1.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5.9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6.1",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6.4",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6.5",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7.2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7.7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7.7.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7.8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7.9",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.8.2",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.8.3",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.8.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.8.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.8.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.8.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.8.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.9.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.9.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.9.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.9.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.9.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.9.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.10.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.10.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.10.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.11.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.11.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.11.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.11.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.12",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.12.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.12.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.13.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.13.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.13.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.13.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.14",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.14.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.14.2",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.14.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.14.3",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.14.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.14.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.14.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.15",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.15.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.15.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.15.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7950-7.15-1"
+      ]
+    },
+    {
+      "id": "7.16",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.16.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.16.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.16.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7950-7.16-1"
+      ]
+    },
+    {
+      "id": "7.17",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.17.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.17.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.17.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.18",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.18.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.18.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.18.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.19",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.19.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.19.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.19.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.19.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.19.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.20",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.20.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.20.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.20.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.20.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.20.3",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.20.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.20.3.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.20.3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.21",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.21.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.21.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.21.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.21.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.21.5",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 14,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.1",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.4",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.3.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.3.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.4.4",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.4.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.4.5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7950-9.4.5-1"
+      ]
+    },
+    {
+      "id": "9.4.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.4.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.4.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.5.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.6",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7950-9.6-1"
+      ]
+    },
+    {
+      "id": "9.6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.6.4",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.6.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.6.4.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.6.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.7",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.7.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.7.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.7.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.7.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.7.4.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.7.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.8.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.9",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.9.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.9.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.9.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.9.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.9.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.10.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.10.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.10.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.10.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.11",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.11.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.11.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.11.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.11.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.12",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7950-9.12-1"
+      ]
+    },
+    {
+      "id": "9.12.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.12.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.12.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.12.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.13",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.13.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.13.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.13.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.13.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.3.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.4.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.4.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.5.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.6.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 8,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7950-x-2"
+      ]
+    },
+    {
+      "id": "12",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "13.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "15",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "15.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "15.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "15.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "15.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "15.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "15.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "15.7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "16",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "iana",
+      "reason": "IANA registration actions for the YANG module names registry, carrying no obligation on an implementation"
+    },
+    {
+      "id": "17",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "18",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "boilerplate and bibliography carrying no protocol obligation"
+    },
+    {
+      "id": "18.1",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "boilerplate and bibliography carrying no protocol obligation"
+    },
+    {
+      "id": "18.2",
+      "sites": 0,
+      "disposition": "skipped",
+      "skip-kind": "references",
+      "reason": "boilerplate and bibliography carrying no protocol obligation"
+    }
+  ],
+  "sites": [
+    {
+      "id": "5.1:1",
+      "quote": "Within a server, all module names MUST be unique.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-5.1-1"
+    },
+    {
+      "id": "5.1:2",
+      "quote": "A submodule MUST NOT include different revisions of other submodules than the revisions that its module includes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-5.1-1"
+    },
+    {
+      "id": "5.1:3",
+      "quote": "A module or submodule MUST NOT include submodules from other modules, and a submodule MUST NOT import its own module.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-5.1-1"
+    },
+    {
+      "id": "5.1:4",
+      "quote": "o For a module or submodule to reference definitions in an external module, the external module MUST be imported.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-5.1-1"
+    },
+    {
+      "id": "5.1:5",
+      "quote": "o A module MUST include all its submodules.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-5.1-1"
+    },
+    {
+      "id": "5.1:6",
+      "quote": "There MUST NOT be any circular chains of imports.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-5.1-1"
+    },
+    {
+      "id": "5.1:7",
+      "quote": "When a definition in an external module is referenced, a locally defined prefix MUST be used, followed by a colon (\":\") and then the external identifier.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-5.1-1"
+    },
+    {
+      "id": "5.3:1",
+      "quote": "XML namespaces for modules published in RFC streams [RFC4844] MUST be assigned by IANA; see Section 14 in [RFC6020].",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "the sentence delegates the obligation to the IANA registration procedure of the earlier YANG specification it cites, which binds IANA and the RFC stream publication process; ze publishes no module in an RFC stream"
+    },
+    {
+      "id": "5.3:2",
+      "quote": "Namespace URIs MUST be chosen so they cannot collide with standard or other enterprise namespaces -- for example, by using the enterprise or organization name in the namespace.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-5.3-1"
+    },
+    {
+      "id": "5.5:1",
+      "quote": "Scoped definitions MUST NOT shadow definitions at a higher scope.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-5.5-1"
+    },
+    {
+      "id": "5.6.4:1",
+      "quote": "A NETCONF server MUST announce the modules it implements (see Section 5.6.5) by implementing the YANG module \"ietf-yang-library\" defined in [RFC7895] and listing all implemented modules in the \"/modules-state/module\" list.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "5.6.4:2",
+      "quote": "The server also MUST advertise the following capability in the <hello> message (line breaks and whitespaces are used for formatting reasons only):",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "5.6.4:3",
+      "quote": "This parameter MUST be present.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "5.6.4:4",
+      "quote": "This parameter MUST be present.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "5.6.5:1",
+      "quote": "A server MUST NOT implement more than one revision of a module.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-5.6.5-1"
+    },
+    {
+      "id": "5.6.5:2",
+      "quote": "If a server implements a module A that imports a module B, and A uses any node from B in an \"augment\" or \"path\" statement that the server supports, then the server MUST implement a revision of module B that has these nodes defined.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-5.6.5-1"
+    },
+    {
+      "id": "5.6.5:3",
+      "quote": "If a server implements a module A that imports a module C without specifying the revision date of module C and the server does not implement C (e.g., if C only defines some typedefs), the server MUST list module C in the \"/modules-state/module\" list from \"ietf-yang-library\" [RFC7895], and it MUST set the leaf \"conformance-type\" to \"import\" for this module.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "5.6.5:4",
+      "quote": "If a server lists a module C in the \"/modules-state/module\" list from \"ietf-yang-library\" and there are other modules Ms listed that import C without specifying the revision date of module C, the server MUST use the definitions from the most recent revision of C listed for modules Ms.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "6.1.3:1",
+      "quote": "The backslash MUST NOT be followed by any other character.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-6.1.3-1"
+    },
+    {
+      "id": "6.2:1",
+      "quote": "Implementations MUST support identifiers up to 64 characters in length and MAY support longer identifiers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-6.2-1"
+    },
+    {
+      "id": "6.2.1:1",
+      "quote": "All identifiers defined in a namespace MUST be unique.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-6.2.1-1"
+    },
+    {
+      "id": "6.2.1:2",
+      "quote": "This means that any descendant node may use that typedef, and it MUST NOT define a typedef with the same name. o All grouping names defined within a parent node or at the top level of the module or its submodules share the same grouping identifier namespace.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-6.2.1-1"
+    },
+    {
+      "id": "6.2.1:3",
+      "quote": "This means that any descendant node may use that grouping, and it MUST NOT define a grouping with the same name.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-6.2.1-1"
+    },
+    {
+      "id": "6.3.1:1",
+      "quote": "When an imported extension is used, the extension's keyword MUST be qualified using the prefix with which the extension's module was imported.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-6.3.1-1"
+    },
+    {
+      "id": "6.3.1:2",
+      "quote": "If an extension is used in the module where it is defined, the extension's keyword MUST be qualified with the prefix of this module.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-6.3.1-1"
+    },
+    {
+      "id": "6.3.1:3",
+      "quote": "Any supported extension MUST be processed in accordance with the specification governing that extension.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-6.3.1-1"
+    },
+    {
+      "id": "6.4:1",
+      "quote": "An implementation is not required to implement an XPath interpreter but MUST ensure that the requirements encoded in the data model are enforced.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-6.4-1"
+    },
+    {
+      "id": "6.4:2",
+      "quote": "The XPath expressions MUST be syntactically correct, and all prefixes used MUST be present in the XPath context (see Section 6.4.1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-6.4-2"
+    },
+    {
+      "id": "6.5:1",
+      "quote": "References to identifiers defined in external modules MUST be qualified with appropriate prefixes, and references to identifiers defined in the current module and its submodules MAY use a prefix.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-6.5-1"
+    },
+    {
+      "id": "7.1:1",
+      "quote": "Names of modules published in RFC streams [RFC4844] MUST be assigned by IANA; see Section 14 in [RFC6020].",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "the sentence delegates the obligation to the IANA registration procedure of the earlier YANG specification it cites, which binds IANA and the RFC stream publication process; ze publishes no module in an RFC stream"
+    },
+    {
+      "id": "7.1.2:1",
+      "quote": "It MUST contain the value \"1.1\" for YANG modules defined based on this specification.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-x-1"
+    },
+    {
+      "id": "7.1.4:1",
+      "quote": "If there is a conflict, i.e., two different modules that both have defined the same prefix are imported, at least one of them MUST be imported with a different prefix.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.1.4-1"
+    },
+    {
+      "id": "7.1.4:2",
+      "quote": "All prefixes, including the prefix for the module itself, MUST be unique within the module or submodule.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.1.4-1"
+    },
+    {
+      "id": "7.1.6:1",
+      "quote": "Multiple revisions of the same submodule MUST NOT be included.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-5.1-1"
+    },
+    {
+      "id": "7.2:1",
+      "quote": "Names of submodules published in RFC streams [RFC4844] MUST be assigned by IANA; see Section 14 in [RFC6020].",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "the sentence delegates the obligation to the IANA registration procedure of the earlier YANG specification it cites, which binds IANA and the RFC stream publication process; ze publishes no module in an RFC stream"
+    },
+    {
+      "id": "7.2.2:1",
+      "quote": "A submodule MUST only be included by either the module to which it belongs or another submodule that belongs to that module.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-5.1-1"
+    },
+    {
+      "id": "7.3:1",
+      "quote": "The \"typedef\" statement's argument is an identifier that is the name of the type to be defined and MUST be followed by a block of substatements that holds detailed typedef information.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.3-1"
+    },
+    {
+      "id": "7.3:2",
+      "quote": "The name of the type MUST NOT be one of the YANG built-in types.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.3-1"
+    },
+    {
+      "id": "7.3:3",
+      "quote": "If the typedef is defined at the top level of a YANG module or submodule, the name of the type to be defined MUST be unique within the module.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.3-1"
+    },
+    {
+      "id": "7.3.2:1",
+      "quote": "The \"type\" statement, which MUST be present, defines the base type from which this type is derived.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.3-1"
+    },
+    {
+      "id": "7.3.4:1",
+      "quote": "The value of the \"default\" statement MUST be valid according to the type specified in the \"type\" statement.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.3.4-1"
+    },
+    {
+      "id": "7.3.4:2",
+      "quote": "If the type's default value is not valid according to the new restrictions specified in a derived type or leaf definition, the derived type or leaf definition MUST specify a new default value compatible with the restrictions.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.3.4-1"
+    },
+    {
+      "id": "7.5.3:1",
+      "quote": "All such constraints MUST evaluate to \"true\" for the data to be valid.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.5.3-1"
+    },
+    {
+      "id": "7.6.1:1",
+      "quote": "o If no such ancestor exists in the schema tree, the default value MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.6.1-1"
+    },
+    {
+      "id": "7.6.1:2",
+      "quote": "o Otherwise, if this ancestor is a case node, the default value MUST be used if any node from the case exists in the data tree or the case node is the choice's default case, and if no nodes from any other case exist in the data tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.6.1-1"
+    },
+    {
+      "id": "7.6.1:3",
+      "quote": "o Otherwise, the default value MUST be used if the ancestor node exists in the data tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.6.1-1"
+    },
+    {
+      "id": "7.6.1:4",
+      "quote": "When the default value is in use, the server MUST operationally behave as if the leaf was present in the data tree with the default value as its value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.6.1-1"
+    },
+    {
+      "id": "7.6.3:1",
+      "quote": "The \"type\" statement, which MUST be present, takes as an argument the name of an existing built-in or derived type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.6.3-1"
+    },
+    {
+      "id": "7.6.4:1",
+      "quote": "The value of the \"default\" statement MUST be valid according to the type specified in the leaf's \"type\" statement.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.6.4-2"
+    },
+    {
+      "id": "7.6.4:2",
+      "quote": "The \"default\" statement MUST NOT be present on nodes where \"mandatory\" is \"true\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.6.4-2"
+    },
+    {
+      "id": "7.6.4:3",
+      "quote": "The definition of the default value MUST NOT be marked with an \"if-feature\" statement.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.6.4-2"
+    },
+    {
+      "id": "7.6.5:1",
+      "quote": "o If no such ancestor exists in the schema tree, the leaf MUST exist.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.6.5-1"
+    },
+    {
+      "id": "7.6.5:2",
+      "quote": "o Otherwise, if this ancestor is a case node, the leaf MUST exist if any node from the case exists in the data tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.6.5-1"
+    },
+    {
+      "id": "7.6.5:3",
+      "quote": "o Otherwise, the leaf MUST exist if the ancestor node exists in the data tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.6.5-1"
+    },
+    {
+      "id": "7.7:1",
+      "quote": "In configuration data, the values in a leaf-list MUST be unique.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.7-1"
+    },
+    {
+      "id": "7.7:2",
+      "quote": "The definitions of the default values MUST NOT be marked with an \"if-feature\" statement.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.7-1"
+    },
+    {
+      "id": "7.7:3",
+      "quote": "Conceptually, the values in the data tree MUST be in the canonical form (see Section 9.1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.7-1"
+    },
+    {
+      "id": "7.7.2:1",
+      "quote": "o If no such ancestor exists in the schema tree, the default values MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.7.2-1"
+    },
+    {
+      "id": "7.7.2:2",
+      "quote": "o Otherwise, if this ancestor is a case node, the default values MUST be used if any node from the case exists in the data tree or the case node is the choice's default case, and if no nodes from any other case exist in the data tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.7.2-1"
+    },
+    {
+      "id": "7.7.2:3",
+      "quote": "o Otherwise, the default values MUST be used if the ancestor node exists in the data tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.7.2-1"
+    },
+    {
+      "id": "7.7.2:4",
+      "quote": "When the default values are in use, the server MUST operationally behave as if the leaf-list was present in the data tree with the default values as its values.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.7.2-1"
+    },
+    {
+      "id": "7.7.4:1",
+      "quote": "The value of the \"default\" statement MUST be valid according to the type specified in the leaf-list's \"type\" statement.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.7.4-1"
+    },
+    {
+      "id": "7.7.4:2",
+      "quote": "The \"default\" statement MUST NOT be present on nodes where \"min-elements\" has a value greater than or equal to one.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.7.4-1"
+    },
+    {
+      "id": "7.7.5:1",
+      "quote": "A valid leaf-list or list MUST have at least min-elements entries.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.7.5-1"
+    },
+    {
+      "id": "7.7.8:1",
+      "quote": "The XML elements representing leaf-list entries MUST appear in the order specified by the user if the leaf-list is \"ordered-by user\"; otherwise, the order is implementation dependent.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the XML encoding of YANG data, and Section 1 makes that encoding one of several: \"Further, encodings other than XML have been proposed\". ze encodes configuration in its own YANG-modeled tree and in JSON, and emits no XML instance document, so the XML element order, the insert attributes and the XML prefix rules have no producer here"
+    },
+    {
+      "id": "7.7.9:1",
+      "quote": "If the value is \"before\" or \"after\", the \"value\" attribute MUST also be used to specify an existing entry in the leaf-list.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "7.8.2:1",
+      "quote": "The \"key\" statement, which MUST be present if the list represents configuration and MAY be present otherwise, takes as an argument a string that specifies a space-separated list of one or more leaf identifiers of this list.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.8.2-1"
+    },
+    {
+      "id": "7.8.2:2",
+      "quote": "A leaf identifier MUST NOT appear more than once in the key.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.8.2-1"
+    },
+    {
+      "id": "7.8.2:3",
+      "quote": "Each such leaf identifier MUST refer to a child leaf of the list.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.8.2-1"
+    },
+    {
+      "id": "7.8.2:4",
+      "quote": "All key leafs MUST be given values when a list entry is created.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.8.2-1"
+    },
+    {
+      "id": "7.8.2:5",
+      "quote": "All key leafs in a list MUST have the same value for their \"config\" as the list itself.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.8.2-1"
+    },
+    {
+      "id": "7.8.3:1",
+      "quote": "It takes as an argument a string that contains a space- separated list of schema node identifiers, which MUST be given in the descendant form (see the rule \"descendant-schema-nodeid\" in Section 14).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.8.3-1"
+    },
+    {
+      "id": "7.8.3:2",
+      "quote": "Each such schema node identifier MUST refer to a leaf.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.8.3-1"
+    },
+    {
+      "id": "7.8.3:3",
+      "quote": "If one of the referenced leafs represents configuration data, then all of the referenced leafs MUST represent configuration data.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.8.3-1"
+    },
+    {
+      "id": "7.8.3:4",
+      "quote": "The \"unique\" constraint specifies that the combined values of all the leaf instances specified in the argument string, including leafs with default values, MUST be unique within all list entry instances in which all referenced leafs exist or have default values.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.8.3-1"
+    },
+    {
+      "id": "7.8.5:1",
+      "quote": "The XML elements representing list entries MUST appear in the order specified by the user if the list is \"ordered-by user\"; otherwise, the order is implementation dependent.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the XML encoding of YANG data, and Section 1 makes that encoding one of several: \"Further, encodings other than XML have been proposed\". ze encodes configuration in its own YANG-modeled tree and in JSON, and emits no XML instance document, so the XML element order, the insert attributes and the XML prefix rules have no producer here"
+    },
+    {
+      "id": "7.8.6:1",
+      "quote": "If the value is \"before\" or \"after\", the \"key\" attribute MUST also be used, to specify an existing element in the list.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "7.9.2:1",
+      "quote": "The identifiers of all these child nodes MUST be unique within all cases in a choice.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.9.2-1"
+    },
+    {
+      "id": "7.9.2:2",
+      "quote": "Schema node identifiers (Section 6.5) MUST always explicitly include case node identifiers.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.9.2-1"
+    },
+    {
+      "id": "7.9.2:3",
+      "quote": "The case identifier MUST be unique within a choice.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.9.2-1"
+    },
+    {
+      "id": "7.9.3:1",
+      "quote": "The \"default\" statement MUST NOT be present on choices where \"mandatory\" is \"true\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.9.3-1"
+    },
+    {
+      "id": "7.9.3:2",
+      "quote": "There MUST NOT be any mandatory nodes (Section 3) directly under the default case.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.9.3-1"
+    },
+    {
+      "id": "7.9.4:1",
+      "quote": "If \"mandatory\" is \"true\", at least one node from exactly one of the choice's case branches MUST exist.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.9.4-1"
+    },
+    {
+      "id": "7.9.5:1",
+      "quote": "The child nodes of the selected \"case\" statement MUST be encoded in the same order as they are defined in the \"case\" statement if they are part of an RPC or action input or output parameter definition.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the XML encoding of YANG data, and Section 1 makes that encoding one of several: \"Further, encodings other than XML have been proposed\". ze encodes configuration in its own YANG-modeled tree and in JSON, and emits no XML instance document, so the XML element order, the insert attributes and the XML prefix rules have no producer here"
+    },
+    {
+      "id": "7.12:1",
+      "quote": "A grouping MUST NOT reference itself, neither directly nor indirectly through a chain of other groupings.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.12-1"
+    },
+    {
+      "id": "7.12:2",
+      "quote": "If the grouping is defined at the top level of a YANG module or submodule, the grouping's identifier MUST be unique within the module.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.12-1"
+    },
+    {
+      "id": "7.14.2:1",
+      "quote": "If a leaf in the input tree has a \"mandatory\" statement with the value \"true\", the leaf MUST be present in an RPC invocation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.14.2-1"
+    },
+    {
+      "id": "7.14.2:2",
+      "quote": "If a leaf in the input tree has a default value, the server MUST use this value in the same cases as those described in Section 7.6.1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.14.2-1"
+    },
+    {
+      "id": "7.14.2:3",
+      "quote": "In these cases, the server MUST operationally behave as if the leaf was present in the RPC invocation with the default value as its value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.14.2-1"
+    },
+    {
+      "id": "7.14.2:4",
+      "quote": "If a leaf-list in the input tree has one or more default values, the server MUST use these values in the same cases as those described in Section 7.7.2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.14.2-1"
+    },
+    {
+      "id": "7.14.2:5",
+      "quote": "In these cases, the server MUST operationally behave as if the leaf-list was present in the RPC invocation with the default values as its values.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.14.2-1"
+    },
+    {
+      "id": "7.14.2:6",
+      "quote": "If any node has a \"when\" statement that would evaluate to \"false\", then this node MUST NOT be present in the input tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.14.2-1"
+    },
+    {
+      "id": "7.14.3:1",
+      "quote": "If a leaf in the output tree has a \"mandatory\" statement with the value \"true\", the leaf MUST be present in an RPC reply.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.14.3-1"
+    },
+    {
+      "id": "7.14.3:2",
+      "quote": "If a leaf in the output tree has a default value, the client MUST use this value in the same cases as those described in Section 7.6.1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.14.3-1"
+    },
+    {
+      "id": "7.14.3:3",
+      "quote": "In these cases, the client MUST operationally behave as if the leaf was present in the RPC reply with the default value as its value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.14.3-1"
+    },
+    {
+      "id": "7.14.3:4",
+      "quote": "If a leaf-list in the output tree has one or more default values, the client MUST use these values in the same cases as those described in Section 7.7.2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.14.3-1"
+    },
+    {
+      "id": "7.14.3:5",
+      "quote": "In these cases, the client MUST operationally behave as if the leaf-list was present in the RPC reply with the default values as its values.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.14.3-1"
+    },
+    {
+      "id": "7.14.3:6",
+      "quote": "If any node has a \"when\" statement that would evaluate to \"false\", then this node MUST NOT be present in the output tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.14.3-1"
+    },
+    {
+      "id": "7.15:1",
+      "quote": "An action MUST NOT be defined within an rpc, another action, or a notification, i.e., an action node MUST NOT have an rpc, action, or a notification node as one of its ancestors in the schema tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.15-1"
+    },
+    {
+      "id": "7.15:2",
+      "quote": "An action MUST NOT have any ancestor node that is a list node without a \"key\" statement.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.15-1"
+    },
+    {
+      "id": "7.15.2:1",
+      "quote": "It MUST contain all containers and list nodes in the direct path from the top level down to the list or container containing the action.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the XML encoding of YANG data, and Section 1 makes that encoding one of several: \"Further, encodings other than XML have been proposed\". ze encodes configuration in its own YANG-modeled tree and in JSON, and emits no XML instance document, so the XML element order, the insert attributes and the XML prefix rules have no producer here"
+    },
+    {
+      "id": "7.15.2:2",
+      "quote": "For lists, all key leafs MUST also be included.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the XML encoding of YANG data, and Section 1 makes that encoding one of several: \"Further, encodings other than XML have been proposed\". ze encodes configuration in its own YANG-modeled tree and in JSON, and emits no XML instance document, so the XML element order, the insert attributes and the XML prefix rules have no producer here"
+    },
+    {
+      "id": "7.15.2:3",
+      "quote": "If more than one action is present in the <rpc>, the server MUST reply with a \"bad-element\" <error-tag> in the <rpc-error>.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "7.16:1",
+      "quote": "A notification MUST NOT be defined within an rpc, action, or another notification, i.e., a notification node MUST NOT have an rpc, action, or a notification node as one of its ancestors in the schema tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.16-1"
+    },
+    {
+      "id": "7.16:2",
+      "quote": "A notification MUST NOT have any ancestor node that is a list node without a \"key\" statement.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.16-1"
+    },
+    {
+      "id": "7.16:3",
+      "quote": "If a leaf in the notification tree has a \"mandatory\" statement with the value \"true\", the leaf MUST be present in a notification instance.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.16-1"
+    },
+    {
+      "id": "7.16:4",
+      "quote": "If a leaf in the notification tree has a default value, the client MUST use this value in the same cases as those described in Section 7.6.1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.16-1"
+    },
+    {
+      "id": "7.16:5",
+      "quote": "In these cases, the client MUST operationally behave as if the leaf was present in the notification instance with the default value as its value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.16-1"
+    },
+    {
+      "id": "7.16:6",
+      "quote": "If a leaf-list in the notification tree has one or more default values, the client MUST use these values in the same cases as those described in Section 7.7.2.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.16-1"
+    },
+    {
+      "id": "7.16:7",
+      "quote": "In these cases, the client MUST operationally behave as if the leaf-list was present in the notification instance with the default values as its values.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.16-1"
+    },
+    {
+      "id": "7.16.2:1",
+      "quote": "It MUST contain all containers and list nodes from the top level down to the list or container containing the notification.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the XML encoding of YANG data, and Section 1 makes that encoding one of several: \"Further, encodings other than XML have been proposed\". ze encodes configuration in its own YANG-modeled tree and in JSON, and emits no XML instance document, so the XML element order, the insert attributes and the XML prefix rules have no producer here"
+    },
+    {
+      "id": "7.16.2:2",
+      "quote": "For lists, all key leafs MUST also be included.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the XML encoding of YANG data, and Section 1 makes that encoding one of several: \"Further, encodings other than XML have been proposed\". ze encodes configuration in its own YANG-modeled tree and in JSON, and emits no XML instance document, so the XML element order, the insert attributes and the XML prefix rules have no producer here"
+    },
+    {
+      "id": "7.17:1",
+      "quote": "The target node MUST be either a container, list, choice, case, input, output, or notification node.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.17-1"
+    },
+    {
+      "id": "7.17:2",
+      "quote": "If the \"augment\" statement is on the top level in a module or submodule, the absolute form (defined by the rule \"absolute-schema-nodeid\" in Section 14) of a schema node identifier MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.17-1"
+    },
+    {
+      "id": "7.17:3",
+      "quote": "If the \"augment\" statement is a substatement to the \"uses\" statement, the descendant form (defined by the rule \"descendant-schema-nodeid\" in Section 14) MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.17-1"
+    },
+    {
+      "id": "7.17:4",
+      "quote": "The \"augment\" statement MUST NOT add multiple nodes with the same name from the same module to the target node.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.17-1"
+    },
+    {
+      "id": "7.17:5",
+      "quote": "If the augmentation adds mandatory nodes (see Section 3) that represent configuration to a target node in another module, the augmentation MUST be made conditional with a \"when\" statement.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.17-1"
+    },
+    {
+      "id": "7.18.2:1",
+      "quote": "Otherwise, an identity with the matching name MUST be defined in the current module or an included submodule.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.18.2-1"
+    },
+    {
+      "id": "7.18.2:2",
+      "quote": "An identity MUST NOT reference itself, neither directly nor indirectly through a chain of other identities.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.18.2-1"
+    },
+    {
+      "id": "7.19:1",
+      "quote": "Syntactically, the substatements MUST be YANG statements, including extensions defined using \"extension\" statements.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.19-1"
+    },
+    {
+      "id": "7.19:2",
+      "quote": "YANG statements in extensions MUST follow the syntactical rules in Section 14.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.19-1"
+    },
+    {
+      "id": "7.20.1:1",
+      "quote": "A feature MUST NOT reference itself, neither directly nor indirectly through a chain of other features.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.20.1-1"
+    },
+    {
+      "id": "7.20.1:2",
+      "quote": "In order for a server to support a feature that is dependent on any other features (i.e., the feature has one or more \"if-feature\" substatements), the server MUST also support all the dependent features.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.20.1-1"
+    },
+    {
+      "id": "7.20.2:1",
+      "quote": "Otherwise, a feature with the matching name MUST be defined in the current module or an included submodule.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.20.2-1"
+    },
+    {
+      "id": "7.20.2:2",
+      "quote": "A leaf that is a list key MUST NOT have any \"if-feature\" statements.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.20.2-1"
+    },
+    {
+      "id": "7.20.3:1",
+      "quote": "This means that deviations MUST never be part of a published standard, since they are the mechanism for learning how implementations vary from the standards.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.20.3-1"
+    },
+    {
+      "id": "7.20.3:2",
+      "quote": "Server deviations are strongly discouraged and MUST only be used as a last resort.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.20.3-1"
+    },
+    {
+      "id": "7.20.3:3",
+      "quote": "After applying all deviations announced by a server, in any order, the resulting data model MUST still be valid.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.20.3-1"
+    },
+    {
+      "id": "7.20.3.2:1",
+      "quote": "If a property can only appear once, the property MUST NOT exist in the target node.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.20.3.2-1"
+    },
+    {
+      "id": "7.20.3.2:2",
+      "quote": "The properties to replace MUST exist in the target node.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.20.3.2-1"
+    },
+    {
+      "id": "7.20.3.2:3",
+      "quote": "The substatement's keyword MUST match a corresponding keyword in the target node, and the argument's string MUST be equal to the corresponding keyword's argument string in the target node. +--------------+--------------+-------------+ | substatement | section | cardinality | +--------------+--------------+-------------+ | config | 7.21.1 | 0..1 | | default | 7.6.4, 7.7.4 | 0..n | | mandatory | 7.6.5 | 0..1 | | max-elements | 7.7.6 | 0..1 | | min-elements | 7.7.5 | 0..1 | | must | 7.5.3 | 0..n | | type | 7.4 | 0..1 | | unique | 7.8.3 | 0..n | | units | 7.3.3 | 0..1 | +--------------+--------------+-------------+",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.20.3.2-1"
+    },
+    {
+      "id": "7.21.2:1",
+      "quote": "If a definition is \"current\", it MUST NOT reference a \"deprecated\" or \"obsolete\" definition within the same module.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.21.2-1"
+    },
+    {
+      "id": "7.21.2:2",
+      "quote": "If a definition is \"deprecated\", it MUST NOT reference an \"obsolete\" definition within the same module.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.21.2-1"
+    },
+    {
+      "id": "7.21.5:1",
+      "quote": "A leaf that is a list key MUST NOT have a \"when\" statement.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.21.5-1"
+    },
+    {
+      "id": "7.21.5:2",
+      "quote": "If a key leaf is defined in a grouping that is used in a list, the \"uses\" statement MUST NOT have a \"when\" statement.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.21.5-1"
+    },
+    {
+      "id": "7.21.5:3",
+      "quote": "If the XPath expression references any node that also has associated \"when\" statements, those \"when\" expressions MUST be evaluated first.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.21.5-1"
+    },
+    {
+      "id": "7.21.5:4",
+      "quote": "There MUST NOT be any circular dependencies among \"when\" expressions.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.21.5-1"
+    },
+    {
+      "id": "8.1:1",
+      "quote": "o If the constraint is defined on configuration data, it MUST be true in a valid configuration data tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.1-1"
+    },
+    {
+      "id": "8.1:2",
+      "quote": "o If the constraint is defined on state data, it MUST be true in a valid state data tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.1-1"
+    },
+    {
+      "id": "8.1:3",
+      "quote": "o If the constraint is defined on notification content, it MUST be true in any notification data tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.1-1"
+    },
+    {
+      "id": "8.1:4",
+      "quote": "o If the constraint is defined on RPC or action input parameters, it MUST be true in an invocation of the RPC or action operation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.1-1"
+    },
+    {
+      "id": "8.1:5",
+      "quote": "o If the constraint is defined on RPC or action output parameters, it MUST be true in the RPC or action reply.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.1-1"
+    },
+    {
+      "id": "8.1:6",
+      "quote": "o All leaf data values MUST match the type constraints for the leaf, including those defined in the type's \"range\", \"length\", and \"pattern\" properties.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.1-1"
+    },
+    {
+      "id": "8.1:7",
+      "quote": "o All key leafs MUST be present for all list entries.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.1-1"
+    },
+    {
+      "id": "8.1:8",
+      "quote": "o Nodes MUST be present for at most one case branch in all choices.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.1-1"
+    },
+    {
+      "id": "8.1:9",
+      "quote": "o There MUST be no nodes tagged with \"if-feature\" present if the \"if-feature\" expression evaluates to \"false\" in the server.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.1-1"
+    },
+    {
+      "id": "8.1:10",
+      "quote": "o There MUST be no nodes tagged with \"when\" present if the \"when\" condition evaluates to \"false\" in the data tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.1-1"
+    },
+    {
+      "id": "8.1:11",
+      "quote": "o All \"must\" constraints MUST evaluate to \"true\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-7.5.3-1"
+    },
+    {
+      "id": "8.1:12",
+      "quote": "o All referential integrity constraints defined via the \"path\" statement MUST be satisfied.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.1-1"
+    },
+    {
+      "id": "8.1:13",
+      "quote": "o All \"unique\" constraints on lists MUST be satisfied. o The \"mandatory\" constraint is enforced for leafs and choices, unless the node or any of its ancestors has a \"when\" condition or \"if-feature\" expression that evaluates to \"false\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.1-1"
+    },
+    {
+      "id": "8.1:14",
+      "quote": "The running configuration datastore MUST always be valid.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.1-2"
+    },
+    {
+      "id": "8.3:1",
+      "quote": "For configuration data, there are three windows when constraints MUST be enforced:",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.3-1"
+    },
+    {
+      "id": "8.3.1:1",
+      "quote": "When content arrives in RPC payloads, it MUST be well-formed XML, following the hierarchy and content rules defined by the set of models the server implements.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the XML encoding of YANG data, and Section 1 makes that encoding one of several: \"Further, encodings other than XML have been proposed\". ze encodes configuration in its own YANG-modeled tree and in JSON, and emits no XML instance document, so the XML element order, the insert attributes and the XML prefix rules have no producer here"
+    },
+    {
+      "id": "8.3.1:2",
+      "quote": "o If a leaf data value does not match the type constraints for the leaf, including those defined in the type's \"range\", \"length\", and \"pattern\" properties, the server MUST reply with an \"invalid-value\" <error-tag> in the <rpc-error>, and with the error-app-tag (Section 7.5.4.2) and error-message (Section 7.5.4.1) associated with the constraint, if any exist. o If all keys of a list entry are not present, the server MUST reply with a \"missing-element\" <error-tag> in the <rpc-error>.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.3.1-1"
+    },
+    {
+      "id": "8.3.1:3",
+      "quote": "o If data for more than one case branch of a choice is present, the server MUST reply with a \"bad-element\" <error-tag> in the <rpc-error>.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.3.1-2"
+    },
+    {
+      "id": "8.3.1:4",
+      "quote": "o If data for a node tagged with \"if-feature\" is present and the \"if-feature\" expression evaluates to \"false\" in the server, the server MUST reply with an \"unknown-element\" <error-tag> in the <rpc-error>.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.3.1-2"
+    },
+    {
+      "id": "8.3.1:5",
+      "quote": "o If data for a node tagged with \"when\" is present and the \"when\" condition evaluates to \"false\", the server MUST reply with an \"unknown-element\" <error-tag> in the <rpc-error>.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.3.1-2"
+    },
+    {
+      "id": "8.3.1:6",
+      "quote": "o For insert handling, if the values for the attributes \"before\" and \"after\" are not valid for the type of the appropriate key leafs, the server MUST reply with a \"bad-attribute\" <error-tag> in the <rpc-error>.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "8.3.1:7",
+      "quote": "o If the attributes \"before\" and \"after\" appear in any element that is not a list whose \"ordered-by\" property is \"user\", the server MUST reply with an \"unknown-attribute\" <error-tag> in the <rpc-error>.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "8.3.2:1",
+      "quote": "During this processing, the following errors MUST be detected:",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.3.2-1"
+    },
+    {
+      "id": "8.3.2:2",
+      "quote": "In this case, the server MUST reply with an \"unknown-element\" <error-tag> in the <rpc-error>.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.3.2-1"
+    },
+    {
+      "id": "8.3.3:1",
+      "quote": "When datastore processing is complete, the final contents MUST obey all validation constraints.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.3.3-1"
+    },
+    {
+      "id": "8.3.3:2",
+      "quote": "If the datastore is \"running\" or \"startup\", these constraints MUST be enforced at the end of the <edit-config> or <copy-config> operation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-8.3.3-1"
+    },
+    {
+      "id": "9.1:1",
+      "quote": "Implementations MUST support all lexical representations specified in this document.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.1-1"
+    },
+    {
+      "id": "9.1:2",
+      "quote": "When a server sends XML-encoded data, it MUST use the canonical form defined in this section.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the XML encoding of YANG data, and Section 1 makes that encoding one of several: \"Further, encodings other than XML have been proposed\". ze encodes configuration in its own YANG-modeled tree and in JSON, and emits no XML instance document, so the XML element order, the insert attributes and the XML prefix rules have no producer here"
+    },
+    {
+      "id": "9.1:3",
+      "quote": "If the data type does not have a canonical form, the format of the value MUST match the data type's lexical representation, but the exact format is implementation dependent.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.1-1"
+    },
+    {
+      "id": "9.2.4:1",
+      "quote": "If multiple values or ranges are given, they all MUST be disjoint and MUST be in ascending order.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.2.4-2"
+    },
+    {
+      "id": "9.2.4:2",
+      "quote": "If a range restriction is applied to a type that is already range-restricted, the new restriction MUST be equally limiting or more limiting, i.e., raising the lower bounds, reducing the upper bounds, removing explicit values or ranges, or splitting ranges into multiple ranges with intermediate gaps.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.2.4-1"
+    },
+    {
+      "id": "9.2.4:3",
+      "quote": "Each explicit value and range boundary value given in the range expression MUST match the type being restricted or be one of the special values \"min\" or \"max\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.2.4-2"
+    },
+    {
+      "id": "9.3.2:1",
+      "quote": "Leading and trailing zeros are prohibited, subject to the rule that there MUST be at least one digit before and after the decimal point.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.3.2-1"
+    },
+    {
+      "id": "9.3.4:1",
+      "quote": "The \"fraction-digits\" statement, which is a substatement to the \"type\" statement, MUST be present if the type is \"decimal64\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.3.4-1"
+    },
+    {
+      "id": "9.4.4:1",
+      "quote": "Length-restricting values MUST NOT be negative.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.4.4-1"
+    },
+    {
+      "id": "9.4.4:2",
+      "quote": "If multiple values or ranges are given, they all MUST be disjoint and MUST be in ascending order.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.4.4-1"
+    },
+    {
+      "id": "9.4.4:3",
+      "quote": "If a length restriction is applied to a type that is already length-restricted, the new restriction MUST be equally limiting or more limiting, i.e., raising the lower bounds, reducing the upper bounds, removing explicit length values or ranges, or splitting ranges into multiple ranges with intermediate gaps.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.2.4-1"
+    },
+    {
+      "id": "9.5.1:1",
+      "quote": "These values MUST be in lowercase.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.5.1-1"
+    },
+    {
+      "id": "9.6.4:1",
+      "quote": "The \"enum\" statement, which is a substatement to the \"type\" statement, MUST be present if the type is \"enumeration\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.6.4-1"
+    },
+    {
+      "id": "9.6.4:2",
+      "quote": "The string MUST NOT be zero-length and MUST NOT have any leading or trailing whitespace characters (any Unicode character with the \"White_Space\" property).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.6.4-1"
+    },
+    {
+      "id": "9.6.4:3",
+      "quote": "All assigned names in an enumeration MUST be unique.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.6.4-1"
+    },
+    {
+      "id": "9.6.4:4",
+      "quote": "When an existing enumeration type is restricted, the set of assigned names in the new type MUST be a subset of the base type's set of assigned names.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.6.4-2"
+    },
+    {
+      "id": "9.6.4:5",
+      "quote": "The value of such an assigned name MUST NOT be changed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.6.4-2"
+    },
+    {
+      "id": "9.6.4.2:1",
+      "quote": "This integer value MUST be in the range -2147483648 to 2147483647, and it MUST be unique within the enumeration type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.6.4.2-1"
+    },
+    {
+      "id": "9.6.4.2:2",
+      "quote": "If the current highest value is equal to 2147483647, then an enum value MUST be specified for \"enum\" substatements following the one with the current highest value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.6.4.2-1"
+    },
+    {
+      "id": "9.6.4.2:3",
+      "quote": "When an existing enumeration type is restricted, the \"value\" statement MUST either have the same value as in the base type or not be present, in which case the value is the same as in the base type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.6.4.2-1"
+    },
+    {
+      "id": "9.7:1",
+      "quote": "When an existing bits type is restricted, the set of assigned names in the new type MUST be a subset of the base type's set of assigned names.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.7-1"
+    },
+    {
+      "id": "9.7:2",
+      "quote": "The bit position of such an assigned name MUST NOT be changed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.7-1"
+    },
+    {
+      "id": "9.7.4:1",
+      "quote": "The \"bit\" statement, which is a substatement to the \"type\" statement, MUST be present if the type is \"bits\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.7.4-1"
+    },
+    {
+      "id": "9.7.4:2",
+      "quote": "All assigned names in a bits type MUST be unique.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.7.4-1"
+    },
+    {
+      "id": "9.7.4.2:1",
+      "quote": "The position value MUST be in the range 0 to 4294967295, and it MUST be unique within the bits type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.7.4.2-1"
+    },
+    {
+      "id": "9.7.4.2:2",
+      "quote": "If the current highest bit position value is equal to 4294967295, then a position value MUST be specified for \"bit\" substatements following the one with the current highest position value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.7.4.2-1"
+    },
+    {
+      "id": "9.7.4.2:3",
+      "quote": "When an existing bits type is restricted, the \"position\" statement MUST either have the same value as in the base type or not be present, in which case the value is the same as in the base type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.7.4.2-1"
+    },
+    {
+      "id": "9.9:1",
+      "quote": "If the \"require-instance\" property (Section 9.9.3) is \"true\", there MUST exist a node in the data tree, or a node with a default value in use (see Sections 7.6.1 and 7.7.2), of the referred schema tree leaf or leaf-list node with the same value as the leafref value in a valid data tree.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.9-1"
+    },
+    {
+      "id": "9.9:2",
+      "quote": "If the referring node represents configuration data and the \"require-instance\" property (Section 9.9.3) is \"true\", the referred node MUST also represent configuration.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.9-1"
+    },
+    {
+      "id": "9.9:3",
+      "quote": "There MUST NOT be any circular chains of leafrefs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.9-1"
+    },
+    {
+      "id": "9.9:4",
+      "quote": "If the leaf that the leafref refers to is conditional based on one or more features (see Section 7.20.2), then the leaf with the leafref type MUST also be conditional based on at least the same set of features.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.9-1"
+    },
+    {
+      "id": "9.9.2:1",
+      "quote": "The \"path\" statement, which is a substatement to the \"type\" statement, MUST be present if the type is \"leafref\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.9.2-1"
+    },
+    {
+      "id": "9.9.2:2",
+      "quote": "It takes as an argument a string that MUST refer to a leaf or leaf-list node.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.9.2-1"
+    },
+    {
+      "id": "9.9.2:3",
+      "quote": "If the \"require-instance\" property is \"true\", this node set MUST be non-empty.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.9.2-1"
+    },
+    {
+      "id": "9.9.3:1",
+      "quote": "If \"require-instance\" is \"true\", it means that the instance being referred to MUST exist for the data to be valid.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.9.3-1"
+    },
+    {
+      "id": "9.10.2:1",
+      "quote": "The \"base\" statement, which is a substatement to the \"type\" statement, MUST be present at least once if the type is \"identityref\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.10.2-1"
+    },
+    {
+      "id": "9.10.2:2",
+      "quote": "Otherwise, an identity with the matching name MUST be defined in the current module or an included submodule.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.10.2-1"
+    },
+    {
+      "id": "9.10.3:1",
+      "quote": "Otherwise, an identity with the matching name MUST be defined in the current module or one of its submodules.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.10.3-1"
+    },
+    {
+      "id": "9.12:1",
+      "quote": "When the type is \"union\", the \"type\" statement (Section 7.4) MUST be present.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.12-2"
+    },
+    {
+      "id": "9.13:1",
+      "quote": "For identifying list entries with keys, each predicate consists of one equality test per key, and each key MUST have a corresponding predicate.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.13-1"
+    },
+    {
+      "id": "9.13:2",
+      "quote": "If the leaf with the instance-identifier type represents configuration data and the \"require-instance\" property (Section 9.9.3) is \"true\", the node it refers to MUST also represent configuration.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.13-1"
+    },
+    {
+      "id": "9.13:3",
+      "quote": "All such leaf nodes MUST reference existing nodes or leaf or leaf-list nodes with their default value in use (see Sections 7.6.1 and 7.7.2) for the data to be valid.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-9.13-1"
+    },
+    {
+      "id": "9.13.2:1",
+      "quote": "All node names in an instance-identifier value MUST be qualified with explicit namespace prefixes, and these prefixes MUST be declared in the XML namespace scope in the instance-identifier's XML element.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the XML encoding of YANG data, and Section 1 makes that encoding one of several: \"Further, encodings other than XML have been proposed\". ze encodes configuration in its own YANG-modeled tree and in JSON, and emits no XML instance document, so the XML element order, the insert attributes and the XML prefix rules have no producer here"
+    },
+    {
+      "id": "11:1",
+      "quote": "For any published change, a new \"revision\" statement (Section 7.1.9) MUST be included in front of the existing \"revision\" statements.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-11-1"
+    },
+    {
+      "id": "11:2",
+      "quote": "If there are no existing \"revision\" statements, then one MUST be added to identify the new revision.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-11-1"
+    },
+    {
+      "id": "11:3",
+      "quote": "Furthermore, any necessary changes MUST be applied to any metadata statements, including the \"organization\" and \"contact\" statements (Sections 7.1.7 and 7.1.8).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-11-1"
+    },
+    {
+      "id": "11:4",
+      "quote": "Thus, a module name MUST NOT be changed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-11-1"
+    },
+    {
+      "id": "11:5",
+      "quote": "Furthermore, the \"namespace\" statement MUST NOT be changed, since all XML elements are qualified by the namespace.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-11-1"
+    },
+    {
+      "id": "11:6",
+      "quote": "Obsolete definitions MUST NOT be removed from published modules, since their identifiers may still be referenced by other modules.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-11-1"
+    },
+    {
+      "id": "11:7",
+      "quote": "Otherwise, if the semantics of any previous definition are changed (i.e., if a non-editorial change is made to any definition other than those specifically allowed above), then this MUST be achieved by a new definition with a new identifier.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-11-1"
+    },
+    {
+      "id": "11:8",
+      "quote": "In statements that have any data definition statements as substatements, those data definition substatements MUST NOT be reordered.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-11-1"
+    },
+    {
+      "id": "12:1",
+      "quote": "A YANG version 1.1 module MUST NOT include a YANG version 1 submodule, and a YANG version 1 module MUST NOT include a YANG version 1.1 submodule.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-12-1"
+    },
+    {
+      "id": "12:2",
+      "quote": "A YANG version 1 module or submodule MUST NOT import a YANG version 1.1 module by revision.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7950-12-1"
+    },
+    {
+      "id": "12:3",
+      "quote": "In such cases, a NETCONF server MUST advertise both modules using the rules defined in Section 5.6.4, and SHOULD advertise module A and the latest revision of module B that is specified with YANG version 1 according to the rules defined in [RFC6020].",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "13.1:1",
+      "quote": "The names of all YIN elements MUST be properly qualified with their namespaces (as specified above) using the standard mechanisms of [XML-NAMES], i.e., \"xmlns\" and \"xmlns:xxx\" attributes.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the YIN syntax, which Section 4.1 presents as a translation a module can be given: \"YANG modules can be translated into an equivalent XML syntax called YANG Independent Notation (YIN)\". ze parses YANG text with goyang and never produces or consumes YIN"
+    },
+    {
+      "id": "13.1:2",
+      "quote": "o If the argument is represented as an element, it MUST be the first child of the keyword element.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the YIN syntax, which Section 4.1 presents as a translation a module can be given: \"YANG modules can be translated into an equivalent XML syntax called YANG Independent Notation (YIN)\". ze parses YANG text with goyang and never produces or consumes YIN"
+    },
+    {
+      "id": "13.1:3",
+      "quote": "Substatements of a YANG statement are represented as (additional) children of the keyword element, and their relative order MUST be the same as the order of substatements in YANG.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the YIN syntax, which Section 4.1 presents as a translation a module can be given: \"YANG modules can be translated into an equivalent XML syntax called YANG Independent Notation (YIN)\". ze parses YANG text with goyang and never produces or consumes YIN"
+    },
+    {
+      "id": "15.1:1",
+      "quote": "If a NETCONF operation would result in configuration data where a \"unique\" constraint is invalidated, the following error MUST be returned:",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "15.2:1",
+      "quote": "If a NETCONF operation would result in configuration data where a list or a leaf-list would have too many entries, the following error MUST be returned:",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "15.3:1",
+      "quote": "If a NETCONF operation would result in configuration data where a list or a leaf-list would have too few entries, the following error MUST be returned:",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "15.4:1",
+      "quote": "If a NETCONF operation would result in configuration data where the restrictions imposed by a \"must\" statement are violated, the following error MUST be returned, unless a specific \"error-app-tag\" substatement is present for the \"must\" statement.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "15.5:1",
+      "quote": "If a NETCONF operation would result in configuration data where a leaf of type \"instance-identifier\" or \"leafref\" marked with require-instance \"true\" refers to an instance that does not exist, the following error MUST be returned:",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "15.6:1",
+      "quote": "If a NETCONF operation would result in configuration data where no nodes exists in a mandatory choice, the following error MUST be returned:",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    },
+    {
+      "id": "15.7:1",
+      "quote": "If the \"insert\" and \"key\" or \"value\" attributes are used in an <edit-config> for a list or leaf-list node and the \"key\" or \"value\" refers to an instance that does not exist, the following error MUST be returned:",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "the obligation binds the NETCONF protocol binding of YANG, and Section 1 makes that binding one of several: \"YANG has been used or proposed to be used for other protocols\". ze serves its YANG-modeled configuration over gNMI and its own CLI and implements no NETCONF server, no ietf-yang-library module and no rpc-error envelope: no Go file under internal/ names NETCONF except a port-name table (internal/core/portname/services_table.go)"
+    }
+  ]
+}

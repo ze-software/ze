@@ -1,0 +1,257 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7427",
+  "register": "prose",
+  "source-path": "rfc/full/rfc7427.txt",
+  "source-sha": "afec1d0d40ee2a25",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7427-3-2",
+        "RFC7427-3-3",
+        "RFC7427-3-4"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7427-4-2"
+      ]
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.1.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.4.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A.4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B.1",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC boilerplate: the Trust Legal Provisions notice about Simplified BSD License text in extracted code components. It is a licence term, not a protocol requirement."
+    },
+    {
+      "id": "1:1",
+      "quote": "The combination of new ECDSA groups and hash functions will cause the number of required authentication methods to become unmanageable.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Introduction motivation: it states why fixed per-algorithm AUTH method numbers do not scale ('will cause the number of required authentication methods to become unmanageable'), and imposes nothing."
+    },
+    {
+      "id": "3:1",
+      "quote": "If both ends send and receive SIGNATURE_HASH_ALGORITHMS Notify payloads, and signature authentication is to be used, then the authentication method specified in this Authentication payload MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7427-3-5"
+    },
+    {
+      "id": "3:2",
+      "quote": "For hash truncation, the method specified in ANSI X9.62:2005 [X9.62] MUST be used.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7427-3-1"
+    },
+    {
+      "id": "4:1",
+      "quote": "When calculating the digital signature, a peer MUST pick one algorithm sent by the other peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7427-4-1"
+    },
+    {
+      "id": "A:1",
+      "quote": "If the ASN.1 object listed in Appendix A and the ASN.1 object specified by the algorithm differ, then the algorithm specification must be used.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Appendix A opens 'This section is not normative, and these values should only be used as examples.', so this sentence sets precedence rather than an obligation of its own: where the example differs from the algorithm's own specification, that specification governs (the same point Section 3 makes with SHOULD, RFC7427-3-2)."
+    },
+    {
+      "id": "A.1.1:1",
+      "quote": "Parameters are required, and they must be NULL.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Appendix A opens 'This section is not normative, and these values should only be used as examples.', so the lowercase 'must be NULL' describes the sha1WithRSAEncryption AlgorithmIdentifier encoding that [RFC3279]/[RFC4055] define, reproduced here as an example."
+    },
+    {
+      "id": "A.1.2:1",
+      "quote": "Parameters are required, and they must be NULL.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Appendix A opens 'This section is not normative, and these values should only be used as examples.', so the lowercase 'must be NULL' describes the sha256WithRSAEncryption AlgorithmIdentifier encoding that [RFC3279]/[RFC4055] define, reproduced here as an example."
+    },
+    {
+      "id": "A.1.3:1",
+      "quote": "Parameters are required, and they must be NULL.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Appendix A opens 'This section is not normative, and these values should only be used as examples.', so the lowercase 'must be NULL' describes the sha384WithRSAEncryption AlgorithmIdentifier encoding that [RFC3279]/[RFC4055] define, reproduced here as an example."
+    },
+    {
+      "id": "A.1.4:1",
+      "quote": "Parameters are required, and they must be NULL.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Appendix A opens 'This section is not normative, and these values should only be used as examples.', so the lowercase 'must be NULL' describes the sha512WithRSAEncryption AlgorithmIdentifier encoding that [RFC3279]/[RFC4055] define, reproduced here as an example."
+    },
+    {
+      "id": "A.4:1",
+      "quote": "With RSASSA-PSS, the algorithm object identifier must always be id-RSASSA-PSS, and the hash function and padding parameters are conveyed in the parameters (which are not optional in this case).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Appendix A opens 'This section is not normative, and these values should only be used as examples.', so the sentence describes how RSASSA-PSS encodes its identifier and parameters, as [RFC3447] Section 8.1 defines it."
+    },
+    {
+      "id": "A.4.1:1",
+      "quote": "Parameters are empty, but the ASN.1 part of the sequence must be present.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Appendix A opens 'This section is not normative, and these values should only be used as examples.', so the sentence describes the ASN.1 encoding of the RSASSA-PSS default parameter set in this example."
+    }
+  ]
+}

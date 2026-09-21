@@ -1,0 +1,1158 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4035",
+  "register": "prose",
+  "source-path": "rfc/full/rfc4035.txt",
+  "source-sha": "a47565ed03b850dd",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 6,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4035-2.2-5"
+      ]
+    },
+    {
+      "id": "2.3",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4035-2.3-7"
+      ]
+    },
+    {
+      "id": "2.4",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4035-2.4-4"
+      ]
+    },
+    {
+      "id": "2.5",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4035-3-2",
+        "RFC4035-3-6"
+      ]
+    },
+    {
+      "id": "3.1",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4035-3.1-2"
+      ]
+    },
+    {
+      "id": "3.1.1",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4035-3.1.2-4"
+      ]
+    },
+    {
+      "id": "3.1.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.3.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.3.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.3.3",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4035-3.1.3.3-2"
+      ]
+    },
+    {
+      "id": "3.1.3.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.3.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.4",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.4.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1.5",
+      "sites": 6,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4035-3.1.5-6"
+      ]
+    },
+    {
+      "id": "3.1.6",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4035-3.1.6-5"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4035-3.2.1-3"
+      ]
+    },
+    {
+      "id": "3.2.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4035-4.1-4"
+      ]
+    },
+    {
+      "id": "4.2",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.7",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.8",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.9",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.9.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.9.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4035-5-2"
+      ]
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.1",
+      "sites": 9,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4035-5.3.1-9"
+      ]
+    },
+    {
+      "id": "5.3.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "B.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "C",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "C.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "C.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "C.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "C.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "C.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "C.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "C.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "C.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "C.8",
+      "sites": 1,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.1:1",
+      "quote": "A zone key DNSKEY RR MUST have the Zone Key bit of the flags RDATA field set (see Section 2.1.1 of [RFC4034]).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.1-2"
+    },
+    {
+      "id": "2.1:2",
+      "quote": "Public keys associated with other DNS operations MAY be stored in DNSKEY RRs that are not marked as zone keys but MUST NOT be used to verify RRSIGs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.1-4"
+    },
+    {
+      "id": "2.1:3",
+      "quote": "If the zone administrator intends a signed zone to be usable other than as an island of security, the zone apex MUST contain at least one DNSKEY RR to act as a secure entry point into the zone.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.1-5"
+    },
+    {
+      "id": "2.2:1",
+      "quote": "For each authoritative RRset in a signed zone, there MUST be at least one RRSIG record that meets the following requirements:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.2-1"
+    },
+    {
+      "id": "2.2:2",
+      "quote": "An RRSIG RR itself MUST NOT be signed, as signing an RRSIG RR would add no value and would create an infinite loop in the signing process.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.2-3"
+    },
+    {
+      "id": "2.2:3",
+      "quote": "The NS RRset that appears at the zone apex name MUST be signed, but the NS RRsets that appear at delegation points (that is, the NS RRsets in the parent zone that delegate the name to the child zone's name servers) MUST NOT be signed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.2-4"
+    },
+    {
+      "id": "2.2:4",
+      "quote": "Glue address RRsets associated with delegations MUST NOT be signed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.2-6"
+    },
+    {
+      "id": "2.2:5",
+      "quote": "There MUST be an RRSIG for each RRset using at least one DNSKEY of each algorithm in the zone apex DNSKEY RRset.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.2-7"
+    },
+    {
+      "id": "2.2:6",
+      "quote": "The apex DNSKEY RRset itself MUST be signed by each algorithm appearing in the DS RRset located at the delegating parent (if any).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.2-8"
+    },
+    {
+      "id": "2.3:1",
+      "quote": "Each owner name in the zone that has authoritative data or a delegation point NS RRset MUST have an NSEC resource record.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.3-1"
+    },
+    {
+      "id": "2.3:2",
+      "quote": "An NSEC record (and its associated RRSIG RRset) MUST NOT be the only RRset at any particular owner name.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.3-3"
+    },
+    {
+      "id": "2.3:3",
+      "quote": "That is, the signing process MUST NOT create NSEC or RRSIG RRs for owner name nodes that were not the owner name of any RRset before the zone was signed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.3-4"
+    },
+    {
+      "id": "2.3:4",
+      "quote": "The type bitmap of every NSEC resource record in a signed zone MUST indicate the presence of both the NSEC record itself and its corresponding RRSIG record.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.3-5"
+    },
+    {
+      "id": "2.3:5",
+      "quote": "Bits corresponding to the delegation NS RRset and any RRsets for which the parent zone has authoritative data MUST be set; bits corresponding to any non-NS RRset for which the parent is not authoritative MUST be clear.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.3-6"
+    },
+    {
+      "id": "2.4:1",
+      "quote": "All DS RRsets in a zone MUST be signed, and DS RRsets MUST NOT appear at a zone's apex.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.4-3"
+    },
+    {
+      "id": "2.5:1",
+      "quote": "If a CNAME RRset is present at a name in a signed zone, appropriate RRSIG and NSEC RRsets are REQUIRED at that name.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.5-1"
+    },
+    {
+      "id": "2.5:2",
+      "quote": "Other types MUST NOT be present at that name.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.5-2"
+    },
+    {
+      "id": "2.6:1",
+      "quote": "At the parental side of a zone cut (that is, at a delegation point), NSEC RRs are REQUIRED at the owner name.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-2.6-1"
+    },
+    {
+      "id": "3:1",
+      "quote": "A security-aware name server MUST support the EDNS0 ([RFC2671]) message size extension, MUST support a message size of at least 1220 octets, and SHOULD support a message size of 4000 octets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3-1"
+    },
+    {
+      "id": "3:2",
+      "quote": "A security-aware name server that receives a DNS query that does not include the EDNS OPT pseudo-RR or that has the DO bit clear MUST treat the RRSIG, DNSKEY, and NSEC RRs as it would any other RRset and MUST NOT perform any of the additional processing described below.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3-5"
+    },
+    {
+      "id": "3:3",
+      "quote": "The CD bit is controlled by resolvers; a security-aware name server MUST copy the CD bit from a query into the corresponding response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3-8"
+    },
+    {
+      "id": "3:4",
+      "quote": "The AD bit is controlled by name servers; a security-aware name server MUST ignore the setting of the AD bit in queries.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3-9"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "Upon receiving a relevant query that has the EDNS ([RFC2671]) OPT pseudo-RR DO bit ([RFC3225]) set, a security-aware authoritative name server for a signed zone MUST include additional RRSIG, NSEC, and DS RRs, according to the following rules:",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the lead-in sentence to the three bullets that follow; site 3.1:2 maps the first two bullets and site 3.1:3 the third",
+      "mapped-to": "RFC4035-3.1-1"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "o RRSIG RRs that can be used to authenticate a response MUST be included in the response according to the rules in Section 3.1.1. o NSEC RRs that can be used to provide authenticated denial of existence MUST be included in the response automatically according to the rules in Section 3.1.3.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1-1"
+    },
+    {
+      "id": "3.1:3",
+      "quote": "o Either a DS RRset or an NSEC RR proving that no DS RRs exist MUST be included in referrals automatically according to the rules in Section 3.1.4.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1-3"
+    },
+    {
+      "id": "3.1.1:1",
+      "quote": "o When placing a signed RRset in the Answer section, the name server MUST also place its RRSIG RRs in the Answer section.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.1-3"
+    },
+    {
+      "id": "3.1.1:2",
+      "quote": "If space does not permit inclusion of these RRSIG RRs, the name server MUST set the TC bit.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.1-4"
+    },
+    {
+      "id": "3.1.1:3",
+      "quote": "o When placing a signed RRset in the Authority section, the name server MUST also place its RRSIG RRs in the Authority section.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.1-5"
+    },
+    {
+      "id": "3.1.1:4",
+      "quote": "If space does not permit inclusion of these RRSIG RRs, the name server MUST set the TC bit.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the Authority-section repeat of the sentence already stated for the Answer section; site 3.1.1:2 maps it",
+      "mapped-to": "RFC4035-3.1.1-4"
+    },
+    {
+      "id": "3.1.1:5",
+      "quote": "o When placing a signed RRset in the Additional section, the name server MUST also place its RRSIG RRs in the Additional section.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.1-6"
+    },
+    {
+      "id": "3.1.1:6",
+      "quote": "If this happens, the name server MUST NOT set the TC bit solely because these RRSIG RRs didn't fit.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.1-8"
+    },
+    {
+      "id": "3.1.2:1",
+      "quote": "If there is not enough space to include these DNSKEY and RRSIG RRs, the name server MUST omit them and MUST NOT set the TC bit solely because these RRs didn't fit (see Section 3.1.1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.2-3"
+    },
+    {
+      "id": "3.1.3:1",
+      "quote": "When responding to a query that has the DO bit set, a security-aware authoritative name server for a signed zone MUST include NSEC RRs in each of the following cases:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.3-1"
+    },
+    {
+      "id": "3.1.3.1:1",
+      "quote": "If the zone contains RRsets matching <SNAME, SCLASS> but contains no RRset matching <SNAME, SCLASS, STYPE>, then the name server MUST include the NSEC RR for <SNAME, SCLASS> along with its associated RRSIG RR(s) in the Authority section of the response (see Section 3.1.1).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.3.1-1"
+    },
+    {
+      "id": "3.1.3.1:2",
+      "quote": "If space does not permit inclusion of the NSEC RR or its associated RRSIG RR(s), the name server MUST set the TC bit (see Section 3.1.1).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same 'if space does not permit ... MUST set the TC bit' rule section 3.1.1 states and this site cites back to it; site 3.1.1:2 maps it",
+      "mapped-to": "RFC4035-3.1.1-4"
+    },
+    {
+      "id": "3.1.3.2:1",
+      "quote": "If the zone does not contain any RRsets matching <SNAME, SCLASS> either exactly or via wildcard name expansion, then the name server MUST include the following NSEC RRs in the Authority section, along with their associated RRSIG RRs:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.3.2-1"
+    },
+    {
+      "id": "3.1.3.2:2",
+      "quote": "If space does not permit inclusion of these NSEC and RRSIG RRs, the name server MUST set the TC bit (see Section 3.1.1).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same 'if space does not permit ... MUST set the TC bit' rule section 3.1.1 states and this site cites back to it; site 3.1.1:2 maps it",
+      "mapped-to": "RFC4035-3.1.1-4"
+    },
+    {
+      "id": "3.1.3.3:1",
+      "quote": "If the zone does not contain any RRsets that exactly match <SNAME, SCLASS> but does contain an RRset that matches <SNAME, SCLASS, STYPE> via wildcard name expansion, the name server MUST include the wildcard-expanded answer and the corresponding wildcard-expanded RRSIG RRs in the Answer section and MUST include in the Authority section an NSEC RR and associated RRSIG RR(s) proving that the zone does not contain a closer match for <SNAME, SCLASS>.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.3.3-1"
+    },
+    {
+      "id": "3.1.3.3:2",
+      "quote": "If space does not permit inclusion of the answer, NSEC and RRSIG RRs, the name server MUST set the TC bit (see Section 3.1.1).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same 'if space does not permit ... MUST set the TC bit' rule section 3.1.1 states and this site cites back to it; site 3.1.1:2 maps it",
+      "mapped-to": "RFC4035-3.1.1-4"
+    },
+    {
+      "id": "3.1.3.4:1",
+      "quote": "The name server MUST include the following NSEC RRs in the Authority section, along with their associated RRSIG RRs:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.3.4-1"
+    },
+    {
+      "id": "3.1.3.4:2",
+      "quote": "If space does not permit inclusion of these NSEC and RRSIG RRs, the name server MUST set the TC bit (see Section 3.1.1).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same 'if space does not permit ... MUST set the TC bit' rule section 3.1.1 states and this site cites back to it; site 3.1.1:2 maps it",
+      "mapped-to": "RFC4035-3.1.1-4"
+    },
+    {
+      "id": "3.1.4:1",
+      "quote": "If a DS RRset is present at the delegation point, the name server MUST return both the DS RRset and its associated RRSIG RR(s) in the Authority section along with the NS RRset.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.4-1"
+    },
+    {
+      "id": "3.1.4:2",
+      "quote": "If no DS RRset is present at the delegation point, the name server MUST return both the NSEC RR that proves that the DS RRset is not present and the NSEC RR's associated RRSIG RR(s) along with the NS RRset.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.4-2"
+    },
+    {
+      "id": "3.1.4:3",
+      "quote": "The name server MUST place the NS RRset before the NSEC RRset and its associated RRSIG RR(s).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.4-3"
+    },
+    {
+      "id": "3.1.4:4",
+      "quote": "If space does not permit inclusion of the DS or NSEC RRset and associated RRSIG RRs, the name server MUST set the TC bit (see Section 3.1.1).",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same 'if space does not permit ... MUST set the TC bit' rule section 3.1.1 states and this site cites back to it; site 3.1.1:2 maps it",
+      "mapped-to": "RFC4035-3.1.1-4"
+    },
+    {
+      "id": "3.1.4.1:1",
+      "quote": "In this case, the name server MUST return an authoritative \"no data\" response showing that the DS RRset does not exist in the child zone's apex.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.4.1-1"
+    },
+    {
+      "id": "3.1.5:1",
+      "quote": "An authoritative name server is not required to verify that a zone is properly signed before sending or accepting a zone transfer.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "a statement that no obligation exists ('is not required to verify that a zone is properly signed'), not an obligation; the permission it grants is carried by RFC4035-3.1.5-1"
+    },
+    {
+      "id": "3.1.5:2",
+      "quote": "An authoritative name server that chooses to perform its own zone validation MUST NOT selectively reject some RRs and accept others.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.5-2"
+    },
+    {
+      "id": "3.1.5:3",
+      "quote": "As with any other authoritative RRset, the DS RRset MUST be included in zone transfers of the zone in which the RRset is authoritative data.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.5-3"
+    },
+    {
+      "id": "3.1.5:4",
+      "quote": "As with any other authoritative RRs, NSEC RRs MUST be included in zone transfers of the zone in which they are authoritative data.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.5-4"
+    },
+    {
+      "id": "3.1.5:5",
+      "quote": "The parental NSEC RR at a zone cut MUST be included in zone transfers of the parent zone, and the NSEC at the zone apex of the child zone MUST be included in zone transfers of the child zone.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.5-5"
+    },
+    {
+      "id": "3.1.5:6",
+      "quote": "As with any other authoritative RRs, RRSIG RRs MUST be included in zone transfers of the zone in which they are authoritative data.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.5-7"
+    },
+    {
+      "id": "3.1.6:1",
+      "quote": "A security-aware name server MUST NOT set the AD bit in a response unless the name server considers all RRsets in the Answer and Authority sections of the response to be authentic.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.6-2"
+    },
+    {
+      "id": "3.1.6:2",
+      "quote": "However, the name server MUST NOT do so unless the name server obtained the authoritative zone via secure means (such as a secure zone transfer mechanism) and MUST NOT do so unless this behavior has been configured explicitly.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.6-4"
+    },
+    {
+      "id": "3.1.6:3",
+      "quote": "A security-aware name server that supports recursion MUST follow the rules for the CD and AD bits given in Section 3.2 when generating a response that involves data obtained via recursion.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.1.6-6"
+    },
+    {
+      "id": "3.2.1:1",
+      "quote": "The resolver side of a security-aware recursive name server MUST set the DO bit when sending requests, regardless of the state of the DO bit in the initiating request received by the name server side.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.2.1-1"
+    },
+    {
+      "id": "3.2.1:2",
+      "quote": "If the DO bit in an initiating query is not set, the name server side MUST strip any authenticating DNSSEC RRs from the response but MUST NOT strip any DNSSEC RR types that the initiating query explicitly requested.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.2.1-2"
+    },
+    {
+      "id": "3.2.2:1",
+      "quote": "The name server side MUST copy the setting of the CD bit from a query to the corresponding response.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "section 3 already binds every security-aware name server to copy the CD bit from a query into the corresponding response; site 3:3 maps it",
+      "mapped-to": "RFC4035-3-8"
+    },
+    {
+      "id": "3.2.2:2",
+      "quote": "The name server side of a security-aware recursive name server MUST pass the state of the CD bit to the resolver side along with the rest of an initiating query, so that the resolver side will know whether it is required to verify the response data it returns to the name server side.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.2.2-1"
+    },
+    {
+      "id": "3.2.2:3",
+      "quote": "If the CD bit is set, the name server side SHOULD return the data from the BAD cache; if the CD bit is not set, the name server side MUST return RCODE 2 (server failure).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.2.2-4"
+    },
+    {
+      "id": "3.2.3:1",
+      "quote": "The name server side of a security-aware recursive name server MUST NOT set the AD bit in a response unless the name server considers all RRsets in the Answer and Authority sections of the response to be authentic.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same AD-bit prohibition section 3.1.6 states for a security-aware name server, narrowed here to the name server side of a recursive server; site 3.1.6:1 maps it",
+      "mapped-to": "RFC4035-3.1.6-2"
+    },
+    {
+      "id": "3.2.3:2",
+      "quote": "The resolver side MUST follow the procedure described in Section 5 to determine whether the RRs in question are authentic.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-3.2.3-2"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "A security-aware resolver MUST include an EDNS ([RFC2671]) OPT pseudo-RR with the DO ([RFC3225]) bit set when sending queries.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.1-1"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "A security-aware resolver MUST support a message size of at least 1220 octets, SHOULD support a message size of 4000 octets, and MUST use the \"sender's UDP payload size\" field in the EDNS OPT pseudo-RR to advertise the message size that it is willing to accept.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.1-2"
+    },
+    {
+      "id": "4.1:3",
+      "quote": "A security-aware resolver's IP layer MUST handle fragmented UDP packets correctly regardless of whether any such fragmented packets were received via IPv4 or IPv6.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.1-5"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "A security-aware resolver MUST support the signature verification mechanisms described in Section 5 and SHOULD apply them to every received response, except when:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.2-1"
+    },
+    {
+      "id": "4.2:2",
+      "quote": "A security-aware resolver's support for signature verification MUST include support for verification of wildcard owner names.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.2-3"
+    },
+    {
+      "id": "4.2:3",
+      "quote": "Security-aware resolvers MAY query for missing security RRs in an attempt to perform validation; implementations that choose to do so must be aware that the answers received may not be sufficient to validate the original response.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.2-4"
+    },
+    {
+      "id": "4.2:4",
+      "quote": "When attempting to retrieve missing NSEC RRs that reside on the parental side at a zone cut, a security-aware iterative-mode resolver MUST query the name servers for the parent zone, not the child zone.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.2-5"
+    },
+    {
+      "id": "4.2:5",
+      "quote": "When attempting to retrieve a missing DS, a security-aware iterative-mode resolver MUST query the name servers for the parent zone, not the child zone.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.2-6"
+    },
+    {
+      "id": "4.3:1",
+      "quote": "A security-aware resolver MUST be able to determine whether it should expect a particular RRset to be signed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.3-1"
+    },
+    {
+      "id": "4.3:2",
+      "quote": "More precisely, a security-aware resolver must be able to distinguish between four cases:",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the lowercase restatement of the preceding sentence, naming the four cases the resolver must distinguish; site 4.3:1 maps it",
+      "mapped-to": "RFC4035-4.3-1"
+    },
+    {
+      "id": "4.4:1",
+      "quote": "A security-aware resolver MUST be capable of being configured with at least one trusted public key or DS RR and SHOULD be capable of being configured with multiple trusted public keys or DS RRs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.4-1"
+    },
+    {
+      "id": "4.6:1",
+      "quote": "A security-aware resolver MUST clear the AD bit when composing query messages to protect against buggy name servers that blindly copy header bits that they do not understand from the query message to the response message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.6-2"
+    },
+    {
+      "id": "4.6:2",
+      "quote": "A resolver MUST disregard the meaning of the CD and AD bits in a response unless the response was obtained by using a secure channel or the resolver was specifically configured to regard the message header bits without using a secure channel.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.6-3"
+    },
+    {
+      "id": "4.7:1",
+      "quote": "Resolvers that implement a BAD cache MUST take steps to prevent the cache from being useful as a denial-of-service attack amplifier, particularly the following:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.7-2"
+    },
+    {
+      "id": "4.7:2",
+      "quote": "o Since RRsets that fail to validate do not have trustworthy TTLs, the implementation MUST assign a TTL.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.7-3"
+    },
+    {
+      "id": "4.7:3",
+      "quote": "Resolvers MUST NOT return RRsets from the BAD cache unless the resolver is not required to validate the signatures of the RRsets in question under the rules given in Section 4.2 of this document.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.7-7"
+    },
+    {
+      "id": "4.8:1",
+      "quote": "A validating security-aware resolver MUST treat the signature of a valid signed DNAME RR as also covering unsigned CNAME RRs that could have been synthesized from the DNAME RR, as described in [RFC2672], at least to the extent of not rejecting a response message solely because it contains such CNAME RRs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.8-1"
+    },
+    {
+      "id": "4.8:2",
+      "quote": "The resolver MAY retain such CNAME RRs in its cache or in the answers it hands back, but is not required to do so.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.8-2"
+    },
+    {
+      "id": "4.9:1",
+      "quote": "A security-aware stub resolver MUST support the DNSSEC RR types, at least to the extent of not mishandling responses just because they contain DNSSEC RRs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.9-1"
+    },
+    {
+      "id": "4.9.1:1",
+      "quote": "A non-validating security-aware stub resolver MAY include the DNSSEC RRs returned by a security-aware recursive name server as part of the data that the stub resolver hands back to the application that invoked it, but is not required to do so.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.9.1-1"
+    },
+    {
+      "id": "4.9.1:2",
+      "quote": "A validating security-aware stub resolver MUST set the DO bit, because otherwise it will not receive the DNSSEC RRs it needs to perform signature validation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.9.1-2"
+    },
+    {
+      "id": "4.9.3:1",
+      "quote": "In any case, a security-aware stub resolver MUST NOT place any reliance on signature validation allegedly performed on its behalf, except when the security-aware stub resolver obtained the data in question from a trusted security-aware recursive name server via a secure channel.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-4.9.3-2"
+    },
+    {
+      "id": "5:1",
+      "quote": "To authenticate an apex DNSKEY RRset by using an initial key, the resolver MUST:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5-1"
+    },
+    {
+      "id": "5:2",
+      "quote": "The absence of DNSSEC data in a response MUST NOT by itself be taken as an indication that no authentication information exists.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5-3"
+    },
+    {
+      "id": "5.2:1",
+      "quote": "A security-aware resolver MUST query the name servers for the parent zone for the DS RRset if the referral includes neither a DS RRset nor a NSEC RRset proving that the DS RRset does not exist (see Section 4).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.2-1"
+    },
+    {
+      "id": "5.2:2",
+      "quote": "A security-aware resolver MUST use the parent NSEC RR when attempting to prove that a DS RRset does not exist.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.2-3"
+    },
+    {
+      "id": "5.3.1:1",
+      "quote": "o The RRSIG RR and the RRset MUST have the same owner name and the same class.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.3.1-1"
+    },
+    {
+      "id": "5.3.1:2",
+      "quote": "o The RRSIG RR's Signer's Name field MUST be the name of the zone that contains the RRset.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.3.1-2"
+    },
+    {
+      "id": "5.3.1:3",
+      "quote": "o The RRSIG RR's Type Covered field MUST equal the RRset's type.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.3.1-3"
+    },
+    {
+      "id": "5.3.1:4",
+      "quote": "o The number of labels in the RRset owner name MUST be greater than or equal to the value in the RRSIG RR's Labels field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.3.1-4"
+    },
+    {
+      "id": "5.3.1:5",
+      "quote": "o The validator's notion of the current time MUST be less than or equal to the time listed in the RRSIG RR's Expiration field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.3.1-5"
+    },
+    {
+      "id": "5.3.1:6",
+      "quote": "o The validator's notion of the current time MUST be greater than or equal to the time listed in the RRSIG RR's Inception field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.3.1-6"
+    },
+    {
+      "id": "5.3.1:7",
+      "quote": "o The RRSIG RR's Signer's Name, Algorithm, and Key Tag fields MUST match the owner name, algorithm, and key tag for some DNSKEY RR in the zone's apex DNSKEY RRset.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.3.1-7"
+    },
+    {
+      "id": "5.3.1:8",
+      "quote": "o The matching DNSKEY RR MUST be present in the zone's apex DNSKEY RRset, and MUST have the Zone Flag bit (DNSKEY RDATA Flag bit 7) set.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.3.1-8"
+    },
+    {
+      "id": "5.3.1:9",
+      "quote": "In this case, the validator cannot predetermine which DNSKEY RR to use to authenticate the signature, and it MUST try each matching DNSKEY RR until either the signature is validated or the validator has run out of matching public keys to try.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.3.1-10"
+    },
+    {
+      "id": "5.3.2:1",
+      "quote": "if rrsig_labels > fqdn_labels the RRSIG RR did not pass the necessary validation checks and MUST NOT be used to authenticate this RRset.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.3.2-1"
+    },
+    {
+      "id": "5.3.2:2",
+      "quote": "When reconstructing the original NSEC RRset for the delegation from the parent zone, the NSEC RRs MUST NOT be combined with NSEC RRs from the child zone.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.3.2-2"
+    },
+    {
+      "id": "5.3.2:3",
+      "quote": "When reconstructing the original NSEC RRset for the apex of the child zone, the NSEC RRs MUST NOT be combined with NSEC RRs from the parent zone.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.3.2-3"
+    },
+    {
+      "id": "5.3.3:1",
+      "quote": "The resolver MUST verify that wildcard expansion was applied properly before considering the RRset to be authentic.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.3.3-1"
+    },
+    {
+      "id": "5.3.3:2",
+      "quote": "If the resolver accepts the RRset as authentic, the validator MUST set the TTL of the RRSIG RR and each RR in the authenticated RRset to a value no greater than the minimum of:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.3.3-2"
+    },
+    {
+      "id": "5.3.4:1",
+      "quote": "Once the validator has verified the signature, as described in Section 5.3, it must take additional steps to verify the non- existence of an exact match or closer wildcard match for the query.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "a lowercase forward reference to the authenticated-denial procedure section 5.4 states with a keyword; site 5.4:1 maps it",
+      "mapped-to": "RFC4035-5.4-1"
+    },
+    {
+      "id": "5.4:1",
+      "quote": "In addition, security-aware resolvers MUST authenticate the NSEC RRsets that comprise the non-existence proof as described in Section 5.3.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.4-1"
+    },
+    {
+      "id": "5.4:2",
+      "quote": "To prove the non-existence of an RRset, the resolver must be able to verify both that the queried RRset does not exist and that no relevant wildcard RRset exists.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the lowercase restatement of what the section 5.4 denial-of-existence proof consists of; site 5.4:1 maps it",
+      "mapped-to": "RFC4035-5.4-1"
+    },
+    {
+      "id": "5.4:3",
+      "quote": "If the complete set of necessary NSEC RRsets is not present in a response (perhaps due to message truncation), then a security-aware resolver MUST resend the query in order to attempt to obtain the full collection of NSEC RRs necessary to verify the non-existence of the requested RRset.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.4-2"
+    },
+    {
+      "id": "5.4:4",
+      "quote": "As with all DNS operations, however, the resolver MUST bound the work it puts into answering any particular query.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.4-3"
+    },
+    {
+      "id": "5.4:5",
+      "quote": "Since a validated NSEC RR proves the existence of both itself and its corresponding RRSIG RR, a validator MUST ignore the settings of the NSEC and RRSIG bits in an NSEC RR.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.4-4"
+    },
+    {
+      "id": "5.5:1",
+      "quote": "If the validation was being done to service a recursive query, the name server MUST return RCODE 2 to the originating client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.5-2"
+    },
+    {
+      "id": "5.5:2",
+      "quote": "However, it MUST return the full response if and only if the original query had the CD bit set.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4035-5.5-3"
+    },
+    {
+      "id": "C.6:1",
+      "quote": "The NSEC proves that no closer match (exact or closer wildcard) could have been used to answer this query, and the NSEC RR must also be authenticated before the answer is considered valid.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Appendix C.6 is a worked authentication example, and this lowercase sentence restates the section 5.4 obligation to authenticate the NSEC RR; site 5.4:1 maps it",
+      "mapped-to": "RFC4035-5.4-1"
+    },
+    {
+      "id": "C.8:1",
+      "quote": "The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF intellectual property boilerplate inviting parties to disclose patent rights, not a protocol obligation on an implementation"
+    }
+  ]
+}

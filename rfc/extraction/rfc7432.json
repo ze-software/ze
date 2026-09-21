@@ -1,0 +1,1217 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7432",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc7432.txt",
+  "source-sha": "e0c94051f8085c2a",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 11,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.9",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.10.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1.1",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2.1",
+      "sites": 11,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2.1.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.1.1",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3.1.2",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4.1",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2.1",
+      "sites": 6,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7432-9.2.1-5"
+      ]
+    },
+    {
+      "id": "9.2.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7432-10.1-1"
+      ]
+    },
+    {
+      "id": "11",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.1",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "11.2",
+      "sites": 8,
+      "disposition": "walked"
+    },
+    {
+      "id": "12",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "12.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13.1",
+      "sites": 8,
+      "disposition": "walked"
+    },
+    {
+      "id": "13.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "13.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.1.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.1.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "14.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "15",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "15.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "15.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "16",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "16.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "17",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "17.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "17.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "17.3",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "18",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "19",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "20",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "21",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "21.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "5:1",
+      "quote": "If the CE(s) constituting an Ethernet segment is (are) managed by the network operator, then ESI uniqueness should be guaranteed; however, if the CE(s) is (are) not managed, then the operator MUST configure a network-wide unique ESI for that Ethernet segment.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-5-13"
+    },
+    {
+      "id": "5:2",
+      "quote": "The CE LACP System MAC address MUST be encoded in the high-order 6 octets of the ESI Value field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-5-3"
+    },
+    {
+      "id": "5:3",
+      "quote": "The CE LACP port key MUST be encoded in the 2 octets next to the System MAC address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-5-4"
+    },
+    {
+      "id": "5:4",
+      "quote": "The Root Bridge MAC address MUST be encoded in the high-order 6 octets of the ESI Value field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-5-5"
+    },
+    {
+      "id": "5:5",
+      "quote": "The CE Root Bridge Priority MUST be encoded in the 2 octets next to the Root Bridge MAC address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-5-6"
+    },
+    {
+      "id": "5:6",
+      "quote": "The PE MAC address MUST be encoded in the high-order 6 octets of the ESI Value field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-5-7"
+    },
+    {
+      "id": "5:7",
+      "quote": "The Local Discriminator value MUST be encoded in the low-order 3 octets of the ESI Value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-5-8"
+    },
+    {
+      "id": "5:8",
+      "quote": "The system router ID MUST be encoded in the high-order 4 octets of the ESI Value field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-5-9"
+    },
+    {
+      "id": "5:9",
+      "quote": "The Local Discriminator value MUST be encoded in the 4 octets next to the IP address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-5-10"
+    },
+    {
+      "id": "5:10",
+      "quote": "This is an AS number owned by the system and MUST be encoded in the high-order 4 octets of the ESI Value field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-5-11"
+    },
+    {
+      "id": "5:11",
+      "quote": "The Local Discriminator value MUST be encoded in the 4 octets next to the AS number.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-5-12"
+    },
+    {
+      "id": "6.1:1",
+      "quote": "In such scenarios, the Ethernet frames transported over an MPLS/IP network SHOULD remain tagged with the originating VID, and a VID translation MUST be supported in the data path and MUST be performed on the disposition PE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-6.1-1"
+    },
+    {
+      "id": "6.1:2",
+      "quote": "The Ethernet Tag ID in all EVPN routes MUST be set to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-6.1-2"
+    },
+    {
+      "id": "6.2:1",
+      "quote": "This implies that MAC addresses MUST be unique across all VLANs for that EVI in order for this service to work.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-6.2-1"
+    },
+    {
+      "id": "6.2:2",
+      "quote": "The MPLS-encapsulated frames MUST remain tagged with the originating VID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-6.2-2"
+    },
+    {
+      "id": "6.2:3",
+      "quote": "The Ethernet Tag ID in all EVPN routes MUST be set to 0.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the zero Ethernet Tag ID obligation for VLAN bundle service that Section 6.1 states for VLAN-based service: \"The Ethernet Tag ID in all EVPN routes MUST be set to 0.\"",
+      "mapped-to": "RFC7432-6.1-2"
+    },
+    {
+      "id": "6.3:1",
+      "quote": "In the case where a single VLAN is represented by a single VID and thus no VID translation is required, an MPLS-encapsulated packet MUST carry that VID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-6.3-1"
+    },
+    {
+      "id": "6.3:2",
+      "quote": "The Ethernet Tag ID in all EVPN routes MUST be set to that VID.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-6.3-4"
+    },
+    {
+      "id": "6.3:3",
+      "quote": "In the case where a single VLAN is represented by different VIDs on different CEs and thus VID translation is required, a normalized Ethernet Tag ID (VID) MUST be carried in the EVPN BGP routes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-6.3-2"
+    },
+    {
+      "id": "6.3:4",
+      "quote": "Furthermore, the advertising PE advertises the MPLS Label1 in the MAC/IP Advertisement route representing both the Ethernet Tag ID and the EVI, so that upon receiving an MPLS-encapsulated packet, it can identify the corresponding bridge table from the MPLS EVPN label and perform Ethernet Tag ID translation ONLY at the disposition PE -- i.e., the Ethernet frames transported over the MPLS/IP network MUST remain tagged with the originating VID, and VID translation is performed on the disposition PE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-6.3-3"
+    },
+    {
+      "id": "6.3:5",
+      "quote": "The Ethernet Tag ID in all EVPN routes MUST be set to the normalized Ethernet Tag ID assigned by the EVPN provider.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the normalized Ethernet Tag ID obligation the same section already states: \"a normalized Ethernet Tag ID (VID) MUST be carried in the EVPN BGP routes.\"",
+      "mapped-to": "RFC7432-6.3-2"
+    },
+    {
+      "id": "7.6:1",
+      "quote": "A BGP speaker that implements RT Constraint [RFC4684] MUST apply the RT Constraint procedures to the ES-Import RT as well.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-7.6-2"
+    },
+    {
+      "id": "7.9:1",
+      "quote": "The Route Distinguisher (RD) MUST be set to the RD of the MAC-VRF that is advertising the NLRI.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-7.9-1"
+    },
+    {
+      "id": "7.9:2",
+      "quote": "An RD MUST be assigned for a given MAC-VRF on a PE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-7.9-2"
+    },
+    {
+      "id": "7.9:3",
+      "quote": "This RD MUST be unique across all MAC-VRFs on a PE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-7.9-3"
+    },
+    {
+      "id": "7.10.1:1",
+      "quote": "+ The Global Administrator field of the RT MUST be set to the Autonomous System (AS) number with which the PE is associated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-7.10.1-1"
+    },
+    {
+      "id": "7.10.1:2",
+      "quote": "+ The 12-bit VLAN ID MUST be encoded in the lowest 12 bits of the Local Administrator field, with the remaining bits set to zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-7.10.1-2"
+    },
+    {
+      "id": "8.1.1:1",
+      "quote": "The Route Distinguisher (RD) MUST be a Type 1 RD [RFC4364].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.1.1-1"
+    },
+    {
+      "id": "8.1.1:2",
+      "quote": "The Ethernet Segment Identifier (ESI) MUST be set to the 10-octet value described in Section 5.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-5-1"
+    },
+    {
+      "id": "8.1.1:3",
+      "quote": "The BGP advertisement that advertises the Ethernet Segment route MUST also carry an ES-Import Route Target, as defined in Section 7.6.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.1.1-2"
+    },
+    {
+      "id": "8.1.1:4",
+      "quote": "The Ethernet Segment route filtering MUST be done such that the Ethernet Segment route is imported only by the PEs that are multihomed to the same Ethernet segment.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-7.6-1"
+    },
+    {
+      "id": "8.2.1:1",
+      "quote": "Support of this route is REQUIRED.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.2.1-9"
+    },
+    {
+      "id": "8.2.1:2",
+      "quote": "The Route Distinguisher (RD) MUST be a Type 1 RD [RFC4364].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.2.1-10"
+    },
+    {
+      "id": "8.2.1:3",
+      "quote": "The Ethernet Segment Identifier MUST be a 10-octet entity as described in Section 5 (\"Ethernet Segment\").",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the 10-octet Ethernet Segment Identifier that Section 5 defines and RFC7432-5-1 carries.",
+      "mapped-to": "RFC7432-5-1"
+    },
+    {
+      "id": "8.2.1:4",
+      "quote": "The Ethernet Tag ID MUST be set to MAX-ET.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.2.1-1"
+    },
+    {
+      "id": "8.2.1:5",
+      "quote": "The MPLS label in the NLRI MUST be set to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.2.1-2"
+    },
+    {
+      "id": "8.2.1:6",
+      "quote": "The ESI Label extended community MUST be included in the route.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.2.1-3"
+    },
+    {
+      "id": "8.2.1:7",
+      "quote": "If All-Active redundancy mode is desired, then the \"Single-Active\" bit in the flags of the ESI Label extended community MUST be set to 0 and the MPLS label in that Extended Community MUST be set to a valid MPLS label value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.2.1-4"
+    },
+    {
+      "id": "8.2.1:8",
+      "quote": "The MPLS label in this Extended Community is referred to as the ESI label and MUST have the same value in each Ethernet A-D per ES route advertised for the ES.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.2.1-5"
+    },
+    {
+      "id": "8.2.1:9",
+      "quote": "This label MUST be a downstream assigned MPLS label if the advertising PE is using ingress replication for receiving multicast, broadcast, or unknown unicast traffic from other PEs.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the downstream assigned ESI label that the All-Active sentence in the same section states, which RFC7432-8.2.1-4 carries.",
+      "mapped-to": "RFC7432-8.2.1-4"
+    },
+    {
+      "id": "8.2.1:10",
+      "quote": "If the advertising PE is using P2MP MPLS LSPs for sending multicast, broadcast, or unknown unicast traffic, then this label MUST be an upstream assigned MPLS label.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.2.1-6"
+    },
+    {
+      "id": "8.2.1:11",
+      "quote": "If Single-Active redundancy mode is desired, then the \"Single-Active\" bit in the flags of the ESI Label extended community MUST be set to 1 and the ESI label SHOULD be set to a valid MPLS label value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.2.1-7"
+    },
+    {
+      "id": "8.2.1.1:1",
+      "quote": "Each Ethernet A-D per ES route MUST carry one or more Route Target (RT) attributes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.2.1-8"
+    },
+    {
+      "id": "8.2.1.1:2",
+      "quote": "The set of Ethernet A-D routes per ES MUST carry the entire set of RTs for all the EVPN instances to which the Ethernet segment belongs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.2.1.1-1"
+    },
+    {
+      "id": "8.3:1",
+      "quote": "In this case, the DF PE to which the CE is multihomed MUST drop the packet and not forward back to the CE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.3-1"
+    },
+    {
+      "id": "8.3:2",
+      "quote": "This label is referred to as the ESI label and MUST be distributed by all PEs when operating in All-Active redundancy mode using a set of Ethernet A-D per ES routes, per Section 8.2.1 above.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.3-2"
+    },
+    {
+      "id": "8.3:3",
+      "quote": "As described in Section 8.1.1, the route MUST carry an ESI Label extended community with a valid ESI label.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the ESI Label extended community the Ethernet Segment route must carry, stated in Section 8.1.1 and carried by RFC7432-8.1.1-2.",
+      "mapped-to": "RFC7432-8.1.1-2"
+    },
+    {
+      "id": "8.3.1.1:1",
+      "quote": "This label MUST be programmed in the platform label space by the advertising PE, and the forwarding entry for this label must result in NOT forwarding packets received with this label onto the Ethernet segment for which the label was distributed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.3.1-1"
+    },
+    {
+      "id": "8.3.1.1:2",
+      "quote": "- A non-DF ingress PE MUST include the ESI label distributed by the DF egress PE in the copy of a BUM packet sent to it.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.3.1.1-1"
+    },
+    {
+      "id": "8.3.1.1:3",
+      "quote": "In both All-Active and Single-Active redundancy mode, an ingress PE MUST NOT include an ESI label in the copy of a BUM packet sent to an egress PE that is not attached to the ES through which the BUM packet entered the EVI.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.3.1.1-2"
+    },
+    {
+      "id": "8.3.1.1:4",
+      "quote": "So, when PE1 sends a BUM packet that it receives from CE1, it MUST first push onto the MPLS label stack the ESI label that PE2 has distributed for ES1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates, in the worked example, the obligation on the ingress PE to push the ESI label the egress PE distributed, which RFC7432-8.3.1.1-1 carries.",
+      "mapped-to": "RFC7432-8.3.1.1-1"
+    },
+    {
+      "id": "8.3.1.1:5",
+      "quote": "It MUST then push onto the MPLS label stack the MPLS label distributed by PE2 in the Inclusive Multicast Ethernet Tag route for VLAN1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.3.1.1-6"
+    },
+    {
+      "id": "8.3.1.1:6",
+      "quote": "If the next label is the ESI label assigned by PE2 for ES1, then PE2 MUST NOT forward the packet onto ES1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.3.1.1-3"
+    },
+    {
+      "id": "8.3.1.1:7",
+      "quote": "If the next label is an ESI label that has not been assigned by PE2, then PE2 MUST drop the packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.3.1.1-7"
+    },
+    {
+      "id": "8.3.1.2:1",
+      "quote": "This label MUST be programmed by the other PEs that are connected to the ESI advertised in the route, in the context label space for the advertising PE.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the ESI label programming obligation for the P2MP case that RFC7432-8.3.1-1 carries.",
+      "mapped-to": "RFC7432-8.3.1-1"
+    },
+    {
+      "id": "8.3.1.2:2",
+      "quote": "This label MUST also be programmed by the other PEs that import the route but are not connected to the ESI advertised in the route, in the context label space for the advertising PE.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the ESI label programming obligation for PEs that import the route without being connected to the ESI, which RFC7432-8.3.1-1 carries.",
+      "mapped-to": "RFC7432-8.3.1-1"
+    },
+    {
+      "id": "8.3.1.2:3",
+      "quote": "When PE1 sends a BUM packet that it receives from CE1, it MUST first push onto the MPLS label stack the ESI label that it has assigned for the ESI on which the packet was received.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates, for the P2MP case, the obligation to push the ESI label first, which RFC7432-8.3.1.1-1 carries.",
+      "mapped-to": "RFC7432-8.3.1.1-1"
+    },
+    {
+      "id": "8.3.1.2:4",
+      "quote": "Penultimate hop popping MUST be disabled on the P2MP LSPs used in the MPLS transport infrastructure for EVPN.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.3.1.2-1"
+    },
+    {
+      "id": "8.3.1.2:5",
+      "quote": "If the next label is the ESI label assigned by PE1 to ES1, then PE2 MUST NOT forward the packet onto ES1.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the split-horizon prohibition for the P2MP case that RFC7432-8.3.1.1-3 carries.",
+      "mapped-to": "RFC7432-8.3.1.1-3"
+    },
+    {
+      "id": "8.3.1.2:6",
+      "quote": "If the next label is the ESI label assigned by PE1 to ES1 and PE3 is not connected to ES1, then PE3 MUST pop the label and flood the packet over all local ESIs in that EVPN instance.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.3.1.2-2"
+    },
+    {
+      "id": "8.4:1",
+      "quote": "Therefore, in order to handle corner cases and race conditions, the Ethernet A-D per EVI route MUST NOT be used for traffic forwarding by a remote PE until it also receives the associated set of Ethernet A-D per ES routes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.4-1"
+    },
+    {
+      "id": "8.4.1:1",
+      "quote": "The Route Distinguisher (RD) MUST be set per Section 7.9.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "\"The Route Distinguisher (RD) MUST be set per Section 7.9\" defers to Section 7.9, whose obligation RFC7432-7.9-1 carries.",
+      "mapped-to": "RFC7432-7.9-1"
+    },
+    {
+      "id": "8.4.1:2",
+      "quote": "The Ethernet Segment Identifier MUST be a 10-octet entity as described in Section 5 (\"Ethernet Segment\").",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the 10-octet Ethernet Segment Identifier that Section 5 defines and RFC7432-5-1 carries.",
+      "mapped-to": "RFC7432-5-1"
+    },
+    {
+      "id": "8.4.1:3",
+      "quote": "The Next Hop field of the MP_REACH_NLRI attribute of the route MUST be set to the IPv4 or IPv6 address of the advertising PE.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the MP_REACH_NLRI next-hop obligation that RFC7432-9.2.1-2 carries.",
+      "mapped-to": "RFC7432-9.2.1-2"
+    },
+    {
+      "id": "8.4.1:4",
+      "quote": "The Ethernet A-D route MUST carry one or more Route Target (RT) attributes, per Section 7.10.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.4.1-1"
+    },
+    {
+      "id": "8.5:1",
+      "quote": "In this case, the set of Ethernet A-D per ES routes advertised by each PE MUST have the \"Single-Active\" bit in the flags of the ESI Label extended community set to 1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-14.1.1-1"
+    },
+    {
+      "id": "8.5:2",
+      "quote": "In the case of VLAN-(aware) bundle service, then the numerically lowest VLAN value in that bundle on that ES MUST be used in the modulo function.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-8.5-2"
+    },
+    {
+      "id": "9.1:1",
+      "quote": "The PEs in a particular EVPN instance MUST support local data-plane learning using standard IEEE Ethernet learning procedures.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-9.1-1"
+    },
+    {
+      "id": "9.2.1:1",
+      "quote": "The RD MUST be set per Section 7.9.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "\"The RD MUST be set per Section 7.9\" defers to Section 7.9, whose obligation RFC7432-7.9-1 carries.",
+      "mapped-to": "RFC7432-7.9-1"
+    },
+    {
+      "id": "9.2.1:2",
+      "quote": "The encoding of a MAC address MUST be the 6-octet MAC address specified by [802.1Q] and [802.1D-REV].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-9.2.1-1"
+    },
+    {
+      "id": "9.2.1:3",
+      "quote": "The encoding of an IP address MUST be either 4 octets for IPv4 or 16 octets for IPv6.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-9.2.1-6"
+    },
+    {
+      "id": "9.2.1:4",
+      "quote": "The MPLS Label1 MUST be downstream assigned, and it is associated with the MAC address being advertised by the advertising PE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-9.2.1-3"
+    },
+    {
+      "id": "9.2.1:5",
+      "quote": "The Next Hop field of the MP_REACH_NLRI attribute of the route MUST be set to the IPv4 or IPv6 address of the advertising PE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-9.2.1-2"
+    },
+    {
+      "id": "9.2.1:6",
+      "quote": "The BGP advertisement for the MAC/IP Advertisement route MUST also carry one or more Route Target (RT) attributes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-9.2.1-4"
+    },
+    {
+      "id": "9.2.2:1",
+      "quote": "If the Ethernet Segment Identifier field in a received MAC/IP Advertisement route is set to the reserved ESI value of 0 or MAX-ESI, then if the receiving PE decides to install forwarding state for the associated MAC address, it MUST be based on the MAC/IP Advertisement route alone.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-9.2.2-1"
+    },
+    {
+      "id": "9.2.2:2",
+      "quote": "If the Ethernet Segment Identifier field in a received MAC/IP Advertisement route is set to a non-reserved ESI, then if the receiving PE decides to install forwarding state for the associated MAC address, it MUST be when both the MAC/IP Advertisement route AND the associated set of Ethernet A-D per ES routes have been received.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-9.2.2-2"
+    },
+    {
+      "id": "10:1",
+      "quote": "For ARP and ND purposes, the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-10-1"
+    },
+    {
+      "id": "10:2",
+      "quote": "If there are multiple IP addresses associated with a MAC address, then multiple MAC/IP Advertisement routes MUST be generated, one for each IP address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-10-2"
+    },
+    {
+      "id": "10:3",
+      "quote": "When the IP address is dissociated with the MAC address, then the MAC/IP Advertisement route with that particular IP address MUST be withdrawn.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-10-3"
+    },
+    {
+      "id": "10:4",
+      "quote": "If the receiving PE receives both the MAC-only route and the MAC/IP route, then when it receives a withdraw message for the MAC/IP route, it MUST delete the corresponding entry from the ARP table but not the MAC entry from the MAC-VRF table, unless it receives a withdraw message for the MAC-only route.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-10-4"
+    },
+    {
+      "id": "10.1:1",
+      "quote": "Unless it is known a priori (by means outside of this document) that all PEs of a given EVPN instance act as a default gateway for that EVPN instance, the MPLS label MUST be set to a valid downstream assigned label.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-10.1-4"
+    },
+    {
+      "id": "10.1:2",
+      "quote": "Furthermore, even if all PEs of a given EVPN instance do act as a default gateway for that EVPN instance, but only some, but not all, of these PEs have sufficient (routing) information to provide inter-subnet routing for all the inter-subnet traffic originated within the subnet associated with the EVPN instance, then when such a PE advertises in the EVPN control plane its default gateway MAC address using the MAC/IP Advertisement route and indicates that such a route is associated with the default gateway, the route MUST carry a valid downstream assigned label.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the valid downstream assigned label the default gateway route must carry, which RFC7432-10.1-4 carries.",
+      "mapped-to": "RFC7432-10.1-4"
+    },
+    {
+      "id": "10.1:3",
+      "quote": "Each PE that acts as a default gateway for a given EVPN instance that receives this route and imports it as per procedures specified in this document MUST create MAC forwarding state that enables it to apply IP forwarding to the packets destined to the MAC address carried in the route.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-10.1-5"
+    },
+    {
+      "id": "11:1",
+      "quote": "Each PE MUST advertise an \"Inclusive Multicast Ethernet Tag route\" to enable the above.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-11-1"
+    },
+    {
+      "id": "11.1:1",
+      "quote": "The RD MUST be set per Section 7.9.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "\"The RD MUST be set per Section 7.9\" defers to Section 7.9, whose obligation RFC7432-7.9-1 carries.",
+      "mapped-to": "RFC7432-7.9-1"
+    },
+    {
+      "id": "11.1:2",
+      "quote": "The Originating Router's IP Address field value MUST be set to an IP address of the PE that should be common for all the EVIs on the PE (e.g., this address may be the PE's loopback address).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-11.1-1"
+    },
+    {
+      "id": "11.1:3",
+      "quote": "The Next Hop field of the MP_REACH_NLRI attribute of the route MUST be set to the IPv4 or IPv6 address of the advertising PE.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the MP_REACH_NLRI next-hop obligation that RFC7432-9.2.1-2 carries.",
+      "mapped-to": "RFC7432-9.2.1-2"
+    },
+    {
+      "id": "11.1:4",
+      "quote": "The BGP advertisement for the Inclusive Multicast Ethernet Tag route MUST also carry one or more Route Target (RT) attributes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-11.1-3"
+    },
+    {
+      "id": "11.1:5",
+      "quote": "The assignment of RTs as described in Section 7.10 MUST be followed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-11.1-2"
+    },
+    {
+      "id": "11.2:1",
+      "quote": "In order to identify the P-tunnel used for sending broadcast, unknown unicast, or multicast traffic, the Inclusive Multicast Ethernet Tag route MUST carry a Provider Multicast Service Interface (PMSI) Tunnel attribute as specified in [RFC6514].",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-11.2-1"
+    },
+    {
+      "id": "11.2:2",
+      "quote": "+ If the PE that originates the advertisement uses a P-multicast tree for the P-tunnel for EVPN, the PMSI Tunnel attribute MUST contain the identity of the tree (note that the PE could create the identity of the tree prior to the actual instantiation of the tree).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-11.2-5"
+    },
+    {
+      "id": "11.2:3",
+      "quote": "In this case, in addition to carrying the identity of the tree, the PMSI Tunnel attribute MUST carry an MPLS upstream assigned label, which the PE has bound uniquely to the EVI associated with this update (as determined by its RTs).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-11.2-6"
+    },
+    {
+      "id": "11.2:4",
+      "quote": "If the PE has already advertised Inclusive Multicast Ethernet Tag routes for two or more EVIs that it now desires to aggregate, then the PE MUST re-advertise those routes.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-11.2-7"
+    },
+    {
+      "id": "11.2:5",
+      "quote": "The re-advertised routes MUST be the same as the original ones, except for the PMSI Tunnel attribute and the label carried in that attribute.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the re-advertisement obligation in the preceding sentence, which RFC7432-11.2-7 carries in full.",
+      "mapped-to": "RFC7432-11.2-7"
+    },
+    {
+      "id": "11.2:6",
+      "quote": "+ If the PE that originates the advertisement uses ingress replication for the P-tunnel for EVPN, the route MUST include the PMSI Tunnel attribute with the Tunnel Type set to Ingress Replication and the Tunnel Identifier set to a routable address of the PE.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates, for the ingress replication case, the obligation to include the PMSI Tunnel attribute that RFC7432-11.2-1 carries.",
+      "mapped-to": "RFC7432-11.2-1"
+    },
+    {
+      "id": "11.2:7",
+      "quote": "The PMSI Tunnel attribute MUST carry a downstream assigned MPLS label.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-11.2-3"
+    },
+    {
+      "id": "11.2:8",
+      "quote": "+ The Leaf Information Required flag of the PMSI Tunnel attribute MUST be set to zero and MUST be ignored on receipt.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-11.2-2"
+    },
+    {
+      "id": "12:1",
+      "quote": "PEx MUST NOT send the frame to other PEs, since PEy would have already done so.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-12-1"
+    },
+    {
+      "id": "12.1:1",
+      "quote": "The PE that receives a packet with this particular MPLS label MUST treat the packet as a broadcast, multicast, or unknown unicast packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-12.1-1"
+    },
+    {
+      "id": "12.1:2",
+      "quote": "Further, if the MAC address is a unicast MAC address, the PE MUST treat the packet as an unknown unicast packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-12.1-2"
+    },
+    {
+      "id": "12.2:1",
+      "quote": "The PE that receives a packet on the P2MP LSP specified in the PMSI Tunnel attribute MUST treat the packet as a broadcast, multicast, or unknown unicast packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-12.2-1"
+    },
+    {
+      "id": "12.2:2",
+      "quote": "Further, if the MAC address is a unicast MAC address, the PE MUST treat the packet as an unknown unicast packet.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates, for the P2MP case, the unknown unicast treatment that RFC7432-12.1-2 carries.",
+      "mapped-to": "RFC7432-12.1-2"
+    },
+    {
+      "id": "13.1:1",
+      "quote": "- The PE MUST flood the packet to other PEs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-13.1-1"
+    },
+    {
+      "id": "13.1:2",
+      "quote": "The PE MUST first encapsulate the packet in the ESI MPLS label as described in Section 8.3.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the ESI label encapsulation the same requirement carries: RFC7432-13.1-1 covers flooding to other PEs and the ESI label encapsulation together.",
+      "mapped-to": "RFC7432-13.1-1"
+    },
+    {
+      "id": "13.1:3",
+      "quote": "If ingress replication is used, the packet MUST be replicated to each remote PE, with the VPN label being an MPLS label determined as follows: This is the MPLS label advertised by the remote PE in a PMSI Tunnel attribute in the Inclusive Multicast Ethernet Tag route for a <MAC-VRF> or <MAC-VRF, Ethernet tag> combination.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-13.1-2"
+    },
+    {
+      "id": "13.1:4",
+      "quote": "If P2MP LSPs are being used, the packet MUST be sent on the P2MP LSP of which the PE is the root, for the Ethernet tag in the EVPN instance.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-13.1-3"
+    },
+    {
+      "id": "13.1:5",
+      "quote": "If the same P2MP LSP is used for all Ethernet tags, then all the PEs in the EVPN instance MUST be the leaves of the P2MP LSP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-13.1-4"
+    },
+    {
+      "id": "13.1:6",
+      "quote": "If a distinct P2MP LSP is used for a given Ethernet tag in the EVPN instance, then only the PEs in the Ethernet tag MUST be the leaves of the P2MP LSP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-13.1-6"
+    },
+    {
+      "id": "13.1:7",
+      "quote": "The packet MUST be encapsulated in the P2MP LSP label stack.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-13.1-7"
+    },
+    {
+      "id": "13.1:8",
+      "quote": "- the PE MUST drop the packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-13.1-5"
+    },
+    {
+      "id": "14.1:1",
+      "quote": "Whenever a remote PE imports a MAC/IP Advertisement route for a given <ESI, Ethernet tag> in a MAC-VRF, it MUST examine all imported Ethernet A-D routes for that ESI in order to determine the load- balancing characteristics of the Ethernet segment.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-14.1-1"
+    },
+    {
+      "id": "14.1.1:1",
+      "quote": "For a given ES, if the remote PE has imported the set of Ethernet A-D per ES routes from at least one PE, where the \"Single-Active\" flag in the ESI Label extended community is set, then the remote PE MUST deduce that the ES is operating in Single-Active redundancy mode.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-14.1.1-2"
+    },
+    {
+      "id": "14.1.1:2",
+      "quote": "If there is more than one backup PE for a given ES, the remote PE MUST use the primary PE's withdrawal of its set of Ethernet A-D per ES routes as a trigger to start flooding traffic for the associated MAC addresses (as long as flooding of unknown unicast packets is administratively allowed), as it is not possible to select a single backup PE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-14.1.1-3"
+    },
+    {
+      "id": "14.1.2:1",
+      "quote": "For a given ES, if the remote PE has imported the set of Ethernet A-D per ES routes from one or more PEs and none of them have the \"Single-Active\" flag in the ESI Label extended community set, then the remote PE MUST deduce that the ES is operating in All-Active redundancy mode.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-14.1.2-1"
+    },
+    {
+      "id": "14.1.2:2",
+      "quote": "The remote PE MUST use received MAC/IP Advertisement routes and Ethernet A-D per EVI/per ES routes to construct the set of next hops for the advertised MAC address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-14.1.2-2"
+    },
+    {
+      "id": "14.1.2:3",
+      "quote": "- If the next hop is constructed as a result of a MAC route, then this label stack MUST be used.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the label stack choice inside the ECMP next-hop construction that RFC7432-14.1.2-2 carries.",
+      "mapped-to": "RFC7432-14.1.2-2"
+    },
+    {
+      "id": "15:1",
+      "quote": "In order to allow all of the PEs in the EVPN instance to correctly determine the current location of the MAC address, all advertisements of it being reachable via the previous Ethernet segment MUST be withdrawn by the PEs, for the previous Ethernet segment, that had advertised it.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-15-2"
+    },
+    {
+      "id": "15:2",
+      "quote": "In order to process mobility events correctly, an implementation MUST handle scenarios in which sequence number wraparound occurs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-15-1"
+    },
+    {
+      "id": "15.1:1",
+      "quote": "The PE MUST alert the operator and stop sending and processing any BGP MAC/IP Advertisement routes for that MAC address until a corrective action is taken by the operator.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-15.1-1"
+    },
+    {
+      "id": "15.1:2",
+      "quote": "The values of M and N MUST be configurable to allow for flexibility in operator control.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-15.1-2"
+    },
+    {
+      "id": "15.2:1",
+      "quote": "If a PE receives such advertisements and later learns the same MAC address(es) via local learning, then the PE MUST alert the operator.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-15.2-1"
+    },
+    {
+      "id": "17.3:1",
+      "quote": "If the connectivity between the multihomed CE and one of the PEs to which it is attached fails, the PE MUST withdraw the set of Ethernet A-D per ES routes that had been previously advertised for that ES.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-17.3-1"
+    },
+    {
+      "id": "17.3:2",
+      "quote": "When the MAC entry on the PE ages out, the PE MUST withdraw the MAC address from BGP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7432-17.3-3"
+    },
+    {
+      "id": "17.3:3",
+      "quote": "When an Ethernet tag is decommissioned on an Ethernet segment, then the PE MUST withdraw the Ethernet A-D per EVI route(s) announced for the <ESI, Ethernet tags> that are impacted by the decommissioning.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the withdrawal of Ethernet A-D per EVI routes on decommissioning that RFC7432-17.3-1 carries.",
+      "mapped-to": "RFC7432-17.3-1"
+    },
+    {
+      "id": "17.3:4",
+      "quote": "In addition, the PE MUST also withdraw the MAC/IP Advertisement routes that are impacted by the decommissioning.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates the withdrawal of the impacted MAC/IP Advertisement routes that RFC7432-17.3-1 carries.",
+      "mapped-to": "RFC7432-17.3-1"
+    }
+  ]
+}

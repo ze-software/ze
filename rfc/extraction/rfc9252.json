@@ -1,0 +1,449 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9252",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc9252.txt",
+  "source-sha": "dd9dd72a8f831935",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9252-3.1-2"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1",
+      "sites": 7,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "The underlay nodes whose SRv6 SIDs are part of the SRH segment list MUST support the SRv6 data plane.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Introduction applicability statement about the deployment: it says which underlay nodes a segment list may name, and binds no behavior of a BGP implementation of this document. The obligation on an SRv6 data-plane node is RFC 8986's, not this document's."
+    },
+    {
+      "id": "2:1",
+      "quote": "RESERVED (1 octet): This field is reserved; it MUST be set to 0 by the sender and ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.1-1"
+    },
+    {
+      "id": "2:2",
+      "quote": "In addition, all Reserved fields in the TLV, Sub-TLV, or Sub-Sub-TLV MUST be propagated unchanged.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.3-1"
+    },
+    {
+      "id": "2:3",
+      "quote": "Any received Sub-TLVs and Sub-Sub-TLVs that are unrecognized MUST be removed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.3-2"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "RESERVED1 (1 octet): This field MUST be set to 0 by the sender and ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.2-1"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "It MUST be set to 0 by the sender and any unknown flags MUST be ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.2-2"
+    },
+    {
+      "id": "3.1:3",
+      "quote": "RESERVED2 (1 octet): This field MUST be set to 0 by the sender and ignored by the receiver.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.2-3"
+    },
+    {
+      "id": "3.1:4",
+      "quote": "An unrecognized SRv6 Endpoint Behavior MUST NOT be considered invalid by the receiver, except for behaviors that involve the use of arguments (refer to Section 3.2.1 for details on argument validation).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.2-4"
+    },
+    {
+      "id": "3.2.1:1",
+      "quote": "The bits that have been shifted out MUST be set to 0 in the SID value.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.2.1-4"
+    },
+    {
+      "id": "3.2.1:2",
+      "quote": "In this case, the Transposition Offset MUST be set to 0.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.2.1-1"
+    },
+    {
+      "id": "3.2.1:3",
+      "quote": "As defined in [RFC8986], the sum of the Locator Block Length (LBL), Locator Node Length (LNL), Function Length (FL), and Argument Length (AL) fields MUST be less than or equal to 128 and greater than the sum of Transposition Offset and Transposition Length.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.2.1-3"
+    },
+    {
+      "id": "3.2.1:4",
+      "quote": "Implementations supporting this specification MUST provide a mechanism to control the advertisement of SRv6-based BGP service routes on a per-neighbor and per-service basis.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.2.1-5"
+    },
+    {
+      "id": "3.2.1:5",
+      "quote": "Arguments may be generally applicable for SIDs of only specific SRv6 Endpoint Behaviors (e.g., End.DT2M); therefore, the AL MUST be set to 0 for SIDs where the Argument is not applicable.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.2.1-6"
+    },
+    {
+      "id": "3.2.1:6",
+      "quote": "A receiver is unable to validate the applicability of arguments for SRv6 Endpoint Behaviors that are unknown to it and hence MUST ignore SRv6 SIDs with arguments (indicated by a non-zero AL) with unknown SRv6 Endpoint Behaviors.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.2-5"
+    },
+    {
+      "id": "3.2.1:7",
+      "quote": "For SIDs corresponding to an SRv6 Endpoint Behavior that is known, a receiver MUST validate that the consistency of the AL with the specific SRv6 Endpoint Behavior definition.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.2-6"
+    },
+    {
+      "id": "5:1",
+      "quote": "This TLV serves two purposes -- first, it indicates that the egress PE supports SRv6 overlay, and the BGP ingress PE receiving this route MUST perform IPv6 encapsulation and insert an SRH [RFC8754] when required; second, it indicates the value of the Service SID to be used in the encapsulation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-5-3"
+    },
+    {
+      "id": "5:2",
+      "quote": "Therefore, the ingress PE MUST perform a resolvability check for the SRv6 Service SID before considering the received prefix for the BGP best path computation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-5-2"
+    },
+    {
+      "id": "5.1:1",
+      "quote": "When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 20 and less than or equal to the FL.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-4.1-1"
+    },
+    {
+      "id": "5.2:1",
+      "quote": "When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 20 and less than or equal to the FL.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 5.2 states the IPv6 VPN case in the same words as the Section 5.1 IPv4 VPN case that RFC9252-4.1-1 maps.",
+      "mapped-to": "RFC9252-4.1-1"
+    },
+    {
+      "id": "6:1",
+      "quote": "Signaling of the SRv6 Service SID(s) serves two purposes -- first, it indicates that the BGP egress device supports SRv6 overlay, and the BGP ingress device receiving this route MUST perform IPv6 encapsulation and insert an SRH [RFC8754] when required; second, it indicates the value of the Service SID(s) to be used in the encapsulation.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 6 repeats for EVPN the ingress-device encapsulation obligation Section 5 states for L3 services and RFC9252-5-3 maps.",
+      "mapped-to": "RFC9252-5-3"
+    },
+    {
+      "id": "6:2",
+      "quote": "Therefore, the ingress PE MUST perform a resolvability check for the SRv6 Service SID before considering the received prefix for the BGP best path computation.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 6 repeats for EVPN the ingress-PE resolvability check Section 5 states and RFC9252-5-2 maps.",
+      "mapped-to": "RFC9252-5-2"
+    },
+    {
+      "id": "6.1.1:1",
+      "quote": "When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the AL.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-6.1-1"
+    },
+    {
+      "id": "6.1.2:1",
+      "quote": "When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-6.2-1"
+    },
+    {
+      "id": "6.2:1",
+      "quote": "When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 6.2 repeats the 24-bit and Function Length transposition bound word for word.",
+      "mapped-to": "RFC9252-6.2-1"
+    },
+    {
+      "id": "6.2:2",
+      "quote": "When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The second MAC/IP label field repeats the same 24-bit and Function Length bound word for word.",
+      "mapped-to": "RFC9252-6.2-1"
+    },
+    {
+      "id": "6.2.1:1",
+      "quote": "When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 6.2.1 repeats the same 24-bit and Function Length bound word for word.",
+      "mapped-to": "RFC9252-6.2-1"
+    },
+    {
+      "id": "6.2.2:1",
+      "quote": "When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 6.2.2 repeats the same 24-bit and Function Length bound word for word.",
+      "mapped-to": "RFC9252-6.2-1"
+    },
+    {
+      "id": "6.2.2:2",
+      "quote": "When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The second label field of the MAC+IP route repeats the same bound word for word.",
+      "mapped-to": "RFC9252-6.2-1"
+    },
+    {
+      "id": "6.3:1",
+      "quote": "When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 6.3 repeats the same 24-bit and Function Length bound word for word.",
+      "mapped-to": "RFC9252-6.2-1"
+    },
+    {
+      "id": "6.5:1",
+      "quote": "When using the Transposition Scheme, the Transposition Length MUST be less than or equal to 24 and less than or equal to the FL.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 6.5 repeats the same 24-bit and Function Length bound word for word.",
+      "mapped-to": "RFC9252-6.2-1"
+    },
+    {
+      "id": "7:1",
+      "quote": "If multiple instances of the SRv6 L3 Service TLV are encountered, all but the first instance MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-7-1"
+    },
+    {
+      "id": "7:2",
+      "quote": "If multiple instances of the SRv6 L2 Service TLV are encountered, all but the first instance MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-7-2"
+    },
+    {
+      "id": "7:3",
+      "quote": "The treat-as-withdraw action [RFC7606] MUST be performed when at least one malformed SRv6 Service TLV is present in the BGP Prefix-SID attribute.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.4-1"
+    },
+    {
+      "id": "7:4",
+      "quote": "The transposition offset and length MUST be 0 when the Sub-Sub-TLV is advertised along with routes where the Transposition Scheme is not applicable (e.g., for global IPv6 service [RFC2545] where there is no label field).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-3.2.1-2"
+    },
+    {
+      "id": "7:5",
+      "quote": "The path having any such Prefix-SID attribute without any valid SRv6 SID information MUST be considered ineligible during the selection of the best path for the corresponding prefix.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9252-5-1"
+    },
+    {
+      "id": "9.3:1",
+      "quote": "As such, an operator deploying SRv6 MUST follow the considerations described in Section 7 of [RFC8754] to implement the infrastructure Access Control Lists (ACLs) and the recommendations described in BCP 38 [RFC2827] and BCP 84 [RFC3704].",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The sentence points the operator at Section 7 of RFC 8754 and at BCP 38 (RFC 2827) and BCP 84 (RFC 3704); the infrastructure ACL and ingress filtering obligations are stated in those documents, and this sentence adds none of its own."
+    }
+  ]
+}

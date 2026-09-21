@@ -1,0 +1,175 @@
+{
+  "schema-version": 1,
+  "stem": "rfc5310",
+  "register": "prose",
+  "source-path": "rfc/full/rfc5310.txt",
+  "source-sha": "f5b2eddf2b4cd973",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5310-3.2-4"
+      ]
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC5310-3.5-1",
+        "RFC5310-3.5-2"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "However, the objective of a routing protocol is to advertise the routing topology, and confidentiality is not normally required for routing protocols.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Introduction prose explaining why confidentiality is out of scope for a routing protocol; the lowercase 'required' describes the problem space and imposes nothing."
+    },
+    {
+      "id": "3.2:1",
+      "quote": "When calculating the CRYPTO_AUTH result for Sequence Number PDUs, Level 1 Sequence Number PDUs SHALL use the Area Authentication string, as in Level 1 Link State PDUs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5310-3.2-1"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "Level 2 Sequence Number PDUs shall use the domain authentication string, as in Level 2 Link State PDUs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5310-3.2-2"
+    },
+    {
+      "id": "3.2:3",
+      "quote": "IS-IS HELLO PDUs SHALL use the Link Level Authentication string, which MAY be different from that of Link State PDUs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5310-3.2-3"
+    },
+    {
+      "id": "3.2:4",
+      "quote": "The CRYPTO_AUTH result for the IS-IS HELLO PDUs SHALL be calculated after the PDU is padded to the MTU size, if padding is not disabled.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5310-3.2-5"
+    },
+    {
+      "id": "3.2:5",
+      "quote": "Implementations that support the optional checksum for the Sequence Number PDUs and IS-IS HELLO PDUs MUST NOT include the Checksum TLV.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5310-3.2-6"
+    },
+    {
+      "id": "3.4:1",
+      "quote": "An implementation MUST fill the authentication type and the length before the authentication data is computed.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5310-3.4-1"
+    },
+    {
+      "id": "3.4:2",
+      "quote": "The authentication data for the IS-IS IIH PDUs MUST be computed after the IS-IS Hello (IIH) has been padded to the MTU size, if padding is not explicitly disabled.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5310-3.4-2"
+    },
+    {
+      "id": "4:1",
+      "quote": "This document states that the remaining lifetime of the LSP MUST be set to zero before computing the authentication, thus this field is not authenticated.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5310-4-1"
+    },
+    {
+      "id": "4:2",
+      "quote": "The operator must ensure that this mode is only used when migrating to the new CRYPTO_AUTH-based authentication scheme, as this leaves the router vulnerable to an attack.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Security Considerations guidance to the operator, in lowercase 'must'; Section 1.1 binds only the capitalised spellings to RFC 2119, and the sentence constrains how long a deployment keeps the optional transition mode rather than what an implementation does."
+    },
+    {
+      "id": "4:3",
+      "quote": "To ensure greater security, the keys used should be changed periodically, and implementations MUST be able to store and use more than one key at the same time.",
+      "disposition": "mapped",
+      "mapped-to": "RFC5310-4-2"
+    },
+    {
+      "id": "4:4",
+      "quote": "If a stronger authentication were believed to be required, then the use of a full digital signature [RFC2154] would be an approach that should be seriously considered.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Security Considerations commentary pointing at RFC 2154 digital signatures as an approach that 'should be seriously considered' if stronger authentication were wanted; lowercase, conditional, and about a mechanism this document does not define."
+    }
+  ]
+}

@@ -1,0 +1,149 @@
+{
+  "schema-version": 1,
+  "stem": "rfc1332",
+  "register": "prose",
+  "source-path": "rfc/full/rfc1332.txt",
+  "source-sha": "05b932877d43bddd",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC1332-2-1",
+        "RFC1332-2-2",
+        "RFC1332-2-3"
+      ]
+    },
+    {
+      "id": "2.1",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC1332-2.1-2"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC1332-3-1"
+      ]
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC1332-3.1-1",
+        "RFC1332-3.1-2",
+        "RFC1332-3.1-3"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "In order to establish communications over a point-to-point link, each end of the PPP link must first send LCP packets to configure and test the data link.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 is a non-normative description of PPP's three components. The sentence describes the LCP establishment sequence that RFC 1331 defines, not an IPCP obligation this document places on an implementation."
+    },
+    {
+      "id": "1:2",
+      "quote": "After the link has been established and optional facilities have been negotiated as needed by the LCP, PPP must send NCP packets to choose and configure one or more network-layer protocols.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Same non-normative introduction: it describes how the NCP family defined in RFC 1331 is used after LCP establishment. IPCP's own obligations start at Section 2."
+    },
+    {
+      "id": "2.1:1",
+      "quote": "Before any IP packets may be communicated, PPP must reach the Network-Layer Protocol phase, and the IP Control Protocol must reach the Opened state.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1332-2.1-1"
+    },
+    {
+      "id": "2.1:2",
+      "quote": "Larger IP datagrams must be fragmented as necessary.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1332-2.1-3"
+    },
+    {
+      "id": "3.3:1",
+      "quote": "If negotiation about the remote IP-address is required, and the peer did not provide the option in its Configure-Request, the option SHOULD be appended to a Configure-Nak.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1332-3.3-1"
+    },
+    {
+      "id": "3.3:2",
+      "quote": "The value of the IP-address given must be acceptable as the remote IP-address, or indicate a request that the peer provide the information.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1332-3.3-2"
+    },
+    {
+      "id": "4:1",
+      "quote": "Each end of the link must separately request this option if bi-directional compression is desired.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Van Jacobson TCP/IP header compression is optional in this document and Ze declined it. Section 3.2 states the default: \"By default, compression is not enabled.\" Ze never requests the IP-Compression-Protocol option and Configure-Rejects a peer's Type-2 option (isKnownIPCPOption, internal/component/l2tp/ppp/ipcp.go), so the obligation to request it separately per direction never binds."
+    },
+    {
+      "id": "4.1:1",
+      "quote": "0 The slot identifier must not be compressed.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "Comp-Slot-Id semantics bind only a speaker that negotiated the optional IP-Compression-Protocol option, and Section 3.2 makes it optional: \"By default, compression is not enabled.\" Ze negotiates only IPCP options 3, 129 and 131 and Configure-Rejects Type 2, so it never carries a Comp-Slot-Id field."
+    },
+    {
+      "id": "4.1:2",
+      "quote": "All compressed TCP packets must set the C bit in every change mask, and must include the slot identifier.",
+      "disposition": "excluded",
+      "excluded-kind": "feature-out-of-scope",
+      "reason": "The C bit and slot identifier rules bind a Van Jacobson compressor, a feature Section 3.2 makes optional: \"By default, compression is not enabled.\" Ze emits no compressed TCP frames (PPP protocol 002d) because it never negotiates the option."
+    },
+    {
+      "id": "4.1:3",
+      "quote": "The slot identifier must not be compressed if there is no ability for the PPP link level to indicate an error in reception to the decompression module.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1332-4.1-1"
+    }
+  ]
+}

@@ -1,0 +1,212 @@
+{
+  "schema-version": 1,
+  "stem": "rfc9136",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc9136.txt",
+  "source-sha": "3cd1f114ac072151",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 9,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC9136-3.1-8"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3:1",
+      "quote": "In case two or more NVEs are attached to different BDs of the same tenant, they MUST support the RT-5 for the proper inter-subnet forwarding operation of the tenant.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9136-3-1"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "* The Length field of the BGP EVPN NLRI for an EVPN IP Prefix route MUST be either 34 (if IPv4 addresses are carried) or 58 (if IPv6 addresses are carried).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9136-3.1-1"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "The IP prefix and gateway IP address MUST be from the same IP address family.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9136-3.1-2"
+    },
+    {
+      "id": "3.1:3",
+      "quote": "* The Route Distinguisher (RD) and Ethernet Tag ID MUST be used as defined in [RFC7432] and [RFC8365].",
+      "disposition": "mapped",
+      "mapped-to": "RFC9136-3.1-3"
+    },
+    {
+      "id": "3.1:4",
+      "quote": "* The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of \"Overlay Index\" in Section 3.2).",
+      "disposition": "mapped",
+      "mapped-to": "RFC9136-3.1-4"
+    },
+    {
+      "id": "3.1:5",
+      "quote": "It MUST be all bytes zero otherwise.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the all-zero-otherwise half of the ESI constraint the row already states: \"ESI MUST be a non-zero 10-octet identifier if used as Overlay Index; MUST be all zeros otherwise\"",
+      "mapped-to": "RFC9136-3.1-4"
+    },
+    {
+      "id": "3.1:6",
+      "quote": "The value MUST NOT be greater than 128.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9136-3.1-5"
+    },
+    {
+      "id": "3.1:7",
+      "quote": "The GW IP field MUST be all bytes zero if it is not used as an Overlay Index.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9136-3.1-6"
+    },
+    {
+      "id": "3.1:8",
+      "quote": "If the received MPLS label value is zero, the route MUST contain an Overlay Index, and the ingress NVE/PE MUST perform a recursive resolution to find the egress NVE/ PE.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9136-3.1-7"
+    },
+    {
+      "id": "3.1:9",
+      "quote": "If the received label is zero and the route does not contain an Overlay Index, it MUST be \"treat as withdraw\" [RFC7606].",
+      "disposition": "mapped",
+      "mapped-to": "RFC9136-3.1-9"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "* Irrespective of the recursive resolution, if there is no IGP or BGP route to the BGP next hop of an RT-5, BGP MUST NOT install the RT-5 even if the Overlay Index can be resolved.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9136-3.2-2"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "However, they MUST NOT both be non-zero at the same time.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9136-3.2-1"
+    },
+    {
+      "id": "3.2:3",
+      "quote": "The encoding of a MAC address MUST be the 6-octet MAC address specified by [IEEE-802.1Q].",
+      "disposition": "mapped",
+      "mapped-to": "RFC9136-3.2-3"
+    },
+    {
+      "id": "3.2:4",
+      "quote": "The route MUST be treat as withdraw in case of an invalid MAC address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC9136-3.2-4"
+    }
+  ]
+}

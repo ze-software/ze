@@ -1,0 +1,294 @@
+{
+  "schema-version": 1,
+  "stem": "rfc1334",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc1334.txt",
+  "source-sha": "34483221567656af",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2.1",
+      "sites": 7,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC1334-2.2-2"
+      ]
+    },
+    {
+      "id": "2.2.2",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC1334-2.3-5",
+        "RFC1334-2.3-6"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.1",
+      "sites": 10,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2.2",
+      "sites": 4,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "If authentication of the link is desired, an implementation MUST specify the Authentication-Protocol Configuration Option during Link Establishment phase.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1334-1-1"
+    },
+    {
+      "id": "1.1:1",
+      "quote": "MUST This word, or the adjective \"required\", means that the definition is an absolute requirement of the specification.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1.1 'Specification Requirements' defines the keywords themselves; this sentence is part of the definition of MAY/'optional' and states no PAP or CHAP behaviour."
+    },
+    {
+      "id": "1.1:2",
+      "quote": "MUST NOT This phrase means that the definition is an absolute prohibition of the specification.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1.1 'Specification Requirements' defines the keywords themselves; this sentence is part of the definition of MAY/'optional' and states no PAP or CHAP behaviour."
+    },
+    {
+      "id": "1.1:3",
+      "quote": "An implementation which does not include this option MUST be prepared to interoperate with another implementation which does include the option.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1.1 'Specification Requirements' defines the keywords themselves; this sentence is part of the definition of MAY/'optional' and states no PAP or CHAP behaviour."
+    },
+    {
+      "id": "2:1",
+      "quote": "Any implementations which include a stronger authentication method (such as CHAP, described below) MUST offer to negotiate that method prior to PAP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1334-x-1"
+    },
+    {
+      "id": "2.2.1:1",
+      "quote": "The link peer MUST transmit a PAP packet with the Code field set to 1 (Authenticate-Request) during the Authentication phase.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1334-2.2.1-1"
+    },
+    {
+      "id": "2.2.1:2",
+      "quote": "The Authenticate-Request packet MUST be repeated until a valid reply packet is received, or an optional retry counter expires.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1334-2.2.1-2"
+    },
+    {
+      "id": "2.2.1:3",
+      "quote": "Upon reception of an Authenticate-Request packet, some type of Authenticate reply (described below) MUST be returned.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1334-2.2.1-3"
+    },
+    {
+      "id": "2.2.1:4",
+      "quote": "Implementation Note: Because the Authenticate-Ack might be lost, the authenticator MUST allow repeated Authenticate- Request packets after completing the Authentication phase.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1334-2.2.1-4"
+    },
+    {
+      "id": "2.2.1:5",
+      "quote": "Protocol phase MUST return the same reply Code returned when the Authentication phase completed (the message portion MAY be different).",
+      "disposition": "mapped",
+      "mapped-to": "RFC1334-2.2.1-5"
+    },
+    {
+      "id": "2.2.1:6",
+      "quote": "Any Authenticate-Request packets received during any other phase MUST be silently discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1334-2.2.1-6"
+    },
+    {
+      "id": "2.2.1:7",
+      "quote": "The Identifier field MUST be changed each time an Authenticate-Request packet is issued.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1334-2.2-1"
+    },
+    {
+      "id": "2.2.2:1",
+      "quote": "If the Peer-ID/Password pair received in an Authenticate-Request is both recognizable and acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 2 (Authenticate- Ack).",
+      "disposition": "mapped",
+      "mapped-to": "RFC1334-2.3-1"
+    },
+    {
+      "id": "2.2.2:2",
+      "quote": "If the Peer-ID/Password pair received in a Authenticate-Request is not recognizable or acceptable, then the authenticator MUST transmit a PAP packet with the Code field set to 3 (Authenticate- Nak), and SHOULD take action to terminate the link.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1334-2.3-2"
+    },
+    {
+      "id": "2.2.2:3",
+      "quote": "The Identifier field MUST be copied from the Identifier field of the Authenticate-Request which caused this reply.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1334-2.3-3"
+    },
+    {
+      "id": "2.2.2:4",
+      "quote": "It is intended to be human readable, and MUST NOT affect operation of the protocol.",
+      "disposition": "mapped",
+      "mapped-to": "RFC1334-2.3-4"
+    },
+    {
+      "id": "3:1",
+      "quote": "The CHAP algorithm requires that the length of the secret MUST be at least 1 octet.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here."
+    },
+    {
+      "id": "3.2.1:1",
+      "quote": "The authenticator MUST transmit a CHAP packet with the Code field set to 1 (Challenge).",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here."
+    },
+    {
+      "id": "3.2.1:2",
+      "quote": "Additional Challenge packets MUST be sent until a valid Response packet is received, or an optional retry counter expires.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here."
+    },
+    {
+      "id": "3.2.1:3",
+      "quote": "Whenever a Challenge packet is received, the peer MUST transmit a CHAP packet with the Code field set to 2 (Response).",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here."
+    },
+    {
+      "id": "3.2.1:4",
+      "quote": "Based on this comparison, the authenticator MUST send a Success or Failure packet (described below).",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here."
+    },
+    {
+      "id": "3.2.1:5",
+      "quote": "Implementation Note: Because the Success might be lost, the authenticator MUST allow repeated Response packets after completing the Authentication phase.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here."
+    },
+    {
+      "id": "3.2.1:6",
+      "quote": "To prevent discovery of alternative Names and Secrets, any Response packets received having the current Challenge Identifier MUST return the same reply Code returned when the Authentication phase completed (the message portion MAY be different).",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here."
+    },
+    {
+      "id": "3.2.1:7",
+      "quote": "Any Response packets received during any other phase MUST be silently discarded.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here."
+    },
+    {
+      "id": "3.2.1:8",
+      "quote": "The Identifier field MUST be changed each time a Challenge is sent.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here."
+    },
+    {
+      "id": "3.2.1:9",
+      "quote": "The Response Identifier MUST be copied from the Identifier field of the Challenge which caused the Response.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here."
+    },
+    {
+      "id": "3.2.1:10",
+      "quote": "The Challenge Value MUST be changed each time a Challenge is sent.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here."
+    },
+    {
+      "id": "3.2.2:1",
+      "quote": "If the Value received in a Response is equal to the expected value, then the implementation MUST transmit a CHAP packet with the Code field set to 3 (Success).",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here."
+    },
+    {
+      "id": "3.2.2:2",
+      "quote": "If the Value received in a Response is not equal to the expected value, then the implementation MUST transmit a CHAP packet with the Code field set to 4 (Failure), and SHOULD take action to terminate the link.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here."
+    },
+    {
+      "id": "3.2.2:3",
+      "quote": "The Identifier field MUST be copied from the Identifier field of the Response which caused this reply.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here."
+    },
+    {
+      "id": "3.2.2:4",
+      "quote": "It is intended to be human readable, and MUST NOT affect operation of the protocol.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "RFC 1994 carries 'Obsoletes: 1334' in its header and defines CHAP in full; the Meta row of this summary records the partial obsoletion ('RFC 1994 for CHAP only -- PAP remains defined here'). The CHAP obligation is owed under rfc/short/rfc1994.md, not here."
+    }
+  ]
+}

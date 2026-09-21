@@ -1,0 +1,1083 @@
+{
+  "schema-version": 1,
+  "stem": "rfc3031",
+  "register": "prose",
+  "source-path": "rfc/full/rfc3031.txt",
+  "source-sha": "da270cc6acad74d1",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.9",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.10",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.11",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.12",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.13",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.14",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.15",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.16",
+      "sites": 6,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.17",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.18",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.19",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.20",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.21",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.22",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.23",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.24",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.25",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.25.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.25.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.25.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.26",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.26.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.26.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.26.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.26.3.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.26.3.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.27",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.27.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.27.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.27.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.27.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.27.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.28",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.29",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.29.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.29.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.29.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.30",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.2.2",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.6",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.6",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.7",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.8",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.1.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.1.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.1.4",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.2.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1.6",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2.3",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 1,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "3.1:1",
+      "quote": "(This will typically be the case when Ru and Rd are not direct neighbors.) In such cases, Rd must make sure that the binding from label to FEC is one-to-one.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.1:2",
+      "quote": "That is, Rd MUST NOT agree with Ru1 to bind L to FEC F1, while also agreeing with some other LSR Ru2 to bind L to a different FEC F2, UNLESS Rd can always tell, when it receives a packet with incoming label L, whether the label was put on the packet by Ru1 or whether it was put on by Ru2.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 3.1 states the label-uniqueness prohibition in passing; Section 3.14, \"Scope and Uniqueness of Labels\", states it in full as \"In all other cases, Rd MUST NOT distribute to Ru bindings of the same label value to two different FECs\", which RFC3031-3.14-1 carries.",
+      "mapped-to": "RFC3031-3.14-1"
+    },
+    {
+      "id": "3.3:1",
+      "quote": "The particular encoding technique to be used must be agreed to by both the entity which encodes the label and the entity which decodes the label.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.5:1",
+      "quote": "If Ru, acting as a downstream LSR, also distributes a binding of a label to FEC F, then under certain conditions, it may be required to also distribute the corresponding attribute that it received from Rd.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.7:1",
+      "quote": "On any given label distribution adjacency, the upstream LSR and the downstream LSR must agree on which technique is to be used.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.9:1",
+      "quote": "As we shall see, it is useful to have a more general model in which a labeled packet carries a number of labels, organized as a last-in, first-out stack.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.9:2",
+      "quote": "Although, as we shall see, MPLS supports a hierarchy, the processing of a labeled packet is completely independent of the level of hierarchy.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.10:1",
+      "quote": "If the packet's \"next hop\" is the current LSR, then the label stack operation MUST be to \"pop the stack\".",
+      "disposition": "mapped",
+      "mapped-to": "RFC3031-3.10-1"
+    },
+    {
+      "id": "3.11:1",
+      "quote": "If the ILM maps a particular label to a set of NHLFEs that contains more than one element, exactly one element of the set must be chosen before the packet is forwarded.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.12:1",
+      "quote": "If the FTN maps a particular label to a set of NHLFEs that contains more than one element, exactly one element of the set must be chosen before the packet is forwarded.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.14:1",
+      "quote": "When these conditions do not hold, the labels must be unique over the LSR which has assigned them, and we may say that the LSR is using a \"per- platform label space.\"",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.14:2",
+      "quote": "In all other cases, Rd MUST NOT distribute to Ru bindings of the same label value to two different FECs.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3031-3.14-1"
+    },
+    {
+      "id": "3.14:3",
+      "quote": "However, in such cases the LSR must have some means, not specified by the architecture, of determining, for a particular incoming label, which label space that label belongs to.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.16:1",
+      "quote": "Then it must pop the stack, and examine what remains of the packet.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.16:2",
+      "quote": "The creation of the forwarding \"fastpath\" in a label switching product may be greatly aided if it is known that only a single lookup is ever required:",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.16:3",
+      "quote": "However, some hardware switching engines may not be able to pop the label stack, so this cannot be universally required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.16:4",
+      "quote": "An LSR which is capable of popping the label stack at all MUST do penultimate hop popping when so requested by its downstream label distribution peer.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3031-3.16-1"
+    },
+    {
+      "id": "3.16:5",
+      "quote": "Initial label distribution protocol negotiations MUST allow each LSR to determine whether its neighboring LSRS are capable of popping the label stack.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3031-3.16-2"
+    },
+    {
+      "id": "3.16:6",
+      "quote": "A LSR MUST NOT request a label distribution peer to pop the label stack unless it is capable of doing so.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3031-3.16-3"
+    },
+    {
+      "id": "3.18:1",
+      "quote": "Therefore, when a labeled packet is received with an invalid incoming label, it MUST be discarded, UNLESS it is determined by some means (not within the scope of the current document) that forwarding it unlabeled cannot cause any harm.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3031-x-1"
+    },
+    {
+      "id": "3.19:1",
+      "quote": "If one wants to ensure that traffic in a particular FEC follows a path with some specified set of properties (e.g., that the traffic does not traverse any node twice, that a specified amount of resources are available to the traffic, that the traffic follows an explicitly specified path, etc.) ordered control must be used.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.23:1",
+      "quote": "If the label values are encoded in a \"shim\" that sits between the data link and network layer headers, then this shim MUST have a TTL field that SHOULD be initially loaded from the network layer header TTL field, SHOULD be decremented at each LSR-hop, and SHOULD be copied into the network layer header TTL field when the packet emerges from its LSP.",
+      "disposition": "mapped",
+      "mapped-to": "RFC3031-3.23-1"
+    },
+    {
+      "id": "3.23:2",
+      "quote": "In this case, the LSR at the ingress to the non-TTL LSP segment must not label switch the packet.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.23:3",
+      "quote": "This means that special procedures must be developed to support traceroute functionality, for example, traceroute packets may be forwarded using conventional hop by hop forwarding.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.24:1",
+      "quote": "All LSRs that may attach to non-TTL LSP segments will therefore be required to support a common technique for loop detection; however, use of the loop detection technique is optional.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.25.2:1",
+      "quote": "As we shall see in section 3.26, this enables us to do label merging, without running into any cell interleaving problems, on ATM switches which can provide multipoint-to-point VPs, but which do not have the VC merge capability.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.25.2:2",
+      "quote": "If there are more labels on the stack than can be encoded in the ATM header, the ATM encodings must be combined with the generic encapsulation.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.25.3:1",
+      "quote": "When a labeled packet is received, the LSR must decode it to determine the current value of the label stack, then must operate on the label stack to determine the new value of the stack, and then encode the new value appropriately before transmitting the labeled packet to its next hop.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.26:1",
+      "quote": "Let us say that an LSR is not capable of label merging if, for any two packets which arrive from different interfaces, or with different labels, the packets must either be transmitted out different interfaces, or must have different labels.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.26:2",
+      "quote": "If a particular LSR cannot perform label merging, then if two packets in the same FEC arrive with different incoming labels, they must be forwarded with different outgoing labels.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.26:3",
+      "quote": "In fact, it is difficult for an LSR to even determine how many such incoming labels it must support for a particular FEC.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.26.2:1",
+      "quote": "When a downstream neighbor receives such a request from upstream, and the downstream neighbor does not itself support label merging, then it must in turn ask its downstream neighbor for another label for the FEC in question.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.26.3.1:1",
+      "quote": "When VC merge is used, switches are required to buffer cells from one packet until the entire packet is received (this may be determined by looking for the AAL5 end of frame indicator).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.26.3.2:1",
+      "quote": "The number required will be determined by allowing the upstream nodes to request additional VPI/VCIs from their downstream neighbors (this is again analogous to the method used with frame merge).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.27.3:1",
+      "quote": "The set of packets which are to be sent though the LSP tunnel constitutes a FEC, and each LSR in the tunnel must assign a label to that FEC (i.e., must assign a label to the tunnel).",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.27.4:1",
+      "quote": "R2, switching on the label, determines that P must enter the tunnel.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "3.27.5:1",
+      "quote": "Note that in this example, R2 and R21 must be IGP neighbors, but R2 and R3 need not be.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.1.2.2:1",
+      "quote": "In order to use MPLS for the forwarding of packets according to the hop-by-hop route corresponding to any address prefix, each LSR MUST:",
+      "disposition": "mapped",
+      "mapped-to": "RFC3031-4.1.2.2-1"
+    },
+    {
+      "id": "4.1.2.2:2",
+      "quote": "There is also one circumstance in which an LSR must distribute a label binding for an address prefix, even if it is not the LSR which bound that label to that address prefix:",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.1.2.2:3",
+      "quote": "If R1 uses BGP to distribute a route to X, naming some other LSR R2 as the BGP Next Hop to X, and if R1 knows that R2 has assigned label L to X, then R1 must distribute the binding between L and X to any BGP peer to which it distributes that route.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.1.2.2:4",
+      "quote": "These rules are intended only to indicate which label bindings must be distributed by a given LSR to which other LSRs.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.1.3:1",
+      "quote": "At that point, the LSP must end and the best match algorithm must be performed again.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.1.3:2",
+      "quote": "In this situation, packet P can be label Switched until it reaches R2, but since R2 has performed route aggregation, it must execute the best match algorithm to find P's FEC.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.1.5:1",
+      "quote": "If LSR Ru, by consulting its ILM, sees that labeled packet P must be forwarded next to Rd, but that Rd has distributed a binding of Implicit NULL to the corresponding address prefix, then instead of replacing the value of the label on top of the label stack, Ru pops the label stack, and then forwards the resulting packet to Rd.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.1.6:1",
+      "quote": "There are situations in which an LSP Ingress, Ri, knows that packets of several different FECs must all follow the same LSP, terminating at, say, LSP Egress Re.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.1.6:2",
+      "quote": "- If the network is running a link state routing algorithm, and all nodes in the area support MPLS, then the routing algorithm provides Ri with enough information to determine the routers through which packets in that FEC must leave the routing domain or area.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.1.6:3",
+      "quote": "- If the network is running BGP, Ri may be able to determine that the packets in a particular FEC must leave the network via some particular router which is the \"BGP Next Hop\" for that FEC.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.2.1:1",
+      "quote": "If the transmit endpoint of the tunnel wishes to put a labeled packet into the tunnel, it must first replace the label value at the top of the stack with a label value that was distributed to it by the tunnel's receive endpoint.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.2.1:2",
+      "quote": "Then it must push on the label which corresponds to the tunnel itself, as distributed to it by the next hop along the tunnel.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.3:1",
+      "quote": "Ru must push L2 and then L1 onto the packet's label stack, and then forward the packet to Rd;",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.3:2",
+      "quote": "When Ru distributes label bindings for X to its label distribution peers, it must include L2 as the stack attribute.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.3:3",
+      "quote": "Whenever the stack attribute changes (possibly as a result of a change in Ru's LSP next hop for X), Ru must distribute the new stack attribute.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.5:1",
+      "quote": "Since conventional ATM switches do not support multipoint-to-point connections, there must be procedures to ensure that each LSP is realized as a point-to-point VC.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.6:1",
+      "quote": "However, there must be some means of ensuring that the transit traffic will be delivered from Border Router to Border Router by the interior routers.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.6:2",
+      "quote": "Then before sending packet P to I1, B1 must create a label stack for P, then push on label L1, and then push on label L2.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.6:3",
+      "quote": "Then before sending packet P to I1, B1 must replace the label at the top of the label stack with L1, and then push on label L2.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.7:1",
+      "quote": "If the transmit endpoint of the tunnel wishes to put a labeled packet into the tunnel, it must first replace the label value at the top of the stack with a label value that was distributed to it by the tunnel's receive endpoint.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.7:2",
+      "quote": "Then it must push on the label which corresponds to the tunnel itself, as distributed to it by the next hop along the tunnel.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.8:1",
+      "quote": "The tree along which a particular multicast packet must get forwarded depends in general on the packet's source address and its destination address.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "4.8:2",
+      "quote": "(If the node in question is on a LAN, and has siblings on that LAN, it must also distribute the binding to its siblings.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.1:1",
+      "quote": "The downstream LSR must perform:",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.1:2",
+      "quote": "The upstream LSR must perform:",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.1.1:1",
+      "quote": "Irrespective of the particular procedure that is used, if a label binding for a particular address prefix has been distributed by a downstream LSR Rd to an upstream LSR Ru, and if at any time the attributes (as defined above) of that binding change, then Rd must inform Ru of the new attributes.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.1.1.1:1",
+      "quote": "Whenever these conditions hold, Rd must bind a label to X and distribute that binding to Ru.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.1.1.3:1",
+      "quote": "Note that if X is not in Rd's routing table, or if Rd is not a label distribution peer of Ru with respect to X, then Rd must inform Ru that it cannot provide a binding at this time.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.1.1.4:1",
+      "quote": "Note that if X is not in Rd's routing table and a binding for X is not obtainable via Rd's next hop for X, or if Rd is not a label distribution peer of Ru with respect to X, then Rd must inform Ru that it cannot provide a binding at this time.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.1.1.4:2",
+      "quote": "However, if the only condition that fails to hold is that Rn has not yet provided a label to Rd, then Rd must defer any response to Ru until such time as it has receiving a binding from Rn.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.1.1.4:3",
+      "quote": "If Rd has distributed a label binding for address prefix X to Ru, and at some later time, any attribute of the label binding changes, then Rd must redistribute the label binding to Ru, with the new attribute.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.1.1.4:4",
+      "quote": "It must do this even though Ru does not issue a new Request.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.1.2.3:1",
+      "quote": "If Rd receives such a request from Ru, for an address prefix for which Rd has already distributed Ru a label, Rd shall assign a new (distinct) label, bind it to X, and distribute that binding.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.1.6:1",
+      "quote": "When LSR Rd decides to break the binding between label L and address prefix X, then this unbinding must be distributed to all LSRs to which the binding was distributed.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.1.6:2",
+      "quote": "It is required that the unbinding of L from X be distributed by Rd to a LSR Ru before Rd distributes to Ru any new binding of L to any other address prefix Y, where X != Y.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.1.6:3",
+      "quote": "If LSR R1 has a label distribution adjacency to LSR R2, and has received label bindings from LSR R2 via that adjacency, then if adjacency is brought down by either peer (whether as a result of failure or as a matter of normal operation), all bindings received over that adjacency must be considered to have been withdrawn.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.1.6:4",
+      "quote": "As long as the relevant label distribution adjacency remains in place, label bindings that are withdrawn must always be withdrawn explicitly.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.2.1:1",
+      "quote": "If Ru and Rd are label distribution peers, and both support label merging, one of the following schemes must be used:",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.2.2:1",
+      "quote": "Since there is no multipoint-to-point capability, the LSPs must be realized as point-to-point VCs, which means that there needs to be three such VCs for address prefix X: <R1, R2, R3, R4>, <R2, R3, R4>, and <R3, R4>.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.2.2:2",
+      "quote": "Therefore, if R1 and R2 are MPLS peers, and either is an LSR which is implemented using conventional ATM switching hardware (i.e., no cell interleave suppression), or is otherwise incapable of performing label merging, the MPLS scheme in use between R1 and R2 must be one of the following:",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.2.3:1",
+      "quote": "Each must state whether it supports label merging.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.2.3:2",
+      "quote": "If Rd does not support label merging, Rd must choose either the PulledUnconditional procedure or the PulledConditional procedure.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "5.2.3:3",
+      "quote": "If Ru does not support label merging, but Rd does, Ru must choose either the RequestRetry or RequestNoRetry procedure.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 1 binds the normative reading to the capitalised key words: \"The key words \\\"MUST\\\", \\\"MUST NOT\\\", \\\"REQUIRED\\\", \\\"SHALL\\\", \\\"SHALL NOT\\\", \\\"SHOULD\\\", \\\"SHOULD NOT\\\", \\\"RECOMMENDED\\\", \\\"MAY\\\", and \\\"OPTIONAL\\\" in this document are to be interpreted as described in [RFC2119].\" This site's keyword is lower case, so it is descriptive architecture prose rather than a normative obligation."
+    },
+    {
+      "id": "10:1",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Boilerplate: the RFC Editor's full copyright statement, which constrains republication of the document and states no protocol obligation."
+    }
+  ]
+}

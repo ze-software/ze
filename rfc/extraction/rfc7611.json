@@ -1,0 +1,129 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7611",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc7611.txt",
+  "source-sha": "63f038bbea1c9b4f",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7611-5-1"
+      ]
+    },
+    {
+      "id": "2.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7611-2.2-2"
+      ]
+    },
+    {
+      "id": "2.3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2.1:1",
+      "quote": "A route MUST NOT ever be accepted back into its source VRF, even if it carries one or more RTs that match that VRF.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7611-2.1-1"
+    },
+    {
+      "id": "2.2:1",
+      "quote": "Likewise, if a route carrying the ACCEPT_OWN community is received in an address family that does not allow the source VRF to be looked up, the ACCEPT_OWN community MUST be discarded.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7611-2.2-1"
+    },
+    {
+      "id": "2.3:1",
+      "quote": "ACCEPT_OWN handling SHOULD be controlled by configuration, and if controlled by configuration, it MUST default to being disabled.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7611-2.3-1"
+    },
+    {
+      "id": "2.3:2",
+      "quote": "When ACCEPT_OWN is disabled by configuration (either explicitly or by default), the router MUST NOT apply the special route acceptance rules detailed in Section 2.1.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7611-2.3-2"
+    },
+    {
+      "id": "3:1",
+      "quote": "This extra step MUST only be invoked during the best path selection process of VPN-IP routes [RFC4364] (i.e., it MUST NOT be invoked for the best path selection of imported IP routes in a VRF).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7611-3-1"
+    }
+  ]
+}

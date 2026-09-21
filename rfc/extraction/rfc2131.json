@@ -1,0 +1,669 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2131",
+  "register": "rfc2119",
+  "source-path": "rfc/full/rfc2131.txt",
+  "source-sha": "034052024822fc6a",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.4",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2131-2-4"
+      ]
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2131-3-1"
+      ]
+    },
+    {
+      "id": "3.1",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2131-3.1-3"
+      ]
+    },
+    {
+      "id": "3.2",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2131-3.2-3"
+      ]
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 11,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2131-4.3-2",
+        "RFC2131-4.3-3",
+        "RFC2131-4.3-4",
+        "RFC2131-4.3-5",
+        "RFC2131-4.3-6",
+        "RFC2131-4.3-7",
+        "RFC2131-4.3-8",
+        "RFC2131-4.3-9"
+      ]
+    },
+    {
+      "id": "4.3.1",
+      "sites": 8,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2131-4.3.1-5"
+      ]
+    },
+    {
+      "id": "4.3.2",
+      "sites": 10,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3.6",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2131-4.4-2",
+        "RFC2131-4.4-3"
+      ]
+    },
+    {
+      "id": "4.4.1",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.4.5",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2131-4.4.5-3"
+      ]
+    },
+    {
+      "id": "4.4.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1.4:1",
+      "quote": "o \"MUST\"",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "the bullet heading of the RFC 2119 keyword glossary, quoting the word itself rather than stating an obligation"
+    },
+    {
+      "id": "1.4:2",
+      "quote": "This word or the adjective \"REQUIRED\" means that the item is an absolute requirement of this specification.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "RFC 2119 boilerplate defining what the word MUST means in this document"
+    },
+    {
+      "id": "1.4:3",
+      "quote": "o \"MUST NOT\"",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "the bullet heading of the RFC 2119 keyword glossary, quoting the words MUST NOT rather than stating an obligation"
+    },
+    {
+      "id": "2:1",
+      "quote": "The 'client identifier' chosen by a DHCP client MUST be unique to that client within the subnet to which the client is attached.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-2-1"
+    },
+    {
+      "id": "2:2",
+      "quote": "If the client uses a 'client identifier' in one message, it MUST use that same identifier in all subsequent messages, to ensure that all servers correctly identify the client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-2-2"
+    },
+    {
+      "id": "2:3",
+      "quote": "They MUST be set to zero by clients and ignored by servers and relay agents.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-2-3"
+    },
+    {
+      "id": "2:4",
+      "quote": "MBZ: MUST BE ZERO (reserved for future use)",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the figure legend for the 'flags' field restates the same obligation as the section 2 sentence 'They MUST be set to zero by clients and ignored by servers and relay agents'",
+      "mapped-to": "RFC2131-2-3"
+    },
+    {
+      "id": "3.1:1",
+      "quote": "The client broadcasts a DHCPREQUEST message that MUST include the 'server identifier' option to indicate which server it has selected, and that MAY include other options specifying desired configuration values.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-3.1-1"
+    },
+    {
+      "id": "3.1:2",
+      "quote": "The 'requested IP address' option MUST be set to the value of 'yiaddr' in the DHCPOFFER message from the server.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-3.1-2"
+    },
+    {
+      "id": "3.1:3",
+      "quote": "To help ensure that any BOOTP relay agents forward the DHCPREQUEST message to the same set of DHCP servers that received the original DHCPDISCOVER message, the DHCPREQUEST message MUST use the same value in the DHCP message header's 'secs' field and be sent to the same IP broadcast address as the original DHCPDISCOVER message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-3.1-8"
+    },
+    {
+      "id": "3.1:4",
+      "quote": "If the client detects that the address is already in use (e.g., through the use of ARP), the client MUST send a DHCPDECLINE message to the server and restarts the configuration process.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-3.1-7"
+    },
+    {
+      "id": "3.1:5",
+      "quote": "If the client used a 'client identifier' when it obtained the lease, it MUST use the same 'client identifier' in the DHCPRELEASE message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-3.1-6"
+    },
+    {
+      "id": "3.2:1",
+      "quote": "As the client has not received its network address, it MUST NOT fill in the 'ciaddr' field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-3.2-1"
+    },
+    {
+      "id": "3.2:2",
+      "quote": "If the client used a 'client identifier' to obtain its address, the client MUST use the same 'client identifier' in the DHCPREQUEST message.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "section 3.2 restates for the INIT-REBOOT DHCPREQUEST the section 2 obligation that a client which uses a 'client identifier' in one message uses that same identifier in all subsequent messages",
+      "mapped-to": "RFC2131-2-2"
+    },
+    {
+      "id": "3.2:3",
+      "quote": "The server MUST broadcast the DHCPNAK message to the 0xffffffff broadcast address because the client may not have a correct network address or subnet mask, and the client may not be answering ARP requests.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "section 3.2 and section 4.3.2 carry the same sentence word for word; site 4.3.2:6 maps it",
+      "mapped-to": "RFC2131-4.3.2-1"
+    },
+    {
+      "id": "3.2:4",
+      "quote": "Otherwise, the server MUST send the DHCPNAK message to the IP address of the BOOTP relay agent, as recorded in 'giaddr'.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-3.2-4"
+    },
+    {
+      "id": "3.2:5",
+      "quote": "If the client detects that the IP address in the DHCPACK message is already in use, the client MUST send a DHCPDECLINE message to the server and restarts the configuration process by requesting a new network address.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "section 3.2 restates the section 3.1 obligation to send a DHCPDECLINE when the client detects the assigned address is already in use; site 3.1:4 maps it",
+      "mapped-to": "RFC2131-3.1-7"
+    },
+    {
+      "id": "3.4:1",
+      "quote": "The server SHOULD check the network address in a DHCPINFORM message for consistency, but MUST NOT check for an existing lease.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-3.4-1"
+    },
+    {
+      "id": "3.5:1",
+      "quote": "If the client includes a list of parameters in a DHCPDISCOVER message, it MUST include that list in any subsequent DHCPREQUEST messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-3.5-1"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "A server with multiple network addresses MUST be prepared to to accept any of its network addresses as identifying that server in a DHCP message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.1-1"
+    },
+    {
+      "id": "4.1:2",
+      "quote": "To accommodate potentially incomplete network connectivity, a server MUST choose an address as a 'server identifier' that, to the best of the server's knowledge, is reachable from the client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.1-2"
+    },
+    {
+      "id": "4.1:3",
+      "quote": "DHCP clients MUST use the IP address provided in the 'server identifier' option for any unicast requests to the DHCP server.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.1-10"
+    },
+    {
+      "id": "4.1:4",
+      "quote": "If the options in a DHCP message extend into the 'sname' and 'file' fields, the 'option overload' option MUST appear in the 'options' field, with value 1, 2 or 3, as specified in RFC 1533.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.1-4"
+    },
+    {
+      "id": "4.1:5",
+      "quote": "If the 'option overload' option is present in the 'options' field, the options in the 'options' field MUST be terminated by an 'end' option, and MAY contain one or more 'pad' options to fill the options field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.1-3"
+    },
+    {
+      "id": "4.1:6",
+      "quote": "The options in the 'sname' and 'file' fields (if in use as indicated by the 'options overload' option) MUST begin with the first octet of the field, MUST be terminated by an 'end' option, and MUST be followed by 'pad' options to fill the remainder of the field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.1-5"
+    },
+    {
+      "id": "4.1:7",
+      "quote": "Any individual option in the 'options', 'sname' and 'file' fields MUST be entirely contained in that field.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.1-6"
+    },
+    {
+      "id": "4.1:8",
+      "quote": "The options in the 'options' field MUST be interpreted first, so that any 'option overload' options may be interpreted.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.1-7"
+    },
+    {
+      "id": "4.1:9",
+      "quote": "The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the same interpretation-order sentence the previous site states; site 4.1:8 maps it",
+      "mapped-to": "RFC2131-4.1-7"
+    },
+    {
+      "id": "4.1:10",
+      "quote": "The client MUST adopt a retransmission strategy that incorporates a randomized exponential backoff algorithm to determine the delay between retransmissions.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.1-8"
+    },
+    {
+      "id": "4.1:11",
+      "quote": "A DHCP client MUST choose 'xid's in such a way as to minimize the chance of using an 'xid' identical to one used by another client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.1-9"
+    },
+    {
+      "id": "4.2:1",
+      "quote": "If the client supplies a 'client identifier', the client MUST use the same 'client identifier' in all subsequent messages, and the server MUST use that identifier to identify the client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.2-1"
+    },
+    {
+      "id": "4.2:2",
+      "quote": "If the client does not provide a 'client identifier' option, the server MUST use the contents of the 'chaddr' field to identify the client.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.2-2"
+    },
+    {
+      "id": "4.3.1:1",
+      "quote": "Field DHCPOFFER DHCPACK DHCPNAK ----- --------- ------- ------- 'op' BOOTREPLY BOOTREPLY BOOTREPLY 'htype' (From \"Assigned Numbers\" RFC) 'hlen' (Hardware address length in octets) 'hops' 0 0 0 'xid' 'xid' from client 'xid' from client 'xid' from client DHCPDISCOVER DHCPREQUEST DHCPREQUEST message message message 'secs' 0 0 0 'ciaddr' 0 'ciaddr' from 0 DHCPREQUEST or 0 'yiaddr' IP address offered IP address 0 to client assigned to client 'siaddr' IP address of next IP address of next 0 bootstrap server bootstrap server 'flags' 'flags' from 'flags' from 'flags' from client DHCPDISCOVER client DHCPREQUEST client DHCPREQUEST message message message 'giaddr' 'giaddr' from 'giaddr' from 'giaddr' from client DHCPDISCOVER client DHCPREQUEST client DHCPREQUEST message message message 'chaddr' 'chaddr' from 'chaddr' from 'chaddr' from client DHCPDISCOVER client DHCPREQUEST client DHCPREQUEST message message message 'sname' Server host name Server host name (unused) or options or options 'file' Client boot file Client boot file (unused) name or options name or options 'options' options options Option DHCPOFFER DHCPACK DHCPNAK ------ --------- ------- ------- Requested IP address MUST NOT MUST NOT MUST NOT IP address lease time MUST MUST (DHCPREQUEST) MUST NOT MUST NOT (DHCPINFORM) Use 'file'/'sname' fields MAY MAY MUST NOT DHCP message type DHCPOFFER DHCPACK DHCPNAK Parameter request list MUST NOT MUST NOT MUST NOT Message SHOULD SHOULD SHOULD Client identifier MUST NOT MUST NOT MAY Vendor class identifier MAY MAY MAY Server identifier MUST MUST MUST Maximum message size MUST NOT MUST NOT MUST NOT All others MAY MAY MUST NOT",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.3-1"
+    },
+    {
+      "id": "4.3.1:2",
+      "quote": "The configuration parameters MUST be selected by applying the following rules in the order given below.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.3.1-1"
+    },
+    {
+      "id": "4.3.1:3",
+      "quote": "The server MUST return to the client:",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "'The server MUST return to the client:' is the lead-in to the ordered selection rules the previous sentence already binds; site 4.3.1:2 maps it",
+      "mapped-to": "RFC2131-4.3.1-1"
+    },
+    {
+      "id": "4.3.1:4",
+      "quote": "-- IF the server has been explicitly configured with a default value for the parameter, the server MUST include that value in an appropriate option in the 'option' field, ELSE",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.3.1-2"
+    },
+    {
+      "id": "4.3.1:5",
+      "quote": "-- IF the server recognizes the parameter as a parameter defined in the Host Requirements Document, the server MUST include the default value for that parameter as given in the Host Requirements Document in an appropriate option in the 'option' field, ELSE",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.3.1-3"
+    },
+    {
+      "id": "4.3.1:6",
+      "quote": "-- The server MUST NOT return a value for that parameter, The server MUST supply as many of the requested parameters as possible and MUST omit any parameters it cannot provide.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.3.1-4"
+    },
+    {
+      "id": "4.3.1:7",
+      "quote": "The server MUST include each requested parameter only once unless explicitly allowed in the DHCP Options and BOOTP Vendor Extensions document.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.3.1-6"
+    },
+    {
+      "id": "4.3.1:8",
+      "quote": "o Any parameters specific to this client's class (as identified by the contents of the 'vendor class identifier' option in the DHCPDISCOVER or DHCPREQUEST message), e.g., as configured by the network administrator; the parameters MUST be identified by an exact match between the client's vendor class identifiers and the client's classes identified in the server,",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.3.1-7"
+    },
+    {
+      "id": "4.3.2:1",
+      "quote": "If the client uses a 'client identifier' in a DHCPREQUEST message, it MUST use that same 'client identifier' in all subsequent messages.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "section 4.3.2 restates the section 2 'same client identifier in all subsequent messages' obligation; site 2:2 maps it",
+      "mapped-to": "RFC2131-2-2"
+    },
+    {
+      "id": "4.3.2:2",
+      "quote": "If the client included a list of requested parameters in a DHCPDISCOVER message, it MUST include that list in all subsequent messages.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "section 4.3.2 restates the section 3.5 obligation to carry the requested-parameter list into subsequent messages; site 3.5:1 maps it",
+      "mapped-to": "RFC2131-3.5-1"
+    },
+    {
+      "id": "4.3.2:3",
+      "quote": "Client inserts the address of the selected server in 'server identifier', 'ciaddr' MUST be zero, 'requested IP address' MUST be filled in with the yiaddr value from the chosen DHCPOFFER.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the SELECTING row of the section 4.3.2 field list restates Table 4, whose SELECTING obligations RFC2131-3.1-1 and RFC2131-3.1-2 already carry, and whose 'ciaddr MUST be zero' clause RFC2131-3.2-1 carries",
+      "mapped-to": "RFC2131-3.1-1"
+    },
+    {
+      "id": "4.3.2:4",
+      "quote": "'server identifier' MUST NOT be filled in, 'requested IP address' option MUST be filled in with client's notion of its previously assigned address. 'ciaddr' MUST be zero.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-3.1-4"
+    },
+    {
+      "id": "4.3.2:5",
+      "quote": "If the DHCP server has no record of this client, then it MUST remain silent, and MAY output a warning to the network administrator.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.3.2-3"
+    },
+    {
+      "id": "4.3.2:6",
+      "quote": "The server MUST broadcast the DHCPNAK message to the 0xffffffff broadcast address because the client may not have a correct network address or subnet mask, and the client may not be answering ARP requests.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.3.2-1"
+    },
+    {
+      "id": "4.3.2:7",
+      "quote": "The server MUST set the broadcast bit in the DHCPNAK, so that the relay agent will broadcast the DHCPNAK to the client, because the client may not have a correct network address or subnet mask, and the client may not be answering ARP requests.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.3.2-2"
+    },
+    {
+      "id": "4.3.2:8",
+      "quote": "'server identifier' MUST NOT be filled in, 'requested IP address' option MUST NOT be filled in, 'ciaddr' MUST be filled in with client's IP address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-3.1-5"
+    },
+    {
+      "id": "4.3.2:9",
+      "quote": "'server identifier' MUST NOT be filled in, 'requested IP address' option MUST NOT be filled in, 'ciaddr' MUST be filled in with client's IP address.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "the REBINDING row repeats the RENEWING row word for word; site 4.3.2:8 maps it",
+      "mapped-to": "RFC2131-3.1-5"
+    },
+    {
+      "id": "4.3.2:10",
+      "quote": "This message MUST be broadcast to the 0xffffffff IP broadcast address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.3.2-5"
+    },
+    {
+      "id": "4.3.3:1",
+      "quote": "The server MUST mark the network address as not available and SHOULD notify the local system administrator of a possible configuration problem.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.3.3-1"
+    },
+    {
+      "id": "4.3.5:1",
+      "quote": "The server MUST NOT send a lease expiration time to the client and SHOULD NOT fill in 'yiaddr'.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.3.5-1"
+    },
+    {
+      "id": "4.3.6:1",
+      "quote": "--------------------------------------------------------------------- | |INIT-REBOOT |SELECTING |RENEWING |REBINDING | --------------------------------------------------------------------- |broad/unicast |broadcast |broadcast |unicast |broadcast | |server-ip |MUST NOT |MUST |MUST NOT |MUST NOT | |requested-ip |MUST |MUST |MUST NOT |MUST NOT | |ciaddr |zero |zero |IP address |IP address| ---------------------------------------------------------------------",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Table 4 itself, whose per-state obligations RFC2131-3.1-1 through RFC2131-3.1-5 already carry",
+      "mapped-to": "RFC2131-3.1-1"
+    },
+    {
+      "id": "4.4.1:1",
+      "quote": "The client MUST include its hardware address in the 'chaddr' field, if necessary for delivery of DHCP reply messages.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.4.1-1"
+    },
+    {
+      "id": "4.4.1:2",
+      "quote": "If the client included a list of requested parameters in a DHCPDISCOVER message, it MUST include that list in all subsequent messages.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "section 4.4.1 restates the section 3.5 obligation to carry the requested-parameter list into subsequent messages; site 3.5:1 maps it",
+      "mapped-to": "RFC2131-3.5-1"
+    },
+    {
+      "id": "4.4.1:3",
+      "quote": "Field DHCPDISCOVER DHCPREQUEST DHCPDECLINE, DHCPINFORM DHCPRELEASE ----- ------------ ----------- ----------- 'op' BOOTREQUEST BOOTREQUEST BOOTREQUEST 'htype' (From \"Assigned Numbers\" RFC) 'hlen' (Hardware address length in octets) 'hops' 0 0 0 'xid' selected by client 'xid' from server selected by DHCPOFFER message client 'secs' 0 or seconds since 0 or seconds since 0 DHCP process started DHCP process started 'flags' Set 'BROADCAST' Set 'BROADCAST' 0 flag if client flag if client requires broadcast requires broadcast reply reply 'ciaddr' 0 (DHCPDISCOVER) 0 or client's 0 (DHCPDECLINE) client's network address client's network network address (BOUND/RENEW/REBIND) address (DHCPINFORM) (DHCPRELEASE) 'yiaddr' 0 0 0 'siaddr' 0 0 0 'giaddr' 0 0 0 'chaddr' client's hardware client's hardware client's hardware address address address 'sname' options, if options, if (unused) indicated in indicated in 'sname/file' 'sname/file' option; otherwise option; otherwise unused unused 'file' options, if options, if (unused) indicated in indicated in 'sname/file' 'sname/file' option; otherwise option; otherwise unused unused 'options' options options (unused) Option DHCPDISCOVER DHCPREQUEST DHCPDECLINE, DHCPINFORM DHCPRELEASE ------ ------------ ----------- ----------- Requested IP address MAY MUST (in MUST (DISCOVER) SELECTING or (DHCPDECLINE), MUST NOT INIT-REBOOT) MUST NOT (INFORM) MUST NOT (in (DHCPRELEASE) BOUND or RENEWING) IP address lease time MAY MAY MUST NOT (DISCOVER) MUST NOT (INFORM) Use 'file'/'sname' fields MAY MAY MAY DHCP message type DHCPDISCOVER/ DHCPREQUEST DHCPDECLINE/ DHCPINFORM DHCPRELEASE Client identifier MAY MAY MAY Vendor class identifier MAY MAY MUST NOT Server identifier MUST NOT MUST (after MUST SELECTING) MUST NOT (after INIT-REBOOT, BOUND, RENEWING or REBINDING) Parameter request list MAY MAY MUST NOT Maximum message size MAY MAY MUST NOT Message SHOULD NOT SHOULD NOT SHOULD Site-specific MAY MAY MUST NOT All others MAY MAY MUST NOT",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.4-1"
+    },
+    {
+      "id": "4.4.1:4",
+      "quote": "If the network address appears to be in use, the client MUST send a DHCPDECLINE message to the server.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "section 4.4.1 restates the section 3.1 obligation to send a DHCPDECLINE when the address appears to be in use; site 3.1:4 maps it",
+      "mapped-to": "RFC2131-3.1-7"
+    },
+    {
+      "id": "4.4.2:1",
+      "quote": "The client MUST insert its known network address as a 'requested IP address' option in the DHCPREQUEST message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.4.2-1"
+    },
+    {
+      "id": "4.4.2:2",
+      "quote": "The client MUST NOT include a 'server identifier' in the DHCPREQUEST message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.4.2-2"
+    },
+    {
+      "id": "4.4.3:1",
+      "quote": "DHCPINFORM messages MUST be directed to the 'DHCP server' UDP port.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.4.3-1"
+    },
+    {
+      "id": "4.4.5:1",
+      "quote": "T1 MUST be earlier than T2, which, in turn, MUST be earlier than the time at which the client's lease will expire.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.4.5-2"
+    },
+    {
+      "id": "4.4.5:2",
+      "quote": "The client MUST NOT include a 'server identifier' in the DHCPREQUEST message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.4.5-6"
+    },
+    {
+      "id": "4.4.5:3",
+      "quote": "The client MUST NOT include a 'server identifier' in the DHCPREQUEST message.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.4.5-7"
+    },
+    {
+      "id": "4.4.5:4",
+      "quote": "If the lease expires before the client receives a DHCPACK, the client moves to INIT state, MUST immediately stop any other network processing and requests network initialization parameters as if the client were uninitialized.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.4.5-1"
+    },
+    {
+      "id": "4.4.5:5",
+      "quote": "If the client is given a new network address, it MUST NOT continue using the previous network address and SHOULD notify the local users of the problem.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2131-4.4.5-5"
+    }
+  ]
+}

@@ -1,0 +1,229 @@
+{
+  "schema-version": 1,
+  "stem": "rfc7474",
+  "register": "prose",
+  "source-path": "rfc/full/rfc7474.txt",
+  "source-sha": "c360bb0c18ef9cb4",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "1.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 5,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7474-2-2",
+        "RFC7474-2-6",
+        "RFC7474-2-7",
+        "RFC7474-2-8"
+      ]
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7474-3-1"
+      ]
+    },
+    {
+      "id": "4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 2,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7474-4.1-1"
+      ]
+    },
+    {
+      "id": "4.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 3,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7474-5-1"
+      ]
+    },
+    {
+      "id": "6",
+      "sites": 1,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC7474-6-1"
+      ]
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10.2",
+      "sites": 0,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "front:1",
+      "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF Trust Legal Provisions boilerplate in the front matter. It binds the extractor of code components to a licence text and carries no protocol obligation."
+    },
+    {
+      "id": "1:1",
+      "quote": "[RFC2328] states that implementations MUST offer keyed MD5 authentication.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The sentence quotes RFC 2328, which it cites: the keyed MD5 obligation belongs to RFC 2328 Appendix D. RFC 7474 reports it as background for the replay problem it goes on to fix."
+    },
+    {
+      "id": "1:2",
+      "quote": "It is likely that this will be deprecated in favor of the stronger algorithms described in [RFC5709] and required in [RFC6094].",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The algorithm requirement belongs to RFC 6094, which the sentence cites; RFC 7474 only predicts that MD5 will be deprecated in favour of the RFC 5709 algorithms."
+    },
+    {
+      "id": "2:1",
+      "quote": "OSPFv2 implementations are required to retain the boot count in non-volatile storage for the deployment life of the OSPF router.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Restates in lowercase the boot-count mechanism of the MUST at site 2:5. The same section says of that MUST: 'This is achieved by maintaining a boot count in non-volatile storage and incrementing it each time the OSPF router loses its prior sequence number state.'",
+      "mapped-to": "RFC7474-2-4"
+    },
+    {
+      "id": "2:2",
+      "quote": "Since there is no room in the OSPFv2 packet for a 64-bit sequence number, it will occupy the 8 octets following the OSPFv2 packet and MUST be included when calculating the OSPFv2 packet digest.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7474-2-1"
+    },
+    {
+      "id": "2:3",
+      "quote": "The lower-order 32-bit sequence number MUST be incremented for every OSPF packet sent by the OSPF router.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7474-2-3"
+    },
+    {
+      "id": "2:4",
+      "quote": "Upon reception, the sequence number MUST be greater than the sequence number in the last OSPF packet of that type accepted from the sending OSPF neighbor.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7474-2-5"
+    },
+    {
+      "id": "2:5",
+      "quote": "OSPF routers implementing this specification MUST use available mechanisms to preserve the sequence number's strictly increasing property for the deployed life of the OSPFv2 router (including cold restarts).",
+      "disposition": "mapped",
+      "mapped-to": "RFC7474-2-4"
+    },
+    {
+      "id": "4:1",
+      "quote": "o For packet transmission, the key validity interval as defined by SendLifetimeStart and SendLifetimeEnd must include the current time.",
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "The send-lifetime bullet sits inside the advisory list opened by 'Generally, a key used for OSPFv2 packet authentication should satisfy the following requirements:'. The enclosing construction is a SHOULD, and the receive half of the same list is recorded as RFC7474-4-1."
+    },
+    {
+      "id": "4:2",
+      "quote": "o For packet reception, the key validity interval as defined by AcceptLifetimeStart and AcceptLifetimeEnd must include the current time. o The key must be valid for the desired security algorithm.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7474-4-1"
+    },
+    {
+      "id": "4.1:1",
+      "quote": "When R1 and R2 are connected to a virtual link, the Peers field must identify the virtual endpoint rather than the virtual link.",
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "A lead-in to the virtual-link key-selection list, which the same paragraph opens as 'Hence, the key should satisfy the following requirements:'. The obligation is carried by that SHOULD list, whose Peers-field bullet names the transit area ID and the virtual endpoint's router ID."
+    },
+    {
+      "id": "4.1:2",
+      "quote": "Since there may be virtual links to the same router, the transit area ID must be part of the identifier.",
+      "disposition": "excluded",
+      "excluded-kind": "advisory-in-context",
+      "reason": "The second half of the same lead-in, inside the same construction: 'Hence, the key should satisfy the following requirements:'. The transit area ID requirement is stated by the Peers-field bullet of that SHOULD list."
+    },
+    {
+      "id": "5:1",
+      "quote": "RFC 5709, Section 3.3 describes how the cryptographic authentication must be computed.",
+      "disposition": "excluded",
+      "excluded-kind": "cross-document",
+      "reason": "The computation obligation belongs to RFC 5709 Section 3.3, which the sentence cites. RFC 7474 changes only what this section then lists: the 64-bit sequence number in the First-Hash and the Apad value."
+    },
+    {
+      "id": "5:2",
+      "quote": "OSPF routers sending OSPF packets must initialize the first 4 octets of Apad to the value of the IP source address that would be used when sending the OSPFv2 packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7474-5-2"
+    },
+    {
+      "id": "5:3",
+      "quote": "When an OSPF packet is received, implementations MUST initialize the first 4 octets of Apad to the IP source address from the IP header of the incoming OSPFv2 packet.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The receive-side half of the Apad initialization the send-side sentence at site 5:2 already states. RFC7474-5-2 declares one obligation for both directions: initialize the first 4 octets of Apad to the packet's IP source address on send and on receive.",
+      "mapped-to": "RFC7474-5-2"
+    },
+    {
+      "id": "6:1",
+      "quote": "When XORing Ko and Ipad of Opad, Ko MUST be padded with zeros to the length of Ipad or Opad.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7474-6-2"
+    },
+    {
+      "id": "8:1",
+      "quote": "If the non-volatile storage is ever repaired or upgraded such that the contents are lost or the OSPFv2 router is replaced, the authentication keys MUST be changed to prevent replay attacks.",
+      "disposition": "mapped",
+      "mapped-to": "RFC7474-8-1"
+    }
+  ]
+}

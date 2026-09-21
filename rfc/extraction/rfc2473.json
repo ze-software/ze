@@ -1,0 +1,270 @@
+{
+  "schema-version": 1,
+  "stem": "rfc2473",
+  "register": "prose",
+  "source-path": "rfc/full/rfc2473.txt",
+  "source-sha": "59956643eb9ece1a",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.1",
+      "sites": 4,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2473-4.1.1-1"
+      ]
+    },
+    {
+      "id": "4.1.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "6.7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "7.1",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2473-7.1-3",
+        "RFC2473-7.1-4"
+      ]
+    },
+    {
+      "id": "7.2",
+      "sites": 0,
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC2473-7.2-1"
+      ]
+    },
+    {
+      "id": "8",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.3",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "9",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "10",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "11",
+      "sites": 1,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "1:1",
+      "quote": "The keywords MUST, MUST NOT, MAY, OPTIONAL, REQUIRED, RECOMMENDED, SHALL, SHALL NOT, SHOULD, SHOULD NOT are to be interpreted as defined in RFC 2119.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "the RFC 2119 boilerplate sentence that defines the keywords; it states no obligation of this protocol"
+    },
+    {
+      "id": "4.1.1:1",
+      "quote": "A tunnel entry-point node is required to execute the following procedure for every packet entering a tunnel at that node:",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "the lead-in that introduces the enumerated procedure (a) to (e); the obligations are the steps themselves, carried by sites 4.1.1:2 to 4.1.1:4 and by the section's unsourced id RFC2473-4.1.1-1 for step (b)"
+    },
+    {
+      "id": "4.1.1:2",
+      "quote": "The headers following the IPv6 header must be examined in strict \"left-to-right\" order, with the examination stopping as soon as any one of the following headers is encountered: (i) a Destination Options extension header containing a Tunnel Encapsulation Limit, (ii) another IPv6 header, (iii) a non-extension header, such as TCP, UDP, or ICMP, or (iv) a header that cannot be parsed because it is encrypted or its type is unknown.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2473-4.1.1-4"
+    },
+    {
+      "id": "4.1.1:3",
+      "quote": "(c) If a Tunnel Encapsulation Limit option is found in the packet entering the tunnel and its limit value is non-zero, an additional Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2473-4.1.1-2"
+    },
+    {
+      "id": "4.1.1:4",
+      "quote": "(d) If a Tunnel Encapsulation Limit option is not found in the packet entering the tunnel and if an encapsulation limit has been configured for this tunnel, a Tunnel Encapsulation Limit option must be included as part of the encapsulating headers being added at this entry point.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2473-4.1.1-3"
+    },
+    {
+      "id": "4.1.2:1",
+      "quote": "A particular case of encapsulation which must be avoided is the loopback encapsulation.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2473-4.1.2-1"
+    },
+    {
+      "id": "7:1",
+      "quote": "Therefore, like any source of an IPv6 packet, a tunnel entry-point node must support fragmentation of tunnel IPv6 packets.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2473-7.1-1"
+    },
+    {
+      "id": "7:2",
+      "quote": "A tunnel intermediate node that forwards a tunnel packet to another node in the tunnel follows the general IPv6 rule that it must not fragment a packet undergoing forwarding.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2473-7.1-2"
+    },
+    {
+      "id": "7:3",
+      "quote": "The problem, which is similar to that of original fragmented IPv6 packets destined to nodes identified by an anycast address, is that all the fragments of a packet must arrive at the same destination node for that node to be able to perform a successful reassembly, a requirement that is not necessarily satisfied by packets sent to an anycast address.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "descriptive prose explaining why anycast destinations are unsuitable: \"a requirement that is not necessarily satisfied by packets sent to an anycast address\". It describes the reassembly property of IPv6 fragmentation, and imposes nothing on a tunnel node"
+    },
+    {
+      "id": "8:1",
+      "quote": "To report a problem detected inside the tunnel to the source of an original packet, the tunnel entry point node must relay the ICMP message received from inside the tunnel to the source of that original IPv6 packet.",
+      "disposition": "mapped",
+      "mapped-to": "RFC2473-8-1"
+    },
+    {
+      "id": "8.2:1",
+      "quote": "According to the general rules described in 7.1, an ICMP \"packet too big\" message is sent to the source of the original packet only if the original packet size is larger than the minimum link MTU size required for IPv6 [IPv6-Spec].",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "the keyword sits inside the noun phrase \"the minimum link MTU size required for IPv6 [IPv6-Spec]\", which names a constant; the sentence itself restates the rule of section 7.1 in indicative prose"
+    },
+    {
+      "id": "11:1",
+      "quote": "However, this document itself may not be modified in any way, such as by removing the copyright notice or references to the Internet Society or other Internet organizations, except as needed for the purpose of developing Internet standards in which case the procedures for copyrights defined in the Internet Standards process must be followed, or as required to translate it into languages other than English.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "the Internet Society copyright notice; its \"must\" binds anyone republishing the document, not an implementation"
+    }
+  ]
+}

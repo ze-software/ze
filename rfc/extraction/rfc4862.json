@@ -1,0 +1,386 @@
+{
+  "schema-version": 1,
+  "stem": "rfc4862",
+  "register": "prose",
+  "source-path": "rfc/full/rfc4862.txt",
+  "source-sha": "d3b85654e334cbd7",
+  "signed-off": "2026-09-21",
+  "reviewer": "claude",
+  "sections": [
+    {
+      "id": "front",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "2",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "2.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "3",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "4.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4",
+      "sites": 5,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.1",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.2",
+      "sites": 3,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.4",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.4.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5.2",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5.3",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.5.4",
+      "sites": 4,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "5.7",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "6",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "7",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.1",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "8.2",
+      "sites": 0,
+      "disposition": "walked"
+    },
+    {
+      "id": "A",
+      "sites": 2,
+      "disposition": "walked"
+    },
+    {
+      "id": "B",
+      "sites": 1,
+      "disposition": "walked"
+    },
+    {
+      "id": "C",
+      "sites": 1,
+      "disposition": "walked"
+    }
+  ],
+  "sites": [
+    {
+      "id": "2:1",
+      "quote": "The valid lifetime must be greater than or equal to the preferred lifetime.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 2 is Terminology; the sentence is part of the definition of an address lifetime and carries no RFC 2119 keyword."
+    },
+    {
+      "id": "2:2",
+      "quote": "Note that the address architecture [RFC4291] also defines the length of the interface identifiers for some set of addresses, but the two sets of definitions must be consistent.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Terminology note reconciling this document's definitions with RFC 4291; descriptive, no RFC 2119 keyword."
+    },
+    {
+      "id": "3:1",
+      "quote": "o Manual configuration of individual machines before connecting them to the network should not be required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 3 is Design Goals; the bullet states a goal for the mechanism, not an obligation on an implementation."
+    },
+    {
+      "id": "3:2",
+      "quote": "In order to generate global addresses, hosts must determine the prefixes that identify the subnets to which they attach.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 3 Design Goals; the sentence motivates the need for router advertisements and states no implementation obligation."
+    },
+    {
+      "id": "4:1",
+      "quote": "Before the link-local address can be assigned to an interface and used, however, a node must attempt to verify that this \"tentative\" address is not already in use by another node on the link.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "Section 4 is the Protocol Overview; this sentence restates the Duplicate Address Detection obligation Section 5.4 states normatively.",
+      "mapped-to": "RFC4862-5.4-1"
+    },
+    {
+      "id": "4:2",
+      "quote": "If a node determines that its tentative link-local address is not unique, autoconfiguration stops and manual configuration of the interface is required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 4 Protocol Overview; indicative prose describing the outcome of a link-local DAD failure, with no RFC 2119 keyword."
+    },
+    {
+      "id": "4.1:1",
+      "quote": "Even when applications use UDP as a transport protocol, addresses must generally remain the same during a packet exchange.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 4.1 discusses site renumbering; the sentence explains why addresses stay stable during a packet exchange and binds no implementation."
+    },
+    {
+      "id": "5.1:1",
+      "quote": "A node MUST allow the following autoconfiguration-related variable to be configured by system management for each multicast-capable interface: DupAddrDetectTransmits The number of consecutive Neighbor Solicitation messages sent while performing Duplicate Address Detection on a tentative address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4862-5.1-1"
+    },
+    {
+      "id": "5.3:1",
+      "quote": "If the sum of the link-local prefix length and N is larger than 128, autoconfiguration fails and manual configuration is required.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Indicative outcome prose with no RFC 2119 keyword: it states that autoconfiguration fails, and Section 2.1 confines this document's keywords to the normative statements."
+    },
+    {
+      "id": "5.4:1",
+      "quote": "Duplicate Address Detection MUST be performed on all unicast addresses prior to assigning them to an interface, regardless of whether they are obtained through stateless autoconfiguration, DHCPv6, or manual configuration, with the following exceptions:",
+      "disposition": "mapped",
+      "mapped-to": "RFC4862-5.4-1"
+    },
+    {
+      "id": "5.4:2",
+      "quote": "- Duplicate Address Detection MUST NOT be performed on anycast addresses (note that anycast addresses cannot syntactically be distinguished from unicast addresses).",
+      "disposition": "mapped",
+      "mapped-to": "RFC4862-5.4-2"
+    },
+    {
+      "id": "5.4:3",
+      "quote": "Whereas this document does not invalidate such implementations, this kind of \"optimization\" is NOT RECOMMENDED, and new implementations MUST NOT do that optimization.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4862-5.4-5"
+    },
+    {
+      "id": "5.4:4",
+      "quote": "That is, the interface must accept Neighbor Solicitation and Advertisement messages containing the tentative address in the Target Address field, but processes such packets differently from those whose Target Address matches an address assigned to the interface.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "The sentence explains tentative-address packet handling that Section 5.4.2 states normatively as the MUST receive-and-process obligation.",
+      "mapped-to": "RFC4862-5.4.2-4"
+    },
+    {
+      "id": "5.4:5",
+      "quote": "It should also be noted that Duplicate Address Detection must be performed prior to assigning an address to an interface in order to prevent multiple nodes from using the same address simultaneously.",
+      "disposition": "excluded",
+      "excluded-kind": "duplicate-of",
+      "reason": "\"It should also be noted that\" reintroduces the Section 5.4 DAD-before-assignment MUST already mapped.",
+      "mapped-to": "RFC4862-5.4-1"
+    },
+    {
+      "id": "5.4.1:1",
+      "quote": "A node MUST silently discard any Neighbor Solicitation or Advertisement message that does not pass the validity checks specified in [RFC4861].",
+      "disposition": "mapped",
+      "mapped-to": "RFC4862-5.4.1-1"
+    },
+    {
+      "id": "5.4.2:1",
+      "quote": "Before sending a Neighbor Solicitation, an interface MUST join the all-nodes multicast address and the solicited-node multicast address of the tentative address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4862-5.4.2-1"
+    },
+    {
+      "id": "5.4.2:2",
+      "quote": "In the case of Duplicate Address Detection, the MLD report message is required in order to inform MLD- snooping switches, rather than routers, to forward multicast packets.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Explanatory note about why an MLD report is sent; it describes the purpose of a message RFC 4861 and RFC 2710 require, not an obligation of this document."
+    },
+    {
+      "id": "5.4.2:3",
+      "quote": "In order to improve the robustness of the Duplicate Address Detection algorithm, an interface MUST receive and process datagrams sent to the all-nodes multicast address or solicited-node multicast address of the tentative address during the delay period.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4862-5.4.2-4"
+    },
+    {
+      "id": "5.4.3:1",
+      "quote": "In all cases, a node MUST NOT respond to a Neighbor Solicitation for a tentative address.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4862-5.4.3-1"
+    },
+    {
+      "id": "5.4.5:1",
+      "quote": "A tentative address that is determined to be a duplicate as described above MUST NOT be assigned to an interface, and the node SHOULD log a system management error.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4862-5.4.5-1"
+    },
+    {
+      "id": "5.5:1",
+      "quote": "However, the processing described below MUST be enabled by default.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4862-5.5-2"
+    },
+    {
+      "id": "5.5.2:1",
+      "quote": "In this case, the forwarding node's address must be manually configured in hosts to be able to send packets off-link, since the only mechanism to configure the default router's address automatically is the one using Router Advertisements.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 5.5.2 explains the consequence of having no Router Advertisement; descriptive prose about operator action, no RFC 2119 keyword."
+    },
+    {
+      "id": "5.5.3:1",
+      "quote": "| 128 - N bits | N bits | +---------------------------------------+------------------------+ | link prefix | interface identifier | +----------------------------------------------------------------+ If the sum of the prefix length and interface identifier length does not equal 128 bits, the Prefix Information option MUST be ignored.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4862-5.5.3-2"
+    },
+    {
+      "id": "5.5.4:1",
+      "quote": "For example, if an application explicitly specifies that the protocol stack use a deprecated address as a source address, the protocol stack must accept that; the application might request it because that IP address is used in higher-level communication and there might be a requirement that the multiple connections in such a grouping use the same pair of IP addresses.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "An example illustrating the preceding SHOULD about deprecated source addresses; the sentence gives the reason for the SHOULD and states no separate obligation."
+    },
+    {
+      "id": "5.5.4:2",
+      "quote": "IP and higher layers (e.g., TCP, UDP) MUST continue to accept and process datagrams destined to a deprecated address as normal since a deprecated address is still a valid address for the interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4862-5.5.4-3"
+    },
+    {
+      "id": "5.5.4:3",
+      "quote": "An implementation MAY prevent any new communication from using a deprecated address, but system management MUST have the ability to disable such a facility, and the facility MUST be disabled by default.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4862-5.5.4-5"
+    },
+    {
+      "id": "5.5.4:4",
+      "quote": "An invalid address MUST NOT be used as a source address in outgoing communications and MUST NOT be recognized as a destination on a receiving interface.",
+      "disposition": "mapped",
+      "mapped-to": "RFC4862-5.5.4-7"
+    },
+    {
+      "id": "5.7:1",
+      "quote": "When this technique is used, it should also be noted that the expiration times of the preferred and valid lifetimes must be retained, in order to prevent the use of an address after it has become deprecated or invalid.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Section 5.7 describes an optional stable-storage extension (\"An implementation that has stable storage may want to retain addresses in the storage\") and the sentence opens \"it should also be noted that\"; it is advisory, and the section closes \"Further details on this kind of extension are beyond the scope of this document.\""
+    },
+    {
+      "id": "A:1",
+      "quote": "o If a node performing Duplicate Address Detection discards received packets that have the same source link-layer address as the receiving interface, it will also discard packets from other nodes that also use the same link-layer address, including Neighbor Advertisement and Neighbor Solicitation messages required to make Duplicate Address Detection work correctly.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Appendix A is informational: it discusses loopback suppression and DAD interaction and states no obligation."
+    },
+    {
+      "id": "A:2",
+      "quote": "Thus, to perform Duplicate Address Detection correctly in the case where two interfaces are using the same link-layer address, an implementation must have a good understanding of the interface's multicast loopback semantics, and the interface cannot discard received packets simply because the source link-layer address is the same as the interface's.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Appendix A informational discussion of multicast loopback semantics; no RFC 2119 keyword and no obligation of this document."
+    },
+    {
+      "id": "B:1",
+      "quote": "o Clarified wording in Section 5.5.4 to make clear that all upper layer protocols must process (i.e., send and receive) packets sent to deprecated addresses.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "Appendix B is the change log against RFC 2462; it describes an editorial clarification, not an obligation."
+    },
+    {
+      "id": "C:1",
+      "quote": "The IETF invites any interested party to bring to its attention any copyrights, patents or patent applications, or other proprietary rights that may cover technology that may be required to implement this standard.",
+      "disposition": "excluded",
+      "excluded-kind": "not-a-requirement",
+      "reason": "IETF IPR boilerplate."
+    }
+  ]
+}
