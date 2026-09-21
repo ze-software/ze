@@ -118,6 +118,9 @@ func TestRFC5036InitProposesDownstreamUnsolicited(t *testing.T) {
 // (A=1) on a session that is not on an ATM or Frame Relay link does not move ze off
 // Downstream Unsolicited: the session goes operational with no Notification, and the
 // Label Mapping ze then sends goes out unsolicited.
+// RFC requirement: RFC5036-3.5.3-4 negative -- no Session Rejected/Parameters
+// Advertisement Mode Notification is sent: Downstream Unsolicited is the discipline
+// every session determines, and it is never unacceptable to ze.
 func TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited(t *testing.T) {
 	local, remote := net.Pipe()
 	defer func() { _ = local.Close() }()
@@ -134,7 +137,7 @@ func TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited(t *testing.T) {
 	if !msg.OnDemand {
 		t.Fatal("the test PDU does not carry A=1: DecodeInit did not read the A bit")
 	}
-	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil); err != nil {
+	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
 		t.Fatalf("processMessages: %v", err)
 	}
 	if rx.State() != StateOperational {
@@ -244,7 +247,7 @@ func TestRFC5036InitReservedBitsIgnoredOnReceipt(t *testing.T) {
 
 	rx := rfcTestSession(local)
 	rx.state = StateOpenSent
-	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil); err != nil {
+	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
 		t.Fatalf("processMessages: %v", err)
 	}
 	if rx.State() != StateOperational {
@@ -263,6 +266,9 @@ func TestRFC5036InitReservedBitsIgnoredOnReceipt(t *testing.T) {
 // RFC requirement: RFC5036-3.5.3-7 positive -- the session's maximum PDU length is
 // the smaller of ze's 4096 and the peer's proposal: 1000 wins over 4096, and a
 // proposal of 255 or less means the 4096 default, so it does not win over 4096.
+// RFC requirement: RFC5036-3.5.3-8 negative -- no Session Rejected/Parameters Max PDU
+// Length Notification is sent for either proposal: the smaller of the two is never
+// unacceptable to ze, and the session goes operational.
 func TestRFC5036InitMaxPDULengthTakesTheSmallerProposal(t *testing.T) {
 	cases := []struct {
 		name string
@@ -283,7 +289,7 @@ func TestRFC5036InitMaxPDULengthTakesTheSmallerProposal(t *testing.T) {
 			rx := rfcTestSession(local)
 			rx.state = StateOpenSent
 			pdu := encodeInitPDURaw(0, 30, tc.peer)
-			if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil); err != nil {
+			if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
 				t.Fatalf("processMessages: %v", err)
 			}
 			rx.mu.Lock()
@@ -306,7 +312,7 @@ func TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal(t *testing.T) {
 	rx := rfcTestSession(local)
 	rx.state = StateOpenSent
 	pdu := encodeInitPDURaw(0, 30, 8000)
-	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil); err != nil {
+	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
 		t.Fatalf("processMessages: %v", err)
 	}
 	rx.mu.Lock()

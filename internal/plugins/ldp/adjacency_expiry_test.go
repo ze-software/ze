@@ -37,7 +37,7 @@ func TestExpireAdjacenciesStopsSession(t *testing.T) {
 	var mu sync.Mutex
 	sessions := map[string]*Session{key: sess}
 
-	expireAdjacencies(slogutil.DiscardLogger(), adjTable, sessions, &mu)
+	expireAdjacencies(slogutil.DiscardLogger(), adjTable, sessions, map[string]*setupRetry{}, &mu)
 
 	assert.True(t, sess.stopped(), "session must be stopped when its adjacency expires")
 }

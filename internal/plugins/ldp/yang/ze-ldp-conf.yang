@@ -76,6 +76,20 @@ module ze-ldp-conf {
             ze:help "Session keepalive interval.";
         }
 
+        leaf hop-count-max {
+            type uint8 {
+                range "1..255";
+            }
+            default 254;
+            description "The default is 254 and the range is 1 to 255. RFC 5036 section
+                         3.4.4.1 makes an LSR check the Hop Count TLV of a received message
+                         against 'its configured maximum allowable value'. A Label Mapping
+                         whose hop count exceeds this value is answered with a Loop Detected
+                         Notification and its label is not used. A change here applies to
+                         the sessions that open after it.";
+            ze:help "Maximum hop count a Label Mapping can carry.";
+        }
+
         leaf-list interfaces {
             type string;
             description "Ze runs one discovery listener for each interface of this list. An

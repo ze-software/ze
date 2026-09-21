@@ -54,9 +54,12 @@ would otherwise reach nothing.
 ## Decision: an unacceptable Initialization is NAK'd, never clamped
 
 `processMessages` checks the Common Session Parameters before `handleInit` reads
-them, and refuses two values: a Protocol Version other than 1, and a KeepAlive
-Time of 0. Each refusal sends the Notification RFC 5036 section 3.9 names for it,
-then returns the cause, which ends the read loop and closes the connection.
+them, and refuses three things: a PDU header whose LDP Identifier is not the
+one of the Hello adjacency the session was opened for (Session Rejected/No
+Hello, RFC 5036 section 3.5.3), a Protocol Version other than 1, and a
+KeepAlive Time of 0. Each refusal sends the Notification RFC 5036 section 3.9
+names for it, then returns the cause, which ends the read loop and closes the
+connection.
 
 Clamping the KeepAlive Time to a floor was rejected. RFC 5036 section 3.5.3 makes
 the field a "Two octet unsigned non zero integer", and section 3.5.1.2.5 makes an
@@ -66,16 +69,43 @@ clamping would have hidden is worth naming: the negotiation takes the smaller of
 the two proposals, so a peer sending 0 won it, the hold time became 0, and the
 next read deadline of now+0 timed out and was reported as a keepalive expiry.
 
-`sendNotification` bounds its write with a deadline. Every status ze sends is
-fatal, so a peer that has stopped reading must not be able to hold the read loop
-open by never draining its receive window.
+`sendNotification` bounds its write with a deadline, so a peer that has stopped
+reading cannot hold the read loop open by never draining its receive window, and
+clears the deadline after the write, because two of the statuses ze sends are
+advisory and the session stays up behind them.
 
-This is the only path on which ze emits a Notification. Every other fatal error
-still closes the session with nothing on the wire, which `rfc/short/rfc5036.md`
-records as the remaining half of RFC5036-2.5.3-2 and RFC5036-3.5.1-1.
+Two advisory Notifications leave the session up. An unknown TLV whose U bit is
+clear draws Unknown TLV (0x06) and the message it arrived in is ignored, as RFC
+5036 section 3.3 requires; a TLV type the RFC registers is never unknown, so an
+optional parameter ze reads nothing from is skipped whatever its U bit says. A
+Label Mapping whose Hop Count TLV exceeds `ldp/hop-count-max` draws Loop
+Detected (0x0B) and the mapping is not applied (section 3.4.4.1).
 
-<!-- source: internal/plugins/ldp/session.go -- processMessages, rejectInit, sendNotification -->
-<!-- source: internal/plugins/ldp/wire.go -- encodeNotification, statusSessionRejectedBadKeepaliveTime -->
+A received Notification is read too: a Status Code with the E bit set ends the
+read loop, which closes the connection and drops the peer's bindings (section
+3.5.1.1). Every other fatal error still closes the session with nothing on the
+wire, which `rfc/short/rfc5036.md` records as the remaining half of
+RFC5036-2.5.3-2 and RFC5036-3.5.1-1.
+
+<!-- source: internal/plugins/ldp/session.go -- processMessages, rejectInit, sendNotification, ignoreUnknownTLV -->
+<!-- source: internal/plugins/ldp/wire.go -- encodeNotification, decodeNotification, skipTLV, statusSessionRejectedNoHello -->
+
+## Decision: a failed session setup backs off on the Hello cadence
+
+Discovery calls `startSessionForAdj` on every Hello from an adjacency, not on
+the first one. The function returns at once while a session exists, and it is
+where a retry starts once one does not. A setup attempt that ends before the
+session is operational (an Initialization NAK'd by either side, a transport that
+closed during the exchange, a refused TCP connect) records a backoff for the
+adjacency: the next attempt waits 15 seconds, then double that on each further
+failure up to 2 minutes, which is what RFC 5036 section 2.5.3 requires for a
+NAK'd Initialization. A session that reaches operational clears the backoff, and
+so does the adjacency expiring, so a peer rediscovered later starts undelayed.
+
+No timer goroutine exists for this: the Hello is the tick, and an adjacency that
+stops sending Hellos retries nothing.
+
+<!-- source: internal/plugins/ldp/register.go -- startSessionForAdj, setupRetry, recordSetupFailure, processDiscoveryPacket -->
 
 ## Decision: the doctor check is self-contained
 

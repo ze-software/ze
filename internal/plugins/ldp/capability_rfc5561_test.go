@@ -20,11 +20,6 @@ import (
 	"time"
 )
 
-// tlvUnknownBit is the U-bit of an LDP TLV type: the top bit of the two-octet Type
-// field (RFC 5036 Section 3.3). Set, it tells a receiver that does not know the TLV
-// to ignore it and go on with the message.
-const tlvUnknownBit uint16 = 0x8000
-
 // tlvTypeDynamicCapability is the Dynamic Capability Announcement TLV code point
 // (RFC 5561 Section 9), which ze neither sends nor reads.
 const tlvTypeDynamicCapability uint16 = 0x0506
@@ -101,7 +96,7 @@ func TestRFC5561UnknownCapabilityWithUBitSetIsIgnored(t *testing.T) {
 
 			rx := rfcTestSession(local)
 			rx.state = StateOpenSent
-			if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil); err != nil {
+			if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
 				t.Fatalf("processMessages: %v", err)
 			}
 			if rx.State() != StateOperational {
@@ -127,7 +122,7 @@ func TestRFC5561UnknownCapabilityWithUBitSetDrawsNoNotification(t *testing.T) {
 			pdu := encodeInitPDUWithCapability(tc.codePoint, 30)
 			rx := rfcTestSession(local)
 			rx.state = StateOpenSent
-			if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil); err != nil {
+			if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
 				t.Fatalf("processMessages returned %v: the Initialization was refused", err)
 			}
 			expectNoPDU(t, remote, "a Notification was sent for a Capability Parameter whose U-bit is 1")

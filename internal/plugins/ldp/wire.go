@@ -92,6 +92,8 @@ var (
 	errShortMessage = errors.New("ldp: message too short")
 	errShortTLV     = errors.New("ldp: TLV too short")
 	errLabelRange   = errors.New("ldp: label out of 20-bit range")
+	// errMissingStatusTLV is a Notification with no Status TLV (RFC 5036 Section 3.5.1).
+	errMissingStatusTLV = errors.New("ldp: notification carries no status TLV")
 )
 
 // PDUHeader is the LDP PDU header (RFC 5036 Section 3.5).
@@ -160,6 +162,63 @@ type TLV struct {
 	Type   uint16
 	Length uint16
 	Value  []byte
+	// IgnoreIfUnknown is the U bit of RFC 5036 Section 3.3, set by the sender on
+	// a TLV a receiver that does not know it is to skip. DecodeTLV strips it, and
+	// the F bit, out of Type; EncodeTLV writes Type as given.
+	IgnoreIfUnknown bool
+}
+
+// The TLV type field, RFC 5036 Section 3.3: the U bit, the F bit, and a 14-bit
+// type.
+//
+//	 0                   1
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|U|F|        Type               |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+const (
+	tlvUnknownBit uint16 = 0x8000
+	tlvTypeMask   uint16 = 0x3FFF
+)
+
+// unknownTLVError reports a TLV type ze does not know whose U bit is clear, which
+// RFC 5036 Section 3.3 forbids skipping. Type is the 14-bit type.
+type unknownTLVError struct {
+	Type uint16
+}
+
+func (e *unknownTLVError) Error() string {
+	return fmt.Sprintf("ldp: unknown TLV type %#04x with the U bit clear", e.Type)
+}
+
+// skipTLV decides what a session message decoder does with a TLV it reads
+// nothing from. RFC 5036 Section 3.3: "Upon receipt of an unknown TLV, if U is
+// clear (=0), a notification MUST be returned to the message originator and the
+// entire message MUST be ignored; if U is set (=1), the unknown TLV MUST be
+// silently ignored and the rest of the message processed as if the unknown TLV
+// did not exist." A type the RFC registers is never unknown, so an optional
+// parameter ze does not act on is skipped whatever its U bit says.
+func skipTLV(t TLV) error {
+	if t.IgnoreIfUnknown {
+		return nil
+	}
+	if knownTLVType(t.Type) {
+		return nil
+	}
+	return &unknownTLVError{Type: t.Type}
+}
+
+// knownTLVType reports whether typ is a TLV type RFC 5036 Section 3.4 registers.
+func knownTLVType(typ uint16) bool {
+	switch typ {
+	case TLVTypeFEC, TLVTypeAddressList, TLVTypeHopCount, TLVTypePathVector,
+		TLVTypeGenericLabel, TLVTypeATMLabel, TLVTypeFRLabel, TLVTypeStatus,
+		TLVTypeExtStatus, TLVTypeReturnedPDU, TLVTypeReturnedMsg, TLVTypeCommonHello,
+		TLVTypeIPv4Transport, TLVTypeConfigSeqNo, TLVTypeIPv6Transport,
+		TLVTypeCommonSession, TLVTypeATMSessionParam, TLVTypeFRSessionParam:
+		return true
+	}
+	return false
 }
 
 // EncodeTLV writes a TLV to buf. Returns bytes written.
@@ -175,9 +234,11 @@ func DecodeTLV(buf []byte) (TLV, int, error) {
 	if len(buf) < ldpTLVHdrLen {
 		return TLV{}, 0, errShortTLV
 	}
+	typeField := binary.BigEndian.Uint16(buf[0:2])
 	t := TLV{
-		Type:   binary.BigEndian.Uint16(buf[0:2]),
-		Length: binary.BigEndian.Uint16(buf[2:4]),
+		Type:            typeField & tlvTypeMask,
+		Length:          binary.BigEndian.Uint16(buf[2:4]),
+		IgnoreIfUnknown: typeField&tlvUnknownBit != 0,
 	}
 	total := ldpTLVHdrLen + int(t.Length)
 	if len(buf) < total {
@@ -190,14 +251,19 @@ func DecodeTLV(buf []byte) (TLV, int, error) {
 // RFC 5036 Section 3.9 status codes, in the 32-bit form the Status TLV carries:
 // the E-bit in the top bit, the F-bit below it, and the 30-bit Status Data in the
 // remainder. Section 3.4.6 defines the E-bit: "Fatal error bit.  If set (=1),
-// this is a fatal Error Notification." Section 3.9 requires it set for both codes
-// below, and it leaves the F-bit to the originating LSR, so ze clears it: neither
-// status describes an LSP a neighbor could forward the notification along.
+// this is a fatal Error Notification." Section 3.9 sets E for each Session
+// Rejected code and clears it for Unknown TLV and Loop Detected, which are
+// advisory: the session stays up. It leaves the F-bit to the originating LSR, so
+// ze clears it: no status ze sends describes an LSP a neighbor could forward the
+// notification along.
 const (
 	statusFatalBit uint32 = 0x80000000
 
-	statusBadProtocolVersion              = statusFatalBit | 0x00000002
-	statusSessionRejectedBadKeepaliveTime = statusFatalBit | 0x00000018
+	statusBadProtocolVersion                     = statusFatalBit | 0x00000002
+	statusUnknownTLV                      uint32 = 0x00000006
+	statusLoopDetected                    uint32 = 0x0000000B
+	statusSessionRejectedNoHello                 = statusFatalBit | 0x00000010
+	statusSessionRejectedBadKeepaliveTime        = statusFatalBit | 0x00000018
 )
 
 // notificationMessage is an LDP Notification (RFC 5036 Section 3.5.1). Status is
@@ -266,6 +332,40 @@ func encodeNotification(buf []byte, m notificationMessage) int {
 	// ldpTLVHdrLen sizes: the Message ID and the mandatory parameters.
 	binary.BigEndian.PutUint16(buf[2:4], uint16(off-ldpTLVHdrLen))
 	return off
+}
+
+// decodeNotification reads the Status TLV of a received Notification message
+// (RFC 5036 Section 3.5.1). A Notification without a Status TLV is malformed:
+// Section 3.5.1 makes the TLV mandatory.
+func decodeNotification(msgID uint32, body []byte) (notificationMessage, error) {
+	m := notificationMessage{MessageID: msgID}
+	found := false
+	off := 0
+	for off < len(body) {
+		tlv, n, err := DecodeTLV(body[off:])
+		if err != nil {
+			return m, err
+		}
+		switch tlv.Type {
+		case TLVTypeStatus:
+			if len(tlv.Value) < 10 {
+				return m, fmt.Errorf("%w: status TLV value %d octets, need 10", errShortTLV, len(tlv.Value))
+			}
+			m.Status = binary.BigEndian.Uint32(tlv.Value[0:4])
+			m.ReferMessageID = binary.BigEndian.Uint32(tlv.Value[4:8])
+			m.ReferMessageType = binary.BigEndian.Uint16(tlv.Value[8:10])
+			found = true
+		default:
+			if err := skipTLV(tlv); err != nil {
+				return m, err
+			}
+		}
+		off += n
+	}
+	if !found {
+		return m, errMissingStatusTLV
+	}
+	return m, nil
 }
 
 // HelloMessage represents an LDP Hello (RFC 5036 Section 3.5.2).
@@ -351,6 +451,13 @@ func DecodeHello(msgID uint32, body []byte) (HelloMessage, error) {
 		case TLVTypeIPv6Transport:
 			if len(tlv.Value) >= 16 {
 				h.TransportAddr = netip.AddrFrom16([16]byte(tlv.Value[:16]))
+			}
+		default:
+			// The caller discards a Hello this refuses, with no Notification:
+			// Section 3.5.1.2.2 handles a malformed discovery message "by silently
+			// discarding the containing message".
+			if err := skipTLV(tlv); err != nil {
+				return h, err
 			}
 		}
 		off += n
@@ -438,7 +545,14 @@ func DecodeInit(msgID uint32, body []byte) (initMessage, error) {
 		if err != nil {
 			return m, err
 		}
-		if tlv.Type == TLVTypeCommonSession && len(tlv.Value) >= 14 {
+		if tlv.Type != TLVTypeCommonSession {
+			if err := skipTLV(tlv); err != nil {
+				return m, err
+			}
+			off += n
+			continue
+		}
+		if len(tlv.Value) >= 14 {
 			m.ProtocolVersion = binary.BigEndian.Uint16(tlv.Value[0:2])
 			m.KeepaliveTime = binary.BigEndian.Uint16(tlv.Value[2:4])
 			// Only A and D are read; the six reserved bits are "ignored on
@@ -483,6 +597,11 @@ type labelMappingMessage struct {
 	MessageID uint32
 	FEC       FECElement
 	Label     uint32
+	// HopCount is the HC Value of a Hop Count TLV (RFC 5036 Section 3.4.4), and
+	// HasHopCount says the message carried one: the TLV is optional and a value
+	// of 0 means "unknown", so the value alone cannot say it was present.
+	HopCount    uint8
+	HasHopCount bool
 }
 
 // encodeFECTLV writes a FEC TLV for the given prefix into buf at offset off.
@@ -560,6 +679,15 @@ func decodeLabelMapping(msgID uint32, body []byte) (labelMappingMessage, error) 
 		case TLVTypeGenericLabel:
 			if len(tlv.Value) >= 4 {
 				m.Label = binary.BigEndian.Uint32(tlv.Value[:4])
+			}
+		case TLVTypeHopCount:
+			if len(tlv.Value) >= 1 {
+				m.HopCount = tlv.Value[0]
+				m.HasHopCount = true
+			}
+		default:
+			if err := skipTLV(tlv); err != nil {
+				return m, err
 			}
 		}
 		off += n
@@ -641,7 +769,14 @@ func decodeAddressList(msgID uint32, body []byte) (addressListMessage, error) {
 		if err != nil {
 			return m, err
 		}
-		if tlv.Type == TLVTypeAddressList {
+		if tlv.Type != TLVTypeAddressList {
+			if err := skipTLV(tlv); err != nil {
+				return m, err
+			}
+			off += n
+			continue
+		}
+		{
 			if len(tlv.Value) < 2 {
 				return m, errShortTLV
 			}

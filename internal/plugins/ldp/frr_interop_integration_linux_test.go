@@ -149,6 +149,7 @@ func TestLDPInteropFRR(t *testing.T) {
 	adjTable := newAdjacencyTable()
 	var sessionsMu sync.Mutex
 	sessions := make(map[string]*Session)
+	retries := make(map[string]*setupRetry)
 	bus := &captureBus{}
 	fib := newLDPFIB(bus, log)
 
@@ -171,7 +172,7 @@ func TestLDPInteropFRR(t *testing.T) {
 	ctx := t.Context()
 	mgr := newDiscoveryManager(ctx, log, func(ifctx context.Context, ifName string, c ldpConfig) {
 		discoverOnInterface(ifctx, log, c, lsrID, ifName, adjTable, func(adj *Adjacency) {
-			startSessionForAdj(ctx, log, adj, lsrID, c.TransportAddr, c.KeepaliveTime, lib, sessions, &sessionsMu, fib)
+			startSessionForAdj(ctx, log, adj, lsrID, c.TransportAddr, c.KeepaliveTime, c.HopCountMax, lib, sessions, retries, &sessionsMu, fib)
 		})
 	})
 	mgr.reconcile(cfg)

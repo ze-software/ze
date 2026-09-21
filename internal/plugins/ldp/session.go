@@ -76,6 +76,12 @@ var (
 	errSessionClosed    = errors.New("ldp: session closed")
 	errKeepaliveExpiry  = errors.New("ldp: keepalive timer expired")
 	errBadKeepaliveTime = errors.New("ldp: peer proposed a KeepAlive Time of 0")
+	// errNoHelloAdjacency is an Initialization whose LDP Identifier matches no
+	// Hello adjacency of this session (RFC 5036 Section 3.5.3).
+	errNoHelloAdjacency = errors.New("ldp: initialization matches no hello adjacency")
+	// errPeerFatalNotification is a Notification from the peer whose Status Code
+	// carries the E bit (RFC 5036 Section 3.5.1.1).
+	errPeerFatalNotification = errors.New("ldp: peer sent a fatal notification")
 )
 
 // Session represents a single LDP TCP session with a peer.
@@ -93,6 +99,10 @@ type Session struct {
 	keepaliveTime time.Duration
 	holdTime      time.Duration
 	maxPDU        uint16
+	// hopCountMax is the configured maximum allowable hop count of RFC 5036
+	// Section 3.4.4.1: a Label Mapping whose Hop Count TLV exceeds it is
+	// answered with Loop Detected and not applied.
+	hopCountMax uint8
 
 	nextMsgID atomic.Uint32
 
@@ -158,6 +168,7 @@ type SessionConfig struct {
 	PeerLabelSpace  uint16
 	PeerAddr        netip.Addr
 	KeepaliveTime   time.Duration
+	HopCountMax     uint8
 }
 
 // NewSession creates a session for one discovered adjacency. cfg.PeerLSRID and
@@ -191,11 +202,12 @@ func NewSession(conn net.Conn, cfg SessionConfig, lib *LIB, log *slog.Logger) *S
 		// message; handleInit replaces it with the negotiated value. Without this
 		// the first ReadLoop deadline is now+0 and times out before the peer's
 		// Init can arrive, so the session never establishes (RFC 5036 Section 2.5.3).
-		holdTime: 3 * keepalive,
-		maxPDU:   DefaultMaxPDULength,
-		lib:      lib,
-		log:      log,
-		stopCh:   make(chan struct{}),
+		holdTime:    3 * keepalive,
+		maxPDU:      DefaultMaxPDULength,
+		hopCountMax: cfg.HopCountMax,
+		lib:         lib,
+		log:         log,
+		stopCh:      make(chan struct{}),
 
 		keepaliveChanged: make(chan struct{}, 1),
 	}
@@ -412,13 +424,16 @@ func (s *Session) ReadLoop(onLabel func(labelMappingMessage, [4]byte), onWithdra
 			return err
 		}
 
-		if err := s.processMessages(body, pdu.LSRID, onLabel, onWithdraw, onOperational); err != nil {
+		if err := s.processMessages(body, pdu.LSRID, pdu.LabelSpace, onLabel, onWithdraw, onOperational); err != nil {
 			return err
 		}
 	}
 }
 
-func (s *Session) processMessages(body []byte, peerLSRID [4]byte, onLabel func(labelMappingMessage, [4]byte), onWithdraw func(labelWithdrawMessage, [4]byte), onOperational func()) error {
+// processMessages applies every message of one PDU body. peerLSRID and
+// peerLabelSpace are the LDP Identifier of the PDU header, which names the
+// sender's label space (RFC 5036 Section 3.5.3, Receiver LDP Identifier).
+func (s *Session) processMessages(body []byte, peerLSRID [4]byte, peerLabelSpace uint16, onLabel func(labelMappingMessage, [4]byte), onWithdraw func(labelWithdrawMessage, [4]byte), onOperational func()) error {
 	off := 0
 	for off < len(body) {
 		if len(body[off:]) < ldpMsgHdrLen {
@@ -440,7 +455,22 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, onLabel func(l
 		case MsgTypeInitialize:
 			initMsg, err := DecodeInit(msgHdr.MessageID, msgBody)
 			if err != nil {
-				return err
+				if err := s.ignoreUnknownTLV(err, msgHdr); err != nil {
+					return err
+				}
+				break
+			}
+			// RFC 5036 Section 3.5.3: "If there is no matching Hello adjacency,
+			// the LSR MUST send a Session Rejected/No Hello Notification message
+			// in response to the Initialization message and not establish the
+			// session." The session was opened for one Hello adjacency, whose
+			// LDP Identifier it holds, so a PDU header naming another label space
+			// matches no adjacency of this session.
+			if peerLSRID != s.peerLSRID || peerLabelSpace != s.peerLabelSpc {
+				s.log.Warn("ldp: initialization rejected, no matching hello adjacency",
+					"lsr-id", netip.AddrFrom4(peerLSRID).String(), "label-space", peerLabelSpace,
+					"want-lsr-id", netip.AddrFrom4(s.peerLSRID).String(), "want-label-space", s.peerLabelSpc)
+				return s.rejectInit(statusSessionRejectedNoHello, msgHdr.MessageID, errNoHelloAdjacency)
 			}
 			// RFC 5036 Section 3.5.3: "Two octet unsigned integer containing the
 			// version number of the protocol.  This version of the specification
@@ -475,7 +505,25 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, onLabel func(l
 		case MsgTypeLabelMapping:
 			lm, err := decodeLabelMapping(msgHdr.MessageID, msgBody)
 			if err != nil {
-				return err
+				if err := s.ignoreUnknownTLV(err, msgHdr); err != nil {
+					return err
+				}
+				break
+			}
+			// RFC 5036 Section 3.4.4.1: "If an LSR receives a message containing a
+			// Hop Count TLV, it MUST check the hop count value to determine whether
+			// the hop count has exceeded its configured maximum allowable value.
+			// If so, it MUST behave as if the containing message has traversed a
+			// loop by sending a Notification message signaling Loop Detected in
+			// reply to the sender of the message." The mapping is not applied: a
+			// looped label is one ze must not forward on.
+			if lm.HasHopCount && lm.HopCount > s.hopCountMax {
+				s.log.Warn("ldp: label mapping dropped, hop count exceeds the maximum",
+					"fec", lm.FEC.Prefix.String(), "hop-count", lm.HopCount, "max", s.hopCountMax)
+				if err := s.sendNotification(statusLoopDetected, msgHdr.MessageID, msgHdr.Type); err != nil {
+					return err
+				}
+				break
 			}
 			if onLabel != nil {
 				onLabel(lm, peerLSRID)
@@ -483,7 +531,10 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, onLabel func(l
 		case MsgTypeLabelWithdraw:
 			lw, err := s.decodeLabelWithdraw(msgHdr.MessageID, msgBody)
 			if err != nil {
-				return err
+				if err := s.ignoreUnknownTLV(err, msgHdr); err != nil {
+					return err
+				}
+				break
 			}
 			if onWithdraw != nil {
 				onWithdraw(lw, peerLSRID)
@@ -491,18 +542,45 @@ func (s *Session) processMessages(body []byte, peerLSRID [4]byte, onLabel func(l
 		case MsgTypeAddress:
 			am, err := decodeAddressList(msgHdr.MessageID, msgBody)
 			if err != nil {
-				return err
+				if err := s.ignoreUnknownTLV(err, msgHdr); err != nil {
+					return err
+				}
+				break
 			}
 			s.addPeerAddresses(am.Addresses)
 			s.log.Debug("ldp: peer addresses learned", "count", len(am.Addresses))
 		case MsgTypeAddressWithdraw:
 			am, err := decodeAddressList(msgHdr.MessageID, msgBody)
 			if err != nil {
-				return err
+				if err := s.ignoreUnknownTLV(err, msgHdr); err != nil {
+					return err
+				}
+				break
 			}
 			s.removePeerAddresses(am.Addresses)
 			s.log.Debug("ldp: peer addresses withdrawn", "count", len(am.Addresses))
-		case MsgTypeNotification, MsgTypeLabelRequest, MsgTypeLabelRelease, MsgTypeLabelAbortReq:
+		case MsgTypeNotification:
+			nm, err := decodeNotification(msgHdr.MessageID, msgBody)
+			if err != nil {
+				if err := s.ignoreUnknownTLV(err, msgHdr); err != nil {
+					return err
+				}
+				break
+			}
+			// RFC 5036 Section 3.5.1.1: "When an LSR receives a Notification
+			// message that carries a Status Code that indicates a fatal error, it
+			// SHOULD terminate the LDP session immediately by closing the session
+			// TCP connection and discard all state associated with the session".
+			// Returning ends the read loop, and the caller closes the connection
+			// and drops the peer's bindings.
+			if nm.Status&statusFatalBit != 0 {
+				s.log.Warn("ldp: fatal notification received, closing the session",
+					"status", nm.Status, "refers-to", nm.ReferMessageType)
+				return fmt.Errorf("%w: status %#08x", errPeerFatalNotification, nm.Status)
+			}
+			s.log.Info("ldp: advisory notification received",
+				"status", nm.Status, "refers-to", nm.ReferMessageType)
+		case MsgTypeLabelRequest, MsgTypeLabelRelease, MsgTypeLabelAbortReq:
 			s.log.Debug("ldp: unhandled message type", "type", msgHdr.Type)
 		default:
 			s.log.Warn("ldp: unknown message type", "type", msgHdr.Type)
@@ -533,11 +611,28 @@ func (s *Session) decodeLabelWithdraw(msgID uint32, msgBody []byte) (labelWithdr
 				lw.HasLabel = true
 			}
 		default:
-			s.log.Debug("ldp: unknown TLV in label-withdraw", "type", tlv.Type)
+			if err := skipTLV(tlv); err != nil {
+				return lw, err
+			}
 		}
 		bOff += n
 	}
 	return lw, nil
+}
+
+// ignoreUnknownTLV applies RFC 5036 Section 3.3 to a decode error. An unknown
+// TLV with the U bit clear draws an Unknown TLV Notification naming the message
+// it arrived in, and the message is ignored, so it returns nil and the caller
+// goes on to the next message. Any other decode error is returned unchanged
+// and ends the session.
+func (s *Session) ignoreUnknownTLV(err error, msgHdr MessageHeader) error {
+	var unknown *unknownTLVError
+	if !errors.As(err, &unknown) {
+		return err
+	}
+	s.log.Warn("ldp: message ignored, it carries an unknown TLV with the U bit clear",
+		"message-type", msgHdr.Type, "tlv-type", unknown.Type)
+	return s.sendNotification(statusUnknownTLV, msgHdr.MessageID, msgHdr.Type)
 }
 
 // rejectInit NAKs an Initialization message ze will not accept: it sends the
@@ -563,10 +658,11 @@ func (s *Session) rejectInit(status, initMsgID uint32, cause error) error {
 // referMsgType name the peer message the status answers, and both are zero when
 // it answers no particular message (RFC 5036 Section 3.4.6).
 //
-// The write is bounded by notificationWriteTimeout. Every status ze sends is
-// fatal, so the session is being torn down and a peer that has stopped reading
-// MUST NOT be able to hold the read loop open by never draining its receive
-// window.
+// The write is bounded by notificationWriteTimeout: a peer that has stopped
+// reading MUST NOT be able to hold the read loop open by never draining its
+// receive window. The deadline is cleared after the write, because an advisory
+// status (E bit clear) leaves the session up and the writes that follow it
+// carry no deadline of their own.
 func (s *Session) sendNotification(status, referMsgID uint32, referMsgType uint16) error {
 	var buf [64]byte
 	msgID := s.nextMsgID.Add(1)
@@ -590,8 +686,10 @@ func (s *Session) sendNotification(status, referMsgID uint32, referMsgType uint1
 		LabelSpace: s.localLabelSpc,
 	})
 
-	_, err := s.conn.Write(buf[:ldpHeaderLen+bodyLen])
-	return err
+	if _, err := s.conn.Write(buf[:ldpHeaderLen+bodyLen]); err != nil {
+		return err
+	}
+	return s.conn.SetWriteDeadline(time.Time{})
 }
 
 // handleInit applies a received Initialization message and advances the FSM.

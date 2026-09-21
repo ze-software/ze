@@ -89,6 +89,9 @@ ldp {
   (repeat the leaf for each interface).
 - `hello-interval` / `hello-hold-time` / `keepalive-time` -- optional soft-state
   timers (defaults 5s / 15s / 60s).
+- `hop-count-max` -- the largest Hop Count TLV value a Label Mapping can carry
+  (default 254). A mapping above it is answered with a Loop Detected
+  Notification and not used (RFC 5036 section 3.4.4.1).
 
 `keepalive-time` is the KeepAlive Time ze proposes in the Initialization message
 of each new session (RFC 5036 section 3.5.3). The two LSRs keep the lower of the

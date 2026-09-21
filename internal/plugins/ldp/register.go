@@ -98,7 +98,16 @@ type ldpConfig struct {
 	KeepaliveTime time.Duration
 	Interfaces    []string
 	TransportAddr netip.Addr
+	// HopCountMax is the configured maximum allowable hop count of RFC 5036
+	// Section 3.4.4.1, the ldp/hop-count-max leaf.
+	HopCountMax uint8
 }
+
+// DefaultHopCountMax is the hop-count-max leaf's default. The HC Value is one
+// octet and 0 means "unknown" (RFC 5036 Section 3.4.4.1), so 254 leaves one
+// value above it for the check to refuse, and it is the ceiling FRR and Cisco
+// IOS configure.
+const DefaultHopCountMax uint8 = 254
 
 // configNumber coerces a config-tree scalar to a float64. Tree.ToMap renders
 // every YANG leaf as a JSON string (e.g. "5"), so a numeric leaf arrives as a
@@ -123,6 +132,7 @@ func parseLDPConfig(sections []sdk.ConfigSection) (ldpConfig, error) {
 		HelloInterval: DefaultHelloInterval,
 		HelloHoldTime: DefaultHelloHoldTime,
 		KeepaliveTime: DefaultKeepaliveTime,
+		HopCountMax:   DefaultHopCountMax,
 	}
 	for _, sec := range sections {
 		if sec.Root != configRoot || sec.Data == "" {
@@ -160,6 +170,9 @@ func parseLDPConfig(sections []sdk.ConfigSection) (ldpConfig, error) {
 		}
 		if v, ok := configNumber(tree["keepalive-time"]); ok && v > 0 {
 			cfg.KeepaliveTime = time.Duration(v) * time.Second
+		}
+		if v, ok := configNumber(tree["hop-count-max"]); ok && v > 0 && v <= 255 {
+			cfg.HopCountMax = uint8(v)
 		}
 		cfg.Interfaces = append(cfg.Interfaces, configvalue.LeafList(tree["interfaces"])...)
 	}
@@ -235,6 +248,8 @@ func runLDPEngine(conn net.Conn) int {
 	var havePending bool
 	var sessionsMu sync.Mutex
 	sessions := make(map[string]*Session)
+	// retries holds the setup backoff per adjacency key; sessionsMu guards it too.
+	retries := make(map[string]*setupRetry)
 	var fib *ldpFIB
 	var discoveryMgr *discoveryManager
 	var mgrMu sync.Mutex // guards activeCfg/pendingCfg/havePending and discoveryMgr
@@ -327,7 +342,7 @@ func runLDPEngine(conn net.Conn) int {
 				// c.TransportAddr, not the address the engine started with: the TCP
 				// source address must be the one this interface's Hellos advertise,
 				// which discoverOnInterface takes from the same c.
-				startSessionForAdj(ctx, log, adj, lsrID, c.TransportAddr, keepalive, lib, sessions, &sessionsMu, fib)
+				startSessionForAdj(ctx, log, adj, lsrID, c.TransportAddr, keepalive, c.HopCountMax, lib, sessions, retries, &sessionsMu, fib)
 			})
 		}
 		mgr := newDiscoveryManager(ctx, log, startFn)
@@ -336,7 +351,7 @@ func runLDPEngine(conn net.Conn) int {
 		mgrMu.Unlock()
 		mgr.reconcile(cfg)
 
-		go runAdjacencyExpiry(ctx, log, adjTable, sessions, &sessionsMu)
+		go runAdjacencyExpiry(ctx, log, adjTable, sessions, retries, &sessionsMu)
 
 		return nil
 	})
@@ -443,11 +458,71 @@ func sessionConfigForAdj(lsrID [4]byte, keepalive time.Duration, adj *Adjacency)
 	}
 }
 
-func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, lsrID [4]byte, localTransport netip.Addr, keepalive time.Duration, lib *LIB, sessions map[string]*Session, sessionsMu *sync.Mutex, fib *ldpFIB) {
+// Session setup backoff, RFC 5036 Section 2.5.3: "An LSR MUST throttle its
+// session setup retry attempts with an exponential backoff in situations where
+// Initialization messages are being NAK'd. The session establishment setup
+// attempt following a NAK'd Initialization message MUST be delayed no less than
+// 15 seconds, and subsequent delays MUST grow to a maximum delay of no less than
+// 2 minutes." Ze applies the same backoff to every setup attempt that ends
+// before the session is operational, a refused TCP connect included: the RFC
+// binds the NAK case and permits the rest, and one rule keeps a dead peer from
+// being dialed on every Hello.
+const (
+	setupRetryDelayMin = 15 * time.Second
+	setupRetryDelayMax = 2 * time.Minute
+)
+
+// setupRetry is the backoff state of one adjacency's session setup attempts.
+// The engine keeps one per adjacency key while attempts fail and drops it when
+// a session reaches operational or the adjacency expires.
+type setupRetry struct {
+	delay     time.Duration // the delay the last failure imposed; 0 before the first
+	notBefore time.Time     // the earliest time the next attempt is allowed
+}
+
+// failed records one failed setup attempt at now and returns the delay the next
+// attempt waits: setupRetryDelayMin first, doubling to setupRetryDelayMax.
+func (r *setupRetry) failed(now time.Time) time.Duration {
+	if r.delay == 0 {
+		r.delay = setupRetryDelayMin
+	} else {
+		r.delay *= 2
+	}
+	if r.delay > setupRetryDelayMax {
+		r.delay = setupRetryDelayMax
+	}
+	r.notBefore = now.Add(r.delay)
+	return r.delay
+}
+
+// allows reports whether a setup attempt at now is permitted.
+func (r *setupRetry) allows(now time.Time) bool {
+	return !now.Before(r.notBefore)
+}
+
+// recordSetupFailure notes that the attempt for key failed at now, creating the
+// backoff entry on the first failure. The caller MUST hold sessionsMu.
+func recordSetupFailure(log *slog.Logger, retries map[string]*setupRetry, key string, now time.Time) {
+	r := retries[key]
+	if r == nil {
+		r = &setupRetry{}
+		retries[key] = r
+	}
+	delay := r.failed(now)
+	log.Info("ldp: session setup failed, next attempt delayed", "peer", key, "delay", delay)
+}
+
+// startSessionForAdj opens the session for adj unless one exists or the setup
+// backoff for it has not elapsed. Discovery calls it on every Hello from adj, so
+// the Hello cadence is the retry timer and a dead adjacency retries nothing.
+func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, lsrID [4]byte, localTransport netip.Addr, keepalive time.Duration, hopCountMax uint8, lib *LIB, sessions map[string]*Session, retries map[string]*setupRetry, sessionsMu *sync.Mutex, fib *ldpFIB) {
 	sessionsMu.Lock()
 	defer sessionsMu.Unlock()
 	key := AdjacencyKey(adj.PeerLSRID, adj.PeerLabelSpace)
 	if _, exists := sessions[key]; exists {
+		return
+	}
+	if r, pending := retries[key]; pending && !r.allows(time.Now()) {
 		return
 	}
 
@@ -459,10 +534,13 @@ func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, l
 	tcpConn, err := dialer.DialContext(ctx, "tcp", tcpAddr.String())
 	if err != nil {
 		log.Warn("ldp: TCP connect failed", "peer", adj.TransportAddr, "error", err)
+		recordSetupFailure(log, retries, key, time.Now())
 		return
 	}
 
-	sess := NewSession(tcpConn, sessionConfigForAdj(lsrID, keepalive, adj), lib, log)
+	sessCfg := sessionConfigForAdj(lsrID, keepalive, adj)
+	sessCfg.HopCountMax = hopCountMax
+	sess := NewSession(tcpConn, sessCfg, lib, log)
 	sessions[key] = sess
 
 	if m := ldpMetricsPtr.Load(); m != nil {
@@ -482,6 +560,14 @@ func startSessionForAdj(ctx context.Context, log *slog.Logger, adj *Adjacency, l
 	go runSession(ctx, log, sess, lib, key, fib, func() {
 		sessionsMu.Lock()
 		delete(sessions, key)
+		// A session that ended before it was operational is a failed setup
+		// attempt: an Initialization NAK'd by either side, or a transport that
+		// closed during the exchange. One that was operational resets the backoff.
+		if sess.State() == StateOperational {
+			delete(retries, key)
+		} else {
+			recordSetupFailure(log, retries, key, time.Now())
+		}
 		if m := ldpMetricsPtr.Load(); m != nil {
 			m.sessionsActive.Set(float64(len(sessions)))
 		}
@@ -560,7 +646,7 @@ var listenDiscovery = func(ifi *net.Interface, addr *net.UDPAddr) (*net.UDPConn,
 
 // discoverOnInterface sends and receives multicast Hellos on a single interface
 // (ifName ""), the system-assigned multicast interface).
-func discoverOnInterface(ctx context.Context, log *slog.Logger, cfg ldpConfig, lsrID [4]byte, ifName string, adjTable *AdjacencyTable, onNewAdj func(*Adjacency)) {
+func discoverOnInterface(ctx context.Context, log *slog.Logger, cfg ldpConfig, lsrID [4]byte, ifName string, adjTable *AdjacencyTable, onAdjHello func(*Adjacency)) {
 	multicastAddr := &net.UDPAddr{
 		IP:   net.IPv4(224, 0, 0, 2),
 		Port: ldpHelloPort,
@@ -623,7 +709,7 @@ func discoverOnInterface(ctx context.Context, log *slog.Logger, cfg ldpConfig, l
 	// safe for one concurrent Read and Write), and AdjacencyTable is RWMutex-
 	// guarded so processDiscoveryPacket -> Update races safely with the expiry sweep.
 	readerDone := make(chan struct{})
-	go readDiscoveryLoop(ctx, udpConn, lsrID, ifName, adjTable, onNewAdj, log, readerDone)
+	go readDiscoveryLoop(ctx, udpConn, lsrID, ifName, adjTable, onAdjHello, log, readerDone)
 
 	for {
 		select {
@@ -645,7 +731,7 @@ func discoverOnInterface(ctx context.Context, log *slog.Logger, cfg ldpConfig, l
 // cadence. It exits when udpConn is closed or ctx is canceled, closing done on the
 // way out so discoverOnInterface can join it. A 1s read deadline is a backstop so
 // a missed socket close still wakes the loop to re-check ctx (spec A-3).
-func readDiscoveryLoop(ctx context.Context, udpConn *net.UDPConn, lsrID [4]byte, ifName string, adjTable *AdjacencyTable, onNewAdj func(*Adjacency), log *slog.Logger, done chan<- struct{}) {
+func readDiscoveryLoop(ctx context.Context, udpConn *net.UDPConn, lsrID [4]byte, ifName string, adjTable *AdjacencyTable, onAdjHello func(*Adjacency), log *slog.Logger, done chan<- struct{}) {
 	defer close(done)
 	recvBuf := make([]byte, 4096)
 	for {
@@ -669,7 +755,7 @@ func readDiscoveryLoop(ctx context.Context, udpConn *net.UDPConn, lsrID [4]byte,
 			continue
 		}
 
-		processDiscoveryPacket(recvBuf[:n], lsrID, ifName, adjTable, onNewAdj, log)
+		processDiscoveryPacket(recvBuf[:n], lsrID, ifName, adjTable, onAdjHello, log)
 	}
 }
 
@@ -678,7 +764,7 @@ func readDiscoveryLoop(ctx context.Context, udpConn *net.UDPConn, lsrID [4]byte,
 // emitted SessionEvent carries the discovering interface for LDP-IGP sync
 // consumers (RFC 5443 / RFC 6138). ifName is set inside AdjacencyTable.Update
 // under the table lock, so a concurrent All()/Get() snapshot never sees a torn write.
-func processDiscoveryPacket(data []byte, localLSRID [4]byte, ifName string, adjTable *AdjacencyTable, onNewAdj func(*Adjacency), log *slog.Logger) {
+func processDiscoveryPacket(data []byte, localLSRID [4]byte, ifName string, adjTable *AdjacencyTable, onAdjHello func(*Adjacency), log *slog.Logger) {
 	if len(data) < ldpHeaderLen+ldpMsgHdrLen {
 		return
 	}
@@ -719,9 +805,12 @@ func processDiscoveryPacket(data []byte, localLSRID [4]byte, ifName string, adjT
 		return
 	}
 
-	adj, isNew := adjTable.Update(pdu, hello, ifName)
-	if isNew && onNewAdj != nil {
-		onNewAdj(adj)
+	// Every Hello reaches onAdjHello, not only the first: startSessionForAdj
+	// is where a retry after a failed setup attempt starts, and the Hello
+	// cadence is its timer (RFC 5036 Section 2.5.3).
+	adj, _ := adjTable.Update(pdu, hello, ifName)
+	if onAdjHello != nil {
+		onAdjHello(adj)
 	}
 }
 
@@ -863,7 +952,7 @@ func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, 
 	}
 }
 
-func runAdjacencyExpiry(ctx context.Context, log *slog.Logger, adjTable *AdjacencyTable, sessions map[string]*Session, sessionsMu *sync.Mutex) {
+func runAdjacencyExpiry(ctx context.Context, log *slog.Logger, adjTable *AdjacencyTable, sessions map[string]*Session, retries map[string]*setupRetry, sessionsMu *sync.Mutex) {
 	ticker := time.NewTicker(1 * time.Second)
 	defer ticker.Stop()
 	for {
@@ -871,7 +960,7 @@ func runAdjacencyExpiry(ctx context.Context, log *slog.Logger, adjTable *Adjacen
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			expireAdjacencies(log, adjTable, sessions, sessionsMu)
+			expireAdjacencies(log, adjTable, sessions, retries, sessionsMu)
 		}
 	}
 }
@@ -883,11 +972,14 @@ func runAdjacencyExpiry(ctx context.Context, log *slog.Logger, adjTable *Adjacen
 // an interface is removed (discovery stops -> Hellos stop -> adjacency expires
 // here). The adjacency-table key and the session-map key are both
 // AdjacencyKey(LSR-ID, label-space).
-func expireAdjacencies(log *slog.Logger, adjTable *AdjacencyTable, sessions map[string]*Session, sessionsMu *sync.Mutex) {
+func expireAdjacencies(log *slog.Logger, adjTable *AdjacencyTable, sessions map[string]*Session, retries map[string]*setupRetry, sessionsMu *sync.Mutex) {
 	for _, key := range adjTable.ExpireSweep() {
 		log.Info("ldp: adjacency expired", "peer", key)
 		sessionsMu.Lock()
 		sess, ok := sessions[key]
+		// The backoff belongs to the adjacency: a peer rediscovered later starts
+		// its first attempt undelayed.
+		delete(retries, key)
 		sessionsMu.Unlock()
 		if ok {
 			sess.Stop()

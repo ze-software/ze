@@ -113,6 +113,7 @@ func TestSessionHandleInitFromInitialized(t *testing.T) {
 func TestSessionProcessMessagesFiresOperational(t *testing.T) {
 	s := &Session{
 		state:         StateOpenSent,
+		peerLSRID:     [4]byte{10, 0, 0, 2},
 		keepaliveTime: DefaultKeepaliveTime,
 		maxPDU:        DefaultMaxPDULength,
 		lib:           newLIB(),
@@ -129,7 +130,7 @@ func TestSessionProcessMessagesFiresOperational(t *testing.T) {
 	})
 
 	fired := 0
-	if err := s.processMessages(buf[:n], [4]byte{10, 0, 0, 2}, nil, nil, func() { fired++ }); err != nil {
+	if err := s.processMessages(buf[:n], [4]byte{10, 0, 0, 2}, 0, nil, nil, func() { fired++ }); err != nil {
 		t.Fatalf("processMessages: %v", err)
 	}
 	if fired != 1 {

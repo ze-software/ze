@@ -246,7 +246,7 @@ func TestRFC5036InitProtocolVersionOne(t *testing.T) {
 	rx := rfcTestSession(local)
 	rx.state = StateOpenSent
 	pdu := encodeInitPDU(1, 30)
-	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil); err != nil {
+	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
 		t.Fatalf("processMessages(version 1): %v", err)
 	}
 	if rx.State() != StateOperational {
@@ -267,7 +267,7 @@ func TestRFC5036InitProtocolVersionOtherRejected(t *testing.T) {
 		done := make(chan error, 1)
 		go func() {
 			pdu := encodeInitPDU(version, 30)
-			done <- rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil)
+			done <- rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil)
 		}()
 
 		status, _, _ := readNotificationStatus(t, remote)
@@ -328,7 +328,7 @@ func TestRFC5036InitNonZeroKeepaliveTimeAccepted(t *testing.T) {
 	rx.state = StateOpenSent
 
 	pdu := encodeInitPDU(ldpVersion, 30)
-	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil); err != nil {
+	if err := rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil); err != nil {
 		t.Fatalf("processMessages: %v", err)
 	}
 	if rx.State() != StateOperational {
@@ -367,7 +367,7 @@ func TestRFC5036InitZeroKeepaliveTimeRejected(t *testing.T) {
 	done := make(chan error, 1)
 	go func() {
 		pdu := encodeInitPDU(ldpVersion, 0)
-		done <- rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, nil)
+		done <- rx.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, nil)
 	}()
 
 	status, referID, referType := readNotificationStatus(t, remote)
@@ -438,7 +438,7 @@ func TestRFC5036SessionNotOperationalWithoutOwnInit(t *testing.T) {
 
 	fired := 0
 	pdu := encodeInitPDU(1, 30)
-	if err := sess.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, nil, nil, func() { fired++ }); err != nil {
+	if err := sess.processMessages(pdu[ldpHeaderLen:], [4]byte{10, 0, 0, 2}, 0, nil, nil, func() { fired++ }); err != nil {
 		t.Fatalf("processMessages: %v", err)
 	}
 	if sess.State() == StateOperational {
