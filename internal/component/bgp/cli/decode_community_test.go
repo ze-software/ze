@@ -140,7 +140,11 @@ func TestDecodeUpdateNamesEveryCommunityAttribute(t *testing.T) {
 	attrs := decodedAttributes(t, buildCommunityUpdate(t))
 
 	assert.Equal(t, []any{"65001:100"}, requireAttrValue(t, attrs, "community"))
-	assert.Equal(t, []any{"000220010db80000000000000000000000010064"},
+	// RFC 5701 Section 3 assigns sub-type 0x0002 to the IPv6 address specific
+	// Route Target, and Section 2 says the sub-types are the IPv4 form's, so
+	// this reads the way its 8-octet sibling above does. It was bare hex until
+	// 2026-09-21, where the plugin feed already decoded it.
+	assert.Equal(t, []any{"target:[2001:db8::1]:100"},
 		requireAttrValue(t, attrs, "ipv6-extended-community"))
 	assert.Equal(t, []any{"65001:1:2"}, requireAttrValue(t, attrs, "large-community"))
 
@@ -217,6 +221,6 @@ func TestFormatUpdateHumanNamesEveryCommunityAttribute(t *testing.T) {
 	assert.Contains(t, output, "community")
 	assert.Contains(t, output, "65001:100")
 	assert.Contains(t, output, "target:100:1")
-	assert.Contains(t, output, "000220010db80000000000000000000000010064")
+	assert.Contains(t, output, "target:[2001:db8::1]:100")
 	assert.Contains(t, output, "65001:1:2")
 }

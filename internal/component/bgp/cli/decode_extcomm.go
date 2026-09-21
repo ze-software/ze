@@ -10,7 +10,6 @@ package cli
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
@@ -19,9 +18,9 @@ import (
 // the text of every community in it. The per-community renderer is the SAME one
 // the daemon's event JSON uses (appendCommunitiesJSON and its three siblings,
 // internal/component/bgp/plugins/filter_community/json.go): Community.String,
-// ExtendedCommunity.AppendDecoded, LargeCommunity.String, and plain hex for the
-// RFC 5701 form, which has no vocabulary yet. So one community cannot read one
-// way in a capture and another way in the event stream.
+// ExtendedCommunity.AppendDecoded, LargeCommunity.String, and
+// IPv6ExtendedCommunity.String. So one community cannot read one way in a
+// capture and another way in the event stream.
 //
 // A renderer returns nil when the wire length is not a whole number of
 // communities. Nil is not a drop: renderAttributeZe (decode_update.go) then
@@ -76,11 +75,19 @@ func parseExtendedCommunities(data []byte) []map[string]any {
 }
 
 // parseIPv6ExtendedCommunities renders each 20-octet IPv6 extended community
-// (RFC 5701 Section 2) as hex.
+// (RFC 5701 Section 2) in its named form.
 //
-// Hex, not the named form its 8-octet sibling renders. RFC 5701 Section 2 puts a
-// 16-octet IPv6 global administrator where RFC 4360 Section 3.1 puts a 2-octet
-// AS, so every field offset the vocabulary reads names something else here.
+// Through String(), which is AppendDecoded, and for the reason its neighbor
+// parseLargeCommunities renders through String() too: this is the SECOND reader
+// of these octets, and the first is appendIPv6ExtCommunitiesJSON, which the
+// plugin feed reads. They answered differently until 2026-09-21 -- `ze bgp
+// decode` wrote bare hex and the feed wrote the decoded form -- so one fact had
+// two spellings and no reader of both could tell they were the same thing.
+//
+// The comment this replaces justified the hex by saying no IPv6 vocabulary
+// exists, because every field offset the 8-octet one reads names something else
+// here. That has not been true since AppendDecoded grew its redirect-to-nexthop
+// arm, and RFC 5701 Section 3 names two more.
 func parseIPv6ExtendedCommunities(data []byte) []string {
 	comms, err := attribute.ParseIPv6ExtendedCommunities(data)
 	if err != nil {
@@ -89,7 +96,7 @@ func parseIPv6ExtendedCommunities(data []byte) []string {
 
 	text := make([]string, len(comms))
 	for i, comm := range comms {
-		text[i] = hex.EncodeToString(comm[:])
+		text[i] = comm.String()
 	}
 
 	return text

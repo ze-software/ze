@@ -35,6 +35,14 @@ import (
 // Route Origin, and RFC 8955 Section 7.4 names 0x80, 0x81 and 0x82 for the
 // FlowSpec redirect siblings.
 const (
+	// The two SUB-types, without a type octet. RFC 5701 Section 2 says the
+	// 20-octet IPv6 form takes "the same sub-types as for the IPv4 Address
+	// Specific Extended Community", and its first octet carries transitivity
+	// (0x00 or 0x40) rather than an address family, so its renderer matches on
+	// the second octet alone.
+	extCommSubtypeRouteTarget = 0x02 // RFC 5701 Section 3: IPv6 address specific Route Target
+	extCommSubtypeRouteOrigin = 0x03 // RFC 5701 Section 3: IPv6 address specific Route Origin
+
 	extCommRouteTargetAS2     = 0x0002 // RFC 4360 Section 4: Route Target, two-octet AS specific
 	extCommRouteTargetIPv4    = 0x0102 // RFC 4360 Section 4: Route Target, IPv4 address specific
 	extCommRouteTargetAS4     = 0x0202 // RFC 4360 Section 4: Route Target, four-octet AS specific
@@ -412,10 +420,39 @@ func (e IPv6ExtendedCommunity) AppendDecoded(buf []byte) []byte {
 		}
 		return netip.AddrFrom16([16]byte(e[2:18])).AppendTo(buf)
 	}
+	switch e[1] {
+	case extCommSubtypeRouteTarget:
+		return appendExtCommIPv6Specific(buf, "target:", e)
+	case extCommSubtypeRouteOrigin:
+		return appendExtCommIPv6Specific(buf, "origin:", e)
+	}
 	buf = append(buf, "0x"...)
 	buf = hex.AppendEncode(buf, e[0:2])
 	buf = append(buf, ':')
 	return hex.AppendEncode(buf, e[2:20])
+}
+
+// appendExtCommIPv6Specific writes the 16-octet global administrator and the
+// 2-octet local administrator RFC 5701 Section 2 lays out, in the shape the
+// 8-octet sibling uses (appendExtCommIPv4Specific).
+//
+// The address is BRACKETED where the 8-octet form writes it bare, and that is
+// the one place the two shapes differ. An IPv6 global administrator contains
+// colons, so `target:2001:db8:::1` is what the bare shape produces for
+// 2001:db8:: with local administrator 1, and a reader cannot see where the
+// address ends. The brackets are the same answer RFC 3986 Section 3.2.2 gives
+// for an address followed by a port.
+//
+// Nothing in the tree reads this form BACK. A code-25 community is originated
+// from octets (PathAttributes.IPv6ExtCommunityBytes, update_build_flowspec.go)
+// and never from a named string, so this makes no round-trip claim. A text
+// parser would owe one, and the brackets are what would let it split.
+func appendExtCommIPv6Specific(buf []byte, name string, e IPv6ExtendedCommunity) []byte {
+	buf = append(buf, name...)
+	buf = append(buf, '[')
+	buf = netip.AddrFrom16([16]byte(e[2:18])).AppendTo(buf)
+	buf = append(buf, ']', ':')
+	return strconv.AppendUint(buf, uint64(binary.BigEndian.Uint16(e[18:20])), 10)
 }
 
 // String returns the IPv6 extended community's named form.

@@ -69,21 +69,15 @@ func checkCommunityAttributes04(attr map[string]any) error {
 	want := map[string][]string{
 		"communities":          {"65001:100"},
 		"extended-communities": {"target:65000:1", "mark:46", "target:65536:100", "traffic-action:sample-terminal", "traffic-action:sample-terminal"},
-		// What AppendDecoded emits for a sub-type it does not name: the
-		// transitivity and sub-type octets, then the remaining eighteen as
-		// hex. Decoding rather than hexing is the ExaBGP-shaped answer, and
-		// upstream's own fixture proves it -- conf-flow-redirect.ci carries
-		// `"string":"redirect-to-nexthop-ietf 2a02:b80:0:1::1"` for a code-25
-		// community. The bare hex this line held until 2026-09-21 was the
-		// reading of a different producer, `ze bgp decode`, and the two still
-		// disagree.
+		// RFC 5701 Section 3 assigns sub-type 0x0002 to the IPv6 address
+		// specific Route Target, so this reads the way its 8-octet sibling
+		// does. The address is bracketed because it contains colons of its
+		// own, which is the one place the two shapes differ.
 		//
-		// RFC 5701 Section 3 names sub-type 0x0002 an IPv6 address specific
-		// Route Target, and ze does not render it as one yet. That is recorded
-		// in plan/journal/declared-format-contradicts-payload.md, and the
-		// document imposes no MUST about text, so this line pins what ze does
-		// rather than a conformance claim.
-		"ipv6-extended-communities": {"0x0002:20010db80000000000000000000000000001"},
+		// It held bare hex until 2026-09-21 and then the undecoded
+		// `0x0002:...` for an hour. `ze bgp decode` answered the first and the
+		// plugin feed the second, over the same octets; both now answer this.
+		"ipv6-extended-communities": {"target:[2001:db8::]:1"},
 		"large-communities":         {"65001:1:2"},
 	}
 	for key, expected := range want {
