@@ -1,70 +1,60 @@
 ---
-title: Reference stays attached to code
+title: Keeping documentation in step with the code
 date: 2026-08-22
 author: Thomas Mangin
-description: Ze's command and configuration declarations also feed its reference pages. That leaves the writing for the reasons behind the design, with a route back to the code when either needs to change.
+description: Ze generates command, configuration and support reference data from the code and its records, so the website does not depend on a second list being updated by hand.
 
-deck: An operator reading the website and an agent arriving to change the code should be able to find the same facts, and the reasons behind them.
+deck: Shared command metadata supplies both the program and its reference pages, so keeping them consistent becomes part of the documentation build.
 
 image: assets/blog/reference-from-the-system.svg
 image-dark: assets/blog/reference-from-the-system-dark.svg
-image-alt: A code-owned source publishes a reference view while an agent follows a lookup route back to the same source.
+image-alt: Command definitions supply the reference pages, with links from the documentation back to the source.
 ---
 
-An operator looking up a command needs the website to describe what the program accepts. Yet maintaining that list by hand gives us another copy to remember whenever an argument changes or a help description is corrected. The binary can reject advice which was perfectly good when somebody wrote the page, and we have created the disagreement ourselves.
+When a command reference is written separately from the code, keeping it accurate depends on someone remembering to update it each time the command changes. The code can be changed and tested while the website still describes the old syntax, leaving a reader to follow instructions that no longer work. The documentation was correct when written; it became misleading because maintaining it required a separate edit that was missed.
 
-The program already needs a declaration of each command in order to offer it. Using that declaration for the reference removes the repeated edit and leaves the writing for an explanation of why the command is useful, or why it has a limitation the operator needs to understand.
-
-Building Ze with AI gives those explanations another reader. An agent arriving to change a command needs to recover the reasoning which led to it, and its next edit should leave that reasoning available to the operator too. Keeping the reference attached to the source gives both readers somewhere to continue when a list of accepted inputs is no longer enough.
+In Ze, we address this by using shared command metadata to generate the reference pages. That metadata describes the arguments and their help text for use in the program, so it also provides the information needed to document them. An argument change is then recorded in one place and appears in the reference on the next documentation build. Keeping the two consistent becomes part of how we build the software and its documentation, instead of something a developer has to remember afterwards.
 
 *This article was drafted and revised with OpenAI Codex. The design, decisions and conclusions are mine.*
 
-## The program already has the list
+## From a command definition to its reference page
 
-During a site build, Ze runs `ze help command --json` from the checkout's sources, with the project's feature tags. The [catalogue producer](https://github.com/ze-software/ze/blob/main/internal/le/docvalid/command_render.go) supplies the result, and the [site builder](https://github.com/ze-software/ze/blob/main/internal/le/site/build.go) saves it as [`data/cli-commands.json`](../../data/cli-commands.json). The [CLI reference renderer](https://github.com/ze-software/ze/blob/main/internal/le/site/commands.go) uses that catalogue for descriptions and invocation forms, and the Markdown mirror reads the same input.
+The command metadata is available through Ze's built-in help. As well as displaying it in a terminal, we can request it as structured data with `ze help command --json`. The [catalogue producer](https://github.com/ze-software/ze/blob/main/internal/le/docvalid/command_render.go) runs that command against Ze compiled from the checkout, giving the website build a list of commands from the code being documented.
 
-A help correction can therefore serve the binary and both reference views without someone copying it between them. The page can still group commands for the reader and put an explanation beside a limitation. Its presentation has a different job from the command declaration, so there is no need for it to own another command list.
+The [reference generator](https://github.com/ze-software/ze/blob/main/internal/le/site/commands.go) uses this list to produce the syntax and descriptions for both the website and a Markdown reference. Because both versions use the same input, correcting a help description once updates the terminal help and, on the next build, both documents. We can change how the reference is presented without having to maintain its command list separately.
 
-Configuration benefits from the same arrangement, particularly because plugins contribute to the schema. The [configuration producer](https://github.com/ze-software/ze/blob/main/internal/le/site/yang.go) builds and runs Ze's `show yang tree --config | json` command for the checkout. The reference uses the tree the program exposes, including the plugin contributions in that build, rather than a second list of configuration leaves.
+The build also saves the catalogue as [`data/cli-commands.json`](../../data/cli-commands.json). Someone who wants to use the command information in another tool can read that data directly, without extracting it from the HTML page.
 
-The [plugin inventory](https://github.com/ze-software/ze/blob/main/internal/le/inventory/plugins.go) reads registrations and derives source locations for its catalogue. Plugin names and configuration roots come from the declarations used by the program, so a reader can follow an entry back to the package responsible for the feature.
+## Include the configuration supplied by plugins
 
-This consistency is bounded by the build and publication. Editing a declaration leaves the existing public page unchanged until it is rebuilt and published, and a future release will need a reference built from that version's sources. It is also possible to be consistently wrong: a mistaken help description will be repeated in every view. Reading the generated result remains part of the job.
+Configuration presents the same maintenance problem, with the added complication that plugins can contribute their own settings. A reference maintained separately would have to track those contributions as well as changes to the core. If a plugin adds a setting and its author forgets the website, the new option can remain undocumented even though it is available in the program.
 
-## Writing what the declarations leave out
+Ze's configuration tree already combines those definitions for the running program. The [configuration reference generator](https://github.com/ze-software/ze/blob/main/internal/le/site/yang.go) obtains that tree with `show yang tree --config | json`, including the settings supplied by plugins in the build. Generating the reference from this tree includes their contributions without a second description of the available configuration.
 
-Dependencies need both a declaration and an explanation, with a different source for each. A module's version is already in `go.mod`, while the reason I chose it has to be written. The [dependency page producer](https://github.com/ze-software/ze/blob/main/internal/le/site/dependencies.go) joins those versions to a curated list of reasons, and its drift check rejects a direct dependency missing from that list or a listed module which is no longer required directly.
+We use the registrations in the code for the [plugin inventory](https://github.com/ze-software/ze/blob/main/internal/le/inventory/plugins.go) too. Each entry identifies the plugin and its configuration root, with a link to the package that implements it. The reference can therefore show where a setting belongs and give a reader investigating it a route into the source.
 
-The build can then remind us that a new dependency has no explanation. Deciding whether that dependency was sensible still requires reading the reason and considering the choice. Treating both inputs as though they were interchangeable would lose the distinction between what the program contains and why I put it there.
+## Publish the support records we use during development
 
-## Following the explanation back
+Command names and configuration options can be taken directly from definitions in the program. Protocol support requires more judgement: the presence of BGP code does not establish that every requirement of a particular RFC has been implemented. A manually written list of supported RFCs would also need revisiting whenever we implemented a missing requirement or discovered a gap.
 
-An agent changing the implementation needs that distinction as much as an operator investigating a limitation. If it finds only the accepted input and the code which processes it, it can infer a different design and start removing a constraint I chose deliberately. The earlier reasoning needs to be reachable from the code it is about to change.
+For Ze, we record individual RFC requirements and connect them to tests and records of missing behaviour. These are the records we use to assess implementation progress, so we use them to generate the [public compliance pages](../../quality/rfc-compliance/) as well. The [RFC ledger generator](https://github.com/ze-software/ze/blob/main/internal/le/site/rfcledger.go) combines the requirement rows with our recorded descriptions of support. Updating a gap or a description during development then updates the public account on the next website build.
 
-Ze's source files have `// Design:` headers pointing to their design documents. The generated [design-to-code index](https://github.com/ze-software/ze/blob/main/ai/DOCS-TO-CODE.md) collects those references, so somebody starting with a document can find the files which name it. In the other direction, documents cite producing source through `<!-- source: ... -->` anchors, and the [code-to-documents index](https://github.com/ze-software/ze/blob/main/ai/CODE-TO-DOCS.md) finds the documents which cite a file.
+This also lets a reader examine what a support claim means. A declaration of partial support links to the missing requirements and the tests cited for implemented behaviour. The page preserves the distinction between a test carrying a requirement identifier and evidence that the test detects a particular incorrect implementation. [The proof is the expensive part](../the-proof-is-the-expensive-part/) explains why that distinction matters: a test can pass while leaving the required application behaviour unchecked.
 
-The two indexes answer different questions: which files implement a named design, and which documents describe a source file. In the command reference's own case, the renderer names the website authoring guide and the guide names the producer. A task which begins with a problem on the page can continue into the explanation of how it is assembled, then into the code responsible for it.
+Using the same records for development and publication also gives both readers the same way to investigate a claim. An operator can follow a support entry to the requirement and its evidence. An agent changing that behaviour can follow the same identifiers to the tests and source, then update the records from which the public page is built. We avoid maintaining a separate account for each audience.
 
-The [navigation guide](https://github.com/ze-software/ze/blob/main/docs/contributing/navigating-the-code.md) teaches the agent which route to use. A header it never reads would do little to preserve a decision, so consulting the design has to become part of how it approaches the task. [The repository is half the AI harness](../the-repository-is-the-ai-harness/) describes the instructions and feedback behind that habit.
+Generating the page keeps it consistent with our records; the accuracy of those records still depends on the evidence behind them. Publishing the gaps alongside the claims gives someone considering Ze a way to inspect that evidence, including reasons to be less confident in the implementation.
 
-When a change does alter the design, the same links identify the explanation which needs attention. A later session can recover the revised reasoning without needing the conversation in which we settled it, and the operator no longer has to read a description of the old choice beside a reference generated from the new one.
+## Keep the explanations alongside the generated facts
 
-## Publishing what we support
+The reason for a design choice cannot usually be recovered from the code that implements it. A dependency list makes this limit easy to see: `go.mod` records which modules we use and their versions, but it does not record why I chose them. The [dependency page generator](https://github.com/ze-software/ze/blob/main/internal/le/site/dependencies.go) therefore combines those versions with explanations we maintain separately.
 
-RFC support tests this connection between declarations and explanations more severely. The original RFC remains the authority, but Ze has to interpret it into obligations which tests and known gaps can refer to. The checklist gives those obligations stable IDs, and extraction reviews record how they were derived from the text.
+Those explanations can become outdated too, so a check compares them with the direct dependencies. It reports a new dependency with no explanation, or an explanation for a module that is no longer used directly. This identifies an omission for us to correct, while reviewing whether the explanation is useful remains a writing task.
 
-The [RFC ledger producer](https://github.com/ze-software/ze/blob/main/internal/le/site/rfcledger.go) gathers those records for the [public compliance pages](../../quality/rfc-compliance/). It uses the same requirement rows as the repository's per-RFC tables, and takes the public support wording from the summary metadata. A correction to that metadata can reach the website through its next build without a separately authored status table waiting for another edit.
+The same applies to documents about Ze's design. We can generate a command's accepted arguments, but explaining why we chose that interface requires the reasoning behind the decision. [AI coding has not had its Rails moment](../ai-coding-has-not-had-its-rails-moment/) describes how we connect those explanations to the code, so the person or agent changing it can find the decisions they need to consider.
 
-An operator can follow a declaration of partial support to the missing requirement and to the tests for what is implemented. An agent can use the same requirement ID to find the tests affected by a change and return to the declaration. Their reasons for arriving differ, but the accounts of what Ze supports should agree.
+Even the generated reference must be read and checked. An incorrect help description will appear in the terminal and on the website, and the generator will reproduce it until we correct the source. The pages must also identify which build they describe, because documentation generated from today's code can give the wrong instructions to someone running an older build.
 
-Agreement alone is insufficient here because a test can carry the right tag while asserting the wrong behaviour, just as an extraction can misinterpret the RFC. The ledger keeps tagged tests distinct from stored discrimination evidence, and retains the gaps and runner classifications. [The proof is the expensive part](../the-proof-is-the-expensive-part/) follows the judgement behind those distinctions, including records which are still missing.
+For Ze, keeping the public website in step with the published code is a requirement. Generating the reference removes the separate manual description, but the resulting pages still have to be rebuilt and published with the corresponding changes. Otherwise we would have correct documentation in the build directory and outdated instructions in front of the reader.
 
-A polished page can give an unsupported claim an air of authority, particularly when precise counts and consistent formatting suggest that somebody has checked everything behind them. I care more about whether the reader can reach the missing record or disputed interpretation, even when following the link leaves them less impressed with Ze.
-
-## Maintaining the route
-
-Generating these views replaces repeated manual edits with producers and checks which need looking after themselves. A new kind of command data may require a renderer change, while moving a source file can break the link from its explanation. A false refusal also interrupts a correct edit until somebody establishes whether the edit or the check is wrong.
-
-The dependency check catches an explanation we forgot to write, and a source-link check can expose a broken route into the code, but I still have to choose which sources belong together. A generator which joins the wrong ones will repeat the same mistake everywhere, however carefully each input is maintained. That choice deserves as much review as the prose on the page.
-
-*Last updated: 11 September 2026. The history of this article is available in the [project's Git repository](https://github.com/ze-software/ze/commits/main/website/blog/posts/reference-from-the-system.md).*
+*Originally written: 22 August 2026. Last updated: 21 September 2026. The history of this article is available in the [project's Git repository](https://github.com/ze-software/ze/commits/main/website/blog/posts/reference-from-the-system.md).*

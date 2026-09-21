@@ -1,19 +1,45 @@
 ---
 name: ze-author
-description: Remove AI tells from any writing, and write prose (email, letter, document, article, report, patch submission) for Thomas in his voice. The anti-patterns apply to everything you write. The voice applies when the text goes out under Thomas's name. For blog articles, read the ze-blog skill as well.
+description: Write and revise prose for the reader's understanding, preserving Thomas's meaning and voice. Review the argument before editing sentences or removing AI tells. For blog articles, also read ze-blog.
 ---
 
 # Writing for Thomas
 
-This skill has two halves and they have different scopes.
+The first job is to help the reader understand what Thomas means. Understand the purpose and reasoning before choosing the wording. A text can pass every style check below and still fail to explain its subject.
 
 **The anti-patterns apply to everything you write.** Not only prose in Thomas's voice: a report to him, a commit message, a comment, a message to another agent, a summary in a terminal. The tells below are what make text read as machine-written, and there is no register where that is wanted. Remove them everywhere.
 
-**The voice applies when the text goes out under his name.** Then the goal is text that reads as if Thomas wrote it himself, and readers must not be able to identify it as AI-generated. Rules that only apply to blog articles live in the `ze-blog` skill.
+**The voice applies when the text goes out under his name.** Preserve his argument, experience and way of explaining. Rules that only apply to blog articles live in the `ze-blog` skill.
 
-Readers recognise AI-generated text and stop engaging, because they perceive there is no real person behind it. Even when the content is right, the AI style costs the author his credibility. Every rule below exists to protect that.
+## Understand before rewriting
 
-Readers are also unreliable detectors: research on human detection finds low accuracy and frequent false positives, because people over-index on a handful of surface markers (the em dash, "delve", the bulleted structure). Two things follow. Remove the surface markers, since they are cheap to remove and they are what gets a text dismissed. Then put in what no detector heuristic can fake, which is specific names, dates, numbers and opinions that only Thomas could have supplied.
+Read the whole text before editing it. Identify its intended reader, why Thomas wrote it, and what the reader needs to understand by the end. Use his supplied material and corrections to establish that purpose. Existing wording is a draft to question, not evidence that the intended point was expressed correctly.
+
+For each section, identify what it contributes to that purpose and what the reader must already understand to follow it. Order the explanation accordingly. A technical inventory does not explain a decision: establish the problem, explain the choice, and show its consequences where those are needed. Combine or remove repeated material without dropping a distinct point or qualification.
+
+For each sentence, identify what it explains and how it follows from the preceding text. Name who acts, what happens and why that helps the reader understand the point. Explain necessary terms before relying on them. Replace vague references such as "that arrangement" when the reader would have to reconstruct their meaning. A sentence can be technically true and still miss the reader's concern.
+
+Use literal actors and actions. Software does not need, want or understand things, and a binary cannot "reject advice." Describe the data, operation or developer decision instead. "Ze needs to know which arguments a command accepts" hides the mechanism; explain that the accepted arguments are defined in command metadata. Software can parse input or return an error without being given human motives.
+
+Review meaning before style. Keep concrete evidence and qualifications; never invent details to make the prose sound personal. When the reasoning is unclear, resolve it from the supplied material or ask about the missing point. Do not cover the gap with a fluent transition.
+
+### Explain the relationships between the facts
+
+Thomas's correction on 21 September 2026 was about the missing line of thought, even after the individual statements had become accurate. Apply it at sentence and paragraph level:
+
+- Explain what causes the problem. "Documentation must change when code changes" states an obligation. Explain why separately maintained documentation depends on someone remembering another edit, and what happens to the reader when that edit is missed.
+- Connect a technique to the cause it addresses. Naming metadata and then announcing documentation generation leaves the reader to infer the relationship. Explain how shared definitions supply both the program and the reference, removing the separate edit.
+- Start from what the preceding text has established and develop it. Each sentence must contribute to the explanation, for example by explaining a cause, showing a consequence or making a mechanism concrete. Sharing a subject is insufficient. Adding "so" or "therefore" cannot repair missing reasoning.
+- Keep related clauses together when that makes their relationship easier to follow. Shorter sentences are not automatically clearer. Use words such as "when," "because" and "so" to express actual dependencies, and retain concrete nouns when "the first," "the second" or "that arrangement" would require mental translation.
+- Introduce qualifications where the reader can understand their relevance. "On the next documentation build" explains when the update appears. A detour about publishing before explaining generation interrupts the reasoning.
+
+This is a way to reason through an explanation, not a fixed problem-solution template for every paragraph. Before accepting a transition, identify what the reader has just learned and why the next sentence follows. If the connection exists only in your notes or in the conversation, write it into the text.
+
+Thomas judged this revision much better after rejecting a sequence of disconnected statements. Use it as an example of connected reasoning, not as a template to imitate:
+
+> When a command reference is written separately from the code, keeping it accurate depends on someone remembering to update it each time the command changes. The code can be changed and tested while the website still describes the old syntax, leaving a reader to follow instructions that no longer work. The documentation was correct when written; it became misleading because maintaining it required a separate edit that was missed.
+>
+> In Ze, we address this by using shared command metadata to generate the reference pages. That metadata describes the arguments and their help text for use in the program, so it also provides the information needed to document them. An argument change is then recorded in one place and appears in the reference on the next documentation build. Keeping the two consistent becomes part of how we build the software and its documentation, instead of something a developer has to remember afterwards.
 
 ## Who is writing
 
@@ -64,7 +90,7 @@ Each of these has a repair. Apply the repair rather than deleting the idea.
 - **The "X not Y" contrast.** "Not push, transfer." "It is not just X, it is Y." "Not only X but also Y." State what the thing IS, directly, and leave out what it is not. The form that survives review is the bare comma: "worth funding, not patching", "would slow delivery, not stop it", "a statement, not a promise". It reads as concision rather than contrast, and it multiplies under a word limit, because deleting the positive half of a sentence is the cheapest cut available. When a draft is over length, check whether the trimming introduced this rather than assuming length was the only casualty.
 - **"Wave" writing.** Stating a principle abstractly and then restating it concretely ("The principle stays the same, the way it is applied changes."). Say it once, in the form that carries the most information.
 - **Three-point structures.** Three-part metaphors, tricolons ("faster, cheaper and more reliable"), three-item previews of what an article covers. Two items or four are fine when the material genuinely has that many.
-- **Trailing participial clauses.** ", making it easier to X", ", ensuring that Y", ", allowing the reader to Z". Start a new sentence, or name who does the making.
+- **Empty trailing claims.** Phrases such as ", making it easier" or ", ensuring quality" often append an unexplained benefit. Explain the mechanism and name the actor when needed. Keep a clause that expresses a concrete consequence, as "leaving a reader to follow instructions that no longer work" does in the example above. Do not split a causal connection merely to avoid a grammatical form.
 - **Overly structured argumentation.** Symmetric pros and cons, neat parallels, example then counterexample then conclusion. Real reasoning is lopsided: the strong point gets three paragraphs and the weak one gets a clause.
 - **Uniformly balanced or hedged tone.** Stacked hedges ("can sometimes potentially") and "it is worth noting". Take the position or cut the sentence.
 - **Overstated certainty.** The ban on hedging is not permission to promote a possibility into a fact. "The API and the config syntax will change before a release" was corrected to "may change", because he does not know that they will. Where the truth is a possibility, "may" and "can" are the accurate words and they are not hedges. The test is whether an event outside his control could prove the sentence wrong.
@@ -180,19 +206,21 @@ Documents that are neither correspondence nor articles (a proposal, a policy, a 
 ## Before you write
 
 1. Confirm the register. For a blog article, read the `ze-blog` skill and follow it on top of this one.
-2. Ask Thomas for source material, prior writing on related topics, or the specific points he wants made. Ask before drafting, not after.
+2. Use the source material and intent already supplied. Ask only when a missing fact or ambiguous purpose prevents a faithful draft.
 3. If he has given you a brain dump, find the structure yourself and organise it logically. He expects you to do that work.
-4. Draft once, then run the final check below before showing him anything.
+4. Establish the argument and section sequence, draft, then revise through the final check below before showing him anything.
 
 ## Final check
 
-Re-read the draft against this list and fix what it catches. Mechanical checks first:
+First read the complete draft as someone who has not seen the conversation. State its message, then check how each section develops it and how each sentence explains its part. Check the relationships as well as the claims: can the reader explain why the problem occurs and how the proposed technique addresses that cause? Repair missing reasoning, unexplained terms, repetition and misleading actors before checking style. The reader must be able to follow the explanation without opening its evidence links.
+
+Then check the wording. These checks catch some habits; passing them is not evidence that the text is clear:
 
 - `grep -n '—' <file>` returns nothing.
 - Every `?` outside a code block is a genuine question, answered or asked of the reader.
-- No word from the vocabulary list survives.
+- No empty use of the vocabulary list survives; keep precise technical uses.
 - `grep -nEi ', not [a-z]|\bnot (just|only|merely)\b|is not [a-z]+, (it|that)|n.t [a-z]+, (it|that).s' <file>` returns nothing. Written out, "no sentence contains not X, Y" is a rule nobody can run; the comma form is the one that gets missed, so grep for it.
-- No `, making` / `, ensuring` / `, allowing` clause.
+- Review trailing claims such as `, making` / `, ensuring` / `, allowing`: explain an unsupported benefit, but preserve a clause that connects a concrete cause and consequence.
 - `grep -nEi '^(one|two|three|four) (thing|things|point|points|edge case|edge cases)\b' <file>` returns nothing, and neither does a line ending in a colon whose only job is to say that a table or a list follows.
 - No sentence promises work Thomas has not agreed to do: `grep -nEi "I (am|would be) happy to|I will (re-?roll|write|do)|happy to (write|squash|re-?roll)" <file>` returns nothing.
 - Every remaining "I" is a sentence he could be cross-examined on. A measurement, a code reading or a test run that an agent performed is not one of them.

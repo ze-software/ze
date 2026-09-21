@@ -1,13 +1,41 @@
 ---
 name: ze-blog
-description: Structure and register for Thomas's blog articles, including everything under website/blog/posts/. Use when writing or editing a blog post. Read the ze-author skill first for voice and AI anti-patterns.
+description: Write and revise Thomas's blog articles as connected accounts of Ze development. Review each article's message, its sections and its sentences for reader understanding. Read ze-author first.
 ---
 
 # Blog articles
 
-This skill covers what is specific to a blog article. The voice, and the AI tells to avoid, are in the `ze-author` skill and apply here too. Read that first.
+This skill covers what is specific to a blog article. Read `ze-author` first for the meaning-first review and Thomas's voice.
 
 Posts live in `website/blog/posts/*.md` with YAML front matter (title, date, author, description). The pages under `website/blog/<slug>/` and `website/data/search-index.json` are generated, so edit the source post and regenerate with `./le site build`. The website source moved from the `gh-pages` branch into `main` under `website/` on 2026-08-17 (`b0430c2a9`), and `gh-pages` is now the published artifact branch alone.
+
+## The articles tell a related story
+
+The Ze blog records the development of Ze: the problems Thomas encounters, his decisions, their results, and what he learns from them. Each article develops part of that story. Do not rewrite the collection into unrelated essays about AI or software engineering.
+
+Before editing an article, read it in full and read the related posts it refers to. Identify its own message and how it extends the account in those posts. For a collection-wide revision, read every article and check the sequence of ideas across the collection as well as within each post. Preserve differences in purpose; a later article can examine a limitation or consequence without retelling the earlier article.
+
+When an article has been rewritten repeatedly, use Git history to read its earliest version and substantive author corrections before another revision. Follow its old path if the source moved. Compare arguments and examples to find what the rewrites lost; the latest draft alone is insufficient. Thomas's current brief takes precedence, and an old technical claim still needs current evidence or a historical qualification.
+
+Review every section for how it advances the article's message, then every sentence for how it explains that section to the reader. Reorder or rewrite when the reasoning is hard to follow. Do not preserve a confusing structure merely because each sentence is grammatical. Include enough context for someone arriving directly at a post, and use cross-links where another article develops a relevant point. Explain that connection in the surrounding prose.
+
+Apply `ze-author`'s "Explain the relationships between the facts" guidance throughout the article. In a development account, explain what caused the difficulty and how the design decision addresses it. The reader must be able to follow why one led to the other. An opening that lists a user problem, a Ze feature and a benefit still needs that explanation; accurate facts and an agreed central message do not supply it automatically.
+
+Titles, descriptions and decks must express the same point as the article. A series-wide pass also checks repeated explanations, inconsistent terminology and claims that disagree between posts. Keep the date and qualifications attached to historical observations so later results do not silently change the earlier account.
+
+## Author-confirmed messages for the current series
+
+Thomas clarified these messages on 21 September 2026. Use them when reviewing the current articles. Do not replace an article's purpose with an argument inferred from its technical examples. A new direction requires a new brief from Thomas.
+
+| Article | Message to develop |
+|---|---|
+| How Ze reuses memory for BGP UPDATEs | Efficiency, including memory efficiency, is a deliberate pattern of Ze development even in a garbage-collected language. |
+| The proof is the expensive part | Unit tests and CI do not establish correct application behaviour. Ze's RFC testing framework aims to establish that behaviour against protocol requirements. |
+| The repository is half the AI harness | AI development needs metaprogramming: explicit objectives and validation of both the objective and all required qualities. Ze's rules help agents recognise work below that standard. |
+| AI coding has not had its Rails moment | AI development lacks shared conventions for relating metadata, including documentation and designs, to code so that the implementation follows it. |
+| Keeping documentation in step with the code | Generate user-facing reference data from the code so it stays consistent with the implementation it describes. |
+
+Thomas retired **One BGP UPDATE, many peers** on the same date. Remove links to it; do not recreate it or move its whole argument into the memory article.
 
 ## How an intro is built
 
@@ -27,9 +55,9 @@ The hook must not be a list of what the article covers ("What follows is X, why 
 - Links go inline to their source, without ceremony.
 - Examples earn their length. Cut an illustration down to the one detail that carries the point.
 
-## Current voice (approved 11 September 2026)
+## Voice references
 
-Use `website/blog/posts/ai-coding-has-not-had-its-rails-moment.md` as the current voice reference, with the fluency, first-person and paragraph guidance in `ze-author`.
+Thomas approved `website/blog/posts/ai-coding-has-not-had-its-rails-moment.md` as a voice reference on 11 September 2026. His later request to revise all articles for clarity includes that post. Use it for perspective alongside `ze-author`; do not treat its wording or structure as exempt from review, or imitate the current draft as proof of quality.
 
 Preserve the central argument Thomas gives you. Develop it through his problem, decisions and their consequences. Anecdotes and technical details support that argument; they must not replace it with a familiar AI story or a sequence of disconnected personal statements.
 
