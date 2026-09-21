@@ -6,6 +6,7 @@ related: planning, testing, interop-and-goal-validation, writing, evidence, rule
 ---
 directives ## Directives
   never-claim-done-while-an-ac-is-unimplemented
+  undone-work-leads-the-answer-about-it
   a-symbol-with-only-test-callers-is-dead-code
   fix-a-defect-that-blocks-your-goal
   spec-a-found-problem-close-then-ask
