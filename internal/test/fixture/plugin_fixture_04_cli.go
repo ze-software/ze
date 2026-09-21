@@ -266,6 +266,15 @@ func metricsText04(ctx context.Context, p *sdk.Plugin) (string, error) {
 }
 
 func metricsShow04(ctx context.Context, p *sdk.Plugin) error {
+	// The peer block of cli-metrics-show expects an End-of-RIB, so this
+	// scenario may not finish before the session that sends it: the daemon
+	// shuts down when this returns, and under load it was tearing the
+	// connection down before ze had sent its OPEN. The peer then reported
+	// "read OPEN: EOF" and failed a run whose own assertion had passed.
+	// metricsDeepShow04, in this file, has always waited.
+	if err := waitPeerEOR04(ctx, p); err != nil {
+		return err
+	}
 	text, err := metricsText04(ctx, p)
 	if err != nil {
 		return err
