@@ -1971,3 +1971,53 @@ func TestRollupRendersInItsOwnBucket(t *testing.T) {
 		t.Errorf("the row's mirror does not state the derived state:\n%s", mirror)
 	}
 }
+
+// VALIDATES: spec-rfc-implementation-classification AC-3 and AC-4 -- the
+// published page says whose code answers each document, names every kind with
+// the sentence it means, and names each summary that leaves the gated
+// population.
+// PREVENTS: a conformance share read as Ze's work because nothing on the page
+// says whose work it measures. A document another layer performs leaves the
+// count, and a reader who cannot see WHICH documents left it cannot check the
+// number against anything.
+func TestThePublishedPageSaysWhoImplementsEachDocument(t *testing.T) {
+	ledger := publishedLedgerOfThisCheckout(t)
+	page := rfcImplementationHTML(ledger)
+	mirror := rfcImplementationMirror(ledger)
+	for _, kind := range rfc.ImplementationKinds() {
+		meaning := rfcImplementationMeaning(kind)
+		if !strings.Contains(page, html.EscapeString(meaning)) {
+			t.Errorf("the page shows %q and does not say what it means", kind)
+		}
+		if !strings.Contains(mirror, meaning) {
+			t.Errorf("the mirror shows %q and does not say what it means", kind)
+		}
+	}
+	delegated := 0
+	for index := range ledger.Stems {
+		stem := &ledger.Stems[index]
+		if stem.Implementation == "" {
+			t.Fatalf("%s declares no implementation kind, which ParseMeta refuses", stem.Stem)
+		}
+		if rfcImplementationMeaning(stem.Implementation) == "" {
+			t.Errorf("%s declares %q, which this page has no sentence for",
+				stem.Stem, stem.Implementation)
+		}
+		if stem.Implementation == "ze" {
+			continue
+		}
+		delegated++
+		if !strings.Contains(page, html.EscapeString(rfcStemHref(stem.Stem))) {
+			t.Errorf("%s names another implementer and the page does not name the summary",
+				stem.Stem)
+		}
+		if !strings.Contains(mirror, rfcDisplayName(stem.Stem)) {
+			t.Errorf("%s names another implementer and the mirror does not name the summary",
+				stem.Stem)
+		}
+	}
+	if delegated == 0 {
+		t.Fatal("every summary is Ze's own Go, so this proves nothing")
+	}
+	t.Logf("%d summaries name an implementer beside Ze, each named on the page", delegated)
+}

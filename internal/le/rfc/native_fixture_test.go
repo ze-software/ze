@@ -273,7 +273,18 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// findings in approve_test.go) and e78411042c (check_test.go and this file).
 	// The value was recomputed over HEAD's own blobs and matched what this test
 	// reported, independently, before it was written here.
-	const want = "70fdbf2d39c364457566dc37b80398519fd4533f735cf79a2fe66fe9f0d96440"
+	// Re-sealed 2026-09-21, for the closure of spec-rfc-implementation-classification.
+	// No audit verdict moved. Three edits: Meta.Disposition answers the
+	// implementation kind for a summary that declares `enrolled` and is still
+	// not gated, dispositionKinds publishes the sentence those two kinds mean,
+	// and the division between a kind that counts and one that does not becomes
+	// implementationCounts, which Meta.CountsAgainstZe wrapped for no caller
+	// outside this package. Ten summaries were reaching the declined index
+	// carrying the literal word `enrolled` as the reason they are not enrolled,
+	// which the vocabulary does not know. The value was computed over the blobs
+	// this commit seals, which the package's own status showed were this
+	// session's files and nothing else.
+	const want = "a1733b07a4bc37935091e97ae130ca4cbc94e169e92a529766557566baf9107e"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

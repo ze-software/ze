@@ -2157,7 +2157,9 @@ func rfcIndexStatus(entry *rfcLedgerStem) string {
 }
 
 // rfcIndexDispositionKind answers which decision keeps one summary out of the
-// gate: the `| Enrolment |` kind its own Meta table declares.
+// gate: the `| Enrolment |` kind its own Meta table declares, or its
+// `| Implementation |` kind where that is what removed it (Meta.Disposition,
+// internal/le/rfc/meta.go).
 func rfcIndexDispositionKind(entry *rfcLedgerStem) string {
 	return entry.Disposition.Kind
 }

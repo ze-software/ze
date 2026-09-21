@@ -78,10 +78,8 @@ func TestTheReadingOrderIsTotalAndAscending(t *testing.T) {
 // listed five would have printed a bare word for it (independent review). This
 // is what keeps the second table honest.
 func TestEveryDispositionKindCarriesItsMeaning(t *testing.T) {
-	for _, kind := range enrolmentKindNames() {
-		if kind == enrolmentEnrolled {
-			continue
-		}
+	ungated := ungatedKinds()
+	for kind := range ungated {
 		meaning, held := DispositionKindMeaning(kind)
 		if !held {
 			t.Errorf("an author can declare %q and no published meaning says what it means",
@@ -93,12 +91,34 @@ func TestEveryDispositionKindCarriesItsMeaning(t *testing.T) {
 		}
 	}
 	for _, kind := range DispositionKinds() {
-		if !enrolmentKinds[kind] {
-			t.Errorf("a meaning is published for %q, which the parser refuses", kind)
+		if !ungated[kind] {
+			t.Errorf("a meaning is published for %q, which no summary can be declined under",
+				kind)
 		}
 	}
-	if len(DispositionKinds()) != len(enrolmentKindNames())-1 {
-		t.Errorf("%d kinds carry a meaning and the parser accepts %d un-enrolled ones",
-			len(DispositionKinds()), len(enrolmentKindNames())-1)
+	if len(DispositionKinds()) != len(ungated) {
+		t.Errorf("%d kinds carry a meaning and the parser accepts %d that leave the gate",
+			len(DispositionKinds()), len(ungated))
 	}
+}
+
+// ungatedKinds answers every kind an author can declare that keeps a summary
+// off the gate, read from the two closed sets the parser holds them to.
+//
+// Two facts take a document off it: the enrolment row, and the document Ze
+// writes no Go for. Deriving the set here is what lets the assertion above
+// survive a kind added to either vocabulary (ai/rules/principles.md).
+func ungatedKinds() map[string]bool {
+	out := map[string]bool{}
+	for _, kind := range enrolmentKindNames() {
+		if kind != enrolmentEnrolled {
+			out[kind] = true
+		}
+	}
+	for _, kind := range implementationKindNames() {
+		if !implementationCounts(kind) {
+			out[kind] = true
+		}
+	}
+	return out
 }

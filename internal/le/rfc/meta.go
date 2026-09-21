@@ -296,18 +296,20 @@ type Meta struct {
 // ZE's Go code does what the RFC says, so a published share taken over
 // obligations another layer owns measures the wrong thing.
 func (m Meta) Enrolled() bool {
-	return m.Enrolment == enrolmentEnrolled && m.CountsAgainstZe()
+	return m.Enrolment == enrolmentEnrolled && implementationCounts(m.Implementation)
 }
 
-// CountsAgainstZe answers whether this document's obligations are Ze's to meet
-// in its own Go.
+// implementationCounts answers whether a document declaring this kind has its
+// obligations counted against Ze's own Go. It is the ONE declaration of that
+// division: Enrolled reads it for a summary, and Disposition reads it for the
+// kind that took one off the gate.
 //
 // `mixed` counts. A split document keeps the requirements Ze's Go answers, and
 // the rest carry the requirement-level annotations that name the layer meeting
 // them: `{lower-layer}` for an obligation a layer under Ze meets on state Ze
 // installs, which the 2026-08-31 directive keeps MET and counted.
-func (m Meta) CountsAgainstZe() bool {
-	return m.Implementation == implementationZe || m.Implementation == implementationMixed
+func implementationCounts(kind string) bool {
+	return kind == implementationZe || kind == implementationMixed
 }
 
 // OutOfScope answers whether the owner decided not to offer this document's
@@ -320,8 +322,21 @@ func (m Meta) HasRow() bool { return m.Support != "" }
 
 // Disposition answers the recorded reason this summary is not gated, for a
 // summary that is not enrolled.
+//
+// Two facts take a document off the gate, and the kind names whichever one did
+// it. The enrolment row is the first. The second is the document Ze writes no
+// Go for: such a summary declares `enrolled` and is still not gated (owner
+// directive, 2026-09-21), so reading the enrolment cell alone publishes the
+// word `enrolled` as the reason a summary is not enrolled.
 func (m Meta) Disposition() Disposition {
-	return Disposition{Kind: m.Enrolment, Reason: m.EnrolmentReason}
+	// The enrolment row is the first fact, and where it says anything but
+	// `enrolled` it names the reason itself.
+	if m.Enrolment != enrolmentEnrolled {
+		return Disposition{Kind: m.Enrolment, Reason: m.EnrolmentReason}
+	}
+	// The row says `enrolled` and the summary reached this answer anyway, so
+	// the document Ze writes no Go for is what took it off the gate.
+	return Disposition{Kind: m.Implementation, Reason: m.ImplementationReason}
 }
 
 // nearMissRE is the label a reader must not silently skip: anything naming

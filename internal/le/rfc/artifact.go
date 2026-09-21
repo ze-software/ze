@@ -161,14 +161,17 @@ func ExclusionKindGroup(kind string) (string, bool) {
 // without that context would repeat the flattery the ledger exists to prevent.
 func ExclusionPresumedWrong(kind string) bool { return kind == bindsAnotherRole }
 
-// dispositionKinds is what each un-enrolled kind SAYS, for a reader outside
-// this project.
+// dispositionKinds is what each kind that keeps a summary off the gate SAYS,
+// for a reader outside this project.
 //
-// The kinds themselves are declared once, in ledger.go, and enrolmentKinds in
-// meta.go is the closed set the parser holds authors to. What this adds is the
-// sentence, for the same reason exclusionKinds carries one: a published page
-// that prints `source-restricted` and stops has told a reader nothing.
-// TestEveryDispositionKindCarriesItsMeaning holds this set against the parser's.
+// The kinds themselves are declared once: the un-enrolled ones in ledger.go and
+// the implementation ones in meta.go, where enrolmentKinds and
+// implementationKinds are the closed sets the parser holds authors to. Two
+// facts take a document off the gate, so both vocabularies land here. What this
+// adds is the sentence, for the same reason exclusionKinds carries one: a
+// published page that prints `source-restricted` and stops has told a reader
+// nothing. TestEveryDispositionKindCarriesItsMeaning holds this set against the
+// parser's.
 var dispositionKinds = map[string]string{
 	dispositionNonNormative: "the document imposes no MUST-level obligation on an " +
 		"implementation, so there is nothing to gate",
@@ -181,6 +184,10 @@ var dispositionKinds = map[string]string{
 	dispositionOutOfScope: "the requirements ARE extracted and the owner decided not to " +
 		"offer the feature for now, so the absence is a scope decision rather than a " +
 		"conformance gap",
+	implementationThirdParty: "a layer under or beside Ze performs the document and Ze holds " +
+		"no Go code for it, so the reason beside this kind names the component that does",
+	implementationFoundation: "the document defines, registers or describes, and obliges no " +
+		"implementer, so there is no implementation anywhere for a gate to hold",
 }
 
 // DispositionKinds answers the un-enrolled kinds, sorted.

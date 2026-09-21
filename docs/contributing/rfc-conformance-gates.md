@@ -230,11 +230,18 @@ implement in Go at all. A document Ze merely configures is a document Ze
 implements part of, which is `mixed`, and its requirements keep the
 requirement-level rules.
 
-Today the classification is a REVIEWER'S JUDGEMENT recorded per summary, and no
-gate reads it. `plan/spec-rfc-implementation-classification.md` owns making it a
-Meta field with a closed set, a refusal for a `third-party` row that names no
-implementer, and a published split. Until that lands, do not add the row to a
-summary expecting a check to read it.
+The kind is the `| Implementation |` row of the summary's `## Meta` table, and
+`readImplementation` (`internal/le/rfc/meta.go`) refuses four things: a summary
+with no such row, a value outside the four kinds, a kind with no
+`| Implementation reason |` beside it, and a `third-party` or `mixed` reason
+that names no component a reader can go and check. `Meta.Enrolled` gates a
+summary only where `implementationCounts` holds of its kind, so a `third-party`
+or `foundation` document leaves the population `./le rfc check` counts, and the compliance page
+publishes the split under "Who implements each document". A summary that leaves
+the count on this fact carries the kind as its disposition on the declined
+index, with the reason that names the implementer.
+
+<!-- source: internal/le/rfc/meta.go -- readImplementation, Meta.Enrolled, implementationCounts -->
 
 ## The lower-layer annotation
 
