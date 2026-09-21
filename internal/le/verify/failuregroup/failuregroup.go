@@ -59,6 +59,53 @@ func Paths(text string) []string {
 	return out
 }
 
+// goTestFailRE matches the line `go test` prints for a package that failed:
+// `FAIL<tab>github.com/owner/repo/internal/foo<tab>1.234s`. The bare `FAIL`
+// that closes a run carries no second field and is not matched, and a
+// `--- FAIL: TestName` line names a test rather than a package.
+var goTestFailRE = regexp.MustCompile(`(?m)^FAIL[ \t]+(\S+)`)
+
+// Packages answers the checkout-relative directory of every package `go test`
+// reported as failing, sorted, so two runs over one tree produce one artifact.
+//
+// A test run is the one large stage whose output names no file. It prints the
+// failing PACKAGE, and an assertion under it prints a base name with no
+// directory, so joining the two is guesswork where the package alone is a fact.
+// The `package` group kind exists for exactly this answer: CleanPath accepts a
+// directory, and Covers already reads a red about a directory as belonging to
+// whoever changed a file inside it.
+//
+// A package outside module is dropped rather than translated. The toolchain
+// prints a dependency's import path the same way, and that names no directory
+// of this checkout.
+func Packages(text, module string) []string {
+	if module == "" {
+		return nil
+	}
+	prefix := module + "/"
+	seen := make(map[string]struct{})
+	for _, match := range goTestFailRE.FindAllStringSubmatch(text, -1) {
+		if len(seen) >= MaxPaths {
+			break
+		}
+		relative, held := strings.CutPrefix(match[1], prefix)
+		if !held || relative == "" {
+			continue
+		}
+		seen[relative] = struct{}{}
+	}
+	if len(seen) == 0 {
+		return nil
+	}
+	out := make([]string, 0, len(seen))
+	for path := range seen {
+		out = append(out, path)
+	}
+	slices.Sort(out)
+
+	return out
+}
+
 // Merge folds another run's paths into a set already collected, keeping the
 // answer sorted, distinct, and bounded.
 func Merge(into, more []string) []string {

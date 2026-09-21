@@ -131,3 +131,55 @@ func soleGroup(t *testing.T, text string) parsedGroup {
 
 	return found[0]
 }
+
+// TestAGoTestRunNamesTheDirectoriesItFailedIn is the third stage's shape. A
+// test run prints no `path:line:col:` for a failed assertion, so Paths answers
+// nothing for it and the red used to be charged to every commit.
+func TestAGoTestRunNamesTheDirectoriesItFailedIn(t *testing.T) {
+	const module = "github.com/ze-software/ze"
+	text := "" +
+		"ok  \tgithub.com/ze-software/ze/internal/le/doc/check\t2.002s\n" +
+		"--- FAIL: TestEveryDispositionKindOnTheIndexSaysWhatItMeans (1.47s)\n" +
+		"    rfccompliance_test.go:1860: rfc2003 declares \"enrolled\"\n" +
+		"FAIL\n" +
+		"FAIL\tgithub.com/ze-software/ze/internal/le/site\t145.360s\n" +
+		"FAIL\tgithub.com/ze-software/ze/internal/le/site\t0.100s\n" +
+		"FAIL\tgithub.com/ze-software/ze/internal/component/bgp/reactor\t9.000s\n" +
+		"FAIL\tgithub.com/example/other/pkg\t1.000s\n"
+
+	want := []string{
+		"internal/component/bgp/reactor",
+		"internal/le/site",
+	}
+	if got := Packages(text, module); !slices.Equal(got, want) {
+		t.Fatalf("Packages = %v, want %v: each directory once, sorted, and only this module's", got, want)
+	}
+}
+
+// TestAPackageNameIsNotReadOffATestName stops the scanner answering for the
+// two lines that look like a failure and name no package: the bare `FAIL` that
+// closes a run, and the `--- FAIL:` that names a test.
+func TestAPackageNameIsNotReadOffATestName(t *testing.T) {
+	for name, text := range map[string]string{
+		"the closing line":  "FAIL\n",
+		"a failing test":    "--- FAIL: TestSomething (0.01s)\n",
+		"a passing package": "ok  \tgithub.com/ze-software/ze/internal/le\t1.000s\n",
+	} {
+		if got := Packages(text, "github.com/ze-software/ze"); got != nil {
+			t.Errorf("%s yielded %v, and it names no package", name, got)
+		}
+	}
+}
+
+// TestAnUnknownModulePathAttributesNothing keeps the unattributed answer
+// honest. Guessing a directory from an import path this checkout does not own
+// would charge a red to a file the stage never ran.
+func TestAnUnknownModulePathAttributesNothing(t *testing.T) {
+	text := "FAIL\tgithub.com/ze-software/ze/internal/le/site\t1.000s\n"
+	if got := Packages(text, ""); got != nil {
+		t.Errorf("an empty module path yielded %v", got)
+	}
+	if got := Packages(text, "github.com/ze-software/ze/internal/le/site"); got != nil {
+		t.Errorf("a module equal to the package yielded %v, and it names no directory under it", got)
+	}
+}

@@ -27,6 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/le/changed"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
+	"github.com/ze-software/ze/internal/le/verify/failuregroup"
 	"github.com/ze-software/ze/internal/perf"
 )
 
@@ -86,11 +87,16 @@ type Plan struct {
 }
 
 // ChildReport records one external process in execution order.
+//
+// Output is what the child printed, kept so the stage can say WHICH package a
+// red is about. It is omitted from JSON: a test run's output is large, and the
+// report is an artifact a reader scans rather than a log.
 type ChildReport struct {
 	Name      string   `json:"name"`
 	Command   []string `json:"command"`
 	Overrides []string `json:"environment-overrides"`
 	Code      int      `json:"code"`
+	Output    string   `json:"-"`
 }
 
 // AllocationVerdict records the worst observed sample for one registered
@@ -115,6 +121,12 @@ type Report struct {
 	BenchmarkLog string              `json:"benchmark-log,omitempty"`
 	Children     []ChildReport       `json:"children,omitempty"`
 	Allocations  []AllocationVerdict `json:"allocations,omitempty"`
+	// FailedPackages are the checkout-relative directories `go test` named as
+	// failing. A stage that answers a red and names nothing is charged to
+	// EVERY commit in the checkout rather than to the one that caused it
+	// (internal/le/commit/verification.go, structuralGateReds), and a test run
+	// is the largest stage that used to name nothing.
+	FailedPackages []string `json:"failed-packages,omitempty"`
 	// Skipped says the stage executed no test, and Reason says why it was
 	// entitled to. The pair exists because an exit code cannot tell a stage
 	// that raced every changed group from one that ran nothing and answered 0,
@@ -140,7 +152,23 @@ func (r Report) Text() string {
 	default:
 		text.Int(int64(len(r.Children))).Str(" command(s) executed")
 	}
-	return text.Str(", exit ").Int(int64(r.Code)).Byte('\n').String()
+	text.Str(", exit ").Int(int64(r.Code)).Byte('\n')
+	if r.Code == 0 || len(r.FailedPackages) == 0 {
+		return text.String()
+	}
+
+	// The group goes in the ANSWER rather than in a note. The verify engine
+	// reads a stage's groups out of the stage log, and that log holds what the
+	// action returned; a line written to stderr reaches the terminal and never
+	// the log (internal/le/verify/failuregroup).
+	var group strings.Builder
+	if err := failuregroup.Declare(&group, "package:"+r.Action, "package",
+		"the tests of the packages named here failed", "./le "+Area+" "+r.Verb,
+		r.FailedPackages); err != nil {
+		return text.String()
+	}
+
+	return text.Str(group.String()).String()
 }
 
 type commandExecutor func(context.Context, CommandPlan, io.Writer) (string, ChildReport)
@@ -171,6 +199,33 @@ func Run(ctx context.Context, root, verb string) (Report, int) {
 }
 
 func run(ctx context.Context, root, verb string, deps dependencies) (Report, int) {
+	report, code := dispatch(ctx, root, verb, deps)
+	if code != 0 {
+		report.FailedPackages = failingPackages(root, report, deps.module)
+	}
+
+	return report, code
+}
+
+// failingPackages answers the packages this stage's children reported as
+// failing, so the red is charged to the commits that touch them.
+//
+// A module path this checkout cannot answer leaves the list empty, which is the
+// unattributed behavior that already stood rather than a new one.
+func failingPackages(root string, report Report, module func(string) (string, error)) []string {
+	path, err := module(root)
+	if err != nil {
+		return nil
+	}
+	var packages []string
+	for _, child := range report.Children {
+		packages = failuregroup.Merge(packages, failuregroup.Packages(child.Output, path))
+	}
+
+	return packages
+}
+
+func dispatch(ctx context.Context, root, verb string, deps dependencies) (Report, int) {
 	plan, discovery, code, err := planFor(ctx, root, verb, deps)
 	report := reportFromPlan(plan)
 	report.Children = append(report.Children, discovery...)
@@ -597,9 +652,14 @@ func executeCommand(ctx context.Context, plan CommandPlan, stdout io.Writer) (st
 		return "", child
 	}
 
+	// The child streams to the operator AND is captured, because a red owes
+	// the name of the package it is about and the only place that name appears
+	// is the child's own output.
 	var captured bytes.Buffer
 	if stdout == nil {
 		stdout = &captured
+	} else {
+		stdout = io.MultiWriter(stdout, &captured)
 	}
 	command := exec.CommandContext(ctx, plan.Command[0], plan.Command[1:]...) // #nosec G204 -- plan commands come from this package's closed action table.
 	command.Dir = plan.Directory
@@ -609,17 +669,19 @@ func executeCommand(ctx context.Context, plan CommandPlan, stdout io.Writer) (st
 	command.Stderr = os.Stderr
 
 	err := command.Run()
+	child.Output = captured.String()
 	if err == nil {
 		child.Code = 0
-		return captured.String(), child
+		return child.Output, child
 	}
 	if command.ProcessState == nil {
 		var text textbuf.Buffer
 		gaterun.Note(text.Str("cannot run ").Str(plan.Command[0]).Str(": ").Err(err).Slice())
-		return captured.String(), child
+		return child.Output, child
 	}
 	child.Code = gaterun.ExitCode(err)
-	return captured.String(), child
+
+	return child.Output, child
 }
 
 func readModulePath(root string) (string, error) {

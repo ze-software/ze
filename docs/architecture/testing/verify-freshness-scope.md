@@ -193,6 +193,11 @@ The commit package reads those groups for the prospective commit's explicit path
 | Files, and every one lies outside that list | Drops the charge and prints the gate name |
 | A check name, a suite name, or the stage itself | Charges the gate and names it as unattributed |
 
+A test run names no file: `go test` prints the failing PACKAGE, and an assertion under it prints a base name with no directory. `verify deps` therefore declares the `package` kind, whose related list holds checkout-relative directories rather than files. `Covers` reads a red about a directory as belonging to whoever changed a file inside it, so the attribution is exact without guessing which file held the assertion.
+
+<!-- source: internal/le/verify/failuregroup/failuregroup.go -- Packages, the go test scanner -->
+<!-- source: internal/le/verify/deps/verifydeps.go -- failingPackages, Report.Text -->
+
 Which gates the file list can rule out follows from what each one declares:
 
 | Gate | What its groups name | Expect |

@@ -570,3 +570,78 @@ func mkdir(t *testing.T, root, relative string) {
 		t.Fatal(err)
 	}
 }
+
+// VALIDATES: a red test stage says WHICH packages failed, in the answer the
+// verify engine reads its groups out of.
+// PREVENTS: the largest stage in the run staying unattributable. A group with
+// no usable paths is charged to EVERY commit in the checkout
+// (internal/le/commit/verification.go, structuralGateReds), so one package's
+// failing test refuses every other session's commit. Measured on 2026-09-21:
+// a run with five unattributed red stages charged each commit three debt rows,
+// and the same commit took one once four of them went green.
+func TestARedTestStageNamesThePackagesThatFailed(t *testing.T) {
+	report := Report{
+		Action: "verify deps/unit-cached",
+		Verb:   VerbUnitCached,
+		Code:   1,
+		Children: []ChildReport{{
+			Name: "unit",
+			Code: 1,
+			Output: "ok  \tgithub.com/ze-software/ze/internal/le\t1.000s\n" +
+				"FAIL\tgithub.com/ze-software/ze/internal/le/site\t145.360s\n",
+		}},
+	}
+	report.FailedPackages = failingPackages("", report, func(string) (string, error) {
+		return testModulePath, nil
+	})
+
+	text := report.Text()
+	if !strings.Contains(text, `"kind":"package"`) {
+		t.Errorf("the answer declares no package group:\n%s", text)
+	}
+	if !strings.Contains(text, `"related":["internal/le/site"]`) {
+		t.Errorf("the group names no failing package:\n%s", text)
+	}
+	if !strings.Contains(text, `"rerun":"./le verify deps unit-cached"`) {
+		t.Errorf("the group's rerun is not a command a reader can type:\n%s", text)
+	}
+	if !strings.Contains(text, "VERIFY FAILURE GROUPS COMPLETE: 1") {
+		t.Errorf("the declaration is not closed, so the engine drops it:\n%s", text)
+	}
+}
+
+// VALIDATES: a green stage and a red one that named nothing each declare no
+// group.
+// PREVENTS: a group on a pass, which would charge a red nobody has, and an
+// invented attribution for a failure the scanner could not place.
+func TestOnlyARedStageThatNamedAPackageDeclaresAGroup(t *testing.T) {
+	for name, report := range map[string]Report{
+		"a stage that passed": {
+			Action: "verify deps/unit-cached", Code: 0,
+			FailedPackages: []string{"internal/le/site"},
+		},
+		"a red that named nothing": {
+			Action: "verify deps/unit-cached", Code: 1,
+			Children: []ChildReport{{Name: "unit", Code: 1, Output: "signal: killed\n"}},
+		},
+	} {
+		if text := report.Text(); strings.Contains(text, "VERIFY FAILURE GROUP:") {
+			t.Errorf("%s declared a group:\n%s", name, text)
+		}
+	}
+}
+
+// VALIDATES: a module path this checkout cannot answer attributes nothing.
+// PREVENTS: a guessed directory. The unattributed answer is the behavior that
+// already stood, and it is the honest one.
+func TestAnUnreadableModulePathAttributesNothing(t *testing.T) {
+	report := Report{Code: 1, Children: []ChildReport{{
+		Output: "FAIL\tgithub.com/ze-software/ze/internal/le/site\t1.000s\n",
+	}}}
+	got := failingPackages("", report, func(string) (string, error) {
+		return "", errors.New("no go.mod here")
+	})
+	if got != nil {
+		t.Errorf("failingPackages = %v with no module path", got)
+	}
+}
