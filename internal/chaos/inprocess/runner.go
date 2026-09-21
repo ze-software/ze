@@ -131,6 +131,21 @@ func peerEstablished(r *bgpreactor.Reactor, addr netip.Addr) bool {
 	return false
 }
 
+// everyPeerEstablished reports whether every profile's session is up, read from
+// the same producer peerEstablished reads.
+//
+// A scenario's window is worth spending only once they are: the advance loop
+// runs virtual time far faster than the handshakes it is waiting on.
+func everyPeerEstablished(r *bgpreactor.Reactor, profiles []scenario.PeerProfile) bool {
+	for i := range profiles {
+		if !peerEstablished(r, profiles[i].Address) {
+			return false
+		}
+	}
+
+	return true
+}
+
 // RunResult holds the output from an in-process chaos run.
 type RunResult struct {
 	// Events is every lifecycle event from all peer simulators.
@@ -489,6 +504,34 @@ func Run(ctx context.Context, cfg RunConfig) (*RunResult, error) {
 	// peer0Addr is the peer whose connection the disconnect/collision branches
 	// below manipulate (Run assigns 127.0.0.{2+i} above).
 	peer0Addr := cfg.Profiles[0].Address
+
+	// Bring every session up before the window opens.
+	//
+	// The loop below spends virtual time about a hundred times faster than real
+	// time, 60 virtual seconds in roughly 0.6 real ones, so on a loaded host the
+	// whole window can close while the handshakes are still in flight. The run
+	// then returns no events and no error, which reads exactly like a scenario
+	// that ran and found nothing (ai/rules/principles.md). Raising Duration is
+	// the mitigation TestInProcessBasicRoute's own comment recommended and it
+	// cannot work: it buys more VIRTUAL time and gives the goroutines none.
+	//
+	// The warm-up spends clock rather than window, so cfg.Duration measures the
+	// scenario and every offset inside it is counted from the moment the
+	// sessions are up rather than from a host-speed-dependent instant. That is
+	// the reading disconnectedAt already takes for the reconnect gap.
+	//
+	// It ADVANCES rather than blocks, which the reconnect branch below explains
+	// is the only shape available here: a handshake progresses only while this
+	// goroutine advances the clock, so waiting on session state without
+	// advancing deadlocks.
+	warmupSteps := int(cfg.Duration / step)
+	for warm := 0; warm < warmupSteps && !everyPeerEstablished(reactor, cfg.Profiles); warm++ {
+		if ctx.Err() != nil {
+			break
+		}
+		vc.Advance(step)
+		time.Sleep(stepDelay)
+	}
 
 	for simulated < cfg.Duration {
 		if ctx.Err() != nil {

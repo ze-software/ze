@@ -67,12 +67,18 @@ func TestInProcessBasicRoute(t *testing.T) {
 	result, err := Run(ctx, RunConfig{
 		Profiles: profiles,
 		Seed:     42,
-		// 25s duration covers the observed ~46s wall-clock slowdown under
-		// `./le verify current mode full` parallel load (reactor startup + OPEN/
-		// KEEPALIVE for two peers + 5-route advertisement).
-		// ctx timeout of 30s still bounds total runtime. Isolated runs
-		// finish in ~3s, so this is ~8x slack, matching the worst-case
-		// slowdown observed under parallel-binary CPU contention.
+		// Duration is VIRTUAL time and buys the handshakes nothing: the advance
+		// loop spends it about a hundred times faster than real time. This
+		// comment used to say 25s "covers the observed ~46s wall-clock
+		// slowdown" under parallel load, and that is what the run does NOT do
+		// -- it closed the whole window with the sessions still coming up,
+		// reported no events, returned no error, and failed here on "peer 0
+		// should establish BGP session".
+		//
+		// What covers the slowdown is Run's own warm-up, which advances the
+		// clock until every session is up before the window opens. The 25s is
+		// the scenario's length after that, and the 30s ctx still bounds the
+		// whole run.
 		Duration:  25 * time.Second,
 		LocalAS:   65000,
 		RouterID:  netip.MustParseAddr("10.0.0.1"),
