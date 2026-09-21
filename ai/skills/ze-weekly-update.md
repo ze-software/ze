@@ -123,6 +123,31 @@ the roadmap.
 checking found, then the MUSTs still owing a test, then the documents not yet
 read end to end. SHOULD waits behind all of it.
 
+### `Coming up` is chosen by Thomas, never composed
+
+The forward-looking section MUST NOT be written from the queue comparison, from
+spec names, or from what the week looked like from the outside. A spec file
+existing says nothing about whether anybody is working on it, and its declared
+status is the only status there is.
+
+Build the candidate list, then ASK:
+
+1. Take the additions and the status transitions from the comparison, plus every
+   item the selected revision declares `design`, `ready` or `in-progress`.
+2. Write one line per candidate: the user-facing capability, the declared
+   status, and the file it comes from. Keep it to what moved this week or is
+   declared `in-progress`.
+3. Put that list to Thomas with `AskUserQuestion` and let him pick what appears.
+   He can pick nothing, and then the section is omitted.
+4. Write only what he picked, and use no status verb the declared status
+   supports. `design` is "has a design" and never "is being written". `skeleton`
+   is a captured idea and does not belong in the section at all.
+
+A number belongs there only when it was counted off the list. Measured
+2026-09-20: five audit items were published as "seven audits, one per area" over
+a list of five, because the spec names ran 3 to 7 and the writer filled the gap
+rather than counting what was in front of him.
+
 ## Phase 2: Draft the public post
 
 1. Create or update `website/changes/posts/<covers-start>.md`.
@@ -150,7 +175,8 @@ during site generation, sending, resuming, or archive handling.
    - one short framing sentence,
    - themed sections with bold emoji headers,
    - bullets for multiple items,
-   - `**🔭 Coming up**` only for planned or design work.
+   - `**🔭 Coming up**` only for work Thomas selected, in the words his
+     declared status supports ("`Coming up` is chosen by Thomas", above).
    - a short release-progress paragraph with remaining release work items and
      relevant scope changes,
    - the public roadmap link: https://ze-software.net/project/roadmap/.
