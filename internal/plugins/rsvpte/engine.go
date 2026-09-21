@@ -489,12 +489,19 @@ func (e *engine) handleResv(src netip.Addr, msg *ParsedMessage) {
 // (RFC 3209 Section 4.4.3 label recording), so an upstream PLR can learn the merge
 // point's label for node-protection backup forwarding.
 func (e *engine) recordRoute(downstream []rroEntry, tunnelID uint16, selfFlags uint8, recordLabel uint32) []rroEntry {
-	rro, truncated := prependRRO(e.cfg().RouterID, downstream)
+	self := e.cfg().RouterID
+	rro, truncated := prependRRO(self, downstream)
 	if truncated {
 		e.log.Warn("rsvp-te: recorded route truncated at hop limit; possible routing loop",
 			"limit", maxRecordRouteHops, "tunnel", tunnelID)
 	}
-	if len(rro) == 0 || rro[0].Type != RROSubIPv4 {
+	// The flags and the label describe THIS node, so both go only on the
+	// subobject prependRRO pushed for it. With no valid self address nothing was
+	// pushed and rro[0] is the downstream node's own entry: writing there would
+	// report another node's protection state and, per RFC 3209 Section 4.4.3
+	// ("A node MUST NOT push on a Label Record subobject without also pushing on
+	// an IPv4 or IPv6 subobject"), record a label under the wrong address.
+	if len(rro) == 0 || rro[0].Type != RROSubIPv4 || rro[0].Address != self {
 		return rro
 	}
 	if selfFlags != 0 {
