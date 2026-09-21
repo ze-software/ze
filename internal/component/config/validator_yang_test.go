@@ -81,13 +81,19 @@ func TestValidateTree_ValidConfig(t *testing.T) {
 	assert.Empty(t, errs, "valid config should produce no errors")
 }
 
-// TestValidateTree_BooleanConfigAliases verifies YANG validation accepts the
-// boolean aliases that the config serializers emit.
+// TestValidateTree_BooleanConfigAliases verifies the boolean aliases the config
+// serializers emit reach YANG validation as the lexical form RFC 7950 Section
+// 9.5.1 defines: every store path (parser.go, setparser.go, the inline set
+// parser and the editor) runs NormalizeLeafValue first, so the validator sees
+// "true" and "false" and nothing else.
 //
-// VALIDATES: YANG validation accepts Ze boolean syntax aliases.
+// VALIDATES: enable/disable normalize to true/false and then validate clean.
 // PREVENTS: Session-mode validation rejecting set-format enable/disable values.
 func TestValidateTree_BooleanConfigAliases(t *testing.T) {
 	v := newTestValidator(t)
+
+	assert.Equal(t, "true", NormalizeBool("enable"))
+	assert.Equal(t, "false", NormalizeBool("disable"))
 
 	data := map[string]any{
 		"router-id": "192.0.2.1",
@@ -101,11 +107,11 @@ func TestValidateTree_BooleanConfigAliases(t *testing.T) {
 				"connection": map[string]any{
 					"remote": map[string]any{
 						"ip":      "192.0.2.2",
-						"connect": "enable",
+						"connect": NormalizeBool("enable"),
 					},
 					"local": map[string]any{
 						"ip":     "192.0.2.1",
-						"accept": "disable",
+						"accept": NormalizeBool("disable"),
 					},
 				},
 				"session": map[string]any{

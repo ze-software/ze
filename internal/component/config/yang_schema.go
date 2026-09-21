@@ -376,6 +376,7 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 	case gyang.LeafEntry:
 		// leaf-list without ze:syntax extension — accepts single value or bracket list
 		if entry.IsLeafList() {
+			validateLeafDefaults(entry, path)
 			if entry.Type != nil && entry.Type.Kind == gyang.Yenum && entry.Type.Enum != nil {
 				node := ValueOrArrayEnum(entry.Type.Enum.Names())
 				node.Patterns = patternsFromType(entry.Type)
@@ -643,6 +644,7 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 	if len(entry.Default) > 0 {
 		node.Default = entry.Default[0]
 	}
+	validateLeafDefaults(entry, path)
 	node.Sensitive = hasSensitiveExtension(entry)
 	node.Bcrypt = hasBcryptExtension(entry)
 	node.Hidden = hasHiddenExtension(entry)
@@ -664,6 +666,49 @@ func yangToLeaf(entry *gyang.Entry, path string) *LeafNode {
 		}
 	}
 	return node
+}
+
+// defaultValidator checks every default statement against its type at
+// schema build. It holds no loader: a type check reads the YangType alone.
+var defaultValidator = yang.NewValidator(nil)
+
+// validateLeafDefaults records a schema build error for a default statement
+// its own type refuses, and for a default placed where RFC 7950 forbids one.
+// goyang copies a leaf's own default onto entry.Default and a typedef's
+// default onto entry.Type.Default, so both are read.
+func validateLeafDefaults(entry *gyang.Entry, path string) {
+	if entry.Type == nil {
+		return
+	}
+	// RFC 7950 Section 7.6.4: "The value of the "default" statement MUST be
+	// valid according to the type specified in the leaf's "type" statement."
+	// RFC 7950 Section 7.7.4 states the same for a leaf-list, and Section
+	// 7.3.4: "The value of the "default" statement MUST be valid according
+	// to the type specified in the "type" statement."
+	for _, def := range entry.Default {
+		if err := defaultValidator.ValidateType(path, entry.Type, def); err != nil {
+			recordSchemaBuildError(fmt.Errorf("at %s: default %q is not valid for type %s: %w", path, def, entry.Type.Name, err))
+		}
+	}
+	if entry.Type.Default != "" {
+		if err := defaultValidator.ValidateType(path, entry.Type, entry.Type.Default); err != nil {
+			recordSchemaBuildError(fmt.Errorf("at %s: typedef default %q is not valid for type %s: %w", path, entry.Type.Default, entry.Type.Name, err))
+		}
+	}
+	if len(entry.Default) == 0 {
+		return
+	}
+	// RFC 7950 Section 7.6.4: "The "default" statement MUST NOT be present
+	// on nodes where "mandatory" is "true"."
+	if entry.Mandatory == gyang.TSTrue {
+		recordSchemaBuildError(fmt.Errorf("at %s: default %q on a mandatory leaf is invalid (RFC 7950 Section 7.6.4)", path, entry.Default[0]))
+	}
+	// RFC 7950 Section 7.7.4: "The "default" statement MUST NOT be present
+	// on nodes where "min-elements" has a value greater than or equal to
+	// one."
+	if entry.ListAttr != nil && entry.ListAttr.MinElements >= 1 {
+		recordSchemaBuildError(fmt.Errorf("at %s: default %q on a leaf-list with min-elements %d is invalid (RFC 7950 Section 7.7.4)", path, entry.Default[0], entry.ListAttr.MinElements))
+	}
 }
 
 func patternsFromType(typ *gyang.YangType) []string {

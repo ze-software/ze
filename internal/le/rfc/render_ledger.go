@@ -50,6 +50,7 @@ var statusSections = []statusSectionSpec{
 	{Key: "access-aaa", Heading: "Access, AAA, PPP, and subscriber services"},
 	{Key: "ipsec", Heading: "IPsec, IKE, EAP, and kernel security associations"},
 	{Key: "dns-telemetry", Heading: "DNS, provisioning, MRT, and flow telemetry"},
+	{Key: "management", Heading: "Configuration modeling and management protocols"},
 	{Key: "drafts", Heading: "Drafts and non-RFC standards tracked near RFC work", Brief: true,
 		Intro: "These are not RFCs, but they sit next to RFC implementation status and are useful when reading the tables above."},
 }

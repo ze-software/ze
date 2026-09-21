@@ -5,6 +5,7 @@ package yang
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -207,6 +208,13 @@ func (v *Validator) validateEntry(path string, entry *yang.Entry, value any) err
 	return v.validateYangType(path, entry.Type, value)
 }
 
+// ValidateType validates value against a type of the processed schema. The
+// schema builder runs every default statement through it at load, so a
+// default that its own type refuses stops the schema build.
+func (v *Validator) ValidateType(path string, yangType *yang.YangType, value any) error {
+	return v.validateYangType(path, yangType, value)
+}
+
 // validateYangType validates against yang.YangType from processed schema.
 func (v *Validator) validateYangType(path string, yangType *yang.YangType, value any) error {
 	//nolint:exhaustive // default handles unimplemented types
@@ -223,9 +231,87 @@ func (v *Validator) validateYangType(path string, yangType *yang.YangType, value
 		return v.validateBoolean(path, value)
 	case yang.Yunion:
 		return v.validateUnion(path, yangType, value)
+	case yang.Ydecimal64:
+		return v.validateDecimal64(path, yangType, value)
 	default:
 		return nil
 	}
+}
+
+// decimal64Lexical is the lexical representation of a decimal64 value.
+//
+// RFC 7950 Section 9.3.1: "A decimal64 value is lexically represented as an
+// optional sign ("+" or "-"), followed by a sequence of decimal digits,
+// optionally followed by a period ('.') as a decimal indicator and a sequence
+// of decimal digits." A sequence holds at least one digit, so RFC 7950
+// Section 9.3.2: "there MUST be at least one digit before and after the
+// decimal point".
+var decimal64Lexical = regexp.MustCompile(`^[+-]?[0-9]+(\.[0-9]+)?$`)
+
+// validateDecimal64 validates a decimal64 value: its lexical form, its
+// fraction digits against the type's fraction-digits, and its value against
+// the type's range.
+func (v *Validator) validateDecimal64(path string, yangType *yang.YangType, value any) error {
+	str, ok := value.(string)
+	if !ok {
+		return &ValidationError{
+			Path:     path,
+			Type:     ErrTypeType,
+			Message:  "expected decimal64",
+			Expected: yangType.Name,
+			Got:      fmt.Sprintf("%T", value),
+		}
+	}
+	if !decimal64Lexical.MatchString(str) {
+		return &ValidationError{
+			Path:     path,
+			Type:     ErrTypeType,
+			Message:  fmt.Sprintf("expected decimal64, got %q", str),
+			Expected: yangType.Name,
+			Got:      str,
+		}
+	}
+	// RFC 7950 Section 9.3.4: "The "fraction-digits" statement ... restricts
+	// the value space of the type by defining the total number of digits
+	// after the decimal point". goyang holds the count on the type, parse
+	// refuses a value with more digits than that.
+	// #nosec G115 -- goyang bounds FractionDigits to 1..18 at module load
+	num, err := yang.ParseDecimal(str, uint8(yangType.FractionDigits))
+	if err != nil {
+		return &ValidationError{
+			Path:     path,
+			Type:     ErrTypeType,
+			Message:  fmt.Sprintf("expected decimal64 with at most %d fraction digits, got %q", yangType.FractionDigits, str),
+			Expected: yangType.Name,
+			Got:      str,
+		}
+	}
+	if len(yangType.Range) > 0 && !checkYangRangeDecimal(num, yangType.Range) {
+		return &ValidationError{
+			Path:     path,
+			Type:     ErrTypeRange,
+			Message:  fmt.Sprintf("value %s is outside range", str),
+			Expected: yangType.Range.String(),
+			Got:      str,
+		}
+	}
+	return nil
+}
+
+// checkYangRangeDecimal reports whether num sits inside one of the ranges.
+// Every Number carries the type's fraction digits, so Less compares them
+// directly.
+func checkYangRangeDecimal(num yang.Number, ranges yang.YangRange) bool {
+	for _, r := range ranges {
+		if num.Less(r.Min) {
+			continue
+		}
+		if r.Max.Less(num) {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 // validateString validates a string value against YangType.
@@ -471,7 +557,11 @@ func (v *Validator) validateBoolean(path string, value any) error {
 	case bool:
 		return nil
 	case string:
-		if val == "true" || val == "false" || val == "enable" || val == "disable" {
+		// RFC 7950 Section 9.5.1: "The lexical representation of a boolean value
+		// is a string with a value of "true" or "false"". The config spelling enable and
+		// disable is rewritten to these by NormalizeLeafValue before the
+		// tree stores a value, so it never reaches this validator.
+		if val == "true" || val == "false" {
 			return nil
 		}
 	}
@@ -891,15 +981,23 @@ func (v *Validator) checkYangRange(num uint64, ranges yang.YangRange) bool {
 // checkYangRangeSigned checks signed value against YangRange.
 func (v *Validator) checkYangRangeSigned(num int64, ranges yang.YangRange) bool {
 	for _, r := range ranges {
-		// YangRange stores values as uint64 bit patterns.
-		// For signed types, reinterpret as int64 (two's complement).
-		// #nosec G115 -- intentional bit reinterpretation for signed range check
-		min := int64(r.Min.Value)
-		// #nosec G115 -- intentional bit reinterpretation for signed range check
-		max := int64(r.Max.Value)
-		if num >= min && num <= max {
+		if num >= signedBound(r.Min) && num <= signedBound(r.Max) {
 			return true
 		}
 	}
 	return false
+}
+
+// signedBound returns a range bound as int64. goyang stores a Number as a
+// magnitude and a Negative flag (vendor/github.com/openconfig/goyang/pkg/
+// yang/types_builtin.go, Number), never as a two's complement pattern, so
+// the flag decides the sign. The magnitude of the smallest int64 wraps to
+// itself under negation, which is the value it names.
+func signedBound(n yang.Number) int64 {
+	// #nosec G115 -- goyang bounds a signed magnitude to int64 at module load
+	magnitude := int64(n.Value)
+	if n.Negative {
+		return -magnitude
+	}
+	return magnitude
 }
