@@ -61,6 +61,15 @@ func (a *tacacsAuthenticator) Authenticate(request aaa.AuthRequest) (aaa.AuthRes
 		// Explicit rejection: chain must NOT try next backend.
 		return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
 	}
+	// RFC 8907 Section 5.4.3: "If a client does not implement the
+	// TAC_PLUS_AUTHEN_STATUS_RESTART option, then it MUST process the
+	// response as if the status was TAC_PLUS_AUTHEN_STATUS_FAIL." Ze runs a
+	// single PAP exchange and never restarts with another authen_type, so a
+	// RESTART is a rejection, not an infrastructure failure: the chain stops
+	// here exactly as it does on FAIL.
+	if reply.Status == AuthenStatusRestart {
+		return aaa.AuthResult{Source: backendName}, aaa.ErrAuthRejected
+	}
 	if reply.Status == AuthenStatusError {
 		// Server error: treat as infrastructure failure, chain tries next.
 		msg := reply.ServerMsg

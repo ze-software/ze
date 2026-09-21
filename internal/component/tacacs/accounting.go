@@ -163,10 +163,16 @@ func (a *TacacsAccountant) isStopped() bool {
 func (a *TacacsAccountant) CommandStart(username, remoteAddr, command string) string {
 	taskID := strconv.Itoa(int(a.taskSeq.Add(1)))
 
-	args := append(splitTacacsArgs(command),
-		"task_id="+taskID,
+	// RFC 8907 Section 8.3: the accounting arguments "MUST precede any
+	// argument-value pairs that are defined in 'Authorization' (Section 6)",
+	// so task_id and start_time come before service, cmd and cmd-arg.
+	// start_time is epoch seconds: Section 8.1 says "The time zone MUST be
+	// UTC unless a time zone argument is specified", and Unix() is UTC by
+	// definition whatever time.Local holds.
+	args := append([]string{
+		"task_id=" + taskID,
 		textbuf.StrInt("start_time=", time.Now().Unix()),
-	)
+	}, splitTacacsArgs(command)...)
 	req := &AcctRequest{
 		Flags:         AcctFlagStart,
 		AuthenMethod:  0x06, // TACACS+
@@ -191,10 +197,14 @@ func (a *TacacsAccountant) CommandStart(username, remoteAddr, command string) st
 // CommandStop sends an accounting STOP record.
 // Never blocks: enqueues to the worker. Drops with a warning if the queue is full.
 func (a *TacacsAccountant) CommandStop(taskID, username, remoteAddr, command string) {
-	stopArgs := append(splitTacacsArgs(command),
-		"task_id="+taskID,
+	// RFC 8907 Section 8.3: accounting arguments precede the Section 6 ones
+	// (see CommandStart), and Section 7.1 says "The STOP flag MUST NOT be
+	// set in conjunction with the WATCHDOG flag": the record carries
+	// AcctFlagStop alone.
+	stopArgs := append([]string{
+		"task_id=" + taskID,
 		textbuf.StrInt("stop_time=", time.Now().Unix()),
-	)
+	}, splitTacacsArgs(command)...)
 	req := &AcctRequest{
 		Flags:         AcctFlagStop,
 		AuthenMethod:  0x06, // TACACS+

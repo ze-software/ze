@@ -27,9 +27,12 @@ const (
 	authenServiceLogin = 0x01
 
 	// Reply status codes. RFC 8907 Section 5.2.
-	AuthenStatusPass  = 0x01
-	AuthenStatusFail  = 0x02
-	AuthenStatusError = 0x07
+	AuthenStatusPass    = 0x01
+	AuthenStatusFail    = 0x02
+	AuthenStatusGetPass = 0x05
+	AuthenStatusRestart = 0x06
+	AuthenStatusError   = 0x07
+	AuthenStatusFollow  = 0x21
 )
 
 // AuthenStart is an authentication START packet body.
