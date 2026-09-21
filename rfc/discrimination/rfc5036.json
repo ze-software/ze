@@ -2,6 +2,39 @@
   "rfc": "rfc5036",
   "records": [
     {
+      "rid": "RFC5036-2.5.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036HelloTransportAddressNeverFollowsTheSocket",
+      "unit-sha": "d9df177afaa01a26",
+      "claim-sha": "1c83e90c1ad8824a",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/wire.go::EncodeHello",
+      "producer-sha": "1b187e229300f2d5",
+      "break": "body of EncodeHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5036-2.5.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036HellosCarryOneTransportAddress",
+      "unit-sha": "cf8c536e3aaf4443",
+      "claim-sha": "7642656931c055f3",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/register.go::sendHello",
+      "producer-sha": "491c506c341a4af8",
+      "break": "body of sendHello replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5036-3.5-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036RequiredParametersInSpecifiedOrder",
+      "unit-sha": "884a3d670a36e5d8",
+      "claim-sha": "940ed91a19044287",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/wire.go::EncodeInit",
+      "producer-sha": "e5c13751227dd1f4",
+      "break": "body of EncodeInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC5036-3.5.3-1",
       "polarity": "positive",
       "unit": "internal/plugins/ldp/rfc5036_test.go::TestRFC5036InitNonZeroKeepaliveTimeAccepted",
@@ -9,7 +42,7 @@
       "claim-sha": "ddaf98ade5b1b481",
       "route": "revert",
       "producer": "internal/plugins/ldp/session.go::handleInit",
-      "producer-sha": "615f9f376d6a70fc",
+      "producer-sha": "cb70e1c67e30c497",
       "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -22,6 +55,116 @@
       "producer": "internal/plugins/ldp/session.go::rejectInit",
       "producer-sha": "dc24b2b0e4b4d0ef",
       "break": "body of rejectInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5036-3.5.3-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited",
+      "unit-sha": "6cc28a025295d59a",
+      "claim-sha": "4272c366b4a52ef4",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/session.go::handleInit",
+      "producer-sha": "cb70e1c67e30c497",
+      "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5036-3.5.3-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitProposesDownstreamUnsolicited",
+      "unit-sha": "66250697c37f9d9e",
+      "claim-sha": "04708ca4826ce5e8",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/wire.go::EncodeInit",
+      "producer-sha": "e5c13751227dd1f4",
+      "break": "body of EncodeInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5036-3.5.3-5",
+      "polarity": "negative",
+      "unit": "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection",
+      "unit-sha": "dd6586aa26d09475",
+      "claim-sha": "6bc6dd0e3de0e604",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/wire.go::EncodeInit",
+      "producer-sha": "e5c13751227dd1f4",
+      "break": "body of EncodeInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5036-3.5.3-5",
+      "polarity": "positive",
+      "unit": "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection",
+      "unit-sha": "443ff5303de37706",
+      "claim-sha": "9cb84f673db12037",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/wire.go::EncodeInit",
+      "producer-sha": "e5c13751227dd1f4",
+      "break": "body of EncodeInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5036-3.5.3-6",
+      "polarity": "negative",
+      "unit": "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitReservedBitsIgnoredOnReceipt",
+      "unit-sha": "2ac3bcbd7128b3cf",
+      "claim-sha": "52ac0ad90c6fc050",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/wire.go::DecodeInit",
+      "producer-sha": "a18fc06ed0b13ee7",
+      "break": "body of DecodeInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5036-3.5.3-6",
+      "polarity": "positive",
+      "unit": "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitReservedBitsZeroOnTransmission",
+      "unit-sha": "b2159bf80f10ceec",
+      "claim-sha": "65faa3306665f2bd",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/wire.go::EncodeInit",
+      "producer-sha": "e5c13751227dd1f4",
+      "break": "body of EncodeInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5036-3.5.3-7",
+      "polarity": "negative",
+      "unit": "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal",
+      "unit-sha": "66acb88f63dbdb22",
+      "claim-sha": "7a83ad7e90a58fe4",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/session.go::handleInit",
+      "producer-sha": "cb70e1c67e30c497",
+      "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5036-3.5.3-7",
+      "polarity": "positive",
+      "unit": "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036InitMaxPDULengthTakesTheSmallerProposal",
+      "unit-sha": "458254ec73f29437",
+      "claim-sha": "893fe9bb90be676b",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/session.go::handleInit",
+      "producer-sha": "cb70e1c67e30c497",
+      "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5036-3.5.4.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036KeepalivePacingFollowsNegotiatedTime",
+      "unit-sha": "4392df70f3d314e2",
+      "claim-sha": "2eab89342737230a",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/session.go::handleInit",
+      "producer-sha": "cb70e1c67e30c497",
+      "break": "body of handleInit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5036-3.5.4.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/ldp/sessionparams_rfc5036_test.go::TestRFC5036PeerHearsFromZeWithinKeepaliveTime",
+      "unit-sha": "dc82477aa16444b5",
+      "claim-sha": "dd312ec8cbf5f962",
+      "route": "revert",
+      "producer": "internal/plugins/ldp/register.go::runSession",
+      "producer-sha": "e961bbf3b01f59da",
+      "break": "body of runSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5036-x-3",

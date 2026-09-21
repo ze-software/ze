@@ -761,9 +761,11 @@ func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, 
 	kaCtx, kaCancel := context.WithCancel(ctx)
 	defer kaCancel()
 	go func() {
-		// Re-read the keepalive each cycle: handleInit lowers it during the
-		// Initialization exchange, so a fixed ticker sized from the pre-negotiation
-		// default would send too slowly (RFC 5036 Section 2.5.3).
+		// Re-read the keepalive each cycle, and re-arm the moment it changes:
+		// handleInit lowers it during the Initialization exchange, so a period
+		// sized from the pre-negotiation proposal could outlast the negotiated
+		// KeepAlive Time and the peer's hold timer with it (RFC 5036 Sections
+		// 2.5.3 and 3.5.4.1).
 		for {
 			period := sess.currentKeepalive() / 3
 			if period <= 0 {
@@ -774,6 +776,9 @@ func runSession(ctx context.Context, log *slog.Logger, sess *Session, lib *LIB, 
 			case <-kaCtx.Done():
 				timer.Stop()
 				return
+			case <-sess.KeepaliveChanged():
+				timer.Stop()
+				continue
 			case <-timer.C:
 				if err := sess.SendKeepalive(); err != nil {
 					return

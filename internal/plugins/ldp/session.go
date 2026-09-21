@@ -55,6 +55,10 @@ func (s SessionState) String() string {
 const (
 	DefaultKeepaliveTime = 60 * time.Second
 	DefaultMaxPDULength  = 4096
+	// maxPDULengthDefaultThreshold is the largest Max PDU Length proposal that
+	// means "the default": RFC 5036 Section 3.5.3, "A value of 255 or less
+	// specifies the default maximum length of 4096 octets."
+	maxPDULengthDefaultThreshold = 255
 )
 
 // keepaliveTimeMax is the largest KeepAlive Time the wire can carry. RFC 5036
@@ -101,6 +105,12 @@ type Session struct {
 	lib      *LIB
 	stopOnce sync.Once
 	stopCh   chan struct{}
+	// keepaliveChanged carries one token when handleInit lowers keepaliveTime,
+	// so the KeepAlive sender re-arms from the negotiated value instead of
+	// finishing a period it sized from the proposal (RFC 5036 Section 3.5.4.1).
+	// Buffered to one: a second change before the sender wakes needs no second
+	// token, because the sender re-reads currentKeepalive on every wake.
+	keepaliveChanged chan struct{}
 }
 
 // addPeerAddresses records interface addresses learned from an Address message.
@@ -186,6 +196,8 @@ func NewSession(conn net.Conn, cfg SessionConfig, lib *LIB, log *slog.Logger) *S
 		lib:      lib,
 		log:      log,
 		stopCh:   make(chan struct{}),
+
+		keepaliveChanged: make(chan struct{}, 1),
 	}
 }
 
@@ -195,6 +207,12 @@ func (s *Session) currentHoldTime() time.Duration {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.holdTime
+}
+
+// KeepaliveChanged is signalled once each time handleInit changes the negotiated
+// KeepAlive Time. The KeepAlive sender selects on it beside its period timer.
+func (s *Session) KeepaliveChanged() <-chan struct{} {
+	return s.keepaliveChanged
 }
 
 // currentKeepalive returns the negotiated keepalive interval under lock. handleInit
@@ -597,10 +615,32 @@ func (s *Session) handleInit(msg initMessage, peerLSRID [4]byte) bool {
 	s.keepaliveTime = time.Duration(negotiatedKA) * time.Second
 	// RFC 5036: hold time is typically 3x keepalive.
 	s.holdTime = time.Duration(negotiatedKA) * time.Second * 3
-
-	if msg.MaxPDULength > 0 && msg.MaxPDULength < s.maxPDU {
-		s.maxPDU = msg.MaxPDULength
+	// RFC 5036 Section 3.5.4.1: "An LSR MUST arrange that its peer receive an
+	// LDP message from it at least every KeepAlive Time period." The sender may
+	// be waiting out a period sized from ze's own proposal, which can exceed the
+	// value just negotiated, so it is told to re-arm now.
+	select {
+	case s.keepaliveChanged <- struct{}{}:
+	default:
 	}
+
+	// RFC 5036 Section 3.5.3: "The receiving LSR MUST calculate the maximum PDU
+	// length for the session by using the smaller of its and its peer's
+	// proposals for Max PDU Length." A proposal "of 255 or less specifies the
+	// default maximum length of 4096 octets", so it is read as 4096 and never as
+	// a literal length below what one PDU header needs.
+	peerMaxPDU := msg.MaxPDULength
+	if peerMaxPDU <= maxPDULengthDefaultThreshold {
+		peerMaxPDU = DefaultMaxPDULength
+	}
+	if peerMaxPDU < s.maxPDU {
+		s.maxPDU = peerMaxPDU
+	}
+	// msg.OnDemand is not negotiated: the session is not on a label-controlled
+	// ATM or Frame Relay link, so "Otherwise, Downstream Unsolicited MUST be
+	// used" (RFC 5036 Section 3.5.3), whatever the peer proposed. Downstream
+	// Unsolicited is always acceptable to ze, so no Session Rejected/Parameters
+	// Advertisement Mode is ever owed here.
 
 	switch s.state {
 	case StateOpenSent:

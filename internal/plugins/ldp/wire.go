@@ -366,9 +366,29 @@ type initMessage struct {
 	MaxPDULength       uint16
 	ReceiverLSRID      [4]byte
 	ReceiverLabelSpace uint16
-	LoopDetection      bool
-	PathVectorLimit    uint8
+	// OnDemand is the A bit: "A value of 0 means Downstream Unsolicited
+	// advertisement; a value of 1 means Downstream On Demand." (RFC 5036
+	// Section 3.5.3). ze proposes Downstream Unsolicited, so SendInit leaves it
+	// false; DecodeInit records what the peer proposed.
+	OnDemand        bool
+	LoopDetection   bool
+	PathVectorLimit uint8
 }
+
+// RFC 5036 Section 3.5.3, Common Session Parameters, third word:
+//
+//	 0                   1
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|A|D|  Reserved |     PVLim     |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// A and D are the two top bits of the flags octet; the six below them are
+// reserved and "MUST be set to zero on transmission and ignored on receipt".
+const (
+	initFlagOnDemand      uint8 = 0x80
+	initFlagLoopDetection uint8 = 0x40
+)
 
 // EncodeInit writes an Initialization message body to buf.
 func EncodeInit(buf []byte, m initMessage) int {
@@ -382,11 +402,19 @@ func EncodeInit(buf []byte, m initMessage) int {
 	binary.BigEndian.PutUint16(sessionBuf[0:2], m.ProtocolVersion)
 	binary.BigEndian.PutUint16(sessionBuf[2:4], m.KeepaliveTime)
 	var flags uint8
+	if m.OnDemand {
+		flags |= initFlagOnDemand
+	}
 	if m.LoopDetection {
-		flags |= 0x04
+		flags |= initFlagLoopDetection
 	}
 	sessionBuf[4] = flags
-	sessionBuf[5] = m.PathVectorLimit
+	// RFC 5036 Section 3.5.3: "PVLim, Path Vector Limit ... MUST be 0 if Loop
+	// Detection is disabled (D = 0)." The limit is written only beside D=1.
+	sessionBuf[5] = 0
+	if m.LoopDetection {
+		sessionBuf[5] = m.PathVectorLimit
+	}
 	binary.BigEndian.PutUint16(sessionBuf[6:8], m.MaxPDULength)
 	copy(sessionBuf[8:12], m.ReceiverLSRID[:])
 	binary.BigEndian.PutUint16(sessionBuf[12:14], m.ReceiverLabelSpace)
@@ -413,7 +441,10 @@ func DecodeInit(msgID uint32, body []byte) (initMessage, error) {
 		if tlv.Type == TLVTypeCommonSession && len(tlv.Value) >= 14 {
 			m.ProtocolVersion = binary.BigEndian.Uint16(tlv.Value[0:2])
 			m.KeepaliveTime = binary.BigEndian.Uint16(tlv.Value[2:4])
-			m.LoopDetection = tlv.Value[4]&0x04 != 0
+			// Only A and D are read; the six reserved bits are "ignored on
+			// receipt" (RFC 5036 Section 3.5.3).
+			m.OnDemand = tlv.Value[4]&initFlagOnDemand != 0
+			m.LoopDetection = tlv.Value[4]&initFlagLoopDetection != 0
 			m.PathVectorLimit = tlv.Value[5]
 			m.MaxPDULength = binary.BigEndian.Uint16(tlv.Value[6:8])
 			copy(m.ReceiverLSRID[:], tlv.Value[8:12])
