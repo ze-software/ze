@@ -27,7 +27,7 @@ func rfc3209PathPSB(ero []eroHop) *pathStateBlock {
 	}
 }
 
-// RFC requirement: RFC3209-4.2.4-1 positive — the egress that accepts a PATH carrying a LABEL_REQUEST answers it with a RESV that carries a LABEL object holding the label it allocated for that LSP
+// RFC requirement: RFC3209-4.2.4-1 positive — the egress that accepts a PATH carrying a LABEL_REQUEST answers it with a RESV that carries a LABEL object holding the label it allocated for that LSP.
 func TestRFC3209EgressResvCarriesLabel(t *testing.T) {
 	e, ft, _ := testEngine(t, "10.0.0.9", nil)
 	path := buildPath(rfc3209PathPSB(nil), netip.MustParseAddr("10.0.0.1"), 64)
@@ -43,7 +43,7 @@ func TestRFC3209EgressResvCarriesLabel(t *testing.T) {
 	assert.NotZero(t, resv.Label.Label)
 }
 
-// RFC requirement: RFC3209-4.2.4-3 positive — the ingress that sent a LABEL_REQUEST processes the LABEL of the answering RESV: it records the label as the LSP's out-label, programs the push and brings the LSP up
+// RFC requirement: RFC3209-4.2.4-3 positive — the ingress that sent a LABEL_REQUEST processes the LABEL of the answering RESV: it records the label as the LSP's out-label, programs the push and brings the LSP up.
 func TestRFC3209IngressProcessesResvLabel(t *testing.T) {
 	e, _, fib := testEngine(t, "10.0.0.1", nil)
 	key := lspKey{
@@ -70,7 +70,7 @@ func TestRFC3209IngressProcessesResvLabel(t *testing.T) {
 	assert.Equal(t, netip.MustParsePrefix("10.0.0.9/32"), fib.pushed[0])
 }
 
-// RFC requirement: RFC3209-4.2.4-3 negative — a RESV that answers the LABEL_REQUEST without a LABEL object is refused: the out-label stays zero, the LSP stays path-sent and no push is programmed
+// RFC requirement: RFC3209-4.2.4-3 negative — a RESV that answers the LABEL_REQUEST without a LABEL object is refused: the out-label stays zero, the LSP stays path-sent and no push is programmed.
 func TestRFC3209IngressRefusesResvWithoutLabel(t *testing.T) {
 	e, _, fib := testEngine(t, "10.0.0.1", nil)
 	key := lspKey{
@@ -101,7 +101,7 @@ func TestRFC3209IngressRefusesResvWithoutLabel(t *testing.T) {
 	assert.Empty(t, fib.pushed, "no push is programmed")
 }
 
-// RFC requirement: RFC3209-4.2.4-4 positive — a transit node relaying a PATH copies the received L3PID (0x86DD) into the LABEL_REQUEST of the PATH it forwards
+// RFC requirement: RFC3209-4.2.4-4 positive — a transit node relaying a PATH copies the received L3PID (0x86DD) into the LABEL_REQUEST of the PATH it forwards.
 func TestRFC3209TransitCopiesL3PID(t *testing.T) {
 	e, ft, _ := testEngine(t, "10.0.0.5", nil)
 	ero := []eroHop{
@@ -118,7 +118,7 @@ func TestRFC3209TransitCopiesL3PID(t *testing.T) {
 	assert.Equal(t, uint16(0x86DD), fwd.LabelRequest.L3PID, "the L3PID is the received one, not the local default")
 }
 
-// RFC requirement: RFC3209-4.3.4.1-1 positive — a node receiving a PATH with an ERO evaluates the first subobject: the one naming this node is consumed and the PATH is relayed to the node the second subobject names, with that subobject now first
+// RFC requirement: RFC3209-4.3.4.1-1 positive — a node receiving a PATH with an ERO evaluates the first subobject: the one naming this node is consumed and the PATH is relayed to the node the second subobject names, with that subobject now first.
 func TestRFC3209TransitEvaluatesFirstEROSubobject(t *testing.T) {
 	e, ft, _ := testEngine(t, "10.0.0.5", nil)
 	ero := []eroHop{
@@ -140,7 +140,7 @@ func TestRFC3209TransitEvaluatesFirstEROSubobject(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC3209-4.3.4.1-1 negative — a transit PATH with no first ERO subobject to evaluate is not relayed: the node answers a PathErr with Routing Problem / Bad EXPLICIT_ROUTE object and installs no LSP
+// RFC requirement: RFC3209-4.3.4.1-1 negative — a transit PATH with no first ERO subobject to evaluate is not relayed: the node answers a PathErr with Routing Problem / Bad EXPLICIT_ROUTE object and installs no LSP.
 func TestRFC3209TransitNoFirstEROSubobject(t *testing.T) {
 	e, ft, _ := testEngine(t, "10.0.0.5", nil)
 	path := buildPath(rfc3209PathPSB(nil), netip.MustParseAddr("10.0.0.1"), 64)
