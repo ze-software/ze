@@ -22,6 +22,28 @@
       "producer": "internal/component/bgp/wireu/mpwire.go::NextHopBytes",
       "producer-sha": "dc435ab682eb306a",
       "break": "body of NextHopBytes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4684-5-2",
+      "polarity": "positive",
+      "unit": "internal/core/bgp/capability/rfc4684_rtc_test.go::TestRFC4684RTCFamilyIsAMultiprotocolCapability",
+      "unit-sha": "9aa932708d586f3d",
+      "claim-sha": "9b05efce9edbee0e",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/capability.go::writeCapabilityTo",
+      "producer-sha": "ed9af8768217102a",
+      "break": "body of writeCapabilityTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4684-5-2",
+      "polarity": "negative",
+      "unit": "internal/core/bgp/capability/rfc4684_rtc_test.go::TestRFC4684RTCPairUnderAnotherCodeIsNotTheFamily",
+      "unit-sha": "ccf6bd0e30981e18",
+      "claim-sha": "4b13b26a951f6264",
+      "route": "revert",
+      "producer": "internal/core/bgp/capability/capability.go::Parse",
+      "producer-sha": "63afe47785b71188",
+      "break": "body of Parse replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
