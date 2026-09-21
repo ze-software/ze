@@ -46,6 +46,83 @@
       "break": "body of checkCardinality replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7950-8.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/config/datastore_rfc7950_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig",
+      "unit-sha": "6af704744a3076a3",
+      "claim-sha": "d6f5e8cab13d4f44",
+      "route": "revert",
+      "producer": "internal/component/config/validate_sections.go::refuseInvalidCustomSections",
+      "producer-sha": "cf515e33b5757c89",
+      "break": "body of refuseInvalidCustomSections replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-8.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/config/datastore_rfc7950_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse",
+      "unit-sha": "a174d339584e73d3",
+      "claim-sha": "bd6b5c0056a4c5be",
+      "route": "revert",
+      "producer": "internal/component/config/validate_sections.go::refuseInvalidCustomSections",
+      "producer-sha": "cf515e33b5757c89",
+      "break": "body of refuseInvalidCustomSections replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-8.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/config/datastore_rfc7950_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig",
+      "unit-sha": "6af704744a3076a3",
+      "claim-sha": "22e34c5e987155a6",
+      "route": "revert",
+      "producer": "internal/component/config/loader.go::parseTreeWithYANG",
+      "producer-sha": "f1f623c0708445dc",
+      "break": "body of parseTreeWithYANG replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-8.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/config/datastore_rfc7950_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse",
+      "unit-sha": "a174d339584e73d3",
+      "claim-sha": "3dc41dada0d99db7",
+      "route": "revert",
+      "producer": "internal/component/config/validate_sections.go::refuseInvalidCustomSections",
+      "producer-sha": "cf515e33b5757c89",
+      "break": "body of refuseInvalidCustomSections replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-8.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/config/datastore_rfc7950_test.go::TestRFC7950RunningDatastoreRefusesAViolationAtParse",
+      "unit-sha": "e1bc117faab9dad4",
+      "claim-sha": "1eb37ed8cf4dfcb6",
+      "route": "revert",
+      "producer": "internal/component/config/loader.go::parseTreeWithYANG",
+      "producer-sha": "f1f623c0708445dc",
+      "break": "body of parseTreeWithYANG replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-8.3.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/config/datastore_rfc7950_test.go::TestRFC7950RunningDatastoreAcceptsAValidConfig",
+      "unit-sha": "6af704744a3076a3",
+      "claim-sha": "2f6fb2c542a5d055",
+      "route": "revert",
+      "producer": "internal/component/config/validate_sections.go::refuseInvalidCustomSections",
+      "producer-sha": "cf515e33b5757c89",
+      "break": "body of refuseInvalidCustomSections replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7950-8.3.3-1",
+      "polarity": "negative",
+      "unit": "internal/component/config/datastore_rfc7950_test.go::TestRFC7950RunningDatastoreRefusesAViolationAfterParse",
+      "unit-sha": "a174d339584e73d3",
+      "claim-sha": "c777f5e729a017a2",
+      "route": "revert",
+      "producer": "internal/component/config/validate_sections.go::refuseInvalidCustomSections",
+      "producer-sha": "cf515e33b5757c89",
+      "break": "body of refuseInvalidCustomSections replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7950-9.5.1-1",
       "polarity": "positive",
       "unit": "internal/component/config/yang/validator_rfc7950_test.go::TestRFC7950BooleanLowercaseAccepted",
