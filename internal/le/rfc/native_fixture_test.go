@@ -298,7 +298,7 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// the other's bytes -- which is the note two paragraphs up saying the same
 	// thing about a different pair.
 	// Re-sealed 2026-09-21 for 84263332c9, which spells "analyzed" in
-	// render.go where misspell (locale US) read "analysed". Three comment and
+	// render.go where misspell (locale US) read the UK spelling. Three comment and
 	// string bytes moved and no verdict, check or vocabulary did. The value
 	// was already red at HEAD before that commit, for commits other sessions
 	// landed on this package without re-sealing; this seal absorbs those
