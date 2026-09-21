@@ -94,13 +94,14 @@ func buildPath(psb *pathStateBlock, hop netip.Addr, ttl uint8) []byte {
 	// SESSION_ATTRIBUTE (protection-desired flags, RFC 4090 Section 4.3) and a
 	// FAST_REROUTE object (Section 4.1) so transit PLRs arm a backup. RFC 3209
 	// Section 4.7 places SESSION_ATTRIBUTE after LABEL_REQUEST; FAST_REROUTE
-	// follows it.
+	// follows it. A transit relays the FAST_REROUTE it received, unchanged, and
+	// inserts none when the head-end sent none (RFC 4090 Section 4.1).
 	if psb.Protection != nil {
 		pr := psb.Protection
-		encoders = append(encoders,
-			func(b []byte) int { return encodeSessionAttr(b, pr.sessionAttr()) },
-			func(b []byte) int { return encodeFastReroute(b, pr.fastReroute()) },
-		)
+		encoders = append(encoders, func(b []byte) int { return encodeSessionAttr(b, pr.sessionAttr()) })
+		if fr, ok := pr.fastRerouteObject(); ok {
+			encoders = append(encoders, func(b []byte) int { return encodeFastReroute(b, fr) })
+		}
 	}
 	encoders = append(encoders,
 		func(b []byte) int { return encodeSenderTemplate(b, psb.SenderTemplate) },

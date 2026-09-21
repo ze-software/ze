@@ -24,6 +24,22 @@ Bypass LSPs key into the same LSP table as protected tunnels. The top 4096 tunne
 IDs are reserved for them (`bypassTunnelIDBase = 0xF000`), so a bypass can never
 collide with a protected tunnel to the same destination.
 
+A bypass reserves no bandwidth of its own, so it never guarantees a protected
+LSP's bandwidth. The point of local repair therefore never sets the RRO
+"bandwidth protection" bit (0x04), whatever the head-end asked for (RFC 4090
+section 4.4: "If the requested bandwidth is not guaranteed, the PLR MUST NOT set
+this flag"). The "node protection" bit (0x08) is set only when the armed bypass
+merges at the next-next hop.
+
+## Decision: a transit relays FAST_REROUTE byte for byte
+
+RFC 4090 section 4.1 reserves the FAST_REROUTE object to the head-end. A transit
+keeps the object it received (`protectionRequest.Received`) and relays that one,
+affinity fields and flags included, and relays none when the head-end signaled
+protection through the SESSION_ATTRIBUTE flag alone.
+
+<!-- source: internal/plugins/rsvpte/frr.go -- protectionFromPath, fastRerouteObject -->
+
 ## Decision: local repair is one FIB reprogram in the existing worker
 
 `tryLocalRepair` is slotted into `handleLinkDown` exactly where the base engine

@@ -149,6 +149,14 @@ type protectionRequest struct {
 	SetupPrio           uint8
 	HoldPrio            uint8
 	Name                string // tunnel name, carried in SESSION_ATTRIBUTE for display
+	// Transit marks a request reconstructed from a received PATH. Received is the
+	// FAST_REROUTE object exactly as it arrived, or nil when the head-end sent
+	// none. RFC 4090 Section 4.1: the object "MUST only be inserted into the PATH
+	// message by the head-end LER and MUST NOT be changed by downstream LSRs", so
+	// a transit relays Received unchanged and never builds one of its own; only
+	// the head-end (Transit false) builds the object from its configuration.
+	Transit  bool
+	Received *fastReroute
 }
 
 // sessionAttr builds the SESSION_ATTRIBUTE object carrying the protection-desired
@@ -171,8 +179,22 @@ func (pr *protectionRequest) sessionAttr() sessionAttribute {
 	return sessionAttribute{SetupPrio: pr.SetupPrio, HoldPrio: pr.HoldPrio, Flags: flags, Name: pr.Name}
 }
 
-// fastReroute builds the FAST_REROUTE object (RFC 4090 Section 4.1) requesting
-// either facility or one-to-one backup.
+// fastRerouteObject returns the FAST_REROUTE object a PATH built from this
+// request carries, and false when it carries none. The head-end builds it from
+// its configuration; a transit relays the received object unchanged, and relays
+// none when the head-end sent none (RFC 4090 Section 4.1).
+func (pr *protectionRequest) fastRerouteObject() (fastReroute, bool) {
+	if !pr.Transit {
+		return pr.fastReroute(), true
+	}
+	if pr.Received == nil {
+		return fastReroute{}, false
+	}
+	return *pr.Received, true
+}
+
+// fastReroute builds the head-end's FAST_REROUTE object (RFC 4090 Section 4.1)
+// requesting either facility or one-to-one backup.
 func (pr *protectionRequest) fastReroute() fastReroute {
 	flags := FRRFlagFacilityBackup
 	if !pr.Facility {
@@ -196,8 +218,10 @@ func protectionFromPath(msg *ParsedMessage) *protectionRequest {
 	if !msg.HasFastReroute && !saProtect {
 		return nil
 	}
-	pr := &protectionRequest{Facility: true}
+	pr := &protectionRequest{Facility: true, Transit: true}
 	if msg.HasFastReroute {
+		received := msg.FastReroute
+		pr.Received = &received
 		pr.Facility = msg.FastReroute.Flags&FRRFlagFacilityBackup != 0 || msg.FastReroute.Flags&FRRFlagOneToOneBackup == 0
 		pr.HopLimit = msg.FastReroute.HopLimit
 		pr.Bandwidth = msg.FastReroute.Bandwidth
@@ -279,7 +303,13 @@ func (e *engine) selectBypass(rem []eroHop, pr *protectionRequest) (lspKey, bool
 // rroProtectionFlags computes the RFC 4090 RRO subobject flags a PLR records for
 // a protected transit LSP: protection-available once a bypass is armed,
 // protection-in-use once local repair has switched traffic onto it, plus the
-// node/bandwidth protection bits the head-end requested. Callers hold lsp.mu.
+// node protection bit when the armed bypass protects the next node (selectBypass
+// arms a node-protecting bypass only for a node-protection request, so the
+// request bit is the armed bypass's capability). The bandwidth protection bit
+// stays clear: a bypass reserves no bandwidth of its own (setupBypass), so it
+// never guarantees the protected LSP's bandwidth, and RFC 4090 Section 4.4 says
+// "If the requested bandwidth is not guaranteed, the PLR MUST NOT set this
+// flag". Callers hold lsp.mu.
 func rroProtectionFlags(lsp *LSP) uint8 {
 	if lsp.Bypass == nil {
 		return 0
@@ -288,13 +318,8 @@ func rroProtectionFlags(lsp *LSP) uint8 {
 	if lsp.ProtectionInUse {
 		flags |= RROFlagProtectionInUse
 	}
-	if lsp.PSB != nil && lsp.PSB.Protection != nil {
-		if lsp.PSB.Protection.NodeProtection {
-			flags |= RROFlagNodeProtection
-		}
-		if lsp.PSB.Protection.BandwidthProtection {
-			flags |= RROFlagBandwidthProtection
-		}
+	if lsp.PSB != nil && lsp.PSB.Protection != nil && lsp.PSB.Protection.NodeProtection {
+		flags |= RROFlagNodeProtection
 	}
 	return flags
 }
