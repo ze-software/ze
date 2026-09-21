@@ -329,14 +329,19 @@ func siteFromDecision(derived extractionDocumentSite, decision classifySiteDecis
 }
 
 // sectionFromDecision rebuilds one section entry from its decision.
+//
+// The reason is carried whatever the disposition, because a WALKED section
+// that declares unsourced-ids owes the sentence each id was read from, and
+// that prose has nowhere else to live. Only the skip kind is gated on the
+// disposition that defines it.
 func sectionFromDecision(derived extractionDocumentSection,
 	decision classifySectionDecision) extractionDocumentSection {
 	entry := extractionDocumentSection{ID: derived.ID, Sites: derived.Sites}
 	entry.Disposition = stringPointer(decision.Disposition)
 	entry.UnsourcedIDs = decision.UnsourcedIDs
+	entry.Reason = decision.Reason
 	if decision.Disposition == dispositionSkipped {
 		entry.SkipKind = decision.SkipKind
-		entry.Reason = decision.Reason
 	}
 	return entry
 }
