@@ -448,7 +448,10 @@ func unitCoverage(tree string, toolchain gotoolchain.Toolchain, module string, t
 	if err != nil {
 		return nil, err
 	}
-	profile := filepath.Join(scratch, "propose-cover.out")
+	// One profile per process, for the same reason requireCleanGreen names its own:
+	// concurrent agents of one session share this scratch directory.
+	var name textbuf.Buffer
+	profile := filepath.Join(scratch, name.Str("propose-cover-").Int(int64(os.Getpid())).Str(".out").String())
 	var tb textbuf.Buffer
 	argv := toolchain.GoTest(gotoolchain.TestOptions{},
 		"-run", tb.Byte('^').Str(symbol).Byte('$').String(), "-count=1",

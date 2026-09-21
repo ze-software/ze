@@ -135,7 +135,12 @@ func (o *observationRunner) requireCleanGreen() error {
 		if err != nil {
 			return err
 		}
-		profile = filepath.Join(scratch, "cover.out")
+		// One profile per process: several agents of one session share this scratch
+		// directory and run this command at once, and a fixed name let one run's
+		// `mode: set` header land where another was about to read its blocks, which
+		// refused a producer the unit does execute (plan/journal/concurrent-session-corruption.md).
+		var name textbuf.Buffer
+		profile = filepath.Join(scratch, name.Str("cover-").Int(int64(os.Getpid())).Str(".out").String())
 	}
 	passed, output, err := o.run("", profile)
 	if err != nil {
