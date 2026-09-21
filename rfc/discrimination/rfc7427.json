@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc7427",
+  "records": [
+    {
+      "rid": "RFC7427-3-5",
+      "polarity": "positive",
+      "unit": "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed",
+      "unit-sha": "b56462543ef14a36",
+      "claim-sha": "64957032fe9135cc",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
+      "producer-sha": "c1712c246202024a",
+      "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7427-3-5",
+      "polarity": "negative",
+      "unit": "internal/component/ike/engine/rfc7427_method_test.go::TestRFC7427DigitalSignatureMethodIsUsed",
+      "unit-sha": "b56462543ef14a36",
+      "claim-sha": "a82b9689efbb0066",
+      "route": "revert",
+      "producer": "internal/component/ike/engine/auth.go::computeX509Auth",
+      "producer-sha": "c1712c246202024a",
+      "break": "body of computeX509Auth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
