@@ -19,25 +19,15 @@ import (
 func ledgerFixtureTree(t *testing.T) string {
 	t.Helper()
 
-	const summary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n" +
-		"| Title | Widgets |\n| Enrolment | enrolled |\n" +
-		"| Enrolment reason | the fixture RFC, gated so the stage has a population |\n" +
-		"| Implementation | ze |\n" +
-		"| Implementation reason | the fixture RFC's own Go answers it (internal/widget) |\n" +
-		"| Support | bgp-base 10 |\n| Support area | Widgets |\n" +
-		"| Support status | Partial |\n| Support coverage | unit tests |\n" +
-		"| Support remaining | Zero MUST gaps. |\n\n" +
-		"## Compliance Checklist\n\n" +
-		"- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2)\n"
+	// The corpus is rfc.FixtureFiles rather than a copy of it. Three packages
+	// drive the gate over a synthetic tree, none can import another, and each
+	// spelled the summary itself until 2026-09-21, when `Implementation` became
+	// a required Meta row and all three went red on one sentence.
+	files := rfc.FixtureFiles()
+	files["feature-gates.txt"] = "ze_widget  internal/widget\n"
 
 	root := t.TempDir()
-	for rel, body := range map[string]string{
-		"rfc/short/rfc9999.md":          summary,
-		"rfc/full/rfc9999.txt":          "A speaker MUST send the widget.\n",
-		"rfc/drain-budget.txt":          "start 2026-07-29\nrate 0\n",
-		"feature-gates.txt":             "ze_widget  internal/widget\n",
-		".github/workflows/nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\n",
-	} {
+	for rel, body := range files {
 		path := filepath.Join(root, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 			t.Fatalf("fixture directory: %v", err)

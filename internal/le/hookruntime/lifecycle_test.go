@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/derived"
+	"github.com/ze-software/ze/internal/le/rfc"
 )
 
 // TestSessionHookCountsNoDischargedRowAsOwed drives the third consumer of the
@@ -177,20 +178,9 @@ func TestSessionStartRendersNoDeferredArtifact(t *testing.T) {
 func rfcCorpusFixture(t *testing.T, root string) {
 	t.Helper()
 	writeHookFixture(t, root, "docs/features/.keep", "")
-	writeHookFixture(t, root, "rfc/full/rfc9999.txt", "A speaker MUST send the widget.\n")
-	writeHookFixture(t, root, "rfc/drain-budget.txt", "start 2026-07-29\nrate 0\n")
-	writeHookFixture(t, root, ".github/workflows/nightly.yml", "on:\n  schedule:\n    - cron: '0 3 * * *'\n")
-	writeHookFixture(t, root, "rfc/short/rfc9999.md",
-		"# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n"+
-			"| Title | Widgets |\n| Enrolment | enrolled |\n"+
-			"| Enrolment reason | the fixture RFC, gated so the render has a population |\n"+
-			"| Implementation | ze |\n"+
-			"| Implementation reason | the fixture RFC's own Go answers it (internal/widget) |\n"+
-			"| Support | bgp-base 10 |\n| Support area | Widgets |\n"+
-			"| Support status | Partial |\n| Support coverage | unit tests |\n"+
-			"| Support remaining | Zero MUST gaps. |\n\n"+
-			"## Compliance Checklist\n\n"+
-			"- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2)\n")
+	for rel, body := range rfc.FixtureFiles() {
+		writeHookFixture(t, root, rel, body)
+	}
 }
 
 // TestSessionStartLeavesAPresentArtifactAlone bounds what this hook does.

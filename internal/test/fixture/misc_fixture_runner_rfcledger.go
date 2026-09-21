@@ -30,37 +30,27 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/ze-software/ze/internal/le/rfc"
 )
 
 // The scratch corpus: one enrolled summary gating one MUST, the RFC text the
 // extraction walk reads, and the two manifests the tag scanner needs.
 const (
-	rfcLedgerSummaryRel = "rfc/short/rfc9999.md"
-	rfcLedgerIndexRel   = "ai/RFC-REQUIREMENTS.md"
-	rfcLedgerShardRel   = "rfc/requirements/rfc9999.md"
-	rfcLedgerTestRel    = "test/runner/widget-is-sent.ci"
+	rfcLedgerIndexRel = "ai/RFC-REQUIREMENTS.md"
+	rfcLedgerShardRel = "rfc/requirements/" + rfc.FixtureStem + ".md"
+	rfcLedgerTestRel  = "test/runner/widget-is-sent.ci"
 
 	// The one MUST the summary declares. Every step of the loop names it: the
 	// gate reports it untested, the shard carries a row for it, and the tag the
 	// write adds binds it to a test.
-	rfcLedgerRequirement = "RFC9999-2-1"
+	rfcLedgerRequirement = rfc.FixtureRequirement
 
 	// The tagged test, in the shape the header explains: a .ci carrier, whose
 	// tag binds the fixture RFC's one MUST to this scenario file.
 	rfcLedgerTest = "# A speaker sends the widget.\n#\n" +
 		"# RFC requirement: RFC9999-2-1 positive - the speaker sends the widget.\n\n" +
 		"cmd=foreground:seq=1:exec=true\nexpect=exit:code=0\n"
-
-	rfcLedgerSummary = "# RFC 9999\n\n## Meta\n\n| Field | Value |\n|-------|-------|\n" +
-		"| Title | Widgets |\n| Enrolment | enrolled |\n" +
-		"| Enrolment reason | the fixture RFC, gated so the gate has a population |\n" +
-		"| Implementation | ze |\n" +
-		"| Implementation reason | the fixture RFC's own Go answers it (internal/widget) |\n" +
-		"| Support | bgp-base 10 |\n| Support area | Widgets |\n" +
-		"| Support status | Partial |\n| Support coverage | unit tests |\n" +
-		"| Support remaining | Zero MUST gaps. |\n\n" +
-		"## Compliance Checklist\n\n" +
-		"- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2)\n"
 )
 
 // leRFCLedgerIsDerivedDriver walks the loop of user story 1: the gate answers
@@ -79,17 +69,19 @@ func leRFCLedgerIsDerivedDriver(ctx context.Context, args []string) error {
 	}
 	defer os.RemoveAll(repo) //nolint:errcheck // fixture cleanup
 
-	if err := gitFixture(ctx, repo, map[string]string{
-		fileGoMod:                       "module fixture/rfcledger\n\ngo 1.24\n",
-		fileFeatureGates:                contentFeatureGate,
-		fileGitIgnore:                   contentGitIgnoreTmp,
-		"ai/.keep":                      "",
-		"docs/features/.keep":           "",
-		rfcLedgerSummaryRel:             rfcLedgerSummary,
-		"rfc/full/rfc9999.txt":          "A speaker MUST send the widget.\n",
-		"rfc/drain-budget.txt":          "start 2026-07-29\nrate 0\n",
-		".github/workflows/nightly.yml": "on:\n  schedule:\n    - cron: '0 3 * * *'\n",
-	}); err != nil {
+	// The summary and its companions come from rfc.FixtureFiles, so a change to
+	// what a Meta table MUST declare reaches this driver with the two le
+	// packages that drive the same corpus. Each of the three spelled it until
+	// 2026-09-21, when `Implementation` became required and all three broke on
+	// one sentence.
+	files := rfc.FixtureFiles()
+	files[fileGoMod] = "module fixture/rfcledger\n\ngo 1.24\n"
+	files[fileFeatureGates] = contentFeatureGate
+	files[fileGitIgnore] = contentGitIgnoreTmp
+	files["ai/.keep"] = ""
+	files["docs/features/.keep"] = ""
+
+	if err := gitFixture(ctx, repo, files); err != nil {
 		return err
 	}
 	for _, rel := range rfcLedgerGeneratedPaths() {
