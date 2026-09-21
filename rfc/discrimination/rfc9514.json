@@ -1,0 +1,115 @@
+{
+  "rfc": "rfc9514",
+  "records": [
+    {
+      "rid": "RFC9514-4.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored",
+      "unit-sha": "63ba14ae86973880",
+      "claim-sha": "85eba67e0c4bac74",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeSRv6EndXSID",
+      "producer-sha": "ffe4c5af42cbd73a",
+      "break": "body of decodeSRv6EndXSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-4.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored",
+      "unit-sha": "63ba14ae86973880",
+      "claim-sha": "37affc572f16c75f",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeSRv6EndXSID",
+      "producer-sha": "ffe4c5af42cbd73a",
+      "break": "body of decodeSRv6EndXSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-4.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored",
+      "unit-sha": "63ba14ae86973880",
+      "claim-sha": "5e92b99ec5b898f8",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeSRv6EndXSID",
+      "producer-sha": "ffe4c5af42cbd73a",
+      "break": "body of decodeSRv6EndXSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-4.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored",
+      "unit-sha": "63ba14ae86973880",
+      "claim-sha": "1e2ec27f1c5a42fe",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeSRv6EndXSID",
+      "producer-sha": "ffe4c5af42cbd73a",
+      "break": "body of decodeSRv6EndXSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-7.1-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored",
+      "unit-sha": "c042f143ea2963ef",
+      "claim-sha": "b20640b2e403d7c1",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6EndpointBehavior",
+      "producer-sha": "0d14211a8d16a13c",
+      "break": "body of decodeSRv6EndpointBehavior replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-7.1-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndpointBehaviorUndefinedFlagsIgnored",
+      "unit-sha": "c042f143ea2963ef",
+      "claim-sha": "d41c5a65a0bcb804",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6EndpointBehavior",
+      "producer-sha": "0d14211a8d16a13c",
+      "break": "body of decodeSRv6EndpointBehavior replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-7.2-5",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored",
+      "unit-sha": "25e53b3d63d07742",
+      "claim-sha": "5782b444bea5510f",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID",
+      "producer-sha": "296e44fc05cb6768",
+      "break": "body of decodeSRv6BGPPeerNodeSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-7.2-5",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored",
+      "unit-sha": "25e53b3d63d07742",
+      "claim-sha": "6a9fe8121f338e2a",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID",
+      "producer-sha": "296e44fc05cb6768",
+      "break": "body of decodeSRv6BGPPeerNodeSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-7.2-6",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored",
+      "unit-sha": "25e53b3d63d07742",
+      "claim-sha": "2646cc7faacd5585",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID",
+      "producer-sha": "296e44fc05cb6768",
+      "break": "body of decodeSRv6BGPPeerNodeSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9514-7.2-6",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514PeerNodeSIDReservedIgnored",
+      "unit-sha": "25e53b3d63d07742",
+      "claim-sha": "8bcbe35b7c430b19",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/attr_srv6.go::decodeSRv6BGPPeerNodeSID",
+      "producer-sha": "296e44fc05cb6768",
+      "break": "body of decodeSRv6BGPPeerNodeSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
