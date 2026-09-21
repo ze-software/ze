@@ -42,7 +42,7 @@ func TestSessionIDAllocSequential(t *testing.T) {
 
 func TestSessionIDExhausted(t *testing.T) {
 	st := newSessionTable("eth0", 0)
-	for range maxSID {
+	for range usableSIDs {
 		sid, err := st.AllocSID()
 		if err != nil {
 			t.Fatalf("AllocSID at count %d: %v", len(st.sessions), err)

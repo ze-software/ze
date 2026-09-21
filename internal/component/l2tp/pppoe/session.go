@@ -2,8 +2,9 @@
 // Related: server.go -- InterfaceServer uses SessionTable for session lifecycle
 // RFC: rfc/short/rfc2516.md -- session ID scope, per-peer session count
 //
-// RFC 2516 Section 4: session ID 0 is reserved (used in discovery);
-// valid session IDs are 1-65535, scoped per access interface.
+// RFC 2516 Section 4: session ID 0 is reserved (used in discovery) and
+// "A value of 0xffff is reserved for future use and MUST NOT be used";
+// valid session IDs are 1-65534, scoped per access interface.
 
 package pppoe
 
@@ -33,8 +34,17 @@ const (
 
 const maxSID = 65535
 
+// RFC 2516 Section 4: "A value of 0xffff is reserved for future use and
+// MUST NOT be used". The bit stays allocated for the table's lifetime,
+// like SID 0, so AllocSID can never hand it out and freeSID never
+// reopens it.
+const reservedSID = 0xffff
+
+// usableSIDs is how many session IDs one table can hand out: 1 to 0xfffe.
+const usableSIDs = maxSID - 1
+
 // bitmapWords is the number of uint64 words needed to cover SIDs 0-65535.
-// SID 0 is permanently marked as allocated (reserved).
+// SID 0 and SID 0xffff are permanently marked as allocated (reserved).
 const bitmapWords = (maxSID + 1) / 64
 
 type Session struct {
@@ -61,7 +71,7 @@ type Session struct {
 
 // SessionTable manages PPPoE sessions for a single access interface.
 // Each interface gets its own table with an independent SID space
-// (full 1-65535 range), unlike accel-ppp's global bitmap.
+// (full 1-65534 range), unlike accel-ppp's global bitmap.
 type SessionTable struct {
 	mu       sync.Mutex
 	bitmap   [bitmapWords]uint64
@@ -79,8 +89,8 @@ type SessionTable struct {
 }
 
 func newSessionTable(ifName string, maxSessions int) *SessionTable {
-	if maxSessions <= 0 || maxSessions > maxSID {
-		maxSessions = maxSID
+	if maxSessions <= 0 || maxSessions > usableSIDs {
+		maxSessions = usableSIDs
 	}
 	st := &SessionTable{
 		sessions:    make(map[uint16]*Session),
@@ -92,8 +102,10 @@ func newSessionTable(ifName string, maxSessions int) *SessionTable {
 	for i := range st.bitmap {
 		st.bitmap[i] = ^uint64(0)
 	}
-	// SID 0 is reserved: clear bit 0 in word 0.
+	// SID 0 is reserved: clear bit 0 in word 0. SID 0xffff is reserved by
+	// RFC 2516 Section 4 (see reservedSID): clear its bit in the last word.
 	st.bitmap[0] &^= 1
+	st.bitmap[reservedSID/64] &^= 1 << (reservedSID % 64)
 	return st
 }
 
@@ -132,7 +144,7 @@ func (st *SessionTable) freeSID(sid uint16) {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
-	if sid == 0 {
+	if sid == 0 || sid == reservedSID {
 		return
 	}
 	word := int(sid) / 64

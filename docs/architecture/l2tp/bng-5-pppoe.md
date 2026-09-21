@@ -28,8 +28,9 @@ interface, and dispatch is by the interface index from the receive call. This
 matches the accel-ppp design.
 
 **Session state is per interface.** Each interface holds its own session table
-with an independent session id space over the full range 1 to 65535. There is no
-global lock to contend on.
+with an independent session id space over the range 1 to 65534: 0 is the
+discovery value and 0xffff is the value RFC 2516 Section 4 reserves and forbids.
+There is no global lock to contend on.
 
 **One subscriber MAC address can hold several sessions.** RFC 2516 places no
 per-peer session limit, so the session table's MAC index is a set of sessions
