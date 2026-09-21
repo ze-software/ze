@@ -19,12 +19,20 @@ func TestASMetadataURL(t *testing.T) {
 		{"https://as.example", "https://as.example/.well-known/oauth-authorization-server"},
 		{"https://as.example/", "https://as.example/.well-known/oauth-authorization-server"},
 		{"https://as.example//", "https://as.example/.well-known/oauth-authorization-server"},
-		{"https://as.example/realm/x", "https://as.example/realm/x/.well-known/oauth-authorization-server"},
+		{"https://as.example/realm/x", "https://as.example/.well-known/oauth-authorization-server/realm/x"},
+		{"https://as.example/realm/x/", "https://as.example/.well-known/oauth-authorization-server/realm/x"},
 	}
 	for _, tc := range cases {
-		if got := asMetadataURL(tc.in); got != tc.want {
+		got, err := asMetadataURL(tc.in)
+		if err != nil {
+			t.Fatalf("asMetadataURL(%q): %v", tc.in, err)
+		}
+		if got != tc.want {
 			t.Fatalf("asMetadataURL(%q) = %q, want %q", tc.in, got, tc.want)
 		}
+	}
+	if _, err := asMetadataURL("as.example/realm"); err == nil {
+		t.Fatal("asMetadataURL accepted an issuer with no scheme")
 	}
 }
 

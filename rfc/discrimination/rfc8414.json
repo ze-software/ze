@@ -1,0 +1,159 @@
+{
+  "rfc": "rfc8414",
+  "records": [
+    {
+      "rid": "RFC8414-3.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequestIsGETAtWellKnownPath",
+      "unit-sha": "b9869e601a28f369",
+      "claim-sha": "a23bc57c79631d5a",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+      "producer-sha": "c75b7d1e4fe09ad5",
+      "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-3.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequestUsesNoOtherVerbOrPath",
+      "unit-sha": "14112e180567b5d3",
+      "claim-sha": "1188b2f34bfc2c56",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+      "producer-sha": "c75b7d1e4fe09ad5",
+      "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-3.1-2",
+      "polarity": "positive",
+      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataPathInsertedBeforeIssuerPath",
+      "unit-sha": "dae85a541c453b07",
+      "claim-sha": "d9e676f4b756b819",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::asMetadataURL",
+      "producer-sha": "f6829b7147a4eac2",
+      "break": "body of asMetadataURL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-3.1-2",
+      "polarity": "negative",
+      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataPathNeverAppendedToIssuerPath",
+      "unit-sha": "746b10e388fe2240",
+      "claim-sha": "32228272d2c70ec2",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::asMetadataURL",
+      "producer-sha": "f6829b7147a4eac2",
+      "break": "body of asMetadataURL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-4-1",
+      "polarity": "negative",
+      "unit": "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNotOnJSONText",
+      "unit-sha": "6a2052a2332d27ba",
+      "claim-sha": "90d00c2cc50ae8cc",
+      "route": "revert",
+      "producer": "internal/component/mcp/jwt.go::verifyJWT",
+      "producer-sha": "ac03548433568493",
+      "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareUnescapesJSON",
+      "unit-sha": "55764be1096c0157",
+      "claim-sha": "ab4c2dfa4f2d295c",
+      "route": "revert",
+      "producer": "internal/component/mcp/jwt.go::verifyJWT",
+      "producer-sha": "ac03548433568493",
+      "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-4-2",
+      "polarity": "positive",
+      "unit": "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNoNormalizationAccepts",
+      "unit-sha": "3d945b7204a1e5f9",
+      "claim-sha": "c5d17820e0f43e0e",
+      "route": "revert",
+      "producer": "internal/component/mcp/jwt.go::verifyJWT",
+      "producer-sha": "ac03548433568493",
+      "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-4-2",
+      "polarity": "negative",
+      "unit": "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareNoNormalizationRejects",
+      "unit-sha": "512be6a1e81724cc",
+      "claim-sha": "74b8e241a3d6abf8",
+      "route": "revert",
+      "producer": "internal/component/mcp/jwt.go::verifyJWT",
+      "producer-sha": "ac03548433568493",
+      "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-4-3",
+      "polarity": "negative",
+      "unit": "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareCodePointsDiffer",
+      "unit-sha": "9083b6b841cd7ccf",
+      "claim-sha": "57cf1617048c3ccd",
+      "route": "revert",
+      "producer": "internal/component/mcp/jwt.go::verifyJWT",
+      "producer-sha": "ac03548433568493",
+      "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-4-3",
+      "polarity": "positive",
+      "unit": "internal/component/mcp/jwt_rfc8414_test.go::TestRFC8414IssuerCompareCodePointsEqual",
+      "unit-sha": "3e0e9f91850880cf",
+      "claim-sha": "dedbf78ab7555494",
+      "route": "revert",
+      "producer": "internal/component/mcp/jwt.go::verifyJWT",
+      "producer-sha": "ac03548433568493",
+      "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-6.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchNeverDowngradesToCleartext",
+      "unit-sha": "960d3118dd929feb",
+      "claim-sha": "8cbd927bb0986cfe",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+      "producer-sha": "c75b7d1e4fe09ad5",
+      "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-6.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchOverTLS",
+      "unit-sha": "625f5762f3d5b2a8",
+      "claim-sha": "80b57c5c1c126cf9",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+      "producer-sha": "c75b7d1e4fe09ad5",
+      "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-6.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchAcceptsTrustedCertificate",
+      "unit-sha": "3e2714233bd6000c",
+      "claim-sha": "1df351d79aa5ccc8",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+      "producer-sha": "c75b7d1e4fe09ad5",
+      "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8414-6.1-3",
+      "polarity": "negative",
+      "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataFetchRefusesUntrustedCertificate",
+      "unit-sha": "dafff0448941f301",
+      "claim-sha": "ebb2210c9db11837",
+      "route": "revert",
+      "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
+      "producer-sha": "c75b7d1e4fe09ad5",
+      "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

@@ -9,10 +9,13 @@
 // token_endpoint, scopes_supported).
 //
 // The well-known path is `/.well-known/oauth-authorization-server` per RFC
-// 8414 Section 3. Some deployments still use OIDC's older
-// `/.well-known/openid-configuration` path; that variant is NOT queried
-// here -- if the operator's AS is OIDC-only they configure its concrete
-// metadata URL.
+// 8414 Section 3, inserted between the host and the path of the issuer
+// identifier (RFC 8414 Section 3.1), so `https://as/realm/x` is queried at
+// `https://as/.well-known/oauth-authorization-server/realm/x`. Some
+// deployments still use OIDC's older `/.well-known/openid-configuration`
+// path, which OpenID Connect Discovery APPENDS to the issuer; that variant
+// is NOT queried here -- if the operator's AS is OIDC-only they configure
+// its concrete metadata URL.
 //
 // Decoded via map[string]any to avoid struct tags with snake_case keys
 // (ze's kebab-case rule exempts external specs but the linter hook does
@@ -27,6 +30,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 )
@@ -56,7 +60,10 @@ func fetchASMetadata(ctx context.Context, client *http.Client, baseURL string) (
 	if client == nil {
 		client = &http.Client{Timeout: defaultASMetadataTimeout}
 	}
-	metadataURL := asMetadataURL(baseURL)
+	metadataURL, err := asMetadataURL(baseURL)
+	if err != nil {
+		return asMetadata{}, err
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, metadataURL, http.NoBody)
 	if err != nil {
 		return asMetadata{}, fmt.Errorf("as-metadata: build request: %w", err)
@@ -94,10 +101,33 @@ func fetchASMetadata(ctx context.Context, client *http.Client, baseURL string) (
 	return md, nil
 }
 
-// asMetadataURL appends the RFC 8414 well-known path to the given base URL,
-// collapsing any trailing slash so double-slash doesn't appear.
-func asMetadataURL(baseURL string) string {
-	return strings.TrimRight(baseURL, "/") + asMetadataWellKnownPath
+// asMetadataURL builds the RFC 8414 metadata URL for an issuer identifier.
+//
+// RFC 8414 Section 3: the document lives "at a path formed by inserting a
+// well-known URI string into the authorization server's issuer identifier
+// between the host component and the path component, if any."
+// RFC 8414 Section 3.1: "If the issuer identifier value contains a path
+// component, any terminating "/" MUST be removed before inserting
+// "/.well-known/" and the well-known URI suffix between the host component
+// and the path component."
+//
+// So `https://as.example/` maps to
+// `https://as.example/.well-known/oauth-authorization-server` and
+// `https://as.example/realm/x/` maps to
+// `https://as.example/.well-known/oauth-authorization-server/realm/x`.
+// An issuer with no scheme or no host is refused rather than turned into a
+// relative URL the HTTP client would reject later with a less useful error.
+func asMetadataURL(issuer string) (string, error) {
+	u, err := url.Parse(issuer)
+	if err != nil {
+		return "", fmt.Errorf("as-metadata: issuer %q: %w", issuer, err)
+	}
+	if u.Scheme == "" || u.Host == "" {
+		return "", fmt.Errorf("as-metadata: issuer %q: must carry a scheme and a host", issuer)
+	}
+	u.Path = asMetadataWellKnownPath + strings.TrimRight(u.Path, "/")
+	u.RawPath = ""
+	return u.String(), nil
 }
 
 // stringField returns the string value for key in m, or "" if the key is
