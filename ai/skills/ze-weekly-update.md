@@ -113,7 +113,7 @@ Read the counts live. Never copy them from a commit message or a previous post.
 |------|--------|
 | Total requirements, MUST-level, how many are checked | the header of `ai/RFC-REQUIREMENTS.md` |
 | MUSTs still owing a test | the "Coverage by RFC" line in the same file |
-| Documents read end to end against their own text, and those not | `./le rfc extraction-status` |
+| Documents whose requirement list has been checked against the RFC, and those not | `./le rfc extraction-status` |
 
 State the limit honestly: a green run proves everything on the list, and does
 not yet prove the list is complete. That is why the end-to-end reading is on

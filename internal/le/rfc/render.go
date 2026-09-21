@@ -444,7 +444,7 @@ func shardRow(row RequirementRow) string {
 }
 
 // extractionBoundSentence states what bounds the counts beside it: how many of
-// the gated documents have been read against their own text.
+// the gated documents have had their requirement list checked against the RFC.
 //
 // DERIVED from the artifacts on disk, never asserted. A summary with no
 // sign-off has had its requirement list compared to the tests and to nothing
@@ -468,16 +468,16 @@ func extractionBoundSentence(in RenderInput) string {
 	}
 	if walked == enrolled {
 		return tb.Str("Every one of the ").Int(int64(enrolled)).
-			Str(" gated documents has been read against its own text, so the counts above are ").
-			Str("bounded by what each RFC states rather than by what a summary happens to list.").String()
+			Str(" gated documents has had its requirement list checked against the RFC itself, ").
+			Str("so the counts above cannot be missing an obligation an RFC states.").String()
 	}
 	return tb.Str("READ THIS BEFORE QUOTING THE FIGURES ABOVE: only ").Int(int64(walked)).
 		Str(" of the ").Int(int64(enrolled)).
-		Str(" gated documents have been read against their own text. For the other ").
-		Int(int64(enrolled - walked)).
-		Str(", nothing has ever compared the requirement list to the RFC, so an obligation the ").
-		Str("document states and the list omits is counted nowhere and the figures above ").
-		Str("measure the list rather than the software.").String()
+		Str(" gated documents have had their requirement list checked against the RFC ").
+		Str("itself. For the other ").Int(int64(enrolled - walked)).
+		Str(", nothing has confirmed the list is right, so a requirement an RFC states and ").
+		Str("the list leaves out is counted nowhere and the figures above count the list ").
+		Str("rather than the standard.").String()
 }
 
 // correctionExtractionRel answers where one stem's sign-off lives.
@@ -529,11 +529,11 @@ func RenderIndex(in RenderInput) (string, error) {
 	// and none of them reads the RFC, so a figure taken over unwalked summaries
 	// measures the list rather than the software. On 2026-09-21 that figure was
 	// published as a conformance measure while 125 of 184 documents had never
-	// been read against their own text, and the walks that followed found 882
-	// MUST-level obligations the RFCs state and no summary carried. The caveat
-	// existed, three paragraphs below, and it did not stop the number being
-	// quoted alone. So the bound now travels inside the sentence a reader
-	// copies (ai/rules/rfc-compliance.md).
+	// had their requirement list checked against the RFC, and the walks that
+	// followed found 882 MUST-level obligations the RFCs state and no summary
+	// carried. The caveat existed, three paragraphs below, and it did not stop
+	// the number being quoted alone. So the bound now travels inside the
+	// sentence a reader copies (ai/rules/rfc-compliance.md).
 	var counts textbuf.Buffer
 	out = append(out, counts.Int(int64(len(in.Requirements))).Str(" requirements across ").
 		Int(int64(len(byRFC))).Str(" summaries. ").Int(int64(total)).

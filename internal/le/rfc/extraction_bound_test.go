@@ -1,5 +1,5 @@
 // VALIDATES: the ledger's headline counts carry, in the same sentence, how many
-// gated documents have been read against their own text.
+// requirement lists have been checked against the RFC they claim to summarize.
 // PREVENTS: the failure of 2026-09-21. The weekly update published "3,322
 // checked, 228 owing" as a conformance measure while 125 of 184 documents had
 // never been compared to their RFC. The walks that followed found 882
@@ -48,7 +48,7 @@ func TestTheHeadlineCountsCarryTheirOwnBound(t *testing.T) {
 		if !strings.Contains(got, "Every one of the 4 gated documents") {
 			t.Fatalf("a fully walked corpus says: %q", got)
 		}
-		if strings.Contains(got, "measure the list") {
+		if strings.Contains(got, "count the list") {
 			t.Errorf("a fully walked corpus warns anyway: %q", got)
 		}
 	})
@@ -58,7 +58,7 @@ func TestTheHeadlineCountsCarryTheirOwnBound(t *testing.T) {
 		for _, want := range []string{
 			"READ THIS BEFORE QUOTING THE FIGURES ABOVE",
 			"only 1 of the 4 gated documents",
-			"measure the list rather than the software",
+			"count the list rather than the standard",
 		} {
 			if !strings.Contains(got, want) {
 				t.Errorf("the bound does not say %q:\n%s", want, got)

@@ -163,6 +163,15 @@ type factsRFC struct {
 	RequirementsDisplay     string `json:"requirements_display"`
 	Summaries               int    `json:"summaries"`
 	SummariesDisplay        string `json:"summaries_display"`
+	// Walked is how many gated documents have had their requirement list checked
+	// against the RFC itself,
+	// which is what bounds every other figure here. Until 2026-09-21 the
+	// homepage published Inspected beside them, under the word "extracted",
+	// and a reader took it for the number that had been checked: 172 had a
+	// requirement list, 59 had ever been compared to their RFC
+	// (ai/rules/rfc-compliance.md).
+	Walked        int    `json:"walked"`
+	WalkedDisplay string `json:"walked_display"`
 }
 
 // factsTests counts the four test populations the homepage proof strip shows.
@@ -412,6 +421,11 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	facts.RFC.Requirements = len(collected.Requirements)
 	facts.RFC.Summaries = len(summaries)
 	facts.RFC.Enrolled = len(collected.Enrolled)
+	for stem := range collected.Enrolled {
+		if _, err := os.Stat(filepath.Join(repository, "rfc", "extraction", stem+".json")); err == nil {
+			facts.RFC.Walked++
+		}
+	}
 	facts.RFC.GatedMust = share.GatedInspected
 	facts.RFC.Inspected = share.Inspected
 	facts.RFC.Implemented = share.RFCs
@@ -424,6 +438,7 @@ func factsFromRFCLedger(repository string, facts *siteFacts) error {
 	facts.RFC.GatedMustDisplay = groupThousands(facts.RFC.GatedMust)
 	facts.RFC.ImplementedDisplay = groupThousands(facts.RFC.Implemented)
 	facts.RFC.InspectedDisplay = groupThousands(facts.RFC.Inspected)
+	facts.RFC.WalkedDisplay = groupThousands(facts.RFC.Walked)
 	facts.RFC.MustDisplay = groupThousands(facts.RFC.Must)
 	facts.RFC.ProvenDisplay = groupThousands(facts.RFC.Proven)
 	facts.RFC.RequirementsDisplay = groupThousands(facts.RFC.Requirements)

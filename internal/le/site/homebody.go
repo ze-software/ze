@@ -171,7 +171,7 @@ const homeTemplate = `            <section class="hero" aria-labelledby="hero-ti
                         <ul>
                             <li>{rfc_proven_percent}% tested</li>
                             <li>{rfc_implemented} RFCs Ze claims support for</li>
-                            <li>{rfc_inspected} RFCs with requirements extracted</li>
+                            <li>{rfc_walked} requirement lists checked against the RFC</li>
                         </ul>
                         <span class="proof-check">RFC requirement ledger.</span>
                     </a>
