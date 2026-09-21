@@ -51,19 +51,16 @@ func leSpecStatusAnswers(ctx context.Context) error {
 	// Read each rendering twice. Besides requiring deterministic bytes, this
 	// distinguishes an unstable checkout from a disagreement between answer
 	// renderings without consulting any retired implementation.
-	page1, err := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec status")
-	if err != nil {
-		return err
-	}
-	json1, err := uiLeSpecStatusAnswersRunCommand(ctx, root, os.Environ(), binary, "spec status", "|", "json")
-	if err != nil {
-		return err
-	}
-	page2, err := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec status")
-	if err != nil {
-		return err
-	}
-	json2, err := uiLeSpecStatusAnswersRunCommand(ctx, root, os.Environ(), binary, "spec status", "|", "json")
+	//
+	// It now ACTS on that distinction, which it did not until 2026-09-21. This
+	// checkout is shared and several sessions edit it at once, so a spec file
+	// written between the two readings moves a count: measured that day, the
+	// first read 340 specs and the second 341 because another session created
+	// one in between, and the case reported that as two renderings disagreeing.
+	// A tree that will not hold still makes the experiment invalid, which is not
+	// the same as the property being false, so the readings are retaken and the
+	// difference is named for what it is.
+	page1, json1, json2, err := specStatusOverAStillTree(ctx, root, here, binary)
 	if err != nil {
 		return err
 	}
@@ -73,9 +70,6 @@ func leSpecStatusAnswers(ctx context.Context) error {
 	}
 	if len(page1.stderr) != 0 {
 		return uiLeSpecStatusAnswersFailf("le spec status wrote warnings: %q", page1.stderr)
-	}
-	if page2.code != page1.code || !bytes.Equal(page2.stderr, page1.stderr) || !bytes.Equal(page2.stdout, page1.stdout) {
-		return uiLeSpecStatusAnswersFailf("two le spec status answers disagree:\n%s", lineDifference(page1.stdout, page2.stdout, 2000))
 	}
 	if bytes.Count(page1.stdout, []byte{'\n'}) <= 100 {
 		return uiLeSpecStatusAnswersFailf("the comparison ran over %d lines, which is too few to mean anything", bytes.Count(page1.stdout, []byte{'\n'}))
@@ -348,4 +342,56 @@ func lineDifference(a, b []byte, limit int) string {
 
 func uiLeSpecStatusAnswersFailf(format string, args ...any) error {
 	return fmt.Errorf("FAIL: "+format, args...)
+}
+
+// specStatusSettleAttempts bounds how many times the four readings are retaken
+// when the checkout moved between them.
+const specStatusSettleAttempts = 3
+
+// specStatusOverAStillTree answers the page and the two structured readings
+// `le spec status` writes, taken over a tree that did not change between the
+// two page readings.
+//
+// The second structured reading is returned with them, because the case
+// compares the two against each other and against the page.
+//
+// This checkout is shared: a spec file written between two readings moves a
+// count, and the case then reports two renderings disagreeing when what
+// disagreed was the tree. Retaking is not retry-until-green -- the comparisons
+// the caller makes are unchanged, and a tree that will not settle is named as
+// that, which is a different statement from the property being false.
+func specStatusOverAStillTree(ctx context.Context, root, here, binary string) (
+	page, structured, structuredAgain uiLeSpecStatusAnswersCommandAnswer, err error,
+) {
+	var lastFirst, lastSecond uiLeSpecStatusAnswersCommandAnswer
+	for attempt := range specStatusSettleAttempts {
+		page1, runErr := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec status")
+		if runErr != nil {
+			return page, structured, structuredAgain, runErr
+		}
+		json1, runErr := uiLeSpecStatusAnswersRunCommand(ctx, root, os.Environ(), binary, "spec status", "|", "json")
+		if runErr != nil {
+			return page, structured, structuredAgain, runErr
+		}
+		page2, runErr := uiLeSpecStatusAnswersRunCommand(ctx, here, os.Environ(), binary, "spec status")
+		if runErr != nil {
+			return page, structured, structuredAgain, runErr
+		}
+		json2, runErr := uiLeSpecStatusAnswersRunCommand(ctx, root, os.Environ(), binary, "spec status", "|", "json")
+		if runErr != nil {
+			return page, structured, structuredAgain, runErr
+		}
+
+		lastFirst, lastSecond = page1, page2
+		if page2.code == page1.code &&
+			bytes.Equal(page2.stderr, page1.stderr) && bytes.Equal(page2.stdout, page1.stdout) {
+			return page1, json1, json2, nil
+		}
+		fmt.Fprintf(os.Stderr, "the checkout moved during reading %d of %d; retaking\n",
+			attempt+1, specStatusSettleAttempts)
+	}
+
+	return page, structured, structuredAgain, uiLeSpecStatusAnswersFailf(
+		"the checkout would not hold still across %d readings, so the renderings could not be compared:\n%s",
+		specStatusSettleAttempts, lineDifference(lastFirst.stdout, lastSecond.stdout, 2000))
 }

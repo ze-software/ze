@@ -45,40 +45,13 @@ func runLEInventoryAnswers(ctx context.Context) error {
 
 	// The inventory is rooted in the checkout and must not depend on the
 	// caller's working directory. Its timestamp is the sole variable field.
-	inventoryAtRoot, err := executeClean(ctx, root, binary, "inventory")
+	rootPage, fixturePage, err := inventoryOverAStillTree(ctx, root, here, binary)
 	if err != nil {
 		return err
 	}
-	inventoryAtFixture, err := executeClean(ctx, here, binary, "inventory")
-	if err != nil {
-		return err
-	}
-	if inventoryAtRoot.code != inventoryAtFixture.code {
-		return fmt.Errorf("FAIL: inventory exited %d in the checkout and %d in the fixture directory", inventoryAtRoot.code, inventoryAtFixture.code)
-	}
-	if inventoryAtRoot.code != 0 {
-		return fmt.Errorf("FAIL: inventory exited %d", inventoryAtRoot.code)
-	}
-
-	rootPage := generatedLine.ReplaceAllString(inventoryAtRoot.stdout, "Generated: <when>")
-	fixturePage := generatedLine.ReplaceAllString(inventoryAtFixture.stdout, "Generated: <when>")
 	if rootPage != fixturePage {
-		left := strings.Split(rootPage, "\n")
-		right := strings.Split(fixturePage, "\n")
-		for i := range maxInt(len(left), len(right)) {
-			a := "<end>"
-			b := "<end>"
-			if i < len(left) {
-				a = left[i]
-			}
-			if i < len(right) {
-				b = right[i]
-			}
-			if a != b {
-				return fmt.Errorf("FAIL: inventory pages differ at line %d:\n  checkout: %s\n  fixture:  %s", i+1, a, b)
-			}
-		}
-		return errors.New("FAIL: inventory pages differ")
+		return fmt.Errorf("FAIL: inventory pages differ, so the answer depends on the working directory: %s",
+			firstDifference(rootPage, fixturePage))
 	}
 	if lines := len(strings.Split(rootPage, "\n")); lines <= 100 {
 		return fmt.Errorf("FAIL: the inventory check ran over %d lines, which is too few to mean anything", lines)
@@ -241,4 +214,88 @@ func maxInt(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// inventoryTreeSettleAttempts bounds how many times the pair of readings is
+// retaken when the checkout moved between them.
+const inventoryTreeSettleAttempts = 3
+
+// inventoryOverAStillTree answers the page `le inventory` writes from the
+// checkout root and from a directory outside it, taken over a tree that did not
+// change between the two.
+//
+// The claim under test is that the answer does not depend on the caller's
+// working directory. It is a claim about ONE tree, and this checkout is shared:
+// several sessions edit it at once, so a Go file written between the two
+// readings moves a count and the comparison then reports a difference the
+// working directory did not cause. Measured on 2026-09-21, that is exactly what
+// it did -- `Go lines` read 2241652 and then 2241655, and the sibling
+// le-spec-status-answers read 340 specs and then 341 because another session
+// wrote a spec file in between.
+//
+// So the root reading is taken TWICE, either side of the fixture one, and the
+// comparison happens only when those two agree. A tree that will not hold still
+// is reported as that rather than as a failure of the contract: the experiment
+// was invalid, and saying so is not the same as saying the property is false.
+func inventoryOverAStillTree(ctx context.Context, root, here, binary string) (string, string, error) {
+	var lastBefore, lastAfter string
+	for attempt := range inventoryTreeSettleAttempts {
+		before, err := executeClean(ctx, root, binary, "inventory")
+		if err != nil {
+			return "", "", err
+		}
+		fixture, err := executeClean(ctx, here, binary, "inventory")
+		if err != nil {
+			return "", "", err
+		}
+		after, err := executeClean(ctx, root, binary, "inventory")
+		if err != nil {
+			return "", "", err
+		}
+		if before.code != fixture.code {
+			return "", "", fmt.Errorf("FAIL: inventory exited %d in the checkout and %d in the fixture directory",
+				before.code, fixture.code)
+		}
+		if before.code != 0 {
+			return "", "", fmt.Errorf("FAIL: inventory exited %d", before.code)
+		}
+
+		lastBefore = generatedLine.ReplaceAllString(before.stdout, "Generated: <when>")
+		lastAfter = generatedLine.ReplaceAllString(after.stdout, "Generated: <when>")
+		if lastBefore == lastAfter {
+			return lastBefore, generatedLine.ReplaceAllString(fixture.stdout, "Generated: <when>"), nil
+		}
+		fmt.Fprintf(os.Stderr, "the checkout moved during reading %d of %d; retaking\n",
+			attempt+1, inventoryTreeSettleAttempts)
+	}
+
+	return "", "", fmt.Errorf(
+		"FAIL: the checkout would not hold still across %d readings, so working-directory independence was not testable: %s",
+		inventoryTreeSettleAttempts, firstDifference(lastBefore, lastAfter))
+}
+
+// pastTheEnd stands for a line one of two readings does not have, so a page that
+// merely grew reads as a difference at the first line the shorter one lacks.
+const pastTheEnd = "<end>"
+
+// firstDifference names the first line two pages disagree on, so the reader sees
+// WHAT differs rather than that something does. Both callers want that: one
+// compares two readings of one tree, the other two working directories.
+func firstDifference(left, right string) string {
+	a := strings.Split(left, "\n")
+	b := strings.Split(right, "\n")
+	for i := range maxInt(len(a), len(b)) {
+		first, second := pastTheEnd, pastTheEnd
+		if i < len(a) {
+			first = a[i]
+		}
+		if i < len(b) {
+			second = b[i]
+		}
+		if first != second {
+			return fmt.Sprintf("line %d reads %q and %q", i+1, first, second)
+		}
+	}
+
+	return "no line differs, so the two are equal"
 }
