@@ -286,14 +286,25 @@ form says the session carried no identifier for that route.
 ### Labeled Unicast (MPLS)
 
 ```json
-"nlri": [{"prefix": "10.0.0.0/24", "labels": [100, 200]}]
+"nlri": [{"prefix": "10.0.0.0/24", "labels": [[100, 1600], [200, 3201]]}]
 ```
+
+Each member of the stack is the PAIR the wire carries: the 20-bit label a reader
+matches on, and the three-octet stack entry it came from, which holds the traffic
+class and the bottom-of-stack bit. The entry is dropped when it is zero, the one
+case where it says nothing the label did not. Label 200 above is the bottom of
+the stack, so its entry is `200 << 4 | 1`.
+
+<!-- source: internal/component/bgp/plugins/nlri/labeled/json.go -- AppendJSON -->
+<!-- source: internal/component/bgp/plugins/nlri/labeled/encode.go -- labelPairs -->
 
 ### IPVPN (VPNv4/VPNv6)
 
 ```json
-"nlri": [{"prefix": "10.0.0.0/24", "rd": "0:65000:1", "labels": [100]}]
+"nlri": [{"prefix": "10.0.0.0/24", "rd": "0:65000:1", "labels": [[100, 1601]]}]
 ```
+
+<!-- source: internal/component/bgp/plugins/nlri/vpn/json.go -- AppendJSON -->
 
 ### EVPN Type 2 (MAC/IP)
 

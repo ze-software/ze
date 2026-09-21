@@ -4,7 +4,10 @@
 # Wire bytes breakdown:
 # 20 = prefix length 32 bits (24 label + 8 prefix)
 # 00 06 41 = label 100 (value << 4 | S-bit=1)
+# Each stack member is published as the pair [label, entry]: the 20-bit value
+# a reader matches on, and the 3-octet entry it came from, which carries the
+# traffic class and the bottom-of-stack bit. 0x000641 is 1601.
 # 0A = 10 (10.0.0.0/8)
 stdin=payload:hex=200006410A
 cmd=foreground:seq=1:exec=ze bgp decode --json --nlri ipv4/mpls-label -:stdin=payload
-expect=json:json={ "prefix": "10.0.0.0/8", "labels": [100] }
+expect=json:json={"labels":[[100,1601]],"prefix":"10.0.0.0/8"}

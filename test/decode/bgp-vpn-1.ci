@@ -3,9 +3,10 @@
 #
 # Wire bytes breakdown:
 # 70 = 112 bits total (24 label + 64 RD + 24 prefix)
-# 00 06 41 = MPLS label 100 with S-bit
+# 00 06 41 = MPLS label 100 with S-bit, published as the pair [label, entry]:
+#            the 20-bit value and the 3-octet stack entry it came from, 1601
 # 00 00 00 01 00 00 00 01 = RD type 0: ASN=1, value=1
 # 0a 00 00 = 10.0.0.0/24
 stdin=payload:hex=7000064100000001000000010a0000
 cmd=foreground:seq=1:exec=ze bgp decode --json --nlri ipv4/mpls-vpn -:stdin=payload
-expect=json:json={ "labels": [[100]], "prefix": "10.0.0.0/24", "rd": "0:1:1" }
+expect=json:json={"labels":[[100,1601]],"prefix":"10.0.0.0/24","rd":"0:1:1"}

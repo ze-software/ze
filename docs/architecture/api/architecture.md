@@ -1085,8 +1085,8 @@ peer 10.0.0.1 remote as 65001 received update 1 origin igp path 65001 next 10.0.
 | Family | Simple NLRI | Complex NLRI |
 |--------|-------------|--------------|
 | ipv4/unicast | `["10.0.0.0/24"]` | `[{"prefix": "10.0.0.0/24", "path-id": 1}]` (ADD-PATH) |
-| ipv4/labeled-unicast | - | `[{"prefix": "10.0.0.0/24", "labels": [100]}]` |
-| ipv4/mpls-vpn | - | `[{"prefix": "10.0.0.0/24", "rd": "2:65000:1", "labels": [100]}]` |
+| ipv4/labeled-unicast | - | `[{"prefix": "10.0.0.0/24", "labels": [[100, 1601]]}]` |
+| ipv4/mpls-vpn | - | `[{"prefix": "10.0.0.0/24", "rd": "2:65000:1", "labels": [[100, 1601]]}]` |
 | l2vpn/evpn | - | `[{"route-type": "mac-ip", "rd": "2:65000:1", "esi": "00:...", ...}]` |
 | ipv4/flowspec | - | String representation of FlowSpec rule |
 

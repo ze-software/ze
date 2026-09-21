@@ -1,8 +1,14 @@
 # plugin-mvpn-nlri - verify MVPN plugin NLRI decode
 # Tests MVPN Intra-AS I-PMSI A-D route (type 1) via plugin CLI
-# NLRI: route-type=1, RD type 0 (65001:100), originator 10.0.0.1
+# NLRI: route type 1, RD type 0 (65001:100), originator 10.0.0.1
+#
+# RFC 6514 Sections 4.1 to 4.4 define the four A-D route bodies, and ze keeps
+# them as octets rather than reading their fields, which is where ExaBGP's
+# GenericMVPN draws the same line. So the route publishes its code, a false
+# parsed flag, and the whole NLRI in hex for a reader to decode itself.
 
 cmd=foreground:seq=1:exec=ze plugin bgp-nlri-mvpn --nlri 010c0000fde9000000640a000001
 expect=exit:code=0
-expect=stdout:contains=route-type
-expect=stdout:contains=rd
+expect=stdout:contains="code": 1
+expect=stdout:contains="parsed": false
+expect=stdout:contains="raw": "010C0000FDE9000000640A000001"

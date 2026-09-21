@@ -1,5 +1,9 @@
 # bgp-mvpn-1 decoding test - MVPN IPv4 NLRI via ze bgp decode
-# Tests MVPN Intra-AS I-PMSI A-D route (type 1) with RD 0:65001:100
+# Tests MVPN Intra-AS I-PMSI A-D route (type 1) with RD 0:65001:100.
+# RFC 6514 Sections 4.1 to 4.4 define the four A-D route bodies, and ze keeps
+# them as octets rather than reading their fields, which is where ExaBGP's
+# GenericMVPN draws the same line. So the route is published as its code, a
+# false parsed flag, and the whole NLRI in hex for a reader to decode.
 #
 # Wire bytes breakdown:
 # 01 = route type 1 (Intra-AS I-PMSI A-D)
@@ -8,4 +12,4 @@
 # 0a 00 00 01 = originator 10.0.0.1
 stdin=payload:hex=010c0000fde9000000640a000001
 cmd=foreground:seq=1:exec=ze bgp decode --json --nlri ipv4/mvpn -:stdin=payload
-expect=json:json={ "route-type": 1, "rd": "0:65001:100" }
+expect=json:json={"code":1,"parsed":false,"raw":"010C0000FDE9000000640A000001"}

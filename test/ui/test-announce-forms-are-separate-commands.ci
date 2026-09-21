@@ -35,5 +35,5 @@ expect=stderr:contains=ze send bgp <selector> blackhole <prefix> [tag <key> <val
 cmd=foreground:seq=4:exec=ze send bgp flowspec help
 expect=exit:code=0
 expect=stderr:contains=ze send bgp <selector> flowspec [destination-ipv4 <prefix> ...]
-expect=stderr:contains=[tcp-flags <value> ...] (community <value>|rate-limit <bytes-per-second>|discard) [tag <key> <value>] [for <duration>]
+expect=stderr:contains=[tcp-flags <value> ...] [traffic-class <value> ...] (community <value>|rate-limit <bytes-per-second>|discard) [tag <key> <value>] [for <duration>]
 reject=stderr:pattern=flowspec <args>

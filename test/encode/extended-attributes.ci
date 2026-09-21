@@ -44,7 +44,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C0200000020400101
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","extended-community":[{"string":"redirect:1400:84000","value":9225629849622759456}],"local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.0.14/32"],"next-hop":"15.15.15.14"}]}
 cmd=api:conn=1:seq=1:text=send bgp * update text origin igp local-preference 100 extended-community [l2info:1:2:13398:30864] nhop 15.15.15.15 nlri ipv4/unicast add 10.0.0.15/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C0200000020400101004002004003040F0F0F0F40050400000064C01008800A010234567890200A00000F
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","extended-community":[{"string":"0x800a:010234567890","value":9226187895601526928}],"local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.0.15/32"],"next-hop":"15.15.15.15"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","remote":{"as":65533}},"direction":"in","extended-community":[{"string":"l2info:1:2:13398:30864","value":9226187895601526928}],"local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.0.15/32"],"next-hop":"15.15.15.15"}]}
 cmd=api:conn=1:seq=1:text=send bgp * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 cmd=api:conn=1:seq=1:text=send bgp * update text nlri ipv6/unicast eor
