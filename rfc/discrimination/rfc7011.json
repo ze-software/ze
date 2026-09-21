@@ -1,0 +1,159 @@
+{
+  "rfc": "rfc7011",
+  "records": [
+    {
+      "rid": "RFC7011-10.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowexport/config_rfc7011_test.go::TestRFC7011CollectorPortConfigurable",
+      "unit-sha": "c460f122e1bcad98",
+      "claim-sha": "e7e9d9929cf02a39",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/config.go::parseCollectorMap",
+      "producer-sha": "5c3bcb1fcb1c87d3",
+      "break": "body of parseCollectorMap replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7011-10.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/flowexport/config_rfc7011_test.go::TestRFC7011CollectorPortOutOfRangeRefused",
+      "unit-sha": "5212a1bc898ae93e",
+      "claim-sha": "eeb4321a56791249",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/config.go::Validate",
+      "producer-sha": "10074f59638ccaa8",
+      "break": "body of Validate replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7011-3.3.1-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011OneRecordTypePerSet",
+      "unit-sha": "822ebcfb12b7ae79",
+      "claim-sha": "e2a1205be3582eda",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/ipfix/flow_adapter.go::EncodeFlows",
+      "producer-sha": "c30268eac6575e3a",
+      "break": "body of EncodeFlows replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7011-3.3.1-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011RecordTypesNotMixedInSet",
+      "unit-sha": "2780f50adc03700e",
+      "claim-sha": "62cd7d170d0f1919",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/ipfix/flow_adapter.go::EncodeFlows",
+      "producer-sha": "c30268eac6575e3a",
+      "break": "body of EncodeFlows replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7011-6.1.1-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IntegralNetworkByteOrder",
+      "unit-sha": "2ba69eb63c8b2a37",
+      "claim-sha": "30cbb52f3e83e158",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/ipfix/flow_data.go::writeFlowTail",
+      "producer-sha": "747deac1523331db",
+      "break": "body of writeFlowTail replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7011-6.1.1-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IntegralNeverLittleEndian",
+      "unit-sha": "3eb34287739b948f",
+      "claim-sha": "3c0868a01ff20d59",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/ipfix/flow_data.go::writeFlowTail",
+      "producer-sha": "747deac1523331db",
+      "break": "body of writeFlowTail replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7011-6.1.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011AddressOctetsNetworkByteOrder",
+      "unit-sha": "a98c42037c9dc324",
+      "claim-sha": "0dba5c5e10a7b1cc",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/ipfix/flow_data.go::writeFlowRecord",
+      "producer-sha": "a72c5a60ab6f34ea",
+      "break": "body of writeFlowRecord replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7011-6.1.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011IPv4NeverWidenedToSixteenOctets",
+      "unit-sha": "2370cd25545f9080",
+      "claim-sha": "4639579d8da36cf5",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/ipfix/flow_data.go::writeFlowDataSet",
+      "producer-sha": "637c9950899fd79b",
+      "break": "body of writeFlowDataSet replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7011-8.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateExportTimeIsSendTime",
+      "unit-sha": "a9179e1e58610e68",
+      "claim-sha": "eddd838d9068a5e0",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/ipfix/flow_adapter.go::sendTemplateMessage",
+      "producer-sha": "f067129062db5097",
+      "break": "body of sendTemplateMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7011-8.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateExportTimeNeverRegresses",
+      "unit-sha": "5c46bdc69f0d697d",
+      "claim-sha": "32586417cb92e243",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/ipfix/flow_adapter.go::sendTemplateMessage",
+      "producer-sha": "f067129062db5097",
+      "break": "body of sendTemplateMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7011-8.2-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011DataExportTimeNotBeforeTemplate",
+      "unit-sha": "2673cca201e24b1c",
+      "claim-sha": "da81e7f74ebed6e7",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/ipfix/adapter.go::Encode",
+      "producer-sha": "74e341dcdea42973",
+      "break": "body of Encode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7011-8.2-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011StaleSnapshotClampedToTemplateTime",
+      "unit-sha": "14c0917d7aa2fc79",
+      "claim-sha": "8e7b308653d8f224",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/ipfix/adapter.go::Encode",
+      "producer-sha": "74e341dcdea42973",
+      "break": "body of Encode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7011-8.2-3",
+      "polarity": "negative",
+      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011DataSetNeverPrecedesTemplate",
+      "unit-sha": "3aafe79e73c0d409",
+      "claim-sha": "32215354ae0291b6",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/ipfix/encoder.go::WriteMessage",
+      "producer-sha": "74d89ea0631ccaa5",
+      "break": "body of WriteMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7011-8.2-3",
+      "polarity": "positive",
+      "unit": "internal/plugins/flowexport/ipfix/export_rfc7011_test.go::TestRFC7011TemplateSetPrecedesDataSet",
+      "unit-sha": "2c01e5dde6f4add6",
+      "claim-sha": "cc02f260458b91db",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/ipfix/encoder.go::WriteMessage",
+      "producer-sha": "74d89ea0631ccaa5",
+      "break": "body of WriteMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

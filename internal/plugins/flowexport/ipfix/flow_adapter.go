@@ -36,7 +36,8 @@ func NewFlowEncoder(observationDomainID uint32) *FlowEncoder {
 
 // EncodeFlows writes IPFIX messages with per-flow data records. IPv4 and IPv6
 // flows use distinct templates (257 / 258), so each family is sent in its own
-// message. The returned count sums both families.
+// messages, as many as MaxDatagramSize needs. The returned count sums both
+// families.
 func (e *FlowEncoder) EncodeFlows(flows []flowexport.ConntrackFlow, sender *flowexport.Sender) (int, error) {
 	if len(flows) == 0 {
 		return 0, nil
@@ -84,31 +85,57 @@ func (e *FlowEncoder) EncodeFlows(flows []flowexport.ConntrackFlow, sender *flow
 	return total, nil
 }
 
-// sendDataMessage encodes and sends one IPFIX message for a single address
+// sendDataMessage encodes and sends the IPFIX messages for a single address
 // family. v6 selects the IPv6 template/Data Set (258); otherwise IPv4 (257).
+// Records are chunked so each datagram stays within MaxDatagramSize; a batch
+// larger than one datagram produces several, and no record is dropped.
 func (e *FlowEncoder) sendDataMessage(sender *flowexport.Sender, recs []FlowRecord, v6 bool) (int, error) {
 	buf := flowexport.GetBuf()
 	defer flowexport.PutBuf(buf)
 	b := *buf
 
 	exportTime := uint32(time.Now().Unix())
+	maxPer := maxFlowRecordsPerDatagram(v6)
 
-	off := MessageHeaderSize
-	var n int
-	var count uint32
+	total := 0
+	for start := 0; start < len(recs); start += maxPer {
+		end := min(start+maxPer, len(recs))
+
+		off := MessageHeaderSize
+		var n int
+		var count uint32
+		if v6 {
+			n, count = writeFlowDataSet6(b, off, recs[start:end], FlowTemplateID6)
+		} else {
+			n, count = WriteFlowDataSet(b, off, recs[start:end], FlowTemplateID)
+		}
+		off += n
+		WriteMessageHeader(b, 0, uint16(off), exportTime, e.seqNum, e.ObservationDomainID)
+		e.seqNum += count
+
+		if err := sender.Send(b[:off]); err != nil {
+			return total, err
+		}
+		total += int(count)
+	}
+	return total, nil
+}
+
+// maxFlowRecordsPerDatagram is how many flow records of one family fit one
+// datagram after the message header and Data Set header. At least one.
+func maxFlowRecordsPerDatagram(v6 bool) int {
+	recSize := FlowRecordSize()
 	if v6 {
-		n, count = writeFlowDataSet6(b, off, recs, FlowTemplateID6)
-	} else {
-		n, count = WriteFlowDataSet(b, off, recs, FlowTemplateID)
+		recSize = FlowRecordSize6()
 	}
-	off += n
-	WriteMessageHeader(b, 0, uint16(off), exportTime, e.seqNum, e.ObservationDomainID)
-	e.seqNum += count
-
-	if err := sender.Send(b[:off]); err != nil {
-		return 0, err
+	if recSize <= 0 {
+		return 1
 	}
-	return int(count), nil
+	n := (flowexport.MaxDatagramSize - MessageHeaderSize - 4) / recSize
+	if n < 1 {
+		return 1
+	}
+	return n
 }
 
 // EncodeFlowTemplate sends both the IPv4 and IPv6 per-flow IPFIX Template

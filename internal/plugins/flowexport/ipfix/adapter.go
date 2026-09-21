@@ -14,6 +14,11 @@ type CounterEncoder struct {
 
 	seqNum        uint32
 	templateBytes []byte
+
+	// templateExportTime is the Export Time the last Template message carried.
+	// A Data message is clamped to it, because the snapshot it encodes was
+	// taken before the Template was sent and can sit one second behind it.
+	templateExportTime uint32
 }
 
 // NewCounterEncoder creates an IPFIX counter encoder.
@@ -33,7 +38,12 @@ func (e *CounterEncoder) Encode(snap flowexport.CounterSnapshot, sender *flowexp
 		return 0, nil
 	}
 
-	exportTime := uint32(snap.Time.Unix())
+	// The records keep the snapshot time; only the message header is clamped.
+	snapTime := uint32(snap.Time.Unix())
+	// RFC 7011 Section 8.2: "An Exporting Process MUST NOT export a Data Set
+	// described by a new Template in an IPFIX Message with an Export Time
+	// before the Export Time of the IPFIX Message containing that Template."
+	exportTime := max(snapTime, e.templateExportTime)
 	maxPer := maxCounterRecordsPerDatagram()
 
 	total := 0
@@ -45,7 +55,7 @@ func (e *CounterEncoder) Encode(snap flowexport.CounterSnapshot, sender *flowexp
 			*buf, exportTime, e.seqNum, e.ObservationDomainID,
 			nil, false,
 			snap.Interfaces[start:end],
-			exportTime, exportTime,
+			snapTime, snapTime,
 		)
 		err := sender.Send((*buf)[:n])
 		flowexport.PutBuf(buf)
@@ -81,6 +91,7 @@ func (e *CounterEncoder) EncodeTemplate(sender *flowexport.Sender) error {
 	defer flowexport.PutBuf(buf)
 
 	exportTime := uint32(time.Now().Unix())
+	e.templateExportTime = exportTime
 
 	n, _ := WriteMessage(
 		*buf, exportTime, e.seqNum, e.ObservationDomainID,

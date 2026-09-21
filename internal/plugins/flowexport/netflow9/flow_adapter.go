@@ -91,32 +91,59 @@ func (e *FlowEncoder) EncodeFlows(flows []flowexport.ConntrackFlow, sender *flow
 	return total, nil
 }
 
-// sendDataPacket encodes and sends one export packet for a single address
+// sendDataPacket encodes and sends the export packets for a single address
 // family. v6 selects the IPv6 template/data FlowSet (258); otherwise IPv4 (257).
+// Records are chunked so each datagram stays within MaxDatagramSize; a batch
+// larger than one datagram produces several, and no record is dropped.
 func (e *FlowEncoder) sendDataPacket(sender *flowexport.Sender, recs []FlowRecord, v6 bool, sysUpTime, unixSecs uint32) (int, error) {
 	buf := flowexport.GetBuf()
 	defer flowexport.PutBuf(buf)
 	b := *buf
 
-	off := HeaderSize
-	var n int
-	var count uint16
-	if v6 {
-		n, count = writeFlowDataFlowSet6(b, off, recs)
-	} else {
-		n, count = writeFlowDataFlowSet(b, off, recs)
-	}
-	off += n
-	writePacketHeader(b, 0, count, sysUpTime, unixSecs, e.seqNum, e.SourceID)
-	// RFC 3954 Section 5.1: the sequence number counts EXPORT PACKETS, not
-	// records or flows. Advance by one per datagram (matches the counter
-	// encoder and the template path), so collectors do not see false loss.
-	e.seqNum++
+	maxPer := maxFlowRecordsPerDatagram(v6)
 
-	if err := sender.Send(b[:off]); err != nil {
-		return 0, err
+	total := 0
+	for start := 0; start < len(recs); start += maxPer {
+		end := min(start+maxPer, len(recs))
+
+		off := HeaderSize
+		var n int
+		var count uint16
+		if v6 {
+			n, count = writeFlowDataFlowSet6(b, off, recs[start:end])
+		} else {
+			n, count = writeFlowDataFlowSet(b, off, recs[start:end])
+		}
+		off += n
+		writePacketHeader(b, 0, count, sysUpTime, unixSecs, e.seqNum, e.SourceID)
+		// RFC 3954 Section 5.1: the sequence number counts EXPORT PACKETS, not
+		// records or flows. Advance by one per datagram (matches the counter
+		// encoder and the template path), so collectors do not see false loss.
+		e.seqNum++
+
+		if err := sender.Send(b[:off]); err != nil {
+			return total, err
+		}
+		total += int(count)
 	}
-	return int(count), nil
+	return total, nil
+}
+
+// maxFlowRecordsPerDatagram is how many flow records of one family fit one
+// datagram after the packet header and FlowSet header. At least one.
+func maxFlowRecordsPerDatagram(v6 bool) int {
+	recSize := FlowRecordSize()
+	if v6 {
+		recSize = FlowRecordSize6()
+	}
+	if recSize <= 0 {
+		return 1
+	}
+	n := (flowexport.MaxDatagramSize - HeaderSize - 4) / recSize
+	if n < 1 {
+		return 1
+	}
+	return n
 }
 
 // EncodeFlowTemplate sends both the IPv4 and IPv6 per-flow template FlowSets,
