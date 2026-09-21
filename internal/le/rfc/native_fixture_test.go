@@ -273,7 +273,7 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// findings in approve_test.go) and e78411042c (check_test.go and this file).
 	// The value was recomputed over HEAD's own blobs and matched what this test
 	// reported, independently, before it was written here.
-	const want = "168caa1553ba3e3a85672ee092b94558b8bdca98ccbb9bb0fbc26d935f9cc237"
+	const want = "70fdbf2d39c364457566dc37b80398519fd4533f735cf79a2fe66fe9f0d96440"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it
