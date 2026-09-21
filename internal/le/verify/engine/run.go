@@ -126,7 +126,28 @@ type Report struct {
 	StatusPath string        `json:"status-path"`
 	Stages     []StageReport `json:"stages"`
 	Failure    *Failure      `json:"failure,omitempty"`
-	Console    string        `json:"-"`
+	// Attached is set when this run took another run's verdict instead of
+	// judging the tree, and is nil for a run that judged it.
+	Attached *Attached `json:"attached,omitempty"`
+	Console  string    `json:"-"`
+}
+
+// Attached names the run a report took its verdict from.
+//
+// A run that ATTACHED judged nothing: the registry found another run of the
+// same work over the same tree and handed this one that run's exit code rather
+// than verifying twice. So the report carries no stages and no log directory,
+// and WITHOUT this field a caller cannot tell it from a run that broke before
+// it started -- a zero Code then reads as a green nobody earned, which is the
+// answer `admissionFailure` refuses to give for the other no-verdict path.
+//
+// Entry and Log name where the holder's own artifacts are, so attaching costs
+// the reader the run and not the evidence.
+type Attached struct {
+	// Entry is the registry entry the holder holds, relative to the root.
+	Entry string `json:"entry"`
+	// Log is the file the holder writes its progress to, relative to the root.
+	Log string `json:"log"`
 }
 
 // Text renders the run protocol and every stage's captured output.

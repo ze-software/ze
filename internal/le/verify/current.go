@@ -92,7 +92,7 @@ func runCurrent(ctx context.Context, root, mode string, runner verifyengine.Acti
 		return admissionFailure(certificateMode, commit, err)
 	}
 	if ticket.Kind == job.KindAttached {
-		return verifyengine.Report{Mode: certificateMode, Commit: commit, Code: ticket.Code}
+		return attachedReport(certificateMode, commit, ticket)
 	}
 
 	slot, closeSlot := slotFor(root, ticket)
@@ -101,6 +101,31 @@ func runCurrent(ctx context.Context, root, mode string, runner verifyengine.Acti
 	report := verifyengine.RunMode(ctx, root, commit, certificateMode, runner, slot)
 	ticket.Release(report.Code)
 	return report
+}
+
+// attachedReport answers the report for a run that took another run's verdict
+// instead of judging the tree.
+//
+// It SAYS it attached. The report carries no stages and no log directory, so a
+// bare Code reads as a verdict this run reached, and a zero one reads as a
+// green nobody earned -- which is the reading admissionFailure below refuses to
+// publish for the other path that reaches no verdict. `le verify worktree` has
+// said it attached on its own diagnostics since it was written
+// (lifecycle.go); this is the other half of that pair.
+//
+// It is a function rather than four lines inside runCurrent because the ticket
+// is the only input: a test can hand it one and read the answer, where forcing
+// a real attach means winning a race with the registry.
+func attachedReport(mode, commit string, ticket *job.Ticket) verifyengine.Report {
+	var text textbuf.Buffer
+
+	return verifyengine.Report{
+		Mode: mode, Commit: commit, Code: ticket.Code,
+		Attached: &verifyengine.Attached{Entry: ticket.Entry, Log: ticket.Log},
+		Console: text.Str("verify: shared the verification already running for ").
+			Str(commit).Str(", which exited ").Int(int64(ticket.Code)).
+			Str(". Its log is ").Str(ticket.Log).Byte('\n').String(),
+	}
 }
 
 // currentArgv is what the registry fingerprints as this run's work. A full run
