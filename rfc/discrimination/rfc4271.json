@@ -24,6 +24,28 @@
       "break": "body of packAttributesWithASPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC4271-5-8",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/forward_rfc4271_section5_test.go::TestForwardNeverTransmitsTheSupersededWellKnownAttributes",
+      "unit-sha": "8ed5d9a3df2ffb84",
+      "claim-sha": "9a444fd4b584d022",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
+      "producer-sha": "f7156d994d729022",
+      "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC4271-5-8",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/forward_rfc4271_section5_test.go::TestForwardTransmitsUpdatedWellKnownAttributes",
+      "unit-sha": "44e2d4dfd8809730",
+      "claim-sha": "6bf5ad3798bb321d",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop",
+      "producer-sha": "f7156d994d729022",
+      "break": "body of applyFactsNextHop replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC4271-6.2-5",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/session_open_error_rfc4271_test.go::TestRFC4271OpenErrorSubcodes",
