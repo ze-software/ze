@@ -695,6 +695,15 @@ func (bp *BMPPlugin) handleSession(conn net.Conn) {
 
 		msg, err := DecodeMsg(msgBuf)
 		if err != nil {
+			// RFC 7854 Section 4.1: "A BMP implementation MUST ignore
+			// unrecognized message types upon receipt." The whole message was
+			// read above, so skipping it keeps the stream aligned on the next
+			// common header. Only the TYPE is forgiven: a known type whose
+			// body does not decode still ends the session.
+			if errors.Is(err, errBadMsgType) {
+				logger().Debug("bmp: ignoring unrecognized message type", "remote", remote, "type", ch.Type)
+				continue
+			}
 			logger().Warn("bmp: decode failed", "remote", remote, "error", err)
 			return
 		}

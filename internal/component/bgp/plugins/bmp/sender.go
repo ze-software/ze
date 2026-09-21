@@ -215,7 +215,7 @@ func (ss *senderSession) run() {
 			if ss.waitOrStop(reconnectWait) {
 				return
 			}
-			reconnectWait = min(reconnectWait*2, reconnectMax)
+			reconnectWait = nextReconnectWait(reconnectWait)
 			continue
 		}
 
@@ -248,7 +248,7 @@ func (ss *senderSession) run() {
 			if ss.waitOrStop(reconnectWait) {
 				return
 			}
-			reconnectWait = min(reconnectWait*2, reconnectMax)
+			reconnectWait = nextReconnectWait(reconnectWait)
 			continue
 		}
 
@@ -294,6 +294,14 @@ func (ss *senderSession) run() {
 			return
 		}
 	}
+}
+
+// nextReconnectWait is the backoff RFC 7854 Section 3.2 asks for: "Retries MUST
+// be subject to some variety of backoff." Each failed dial doubles the wait
+// before the next one, up to reconnectMax, the document's suggested ceiling.
+// A successful connection resets the wait to retryBase.
+func nextReconnectWait(current time.Duration) time.Duration {
+	return min(current*2, reconnectMax)
 }
 
 // retryBase returns the base reconnection delay, falling back to the RFC 7854
