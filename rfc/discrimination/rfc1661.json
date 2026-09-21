@@ -99,6 +99,50 @@
       "producer": "internal/component/l2tp/ppp/session_run.go::sendProtocolReject",
       "producer-sha": "a40470e28c4c11d0",
       "break": "body of sendProtocolReject replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-6.4-5",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestMagicNumberChosenBeforeRequested",
+      "unit-sha": "1c374e1ac6ffc9d6",
+      "claim-sha": "dce6656b85c03771",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/lcp_options.go::BuildLocalConfigRequest",
+      "producer-sha": "c5b8fc036c365fd4",
+      "break": "body of BuildLocalConfigRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-6.4-5",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestMagicNumberChosenBeforeRequested",
+      "unit-sha": "1c374e1ac6ffc9d6",
+      "claim-sha": "03bb7ad5c286b897",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/lcp_options.go::BuildLocalConfigRequest",
+      "producer-sha": "c5b8fc036c365fd4",
+      "break": "body of BuildLocalConfigRequest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-6.4-6",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestEqualMagicNumberIsNaked",
+      "unit-sha": "c015351735eca622",
+      "claim-sha": "227365590678c9af",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/lcp_options.go::negotiatePeerOption",
+      "producer-sha": "4f0586f094595294",
+      "break": "body of negotiatePeerOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC1661-6.4-6",
+      "polarity": "negative",
+      "unit": "internal/component/l2tp/ppp/magic_choice_rfc1661_test.go::TestEqualMagicNumberIsNaked",
+      "unit-sha": "c015351735eca622",
+      "claim-sha": "5a87819a300cd0d1",
+      "route": "revert",
+      "producer": "internal/component/l2tp/ppp/lcp_options.go::negotiatePeerOption",
+      "producer-sha": "4f0586f094595294",
+      "break": "body of negotiatePeerOption replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

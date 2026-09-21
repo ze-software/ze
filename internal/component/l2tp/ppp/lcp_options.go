@@ -416,8 +416,19 @@ func negotiatePeerOption(opt LCPOption, policy LCPNegPolicy) (out negOutcome, su
 		// in session_run.go never returns zero) and sendConfigureRequest
 		// hands it to BuildLocalConfigRequest, which emits the option for
 		// any non-zero value. So zero draws the Nak, carrying the value
-		// nakMagic offers. Every other Magic-Number value is acknowledged.
-		if binary.BigEndian.Uint32(opt.Data) == 0 {
+		// nakMagic offers.
+		received := binary.BigEndian.Uint32(opt.Data)
+		if received == 0 {
+			return refusedOptionOutcome(LCPOptMagic, opt.Data, policy)
+		}
+		// RFC 1661 Section 6.4: "If the two Magic-Numbers are equal, then it
+		// is possible, but not certain, that the link is looped-back and
+		// that this Configure-Request is actually the one last sent. To
+		// determine this, a Configure-Nak MUST be sent specifying a
+		// different Magic-Number value." policy.LocalMagic is the value ze
+		// put in its own last Configure-Request; nakMagic offers one that
+		// differs from it. Every other non-zero value is acknowledged.
+		if received == policy.LocalMagic {
 			return refusedOptionOutcome(LCPOptMagic, opt.Data, policy)
 		}
 		return negAck, opt.Data
