@@ -139,10 +139,16 @@ func (s *Session) handleOpen(body []byte) error {
 		conn := s.conn
 		s.mu.RUnlock()
 
+		// RFC 4271 Section 6.2: "The Data field is a 2-octet unsigned integer, which
+		// indicates the largest, locally-supported version number less than the version
+		// the remote BGP peer bid ... or if the smallest, locally-supported version number
+		// is greater than the version the remote BGP peer bid, then the smallest,
+		// locally-supported version number." Ze supports version 4 alone, so both arms
+		// answer 4, and it is sent on two octets as the sentence requires.
 		s.logNotifyErr(conn,
 			message.NotifyOpenMessage,
 			message.NotifyOpenUnsupportedVersion,
-			[]byte{4}, // We support version 4
+			[]byte{0, 4},
 		)
 		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 		s.closeConn()
