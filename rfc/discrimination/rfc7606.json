@@ -46,6 +46,28 @@
       "break": "body of FlagsConflict replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
+      "rid": "RFC7606-4-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/message/nlri_locate_rfc7606_test.go::TestRFC7606NLRILocatedByTotalAttributeLength",
+      "unit-sha": "04e753872be540ad",
+      "claim-sha": "179bab881186f9ff",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_withdraw.go::SynthesizeWithdrawFamilies",
+      "producer-sha": "ccded480ba2e58e9",
+      "break": "body of SynthesizeWithdrawFamilies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7606-4-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/message/nlri_locate_rfc7606_test.go::TestRFC7606NLRILocatedByTotalAttributeLength",
+      "unit-sha": "04e753872be540ad",
+      "claim-sha": "c1f0bdeaed19b4e6",
+      "route": "revert",
+      "producer": "internal/component/bgp/message/rfc7606_withdraw.go::SynthesizeWithdrawFamilies",
+      "producer-sha": "ccded480ba2e58e9",
+      "break": "body of SynthesizeWithdrawFamilies replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC7606-7.7-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/reactor/rfc7606_aggregator_relay_test.go::TestForwardDiscardsMalformedAggregatorAtMatchingWidth",
