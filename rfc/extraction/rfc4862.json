@@ -115,7 +115,12 @@
     {
       "id": "5.5.4",
       "sites": 4,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC4862-5.5.4-6",
+        "RFC4862-5.5.4-8"
+      ],
+      "reason": "Four sites. Two of them carry two independent obligations each and a site maps to one id. Site 5.5.4:3 maps to RFC4862-5.5.4-5 (management MUST be able to disable the facility) and its second clause, \"and the facility MUST be disabled by default\", is RFC4862-5.5.4-6. Site 5.5.4:4 maps to RFC4862-5.5.4-7 (MUST NOT be used as a source address) and its second clause, \"and MUST NOT be recognized as a destination on a receiving interface\", is RFC4862-5.5.4-8."
     },
     {
       "id": "5.6",

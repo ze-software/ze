@@ -85,7 +85,11 @@
     {
       "id": "3.8",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3031-3.8-1"
+      ],
+      "reason": "Label Retention Mode. Indicative prose with no capitalised keyword site. RFC3031-3.8-1 (label forwarding uses the NHLFE for lookup) was read from the indicative description in section 3.10, \"The \"Next Hop Label Forwarding Entry\" (NHLFE) is used when forwarding a labeled packet\", and section 3.8 states nothing about the NHLFE; the id keeps its section because ids are permanent."
     },
     {
       "id": "3.9",
@@ -95,7 +99,11 @@
     {
       "id": "3.10",
       "sites": 1,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3031-3.10-2"
+      ],
+      "reason": "The NHLFE. One capitalised MUST site, mapped to RFC3031-3.10-1. RFC3031-3.10-2 (only the top label determines forwarding) was read from the indicative prose of section 3.9, \"The processing is always based on the top label, without regard for the possibility that some number of other labels may have been \"above it\" in the past, or that some number of other labels may be below it at present.\""
     },
     {
       "id": "3.11",
@@ -165,7 +173,12 @@
     {
       "id": "3.24",
       "sites": 1,
-      "disposition": "walked"
+      "disposition": "walked",
+      "unsourced-ids": [
+        "RFC3031-3.24-1",
+        "RFC3031-3.24-2"
+      ],
+      "reason": "Loop Control. Its one site is the lower-case loop-detection sentence, excluded. RFC3031-3.24-1 (TTL decremented at each LSR) and RFC3031-3.24-2 (discard at TTL 0) were read from the indicative prose of section 3.23, \"Whenever a packet passes through a router, its TTL gets decremented by 1; if the TTL reaches 0 before the packet has reached its destination, the packet gets discarded.\" Section 3.23 states the shim TTL \"SHOULD be decremented at each LSR-hop\"; this document states no MUST for either row, and section 3.24 does not mention TTL handling."
     },
     {
       "id": "3.25",
