@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc8210",
+  "records": [
+    {
+      "rid": "RFC8210-8.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rpki/resync_rfc8210_test.go::TestRFC8210ResetQueryFallback",
+      "unit-sha": "ebc3cb02c6998353",
+      "claim-sha": "1c709dbf48b62ea9",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::connectAndSync",
+      "producer-sha": "0fdebdda70284820",
+      "break": "body of connectAndSync replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8210-8.1-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rpki/resync_rfc8210_test.go::TestRFC8210ResetQueryFallback",
+      "unit-sha": "ebc3cb02c6998353",
+      "claim-sha": "ac944218e8100b16",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::connectAndSync",
+      "producer-sha": "0fdebdda70284820",
+      "break": "body of connectAndSync replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
