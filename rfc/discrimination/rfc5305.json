@@ -11,6 +11,50 @@
       "producer": "internal/plugins/isis/spf/spf.go::relax",
       "producer-sha": "5ac620f16e6dbdc8",
       "break": "line 227: \"e.Metric \u003e= types.MaxMetric\" -\u003e \"false\""
+    },
+    {
+      "rid": "RFC5305-4.1-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/redistribute/inject_rfc5305_test.go::TestRFC5305ConnectedInjectionClearsUpDown",
+      "unit-sha": "2ec4048bd14a62d5",
+      "claim-sha": "68da8c0b19ee22e0",
+      "route": "revert",
+      "producer": "internal/plugins/isis/redistribute/source.go::ConnectedPrefixInfos",
+      "producer-sha": "eabe51a41e921877",
+      "break": "body of ConnectedPrefixInfos replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5305-4.1-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/redistribute/inject_rfc5305_test.go::TestRFC5305FirstInjectionClearsUpDown",
+      "unit-sha": "905b30507fcb86d5",
+      "claim-sha": "31c6ea83d01fc3ff",
+      "route": "revert",
+      "producer": "internal/plugins/isis/redistribute/consumer.go::InjectRoute",
+      "producer-sha": "092d358ab22aadd2",
+      "break": "body of InjectRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5305-4.2-1",
+      "polarity": "positive",
+      "unit": "internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go::TestRFC5305NoSubTLVsClearsPresenceBit",
+      "unit-sha": "b7f6c93327882d76",
+      "claim-sha": "db1f9d09c3e1e8d4",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/tlv_ipv4.go::WriteTo",
+      "producer-sha": "6a861c3d37aec2b6",
+      "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC5305-4.2-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/isis/packet/tlv_ipv4_rfc5305_test.go::TestRFC5305SubTLVsSetPresenceBit",
+      "unit-sha": "280949d3164ff69e",
+      "claim-sha": "c550e77b2d92b68b",
+      "route": "revert",
+      "producer": "internal/plugins/isis/packet/tlv_ipv4.go::WriteTo",
+      "producer-sha": "6a861c3d37aec2b6",
+      "break": "body of WriteTo replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
