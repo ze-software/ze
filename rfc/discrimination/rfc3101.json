@@ -143,6 +143,28 @@
       "producer": "internal/plugins/ospf/spf/area_type.go::applyAreaTypePolicy",
       "producer-sha": "fe2392f24e27251d",
       "break": "body of applyAreaTypePolicy replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-x-4",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go::TestRFC3101NSSAAreaAcceptsType7",
+      "unit-sha": "6593f76bb730a408",
+      "claim-sha": "dd242dfa10c74477",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::shouldDropByArea",
+      "producer-sha": "d9729416155e899c",
+      "break": "body of shouldDropByArea replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3101-x-4",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/lsdb/area_capability_rfc3101_test.go::TestRFC3101NormalAreaRejectsType7",
+      "unit-sha": "62c0ec9d352b0be3",
+      "claim-sha": "5e3a9b8cd7302333",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/lsdb/flooding.go::shouldDropByArea",
+      "producer-sha": "d9729416155e899c",
+      "break": "body of shouldDropByArea replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
