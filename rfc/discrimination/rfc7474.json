@@ -22,6 +22,28 @@
       "producer": "internal/plugins/ospf/auth_keystore.go::acceptsAt",
       "producer-sha": "377e93f52520fce9",
       "break": "body of acceptsAt replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7474-6-2",
+      "polarity": "negative",
+      "unit": "internal/plugins/ospf/packet/auth_rfc7474_test.go::TestRFC7474KoNonZeroPadRejected",
+      "unit-sha": "18ccdb68efe15280",
+      "claim-sha": "096ff652ecac53c1",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/packet/auth_verify.go::hmacDigest",
+      "producer-sha": "f1b8117030b7b475",
+      "break": "body of hmacDigest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7474-6-2",
+      "polarity": "positive",
+      "unit": "internal/plugins/ospf/packet/auth_rfc7474_test.go::TestRFC7474KoZeroPaddedToBlockSize",
+      "unit-sha": "84be928c3cb00de1",
+      "claim-sha": "35cf9a1839fd756d",
+      "route": "revert",
+      "producer": "internal/plugins/ospf/packet/auth_verify.go::hmacDigest",
+      "producer-sha": "f1b8117030b7b475",
+      "break": "body of hmacDigest replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }
