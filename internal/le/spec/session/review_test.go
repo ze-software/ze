@@ -205,49 +205,6 @@ func unsetDirectSessionID(t *testing.T) {
 	})
 }
 
-func TestReviewModelBoundarySpeaksWhenItCannotEnforce(t *testing.T) {
-	// VALIDATES: an unreadable model is fail-speak rather than fail-open in
-	// silence, while a known implementation-tier model is refused.
-	// PREVENTS: review evidence being attributed to the wrong model without a
-	// warning or an operator-authored override.
-	root := reviewFixture(t)
-	t.Setenv("CLAUDE_CODE_SESSION_ID", "../unreadable")
-	request := reviewRecord{
-		Spec: "demo", Verdict: "clean", Rounds: 1,
-		Files: []string{"pkg/a.go"}, SessionID: "session",
-	}
-	artifact, err := recordReview(root, request)
-	if err != nil {
-		t.Fatalf("unreadable model: %v", err)
-	}
-	if len(artifact.Warnings) != 1 {
-		t.Fatalf("unreadable-model warnings = %#v", artifact.Warnings)
-	}
-	if !strings.Contains(artifact.Warnings[0], "UNCHECKED") {
-		t.Fatalf("unreadable-model warnings = %#v", artifact.Warnings)
-	}
-
-	request.Model = "claude-sonnet-4"
-	_, err = recordReview(root, request)
-	if err == nil {
-		t.Fatal("implementation-tier review was accepted")
-	}
-	if !strings.Contains(err.Error(), "BLOCKED") {
-		t.Fatalf("implementation-tier refusal = %v", err)
-	}
-	request.ModelOverride = "operator approved emergency review"
-	artifact, err = recordReview(root, request)
-	if err != nil {
-		t.Fatalf("model override: %v", err)
-	}
-	if len(artifact.Warnings) != 1 {
-		t.Fatalf("override warnings = %#v", artifact.Warnings)
-	}
-	if !strings.Contains(artifact.Warnings[0], "Operator reason") {
-		t.Fatalf("override warnings = %#v", artifact.Warnings)
-	}
-}
-
 func TestReviewCommandUsesTheOwnerAuthorisedKeyword(t *testing.T) {
 	// VALIDATES: the grouped command maps the keyword in its historical British
 	// spelling and rejects the drifted American one.

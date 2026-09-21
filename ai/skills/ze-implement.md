@@ -131,9 +131,7 @@ Review Gate, or the commits. Those are `/ze-close`, for two reasons:
   partially followed. Across 161 specs the closure tables were byte-identical to
   the template in 65-75% of in-progress specs, while sections authors added when
   they needed them were untouched in 0%.
-- **Model.** Implementation carries no model requirement (`ai/rules/planning.md`, 2026-08-03).
-  The Review Gate, spec closure and implementation audit still run on Opus 5, and
-  review is INDEPENDENT of the author: end this skill and hand the review to a
+- **Independence.** Review is INDEPENDENT of the author: end this skill and hand the review to a
   fresh session or to the `/ze-close` agent, never to this context. That agent
   runs every review lens ITSELF and spawns nothing (`ai/rules/planning.md`,
   owner directive 2026-08-15); the independence comes from the phase boundary
@@ -276,7 +274,7 @@ and dispatches findings to a fix agent (`ai/rules/commands.md`). `./le verify wo
          produce. Run the script path the command prints
          (`ai/rules/git-safety.md`).
       3. Run `./le spec session release`.
-      4. Report the commit SHA, and state that `/ze-close` on Opus 5 is the next
+      4. Report the commit SHA, and state that `/ze-close` is the next
          phase. It reviews that commit.
       When the row is absent or `-`, none of this applies: hand the uncommitted
       diff to `/ze-close` as above.

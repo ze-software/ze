@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- native spec lifecycle support
-// Related: model.go -- transcript model enforcement
+// Related: model.go -- transcript model metadata
 // Related: review_report.go -- structured review answers
 
 package specsession
@@ -42,7 +42,6 @@ type reviewRecord struct {
 	Rounds          int
 	RoundsReason    string
 	OwnerAuthorised string
-	ModelOverride   string
 	Model           string
 	Now             time.Time
 	SessionID       string
@@ -77,21 +76,6 @@ func recordReview(root string, request reviewRecord) (reviewArtifact, error) {
 	model := request.Model
 	if model == "" {
 		model = CurrentModel(root)
-	}
-	var warnings []string
-	if model == "" {
-		warnings = append(warnings, "review_gate: WARNING could not determine the running model; the review-model boundary is UNCHECKED (ai/rules/planning.md)")
-	} else if !IsReviewTier(model) {
-		if request.ModelOverride == "" {
-			return reviewArtifact{}, fmt.Errorf(
-				"review_gate: BLOCKED this session is on %s. Review runs on Opus 5 (ai/rules/planning.md).\n"+
-					"  A review performed on the implementation model is the author grading their own work,\n"+
-					"  which is the failure the independent-review rule exists to prevent (ai/rules/planning.md).\n"+
-					"  Switch to Opus 5 and re-run the review, or provide a model override with the operator's reason",
-				model,
-			)
-		}
-		warnings = append(warnings, fmt.Sprintf("review_gate: WARNING recording a review made on %s, not the review model. Operator reason: %s", model, request.ModelOverride))
 	}
 
 	findings := ""
@@ -139,8 +123,6 @@ func recordReview(root string, request reviewRecord) (reviewArtifact, error) {
 		Findings:        findings,
 		RoundsReason:    reason,
 		OwnerAuthorised: owner,
-		ModelOverride:   request.ModelOverride,
-		Warnings:        warnings,
 	}
 	if artifact.Spec == "" {
 		return reviewArtifact{}, errors.New("review_gate: record needs a spec")
@@ -188,11 +170,6 @@ func CheckReview(root, spec, sessionID string, files []string) (ReviewCheck, err
 		return ReviewCheck{}, err
 	}
 	check := ReviewCheck{Spec: specStem(spec), Path: relativeReviewPath(root, path), Verdict: artifact.Verdict}
-	if artifact.Model != "" {
-		if !IsReviewTier(artifact.Model) {
-			check.Warnings = append(check.Warnings, fmt.Sprintf("review_gate: NOTE this artifact was recorded on %s, not the review model (ai/rules/planning.md)", artifact.Model))
-		}
-	}
 	if artifact.Verdict != "clean" {
 		check.Blocked = true
 		check.Reason = keywordVerdict

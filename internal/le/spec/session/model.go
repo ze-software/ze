@@ -1,5 +1,5 @@
 // Design: docs/architecture/core-design.md -- native spec lifecycle support
-// Related: review.go -- review artifact model enforcement
+// Related: review.go -- review artifact model metadata
 
 // Package specsession owns spec claims, state paths, review artifacts, and the
 // transcript facts those contracts use.
@@ -153,14 +153,6 @@ func RunningModel(path string) string {
 		return record.Message.Model
 	}
 	return ""
-}
-
-// IsReviewTier reports whether model is in the review model family.
-func IsReviewTier(model string) bool {
-	if model == "" {
-		return false
-	}
-	return strings.Contains(model, "opus-5")
 }
 
 func existingTranscript(dir, sid string) string {

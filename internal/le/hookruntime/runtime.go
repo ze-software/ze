@@ -108,7 +108,7 @@ var nativeHookActions = map[string]hookAction{
 	},
 	"pretool-agent-skill": {
 		tools:  []string{"Agent", "Task"},
-		checks: []hookCheck{agentReviewModel, agentSkill, agentStyleGuide},
+		checks: []hookCheck{agentSkill, agentStyleGuide},
 	},
 }
 

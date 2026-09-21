@@ -148,7 +148,7 @@ func answerModel(root string, args []string) (any, int) {
 
 func answerRunningModel(path string) (any, int) {
 	model := RunningModel(path)
-	report := modelReport{Transcript: path, Model: model, ReviewTier: IsReviewTier(model), Readable: model != ""}
+	report := modelReport{Transcript: path, Model: model, Readable: model != ""}
 	if model == "" {
 		return report, 1
 	}
@@ -204,9 +204,6 @@ func answerReview(root, sid string, args []string) (any, int) {
 		if err != nil {
 			return lifecycleError(err)
 		}
-		for _, warning := range artifact.Warnings {
-			fmt.Fprintln(os.Stderr, warning) //nolint:errcheck // CLI output
-		}
 		return artifact, 0
 	case "check":
 		spec, files, err := parseReviewCheck(args[1:])
@@ -216,9 +213,6 @@ func answerReview(root, sid string, args []string) (any, int) {
 		check, err := CheckReview(root, spec, sid, files)
 		if err != nil {
 			return lifecycleError(err)
-		}
-		for _, warning := range check.Warnings {
-			fmt.Fprintln(os.Stderr, warning) //nolint:errcheck // CLI output
 		}
 		if check.Blocked {
 			return check, 3
@@ -257,8 +251,6 @@ func parseReviewRecord(args []string) (reviewRecord, error) {
 			request.RoundsReason = value
 		case "owner-authorised": //nolint:misspell // owner-authorised is a CLI keyword and a JSON key, not prose. It is named in ai/rules/planning.md, ai/skills/ze-close.md, ai/skills/ze-review.md and plan/TEMPLATE-CLOSURE.md, so the spelling is a contract and renaming it is the owner's decision
 			request.OwnerAuthorised = value
-		case "model-override":
-			request.ModelOverride = value
 		default:
 			return reviewRecord{}, fmt.Errorf("review record does not accept keyword %q", key)
 		}

@@ -16,7 +16,7 @@ own fan-out. Do not wrap the whole skill in a single agent. That buries the
 parallel lenses one level down and costs exactly the independence they exist to
 provide (`ai/rules/planning.md`).
 
-Launch the agents this skill defines, all in ONE message, on `model: opus`.
+Launch the agents this skill defines, all in ONE message, using the session's model unless the user requests another.
 **Start every agent prompt with `Serving /ze-review-deep:`.** The native agent
 routing gate in `internal/le/hookruntime/agent.go` blocks a raw agent when a skill
 covers the ask, and these fan-out prompts ask for exactly that.
@@ -34,17 +34,8 @@ When the argument contains agent names (e.g., "security", "logic", "concurrency"
 
 ## Model Selection
 
-Review is a review-phase workload, so it runs on the review model throughout
-(`ai/rules/planning.md`: review on Opus 5). The orchestrator (this skill) runs
-at the session's model.
-
-| Model | Agents | Why |
-|-------|--------|-----|
-| **opus** | All agents (#1-#11) and the verification agent | Review is the judgment-heavy phase. A missed exploit path, race, or vacuous test costs more than the cheaper model saves, and a mechanical-looking lens (docs, project rules, test coverage) still needs judgment to tell a real gap from a false positive |
-
-Do not downgrade an individual agent to `sonnet` or `haiku` because its lens
-looks mechanical. If cost forces a reduction, cut the number of agents, never
-the model they run on.
+Use the session's available model unless the user requests another. Each reviewer
+must have a context independent of the author (`ai/rules/planning.md`).
 
 ## Steps
 
@@ -96,7 +87,7 @@ Enter numbers (e.g., 1,5), "all", or names (e.g., "security, logic"):
 
 ### 3. Launch selected agents
 
-Launch the selected agents simultaneously using the Agent tool. Use `model: opus` for every agent (see Model Selection table). Each agent gets the file list, diff context, and the Agent Preamble above. Each agent MUST:
+Launch the selected agents simultaneously using the Agent tool. Follow Model Selection above. Each agent gets the file list, diff context, and the Agent Preamble above. Each agent MUST:
 - Read the actual changed files (not just the diff)
 - Apply its specific lens exhaustively
 - Return findings in the structured format below
@@ -502,7 +493,7 @@ For each remaining finding, classify it as one of:
 
 Drop REFUTED findings. Keep CONFIRMED and PLAUSIBLE.
 
-When under 20 findings remain after dedup, verify each one yourself by reading the relevant code. When 20 or more, spawn a verification agent (model: opus) with the diff, relevant files, and the candidate list.
+When under 20 findings remain after dedup, verify each one yourself by reading the relevant code. When 20 or more, spawn a verification agent with the diff, relevant files, and the candidate list.
 
 ### 6. Format report
 

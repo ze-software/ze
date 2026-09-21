@@ -6,8 +6,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-
-	specsession "github.com/ze-software/ze/internal/le/spec/session"
 )
 
 type skillTrigger struct {
@@ -26,26 +24,11 @@ var skillTriggers = []skillTrigger{
 }
 
 var (
-	skillReference     = regexp.MustCompile(`/ze-[a-z0-9-]+`)
-	implementationVerb = regexp.MustCompile(`(?i)\b(apply|fix|implement|update|edit|rewrite|refactor|rename|migrate|add|write|remove|delete|port|wire)\b`)
-	writesGo           = regexp.MustCompile(`(?i)\bgo\b|\.go\b|./le changed scope|gofmt|gopls`)
-	briefWork          = regexp.MustCompile(`(?i)\b(fix|implement|write|add|refactor|migrate|wire|rewrite)\b`)
-	styleGuide         = regexp.MustCompile(`(?i)docs/contributing/ze-(?:go-)?style\.md|\bze-(?:go-)?style\b`)
+	skillReference = regexp.MustCompile(`/ze-[a-z0-9-]+`)
+	writesGo       = regexp.MustCompile(`(?i)\bgo\b|\.go\b|./le changed scope|gofmt|gopls`)
+	briefWork      = regexp.MustCompile(`(?i)\b(fix|implement|write|add|refactor|migrate|wire|rewrite)\b`)
+	styleGuide     = regexp.MustCompile(`(?i)docs/contributing/ze-(?:go-)?style\.md|\bze-(?:go-)?style\b`)
 )
-
-// ze point: planning/work-phases/run-every-review-on-opus-5
-// agentReviewModel refuses a review agent that does not run on Opus 5.
-func agentReviewModel(ctx context) *verdict {
-	prompt := stringInput(ctx.input, "prompt")
-	refusal, note := reviewModelRefusal(ctx, prompt)
-	if refusal != "" {
-		return &verdict{2, refusal}
-	}
-	if note != "" {
-		return &verdict{0, note}
-	}
-	return nil
-}
 
 // ze point: cli/agent-tooling-contract/use-the-skill-instead-of-a-raw-agent
 // agentSkill refuses a hand-written prompt that a ze-* skill already covers.
@@ -122,53 +105,4 @@ func coveredSkill(root, prompt string) (string, string) {
 		}
 	}
 	return "", ""
-}
-
-func isReviewWork(root, prompt string) bool {
-	if implementationVerb.MatchString(first(prompt, 160)) {
-		return false
-	}
-	reviewSkills := map[string]bool{"/ze-review": true, "/ze-review-spec": true, "/ze-review-deep": true, "/ze-audit": true, "/ze-close": true}
-	for _, reference := range skillReference.FindAllString(prompt, -1) {
-		if reviewSkills[strings.ToLower(reference)] {
-			return true
-		}
-	}
-	skill, _ := coveredSkill(root, prompt)
-	return reviewSkills[skill]
-}
-
-func reviewAck(ctx context) bool {
-	id, present := payloadSessionID(ctx.payload)
-	if !present {
-		id = resolvedSessionID(ctx)
-	}
-	if id == "" {
-		return false
-	}
-	body, err := os.ReadFile(filepath.Join(ctx.root, "tmp", "session", ".model-ack-"+id)) //nolint:gosec // a session marker under the checkout tmp directory
-	return err == nil && len(strings.TrimSpace(string(body))) >= 10
-}
-
-func reviewModelRefusal(ctx context, prompt string) (string, string) {
-	if !isReviewWork(ctx.root, prompt) || reviewAck(ctx) {
-		return "", ""
-	}
-	model := specsession.RunningModel(ctx.transcript)
-	if ctx.transcript == "" {
-		model = specsession.CurrentModel(ctx.root)
-	}
-	if model == "" {
-		return "", "note: could not determine the running model, so the review-model boundary is UNCHECKED here (ai/rules/planning.md)"
-	}
-	if specsession.IsReviewTier(model) {
-		return "", ""
-	}
-	return "❌ Blocked: review runs on Opus 5, and this session is on " + model + "\n" +
-		"  (ai/rules/planning.md).\n" +
-		"  A subagent inherits the PHASE, not the task shape, so spawning a\n" +
-		"  reviewer from an implementation session still reviews on the wrong\n" +
-		"  model. Say so and stop, so the operator can switch or start a review session.\n" +
-		"  If the operator decides otherwise, their reason goes in\n" +
-		"  tmp/session/.model-ack-<sid>.", ""
 }

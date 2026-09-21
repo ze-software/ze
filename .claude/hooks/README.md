@@ -24,15 +24,15 @@ this page names but that registry does not hold is a defect in this page.
 | Bash command guards | `internal/le/hookruntime/bash.go` |
 | Write/Edit guards | `internal/le/hookruntime/writeedit.go` |
 | Post-write formatting and advisories | `internal/le/hookruntime/postwrite.go` |
-| Agent skill and review-model gates | `internal/le/hookruntime/agent.go` |
+| Agent skill and style checks | `internal/le/hookruntime/agent.go` |
 | Session identity and parent propagation | `internal/le/hookruntime/session.go` |
 | Session, marker, compaction, stop, and validation hooks | `internal/le/hookruntime/lifecycle.go` |
 | JSON dispatch and shared scratch identity | `internal/le/hookruntime/runtime.go` |
 
 Session identity resolution and dated session paths are canonical in
 `internal/le/lepath/session.go`. Test weakening is judged by
-`internal/le/testweakened`, journal rows by `internal/le/journal`, and running review
-models by `internal/le/spec/session`. The hook runtime calls those packages
+`internal/le/testweakened`, journal rows by `internal/le/journal`, and spec session
+state by `internal/le/spec/session`. The hook runtime calls those packages
 in-process rather than launching a second implementation.
 
 ## Event wiring
@@ -123,11 +123,10 @@ the calls the hook sees, under a tenth short of the agent's total.
 
 ## PreToolUse: Task/Agent (`internal/le/hookruntime/agent.go`)
 
-<!-- source: internal/le/hookruntime/agent.go -- agentReviewModel, agentSkill, agentStyleGuide -->
+<!-- source: internal/le/hookruntime/agent.go -- agentSkill, agentStyleGuide -->
 
 | Check | Enforces | What it does |
 |---|---|---|
-| `agentReviewModel` | `planning.md` | Refuses a review agent that does not run on Opus 5. |
 | `agentSkill` | `cli.md` | Refuses a hand-written prompt that a `ze-*` skill already covers. |
 | `agentStyleGuide` | `go-standards.md` | Warns when a brief will produce Go and names no style guide. |
 

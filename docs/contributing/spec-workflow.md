@@ -25,7 +25,7 @@ validates it on every write.
 | `design` | Research and design in progress |
 | `ready` | Design complete, ready for implementation |
 | `in-progress` | Actively being implemented |
-| `verification` | Implementation complete and committed, awaiting an independent review and closure on Opus 5. Reached only under `Handoff: verify` |
+| `verification` | Implementation complete and committed, awaiting an independent review and closure. Reached only under `Handoff: verify` |
 | `blocked` | Waiting on the prerequisite named in Depends |
 | `deferred` | Explicitly postponed |
 
@@ -119,6 +119,10 @@ before the artifact is read, because nothing in its content distinguishes it
 from an ordinary `in-progress` commit. There is no closed status in the
 vocabulary above, since closure IS the removal. Commit B carries that removal,
 so no spec closes without a clean independent review.
+
+<!-- source: internal/le/spec/session/review.go -- recordReview, CheckReview -->
+Review has no required model. The artifact records the model when available;
+review independence comes from a fresh reviewer context.
 
 The review gate then requires a CLEAN `./le spec session review record` artifact
 that covers every reviewable file in the commit and whose hashes still match, so

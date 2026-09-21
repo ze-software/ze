@@ -21,16 +21,12 @@
 
 **Every in-scope item a spec does not do MUST become its OWN spec, in the bucket that item belongs to (`plan/README.md`). The source spec's `Work Not Done` table MUST name that spec by path.** Reducing scope stays the owner's decision and MUST NOT be taken by the author. A destination that is prose is a deletion with a polite name. `plan/known-failures/` is never one, and no row holds an item in place of a spec. `docs/contributing/spec-workflow.md` carries the bucket test and the order in which a destination is chosen.
 
-## Work Phases, Models and the Review Loop
+## Work Phases and the Review Loop
 
 **Ze work has three phases and a piece of work MUST be classified by what it IS rather than by convenience: planning and design (research, spec writing, architecture decisions, RFC reading), implementation (code, tests, fixing failures, refactors, the doc edits that follow), and review and audit (the Review Gate, the implementation audit, spec closure).**
 **At a boundary you MUST end the phase and hand off, and you MUST NOT carry it past because you are already here.** Fixes a review produces are implementation, so make them; the re-review that follows is a fresh pass, never the same context re-reading itself.
 
-**Implementation MAY run on any model (owner directive, 2026-08-03).** Review independence, below, is the quality gate; it does not constrain the implementation model.
-
-**Review MUST run on Opus 5.** `./le spec session review record` refuses an off-tier artifact, and the native agent-skill hook in `internal/le/hookruntime/agent.go` refuses the spawn.
-
-**No gate blocks an implementation edit by model; review is gated at both ends, by the agent-skill hook on the spawn and by `record` on the artifact, both reading `internal/le/spec/session/model.go`. A subagent inherits the PHASE, not the task shape, and MUST NOT be downgraded to a cheaper model because its lens looks mechanical: if cost forces a reduction, cut the NUMBER of agents. `model-override <reason>` MUST NOT be passed on your own judgement.**
+**Implementation and review MAY run on any available model.** Review still requires a context independent of the author, as specified below.
 
 **Independence is a property of the CONTEXT, not of the model, the agent count or the intention: a fresh session, a phase agent spawned after the implementing phase ended, or reviewer subagents each satisfy it, and the context that produced the work MUST NOT sit in judgment on it.** Your own inline reasoning about code you just wrote is authoring, not reviewing. This is the ONE phase boundary that MUST NOT be crossed by continuing an agent, and it holds for a small change and a mechanical one alike.
 **Any ONE of the three satisfies the guarantee, so a context that already meets it MUST NOT spawn readers of its own: `/ze-close` MUST run every lens itself (owner directive, 2026-08-15).** A pass carries at least TWO distinct LENSES over the diff, each reading the PRODUCER rather than the caller, defaulting a finding PLAUSIBLE, and reproducing it before acting on it.

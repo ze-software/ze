@@ -65,6 +65,7 @@ Ask the question from Bash instead
 | Understand Ze vs standard Go | `ai/rules/architecture.md` | Buffer-first, registration, YANG, etc. |
 | Know which hooks will check my code | `ai/rules/repo-maintenance.md` | Pre-flight compliance checklist |
 | Edit the website or presentations | `docs/contributing/gh-pages.md` then `website/AI.md` | Source layout, generation target, adding a talk |
+| Write or revise blog articles | `ai/skills/ze-author.md` then `ai/skills/ze-blog.md` | Reader understanding, article argument, and the connected story of Ze development |
 | Write and publish the weekly update | `ai/skills/ze-weekly-update.md` | Draft in Zeledon voice, update `website/`, post the approved message to `ze-news`, and verify site/feed/homepage output |
 
 ## By Task Type
@@ -205,7 +206,7 @@ artifact type. Check them whenever your work touches the described concern.
 | Error handling | `ai/rules/go-standards.md` forbidden section | Any `_` on error return |
 | Error / failure message content | `ai/rules/cli.md` | Any error, log line, or failure output: name the subject + offending value + corrective action; greppable phrase; fail closed |
 | Discoverability | `ai/rules/repo-maintenance.md` | Any feature, tool, self-check, verification gate, test infrastructure, or agent workflow |
-| Which model runs this phase | `ai/rules/planning.md` | Review runs on Opus 5. Implementation carries no model requirement |
+| Which model runs this phase | `ai/rules/planning.md` | Any available model; review requires a context independent of the author |
 | Two rules point in different directions | `ai/rules/rule-precedence.md` | The ladder: irreversible action > outside-facing correctness > scope integrity > phase boundaries > autonomy |
 | How much work is already in flight | `./le spec session wip` | In-progress specs, stalest first, against `ZE_SPEC_WIP_CAP` (default 12); `claim` refuses a new `ready` spec over the cap |
 | Who executes this phase (main thread vs subagent) | `ai/rules/planning.md` | Any spec work: the main thread supervises, each phase runs in a subagent through its `ze-*` skill |

@@ -24,8 +24,6 @@ type reviewArtifact struct {
 	Findings        string         `json:"findings,omitempty"`
 	RoundsReason    string         `json:"rounds-reason,omitempty"`
 	OwnerAuthorised string         `json:"owner-authorised,omitempty"` //nolint:misspell // owner-authorised is a CLI keyword and a JSON key, not prose. It is named in ai/rules/planning.md, ai/skills/ze-close.md, ai/skills/ze-review.md and plan/TEMPLATE-CLOSURE.md, so the spelling is a contract and renaming it is the owner's decision
-	ModelOverride   string         `json:"model-override,omitempty"`
-	Warnings        []string       `json:"warnings,omitempty"`
 }
 
 // Document renders the persisted artifact format.
@@ -37,9 +35,6 @@ func (a reviewArtifact) Document() string {
 		Str("# Independent review — ").Str(a.Spec).Str("\n\nfiles:\n")
 	for _, file := range a.Files {
 		tb.Str("  ").Str(file.Hash).Str("  ").Str(file.Path).Byte('\n')
-	}
-	if a.ModelOverride != "" {
-		tb.Str("\nmodel-override: ").Str(a.ModelOverride).Byte('\n')
 	}
 	if a.RoundsReason != "" {
 		tb.Str("\nrounds-reason: ").Str(a.RoundsReason).Byte('\n')
@@ -68,7 +63,6 @@ type ReviewCheck struct {
 	Reason     string   `json:"reason,omitempty"`
 	Unreviewed []string `json:"unreviewed,omitempty"`
 	Stale      []string `json:"stale,omitempty"`
-	Warnings   []string `json:"warnings,omitempty"`
 }
 
 // Text renders the review gate verdict.
@@ -100,7 +94,6 @@ func (c ReviewCheck) Text() string {
 type modelReport struct {
 	Transcript string `json:"transcript,omitempty"`
 	Model      string `json:"model,omitempty"`
-	ReviewTier bool   `json:"review-tier"`
 	Readable   bool   `json:"readable"`
 }
 
