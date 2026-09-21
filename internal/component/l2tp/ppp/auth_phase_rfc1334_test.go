@@ -71,7 +71,7 @@ func papReplyFor(t *testing.T, accept bool) (uint16, []byte) {
 }
 
 // RFC requirement: RFC1334-2.2.1-3 positive — an Authenticate-Request received in the Authentication phase is answered: an accepted request is returned an Authenticate-Ack carrying the request's Identifier
-// RFC requirement: RFC1334-2.2.1-6 negative — the silent discard is confined to other phases: in the Authentication phase the request is not discarded but answered with a reply frame
+// RFC requirement: RFC1334-2.2.1-6 negative — the silent discard is confined to other phases: in the Authentication phase the request is not discarded but answered with a reply frame.
 func TestPAPRequestInAuthPhaseIsAnswered(t *testing.T) {
 	proto, payload := papReplyFor(t, true)
 	if proto != ProtoPAP {
@@ -88,7 +88,7 @@ func TestPAPRequestInAuthPhaseIsAnswered(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC1334-2.2.1-3 negative — a rejected Authenticate-Request is never left without a reply: the reply is an Authenticate-Nak carrying the request's Identifier, not silence
+// RFC requirement: RFC1334-2.2.1-3 negative — a rejected Authenticate-Request is never left without a reply: the reply is an Authenticate-Nak carrying the request's Identifier, not silence.
 func TestPAPRejectedRequestIsStillAnswered(t *testing.T) {
 	proto, payload := papReplyFor(t, false)
 	if proto != ProtoPAP {
@@ -105,7 +105,7 @@ func TestPAPRejectedRequestIsStillAnswered(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC1334-2.2.1-6 positive — an Authenticate-Request received while LCP is still negotiating or already Opened outside the Authentication phase is silently discarded: no Ack, no Nak, no Protocol-Reject is written and the session goes on
+// RFC requirement: RFC1334-2.2.1-6 positive — an Authenticate-Request received while LCP is still negotiating or already Opened outside the Authentication phase is silently discarded: no Ack, no Nak, no Protocol-Reject is written and the session goes on.
 func TestPAPRequestOutsideAuthPhaseIsSilentlyDiscarded(t *testing.T) {
 	for _, state := range []LCPState{LCPStateReqSent, LCPStateAckSent, LCPStateOpened} {
 		s, rec, _ := newRFC1661Session(state)
@@ -146,7 +146,7 @@ func ipcpNakOptions(t *testing.T, assigned netip.Addr, req LCPPacket) iPCPOption
 	return opts
 }
 
-// RFC requirement: RFC1332-3.3-2 positive — the IP-Address Ze appends to a Configure-Nak is the address assigned to the peer for this session, which is what is acceptable as the remote IP-address: 10.0.0.2 when the peer asked for 10.9.9.9 and when it sent no IP-Address at all
+// RFC requirement: RFC1332-3.3-2 positive — the IP-Address Ze appends to a Configure-Nak is the address assigned to the peer for this session, which is what is acceptable as the remote IP-address: 10.0.0.2 when the peer asked for 10.9.9.9 and when it sent no IP-Address at all.
 func TestIPCPNakCarriesTheAssignedRemoteAddress(t *testing.T) {
 	assigned := netip.MustParseAddr("10.0.0.2")
 	for _, req := range []LCPPacket{ipcpRequest(netip.MustParseAddr("10.9.9.9")), ipcpRequest(netip.Addr{})} {
@@ -160,7 +160,7 @@ func TestIPCPNakCarriesTheAssignedRemoteAddress(t *testing.T) {
 	}
 }
 
-// RFC requirement: RFC1332-3.3-2 negative — the Nak never carries an address that is not acceptable as the remote address: the peer's own unacceptable 10.9.9.9 is not echoed back, and with no address assigned the option is left out rather than written with an invalid value
+// RFC requirement: RFC1332-3.3-2 negative — the Nak never carries an address that is not acceptable as the remote address: the peer's own unacceptable 10.9.9.9 is not echoed back, and with no address assigned the option is left out rather than written with an invalid value.
 func TestIPCPNakNeverCarriesAnUnacceptableAddress(t *testing.T) {
 	requested := netip.MustParseAddr("10.9.9.9")
 	opts := ipcpNakOptions(t, netip.MustParseAddr("10.0.0.2"), ipcpRequest(requested))

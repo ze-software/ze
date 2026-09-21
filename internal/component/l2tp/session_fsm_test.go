@@ -98,7 +98,7 @@ func buildWEN(ce CallErrorsValue) []byte {
 	var buf [128]byte
 	off := 0
 	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgWEN))
-	off += writeAVPCallErrors(buf[:], off, true, ce)
+	off += writeAVPCallErrors(buf[:], off, ce)
 	return buf[:off]
 }
 
@@ -107,7 +107,7 @@ func buildSLI(accm ACCMValue) []byte {
 	var buf [128]byte
 	off := 0
 	off += WriteAVPUint16(buf[:], off, true, AVPMessageType, uint16(MsgSLI))
-	off += writeAVPACCM(buf[:], off, true, accm)
+	off += writeAVPACCM(buf[:], off, accm)
 	return buf[:off]
 }
 

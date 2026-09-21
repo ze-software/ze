@@ -32,6 +32,10 @@ import (
 // with; RFC 2661 Section 8.1 fixes it for the tunnel's life.
 var rfc2661PeerAddr = netip.MustParseAddrPort("10.0.0.2:1701")
 
+// rfc2661PeerTID is the Tunnel ID the peer assigns in every SCCRP a dial
+// test answers with.
+const rfc2661PeerTID uint16 = 777
+
 // controlWire parses one datagram a tunnel emitted and returns its header
 // and its AVP body.
 func controlWire(t *testing.T, pkt []byte) (MessageHeader, []byte) {
@@ -147,10 +151,10 @@ func wrapControl(body []byte, tid, sid, ns, nr uint16) []byte {
 }
 
 // dialUntilEstablished dials a tunnel with the given secret, answers its SCCRQ
-// with an SCCRP assigning peerTID, and returns the tunnel, its defaults, and
-// every datagram it emitted (SCCRQ then SCCCN). With a secret, the SCCRP
-// carries the peer's Challenge and a valid response to ours.
-func dialUntilEstablished(t *testing.T, now time.Time, secret string, peerTID uint16) (*L2TPTunnel, TunnelDefaults, []sendRequest) {
+// with an SCCRP assigning rfc2661PeerTID, and returns the tunnel, its
+// defaults, and every datagram it emitted (SCCRQ then SCCCN). With a secret,
+// the SCCRP carries the peer's Challenge and a valid response to ours.
+func dialUntilEstablished(t *testing.T, now time.Time, secret string) (*L2TPTunnel, TunnelDefaults, []sendRequest) {
 	t.Helper()
 	defaults := initiatorDefaults(secret)
 	tun := newTunnel(100, 0, rfc2661PeerAddr, ReliableConfig{RecvWindow: 8}, slog.Default(), now)
@@ -162,7 +166,7 @@ func dialUntilEstablished(t *testing.T, now time.Time, secret string, peerTID ui
 		resp := ChallengeResponse(ChapIDSCCRP, []byte(secret), tun.ourChallenge)
 		response = resp[:]
 	}
-	outs = append(outs, deliver(t, tun, buildSCCRPWire(t, 100, peerTID, challenge, response), now, defaults)...)
+	outs = append(outs, deliver(t, tun, buildSCCRPWire(t, rfc2661PeerTID, challenge, response), now, defaults)...)
 	require.Equal(t, L2TPTunnelEstablished, tun.state)
 	ackAll(t, tun, now)
 	return tun, defaults, outs
@@ -181,7 +185,7 @@ func dialUntilEstablished(t *testing.T, now time.Time, secret string, peerTID ui
 // to StopCCN and reads the Tunnel ID of each header the tunnel stamps.
 func TestRFC2661HeaderTunnelIDBeforeAndAfterAssignment(t *testing.T) {
 	now := time.Now()
-	tun, _, outs := dialUntilEstablished(t, now, "", 777)
+	tun, _, outs := dialUntilEstablished(t, now, "")
 
 	sccrqHdr, sccrqBody := findWire(t, outs, MsgSCCRQ)
 	require.EqualValues(t, 0, sccrqHdr.TunnelID, "SCCRQ header Tunnel ID")
@@ -219,7 +223,7 @@ func TestRFC2661HeaderTunnelIDNeverWrong(t *testing.T) {
 		require.EqualValues(t, 0, hdr.TunnelID, "every datagram before assignment carries Tunnel ID 0")
 	}
 
-	tun, _, outs = dialUntilEstablished(t, now, "", 777)
+	tun, _, outs = dialUntilEstablished(t, now, "")
 	after := outs[1:] // the SCCRQ precedes the assignment
 	after = append(after, keep(tun.handleHelloTimer(now))...)
 	ackAll(t, tun, now)
@@ -240,7 +244,7 @@ func TestRFC2661HeaderTunnelIDNeverWrong(t *testing.T) {
 // tunnel whose peer assigned 777.
 func TestRFC2661StopCCNRepeatsFirstAssignedTunnelID(t *testing.T) {
 	now := time.Now()
-	tun, _, outs := dialUntilEstablished(t, now, "", 777)
+	tun, _, outs := dialUntilEstablished(t, now, "")
 	_, sccrqBody := findWire(t, outs, MsgSCCRQ)
 	first := avpU16(t, sccrqBody, AVPAssignedTunnelID)
 
@@ -263,7 +267,7 @@ func TestRFC2661StopCCNRepeatsFirstAssignedTunnelID(t *testing.T) {
 func TestRFC2661InitiatorAnswersChallenge(t *testing.T) {
 	now := time.Now()
 	const secret = "s3cret"
-	tun, _, outs := dialUntilEstablished(t, now, secret, 777)
+	tun, _, outs := dialUntilEstablished(t, now, secret)
 	require.Equal(t, L2TPTunnelEstablished, tun.state)
 	_, scccnBody := findWire(t, outs, MsgSCCCN)
 	got := avpBytes(scccnBody, AVPChallengeResponse)
@@ -282,7 +286,7 @@ func TestRFC2661InitiatorWithoutSecretRefusesChallenge(t *testing.T) {
 	now := time.Now()
 	tun, defaults := dialedTunnel(t, now)
 	challenge := []byte{9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9}
-	outs := deliver(t, tun, buildSCCRPWire(t, 100, 777, challenge, nil), now, defaults)
+	outs := deliver(t, tun, buildSCCRPWire(t, rfc2661PeerTID, challenge, nil), now, defaults)
 	require.Equal(t, L2TPTunnelClosed, tun.state)
 	_, stopBody := findWire(t, outs, MsgStopCCN)
 	info, err := parseStopCCN(stopBody)
@@ -540,7 +544,7 @@ func TestRFC2661StopCCNAcknowledged(t *testing.T) {
 func TestRFC2661LocalTerminationSendsStopCCN(t *testing.T) {
 	now := time.Now()
 	logger := slog.Default()
-	tun, _, outs := dialUntilEstablished(t, now, "", 777)
+	tun, _, outs := dialUntilEstablished(t, now, "")
 	sid, more := tun.placeIncomingCall(now, callParams{callSerial: 1, framingType: 1}, logger)
 	require.NotZero(t, sid)
 	outs = append(outs, keep(more)...)
@@ -573,7 +577,7 @@ func TestRFC2661LocalTerminationSendsStopCCN(t *testing.T) {
 func TestRFC2661OriginatorCleansUpOnStopCCN(t *testing.T) {
 	now := time.Now()
 	logger := slog.Default()
-	tun, defaults, _ := dialUntilEstablished(t, now, "", 777)
+	tun, defaults, _ := dialUntilEstablished(t, now, "")
 	sid, _ := tun.placeIncomingCall(now, callParams{callSerial: 1, framingType: 1}, logger)
 	require.NotZero(t, sid)
 
@@ -662,7 +666,7 @@ func TestRFC2661UnrecognizedOptionalAVPIgnored(t *testing.T) {
 // holds a multi-byte character.
 func TestRFC2661ResultCodeMessageUTF8(t *testing.T) {
 	now := time.Now()
-	tun, _, _ := dialUntilEstablished(t, now, "", 777)
+	tun, _, _ := dialUntilEstablished(t, now, "")
 	const msg = "clé refusée"
 	outs := tun.teardownStopCCN(now, ResultCodeValue{
 		Result: resultProtocolError, ErrorPresent: true, Error: errorValueOutOfRange,
@@ -772,7 +776,7 @@ func TestRFC2661SLIUpdatesACCM(t *testing.T) {
 	require.Equal(t, L2TPSessionEstablished, sess.state)
 
 	sli := func(v ACCMValue) func(buf []byte, off int) int {
-		return func(buf []byte, off int) int { return writeAVPACCM(buf, off, true, v) }
+		return func(buf []byte, off int) int { return writeAVPACCM(buf, off, v) }
 	}
 	first := ACCMValue{SendACCM: 0x000A0000, RecvACCM: 0xFFFFFFFF}
 	deliver(t, lac, wrapControl(bodyOf(MsgSLI, sli(first)), lac.localTID, lsid, 1, 2), now, TunnelDefaults{})

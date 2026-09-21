@@ -21,11 +21,13 @@ func initiatorDefaults(secret string) TunnelDefaults {
 }
 
 // buildSCCRPWire assembles a full SCCRP control datagram addressed to our
-// local tunnel ID, acking our SCCRQ (Nr=1) with the peer's first message
-// (Ns=0). challenge and challengeResp map to the SCCRP Challenge and
-// Challenge Response AVPs (nil = omitted).
-func buildSCCRPWire(t *testing.T, ourLocalTID, peerAssignedTID uint16, challenge, challengeResp []byte) []byte {
+// local tunnel ID 100, the one every initiator test dials with, acking our
+// SCCRQ (Nr=1) with the peer's first message (Ns=0). challenge and
+// challengeResp map to the SCCRP Challenge and Challenge Response AVPs
+// (nil = omitted).
+func buildSCCRPWire(t *testing.T, peerAssignedTID uint16, challenge, challengeResp []byte) []byte {
 	t.Helper()
+	const ourLocalTID uint16 = 100
 	body := make([]byte, 512)
 	n := writeSCCRPBody(body, peerAssignedTID, initiatorDefaults(""), challenge, challengeResp)
 	pkt := make([]byte, ControlHeaderLen+n)
@@ -156,7 +158,7 @@ func TestTunnelInitiatorHandshake(t *testing.T) {
 	require.EqualValues(t, 100, sccrq.AssignedTunnelID)
 
 	// Peer answers with SCCRP assigning TID 555.
-	pkt := buildSCCRPWire(t, 100, 555, nil, nil)
+	pkt := buildSCCRPWire(t, 555, nil, nil)
 	rhdr, err := ParseMessageHeader(pkt)
 	require.NoError(t, err)
 	out2 := tun.Process(rhdr, pkt[rhdr.PayloadOff:rhdr.Length], now, defaults, nil)
@@ -192,7 +194,7 @@ func TestInitiatorMutualChallenge(t *testing.T) {
 	// Peer's SCCRP: answer our challenge, and issue its own challenge.
 	peerResp := ChallengeResponse(ChapIDSCCRP, []byte(secret), ourChallenge)
 	peerChallenge := []byte{0xC0, 0xC1, 0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF}
-	pkt := buildSCCRPWire(t, 100, 555, peerChallenge, peerResp[:])
+	pkt := buildSCCRPWire(t, 555, peerChallenge, peerResp[:])
 	rhdr, err := ParseMessageHeader(pkt)
 	require.NoError(t, err)
 	out2 := tun.Process(rhdr, pkt[rhdr.PayloadOff:rhdr.Length], now, defaults, nil)
@@ -220,7 +222,7 @@ func TestInitiatorChallengeReject(t *testing.T) {
 	require.Len(t, tun.initiate(now, defaults, nil), 1)
 
 	// SCCRP with NO challenge response.
-	pkt := buildSCCRPWire(t, 100, 555, nil, nil)
+	pkt := buildSCCRPWire(t, 555, nil, nil)
 	rhdr, err := ParseMessageHeader(pkt)
 	require.NoError(t, err)
 	out := tun.Process(rhdr, pkt[rhdr.PayloadOff:rhdr.Length], now, defaults, nil)

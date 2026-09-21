@@ -152,7 +152,10 @@ func readCallErrors(value []byte) (CallErrorsValue, error) {
 }
 
 // writeAVPCallErrors writes a Call Errors AVP (26-byte fixed layout).
-func writeAVPCallErrors(buf []byte, off int, mandatory bool, v CallErrorsValue) int {
+//
+// RFC 2661 Section 4.4.6, Call Errors (WEN): "The M-bit for this AVP MUST be
+// set to 1." So the bit is not a parameter.
+func writeAVPCallErrors(buf []byte, off int, v CallErrorsValue) int {
 	valueOff := off + AVPHeaderLen
 	// Reserved uint16 at value[0:2] MUST be zero.
 	binary.BigEndian.PutUint16(buf[valueOff:], 0)
@@ -162,12 +165,8 @@ func writeAVPCallErrors(buf []byte, off int, mandatory bool, v CallErrorsValue) 
 	binary.BigEndian.PutUint32(buf[valueOff+14:], v.BufferOverruns)
 	binary.BigEndian.PutUint32(buf[valueOff+18:], v.TimeoutErrors)
 	binary.BigEndian.PutUint32(buf[valueOff+22:], v.AlignmentErrors)
-	flags := AVPFlags(0)
-	if mandatory {
-		flags |= FlagMandatory
-	}
 	total := AVPHeaderLen + 26
-	WriteAVPHeader(buf, off, flags, 0, AVPCallErrors, total)
+	WriteAVPHeader(buf, off, FlagMandatory, 0, AVPCallErrors, total)
 	return total
 }
 
@@ -190,17 +189,16 @@ func readACCM(value []byte) (ACCMValue, error) {
 }
 
 // writeAVPACCM writes an ACCM AVP (10-byte fixed layout).
-func writeAVPACCM(buf []byte, off int, mandatory bool, v ACCMValue) int {
+//
+// RFC 2661 Section 4.4.6, ACCM (SLI): "The M-bit for this AVP MUST be set to
+// 1." So the bit is not a parameter.
+func writeAVPACCM(buf []byte, off int, v ACCMValue) int {
 	valueOff := off + AVPHeaderLen
 	binary.BigEndian.PutUint16(buf[valueOff:], 0)
 	binary.BigEndian.PutUint32(buf[valueOff+2:], v.SendACCM)
 	binary.BigEndian.PutUint32(buf[valueOff+6:], v.RecvACCM)
-	flags := AVPFlags(0)
-	if mandatory {
-		flags |= FlagMandatory
-	}
 	total := AVPHeaderLen + 10
-	WriteAVPHeader(buf, off, flags, 0, AVPACCM, total)
+	WriteAVPHeader(buf, off, FlagMandatory, 0, AVPACCM, total)
 	return total
 }
 

@@ -301,7 +301,7 @@ func TestCallErrorsRoundTrip(t *testing.T) {
 		BufferOverruns: 4, TimeoutErrors: 5, AlignmentErrors: 6,
 	}
 	buf := make([]byte, 40)
-	n := writeAVPCallErrors(buf, 0, true, v)
+	n := writeAVPCallErrors(buf, 0, v)
 	if n != 32 { // 6 header + 26 value
 		t.Fatalf("n=%d want 32", n)
 	}
@@ -323,7 +323,7 @@ func TestCallErrorsRoundTrip(t *testing.T) {
 func TestACCMRoundTrip(t *testing.T) {
 	v := ACCMValue{SendACCM: 0xAABBCCDD, RecvACCM: 0x11223344}
 	buf := make([]byte, 32)
-	n := writeAVPACCM(buf, 0, true, v)
+	n := writeAVPACCM(buf, 0, v)
 	if n != 16 {
 		t.Fatalf("n=%d want 16", n)
 	}

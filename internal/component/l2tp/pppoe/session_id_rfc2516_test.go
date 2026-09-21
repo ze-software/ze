@@ -23,15 +23,15 @@ func sidOf(frame []byte) uint16 {
 	return binary.BigEndian.Uint16(frame[EthHdrLen+2 : EthHdrLen+4])
 }
 
-// newRecordingServer builds an InterfaceServer whose cookie the test can
-// mint and whose frames land in the returned slice.
-func newRecordingServer(sent *[][]byte, serviceNames []string, maxPerMAC int) (*InterfaceServer, CookieKey) {
-	key := CookieKey{}
+// newRecordingServer builds an InterfaceServer whose frames land in the
+// returned slice. Its cookie key is the zero key, read back as s.cookieKey by
+// a test that mints a cookie.
+func newRecordingServer(sent *[][]byte, serviceNames []string, maxPerMAC int) *InterfaceServer {
 	s := &InterfaceServer{
 		ifName:            "eth0",
 		hwAddr:            [EthALen]byte{0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF},
 		sessions:          newSessionTable("eth0", 100),
-		cookieKey:         key,
+		cookieKey:         CookieKey{},
 		cookieTimeout:     30 * time.Second,
 		serviceNames:      serviceNames,
 		maxSessionsPerMAC: maxPerMAC,
@@ -40,7 +40,7 @@ func newRecordingServer(sent *[][]byte, serviceNames []string, maxPerMAC int) (*
 			*sent = append(*sent, frame)
 		},
 	}
-	return s, key
+	return s
 }
 
 // RFC requirement: RFC2516-4-1 positive — AllocSID on a fresh table returns a usable session ID, in the range 1 to 0xfffe.
@@ -95,7 +95,7 @@ func TestRFC2516PADISessionIDIsZero(t *testing.T) {
 // RFC requirement: RFC2516-5.1-4 negative — handlePADI answers a PADI whose SESSION_ID is 0x0000 with a PADO and answers one carrying any other SESSION_ID with nothing.
 func TestRFC2516PADIWithNonZeroSessionIDIsDropped(t *testing.T) {
 	var sent [][]byte
-	s, _ := newRecordingServer(&sent, nil, 8)
+	s := newRecordingServer(&sent, nil, 8)
 	src := [EthALen]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
 
 	s.handlePADI(&Packet{Code: CodePADI, SrcMAC: src, SID: 0x0001, Tags: []Tag{{Type: TagServiceName}}})
@@ -149,7 +149,8 @@ func TestRFC2516PADRSessionIDIsZero(t *testing.T) {
 // RFC requirement: RFC2516-5.3-5 negative — handlePADR drops a PADR carrying a non-zero SESSION_ID: no frame is sent and no session is allocated, where the same PADR with SESSION_ID 0x0000 is answered.
 func TestRFC2516PADRWithNonZeroSessionIDIsDropped(t *testing.T) {
 	var sent [][]byte
-	s, key := newRecordingServer(&sent, nil, 8)
+	s := newRecordingServer(&sent, nil, 8)
+	key := s.cookieKey
 	src := [EthALen]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
 	cookie := GenerateCookie(key, s.hwAddr[:], src[:], nil)
 	// A Service-Name the AC refuses, so the SESSION_ID 0x0000 branch below
@@ -177,7 +178,8 @@ func TestRFC2516PADRWithNonZeroSessionIDIsDropped(t *testing.T) {
 // RFC requirement: RFC2516-5.4-3 positive — the PADS handlePADR sends for an admitted session carries that session's SESSION_ID from the table, and BuildPADSError, which confirms no session, carries 0x0000.
 func TestRFC2516PADSCarriesTheSessionsID(t *testing.T) {
 	var sent [][]byte
-	s, key := newRecordingServer(&sent, nil, 8)
+	s := newRecordingServer(&sent, nil, 8)
+	key := s.cookieKey
 	src := [EthALen]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
 	cookie := GenerateCookie(key, s.hwAddr[:], src[:], nil)
 
@@ -218,7 +220,7 @@ func TestRFC2516PADSCarriesTheSessionsID(t *testing.T) {
 // RFC requirement: RFC2516-7-3 positive — when the PPP driver reports LCP down for a session, handleSessionDown removes that session from the table and sends its PADT, so the AC stops using the PPPoE session.
 func TestRFC2516SessionDownSendsPADTForThatSession(t *testing.T) {
 	var sent [][]byte
-	s, _ := newRecordingServer(&sent, nil, 8)
+	s := newRecordingServer(&sent, nil, 8)
 	mac := net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
 
 	sid, err := s.sessions.AllocSID()
@@ -252,7 +254,7 @@ func TestRFC2516SessionDownSendsPADTForThatSession(t *testing.T) {
 // RFC requirement: RFC2516-7-3 negative — a session-down report for a SESSION_ID the table does not hold sends no PADT and leaves the live session in place.
 func TestRFC2516UnknownSessionIDTerminatesNothing(t *testing.T) {
 	var sent [][]byte
-	s, _ := newRecordingServer(&sent, nil, 8)
+	s := newRecordingServer(&sent, nil, 8)
 	mac := net.HardwareAddr{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
 
 	sid, err := s.sessions.AllocSID()
@@ -303,7 +305,8 @@ func TestRFC2516ErrorTagsCarryNoData(t *testing.T) {
 
 	// Service-Name-Error: the PADR names a service the AC does not offer.
 	var sent [][]byte
-	s, key := newRecordingServer(&sent, []string{"only-this"}, 8)
+	s := newRecordingServer(&sent, []string{"only-this"}, 8)
+	key := s.cookieKey
 	cookie := GenerateCookie(key, s.hwAddr[:], src[:], nil)
 	s.handlePADR(&Packet{Code: CodePADR, SrcMAC: src, Tags: []Tag{
 		{Type: TagACCookie, Value: cookie}, {Type: TagServiceName, Value: []byte("other")},
@@ -317,7 +320,8 @@ func TestRFC2516ErrorTagsCarryNoData(t *testing.T) {
 
 	// AC-System-Error: the per-MAC cap is zero, so every PADR is a resource refusal.
 	sent = nil
-	s, key = newRecordingServer(&sent, nil, 0)
+	s = newRecordingServer(&sent, nil, 0)
+	key = s.cookieKey
 	cookie = GenerateCookie(key, s.hwAddr[:], src[:], nil)
 	s.handlePADR(&Packet{Code: CodePADR, SrcMAC: src, Tags: []Tag{
 		{Type: TagACCookie, Value: cookie}, {Type: TagServiceName},

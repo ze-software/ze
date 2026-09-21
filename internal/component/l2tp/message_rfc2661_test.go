@@ -336,12 +336,12 @@ func strAVP(attr AVPType, s string) func(buf []byte, off int) int {
 
 func callErrorsAVP() func(buf []byte, off int) int {
 	return func(buf []byte, off int) int {
-		return writeAVPCallErrors(buf, off, true, CallErrorsValue{CRCErrors: 1})
+		return writeAVPCallErrors(buf, off, CallErrorsValue{CRCErrors: 1})
 	}
 }
 
 func accmAVP() func(buf []byte, off int) int {
-	return func(buf []byte, off int) int { return writeAVPACCM(buf, off, true, ACCMValue{}) }
+	return func(buf []byte, off int) int { return writeAVPACCM(buf, off, ACCMValue{}) }
 }
 
 func resultCodeAVP() func(buf []byte, off int) int {
@@ -468,7 +468,7 @@ func TestRFC2661CallErrorsReservedZero(t *testing.T) {
 		TimeoutErrors:    0xFFFFFFFF,
 		AlignmentErrors:  0xFFFFFFFF,
 	}
-	n := writeAVPCallErrors(buf, 0, true, full)
+	n := writeAVPCallErrors(buf, 0, full)
 	if n != AVPHeaderLen+26 {
 		t.Fatalf("length: got %d, want %d", n, AVPHeaderLen+26)
 	}
