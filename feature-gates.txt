@@ -26,7 +26,7 @@
 #
 # To add a feature gate, add each package that must disappear below, create its
 # gated registration or seam, then run `./le feature-tags write` and
-# `./le plugin-imports write`. The full procedure is in
+# `./le plugin imports write`. The full procedure is in
 # ai/rules/feature-gate-registration.md.
 #
 # Lines are "<tag> <pkg>"; '#' comments and blank lines are ignored. Reuse the
