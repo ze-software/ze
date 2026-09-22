@@ -1,0 +1,143 @@
+[
+  {
+    "argv": [
+      "docker",
+      "inspect",
+      "ze-iop-ze-baseline-stayrtr-diag",
+      "ze-iop-stayrtr-baseline-stayrtr-diag"
+    ],
+    "started": 1790089244.3072076,
+    "exit": 0,
+    "stdout": "[\n    {\n        \"Id\": \"f54e77182e3d7f0fb4a268f0af650ccd57765a83f7b656cebe93a3d6d74fd0f5\",\n        \"Created\": \"2026-09-22T15:00:35.622209635Z\",\n        \"Path\": \"tini\",\n        \"Args\": [\n            \"--\",\n            \"ze\",\n            \"start\",\n            \"/etc/ze/bgp.conf\"\n        ],\n        \"State\": {\n            \"Status\": \"running\",\n            \"Running\": true,\n            \"Paused\": false,\n            \"Restarting\": false,\n            \"OOMKilled\": false,\n            \"Dead\": false,\n            \"Pid\": 2359772,\n            \"ExitCode\": 0,\n            \"Error\": \"\",\n            \"StartedAt\": \"2026-09-22T15:00:37.122129053Z\",\n            \"FinishedAt\": \"0001-01-01T00:00:00Z\"\n        },\n        \"Image\": \"sha256:e0e55046706a149a5c7aa522b9a0f32cdd61e12c4eacaf8b21a2683de89d0102\",\n        \"ResolvConfPath\": \"/var/lib/docker/containers/f54e77182e3d7f0fb4a268f0af650ccd57765a83f7b656cebe93a3d6d74fd0f5/resolv.conf\",\n        \"HostnamePath\": \"/var/lib/docker/containers/f54e77182e3d7f0fb4a268f0af650ccd57765a83f7b656cebe93a3d6d74fd0f5/hostname\",\n        \"HostsPath\": \"/var/lib/docker/containers/f54e77182e3d7f0fb4a268f0af650ccd57765a83f7b656cebe93a3d6d74fd0f5/hosts\",\n        \"LogPath\": \"/var/lib/docker/containers/f54e77182e3d7f0fb4a268f0af650ccd57765a83f7b656cebe93a3d6d74fd0f5/f54e77182e3d7f0fb4a268f0af650ccd57765a83f7b656cebe93a3d6d74fd0f5-json.log\",\n        \"Name\": \"/ze-iop-ze-baseline-stayrtr-diag\",\n        \"RestartCount\": 0,\n        \"Driver\": \"overlayfs\",\n        \"Platform\": \"linux\",\n        \"MountLabel\": \"\",\n        \"ProcessLabel\": \"\",\n        \"AppArmorProfile\": \"docker-default\",\n        \"ExecIDs\": null,\n        \"HostConfig\": {\n            \"Binds\": [\n                \"/home/thomas/Code/github.com/ze-software/ze/main/tmp/interop-rendered/rtr-stayrtr-baseline-stayrtr-diag/ze.conf:/etc/ze/bgp.conf:ro\"\n            ],\n            \"ContainerIDFile\": \"\",\n            \"LogConfig\": {\n                \"Type\": \"json-file\",\n                \"Config\": {}\n            },\n            \"NetworkMode\": \"ze-iop-baseline-stayrtr-diag\",\n            \"PortBindings\": {},\n            \"RestartPolicy\": {\n                \"Name\": \"no\",\n                \"MaximumRetryCount\": 0\n            },\n            \"AutoRemove\": false,\n            \"VolumeDriver\": \"\",\n            \"VolumesFrom\": null,\n            \"ConsoleSize\": [\n                0,\n                0\n            ],\n            \"CapAdd\": [\n                \"CAP_NET_ADMIN\"\n            ],\n            \"CapDrop\": null,\n            \"CgroupnsMode\": \"private\",\n            \"Dns\": null,\n            \"DnsOptions\": [],\n            \"DnsSearch\": [],\n            \"ExtraHosts\": null,\n            \"GroupAdd\": null,\n            \"IpcMode\": \"private\",\n            \"Cgroup\": \"\",\n            \"Links\": null,\n            \"OomScoreAdj\": 0,\n            \"PidMode\": \"\",\n            \"Privileged\": false,\n            \"PublishAllPorts\": false,\n            \"ReadonlyRootfs\": false,\n            \"SecurityOpt\": null,\n            \"UTSMode\": \"\",\n            \"UsernsMode\": \"\",\n            \"ShmSize\": 67108864,\n            \"Sysctls\": {\n                \"net.ipv6.conf.all.disable_ipv6\": \"0\",\n                \"net.ipv6.conf.default.disable_ipv6\": \"0\"\n            },\n            \"Runtime\": \"runc\",\n            \"Isolation\": \"\",\n            \"CpuShares\": 0,\n            \"Memory\": 0,\n            \"NanoCpus\": 0,\n            \"CgroupParent\": \"\",\n            \"BlkioWeight\": 0,\n            \"BlkioWeightDevice\": [],\n            \"BlkioDeviceReadBps\": [],\n            \"BlkioDeviceWriteBps\": [],\n            \"BlkioDeviceReadIOps\": [],\n            \"BlkioDeviceWriteIOps\": [],\n            \"CpuPeriod\": 0,\n            \"CpuQuota\": 0,\n            \"CpuRealtimePeriod\": 0,\n            \"CpuRealtimeRuntime\": 0,\n            \"CpusetCpus\": \"\",\n            \"CpusetMems\": \"\",\n            \"Devices\": [],\n            \"DeviceCgroupRules\": null,\n            \"DeviceRequests\": null,\n            \"MemoryReservation\": 0,\n            \"MemorySwap\": 0,\n            \"MemorySwappiness\": null,\n            \"OomKillDisable\": null,\n            \"PidsLimit\": null,\n            \"Ulimits\": null,\n            \"CpuCount\": 0,\n            \"CpuPercent\": 0,\n            \"IOMaximumIOps\": 0,\n            \"IOMaximumBandwidth\": 0,\n            \"MaskedPaths\": [\n                \"/proc/acpi\",\n                \"/proc/asound\",\n                \"/proc/interrupts\",\n                \"/proc/kcore\",\n                \"/proc/keys\",\n                \"/proc/latency_stats\",\n                \"/proc/sched_debug\",\n                \"/proc/scsi\",\n                \"/proc/timer_list\",\n                \"/proc/timer_stats\",\n                \"/sys/devices/virtual/powercap\",\n                \"/sys/firmware\"\n            ],\n            \"ReadonlyPaths\": [\n                \"/proc/bus\",\n                \"/proc/fs\",\n                \"/proc/irq\",\n                \"/proc/sys\",\n                \"/proc/sysrq-trigger\"\n            ]\n        },\n        \"Storage\": {\n            \"RootFS\": {\n                \"Snapshot\": {\n                    \"Name\": \"overlayfs\"\n                }\n            }\n        },\n        \"Mounts\": [\n            {\n                \"Type\": \"bind\",\n                \"Source\": \"/home/thomas/Code/github.com/ze-software/ze/main/tmp/interop-rendered/rtr-stayrtr-baseline-stayrtr-diag/ze.conf\",\n                \"Destination\": \"/etc/ze/bgp.conf\",\n                \"Mode\": \"ro\",\n                \"RW\": false,\n                \"Propagation\": \"rprivate\"\n            }\n        ],\n        \"Config\": {\n            \"Hostname\": \"f54e77182e3d\",\n            \"Domainname\": \"\",\n            \"User\": \"\",\n            \"AttachStdin\": false,\n            \"AttachStdout\": false,\n            \"AttachStderr\": false,\n            \"Tty\": false,\n            \"OpenStdin\": false,\n            \"StdinOnce\": false,\n            \"Env\": [\n                \"SESSION_TIMEOUT=90\",\n                \"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"\n            ],\n            \"Cmd\": [\n                \"start\",\n                \"/etc/ze/bgp.conf\"\n            ],\n            \"Image\": \"ze-interop\",\n            \"Volumes\": null,\n            \"WorkingDir\": \"/\",\n            \"Entrypoint\": [\n                \"tini\",\n                \"--\",\n                \"ze\"\n            ],\n            \"Labels\": {}\n        },\n        \"NetworkSettings\": {\n            \"SandboxID\": \"98010c20b6a4bf01188254b9db259951f5073e01ab0da4afbf66e620f0018876\",\n            \"SandboxKey\": \"/var/run/docker/netns/98010c20b6a4\",\n            \"Ports\": {},\n            \"Networks\": {\n                \"ze-iop-baseline-stayrtr-diag\": {\n                    \"IPAMConfig\": {\n                        \"IPv4Address\": \"172.30.0.2\"\n                    },\n                    \"Links\": null,\n                    \"Aliases\": null,\n                    \"DriverOpts\": null,\n                    \"GwPriority\": 0,\n                    \"NetworkID\": \"6c5cdf3498841f0dc6f19ba1042bd7626d953cefccebfd9479148a550e64f02b\",\n                    \"EndpointID\": \"721ffca81e8108c9380e51e22d344b8f64bdd1c2ee4d3e387606760ffc2ea986\",\n                    \"Gateway\": \"172.30.0.1\",\n                    \"IPAddress\": \"172.30.0.2\",\n                    \"MacAddress\": \"6e:f0:e6:50:ac:03\",\n                    \"IPPrefixLen\": 24,\n                    \"IPv6Gateway\": \"\",\n                    \"GlobalIPv6Address\": \"\",\n                    \"GlobalIPv6PrefixLen\": 0,\n                    \"DNSNames\": [\n                        \"ze-iop-ze-baseline-stayrtr-diag\",\n                        \"f54e77182e3d\"\n                    ]\n                }\n            }\n        },\n        \"ImageManifestDescriptor\": {\n            \"mediaType\": \"application/vnd.oci.image.manifest.v1+json\",\n            \"digest\": \"sha256:851fbfd7080c8b3d77080e0ace3234244058af7024df5cf86f54145ecf51e61f\",\n            \"size\": 1059,\n            \"platform\": {\n                \"architecture\": \"amd64\",\n                \"os\": \"linux\"\n            }\n        }\n    },\n    {\n        \"Id\": \"b75dfa9be8f7225c57cc8fce316de0d1e53260aa5517f280794c40b46b137069\",\n        \"Created\": \"2026-09-22T15:00:33.454249872Z\",\n        \"Path\": \"tini\",\n        \"Args\": [\n            \"--\",\n            \"stayrtr\",\n            \"-bind\",\n            \":8282\",\n            \"-cache\",\n            \"/vrps.json\",\n            \"-checktime=false\",\n            \"-refresh\",\n            \"10\"\n        ],\n        \"State\": {\n            \"Status\": \"running\",\n            \"Running\": true,\n            \"Paused\": false,\n            \"Restarting\": false,\n            \"OOMKilled\": false,\n            \"Dead\": false,\n            \"Pid\": 2359495,\n            \"ExitCode\": 0,\n            \"Error\": \"\",\n            \"StartedAt\": \"2026-09-22T15:00:34.938876239Z\",\n            \"FinishedAt\": \"0001-01-01T00:00:00Z\"\n        },\n        \"Image\": \"sha256:ef63bc82dd29695c06f0b7aed944648f6238b2a585007c817d167a9c8afab308\",\n        \"ResolvConfPath\": \"/var/lib/docker/containers/b75dfa9be8f7225c57cc8fce316de0d1e53260aa5517f280794c40b46b137069/resolv.conf\",\n        \"HostnamePath\": \"/var/lib/docker/containers/b75dfa9be8f7225c57cc8fce316de0d1e53260aa5517f280794c40b46b137069/hostname\",\n        \"HostsPath\": \"/var/lib/docker/containers/b75dfa9be8f7225c57cc8fce316de0d1e53260aa5517f280794c40b46b137069/hosts\",\n        \"LogPath\": \"/var/lib/docker/containers/b75dfa9be8f7225c57cc8fce316de0d1e53260aa5517f280794c40b46b137069/b75dfa9be8f7225c57cc8fce316de0d1e53260aa5517f280794c40b46b137069-json.log\",\n        \"Name\": \"/ze-iop-stayrtr-baseline-stayrtr-diag\",\n        \"RestartCount\": 0,\n        \"Driver\": \"overlayfs\",\n        \"Platform\": \"linux\",\n        \"MountLabel\": \"\",\n        \"ProcessLabel\": \"\",\n        \"AppArmorProfile\": \"docker-default\",\n        \"ExecIDs\": null,\n        \"HostConfig\": {\n            \"Binds\": [\n                \"/home/thomas/Code/github.com/ze-software/ze/main/tmp/interop-rendered/rtr-stayrtr-baseline-stayrtr-diag/vrps.json:/vrps.json:ro\"\n            ],\n            \"ContainerIDFile\": \"\",\n            \"LogConfig\": {\n                \"Type\": \"json-file\",\n                \"Config\": {}\n            },\n            \"NetworkMode\": \"ze-iop-baseline-stayrtr-diag\",\n            \"PortBindings\": {},\n            \"RestartPolicy\": {\n                \"Name\": \"no\",\n                \"MaximumRetryCount\": 0\n            },\n            \"AutoRemove\": false,\n            \"VolumeDriver\": \"\",\n            \"VolumesFrom\": null,\n            \"ConsoleSize\": [\n                0,\n                0\n            ],\n            \"CapAdd\": null,\n            \"CapDrop\": null,\n            \"CgroupnsMode\": \"private\",\n            \"Dns\": null,\n            \"DnsOptions\": [],\n            \"DnsSearch\": [],\n            \"ExtraHosts\": null,\n            \"GroupAdd\": null,\n            \"IpcMode\": \"private\",\n            \"Cgroup\": \"\",\n            \"Links\": null,\n            \"OomScoreAdj\": 0,\n            \"PidMode\": \"\",\n            \"Privileged\": false,\n            \"PublishAllPorts\": false,\n            \"ReadonlyRootfs\": false,\n            \"SecurityOpt\": null,\n            \"UTSMode\": \"\",\n            \"UsernsMode\": \"\",\n            \"ShmSize\": 67108864,\n            \"Runtime\": \"runc\",\n            \"Isolation\": \"\",\n            \"CpuShares\": 0,\n            \"Memory\": 0,\n            \"NanoCpus\": 0,\n            \"CgroupParent\": \"\",\n            \"BlkioWeight\": 0,\n            \"BlkioWeightDevice\": [],\n            \"BlkioDeviceReadBps\": [],\n            \"BlkioDeviceWriteBps\": [],\n            \"BlkioDeviceReadIOps\": [],\n            \"BlkioDeviceWriteIOps\": [],\n            \"CpuPeriod\": 0,\n            \"CpuQuota\": 0,\n            \"CpuRealtimePeriod\": 0,\n            \"CpuRealtimeRuntime\": 0,\n            \"CpusetCpus\": \"\",\n            \"CpusetMems\": \"\",\n            \"Devices\": [],\n            \"DeviceCgroupRules\": null,\n            \"DeviceRequests\": null,\n            \"MemoryReservation\": 0,\n            \"MemorySwap\": 0,\n            \"MemorySwappiness\": null,\n            \"OomKillDisable\": null,\n            \"PidsLimit\": null,\n            \"Ulimits\": null,\n            \"CpuCount\": 0,\n            \"CpuPercent\": 0,\n            \"IOMaximumIOps\": 0,\n            \"IOMaximumBandwidth\": 0,\n            \"MaskedPaths\": [\n                \"/proc/acpi\",\n                \"/proc/asound\",\n                \"/proc/interrupts\",\n                \"/proc/kcore\",\n                \"/proc/keys\",\n                \"/proc/latency_stats\",\n                \"/proc/sched_debug\",\n                \"/proc/scsi\",\n                \"/proc/timer_list\",\n                \"/proc/timer_stats\",\n                \"/sys/devices/virtual/powercap\",\n                \"/sys/firmware\"\n            ],\n            \"ReadonlyPaths\": [\n                \"/proc/bus\",\n                \"/proc/fs\",\n                \"/proc/irq\",\n                \"/proc/sys\",\n                \"/proc/sysrq-trigger\"\n            ]\n        },\n        \"Storage\": {\n            \"RootFS\": {\n                \"Snapshot\": {\n                    \"Name\": \"overlayfs\"\n                }\n            }\n        },\n        \"Mounts\": [\n            {\n                \"Type\": \"bind\",\n                \"Source\": \"/home/thomas/Code/github.com/ze-software/ze/main/tmp/interop-rendered/rtr-stayrtr-baseline-stayrtr-diag/vrps.json\",\n                \"Destination\": \"/vrps.json\",\n                \"Mode\": \"ro\",\n                \"RW\": false,\n                \"Propagation\": \"rprivate\"\n            }\n        ],\n        \"Config\": {\n            \"Hostname\": \"b75dfa9be8f7\",\n            \"Domainname\": \"\",\n            \"User\": \"\",\n            \"AttachStdin\": false,\n            \"AttachStdout\": false,\n            \"AttachStderr\": false,\n            \"Tty\": false,\n            \"OpenStdin\": false,\n            \"StdinOnce\": false,\n            \"Env\": [\n                \"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\"\n            ],\n            \"Cmd\": [\n                \"-bind\",\n                \":8282\",\n                \"-cache\",\n                \"/vrps.json\",\n                \"-checktime=false\",\n                \"-refresh\",\n                \"10\"\n            ],\n            \"Image\": \"stayrtr-interop\",\n            \"Volumes\": null,\n            \"WorkingDir\": \"/\",\n            \"Entrypoint\": [\n                \"tini\",\n                \"--\",\n                \"stayrtr\"\n            ],\n            \"Labels\": {}\n        },\n        \"NetworkSettings\": {\n            \"SandboxID\": \"494e93f04388a0df62e6b035a864917d5ad452247369538af1aeae4a75dfe25d\",\n            \"SandboxKey\": \"/var/run/docker/netns/494e93f04388\",\n            \"Ports\": {},\n            \"Networks\": {\n                \"ze-iop-baseline-stayrtr-diag\": {\n                    \"IPAMConfig\": {\n                        \"IPv4Address\": \"172.30.0.12\"\n                    },\n                    \"Links\": null,\n                    \"Aliases\": null,\n                    \"DriverOpts\": null,\n                    \"GwPriority\": 0,\n                    \"NetworkID\": \"6c5cdf3498841f0dc6f19ba1042bd7626d953cefccebfd9479148a550e64f02b\",\n                    \"EndpointID\": \"375aa31576a6e4cbc65c36de1680058b4a8d819464e75a2193b93e8945898d8e\",\n                    \"Gateway\": \"172.30.0.1\",\n                    \"IPAddress\": \"172.30.0.12\",\n                    \"MacAddress\": \"ba:0e:65:71:ac:6c\",\n                    \"IPPrefixLen\": 24,\n                    \"IPv6Gateway\": \"\",\n                    \"GlobalIPv6Address\": \"\",\n                    \"GlobalIPv6PrefixLen\": 0,\n                    \"DNSNames\": [\n                        \"ze-iop-stayrtr-baseline-stayrtr-diag\",\n                        \"b75dfa9be8f7\"\n                    ]\n                }\n            }\n        },\n        \"ImageManifestDescriptor\": {\n            \"mediaType\": \"application/vnd.oci.image.manifest.v1+json\",\n            \"digest\": \"sha256:fdd4e1fd1f440a588f235cd1a04a8f0aa4e566605cfd54c7ef4a682f73576a21\",\n            \"size\": 863,\n            \"platform\": {\n                \"architecture\": \"amd64\",\n                \"os\": \"linux\"\n            }\n        }\n    }\n]\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "docker",
+      "exec",
+      "ze-iop-ze-baseline-stayrtr-diag",
+      "cat",
+      "/etc/ze/bgp.conf"
+    ],
+    "started": 1790089244.3512144,
+    "exit": 0,
+    "stdout": "# Ze as the RTR CLIENT of a real StayRTR cache (172.30.0.12:8282).\n#\n# There is no BGP peer here on purpose. The subject is the RTR half: what Ze\n# decodes from another implementation's Prefix PDUs, and whether the VRPs it\n# builds from them agree with what that cache meant. A peer would add a second\n# daemon and a second protocol between the wire under test and the verdict.\n#\n# `port 8282` is StayRTR's default RTR port, not Ze's 323 plain-TCP default.\nplugin {\n\tinternal bgp-rpki {\n\t\tuse bgp-rpki;\n\t}\n}\nbgp {\n\trpki {\n\t\tcache-server 172.30.0.12 {\n\t\t\ttrusted-network true;\n\t\t\tport 8282;\n\t\t}\n\t\tvalidation-timeout 5;\n\t\taction {\n\t\t\tinvalid reject;\n\t\t\tnot-found accept;\n\t\t}\n\t}\n}\n\nsystem {\n\tauthentication {\n\t\tuser interop {\n\t\t\tpassword \"$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO\"\n\t\t}\n\t}\n}\n\nenvironment {\n\tssh {\n\t\tenabled true\n\t\tserver main {\n\t\t\tip 127.0.0.1;\n\t\t\tport 2222;\n\t\t}\n\t}\n}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "docker",
+      "exec",
+      "ze-iop-stayrtr-baseline-stayrtr-diag",
+      "cat",
+      "/vrps.json"
+    ],
+    "started": 1790089244.4511755,
+    "exit": 0,
+    "stdout": "{\n  \"metadata\": {\n    \"counts\": 4\n  },\n  \"roas\": [\n    {\"prefix\": \"9.58.0.0/16\", \"maxLength\": 24, \"asn\": \"AS4200000001\", \"ta\": \"ze-interop\"},\n    {\"prefix\": \"10.58.0.0/16\", \"maxLength\": 16, \"asn\": \"AS65001\", \"ta\": \"ze-interop\"},\n    {\"prefix\": \"2001:db8:58::/48\", \"maxLength\": 56, \"asn\": \"AS4200000001\", \"ta\": \"ze-interop\"},\n    {\"prefix\": \"2001:db8:59::/48\", \"maxLength\": 48, \"asn\": \"AS65001\", \"ta\": \"ze-interop\"}\n  ]\n}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "docker",
+      "exec",
+      "-e",
+      "ZE_SSH_PASSWORD=testpass",
+      "ze-iop-ze-baseline-stayrtr-diag",
+      "ze",
+      "cli",
+      "-c",
+      "show bgp rpki status",
+      "--user",
+      "interop",
+      "--format",
+      "json"
+    ],
+    "started": 1790089244.5570579,
+    "exit": 0,
+    "stdout": "{\n  \"actions\": {\n    \"aspa-invalid\": \"reject\",\n    \"aspa-unknown\": \"accept\",\n    \"invalid\": \"reject\",\n    \"not-found\": \"accept\"\n  },\n  \"aspa-enabled\": false,\n  \"aspa-records\": 0,\n  \"cache-servers\": [\n    {\n      \"address\": \"172.30.0.12\",\n      \"port\": 8282,\n      \"state\": \"idle\",\n      \"synced\": false,\n      \"version\": 2\n    }\n  ],\n  \"peer-actions\": [],\n  \"running\": true,\n  \"sessions\": 1,\n  \"sessions-synced\": 0,\n  \"synced\": false,\n  \"vrp-count-ipv4\": 0,\n  \"vrp-count-ipv6\": 0\n}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "docker",
+      "exec",
+      "-e",
+      "ZE_SSH_PASSWORD=testpass",
+      "ze-iop-ze-baseline-stayrtr-diag",
+      "ze",
+      "cli",
+      "-c",
+      "show bgp rpki cache",
+      "--user",
+      "interop",
+      "--format",
+      "json"
+    ],
+    "started": 1790089244.9338253,
+    "exit": 0,
+    "stdout": "[\n  {\n    \"address\": \"172.30.0.12\",\n    \"expire-interval\": 7200,\n    \"port\": 8282,\n    \"preference\": 100,\n    \"refresh-interval\": 3600,\n    \"retry-interval\": 600,\n    \"serial\": 0,\n    \"session-id\": 0,\n    \"state\": \"idle\",\n    \"synced\": false,\n    \"version\": 2\n  }\n]\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "docker",
+      "exec",
+      "-e",
+      "ZE_SSH_PASSWORD=testpass",
+      "ze-iop-ze-baseline-stayrtr-diag",
+      "ze",
+      "cli",
+      "-c",
+      "show bgp rpki roa",
+      "--user",
+      "interop",
+      "--format",
+      "json"
+    ],
+    "started": 1790089245.3276703,
+    "exit": 0,
+    "stdout": "{\n  \"entries\": [],\n  \"ipv4-vrps\": 0,\n  \"ipv6-vrps\": 0,\n  \"total-vrps\": 0\n}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "docker",
+      "exec",
+      "ze-iop-stayrtr-baseline-stayrtr-diag",
+      "wget",
+      "-q",
+      "-O",
+      "-",
+      "http://127.0.0.1:9847/rpki.json"
+    ],
+    "started": 1790089245.7037172,
+    "exit": 0,
+    "stdout": "{\"metadata\":{\"vrps\":4,\"bgpsec_pubkeys\":0,\"serial\":0},\"roas\":[{\"prefix\":\"9.58.0.0/16\",\"maxLength\":24,\"asn\":\"AS4200000001\",\"ta\":\"ze-interop\"},{\"prefix\":\"10.58.0.0/16\",\"maxLength\":16,\"asn\":\"AS65001\",\"ta\":\"ze-interop\"},{\"prefix\":\"2001:db8:58::/48\",\"maxLength\":56,\"asn\":\"AS4200000001\",\"ta\":\"ze-interop\"},{\"prefix\":\"2001:db8:59::/48\",\"maxLength\":48,\"asn\":\"AS65001\",\"ta\":\"ze-interop\"}]}\n",
+    "stderr": ""
+  },
+  {
+    "argv": [
+      "docker",
+      "logs",
+      "--timestamps",
+      "ze-iop-ze-baseline-stayrtr-diag"
+    ],
+    "started": 1790089245.802105,
+    "exit": 0,
+    "stdout": "2026-09-22T15:00:39.128617762Z Starting ze with config: /etc/ze/bgp.conf\n2026-09-22T15:00:39.358357530Z Ze running. Press Ctrl+C to stop.\n",
+    "stderr": "2026-09-22T15:00:37.937268368Z created live store: /etc/ze/database\n2026-09-22T15:00:38.964831263Z warning: running as root, set ze.user to drop privileges\n2026-09-22T15:00:39.353752184Z 2026/09/22 15:00:39 INFO generated SSH host key subsystem=ssh path=/etc/ze/ssh_host_ed25519_key\n2026-09-22T15:00:39.354737845Z 2026/09/22 15:00:39 INFO SSH server listening subsystem=ssh address=127.0.0.1:2222\n2026-09-22T15:00:39.360892229Z time=2026-09-22T15:00:39.360Z level=WARN msg=\"rtr: cache did not answer, trying the next one in preference order\" subsystem=bgp.rpki address=172.30.0.12 preference=100 error=\"rtr: no supported common version with cache version 0\"\n2026-09-22T15:00:40.253622552Z 2026/09/22 15:00:40 INFO SSH auth success subsystem=ssh username=interop remote=127.0.0.1:58308 source=local profiles=[]\n2026-09-22T15:00:40.254243477Z 2026/09/22 15:00:40 INFO SSH exec command subsystem=ssh user=interop command=\"show version\" remote=127.0.0.1:58308\n2026-09-22T15:00:40.259545332Z 2026/09/22 15:00:40 INFO SSH auth success subsystem=ssh username=interop remote=127.0.0.1:58320 source=local profiles=[]\n2026-09-22T15:00:40.260504372Z 2026/09/22 15:00:40 INFO SSH exec command subsystem=ssh user=interop command=\"show bgp rpki status | json\" remote=127.0.0.1:58320\n2026-09-22T15:00:42.257661983Z 2026/09/22 15:00:42 INFO SSH auth success subsystem=ssh username=interop remote=127.0.0.1:60914 source=local profiles=[]\n2026-09-22T15:00:42.258326010Z 2026/09/22 15:00:42 INFO SSH exec command subsystem=ssh user=interop command=\"show version\" remote=127.0.0.1:60914\n2026-09-22T15:00:42.263358448Z 2026/09/22 15:00:42 INFO SSH auth success subsystem=ssh username=interop remote=127.0.0.1:60922 source=local profiles=[]\n2026-09-22T15:00:42.263916806Z 2026/09/22 15:00:42 INFO SSH exec command subsystem=ssh user=interop command=\"show bgp rpki status | json\" remote=127.0.0.1:60922\n2026-09-22T15:00:44.260753723Z 2026/09/22 15:00:44 INFO SSH auth success subsystem=ssh username=interop remote=127.0.0.1:60936 source=local profiles=[]\n2026-09-22T15:00:44.261286003Z 2026/09/22 15:00:44 INFO SSH exec command subsystem=ssh user=interop command=\"show version\" remote=127.0.0.1:60936\n2026-09-22T15:00:44.266393401Z 2026/09/22 15:00:44 INFO SSH auth success subsystem=ssh username=interop remote=127.0.0.1:60948 source=local profiles=[]\n2026-09-22T15:00:44.267080371Z 2026/09/22 15:00:44 INFO SSH exec command subsystem=ssh user=interop command=\"show bgp rpki status | json\" remote=127.0.0.1:60948\n2026-09-22T15:00:44.910625959Z 2026/09/22 15:00:44 INFO SSH auth success subsystem=ssh username=interop remote=127.0.0.1:60954 source=local profiles=[]\n2026-09-22T15:00:44.911149081Z 2026/09/22 15:00:44 INFO SSH exec command subsystem=ssh user=interop command=\"show version\" remote=127.0.0.1:60954\n2026-09-22T15:00:44.917705229Z 2026/09/22 15:00:44 INFO SSH auth success subsystem=ssh username=interop remote=127.0.0.1:60958 source=local profiles=[]\n2026-09-22T15:00:44.918499931Z 2026/09/22 15:00:44 INFO SSH exec command subsystem=ssh user=interop command=\"show bgp rpki status | json\" remote=127.0.0.1:60958\n2026-09-22T15:00:45.287862545Z 2026/09/22 15:00:45 INFO SSH auth success subsystem=ssh username=interop remote=127.0.0.1:60964 source=local profiles=[]\n2026-09-22T15:00:45.288344159Z 2026/09/22 15:00:45 INFO SSH exec command subsystem=ssh user=interop command=\"show version\" remote=127.0.0.1:60964\n2026-09-22T15:00:45.294704569Z 2026/09/22 15:00:45 INFO SSH auth success subsystem=ssh username=interop remote=127.0.0.1:60976 source=local profiles=[]\n2026-09-22T15:00:45.295261064Z 2026/09/22 15:00:45 INFO SSH exec command subsystem=ssh user=interop command=\"show bgp rpki cache | json\" remote=127.0.0.1:60976\n2026-09-22T15:00:45.680897940Z 2026/09/22 15:00:45 INFO SSH auth success subsystem=ssh username=interop remote=127.0.0.1:60988 source=local profiles=[]\n2026-09-22T15:00:45.681852121Z 2026/09/22 15:00:45 INFO SSH exec command subsystem=ssh user=interop command=\"show version\" remote=127.0.0.1:60988\n2026-09-22T15:00:45.687006027Z 2026/09/22 15:00:45 INFO SSH auth success subsystem=ssh username=interop remote=127.0.0.1:32770 source=local profiles=[]\n2026-09-22T15:00:45.687569054Z 2026/09/22 15:00:45 INFO SSH exec command subsystem=ssh user=interop command=\"show bgp rpki roa | json\" remote=127.0.0.1:32770\n"
+  },
+  {
+    "argv": [
+      "docker",
+      "logs",
+      "--timestamps",
+      "ze-iop-stayrtr-baseline-stayrtr-diag"
+    ],
+    "started": 1790089245.8487012,
+    "exit": 0,
+    "stdout": "",
+    "stderr": "2026-09-22T15:00:35.421805570Z time=\"2026-09-22T15:00:35Z\" level=info msg=\"New update (4 uniques, 4 total prefixes, 0 router keys).\"\n2026-09-22T15:00:35.422024441Z time=\"2026-09-22T15:00:35Z\" level=info msg=\"Update added, new serial 0\"\n2026-09-22T15:00:35.422039950Z time=\"2026-09-22T15:00:35Z\" level=info msg=\"StayRTR Server started (sessionID:54753, refresh:3600, retry:600, expire:7200)\"\n2026-09-22T15:00:35.422044178Z time=\"2026-09-22T15:00:35Z\" level=info msg=\"StayRTR Server v0.6.4 binding to :8282\"\n2026-09-22T15:00:39.359742491Z time=\"2026-09-22T15:00:39Z\" level=info msg=\"Accepted tcp connection from 172.30.0.2:33794 (1/0)\"\n2026-09-22T15:00:39.360307401Z time=\"2026-09-22T15:00:39Z\" level=info msg=\"Disconnecting client 172.30.0.2:33794 (v0) / Serial: 0\"\n2026-09-22T15:00:45.428232020Z time=\"2026-09-22T15:00:45Z\" level=info msg=\"File /vrps.json is identical to the previous version\"\n"
+  }
+]

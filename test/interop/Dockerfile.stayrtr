@@ -32,5 +32,8 @@ COPY --from=builder /go/bin/stayrtr /usr/local/bin/stayrtr
 # that file carries no signed validity window: with the default the cache
 # refuses its own input and serves an empty set, which would make every prefix
 # read NotFound for a reason that has nothing to do with Ze.
+# Pin the served protocol before the first query. In v0.6.4 the default
+# negotiation path reports version 0 when it rejects Ze's initial v2 query.
+# Enforcing v1 makes that Error Report advertise the supported v1 instead.
 ENTRYPOINT ["tini", "--", "stayrtr"]
-CMD ["-bind", ":8282", "-cache", "/vrps.json", "-checktime=false", "-refresh", "10"]
+CMD ["-bind", ":8282", "-cache", "/vrps.json", "-checktime=false", "-refresh", "10", "-protocol", "1", "-enforce.version=true"]

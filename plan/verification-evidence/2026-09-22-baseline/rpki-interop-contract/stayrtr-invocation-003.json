@@ -1,0 +1,5 @@
+{
+  "command": "env -u NO_BUILD INTEROP_SCENARIO=rtr-stayrtr ZE_INTEROP_SUFFIX=baseline-stayrtr-v1 /home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le le integration interop '|' json",
+  "status": "invoked",
+  "purpose": "Rebuild pinned StayRTR with protocol 1 enforced; keep existing checker and timers. Passive observer retains actual negotiation/cache state before cleanup."
+}
