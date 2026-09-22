@@ -1,0 +1,12 @@
+{
+  "argv": [
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le",
+    "le",
+    "test-health",
+    "update"
+  ],
+  "cwd": "/home/thomas/Code/github.com/ze-software/ze/main",
+  "started": "2026-09-22T19:58:27.767Z",
+  "reason": "New RSVP regression tests and credential evidence were added after the prior structural report. Generated Go snapshots have now been archived and removed.",
+  "pid": 2780571
+}

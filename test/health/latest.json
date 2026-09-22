@@ -3,27 +3,27 @@
     {
       "action": "Write a test for a {gap} requirement, or for one carrying no test and no annotation. A single-polarity requirement is already counted as proven, and not-applicable needs no test.",
       "annotations": {
-        "feature-declined": 4,
-        "gap": 503,
-        "lower-layer": 29,
-        "not-applicable": 735,
-        "rollup": 2,
-        "single-polarity": 377
+        "feature-declined": 21,
+        "gap": 663,
+        "lower-layer": 40,
+        "not-applicable": 721,
+        "rollup": 3,
+        "single-polarity": 391
       },
-      "detail": "62.4% of the 3058 gated MUSTs the 147 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 3224 gated MUSTs across 172 enrolled RFCs -- and of the 1648 of those not proven in both polarities: 735 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 503 known gap (unimplemented, genuinely untested), 377 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 29 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 4 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 0 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work. Apart from every figure above, 2 rows carry {rollup}: each derives its state from rows already counted here, and none is in the denominator.",
-      "gated_without_any_test": 0,
+      "detail": "62.6% of the 3902 gated MUSTs the 150 RFCs ze implements carry are proven by a tagged test: both polarities, or one polarity whose annotation records that no input drives the other side. The gate holds a wider set -- 4064 gated MUSTs across 171 enrolled RFCs -- and of the 1956 of those not proven in both polarities: 721 not-applicable (recorded as not binding ze; the owner ruling of 2026-08-31 presumes most of these need re-homing, so they stay inside the denominator above rather than being subtracted from it), 663 known gap (unimplemented, genuinely untested), 391 single-polarity -- those DO have a passing tagged test, just one side of the pair, and the RFC gate fails if that test is missing -- 40 met by a layer under ze on state ze installs, which the annotation names with the producer that installs it: those are MET and are not proven by ze, so they count in the denominator above and never in the share, 21 conditional on an optional feature ze does not offer, each quoting the RFC sentence that makes it optional: the condition is false, so nothing is owed, and 96 with no test and no annotation at all, which is what `./le rfc check` is red about. Only the gap column and that last one are untested work. Apart from every figure above, 3 rows carry {rollup}: each derives its state from rows already counted here, and none is in the denominator.",
+      "gated_without_any_test": 96,
       "key": "rfc-proof-density",
       "label": "RFC MUST requirements proven by test, over the RFCs ze implements",
       "proof_density": {
-        "denominator": 3058,
-        "numerator": 1907,
-        "percent": 62.4
+        "denominator": 3902,
+        "numerator": 2443,
+        "percent": 62.6
       },
       "question": "Q2",
-      "rfcs_total": 172,
-      "rfcs_without_any_proof": 24,
+      "rfcs_total": 171,
+      "rfcs_without_any_proof": 15,
       "status": "ok",
-      "value": "1907 / 3058",
+      "value": "2443 / 3902",
       "worst": [
         {
           "gated": 38,
@@ -50,19 +50,19 @@
           "rfc": "rfc7166"
         },
         {
-          "gated": 13,
-          "rfc": "rfc9514"
-        },
-        {
-          "gated": 12,
+          "gated": 11,
           "rfc": "rfc9085"
         },
         {
-          "gated": 12,
-          "rfc": "rfc9086"
+          "gated": 8,
+          "rfc": "rfc4364"
         },
         {
-          "gated": 11,
+          "gated": 7,
+          "rfc": "rfc2782"
+        },
+        {
+          "gated": 6,
           "rfc": "rfc7012"
         }
       ]
@@ -75,51 +75,42 @@
       "question": "Q2",
       "status": "warn",
       "unproven": {
-        "denominator": 172,
-        "numerator": 24,
-        "percent": 14.0
+        "denominator": 171,
+        "numerator": 15,
+        "percent": 8.8
       },
       "unproven_rfcs": [
         "rfc2132",
         "rfc2782",
         "rfc3032",
-        "rfc3786",
         "rfc4213",
         "rfc4364",
-        "rfc4555",
         "rfc4576",
-        "rfc4684",
         "rfc4761",
-        "rfc5561",
         "rfc6397",
         "rfc6608",
         "rfc7012",
         "rfc7166",
         "rfc7535",
-        "rfc7611",
         "rfc7871",
         "rfc8097",
-        "rfc8571",
-        "rfc8956",
-        "rfc9085",
-        "rfc9086",
-        "rfc9514"
+        "rfc9085"
       ],
-      "value": "24 / 172"
+      "value": "15 / 171"
     },
     {
       "action": "Add a real assertion, or annotate with `// test-asserts-nothing: <why>` when the oracle is genuinely implicit (a must-not-panic smoke test).",
       "detail": "These execute code and pass unconditionally. Breaking the code under test would not turn them red.",
       "inert": {
-        "denominator": 30793,
-        "numerator": 132,
+        "denominator": 31302,
+        "numerator": 129,
         "percent": 0.4
       },
       "key": "assert-nothing",
       "label": "Tests with no reachable failure call",
       "question": "Q1",
       "status": "ok",
-      "value": "132 / 30793 (floor 132)",
+      "value": "129 / 31302 (floor 129)",
       "worst": [
         {
           "file": "internal/chaos/chaos_test.go",
@@ -143,10 +134,6 @@
         },
         {
           "file": "internal/component/bgp/plugins/bmp/event_test.go",
-          "test": "TestBMPPeerUpSkippedOnCacheMiss"
-        },
-        {
-          "file": "internal/component/bgp/plugins/bmp/event_test.go",
           "test": "TestHandleSenderNoSenders"
         },
         {
@@ -160,6 +147,10 @@
         {
           "file": "internal/component/bgp/plugins/filter_irr/filter_irr_test.go",
           "test": "TestRefreshSwapsAtomically"
+        },
+        {
+          "file": "internal/component/bgp/plugins/filter_irr/filter_irr_test.go",
+          "test": "TestRefreshASNStoreFieldRace"
         }
       ]
     },
@@ -181,15 +172,15 @@
         "ci_files": 2072,
         "et_files": 170,
         "fuzz_funcs": 84,
-        "test_files": 4342,
-        "test_funcs": 30825
+        "test_files": 4443,
+        "test_funcs": 31334
       },
-      "detail": "4342 Go test files, 84 fuzz targets, 133 benchmarks, 2072 .ci scenarios, 170 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
+      "detail": "4443 Go test files, 84 fuzz targets, 133 benchmarks, 2072 .ci scenarios, 170 .et editor tests. Counts cover internal, cmd, pkg, test only: vendor/ and gokrazy/modcache/ are third-party module trees and are excluded.",
       "key": "inventory",
       "label": "In-repo test inventory",
       "question": "Q2",
       "status": "ok",
-      "value": "30825 test functions"
+      "value": "31334 test functions"
     },
     {
       "action": "Replace a sleep with a payload-predicate wait (wait_until, dispatch_until), then lower the floor in the same change.",
@@ -209,13 +200,13 @@
       "key": "negative-tests",
       "label": "Test files that expect a specific error",
       "overall": {
-        "denominator": 4342,
-        "numerator": 1572,
-        "percent": 36.2
+        "denominator": 4443,
+        "numerator": 1617,
+        "percent": 36.4
       },
       "question": "Q2",
       "status": "ok",
-      "value": "1572 / 4342",
+      "value": "1617 / 4443",
       "worst": [
         {
           "area": "internal/chaos/report",
@@ -243,7 +234,7 @@
         },
         {
           "area": "internal/le/hookruntime",
-          "files": 7,
+          "files": 8,
           "negative": 0,
           "percent": 0.0
         },
@@ -292,7 +283,7 @@
           "packages": 637,
           "with_ci": 35,
           "with_fuzz": 33,
-          "with_rfc_tag": 107
+          "with_rfc_tag": 112
         }
       },
       "detail": "A technique adopted only forward from its introduction shows here as a step: recent buckets carry it, older ones never do.",
