@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	txevents "github.com/ze-software/ze/internal/component/config/transaction/events"
 	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/plugins/authradius/yang"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
@@ -55,7 +56,6 @@ func init() {
 			bindRADIUSMetrics(reg)
 		},
 		ConfigureEventBus: func(eb ze.EventBus) {
-			acctInstance.subscribeEventBus(eb)
 			eventBusMu.Lock()
 			storedBus = eb
 			eventBusMu.Unlock()
@@ -105,46 +105,186 @@ func runPlugin(conn net.Conn) int {
 		}
 	}()
 
-	p.OnConfigVerify(verifyRadiusAuthConfig)
-
-	var pending *radiusConfig
-
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+	var current, pending, previous *radiusConfig
+	var verified, applied bool
+	var awaitingAcceptance, previousAcceptance string
+	var previousAccounting, previousAccepted bool
+	var transactionMu sync.Mutex
+	var retirements sync.WaitGroup
+	var stopped bool
+	fallback := l2tp.GetAuthHandler()
+	restoreFallback := func() {
+		if fallback == nil {
+			l2tp.UnregisterAuthHandler()
+		} else {
+			l2tp.RegisterAuthHandler(fallback)
+		}
+	}
+	retireAccounting := func() {
+		if retired := acctInstance.detach(); retired != nil {
+			retirements.Add(1)
+			go func() {
+				defer retirements.Done()
+				retired.stopDetached()
+			}()
+		}
+	}
+	eventBusMu.Lock()
+	bus := storedBus
+	eventBusMu.Unlock()
+	unsubscribeAccounting := acctInstance.subscribeEventBus(bus)
+	unsubscribeCommit := func() {}
+	unsubscribeAcceptance := func() {}
+	if bus != nil {
+		unsubscribeCommit = bus.Subscribe(txevents.Namespace, txevents.EventCommitted, func(payload any) {
+			txID := configTransactionID(payload)
+			transactionMu.Lock()
+			defer transactionMu.Unlock()
+			if stopped || !applied || txID == "" {
+				return
+			}
+			// The coordinator has discarded its rollback journal, but the hub
+			// can still reject this candidate and compensate in a new transaction.
+			awaitingAcceptance = txID
+			previous, applied = nil, false
+			previousAcceptance, previousAccepted = "", false
+		})
+		unsubscribeAcceptance = bus.Subscribe(txevents.Namespace, txevents.EventAccepted, func(payload any) {
+			txID := configTransactionID(payload)
+			transactionMu.Lock()
+			defer transactionMu.Unlock()
+			if stopped || txID == "" {
+				return
+			}
+			if applied && txID == previousAcceptance {
+				// A can complete while B is tentative. Keep B intact, but
+				// remember the accepted verdict if rollback restores A.
+				previousAccepted = true
+				return
+			}
+			if txID != awaitingAcceptance {
+				return
+			}
+			if current == nil {
+				retireAccounting()
+			}
+			awaitingAcceptance = ""
+		})
+	}
+	defer func() {
+		unsubscribeCommit()
+		unsubscribeAcceptance()
+		unsubscribeAccounting()
+		transactionMu.Lock()
+		stopped = true
+		if current != nil {
+			restoreFallback()
+		}
+		authInstance.swapClient(nil, "", "", nil, "")
+		closeCoAListener()
+		retireAccounting()
+		transactionMu.Unlock()
+		retirements.Wait()
+	}()
+	parseSections := func(sections []sdk.ConfigSection) (*radiusConfig, error) {
+		cfg := current
 		for _, sec := range sections {
 			if sec.Root != configRootL2TP {
 				continue
 			}
-			cfg, err := parseConfigFromJSON(sec.Data)
-			if errors.Is(err, errNoRADIUSConfig) {
-				continue
+			var err error
+			cfg, err = parseConfigFromJSON(sec.Data)
+			if err != nil && !errors.Is(err, errNoRADIUSConfig) {
+				return nil, err
 			}
-			if err != nil {
-				return err
-			}
-			pending = cfg
 		}
-		if pending != nil {
-			if applyErr := activateRadiusConfig(pending); applyErr != nil {
-				return applyErr
-			}
-			pending = nil
+		return cfg, nil
+	}
+	replaceConfig := func(cfg *radiusConfig) error {
+		if cfg != nil {
+			return activateRadiusConfig(cfg)
+		}
+		if current != nil {
+			restoreFallback()
+			acctInstance.pauseAdmissions()
+			// Accounting retains this client until whole-reload acceptance.
+			// Compensation can resume the existing accounting sessions.
+			authInstance.swapClient(nil, "", "", nil, "")
+			closeCoAListener()
+		}
+		return nil
+	}
+	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		transactionMu.Lock()
+		defer transactionMu.Unlock()
+		pending, verified = nil, false
+		cfg, err := parseSections(sections)
+		if err != nil {
+			return err
+		}
+		pending, verified = cfg, true
+		return nil
+	})
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		transactionMu.Lock()
+		defer transactionMu.Unlock()
+		cfg, err := parseSections(sections)
+		if err != nil {
+			return err
+		}
+		if err := replaceConfig(cfg); err != nil {
+			return err
+		}
+		current = cfg
+		awaitingAcceptance, previous, applied = "", nil, false
+		previousAcceptance, previousAccepted = "", false
+		if cfg == nil {
+			retireAccounting()
 		}
 		return nil
 	})
 
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
-		if pending == nil {
+		transactionMu.Lock()
+		defer transactionMu.Unlock()
+		if !verified {
 			return nil
 		}
-		if err := activateRadiusConfig(pending); err != nil {
+		verified = false
+		acctInstance.mu.Lock()
+		previousAccounting = acctInstance.client != nil
+		acctInstance.mu.Unlock()
+		previousAcceptance = awaitingAcceptance
+		previousAccepted = false
+		if err := replaceConfig(pending); err != nil {
+			pending = nil
 			return err
 		}
-		pending = nil
+		previous, current, pending = current, pending, nil
+		applied = true
+		// An older reload completion cannot retire state this apply replaced.
+		awaitingAcceptance = ""
 		return nil
 	})
 
 	p.OnConfigRollback(func(_ string) error {
-		pending = nil
+		transactionMu.Lock()
+		defer transactionMu.Unlock()
+		pending, verified = nil, false
+		if applied {
+			if err := replaceConfig(previous); err != nil {
+				return err
+			}
+			current, previous, applied = previous, nil, false
+			awaitingAcceptance, previousAcceptance = previousAcceptance, ""
+			if current == nil && (!previousAccounting || previousAccepted) {
+				retireAccounting()
+			}
+			if previousAccepted {
+				awaitingAcceptance = ""
+			}
+			previousAccepted = false
+		}
 		return nil
 	})
 
@@ -156,13 +296,24 @@ func runPlugin(conn net.Conn) int {
 		ApplyBudget:  1,
 	}); err != nil {
 		logger().Error(Name+" plugin failed", "error", err)
-		acctInstance.Stop()
-		closeCoAListener()
 		return 1
 	}
-	acctInstance.Stop()
-	closeCoAListener()
 	return 0
+}
+
+// ConfigEventGateway delivers JSON strings for transaction events.
+func configTransactionID(payload any) string {
+	raw, ok := payload.(string)
+	if !ok {
+		return ""
+	}
+	var event struct {
+		TransactionID string `json:"transaction-id"`
+	}
+	if err := json.Unmarshal([]byte(raw), &event); err != nil {
+		return ""
+	}
+	return event.TransactionID
 }
 
 func activateRadiusConfig(cfg *radiusConfig) error {
@@ -194,10 +345,13 @@ func activateRadiusConfig(cfg *radiusConfig) error {
 	l2tp.RegisterAuthHandler(func(req ppp.EventAuthRequest, respond l2tp.AuthRespondFunc) l2tp.AuthResult {
 		return authInstance.handle(req, respond)
 	})
-	acctInstance.setClient(client, cfg.NASIdentifier, cfg.AcctInterval, primaryAddr, cfg.SourceAddress, cfg.NASPortIDFormat)
+	oldAcctClient := acctInstance.setClient(client, cfg.NASIdentifier, cfg.AcctInterval, primaryAddr, cfg.SourceAddress, cfg.NASPortIDFormat)
 	acctInstance.setExclusions(cfg.Exclusions)
 	if oldClient != nil {
 		oldClient.Close() //nolint:errcheck // best-effort on replaced client
+	}
+	if oldAcctClient != nil && oldAcctClient != oldClient {
+		_ = oldAcctClient.Close()
 	}
 	logger().Info("l2tp-auth-radius: configured",
 		"servers", len(cfg.Servers), "timeout", cfg.Timeout)

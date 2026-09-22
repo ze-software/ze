@@ -1,0 +1,17 @@
+=== RUN   TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting
+time=2026-09-22T14:33:23.950+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=bgp-bmp
+time=2026-09-22T14:33:23.950+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=ntp
+time=2026-09-22T14:33:23.973+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=bgp-bmp
+time=2026-09-22T14:33:23.973+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=ntp
+time=2026-09-22T14:33:23.992+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=bgp-bmp
+time=2026-09-22T14:33:23.992+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=ntp
+=== RUN   TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting/accepted-previous-state-survives-newer-rollback
+time=2026-09-22T14:33:24.013+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=bgp-bmp
+time=2026-09-22T14:33:24.013+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=ntp
+time=2026-09-22T14:33:24.035+01:00 level=WARN msg="config reload: transaction failed" subsystem=plugin.server error="config apply partial failure: section apply for zzz-radius-reload-probe failed: test unrelated participant rejects apply"
+    main_reload_radius_test.go:378: accounting record did not arrive
+--- FAIL: TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting (6.13s)
+    --- FAIL: TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting/accepted-previous-state-survives-newer-rollback (5.03s)
+FAIL
+FAIL	github.com/ze-software/ze/cmd/ze/hub	7.699s
+FAIL

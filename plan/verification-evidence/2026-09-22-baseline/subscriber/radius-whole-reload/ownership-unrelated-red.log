@@ -1,0 +1,16 @@
+=== RUN   TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting
+time=2026-09-22T14:33:08.815+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=ntp
+time=2026-09-22T14:33:08.815+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=bgp-bmp
+time=2026-09-22T14:33:08.836+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=ntp
+time=2026-09-22T14:33:08.836+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=bgp-bmp
+time=2026-09-22T14:33:08.857+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=bgp-bmp
+time=2026-09-22T14:33:08.858+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=ntp
+=== RUN   TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting/unrelated-participant-accepts-pending-removal
+time=2026-09-22T14:33:08.878+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=bgp-bmp
+time=2026-09-22T14:33:08.878+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=ntp
+    main_reload_radius_test.go:319: accounting record did not arrive
+--- FAIL: TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting (6.18s)
+    --- FAIL: TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting/unrelated-participant-accepts-pending-removal (5.02s)
+FAIL
+FAIL	github.com/ze-software/ze/cmd/ze/hub	7.893s
+FAIL

@@ -288,6 +288,10 @@ func runReload(s *pluginserver.Server, cp *zeconfig.Provider, load func() (map[s
 func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
 	reloadCtx, reloadCancel := context.WithTimeout(ctx, 30*time.Second)
 	defer reloadCancel()
+	// The plugin transaction commits before listener migration and publication.
+	// Only this whole-reload boundary may release irreversible plugin cleanup.
+	reloadCtx, acceptReload := s.DeferReloadAcceptance(reloadCtx)
+	defer acceptReload(false)
 	candidateSet := false
 	if store != nil && configPath != "" && configPath != "-" {
 		_, _, ok, err := storage.ReadCandidateConfig(store, configPath)
@@ -307,7 +311,9 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 		// stdin-config daemons have no reload source. Fall back to the
 		// plugin server's own ReloadFromDisk (which also errors if no
 		// loader is configured) so the error message stays familiar.
-		return s.ReloadFromDisk(reloadCtx)
+		err := s.ReloadFromDisk(reloadCtx)
+		acceptReload(err == nil)
+		return err
 	}
 
 	newTree, parsedTree, loadErr := load()
@@ -653,6 +659,7 @@ func runReloadContext(ctx context.Context, s *pluginserver.Server, eng *engine.E
 	bundleInstalled = installed
 	closeRetiredAAABundle(retired, slogutil.Logger("hub.aaa"))
 	reloadApplied = true
+	acceptReload(true)
 	return nil
 }
 

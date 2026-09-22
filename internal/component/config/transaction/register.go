@@ -11,6 +11,7 @@ func init() {
 	_ = coreevents.RegisterNamespace(txevents.Namespace,
 		txevents.EventVerify, txevents.EventApply, txevents.EventRollback,
 		txevents.EventCommitted, txevents.EventApplied, txevents.EventRolledBack,
+		txevents.EventAccepted,
 		txevents.EventVerifyAbort, txevents.EventVerifyOK, txevents.EventVerifyFailed,
 		txevents.EventApplyOK, txevents.EventApplyFailed, txevents.EventRollbackOK,
 		txevents.EventOperationDecompose, txevents.EventOperationVerify, txevents.EventOperationApply,

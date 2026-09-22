@@ -68,40 +68,59 @@ func runPlugin(conn net.Conn) int {
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()
 
-	p.OnConfigVerify(verifyLocalAuthConfig)
-
-	var pending map[string]userEntry
-
-	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+	var current, pending, previous map[string]userEntry
+	var applied bool
+	parseSections := func(sections []sdk.ConfigSection) (map[string]userEntry, error) {
+		users := current
 		for _, sec := range sections {
 			if sec.Root != configRootL2TP {
 				continue
 			}
-			users, err := parseUsersFromJSON(sec.Data)
+			var err error
+			users, err = parseUsersFromJSON(sec.Data)
 			if err != nil {
-				return err
+				return nil, err
 			}
-			pending = users
 		}
-		if pending != nil {
-			authInstance.setUsers(pending)
-			logger().Info("l2tp-auth-local: loaded users", "count", len(pending))
-			pending = nil
+		return users, nil
+	}
+	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
+		pending, previous, applied = nil, nil, false
+		users, err := parseSections(sections)
+		if err != nil {
+			return err
 		}
+		pending = users
+		return nil
+	})
+	p.OnConfigure(func(sections []sdk.ConfigSection) error {
+		users, err := parseSections(sections)
+		if err != nil {
+			return err
+		}
+		current = users
+		authInstance.setUsers(current)
+		logger().Info("l2tp-auth-local: loaded users", "count", len(current))
 		return nil
 	})
 
 	p.OnConfigApply(func(_ []sdk.ConfigDiffSection) error {
 		if pending != nil {
-			authInstance.setUsers(pending)
-			logger().Info("l2tp-auth-local: loaded users", "count", len(pending))
+			previous, current = current, pending
 			pending = nil
+			applied = true
+			authInstance.setUsers(current)
+			logger().Info("l2tp-auth-local: loaded users", "count", len(current))
 		}
 		return nil
 	})
 
 	p.OnConfigRollback(func(_ string) error {
 		pending = nil
+		if applied {
+			current, previous, applied = previous, nil, false
+			authInstance.setUsers(current)
+		}
 		return nil
 	})
 

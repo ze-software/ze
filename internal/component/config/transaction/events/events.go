@@ -13,6 +13,7 @@ const (
 	EventApply                    = "apply"                      // Engine -> plugin: apply changes
 	EventRollback                 = "rollback"                   // Engine -> plugins: undo changes
 	EventCommitted                = "committed"                  // Engine -> plugins: discard journals
+	EventAccepted                 = "accepted"                   // Engine -> plugins: whole reload accepted
 	EventApplied                  = "applied"                    // Engine -> observers: transaction committed
 	EventRolledBack               = "rolled-back"                // Engine -> observers: transaction rolled back
 	EventVerifyAbort              = "verify-abort"               // Engine -> plugins: verify phase aborted

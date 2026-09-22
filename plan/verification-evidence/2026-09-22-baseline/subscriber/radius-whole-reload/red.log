@@ -1,0 +1,22 @@
+=== RUN   TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting
+time=2026-09-22T14:12:14.714+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=ntp
+time=2026-09-22T14:12:14.714+01:00 level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=bgp-bmp
+    main_reload_radius_test.go:187: 
+        	Error Trace:	/home/thomas/Code/github.com/ze-software/ze/main/cmd/ze/hub/main_reload_radius_test.go:187
+        	Error:      	Not equal: 
+        	            	expected: []byte{0x0, 0x0, 0x0, 0x1}
+        	            	actual  : []byte{0x0, 0x0, 0x0, 0x7}
+        	            	
+        	            	Diff:
+        	            	--- Expected
+        	            	+++ Actual
+        	            	@@ -1,3 +1,3 @@
+        	            	 ([]uint8) (len=4) {
+        	            	- 00000000  00 00 00 01                                       |....|
+        	            	+ 00000000  00 00 00 07                                       |....|
+        	            	 }
+        	Test:       	TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting
+--- FAIL: TestDoReloadRadiusRemovalLateBindFailurePreservesAccounting (1.10s)
+FAIL
+FAIL	github.com/ze-software/ze/cmd/ze/hub	2.642s
+FAIL

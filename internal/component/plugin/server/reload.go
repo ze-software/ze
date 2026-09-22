@@ -61,6 +61,9 @@ type txLock struct {
 	sighup bool
 	cancel context.CancelCauseFunc
 	done   chan struct{}
+	// configTransactions follows each participant's current configuration.
+	// Only the holder of this transaction lock reads or changes it.
+	configTransactions map[string]string
 }
 
 // tryAcquire attempts to acquire the transaction lock. Returns false if already held.
@@ -233,16 +236,25 @@ func (s *Server) stopTransaction(grace time.Duration) {
 }
 
 // reloadConfig is the internal implementation of ReloadConfig.
-func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) error {
+func (s *Server) reloadConfig(ctx context.Context, newTree map[string]any) (result error) {
 	// Prevent concurrent reloads via transaction lock.
 	if !s.txLock.tryAcquire() {
 		return ErrReloadInProgress
 	}
+	// A direct server reload accepts at return. The hub supplies an outer
+	// scope that keeps this transaction pending through its later steps.
+	ctx, acceptReload := s.DeferReloadAcceptance(ctx)
+	// Retries and changes to unrelated roots also accept unchanged participants.
+	s.seedReloadTransactions(ctx)
 	// Publish the cancel handle so Stop can stand this transaction down
 	// instead of pulling the plugin connections out from under it.
 	ctx, cancelTx := context.WithCancelCause(ctx)
 	s.txLock.setCancel(cancelTx)
 	defer func() {
+		if result == nil {
+			s.txLock.configTransactions = reloadTransactionIDs(ctx)
+		}
+		acceptReload(result == nil)
 		cancelTx(nil)
 		s.txLock.release()
 	}()

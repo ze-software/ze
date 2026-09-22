@@ -10,12 +10,126 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"slices"
+	"sync"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/transaction"
+	txevents "github.com/ze-software/ze/internal/component/config/transaction/events"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
+
+type reloadAcceptanceKey struct{}
+
+// reloadAcceptance belongs to one whole reload, including its compensation.
+// Ownership is per participant: a transaction changing another root must still
+// accept the unchanged participants' pending configuration.
+type reloadAcceptance struct {
+	mu           sync.Mutex
+	server       *Server
+	transactions map[string]string
+	finished     bool
+}
+
+// DeferReloadAcceptance keeps irreversible plugin cleanup pending across the
+// hub's subsystem, listener and candidate-publication steps. The caller MUST
+// invoke the returned function with true only after every fallible step succeeds,
+// and MUST defer a false invocation to discard an abandoned reload. Nested calls
+// share the outer scope and cannot accept it.
+func (s *Server) DeferReloadAcceptance(ctx context.Context) (context.Context, func(bool)) {
+	if pending, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance); pending != nil && pending.server == s {
+		return ctx, func(bool) {}
+	}
+	pending := &reloadAcceptance{server: s}
+	return context.WithValue(ctx, reloadAcceptanceKey{}, pending), pending.finish
+}
+
+func (a *reloadAcceptance) finish(accepted bool) {
+	a.mu.Lock()
+	if a.finished {
+		a.mu.Unlock()
+		return
+	}
+	a.finished = true
+	transactions := a.transactions
+	a.mu.Unlock()
+	if !accepted {
+		return
+	}
+	// One transaction can own several participants. Publish it once, bounded
+	// by the running process set captured by seedReloadTransactions.
+	published := make(map[string]bool, len(transactions))
+	for _, txID := range transactions {
+		if published[txID] {
+			continue
+		}
+		published[txID] = true
+		payload, err := json.Marshal(transaction.CommittedEvent{TransactionID: txID})
+		if err != nil {
+			logger().Error("marshal accepted config event", "error", err)
+			continue
+		}
+		if _, err := a.server.EmitEngineEvent(txevents.Namespace, txevents.EventAccepted, string(payload)); err != nil {
+			logger().Error("emit accepted config event", "error", err)
+		}
+	}
+}
+
+// The transaction lock MUST be held while seeding a scope. Clone the ownership
+// map so overlapping outer completions retain their own configuration snapshot.
+func (s *Server) seedReloadTransactions(ctx context.Context) {
+	pending, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
+	if pending == nil {
+		return
+	}
+	transactions := maps.Clone(s.txLock.configTransactions)
+	pm := s.procManager.Load()
+	for name := range transactions {
+		if pm == nil || pm.GetProcess(name) == nil {
+			delete(transactions, name)
+		}
+	}
+	pending.mu.Lock()
+	if !pending.finished {
+		pending.transactions = transactions
+	}
+	pending.mu.Unlock()
+}
+
+func recordReloadTransaction(ctx context.Context, txID string, affected []affectedPlugin) {
+	pending, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
+	if pending == nil {
+		return
+	}
+	pending.mu.Lock()
+	defer pending.mu.Unlock()
+	if pending.finished {
+		return
+	}
+	if pending.transactions == nil {
+		pending.transactions = make(map[string]string, len(affected))
+	}
+	for _, participant := range affected {
+		// Decomposers also join to inspect changes to other roots. Their
+		// unchanged config sections keep the preceding acceptance owner.
+		if len(participant.sections) > 0 {
+			pending.transactions[participant.proc.Name()] = txID
+		}
+	}
+}
+
+func reloadTransactionIDs(ctx context.Context) map[string]string {
+	pending, _ := ctx.Value(reloadAcceptanceKey{}).(*reloadAcceptance)
+	if pending == nil {
+		return nil
+	}
+	pending.mu.Lock()
+	defer pending.mu.Unlock()
+	// The next inner reload clones before changing ownership. The returned
+	// map remains immutable for this reactor-tree snapshot.
+	return pending.transactions
+}
 
 // runTxCoordinator runs the transaction orchestrator for a reload once the
 // caller has computed the affected plugins and the raw diff. It builds
@@ -53,6 +167,9 @@ func (s *Server) runTxCoordinator(ctx context.Context, affected []affectedPlugin
 	coordinator.SetOperationPlanner(operationPlannerFromTrees(gateway, runningTree, candidateTree, participants))
 
 	result := coordinator.Execute(ctx, diffs)
+	if result.State == transaction.StateCommitted {
+		recordReloadTransaction(ctx, coordinator.TransactionID(), affected)
+	}
 	return txResultToError(result)
 }
 

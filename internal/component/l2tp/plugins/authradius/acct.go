@@ -96,6 +96,7 @@ type radiusAcct struct {
 	mu              sync.Mutex
 	sessions        map[sessionKey]*acctSession
 	client          *radius.Client
+	accepting       bool
 	nasID           string
 	sourceAddress   net.IP
 	interval        time.Duration
@@ -125,15 +126,25 @@ func newRADIUSAcct() *radiusAcct {
 // acct-interval leaf gives the Access-Accept the cadence back, for every session
 // that starts after it. An "install only a positive value" guard would refuse
 // that reload and keep the removed value forever.
-func (a *radiusAcct) setClient(c *radius.Client, nasID string, interval time.Duration, serverAddr string, sourceAddr net.IP, nasPortIDFormat string) {
+func (a *radiusAcct) setClient(c *radius.Client, nasID string, interval time.Duration, serverAddr string, sourceAddr net.IP, nasPortIDFormat string) *radius.Client {
 	a.mu.Lock()
 	defer a.mu.Unlock()
+	old := a.client
 	a.client = c
+	a.accepting = c != nil
 	a.nasID = nasID
 	a.sourceAddress = sourceAddr
 	a.serverAddr = serverAddr
 	a.nasPortIDFormat = nasPortIDFormat
 	a.interval = interval
+	return old
+}
+
+// pauseAdmissions leaves live accounting untouched until removal commits.
+func (a *radiusAcct) pauseAdmissions() {
+	a.mu.Lock()
+	a.accepting = false
+	a.mu.Unlock()
 }
 
 // setExclusions installs the attributes this deployment holds back. It is
@@ -166,30 +177,34 @@ func (a *radiusAcct) genSessionID(tunnelID, sessionID uint16) string {
 }
 
 // subscribeEventBus subscribes to session lifecycle events for accounting.
-func (a *radiusAcct) subscribeEventBus(bus ze.EventBus) {
+func (a *radiusAcct) subscribeEventBus(bus ze.EventBus) func() {
 	if bus == nil {
-		return
+		return func() {}
 	}
 
-	l2tpevents.SessionIPAssigned.Subscribe(bus, func(payload *l2tpevents.SessionIPAssignedPayload) {
+	up := l2tpevents.SessionIPAssigned.Subscribe(bus, func(payload *l2tpevents.SessionIPAssignedPayload) {
 		a.onSessionIPAssigned(payload)
 	})
-
-	l2tpevents.SessionDown.Subscribe(bus, func(payload *l2tpevents.SessionDownPayload) {
+	down := l2tpevents.SessionDown.Subscribe(bus, func(payload *l2tpevents.SessionDownPayload) {
 		a.onSessionDown(payload)
 	})
+	return func() {
+		up()
+		down()
+	}
 }
 
 func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPayload) {
+	key := sessionKey{payload.TunnelID, payload.SessionID}
+	acctSessID := a.genSessionID(payload.TunnelID, payload.SessionID)
 	a.mu.Lock()
 	client := a.client
 	nasID := a.nasID
 	srcAddr := a.sourceAddress
 	configured := a.interval
 	portIDFormat := a.nasPortIDFormat
-	a.mu.Unlock()
-
-	if client == nil {
+	if !a.accepting || client == nil {
+		a.mu.Unlock()
 		return
 	}
 
@@ -201,9 +216,6 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 		fromAccept = meta.AcctInterimInterval
 	}
 	interval := acctInterval(configured, fromAccept)
-
-	key := sessionKey{payload.TunnelID, payload.SessionID}
-	acctSessID := a.genSessionID(payload.TunnelID, payload.SessionID)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	sess := &acctSession{
@@ -219,7 +231,6 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 		cancel:           cancel,
 	}
 
-	a.mu.Lock()
 	a.sessions[key] = sess
 	a.mu.Unlock()
 
@@ -242,11 +253,13 @@ func (a *radiusAcct) onSessionDown(payload *l2tpevents.SessionDownPayload) {
 	srcAddr := a.sourceAddress
 	a.mu.Unlock()
 
-	if !ok || client == nil {
+	if !ok {
 		return
 	}
-
 	sess.cancel()
+	if client == nil {
+		return
+	}
 	// This goroutine owns sess now: the delete above took it out of the map,
 	// so no other caller reaches it.
 	sess.terminateCause = payload.Cause
@@ -263,13 +276,19 @@ func (a *radiusAcct) sendAcctStart(client *radius.Client, sess *acctSession, nas
 }
 
 func (a *radiusAcct) sendAcctStop(client *radius.Client, sess *acctSession, nasID string, sourceAddr net.IP) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	a.sendAcctStopContext(ctx, client, sess, nasID, sourceAddr)
+}
+
+func (a *radiusAcct) sendAcctStopContext(ctx context.Context, client *radius.Client, sess *acctSession, nasID string, sourceAddr net.IP) {
 	a.mu.Lock()
 	sAddr := a.serverAddr
 	a.mu.Unlock()
 	incAcctSent(sAddr, sAddr)
 	duration := uint32(time.Since(sess.startTime).Seconds())
 	pkt := a.buildAcctPacket(sess, nasID, sourceAddr, radius.AcctStatusStop, duration)
-	a.sendAcctPacket(client, pkt, "stop", sess)
+	a.sendAcctPacketContext(ctx, client, pkt, "stop", sess)
 }
 
 func (a *radiusAcct) sendAcctInterimUpdate(client *radius.Client, sess *acctSession, nasID string, sourceAddr net.IP) {
@@ -409,6 +428,10 @@ func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, sourceAddr
 func (a *radiusAcct) sendAcctPacket(client *radius.Client, pkt *radius.Packet, purpose string, sess *acctSession) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	a.sendAcctPacketContext(ctx, client, pkt, purpose, sess)
+}
+
+func (a *radiusAcct) sendAcctPacketContext(ctx context.Context, client *radius.Client, pkt *radius.Packet, purpose string, sess *acctSession) {
 
 	_, err := client.SendToServers(ctx, pkt)
 	if err != nil {
@@ -445,6 +468,10 @@ func (a *radiusAcct) interimLoop(ctx context.Context, _ *radius.Client, sess *ac
 			// Read current client/nasID/sourceAddr on each iteration so reload
 			// takes effect without restarting the loop.
 			a.mu.Lock()
+			if ctx.Err() != nil {
+				a.mu.Unlock()
+				return
+			}
 			c := a.client
 			nid := a.nasID
 			src := a.sourceAddress
@@ -456,29 +483,54 @@ func (a *radiusAcct) interimLoop(ctx context.Context, _ *radius.Client, sess *ac
 	}
 }
 
-// Stop sends Accounting-Stop for all active sessions and cancels them.
-func (a *radiusAcct) Stop() {
+// detach transfers the old client and sessions to one retirement owner. New
+// configuration can use this accountant immediately without sharing its client
+// with the worker that sends the old records.
+func (a *radiusAcct) detach() *radiusAcct {
 	a.mu.Lock()
-	client := a.client
-	nasID := a.nasID
-	srcAddr := a.sourceAddress
-	active := make([]*acctSession, 0, len(a.sessions))
-	for _, sess := range a.sessions {
-		active = append(active, sess)
+	defer a.mu.Unlock()
+	if a.client == nil && len(a.sessions) == 0 {
+		return nil
+	}
+	retired := &radiusAcct{
+		sessions:      a.sessions,
+		client:        a.client,
+		nasID:         a.nasID,
+		sourceAddress: a.sourceAddress,
+		serverAddr:    a.serverAddr,
+		exclusions:    a.exclusions,
 	}
 	a.sessions = make(map[sessionKey]*acctSession)
-	a.mu.Unlock()
-
-	for _, sess := range active {
-		// RFC 2866 Section 5.10 value 7: "Administrator is ending service on
-		// the NAS, for example prior to rebooting the NAS." Stop() runs when
-		// the plugin shuts down, which is that ending. The map was cleared
-		// above, so this goroutine owns every session in active.
-		sess.terminateCause = l2tpevents.TerminateCauseAdminReboot
-		if client != nil {
-			a.sendAcctStop(client, sess, nasID, srcAddr)
-		}
+	a.client = nil
+	a.accepting = false
+	for _, sess := range retired.sessions {
 		sess.cancel()
+	}
+	return retired
+}
+
+// Stop ends accounting and releases the client. Retirement shares one network
+// deadline across all records, including when the server never answers.
+func (a *radiusAcct) Stop() {
+	if retired := a.detach(); retired != nil {
+		retired.stopDetached()
+	}
+}
+
+func (a *radiusAcct) stopDetached() {
+	if a.client == nil {
+		return
+	}
+	defer func() { _ = a.client.Close() }()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	for _, sess := range a.sessions {
+		if ctx.Err() != nil {
+			return
+		}
+		// RFC 2866 Section 5.10 value 7: administrator ending NAS service.
+		sess.terminateCause = l2tpevents.TerminateCauseAdminReboot
+		a.sendAcctStopContext(ctx, a.client, sess, a.nasID, a.sourceAddress)
 	}
 }
 

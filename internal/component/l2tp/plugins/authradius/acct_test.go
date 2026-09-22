@@ -20,10 +20,11 @@ type acctCapture struct {
 }
 
 type capturedAcct struct {
-	statusType     uint8
-	username       string
-	sessionID      string
-	terminateCause uint32
+	statusType       uint8
+	username         string
+	sessionID        string
+	terminateCause   uint32
+	callingStationID string
 }
 
 func newAcctCapture() *acctCapture {
@@ -43,6 +44,9 @@ func (c *acctCapture) add(pkt *radius.Packet) {
 	}
 	if v := pkt.FindAttr(radius.AttrAcctTerminateCause); len(v) == 4 {
 		cap.terminateCause = binary.BigEndian.Uint32(v)
+	}
+	if v := pkt.FindAttr(radius.AttrCallingStationID); v != nil {
+		cap.callingStationID = string(v)
 	}
 	c.mu.Lock()
 	c.packets = append(c.packets, cap)
@@ -108,6 +112,7 @@ func startAcctServer(t *testing.T, sharedKey []byte, capture *acctCapture) (*net
 	return conn, conn.LocalAddr().String()
 }
 
+// VALIDATES: session IP assignment emits subscriber identity in Accounting-Start.
 func TestRADIUSAcctStart(t *testing.T) {
 	sharedKey := []byte("accttest")
 	capture := newAcctCapture()
@@ -128,10 +133,11 @@ func TestRADIUSAcctStart(t *testing.T) {
 	acct.setClient(client, "test-nas", 300*time.Second, addr, nil, "")
 
 	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
-		TunnelID:  1,
-		SessionID: 2,
-		Username:  "alice",
-		PeerAddr:  "10.0.0.1",
+		TunnelID:         1,
+		SessionID:        2,
+		Username:         "alice",
+		PeerAddr:         "10.0.0.1",
+		CallingStationID: "+441234567890",
 	})
 
 	packets := capture.waitN(t, 1)
@@ -140,6 +146,9 @@ func TestRADIUSAcctStart(t *testing.T) {
 	}
 	if packets[0].username != "alice" {
 		t.Errorf("username: got %q, want %q", packets[0].username, "alice")
+	}
+	if packets[0].callingStationID != "+441234567890" {
+		t.Errorf("Calling-Station-Id: got %q, want %q", packets[0].callingStationID, "+441234567890")
 	}
 
 	acct.Stop()
@@ -525,33 +534,6 @@ func TestAcctPacketOmitsEmptyCallingStationId(t *testing.T) {
 	if v := pkt.FindAttr(radius.AttrCallingStationID); v != nil {
 		t.Errorf("Calling-Station-Id present with no value: %q", v)
 	}
-}
-
-// TestAcctSessionCallingStationID covers the boundary AC-2 depends on: the
-// value the reactor put on the session-ip-assigned event reaches the
-// accounting session that later builds every record.
-func TestAcctSessionCallingStationID(t *testing.T) {
-	acct := newRADIUSAcct()
-	acct.setClient(&radius.Client{}, "nas1", time.Minute, "127.0.0.1:1813", nil, "")
-
-	acct.onSessionIPAssigned(&events.SessionIPAssignedPayload{
-		TunnelID:         42,
-		SessionID:        7,
-		Username:         "grace",
-		PeerAddr:         "10.0.0.2",
-		CallingStationID: "+441234567890",
-	})
-
-	acct.mu.Lock()
-	sess, ok := acct.sessions[sessionKey{42, 7}]
-	acct.mu.Unlock()
-	if !ok {
-		t.Fatal("no accounting session was created")
-	}
-	if sess.callingStationID != "+441234567890" {
-		t.Errorf("callingStationID = %q, want %q", sess.callingStationID, "+441234567890")
-	}
-	acct.Stop()
 }
 
 // TestTerminateCauseOnStopOnly covers AC-4 and AC-5.
