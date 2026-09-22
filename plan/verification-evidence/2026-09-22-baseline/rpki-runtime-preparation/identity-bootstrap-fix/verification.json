@@ -1,0 +1,8 @@
+{
+  "scope": "Plugin identity retrieval through the canonical ze_test fixture composition without the plugin CLI",
+  "source": "identity-smoke.go.txt",
+  "input": {"ZE_PLUGIN_NAME": "rpki-late-sync-test", "argument": "rpki-late-sync-test"},
+  "before": {"native_job_exit": 1, "program_exit": 2, "log": "before.log", "observed": "FATAL: env.Get called with unregistered key: ze.plugin.name"},
+  "after": {"native_job_exit": 0, "log": "after.log", "observed": "assigned plugin identity: rpki-late-sync-test"},
+  "boundary": "Proves declaration ownership, not TLS authentication or RPKI protocol conformance. No permanent test was added. Full lint remains pending in the session-wide verification."
+}

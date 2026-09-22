@@ -1344,6 +1344,15 @@ For external plugins (Python, Rust, etc.) -- runs as separate process:
 7. No `DirectBridge` -- always uses newline-framed RPC over TLS
 8. Same 5-stage handshake over the same connection
 
+The Go SDK registers `ze.plugin.name` with the transport environment keys, so
+SDK consumers can read the daemon-assigned identity without the plugin CLI.
+Compiled fixture observers use that identity when they call `NewFromTLSEnv`;
+the SDK constructor authenticates with the name its caller supplies.
+The plugin CLI keeps `go-plugin` as its fallback when no name is assigned.
+<!-- source: pkg/plugin/sdk/sdk.go -- environment registrations, NewFromTLSEnv, dialAndAuth -->
+<!-- source: internal/test/fixture/fixture.go -- newObserver -->
+<!-- source: internal/component/plugin/cli/cli.go -- connFromEnv -->
+
 **The trust anchor is the issuer, not one certificate.** `TLSConfigWithRoot`
 builds the client config from `ZE_PLUGIN_CA_PEM` alone. It fails closed: an
 empty root and an unparsable root each return an error and no config, so no

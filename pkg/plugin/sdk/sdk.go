@@ -200,6 +200,7 @@ const envTypeString = "string"
 
 // Env var registrations for plugin transport.
 var (
+	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.name", Type: envTypeString, Default: "go-plugin", Description: "Plugin name for identification during auth"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.host", Type: envTypeString, Default: "127.0.0.1", Description: "TLS host for plugin-to-engine connection"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.port", Type: envTypeString, Default: "12700", Description: "TLS port for plugin-to-engine connection"})
 	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.hub.token", Type: envTypeString, Description: "Auth token for plugin-to-engine TLS (required for external plugins)", Private: true, Secret: true})

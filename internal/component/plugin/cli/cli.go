@@ -29,11 +29,6 @@ import (
 
 var errZePluginHubTokenMustBe = errors.New("ze.plugin.hub.token must be set")
 
-// Env var registrations for plugin CLI.
-var (
-	_ = env.MustRegister(env.EnvEntry{Key: "ze.plugin.name", Type: "string", Default: "go-plugin", Description: "Plugin name for identification during auth"})
-)
-
 // BaseConfig creates a PluginConfig pre-filled with common fields from a Registration.
 // This eliminates duplication between Registration and PluginConfig in register.go files.
 // Plugin-specific handlers (GetYANG, ConfigLogger, RunCLIDecode, etc.) must be set by the caller.

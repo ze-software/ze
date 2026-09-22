@@ -1,0 +1,22 @@
+package main
+
+import (
+	"fmt"
+	"os"
+
+	"github.com/ze-software/ze/internal/core/env"
+	_ "github.com/ze-software/ze/internal/test/fixture"
+)
+
+func main() {
+	if len(os.Args) != 2 {
+		fmt.Fprintln(os.Stderr, "expected assigned plugin name argument")
+		os.Exit(2)
+	}
+	name := env.Get("ze.plugin.name")
+	if name != os.Args[1] {
+		fmt.Fprintf(os.Stderr, "plugin identity = %q, want %q\n", name, os.Args[1])
+		os.Exit(1)
+	}
+	fmt.Printf("assigned plugin identity: %s\n", name)
+}
