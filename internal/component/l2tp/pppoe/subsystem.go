@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sync"
+	"syscall"
 
 	"time"
 
@@ -46,20 +47,19 @@ type Subsystem struct {
 	params Parameters
 	logger *slog.Logger
 
-	mu         sync.Mutex
-	started    bool
-	discFD     int
-	servers    map[int]*InterfaceServer
-	pppDriver  *ppp.Driver
-	readDone   chan struct{}
-	eventDone  chan struct{}
-	drainDones []<-chan struct{}
-	bus        ze.EventBus
+	lifecycleMu sync.Mutex
+	mu          sync.Mutex
+	started     bool
+	discFD      int
+	servers     map[int]*InterfaceServer
+	pppDriver   *ppp.Driver
+	readDone    chan struct{}
+	eventDone   chan struct{}
+	drainDones  []<-chan struct{}
+	bus         ze.EventBus
 
-	// stop is discoveryReader's exit signal for a pacer wait: closing
-	// discFD (Stop) only unblocks a read already in flight, and would
-	// leave a paced retry sitting out its delay before it next calls
-	// readDiscoveryFrame and finally sees errSocketClosed.
+	// stop interrupts paced retries and is checked after each receive timeout.
+	// discFD remains open until discovery and PPP event consumers have joined.
 	stop  chan struct{}
 	pacer pacer.Pacer // paces discoveryReader's retries after a failing read; owned solely by its own goroutine
 
@@ -89,6 +89,9 @@ func (s *Subsystem) Name() string { return SubsystemName }
 
 // Start implements ze.Subsystem.
 func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvider) error {
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -110,6 +113,10 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 	fd, err := openDiscoverySocket()
 	if err != nil {
 		return fmt.Errorf("pppoe: discovery socket: %w", err)
+	}
+	if err := SetRecvTimeout(fd, 100*time.Millisecond); err != nil {
+		closeDiscoverySocket(fd)
+		return fmt.Errorf("pppoe: discovery receive timeout: %w", err)
 	}
 	s.discFD = fd
 
@@ -204,7 +211,7 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 		}
 		s.bus = bus
 		s.drainDones = append(s.drainDones,
-			startPPPoEAuthDrain(s.logger, s.pppDriver, authH, bus, &s.pendingAuth),
+			startPPPoEAuthDrain(s.logger, s.pppDriver, subscriber.GetAuthHandler, bus, &s.pendingAuth),
 			startPPPoEPoolDrain(s.logger, s.pppDriver, poolH),
 		)
 		s.eventDone = make(chan struct{})
@@ -218,8 +225,8 @@ func (s *Subsystem) Start(ctx context.Context, bus ze.EventBus, _ ze.ConfigProvi
 
 // Stop implements ze.Subsystem.
 func (s *Subsystem) Stop(_ context.Context) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.lifecycleMu.Lock()
+	defer s.lifecycleMu.Unlock()
 
 	if !s.started {
 		return nil
@@ -228,14 +235,6 @@ func (s *Subsystem) Stop(_ context.Context) error {
 	PublishService(nil)
 	s.logger.Info("PPPoE subsystem stopping")
 
-	if s.discFD >= 0 {
-		closeDiscoverySocket(s.discFD)
-		s.discFD = -1
-	}
-	// Unblocks discoveryReader out of a pacer wait: closing discFD above
-	// only unblocks a read already in flight, and a paced retry would
-	// otherwise sit out its delay before it next calls readDiscoveryFrame
-	// and finally sees errSocketClosed.
 	if s.stop != nil {
 		close(s.stop)
 	}
@@ -254,8 +253,17 @@ func (s *Subsystem) Stop(_ context.Context) error {
 		<-done
 	}
 	s.drainDones = nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.discFD >= 0 {
+		closeDiscoverySocket(s.discFD)
+		s.discFD = -1
+	}
 
 	s.pppDriver = nil
+	s.readDone = nil
+	s.eventDone = nil
+	s.stop = nil
 	s.servers = nil
 	s.started = false
 	return nil
@@ -276,17 +284,26 @@ func (s *Subsystem) Reload(_ context.Context, _ ze.ConfigProvider) error {
 // rather than all of it -- and because this one goroutine dispatches for
 // every interface, a delay here is a delay on discovery for all of them,
 // which is why the pacer's ceiling is short. The pacer's wait observes
-// s.stop, closed by Stop alongside the socket, so a stopping subsystem
-// never sits out the delay.
+// s.stop, closed by Stop before joining workers. The receive timeout bounds
+// cancellation while the socket is idle; its descriptor remains valid until
+// the reader and PPP event consumer have both returned.
 func (s *Subsystem) discoveryReader() {
 	defer close(s.readDone)
 
 	buf := make([]byte, EthMaxLen)
 	for {
+		select {
+		case <-s.stop:
+			return
+		default:
+		}
 		n, ifindex, err := readDiscoveryFrame(s.discFD, buf)
 		if err != nil {
 			if errors.Is(err, errSocketClosed) {
 				return
+			}
+			if errors.Is(err, syscall.EAGAIN) {
+				continue
 			}
 			// Not closed, so this is an error the loop cannot classify:
 			// it may clear on the next read or it may persist. Log it

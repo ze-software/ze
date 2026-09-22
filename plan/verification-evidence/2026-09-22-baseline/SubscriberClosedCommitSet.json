@@ -1,0 +1,127 @@
+{
+  "summary": "Three source-level whole-file groups are separable: PPPoE shutdown plus late-bound auth drain; local/RADIUS provider reload plus whole-reload acceptance; and the broader inherited PPP/carrier ownership and negotiation set. The narrow shutdown fix is NOT closed as subsystem.go alone: its inherited resolver-signature change requires pp po e/drain.go (canonical path below). Local-noauth producers are already outside the recorded product diff and should be excluded. Source closure does not establish verification closure or baseline completion.",
+  "files": [
+    {
+      "path": "internal/component/l2tp/pppoe/subsystem.go",
+      "description": "Shutdown/join repair; whole file also changes auth-drain caller to a per-request resolver."
+    },
+    {
+      "path": "internal/component/l2tp/pppoe/drain.go",
+      "description": "Required companion: startPPPoEAuthDrain takes func() subscriber.AuthHandler rather than a captured handler."
+    },
+    {
+      "path": "internal/component/l2tp/plugins/authlocal/register.go",
+      "description": "SDK verify/apply/rollback owns current/pending/previous user tables; applied boolean supports rollback to an initially nil table."
+    },
+    {
+      "path": "internal/component/l2tp/plugins/authradius/register.go",
+      "description": "Provider ownership, local fallback, reload rollback, accepted-transaction matching and accounting retirement."
+    },
+    {
+      "path": "internal/component/l2tp/plugins/authradius/acct.go",
+      "description": "Admission pause, detachable accounting ownership, unsubscribe handles and bounded retirement."
+    },
+    {
+      "path": "internal/component/config/transaction/events/events.go",
+      "description": "Produces EventAccepted, absent in recorded HEAD."
+    },
+    {
+      "path": "internal/component/config/transaction/register.go",
+      "description": "Registers accepted event in the transaction namespace; required runtime companion."
+    },
+    {
+      "path": "internal/component/plugin/server/reload.go",
+      "description": "Tracks per-participant transaction ownership and opens/finishes direct-server acceptance scope."
+    },
+    {
+      "path": "internal/component/plugin/server/reload_tx.go",
+      "description": "Produces DeferReloadAcceptance, records committed transaction owners and emits accepted events."
+    },
+    {
+      "path": "cmd/ze/hub/main_reload.go",
+      "description": "Defers acceptance until the complete reload succeeds, beyond plugin commit and listener migration."
+    },
+    {
+      "path": "internal/component/l2tp/kernel_event.go",
+      "description": "Carries original session identity and descriptor-owner token through asynchronous setup."
+    },
+    {
+      "path": "internal/component/l2tp/kernel_linux.go",
+      "description": "Produces takePPPDescriptors and ownership-aware reportSuccess; reports after unlocking."
+    },
+    {
+      "path": "internal/component/l2tp/kernel_other.go",
+      "description": "Required non-Linux takePPPDescriptors sibling."
+    },
+    {
+      "path": "internal/component/l2tp/reactor_kernel.go",
+      "description": "Validates live session identity, claims descriptors, transfers to PPP and closes cancelled transfers."
+    },
+    {
+      "path": "internal/component/l2tp/ppp/manager.go",
+      "description": "Owns delivered descriptors, closes refusals/queued starts and consumes StartSession.PPPoE."
+    },
+    {
+      "path": "internal/component/l2tp/ppp/start_session.go",
+      "description": "Produces PPPoE policy field and closeFiles for refused/cancelled starts."
+    },
+    {
+      "path": "internal/component/l2tp/ppp/session.go",
+      "description": "Produces lifetime/negotiation state required by whole session_run.go."
+    },
+    {
+      "path": "internal/component/l2tp/ppp/session_run.go",
+      "description": "Descriptor lifetime, Opened-before-auth/NCP, MRU accounting, PAP replay, LCP reply/magic changes coexist in one whole file."
+    },
+    {
+      "path": "internal/component/l2tp/ppp/frame_linux.go",
+      "description": "NewFDFile keeps existing signature but replaces raw blockingFD with blocking os.File ownership."
+    },
+    {
+      "path": "internal/component/l2tp/ppp/frame.go",
+      "description": "Produces ProtoFieldLen and MaxFrameBufLen, distinguishing information-field and full-frame bounds."
+    },
+    {
+      "path": "internal/component/l2tp/ppp/lcp.go",
+      "description": "Produces ValidateLCPReply used by server PPP and current PPPoE client."
+    },
+    {
+      "path": "internal/component/l2tp/ppp/lcp_options.go",
+      "description": "Produces LCPNegPolicy.PPPoE and transport-specific forbidden-option handling."
+    },
+    {
+      "path": "internal/component/l2tp/ppp/proxy.go",
+      "description": "Produces proxyLCPResult.LocalMagic consumed by session_run.go."
+    },
+    {
+      "path": "internal/component/l2tp/ppp/pap.go",
+      "description": "Produces validatePAPRequest/reanswerPAP and cached reply lifecycle."
+    },
+    {
+      "path": "internal/component/l2tp/ppp/auth.go",
+      "description": "CHAP wait unwinds when nested LCP handling changes state."
+    },
+    {
+      "path": "internal/component/l2tp/ppp/ncp.go",
+      "description": "NCP similarly unwinds on nested LCP transition."
+    },
+    {
+      "path": "internal/component/l2tp/ppp/chap.go",
+      "description": "Migrates CHAP parsing/encoding to the information-field bound."
+    },
+    {
+      "path": "internal/component/l2tp/ppp/mschapv2.go",
+      "description": "Migrates sibling CHAP framing bounds consistently."
+    },
+    {
+      "path": "internal/component/l2tp/pppoe/server.go",
+      "description": "Sets StartSession.PPPoE; whole file also consumes exclusive teardown and detachTransport."
+    },
+    {
+      "path": "internal/component/l2tp/pppoe/session.go",
+      "description": "Produces detachTransport and exclusive markTeardown semantics for server.go."
+    }
+  ],
+  "architecture": "Daemon feature-gated imports register local and RADIUS plugins; local init claims the shared subscriber slot, configured RADIUS replaces it. L2TP already resolves the slot per request; PPPoE needs the drain/subsystem pair. Kernel workers transfer channel/unit ownership through the reactor to the shared PPP Driver. Config coordinator commit is reversible by hub compensation; only the outer accepted event permits irreversible RADIUS accounting retirement.",
+  "report": "READ-ONLY BASIS\nRead docs/architecture/testing/interop.md, authentication sections of docs/guide/l2tp.md and docs/guide/pppoe.md, plan/verification-baseline.json, current producers, and the retained tracked diff/status. The recorded head-before.stdout is b3d7bba364a1296a9b39d083062f82bff64416c7; the assignment establishes product equivalence with current 616dc2fa76. No validation, git operation, source edit, restoration or cleanup was performed. Historical before-source text was read in place; no archived .go snapshot was restored.\n\nSUPPORTED COMMIT GROUPS — PRODUCT/SOURCE CLOSURE\n\n1. PPPoE discovery shutdown and request-time provider resolution — CLOSED against recorded HEAD:\n- internal/component/l2tp/pppoe/subsystem.go\n- internal/component/l2tp/pppoe/drain.go\nReason: subsystem.go has BOTH the shutdown repair and an inherited startPPPoEAuthDrain signature migration. Keeping the current whole file requires drain.go. Stop closes the cancellation channel, joins discovery, stops PPP, joins event/auth/pool consumers, then closes the discovery descriptor; it does not hold the server-map mutex while joining. Start configures a 100ms receive timeout. SetRecvTimeout already has producers in internal/component/l2tp/pppoe/kernel_linux.go and internal/component/l2tp/pppoe/socket_other.go, neither appearing as a changed product file in the recorded status. No need to pull them into this commit. The saved pre-shutdown subsystem.go.before.txt already contains the resolver caller, explaining why a repair-local before snapshot conceals this HEAD dependency.\nVerification companions: internal/component/l2tp/pppoe/discovery_reader_test.go and internal/component/l2tp/pppoe/auth_provider_reload_linux_test.go. This source group does not require the provider reload implementation or PPPoE server/PADT changes to define its interfaces.\n\n2. Provider reload and RADIUS whole-reload rollback — CLOSED source set:\n- internal/component/l2tp/plugins/authlocal/register.go\n- internal/component/l2tp/plugins/authradius/register.go\n- internal/component/l2tp/plugins/authradius/acct.go\n- internal/component/config/transaction/events/events.go\n- internal/component/config/transaction/register.go\n- internal/component/plugin/server/reload.go\n- internal/component/plugin/server/reload_tx.go\n- cmd/ze/hub/main_reload.go\nReason: radius register.go consumes EventAccepted and the changed accountant API; reload_tx.go produces the accepted event, reload.go supplies transaction ownership and direct-server acceptance, and hub main_reload.go delays acceptance beyond the inner plugin commit. Registering the new event is a runtime dependency, not optional metadata. setClient now returns the retired client; subscribeEventBus returns cancellation; pauseAdmissions/detach/stopDetached divide reversible removal from irreversible accounting Stop. The accepted-event consumer matches transaction IDs and preserves an older accepted verdict across a newer tentative apply/rollback.\nThe local producer alone is source-independent: authlocal/register.go uses existing SDK callbacks and can land separately. However, existing whole-file regression coverage is coupled: internal/component/l2tp/plugins/authradius/provider_reload_test.go contains both local cases and RADIUS transitions, and shares helpers with internal/component/l2tp/plugins/authradius/provider_lifecycle_test.go. Those two files should accompany the combined provider group rather than be represented as a standalone local-only test set.\nOther verification companions: internal/component/l2tp/plugins/authradius/acct_test.go and cmd/ze/hub/main_reload_radius_test.go. The latter has the ze_web build constraint.\nThis group is source-independent of group 1: L2TP already late-binds the provider. Claiming live replacement on PPPoE requires group 1 as well. Provider reload and whole-reload accounting cannot be split into separate current whole-file commits because both occupy authradius/register.go.\n\n3. Credentialed PPP carrier/descriptor repairs with inherited whole-file negotiation changes — CLOSED PRODUCT DEPENDENCY SET, but NOT a narrowly isolated credential-admission patch:\n- internal/component/l2tp/kernel_event.go\n- internal/component/l2tp/kernel_linux.go\n- internal/component/l2tp/kernel_other.go\n- internal/component/l2tp/reactor_kernel.go\n- internal/component/l2tp/ppp/manager.go\n- internal/component/l2tp/ppp/start_session.go\n- internal/component/l2tp/ppp/session.go\n- internal/component/l2tp/ppp/session_run.go\n- internal/component/l2tp/ppp/frame_linux.go\n- internal/component/l2tp/ppp/frame.go\n- internal/component/l2tp/ppp/lcp.go\n- internal/component/l2tp/ppp/lcp_options.go\n- internal/component/l2tp/ppp/proxy.go\n- internal/component/l2tp/ppp/pap.go\n- internal/component/l2tp/ppp/auth.go\n- internal/component/l2tp/ppp/ncp.go\n- internal/component/l2tp/ppp/chap.go\n- internal/component/l2tp/ppp/mschapv2.go\n- internal/component/l2tp/pppoe/server.go\n- internal/component/l2tp/pppoe/session.go\nThe first four files are an inseparable producer/event/consumer/platform-sibling transfer. manager.go pulls in StartSession.closeFiles, pppSession.closeFiles and PPPoE state. session_run.go then pulls in MaxFrameBufLen, ValidateLCPReply, LCPNegPolicy.PPPoE, proxy.LocalMagic and reanswerPAP. Taking whole files also takes existing LCP reply, magic, PAP replay, frame-size and nested-phase changes; these cannot be described as only the native credential repair. CHAP/MSCHAP framing siblings accompany the changed frame contract. PPPoE server.go must populate the new transport policy and its whole-file teardown changes require session.go.\nUnchanged platform producer internal/component/l2tp/ppp/frame_other.go already supplies NewFDFile. No current CloseFD, blockingFD or pppEncapOverhead reference was found in internal/component/l2tp; the historical undefined CloseFD observation is not a present missing helper to implement. Current cancellation uses NewFDFile(...).Close().\nTests/verification remain a separate boundary: internal/component/l2tp/kernel_ownership_linux_test.go; internal/component/l2tp/reactor_ppp_linux_test.go; internal/component/l2tp/ppp/manager_test.go; internal/component/l2tp/ppp/auth_phase_rfc1334_test.go; internal/component/l2tp/ppp/chap_test.go; internal/component/l2tp/ppp/chap_fuzz_test.go; internal/component/l2tp/ppp/echo_test.go; internal/component/l2tp/ppp/frame_test.go; internal/component/l2tp/ppp/lcp_test.go; internal/component/l2tp/ppp/lcp_restart_counter_test.go; internal/component/l2tp/ppp/mschapv2_test.go; internal/component/l2tp/ppp/mschapv2_fuzz_test.go; internal/component/l2tp/ppp/pap_fuzz_test.go; internal/component/l2tp/ppp/rfc1661_option_length_test.go; internal/component/l2tp/ppp/rfc1661_test.go; and retained new tests internal/component/l2tp/ppp/frame_integration_linux_test.go, magic_echo_rfc1661_test.go, mtu_rfc1332_test.go, pap_ncp_lifetime_test.go, rfc2516_options_test.go (all five under internal/component/l2tp/ppp/), plus internal/component/l2tp/pppoe/padt_lifetime_linux_test.go. This is an inventory of related retained verification files, NOT a claim they pass or that every one is needed for compilation.\n\nOTHER CURRENT CONSUMERS / EXCLUSIONS\n- internal/component/l2tp/pppoeclient/session.go consumes new MaxFrameBufLen, ValidateLCPReply and PPPoE option policy. Its whole-file version also references sessionLink produced in internal/component/l2tp/pppoeclient/dialer.go. Thus a client commit needs both client files PLUS the shared PPP definitions; neither client file is a prerequisite for the server/carrier set above against HEAD. Do not accidentally turn this dependency direction around or bundle client lifecycle work into the narrow discovery shutdown commit.\n- internal/component/l2tp/pppoe/discovery.go changes BuildPADI sizing independently; it is not required by the shutdown resolver migration.\n- internal/component/l2tp/errors.go, reliable.go and tunnel_fsm.go carry separate L2TP protocol changes, not required producers for the listed descriptor/provider interfaces.\n- Exclude internal/component/l2tp/plugins/authlocal/auth.go and auth_test.go: no changed product entry in recorded status/diff. Current auth.go already permits explicit None before user lookup and validates PAP/CHAP credentials normally. The new local change is register.go reload state, not another noauth repair.\n- internal/component/l2tp/drain.go, subsystem.go, handler_registry.go and subscriber/handler_registry.go already provide request-time L2TP resolution and shared slot adaptation. Their source was read; they are not newly required changes.\n- Registration was traced through internal/component/plugin/all/all_ze_l2tp.go (ze_l2tp local imports), internal/component/plugin/all/all_ze_radius_ze_l2tp.go (ze_l2tp && ze_radius), local init/registry.RunEngine, and cmd/ze/hub/register_l2tp.go subsystem registration. No new registration/interface file is needed for these existing plugins.\n\nHEAD-MISSING DEFINITIONS THAT MUST NOT BE OMITTED\nEventAccepted and its namespace registration; Server.DeferReloadAcceptance and ownership helpers/txLock.configTransactions; radiusAcct.pauseAdmissions/detach/stopDetached and changed method returns; kernelSetupEvent.session and kernelSetupSucceeded.owner/session plus both takePPPDescriptors implementations; StartSession.PPPoE/closeFiles; pppSession lifetime/request/magic/PAP state and closeFiles; ProtoFieldLen/MaxFrameBufLen; ValidateLCPReply; LCPNegPolicy.PPPoE; proxyLCPResult.LocalMagic; validatePAPRequest/reanswerPAP; SessionTable.detachTransport. The recorded diff explicitly adds these; callers alone were not used to infer their existence.\n\nVERIFICATION AND METADATA DEBTS — NOT SOURCE-EDIT AUTHORITY\n- Retained local-nil-rollback-green.log records both registered local tests passing. Retained radius-whole-reload/whole-green.log records the late-bind rollback test and unrelated-participant/overlap cases passing. These are historical observations, not fresh validation of an isolated commit.\n- positive-proof-002.json records independent xl2tpd/pppd CHAP success before IPCP and native positive assertions; its limits explicitly say ping command exit, log-based route observations, and no complete credential-refusal/no-IPCP/no-forwarding conjunction.\n- Preserve the reported manager_test.go duplicate reg/pair declarations and unexecuted required-auth downgrade regression as verification debt. They do not authorize cleanup and do not invalidate a source dependency graph; they prevent calling the broader source/test package verified.\n- The baseline index simultaneously records the newer positive credential proof and an older 'still needs carrier proof' sentence. That is metadata debt; the missing negative conjunction remains real.\n- docs/architecture/l2tp/bng-5-pppoe.md is not a shutdown-only whole file: its diff also documents PADI sizing, PADT teardown and PPPoE LCP policy. docs/guide/l2tp.md likewise combines provider reload with frame/ownership/LCP changes; docs/guide/pppoe.md includes inherited transport behavior. Keep documentation allocation separate from source closure; landing those complete docs with only group 1 would describe other unlanded changes.\n- No isolated-HEAD build or test was run, and the historic native proof covers the broader working tree, not these proposed commit compositions. CLOSED here means the inspected product-interface dependency set, not fresh compile proof, all test closure, full RFC support or baseline completion."
+}

@@ -13,7 +13,7 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
-func startPPPoEAuthDrain(logger *slog.Logger, d *ppp.Driver, handler subscriber.AuthHandler, bus ze.EventBus, pending *sync.Map) <-chan struct{} {
+func startPPPoEAuthDrain(logger *slog.Logger, d *ppp.Driver, resolve func() subscriber.AuthHandler, bus ze.EventBus, pending *sync.Map) <-chan struct{} {
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -22,6 +22,8 @@ func startPPPoEAuthDrain(logger *slog.Logger, d *ppp.Driver, handler subscriber.
 			if !ok {
 				continue
 			}
+			// Plugins can replace the provider after this drain has started.
+			handler := resolve()
 			respond := func(accept bool, msg string, blob []byte) error {
 				return d.AuthResponse(req.TunnelID, req.SessionID, accept, msg, blob)
 			}

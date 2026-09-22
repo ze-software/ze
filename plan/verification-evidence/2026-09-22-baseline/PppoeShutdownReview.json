@@ -1,0 +1,6 @@
+{
+  "overall_correctness": "correct",
+  "explanation": "Bounded source approval: compared both fixes with their before-images and found no introduced defect. PPPoE Subsystem.Start/Stop and discoveryReader serialize lifecycle changes, close failed timeout setup, distinguish idle EAGAIN from counted/paced errors, join workers without holding the server-map mutex, preserve the discovery descriptor through eventConsumer → onSessionDown → handleSessionDown/PADT, and clear joined channels for restart; the ENOTCONN test adjustment preserves genuine-error coverage. The sole identity registration now resides in SDK initialization, which CLI already imports, while fixture.newObserver, cli.connFromEnv, and sdk.dialAndAuth retain their fallback and explicit-name semantics; documentation matches these changes, but this verdict does not claim native shutdown, race, or identity-smoke verification, and no validation commands or edits were performed.",
+  "confidence": 0.93,
+  "findings": []
+}

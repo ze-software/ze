@@ -3,16 +3,9 @@
 // Goal: prove discoveryReader paces and counts a read error it cannot
 // classify, and that it still exits at once when Stop closes s.stop while
 // it is waiting.
-// Method: drive discoveryReader directly against a real, open, non-blocking
-// datagram socket that never receives anything, so every read fails with
-// EAGAIN -- neither the closed case readDiscoveryFrame recognizes (EBADF,
-// EINVAL) nor a failure that clears on the next attempt. That is the same
-// unclassifiable, persistent condition a stalled AF_PACKET discovery socket
-// produces, and it holds on every platform: readDiscoveryFrame's Linux
-// implementation (kernel_linux.go) genuinely reads the fd and gets EAGAIN;
-// its non-Linux stub (socket_other.go) ignores the fd and always returns
-// errNotLinux, which is equally unclassifiable. Either way, discoveryReader
-// runs the same pace-log-count path this test proves.
+// Method: read an unconnected stream socket, which fails with ENOTCONN.
+// Unlike EAGAIN from an idle receive timeout, this is a persistent error.
+// The non-Linux socket stub returns errNotLinux and exercises the same path.
 
 package pppoe
 
@@ -28,14 +21,12 @@ import (
 	"github.com/ze-software/ze/internal/core/metrics"
 )
 
-// openNonBlockingDgramSocket opens a real datagram socket, bound to a
-// loopback ephemeral port, with no peer ever sending to it. Set
-// non-blocking so a read fails with EAGAIN at once rather than hanging,
-// which keeps the test's timing entirely inside the pacer's own delays.
-func openNonBlockingDgramSocket(t *testing.T) int {
+// openUnconnectedStreamSocket supplies a persistent receive error without
+// confusing an idle datagram timeout with a socket failure.
+func openUnconnectedStreamSocket(t *testing.T) int {
 	t.Helper()
 
-	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_DGRAM, 0)
+	fd, err := unix.Socket(unix.AF_INET, unix.SOCK_STREAM, 0)
 	if err != nil {
 		t.Fatalf("socket: %v", err)
 	}
@@ -80,7 +71,7 @@ func TestDiscoveryReaderPacesAFailingSocket(t *testing.T) {
 	reg := metrics.NewPrometheusRegistry()
 	bindPPPoEMetrics(reg)
 
-	sub := newDiscoveryReaderTestSubsystem(openNonBlockingDgramSocket(t))
+	sub := newDiscoveryReaderTestSubsystem(openUnconnectedStreamSocket(t))
 	go sub.discoveryReader()
 	t.Cleanup(func() {
 		close(sub.stop)
@@ -112,12 +103,9 @@ func TestDiscoveryReaderPacesAFailingSocket(t *testing.T) {
 // TestDiscoveryReaderStopsPromptlyWhilePacing
 // VALIDATES: AC-4's analog for discoveryReader -- stopping it while its
 // pacer is waiting at the ceiling must not sit out that wait.
-// PREVENTS: a regression in the newly introduced s.stop wiring. Closing
-// discFD alone would not do this -- it only unblocks a read already in
-// flight, not a goroutine asleep in the pacer's timer -- which is why this
-// phase added s.stop.
+// PREVENTS: waiting for the error pacer's delay after cancellation.
 func TestDiscoveryReaderStopsPromptlyWhilePacing(t *testing.T) {
-	sub := newDiscoveryReaderTestSubsystem(openNonBlockingDgramSocket(t))
+	sub := newDiscoveryReaderTestSubsystem(openUnconnectedStreamSocket(t))
 	go sub.discoveryReader()
 
 	// Long enough that the pacer has reached its ceiling wait (see the

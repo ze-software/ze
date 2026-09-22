@@ -1,0 +1,4 @@
+{
+  "command": "env CGO_ENABLED=1 tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le le job run label pppoe-stop-race quiet command go test -race -count=1 ./internal/component/l2tp/pppoe",
+  "status": "invoked"
+}
