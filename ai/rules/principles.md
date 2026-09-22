@@ -12,7 +12,7 @@
 
 **Work MUST NOT be called done until a user reaches the behavior through the real entry point and a test proves they do.** A library that compiles, an interface that exists, a unit test that passes over the logic in isolation: none of these is the feature. The feature is the path from what the user types to what the product answers, and the proof is a test that exercises that path and would fail if the path broke.
 
-**Writing a defect down MUST NOT be treated as addressing it.** A journal row, a tracking table, a report paragraph and a comment each change nothing about the product. Recording is a step toward a fix and never a substitute for one. The only failure that MAY be recorded instead of fixed is one you actively tried to reproduce and could not, and that record MUST carry the reproduction attempt and the next step.
+**Recording a defect MUST NOT be presented as fixing the product.** Defects exposed in implemented capabilities follow the agreed scope and `completion.md`. Absent RFC requirements MUST be recorded under `rfc-compliance.md`, which requires separate implementation scope. A gap record accurately describes missing behavior and authorizes no code change.
 
 **Every fact MUST be declared once, and every other surface MUST derive from that declaration.** A second copy is not a convenience: it is a future disagreement with nothing to arbitrate it. A hand-written list beside a registry, a table beside the generator that could emit it, a rule restating a page: each drifts, and the reader cannot tell which side is wrong. When a copy is unavoidable, the copy names its source and a check compares them.
 
@@ -22,7 +22,7 @@
 
 **The work a change owes MUST be measured by what the change can now REACH, and MUST NOT be measured by the files you edited.** The other call site, the sibling path with the same shape, the test that asserts the behavior you changed, the consumer of the name you renamed: each is inside the change whether or not it appears in the diff. A set derived from `git diff` is the edited set wearing another name.
 
-**Scope MUST NOT be reduced, renamed, deferred, or tabled without the user deciding it, and an author MUST NOT be the reviewer of their own work.** Both failures feel like judgement from the inside. Shrinking scope reads as pragmatism, and reviewing your own change reads as efficiency because the context is already loaded. Independence is a property of the CONTEXT, not of the intention: the reader who did not write it is the only one who can find what the writer could not see.
+**Scope MUST NOT be expanded, reduced, renamed, deferred, or tabled without the user deciding it, and an author MUST NOT review their own work.** An RFC obligation alone does not authorize a new feature. Independent review requires a reader who did not author the change.
 
 **A rule, a document or a comment MUST NOT carry a copy of what a command already prints.** The tool answers at the moment the answer is actionable, over the tree in hand, and it cannot be stale. A cached copy is stale from the first change and costs every reader who never runs that command. Run it, read what it says, and act on that.
 
