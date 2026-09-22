@@ -37,6 +37,12 @@ func (a *localAuth) setUsers(users map[string]userEntry) {
 
 // handle is the AuthHandler function registered with the l2tp package.
 func (a *localAuth) handle(req ppp.EventAuthRequest, _ l2tp.AuthRespondFunc) l2tp.AuthResult {
+	if req.Method == ppp.AuthMethodNone {
+		// PPP's required-auth guard has already permitted None.
+		// No wire authentication supplies a username for this request.
+		return l2tp.AuthResult{Accept: true, Message: "no auth required"}
+	}
+
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
@@ -54,12 +60,6 @@ func (a *localAuth) handle(req ppp.EventAuthRequest, _ l2tp.AuthRespondFunc) l2t
 	}
 
 	switch req.Method {
-	case ppp.AuthMethodNone:
-		// LCP did not negotiate authentication. Accept: the auth method
-		// is a wire-level decision; policy enforcement happens via LCP
-		// Auth-Protocol option negotiation, not here.
-		return l2tp.AuthResult{Accept: true, Message: "no auth required"}
-
 	case ppp.AuthMethodPAP:
 		return a.verifyPAP(req, user)
 

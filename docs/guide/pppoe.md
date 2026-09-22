@@ -59,10 +59,9 @@ answers no PADI.
 
 `auth-method` is the PPP Auth-Protocol the access concentrator puts in its own
 LCP Configure-Request: `chap-md5` (the default), `pap`, `ms-chap-v2`, or `none`.
-`none` requires `allow-no-auth true` beside it, because an access concentrator
-that asks nobody who they are is a decision and not a default. That combination,
-and an `auth-method` value the PPP driver does not know, are both refused when
-the daemon starts, with `parse pppoe config: ...`.
+`none` requires `allow-no-auth true`. The daemon rejects `none` without that
+opt-in, and rejects an unknown authentication method, with
+`parse pppoe config: ...`.
 
 | Leaf | Default | Values | Description |
 |------|---------|--------|-------------|
@@ -71,6 +70,7 @@ the daemon starts, with `parse pppoe config: ...`.
 
 The default matches the L2TP LNS default, so an operator who configures a
 credential for one transport gets the same treatment on the other.
+Explicit no-auth sessions need no local user entry.
 
 The credential comes from the same auth plugins the L2TP LNS uses. Configure a
 local user, or a RADIUS server:

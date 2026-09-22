@@ -268,7 +268,7 @@ one slot, so the same rule governs a PPPoE subscriber.
 
 ### l2tp-auth-local
 
-Built-in static user list with PAP/CHAP-MD5/MS-CHAPv2 support.
+Built-in static user list with PAP and CHAP-MD5 support.
 Configured under the `l2tp` config tree:
 
 ```
@@ -283,8 +283,9 @@ l2tp {
 }
 ```
 
-When no users are configured, the local handler rejects sessions. Add at
-least one user or configure RADIUS before enabling subscriber access.
+PAP and CHAP-MD5 require a configured user. Without one, the local handler
+rejects authentication. Explicit no-auth sessions need no user entry;
+`allow-no-auth true` must permit them.
 
 ### l2tp-auth-radius
 
@@ -297,14 +298,15 @@ RADIUS client plugin providing:
 - **CoA/DM** -- Change of Authorization and Disconnect-Message listener
   (RFC 5176) for RADIUS-initiated session changes and disconnects
 
-RFC 2865 Section 4.1 admits exactly three credential attributes in an
-Access-Request: User-Password, CHAP-Password, or State. A peer that supplied
-none of them supplies nothing to authenticate, so no Access-Request is built and
-the session is denied with `no usable credential`. This covers `auth-method
-none` while a RADIUS server is configured, and an MS-CHAPv2 response too short
-to carry a peer challenge and an NT response. Section 5 forbids sending text of
-length zero, so a peer that sends an empty PAP Peer-ID gets an Access-Request
-with no User-Name attribute rather than an empty one.
+The RADIUS handler accepts explicit no-auth sessions without an Access-Request.
+RADIUS remains available for accounting.
+
+For sessions that require authentication, RFC 2865 Section 4.1 requires
+User-Password, CHAP-Password, State, or authentication information defined by
+an extension. The handler denies a request without a usable credential with
+`no usable credential`. Section 5 forbids text of length zero, so an empty
+PAP Peer-ID produces an Access-Request without User-Name rather than an empty
+User-Name attribute.
 
 An Access-Accept naming a Service-Type other than Framed-User is treated as an
 Access-Reject, and the session is denied with `unsupported Service-Type`. The

@@ -1,0 +1,19 @@
+{
+  "behavior": "Explicit local no-auth subscriber admission",
+  "owner_approval": "Approve correction",
+  "producer": "internal/component/l2tp/plugins/authlocal/auth.go::localAuth.handle",
+  "change": "Handle AuthMethodNone before credential lookup; leave credentialed-method rejection and the PPP required-auth guard unchanged.",
+  "regression_before": "local-noauth-before-fix.log",
+  "regression_after": "local-noauth-after-fix.log",
+  "regression_result": "The username-less acceptance regression failed before the fix. Local-auth race tests passed after the fix.",
+  "interop_before": "subscriber/l2tp-attempt-001/native-report.json",
+  "interop_after": "subscriber/l2tp-attempt-002/native-report.json",
+  "interop_environment": "QEMU with verified Linux 7.2, xl2tpd and pppd",
+  "interop_result": "Native proven:true after checking both PPP interfaces and addresses, ping through the tunnel, peer-initiated route withdrawal and teardown.",
+  "independent_review": "local-noauth-final-review.json",
+  "limits": [
+    "The PPP required-auth downgrade regression did not execute because manager_test.go has two redeclaration errors.",
+    "No PPPoE, RADIUS or credentialed-subscriber interop claim is made.",
+    "Runtime evidence describes the exercised working-tree binary, not a pristine-HEAD build."
+  ]
+}

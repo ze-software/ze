@@ -1,0 +1,7 @@
+{
+  "mode": "l2tp",
+  "native-exit-code": 0,
+  "report-assertion-exit-code": 0,
+  "status": "implemented-tested",
+  "cleanup-observation": "see native report and stderr"
+}

@@ -4,7 +4,6 @@ import (
 	"crypto/md5"
 	"testing"
 
-	"github.com/ze-software/ze/internal/component/l2tp"
 	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
@@ -139,26 +138,13 @@ func TestLocalAuthUnknownUser(t *testing.T) {
 
 func TestLocalAuthMethodNoneAccepted(t *testing.T) {
 	a := newLocalAuth()
-	a.setUsers(map[string]userEntry{
-		"alice": {Name: "alice", secret: "pass"},
-	})
 
 	result := a.handle(ppp.EventAuthRequest{
 		TunnelID:  1,
 		SessionID: 1,
 		Method:    ppp.AuthMethodNone,
-		Username:  "alice",
 	}, nil)
 	if !result.Accept {
 		t.Fatal("AuthMethodNone should always accept")
-	}
-}
-
-func TestLocalAuthHandlerType(t *testing.T) {
-	a := newLocalAuth()
-	var h l2tp.AuthHandler = a.handle
-	result := h(ppp.EventAuthRequest{Method: ppp.AuthMethodNone}, nil)
-	if result.Accept {
-		t.Fatal("handler should reject when no users configured (fail-closed)")
 	}
 }

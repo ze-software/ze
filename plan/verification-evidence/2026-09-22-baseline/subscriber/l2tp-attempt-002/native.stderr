@@ -1,0 +1,89 @@
+ze> created live store: /tmp/effective-l2tp-ppp-2695419438/ze/database
+ze> time=2026-09-22T08:36:00.208Z level=INFO msg="L2TP listener bound" subsystem=l2tp address=172.30.0.1:1701
+ze> warning: running as root, set ze.user to drop privileges
+ze> time=2026-09-22T08:36:00.228Z level=DEBUG msg="l2tp-auth-local plugin starting (RPC)" subsystem=l2tp.auth.local
+ze> time=2026-09-22T08:36:00.230Z level=DEBUG msg="l2tp-auth-radius plugin starting (RPC)" subsystem=l2tp.auth.radius
+ze> time=2026-09-22T08:36:00.230Z level=DEBUG msg="l2tp-pool plugin starting (RPC)" subsystem=l2tp.pool
+ze> time=2026-09-22T08:36:00.244Z level=DEBUG msg="l2tp-shaper plugin starting (RPC)" subsystem=l2tp.shaper
+ze> time=2026-09-22T08:36:00.286Z level=INFO msg="l2tp-auth-local: loaded users" subsystem=l2tp.auth.local count=0
+ze> time=2026-09-22T08:36:00.287Z level=INFO msg="l2tp-pool: configured" subsystem=l2tp.pool total=9 named-pools=0
+xl2tpd> xl2tpd[1462]: Not looking for kernel SAref support.
+xl2tpd> xl2tpd[1462]: Using l2tp kernel support.
+xl2tpd> xl2tpd[1462]: xl2tpd version xl2tpd-1.3.18 started on localhost PID:1462
+xl2tpd> xl2tpd[1462]: Written by Mark Spencer, Copyright (C) 1998, Adtran, Inc.
+xl2tpd> xl2tpd[1462]: Forked by Scott Balmos and David Stipp, (C) 2001
+xl2tpd> xl2tpd[1462]: Inherited by Jeff McAdams, (C) 2002
+xl2tpd> xl2tpd[1462]: Forked again by Xelerance (www.xelerance.com) (C) 2006-2016
+xl2tpd> xl2tpd[1462]: Listening on IP address 0.0.0.0, port 1702
+xl2tpd> xl2tpd[1462]: get_call: allocating new tunnel for host 172.30.0.1, port 1701.
+xl2tpd> xl2tpd[1462]: Connecting to host 172.30.0.1, port 1701
+xl2tpd> xl2tpd[1462]: control_finish: message type is (null)(0).  Tunnel is 0, call is 0.
+xl2tpd> packet dump: 
+xl2tpd> xl2tpd[1462]: control_finish: sending SCCRQ
+ze> time=2026-09-22T08:36:00.476Z level=INFO msg="l2tp: new tunnel created from SCCRQ" subsystem=l2tp from=172.30.0.2:1702 local-tid=1702 peer-tid=56382
+ze> time=2026-09-22T08:36:00.481Z level=INFO msg="l2tp: SCCRP sent; tunnel now wait-ctl-conn" subsystem=l2tp local-tid=1702 peer=172.30.0.2:1702 peer-host="\"localhost\"" peer-tid=56382 peer-framing=0x00000003 challenge=false
+xl2tpd> xl2tpd[1462]: message_type_avp: message type 2 (Start-Control-Connection-Reply)
+xl2tpd> xl2tpd[1462]: protocol_version_avp: peer is using version 1, revision 0.
+xl2tpd> xl2tpd[1462]: framing_caps_avp: supported peer frames: async sync
+xl2tpd> xl2tpd[1462]: bearer_caps_avp: supported peer bearers:
+xl2tpd> xl2tpd[1462]: hostname_avp: peer reports hostname 'ze'
+xl2tpd> xl2tpd[1462]: assigned_tunnel_avp: using peer's tunnel 1702
+xl2tpd> xl2tpd[1462]: receive_window_size_avp: peer wants RWS of 16.  Will use flow control.
+xl2tpd> xl2tpd[1462]: control_finish: message type is Start-Control-Connection-Reply(2).  Tunnel is 1702, call is 0.
+xl2tpd> xl2tpd[1462]: control_finish: sending SCCCN
+ze> time=2026-09-22T08:36:00.486Z level=INFO msg="l2tp: tunnel now established" subsystem=l2tp local-tid=1702 peer=172.30.0.2:1702 peer-host="\"localhost\"" peer-tid=56382
+xl2tpd> xl2tpd[1462]: Connection established to 172.30.0.1, 1701.  Local: 56382, Remote: 1702 (ref=0/0).
+xl2tpd> xl2tpd[1462]: Calling on tunnel 56382
+xl2tpd> xl2tpd[1462]: control_finish: message type is (null)(0).  Tunnel is 1702, call is 0.
+xl2tpd> HEX: { C8 02 00 6A 00 00 00 00 00 00 00 00 80 08 00 00 00 00 00 01 80 08 00 00 00 02 01 00 80 0A 00 00 00 03 00 00 00 03 80 0A 00 00 00 04 00 00 00 00 00 08 00 00 00 06 06 90 80 0F 00 00 00 07 6C 6F 63 61 6C 68 6F 73 74 00 13 00 00 00 08 78 65 6C 65 72 61 6E 63 65 2E 63 6F 6D 80 08 00 00 00 09 DC 3E 80 08 00 00 00 0A 00 04 }
+xl2tpd> ASCII: {    j                                                          localhost      xelerance.com       >        }
+xl2tpd> packet dump: 
+xl2tpd> HEX: { 02 C8 48 00 3E DC 00 00 00 00 01 00 80 08 00 00 00 00 00 02 80 08 00 00 00 02 01 00 80 0A 00 00 00 03 00 00 00 03 80 0A 00 00 00 04 00 00 00 00 80 08 00 00 00 07 7A 65 80 08 00 00 00 09 06 A6 80 08 00 00 00 0A 00 10 }
+xl2tpd> ASCII: {   H >                                                 ze                }
+xl2tpd> packet dump: 
+xl2tpd> HEX: { C8 02 00 14 06 A6 00 00 00 01 00 01 80 08 00 00 00 00 00 03 }
+xl2tpd> ASCII: {                     }
+xl2tpd> packet dump: 
+xl2tpd> HEX: { C8 02 00 30 06 A6 00 00 00 02 00 01 80 08 00 00 00 00 00 0A 80 08 00 00 00 0E FC D9 80 0A 00 00 00 0F 00 00 00 01 80 0A 00 00xl2tpd[1462]: control_finish: sending ICRQ
+ze> time=2026-09-22T08:36:00.498Z level=INFO msg="l2tp: ICRP sent; session wait-connect" subsystem=l2tp local-tid=1702 peer=172.30.0.2:1702 local-sid=51544 remote-sid=64729 call-serial=1
+xl2tpd> xl2tpd[1462]: message_type_avp: message type 11 (Incoming-Call-Reply)
+xl2tpd> xl2tpd[1462]: assigned_call_avp: using peer's call 51544
+xl2tpd> xl2tpd[1462]: control_finish: message type is Incoming-Call-Reply(11).  Tunnel is 1702, call is 51544.
+xl2tpd> xl2tpd[1462]: control_finish: Sending ICCN
+xl2tpd> xl2tpd[1462]: Call established with 172.30.0.1, Local: 64729, Remote: 51544, Serial: 1 (ref=0/0)
+ze> time=2026-09-22T08:36:00.499Z level=INFO msg="l2tp: session established (incoming LNS)" subsystem=l2tp local-tid=1702 peer=172.30.0.2:1702 local-sid=51544 remote-sid=64729 tx-speed=0 framing=0x00000001
+ze> time=2026-09-22T08:36:00.506Z level=INFO msg="l2tp: kernel tunnel created" subsystem=l2tp local-tid=1702 remote-tid=56382 peer-addr=172.30.0.2:1702
+ze> time=2026-09-22T08:36:00.512Z level=INFO msg="l2tp: kernel session established" subsystem=l2tp tunnel-id=1702 session-id=51544 ppp-unit=0
+ze> Starting ze with config: /tmp/effective-l2tp-ppp-2695419438/ze/ze.conf
+ze> Ze running. Press Ctrl+C to stop.
+ze> time=2026-09-22T08:36:03.525Z level=DEBUG msg="ppp: LCP Restart timer expired" subsystem=l2tp component=ppp tunnel-id=1702 session-id=51544 unit=0 state=ack-sent restart-count=9
+ze> time=2026-09-22T08:36:03.535Z level=INFO msg="l2tp-pool: allocated address" subsystem=l2tp.pool tunnel=1702 session=51544 address=10.100.0.2
+ze> time=2026-09-22T08:36:03.537Z level=INFO msg="ppp: IPCP addresses obtained, starting NCP FSM" subsystem=l2tp component=ppp tunnel-id=1702 session-id=51544 unit=0
+ze> time=2026-09-22T08:36:03.539Z level=INFO msg="ppp: IPCP FSM started, entering loop" subsystem=l2tp component=ppp tunnel-id=1702 session-id=51544 unit=0 state=req-sent
+ze> time=2026-09-22T08:36:03.539Z level=INFO msg="ppp: IPv6CP declined by handler, continuing IPv4-only" subsystem=l2tp component=ppp tunnel-id=1702 session-id=51544 unit=0 reason="IPv6 not supported by static pool"
+ze> time=2026-09-22T08:36:03.539Z level=DEBUG msg="ppp: NCP loop got frame" subsystem=l2tp component=ppp tunnel-id=1702 session-id=51544 unit=0 len=12
+ze> time=2026-09-22T08:36:03.539Z level=DEBUG msg="ppp: IPCP rx" subsystem=l2tp component=ppp tunnel-id=1702 session-id=51544 unit=0 code=configure-request id=1 len=6
+ze> time=2026-09-22T08:36:03.540Z level=DEBUG msg="ppp: NCP loop got frame" subsystem=l2tp component=ppp tunnel-id=1702 session-id=51544 unit=0 len=12
+ze> time=2026-09-22T08:36:03.540Z level=DEBUG msg="ppp: IPCP rx" subsystem=l2tp component=ppp tunnel-id=1702 session-id=51544 unit=0 code=configure-ack id=1 len=6
+ze> time=2026-09-22T08:36:03.540Z level=DEBUG msg="ppp: NCP loop got frame" subsystem=l2tp component=ppp tunnel-id=1702 session-id=51544 unit=0 len=24
+ze> time=2026-09-22T08:36:03.540Z level=DEBUG msg="ppp: IPCP rx" subsystem=l2tp component=ppp tunnel-id=1702 session-id=51544 unit=0 code=configure-request id=2 len=18
+ze> time=2026-09-22T08:36:03.727Z level=INFO msg="l2tp: subscriber route inject" subsystem=l2tp component=l2tp-redistribute session-id=51544 username="" address=10.100.0.2 family=ipv4
+ze> time=2026-09-22T08:36:03.727Z level=INFO msg="l2tp: session IP assigned" subsystem=l2tp tunnel-id=1702 session-id=51544 username="" address=10.100.0.2
+ze> time=2026-09-22T08:36:03.728Z level=INFO msg="l2tp: PPP session up" subsystem=l2tp tunnel-id=1702 session-id=51544 interface=ppp0
+xl2tpd> xl2tpd[1462]: death_handler: Fatal signal 15 received
+ze> time=2026-09-22T08:36:04.955Z level=INFO msg="l2tp: StopCCN clearing sessions" subsystem=l2tp local-tid=1702 peer=172.30.0.2:1702 count=1
+ze> time=2026-09-22T08:36:04.955Z level=INFO msg="l2tp: peer StopCCN received; tunnel closed" subsystem=l2tp local-tid=1702 peer=172.30.0.2:1702 result=1 error-code=0 message="\"Server closing\""
+ze> time=2026-09-22T08:36:04.955Z level=INFO msg="l2tp: subscriber routes withdrawn" subsystem=l2tp component=l2tp-redistribute session-id=51544 username="" withdrawn=1
+ze> time=2026-09-22T08:36:04.955Z level=INFO msg="l2tp-pool: released address on session-down" subsystem=l2tp.pool session=l2tp-1702-51544 address=10.100.0.2 pool=""
+ze> time=2026-09-22T08:36:04.956Z level=DEBUG msg="l2tp: tunnel socket read error" subsystem=l2tp tunnel-id=1702 error="read udp 172.30.0.1:1701->172.30.0.2:1702: read: connection refused"
+ze> time=2026-09-22T08:36:04.957Z level=WARN msg="l2tp: kernel session delete failed" subsystem=l2tp tunnel-id=1702 session-id=51544 error="l2tp: genl session delete (tunnel=1702 session=51544): no such device"
+ze> time=2026-09-22T08:36:04.957Z level=INFO msg="l2tp: kernel tunnel deleted" subsystem=l2tp tunnel-id=1702
+ze> time=2026-09-22T08:36:04.958Z level=DEBUG msg="ppp: RemoveRoute on teardown" subsystem=l2tp component=ppp tunnel-id=1702 session-id=51544 unit=0 error="iface: remove route gateway \"\": invalid IP"
+ze> time=2026-09-22T08:36:04.959Z level=DEBUG msg="ppp: RemoveAddress on teardown" subsystem=l2tp component=ppp tunnel-id=1702 session-id=51544 unit=0 error="iface: remove address \"10.100.0.1/32\" on \"ppp0\": cannot assign requested address"
+ze> Shutting down (Ctrl+C again to force)...
+ze> time=2026-09-22T08:36:05.180Z level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=l2tp-auth-local
+ze> time=2026-09-22T08:36:05.180Z level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=l2tp-pool
+ze> time=2026-09-22T08:36:05.180Z level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=ntp
+ze> time=2026-09-22T08:36:05.180Z level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=l2tp-shaper
+ze> time=2026-09-22T08:36:05.180Z level=INFO msg="L2TP subsystem stopping" subsystem=l2tp
+ze> Ze stopped.
