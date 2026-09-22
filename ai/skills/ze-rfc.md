@@ -388,14 +388,13 @@ target the corpus cannot show, the row itself, or a cycle is refused. The row si
 the gated denominator, so it moves no share (`docs/contributing/rfc-conformance-gates.md`,
 "The rollup annotation").
 
-**Writing any of the six is Thomas's call, not yours** (owner directive 2026-07-27,
-`ai/rules/rfc-compliance.md` "Implement Full Compliance. Ask Thomas Only Before Doing LESS").
-Implementing the requirement fully and proving it with a tagged test is always an
-available answer, and when it is reachable you take it WITHOUT asking. Choosing an
-annotation instead is choosing less: stop, quote the requirement text and the producing
-code `file:line`, and ask which way he wants it fixed.
-An annotation you find already in place from an earlier session is VOID as authority —
-re-derive it from the RFC text, and ask again if it still reads as less than full.
+**Annotations record scope and evidence; they do not authorize implementation.**
+Read the RFC and the current producers before choosing a classification. Close testing
+gaps for implemented capabilities first, and record absent behavior as an explicit gap.
+An absent feature needs separately agreed scope. Apply `ai/rules/rfc-compliance.md`.
+Full RFC support is the long-term goal, not every summary's acceptance criterion.
+Re-check an existing annotation's evidence without treating an agreed capability boundary
+as void merely because the full RFC covers more.
 
 ## Superseded Documents Carry Their Successor
 

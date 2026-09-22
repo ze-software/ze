@@ -91,8 +91,8 @@ runs. A test for it is therefore a contradiction. It costs two committed facts â
 the record and the agreeing annotation â€” precisely so it stays more expensive than the honest
 alternatives.
 
-And per `ai/rules/rfc-compliance.md` the annotation it agrees with is itself VOID as authority.
-This verdict says what the CODE can do. It never says that the classification is settled.
+Judge the annotation against the RFC, the current producers, and the agreed capability
+boundary. The scope rules are in `ai/rules/rfc-compliance.md`.
 
 | Field | When | What it is |
 |-------|------|-----------|
@@ -124,9 +124,9 @@ changed, and removing any verdict that existed at HEAD. Audit coverage is monoto
 requirement id, so a judgement that has been made cannot be un-made by erasing it. If you
 believe a finding was wrong, record `upgrade_reason`.
 
-An `unimplemented` verdict is a statement that Ze does not meet a MUST. Under
-`ai/rules/rfc-compliance.md` that is a question for Thomas, never a settled deviation. Raise it
-with the RFC text and the producing `file:line`. Then ask which way he wants it fixed.
+An `unimplemented` verdict records missing behavior, not permission to implement it.
+Record the explicit gap with its RFC source. First close testing gaps for implemented
+capabilities and fix exposed defects. An absent feature needs separately agreed scope.
 
 ## Why the fingerprint exists
 
@@ -165,18 +165,16 @@ in a commit.
 ## Rules
 
 - Read the RFC. The summary is under audit, not evidence.
-- **Never** fix a finding by editing the test's expectation. That is the failure this whole
-  system exists to prevent, and the `rfc-tagged-test` hook will block you
-  (`ai/rules/testing.md`). Fix the code, or report it.
+- Do not change an expectation merely to match the implementation. If the assertion
+  contradicts the RFC, obtain owner approval for the correction and preserve the intended
+  proof (`ai/rules/testing.md`).
 - `weak` and `wrong` are the valuable outputs. A run that returns all `enforced` on first
   pass has probably not read anything.
 - Judge the **annotations** too, not just the tests. `{single-polarity}`, `{gap}` and
   `{not-applicable}` are arguments, and an unexamined argument is where a lie hides.
-- Every annotation is VOID as authority (owner directive 2026-07-27,
-  `ai/rules/rfc-compliance.md`). An earlier session's reasoning, and any earlier answer
-  from Thomas that pointed away from full compliance, settles nothing: re-derive it from
-  the RFC text. If full implementation plus a tagged test is still an available answer,
-  the audit's output is a question for Thomas, never a confirmed annotation.
+- Re-check an annotation's source and evidence rather than accepting its author's claim.
+  Report implemented-tested, implemented-unverified, and unimplemented behavior separately.
+  Full RFC support is the long-term goal, not an automatic audit acceptance criterion.
 - A `{gap}` must still be disclosed on the public row. Edit `Support status` or `Support
   remaining` in that summary's `## Meta` table and run `./le rfc index-update`:
   `docs/features/rfc-status.md` is generated from those rows and a hand edit to it is lost.

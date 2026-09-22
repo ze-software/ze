@@ -287,7 +287,7 @@ and dispatches findings to a fix agent (`ai/rules/commands.md`). `./le verify wo
   spec's **Documentation Update Checklist** is the list `/ze-close` verifies, not a queue of
   work to start there. A diff that changes behavior and carries no page edit states why.
 - **No deferred work.** Every item in the spec must be implemented fully before reporting completion. No TODOs, no stubs, no placeholder implementations, no "left as future work" notes, no comments like "// TODO: handle X later". If an item turns out to be blocked, ambiguous, or harder than expected, stop and raise it with the user to re-negotiate scope. Never silently skip or defer.
-- **Design-doc "Deferred to a later phase" sections are not authoritative.** When the user picks an option whose design doc carves out follow-on work as deferred, do NOT parrot that carve-out. Treat the entire problem as in scope and ask before excluding anything.
+- **Keep the agreed capability boundary.** A design's future work does not become current scope merely because it belongs to the same problem. Complete the agreed acceptance criteria. Ask before adding absent features or changing those criteria.
 - Do NOT skip the audit step -- re-implementing existing code wastes time
 - If the same issue reappears after 3 fix attempts (3-Fix Rule, `ai/rules/completion.md`), STOP and ask for guidance. Otherwise keep reviewing -- there is no pass limit.
 - If the spec is missing a **Critical Review Checklist**, STOP and inform the user that the spec needs updating before implementation can proceed. (`/ze-close` makes the same check for the Deliverables, Security Review, and Documentation Update checklists it consumes.)
