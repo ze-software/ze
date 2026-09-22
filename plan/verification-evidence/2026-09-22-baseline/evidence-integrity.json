@@ -1,0 +1,19 @@
+{
+  "result": "passed",
+  "checks": [
+    "Eight retained run files match their originals byte-for-byte",
+    "NetFlow record count matches 320 decoded records",
+    "sFlow datagram count matches 12 decoded datagrams",
+    "Baseline citations contain no session-directory references"
+  ],
+  "sha256": {
+    "flow-interop-proof.json": "0cbbe1431318809477db49ae1238a11a92e00991dd32c059f806113b8336b354",
+    "flow-nfdump-records.json": "fa2b2bb6a39abc9733381687d44380d68ec7759ca34c0cbc647d0beac26b4ecd",
+    "sflow-interop-proof.json": "52de25061693186e2fa32bd0272d24a3344d772aeb4d9733d611ef7de3d2c9b9",
+    "sflowtool-records.json": "6b94ad3a8d2deb4c84297f3288ff7f52031cc94623f0884514b37a2f9a83e18d",
+    "flow-foreign-smoke.go.txt": "2426e8d92c137a995326cf49c98a7a773667a1d1b99dae99d4b3f27814ca9395",
+    "sflow-foreign-smoke.go.txt": "835c6295a7998aadca5cbfb0895897607f3b15642f68616b733bab6b10d4a6b1",
+    "igp-debt-race.log": "eb1b3abe234c4ff6b0489b7d492a0bd8a4c13418fdb15b321b68018a2d44e7a0",
+    "runtime-kernel-build.log": "fc0c5f0738ec0b96776aca51f946a87505e284feae58e40e4c03b34d6441de0f"
+  }
+}

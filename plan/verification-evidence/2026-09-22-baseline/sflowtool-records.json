@@ -1,0 +1,1094 @@
+[
+  {
+    "datagramSourceIP": "127.0.0.1",
+    "datagramSize": "400",
+    "unixSecondsUTC": "1790041848",
+    "unixSecondsUTC_uS": "876016",
+    "localtime": "2026-09-22T02:50:48+0100",
+    "datagramVersion": "5",
+    "agentSubId": "7",
+    "agent": "2001:0db8:0000:0000:0000:0000:0000:0005",
+    "packetSequenceNo": "0",
+    "sysUpTime": "60000",
+    "samplesInPacket": "3",
+    "samples": [
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483649",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483649",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000000",
+            "ifInUcastPkts": "100",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000000",
+            "ifOutUcastPkts": "200",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483650",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483650",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000001",
+            "ifInUcastPkts": "101",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000001",
+            "ifOutUcastPkts": "201",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483651",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483651",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000002",
+            "ifInUcastPkts": "102",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000002",
+            "ifOutUcastPkts": "202",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "datagramSourceIP": "127.0.0.1",
+    "datagramSize": "400",
+    "unixSecondsUTC": "1790041848",
+    "unixSecondsUTC_uS": "876248",
+    "localtime": "2026-09-22T02:50:48+0100",
+    "datagramVersion": "5",
+    "agentSubId": "7",
+    "agent": "2001:0db8:0000:0000:0000:0000:0000:0005",
+    "packetSequenceNo": "1",
+    "sysUpTime": "60000",
+    "samplesInPacket": "3",
+    "samples": [
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483652",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483652",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000003",
+            "ifInUcastPkts": "103",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000003",
+            "ifOutUcastPkts": "203",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483653",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483653",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000004",
+            "ifInUcastPkts": "104",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000004",
+            "ifOutUcastPkts": "204",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483654",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483654",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000005",
+            "ifInUcastPkts": "105",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000005",
+            "ifOutUcastPkts": "205",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "datagramSourceIP": "127.0.0.1",
+    "datagramSize": "400",
+    "unixSecondsUTC": "1790041848",
+    "unixSecondsUTC_uS": "876325",
+    "localtime": "2026-09-22T02:50:48+0100",
+    "datagramVersion": "5",
+    "agentSubId": "7",
+    "agent": "2001:0db8:0000:0000:0000:0000:0000:0005",
+    "packetSequenceNo": "2",
+    "sysUpTime": "60000",
+    "samplesInPacket": "3",
+    "samples": [
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483655",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483655",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000006",
+            "ifInUcastPkts": "106",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000006",
+            "ifOutUcastPkts": "206",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483656",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483656",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000007",
+            "ifInUcastPkts": "107",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000007",
+            "ifOutUcastPkts": "207",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483657",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483657",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000008",
+            "ifInUcastPkts": "108",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000008",
+            "ifOutUcastPkts": "208",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "datagramSourceIP": "127.0.0.1",
+    "datagramSize": "400",
+    "unixSecondsUTC": "1790041848",
+    "unixSecondsUTC_uS": "876389",
+    "localtime": "2026-09-22T02:50:48+0100",
+    "datagramVersion": "5",
+    "agentSubId": "7",
+    "agent": "2001:0db8:0000:0000:0000:0000:0000:0005",
+    "packetSequenceNo": "3",
+    "sysUpTime": "60000",
+    "samplesInPacket": "3",
+    "samples": [
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483658",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483658",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000009",
+            "ifInUcastPkts": "109",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000009",
+            "ifOutUcastPkts": "209",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483659",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483659",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000010",
+            "ifInUcastPkts": "110",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000010",
+            "ifOutUcastPkts": "210",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483660",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483660",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000011",
+            "ifInUcastPkts": "111",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000011",
+            "ifOutUcastPkts": "211",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "datagramSourceIP": "127.0.0.1",
+    "datagramSize": "280",
+    "unixSecondsUTC": "1790041848",
+    "unixSecondsUTC_uS": "876477",
+    "localtime": "2026-09-22T02:50:48+0100",
+    "datagramVersion": "5",
+    "agentSubId": "7",
+    "agent": "2001:0db8:0000:0000:0000:0000:0000:0005",
+    "packetSequenceNo": "4",
+    "sysUpTime": "60000",
+    "samplesInPacket": "2",
+    "samples": [
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483661",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483661",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000012",
+            "ifInUcastPkts": "112",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000012",
+            "ifOutUcastPkts": "212",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483662",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483662",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000013",
+            "ifInUcastPkts": "113",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000013",
+            "ifOutUcastPkts": "213",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "datagramSourceIP": "127.0.0.1",
+    "datagramSize": "460",
+    "unixSecondsUTC": "1790041848",
+    "unixSecondsUTC_uS": "876526",
+    "localtime": "2026-09-22T02:50:48+0100",
+    "datagramVersion": "5",
+    "agentSubId": "7",
+    "agent": "2001:0db8:0000:0000:0000:0000:0000:0005",
+    "packetSequenceNo": "5",
+    "sysUpTime": "60000",
+    "samplesInPacket": "1",
+    "samples": [
+      {
+        "sampleType_tag": "0:3",
+        "sampleType": "FLOWSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483649",
+        "meanSkipCount": "4096",
+        "samplePool": "4096",
+        "dropEvents": "0",
+        "inputPort": "2147483649",
+        "outputPort": "2147483650",
+        "elements": [
+          {
+            "flowBlock_tag": "0:1",
+            "flowSampleType": "HEADER",
+            "headerProtocol": "1",
+            "sampledPacketSize": "604",
+            "strippedBytes": "4",
+            "headerLen": "344",
+            "headerBytes": "02-00-00-00-00-02-02-00-00-00-00-01-08-00-45-00-02-4A-00-00-00-00-40-11-8C-6D-C0-00-02-01-C6-33-64-01-27-10-01-BB-02-36-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00",
+            "dstMAC": "020000000002",
+            "srcMAC": "020000000001",
+            "ethernet_type": "2048",
+            "IPSize": "586",
+            "ip.tot_len": "586",
+            "srcIP": "192.0.2.1",
+            "dstIP": "198.51.100.1",
+            "IPProtocol": "17",
+            "IPTOS": "0",
+            "IPTTL": "64",
+            "IPID": "0",
+            "UDPSrcPort": "10000",
+            "UDPDstPort": "443",
+            "UDPBytes": "566"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "datagramSourceIP": "127.0.0.1",
+    "datagramSize": "400",
+    "unixSecondsUTC": "1790041848",
+    "unixSecondsUTC_uS": "876655",
+    "localtime": "2026-09-22T02:50:48+0100",
+    "datagramVersion": "5",
+    "agentSubId": "7",
+    "agent": "2001:0db8:0000:0000:0000:0000:0000:0005",
+    "packetSequenceNo": "6",
+    "sysUpTime": "61000",
+    "samplesInPacket": "3",
+    "samples": [
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "1",
+        "sourceId": "0:2147483649",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483649",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000100",
+            "ifInUcastPkts": "100",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000100",
+            "ifOutUcastPkts": "200",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "2",
+        "sourceId": "0:2147483650",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483650",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000101",
+            "ifInUcastPkts": "101",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000101",
+            "ifOutUcastPkts": "201",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "2",
+        "sourceId": "0:2147483651",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483651",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000102",
+            "ifInUcastPkts": "102",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000102",
+            "ifOutUcastPkts": "202",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "datagramSourceIP": "127.0.0.1",
+    "datagramSize": "400",
+    "unixSecondsUTC": "1790041848",
+    "unixSecondsUTC_uS": "876987",
+    "localtime": "2026-09-22T02:50:48+0100",
+    "datagramVersion": "5",
+    "agentSubId": "7",
+    "agent": "2001:0db8:0000:0000:0000:0000:0000:0005",
+    "packetSequenceNo": "7",
+    "sysUpTime": "61000",
+    "samplesInPacket": "3",
+    "samples": [
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "2",
+        "sourceId": "0:2147483652",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483652",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000103",
+            "ifInUcastPkts": "103",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000103",
+            "ifOutUcastPkts": "203",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "2",
+        "sourceId": "0:2147483653",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483653",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000104",
+            "ifInUcastPkts": "104",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000104",
+            "ifOutUcastPkts": "204",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "2",
+        "sourceId": "0:2147483654",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483654",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000105",
+            "ifInUcastPkts": "105",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000105",
+            "ifOutUcastPkts": "205",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "datagramSourceIP": "127.0.0.1",
+    "datagramSize": "400",
+    "unixSecondsUTC": "1790041848",
+    "unixSecondsUTC_uS": "877050",
+    "localtime": "2026-09-22T02:50:48+0100",
+    "datagramVersion": "5",
+    "agentSubId": "7",
+    "agent": "2001:0db8:0000:0000:0000:0000:0000:0005",
+    "packetSequenceNo": "8",
+    "sysUpTime": "61000",
+    "samplesInPacket": "3",
+    "samples": [
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "2",
+        "sourceId": "0:2147483655",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483655",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000106",
+            "ifInUcastPkts": "106",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000106",
+            "ifOutUcastPkts": "206",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "2",
+        "sourceId": "0:2147483656",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483656",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000107",
+            "ifInUcastPkts": "107",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000107",
+            "ifOutUcastPkts": "207",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "2",
+        "sourceId": "0:2147483657",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483657",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000108",
+            "ifInUcastPkts": "108",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000108",
+            "ifOutUcastPkts": "208",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "datagramSourceIP": "127.0.0.1",
+    "datagramSize": "400",
+    "unixSecondsUTC": "1790041848",
+    "unixSecondsUTC_uS": "877104",
+    "localtime": "2026-09-22T02:50:48+0100",
+    "datagramVersion": "5",
+    "agentSubId": "7",
+    "agent": "2001:0db8:0000:0000:0000:0000:0000:0005",
+    "packetSequenceNo": "9",
+    "sysUpTime": "61000",
+    "samplesInPacket": "3",
+    "samples": [
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "2",
+        "sourceId": "0:2147483658",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483658",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000109",
+            "ifInUcastPkts": "109",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000109",
+            "ifOutUcastPkts": "209",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "2",
+        "sourceId": "0:2147483659",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483659",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000110",
+            "ifInUcastPkts": "110",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000110",
+            "ifOutUcastPkts": "210",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "2",
+        "sourceId": "0:2147483660",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483660",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000111",
+            "ifInUcastPkts": "111",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000111",
+            "ifOutUcastPkts": "211",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "datagramSourceIP": "127.0.0.1",
+    "datagramSize": "280",
+    "unixSecondsUTC": "1790041848",
+    "unixSecondsUTC_uS": "877156",
+    "localtime": "2026-09-22T02:50:48+0100",
+    "datagramVersion": "5",
+    "agentSubId": "7",
+    "agent": "2001:0db8:0000:0000:0000:0000:0000:0005",
+    "packetSequenceNo": "10",
+    "sysUpTime": "61000",
+    "samplesInPacket": "2",
+    "samples": [
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "2",
+        "sourceId": "0:2147483661",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483661",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000112",
+            "ifInUcastPkts": "112",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000112",
+            "ifOutUcastPkts": "212",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      },
+      {
+        "sampleType_tag": "0:4",
+        "sampleType": "COUNTERSSAMPLE",
+        "sampleSequenceNo": "2",
+        "sourceId": "0:2147483662",
+        "elements": [
+          {
+            "counterBlock_tag": "0:1",
+            "ifIndex": "2147483662",
+            "networkType": "6",
+            "ifSpeed": "100000000000",
+            "ifDirection": "1",
+            "ifStatus": "3",
+            "ifInOctets": "17000000113",
+            "ifInUcastPkts": "113",
+            "ifInMulticastPkts": "0",
+            "ifInBroadcastPkts": "0",
+            "ifInDiscards": "0",
+            "ifInErrors": "0",
+            "ifInUnknownProtos": "4294967295",
+            "ifOutOctets": "18000000113",
+            "ifOutUcastPkts": "213",
+            "ifOutMulticastPkts": "0",
+            "ifOutBroadcastPkts": "0",
+            "ifOutDiscards": "0",
+            "ifOutErrors": "0",
+            "ifPromiscuousMode": "0"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "datagramSourceIP": "127.0.0.1",
+    "datagramSize": "460",
+    "unixSecondsUTC": "1790041848",
+    "unixSecondsUTC_uS": "877196",
+    "localtime": "2026-09-22T02:50:48+0100",
+    "datagramVersion": "5",
+    "agentSubId": "7",
+    "agent": "2001:0db8:0000:0000:0000:0000:0000:0005",
+    "packetSequenceNo": "11",
+    "sysUpTime": "60000",
+    "samplesInPacket": "1",
+    "samples": [
+      {
+        "sampleType_tag": "0:3",
+        "sampleType": "FLOWSAMPLE",
+        "sampleSequenceNo": "2",
+        "sourceId": "0:2147483649",
+        "meanSkipCount": "4096",
+        "samplePool": "8192",
+        "dropEvents": "0",
+        "inputPort": "2147483649",
+        "outputPort": "2147483650",
+        "elements": [
+          {
+            "flowBlock_tag": "0:1",
+            "flowSampleType": "HEADER",
+            "headerProtocol": "1",
+            "sampledPacketSize": "604",
+            "strippedBytes": "4",
+            "headerLen": "344",
+            "headerBytes": "02-00-00-00-00-02-02-00-00-00-00-01-08-00-45-00-02-4A-00-00-00-00-40-11-8C-6D-C0-00-02-01-C6-33-64-01-27-10-01-BB-02-36-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00-00",
+            "dstMAC": "020000000002",
+            "srcMAC": "020000000001",
+            "ethernet_type": "2048",
+            "IPSize": "586",
+            "ip.tot_len": "586",
+            "srcIP": "192.0.2.1",
+            "dstIP": "198.51.100.1",
+            "IPProtocol": "17",
+            "IPTOS": "0",
+            "IPTTL": "64",
+            "IPID": "0",
+            "UDPSrcPort": "10000",
+            "UDPDstPort": "443",
+            "UDPBytes": "566"
+          }
+        ]
+      }
+    ]
+  }
+]

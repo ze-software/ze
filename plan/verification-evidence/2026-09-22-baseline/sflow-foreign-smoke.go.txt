@@ -1,0 +1,60 @@
+//go:build ignore
+
+package main
+
+import (
+	"encoding/binary"
+	"fmt"
+	"net/netip"
+	"time"
+
+	"github.com/ze-software/ze/internal/plugins/flowexport"
+	"github.com/ze-software/ze/internal/plugins/flowexport/sflow"
+)
+
+func main() {
+	now := time.Now()
+	agent := netip.MustParseAddr("2001:db8::5")
+	counters := sflow.NewCounterEncoder(agent, 7, now.Add(-time.Minute))
+	packets := sflow.NewFlowEncoder(agent, 7, now.Add(-time.Minute))
+	sender, err := flowexport.NewSender("127.0.0.1", 39096, "", flowexport.DatagramSizeDefault)
+	if err != nil { panic(err) }
+	snapshot := flowexport.CounterSnapshot{Time: now, Interfaces: make([]flowexport.InterfaceCounters, 14)}
+	for i := range snapshot.Interfaces {
+		snapshot.Interfaces[i] = flowexport.InterfaceCounters{
+			IfIndex: 0x80000001 + uint32(i), IfType: 6, IfSpeed: 100000000000,
+			IfDirection: flowexport.IfDirectionFullDuplex, IfStatus: flowexport.IfStatusAdminUp | flowexport.IfStatusOperUp,
+			IfInOctets: 17000000000 + uint64(i), IfOutOctets: 18000000000 + uint64(i),
+			IfInUcastPkts: 100 + uint32(i), IfOutUcastPkts: 200 + uint32(i),
+			IfInUnknownProtos: flowexport.CounterUnavailable, CounterGeneration: 1,
+		}
+	}
+	header := make([]byte, 600)
+	copy(header[:14], []byte{2, 0, 0, 0, 0, 2, 2, 0, 0, 0, 0, 1, 8, 0})
+	header[14], header[22], header[23] = 0x45, 64, 17
+	binary.BigEndian.PutUint16(header[16:18], uint16(len(header)-14))
+	copy(header[26:34], []byte{192, 0, 2, 1, 198, 51, 100, 1})
+	binary.BigEndian.PutUint16(header[34:36], 10000)
+	binary.BigEndian.PutUint16(header[36:38], 443)
+	binary.BigEndian.PutUint16(header[38:40], uint16(len(header)-34))
+	var sum uint32
+	for i := 14; i < 34; i += 2 { sum += uint32(binary.BigEndian.Uint16(header[i:i+2])) }
+	for sum > 0xffff { sum = (sum & 0xffff) + (sum >> 16) }
+	binary.BigEndian.PutUint16(header[24:26], ^uint16(sum))
+	for cycle := range 2 {
+		if cycle == 1 {
+			snapshot.Time = now.Add(time.Second)
+			snapshot.Interfaces[0].CounterGeneration++
+			for i := range snapshot.Interfaces {
+				snapshot.Interfaces[i].IfInOctets += 100
+				snapshot.Interfaces[i].IfOutOctets += 100
+			}
+		}
+		n, err := counters.Encode(snapshot, sender)
+		if err != nil { panic(err) }
+		if n != 14 { panic(fmt.Sprintf("counter samples: got %d, want 14", n)) }
+		if err := packets.EncodeFlowSample(flowexport.FlowSample{IfIndex: 0x80000001, Output: 0x80000002, Rate: 4096, OrigSize: uint32(len(header)), Header: header}, sender); err != nil { panic(err) }
+	}
+	if err := sender.Close(); err != nil { panic(err) }
+	fmt.Println("Sent 28 expanded counter samples and two expanded packet samples with full-width interface IDs; counter generation changed without decreasing counters")
+}

@@ -1,0 +1,13 @@
+{
+  "reviewer": "CompletionScopeReview",
+  "scope": [
+    "ai/rules/points/evidence/no-fabrication/read-the-producing-code-before-claiming-behavior.md",
+    "plan/verification-baseline.json"
+  ],
+  "result": {
+    "overall_correctness": "correct",
+    "explanation": "The added evidence rule requires retained claims to cite durable repository evidence and preserves scope/provenance without demanding reruns. The baseline record consistently holds pre-cutoff implementation completion until the existing-capability testing gap closes, limits current repairs to that proof, preserves unfinished work, and explicitly declines baseline-complete or full-RFC-support claims. No contradictory semantics were found in the two requested files; evidence contents, copy integrity, and decoded counts were not independently verified in this narrow read-only review.",
+    "confidence": 0.98,
+    "findings": []
+  }
+}

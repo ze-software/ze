@@ -2,7 +2,7 @@
 title: Finishing Work
 when: before claiming any work done, complete, or ready to commit, and whenever a defect, a red test, or a missing behavior blocks that claim
 severity: blocking
-related: planning, testing, interop-and-goal-validation, writing, evidence, rule-precedence
+related: planning, testing, interop-and-goal-validation, writing, evidence, rule-precedence, rfc-compliance, never-destroy-work
 ---
 directives ## Directives
   never-claim-done-while-an-ac-is-unimplemented

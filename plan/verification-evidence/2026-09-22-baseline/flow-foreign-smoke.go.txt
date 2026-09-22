@@ -1,0 +1,43 @@
+//go:build ignore
+
+package main
+
+import (
+	"fmt"
+	"net/netip"
+	"time"
+
+	"github.com/ze-software/ze/internal/plugins/flowexport"
+	"github.com/ze-software/ze/internal/plugins/flowexport/ipfix"
+	"github.com/ze-software/ze/internal/plugins/flowexport/netflow9"
+)
+
+func main() {
+	now := time.Now()
+	flows := make([]flowexport.ConntrackFlow, 0, 160)
+	for i := range 80 {
+		for _, pair := range [][2]string{{"192.0.2.1", "198.51.100.1"}, {"2001:db8:1::1", "2001:db8:2::1"}} {
+			flows = append(flows, flowexport.ConntrackFlow{
+				SrcAddr: netip.MustParseAddr(pair[0]), DstAddr: netip.MustParseAddr(pair[1]),
+				SrcPort: uint16(10000 + i), DstPort: 443, Protocol: 17,
+				Packets: uint64(100 + i), Bytes: uint64(17000000000 + i),
+				SrcAS: 70001, DstAS: 80002,
+				FirstMs: uint64(now.Add(-3 * time.Second).UnixMilli()), LastMs: uint64(now.UnixMilli()),
+			})
+		}
+	}
+	encoders := []flowexport.FlowRecordEncoder{
+		netflow9.NewFlowEncoder(42, now.Add(-time.Minute)),
+		ipfix.NewFlowEncoder(43),
+	}
+	for _, encoder := range encoders {
+		sender, err := flowexport.NewSender("127.0.0.1", 39095, "", flowexport.DatagramSizeDefault)
+		if err != nil { panic(err) }
+		if err := encoder.EncodeFlowTemplate(sender); err != nil { panic(err) }
+		n, err := encoder.EncodeFlows(flows, sender)
+		if err != nil { panic(err) }
+		if n != len(flows) { panic(fmt.Sprintf("reported %d records, wanted %d", n, len(flows))) }
+		if err := sender.Close(); err != nil { panic(err) }
+		fmt.Printf("%T sent %d IPv4/IPv6 records to nfcapd, maximum datagram %d\n", encoder, n, flowexport.DatagramSizeDefault)
+	}
+}

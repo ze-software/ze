@@ -4,25 +4,25 @@
 
 **These rules override everything. No exceptions. No rationalization. No "the task requires it."**
 
-## Ze is PRE-RELEASE. The deliverable is the software (owner directive, 2026-08-30)
-- There is NO release, NO version, NO tag, and NO user of `main`. Nothing committed
-  here reaches anybody. A red gate on `main` costs nobody anything. A session that
-  spent its budget on the gate instead of on the binary cost the product a day.
-- The deliverable is the SOFTWARE. Test code, gate plumbing and verification
-  bookkeeping are INSTRUMENTS. They exist to tell you the software works. A session
-  whose diff is mostly test and gate repair delivered nothing.
+## Ze is PRE-RELEASE
+- There is no release, version, tag, or user of `main`. A red gate on `main`
+  reaches no deployment. Report its effect on the agreed task.
+- The deliverable follows the agreed task. Product implementation delivers
+  software. A verification task delivers evidence, missing tests, and fixes for
+  exposed defects in implemented capabilities (`ai/rules/completion.md`).
 - **A red test while you develop is NORMAL and is not a stop.** Commit the product
   work with the test red, and say in the message which test is red and why. A green
   tree is owed at NO commit.
 - **NEVER re-run a check to reconfirm a result you already read.** One run, read the
   output, act. Re-running a gate that passed, re-reading a log you read, and
   re-verifying a tree that has not changed are each forbidden.
-- **Test and gate repair MUST NOT become the session.** Before starting a THIRD
-  repair to test scaffolding in one session, stop, return to the product code, and
-  report what you left red.
-- This relaxes NOTHING about the product: correctness, RFC conformance and interop
-  are unchanged, and deleting or weakening a test to make a red disappear stays
-  banned. Those rules are about the SOFTWARE. This one is about the instruments.
+- Test and gate repair MUST stay within the agreed task. During product
+  implementation, stop before a third unrelated scaffolding repair and report
+  what remains red. A commissioned baseline verification task owns the repairs
+  needed for trustworthy proof (`ai/rules/pre-release.md`).
+- Correctness and interoperability of implemented capabilities remain required.
+  Never delete or weaken a test to hide a defect. Absent RFC features follow
+  the scope and gap policy in `ai/rules/rfc-compliance.md`.
 - Full rule: `ai/rules/pre-release.md`
 
 ## git push is FORBIDDEN as a bare Bash call
@@ -73,9 +73,9 @@
 ## Claiming "done" with incomplete work is FORBIDDEN
 - NEVER say "done", "ready to commit", "implementation complete" while in-scope work remains.
 - "Deferred" is not "done." Named in a `Work Not Done` row is not "done."
-- Every acceptance criterion must have working PRODUCT code before you claim completion.
-  A test is owed where it tells you the product works. A red or missing test is
-  REPORTED, never traded for the claim (`ai/rules/pre-release.md`).
+- Every agreed acceptance criterion must be satisfied before you claim completion.
+  Verification criteria require evidence. Implementation criteria require working
+  product code. State all remaining defects and unverified behavior separately.
 - If you cannot finish an item: say so, keep the spec open, ask the user. Do not ship partial work as complete.
 - Scope reduction requires explicit user approval. You may not unilaterally drop ACs.
 - Full rule: `ai/rules/completion.md`
@@ -86,18 +86,15 @@
   deliverable.
 - A bug being "pre-existing" is NOT an escape hatch. The moment your work depends on
   that path working, the bug is in scope: you are the entry point that reached it.
-- Interoperability and correctness are never optional and never a scope-reduction
-  candidate. A daemon another implementation rejects has failed at its only job.
+- Correctness and interoperability of implemented capabilities stay in scope.
+  An absent RFC feature is recorded under `ai/rules/rfc-compliance.md`.
 - NEVER offer the user "drop the interop/functional test" as an option. Reducing
   coverage to reach green is the failure, not a choice to present.
 - If you are genuinely blocked: say so plainly with evidence, keep the spec OPEN, and
   reach for the fix before asking. Ask "which way do I fix it", never "may I skip it."
-- **RECORDING A PROBLEM IS NOT ADDRESSING IT. FIX THE ROOT CAUSE, ALWAYS.** Writing a
-  failure into `plan/known-failures/`, a journal row, or a report changes nothing
-  about the product. A record is a step toward a fix, never a substitute. The ONLY
-  thing that may be recorded instead of fixed is a failure you actively tried and
-  FAILED to reproduce, and its shard must carry the reproduction attempt and the next
-  step. Anything deterministic or reproducible gets fixed or gets a spec.
+- A record does not fix a defect in an implemented capability. Fix defects that
+  block the agreed goal. Record absent RFC requirements as explicit gaps without
+  treating that record as authorization to implement them.
 - Full rule: `ai/rules/completion.md`
 
 ## A problem you FIND gets a JOURNAL ROW (owner directive, 2026-08-10)
@@ -110,18 +107,17 @@
   what it ASSERTS, and code RELATED to the problem in hand, edited or not.
 - A red test or a red gate is NOT on that list. Read it once. When the red says the
   PRODUCT is wrong, the product defect is the find and the rules above govern it.
-  When the red is the test or the gate itself, write the row, leave it red, say so,
-  and go back to the product (`ai/rules/pre-release.md`).
-- The unit you fix is the PROBLEM, never the files you happened to open. The other
-  call site, the sibling path with the same defect, the test that asserts the
-  behaviour you changed: each leaves the problem half-fixed, so each is in scope.
-- FIX IT anyway when the fix is small enough not to derail the work in hand, and
-  still write the row. A small fix needs no spec to authorise it.
+  When the red is scaffolding, `ai/rules/pre-release.md` distinguishes a repair
+  needed for agreed verification from an unrelated failure.
+- Fix the whole in-scope defect, including sibling call sites and tests that
+  assert the affected behavior.
+- An unrelated defect's size or proximity to edited code does not authorize
+  repair. Record it without expanding the agreed task.
 - The defect that BLOCKS the goal your work exists to achieve is governed by the
   section above: FIX IT. There is no closing the work in hand around it.
-- DO NOT characterise the find beyond the row. Reproducing it, tracing its
-  producer, sizing its blast radius and drafting options are uncommissioned work.
-  They cost this session and every session that later reads what it wrote.
+- Record enough evidence to distinguish an existing-capability defect from an
+  absent feature. Report findings that limit the claimed baseline, including
+  unresolved defects and unverified behavior, without an unrelated investigation.
 - Grep `plan/journal/` before adding a row. Many sessions share this checkout and
   meet the same defect. A class file that collects rows is what earns a fix, in a
   deliberate pass over the journal, not by whoever tripped over it.
@@ -371,13 +367,13 @@ means "no rule applies".
 | Add a feature, tool, self-check, verification gate, or test infrastructure | `ai/rules/repo-maintenance.md` -- update rules, docs, indexes, and verification paths so future agents discover and use it |
 | Write tests | `ai/rules/testing.md`, `ai/rules/testing.md`, `ai/rules/testing.md`, `ai/rules/interop-and-goal-validation.md` |
 | Meet a WAVE of red: unrelated packages failing to build, `no space left on device`, `cache entry not found`, a whole suite red at once | `docs/contributing/running-commands.md`, "When the disk is full" -- the cache disk is full before this is a code defect, once for each row in `plan/journal/full-disk-false-red.md`. Read `df -h cache/go-cache`, which follows the symlink to the device that really holds the cache. Never `df` on the checkout ROOT, which answers about the wrong device when `cache/` is on another filesystem, and never `stat -f`, which is a FORMAT flag on macOS and prints the path back instead of any free space. `./le scratch cache-clean` empties all three build caches, the two Go ones and golangci-lint's, and prints what each returned |
-| Meet a red test, a red gate, or a broken demo | `ai/rules/pre-release.md` -- ask ONE question: does the red say the PRODUCT is wrong? Yes: the product defect is the work, fix it at the source and never by weakening the test. No: the red is scaffolding, leave it red, say so in one line, and go back to the product |
+| Meet a red test, a red gate, or a broken demo | `ai/rules/pre-release.md` -- product defects, verification repairs, and unrelated failures |
 | Hit a defect in the PRODUCT (yours or not) | `ai/rules/completion.md` -- ROOT-CAUSE IT. Blocks your goal: FIX IT NOW. Does not block it: one journal row, close the work in hand, stop. Never park it, never offer to drop the deliverable, never weaken a test to make it disappear. "Pre-existing" says when it started, not whose it is |
-| Touch any protocol behavior an RFC governs, or judge whether it is conformant | `ai/rules/rfc-compliance.md` -- conformance is not negotiable. When full compliance AND full testing of it is reachable, that IS the answer: IMPLEMENT it and prove it with a tagged test, and do NOT ask Thomas to choose between it and something narrower. Ask only when you are about to do LESS (`{gap}`, `{not-applicable}`, "partial", untested MUST, a follow-up spec), and then ask which way to fix it, never whether to skip it. Every earlier answer pointing away from full compliance is VOID (2026-07-27) and must be re-raised, not cited |
+| Touch any protocol behavior an RFC governs, or judge whether it is conformant | `ai/rules/rfc-compliance.md` -- baseline verification, explicit gaps, and separately agreed feature implementation |
 | Write linux-only code | `ai/rules/platform-linux.md` -- QEMU integration tests are mandatory, never skip for "needs hardware" |
 | Write a spec | `ai/rules/planning.md`, `plan/README.md` (which of the three release buckets it goes in), `plan/TEMPLATE.md` |
 | Write code identifiers, comments, docs, CLI text, or error messages | `ai/rules/writing.md` -- project language is US English; only Thomas's authored prose (`/write`) is UK English |
-| Claim work is done | `ai/rules/completion.md` -- every AC implemented and wired; every exported symbol has a non-test caller. A red or missing test is stated in the report, not repaired to earn the claim (`ai/rules/pre-release.md`) |
+| Claim work is done | `ai/rules/completion.md` -- agreed acceptance criteria and separate implementation, verification, and gap status |
 | Review code, or close a spec | `ai/rules/planning.md` -- review is the central deliverable and is INDEPENDENT; your own inline reasoning about code you wrote is NOT a review. Independence is a property of the CONTEXT, so ONE closure agent running every lens itself satisfies it and MUST NOT spawn readers of its own. Loop to zero, record the `./le spec session review record` artifact (`./le commit create` enforces it) |
 | Finish Go edits | `ai/rules/commands.md` -- run `./le verify lint run` before claiming done |
 | Commit | `ai/rules/git-safety.md` -- the native `./le commit create` route. A commit owes NO green gate (`ai/rules/pre-release.md`); the gate is owed before a push |

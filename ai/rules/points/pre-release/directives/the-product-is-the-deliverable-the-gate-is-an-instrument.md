@@ -1,7 +1,6 @@
 ---
 kind: directive
-level: MUST NOT
+level: MUST
 stage:
 ---
-**The deliverable is the SOFTWARE. Test code, gate plumbing and verification bookkeeping are INSTRUMENTS, and they MUST NOT be treated as the work.** An instrument earns its cost only by telling you whether the product works.
-**A session whose diff is mostly instrument repair delivered nothing, and it MUST report that outcome in those words.** The measure is the diff, not the effort: fixture edits, runner flags, golden files, debt rows and gate bookkeeping are all instrument.
+**The deliverable MUST follow the agreed task.** Product implementation delivers software. A commissioned verification task delivers trustworthy evidence, missing tests, and fixes for defects in implemented capabilities. Test or gate repair MUST serve that task. Its value is the behavior it proves, rather than the proportion of product code in the diff.

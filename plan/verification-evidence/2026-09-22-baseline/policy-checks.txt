@@ -1,0 +1,30 @@
+$ le rules render-update
+rules-points: 32 rules rendered
+exit=0
+
+$ le rules condensed-update
+wrote ai/rules/TRIGGERS.md (32 rules, 5150 chars)
+wrote ai/rules/CORE.md (9 rules, 36660 chars)
+exit=0
+
+$ le rules index-update
+wrote ai/rules/INDEX.md (32 rules)
+exit=0
+
+$ le ai skills-sync
+synced 32 skill(s) + 3 agent(s) + CLAUDE.md + AGENTS.md
+exit=0
+
+$ le rules lint
+rules_lint: 32 rule file(s) conform to ai/rules/rule-format.md
+rules_lint: 225 rule point(s) state an RFC 2119 level
+exit=0
+
+$ le rules render-check
+rules-points: 32 rules are fresh
+exit=0
+
+$ le rules points-roundtrip-check
+rules-points: all 32 rules round-trip byte-identical
+exit=0
+

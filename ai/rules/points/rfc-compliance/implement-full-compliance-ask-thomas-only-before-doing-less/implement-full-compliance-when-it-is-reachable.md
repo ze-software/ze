@@ -3,4 +3,4 @@ kind: directive
 level: MUST
 stage:
 ---
-**When "implement the RFC fully and prove it fully with tests" is one of the answers on the table, that IS the answer. It MUST be implemented and proven. Thomas has already chosen, so there is nothing to put to him.**
+**Full RFC support is a long-term goal; session acceptance MUST follow the agreed scope and establish a trustworthy baseline of implemented capabilities.** Verification MUST exercise real entry points and include interoperability with another implementation where applicable. Add missing tests for implemented behavior and fix defects those checks expose; helpers, isolated encoders and unfinished code alone do not prove a capability works.

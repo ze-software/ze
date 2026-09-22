@@ -1,0 +1,19 @@
+{
+  "collector": "sflowtool 6.11",
+  "datagrams": 12,
+  "expandedCounterSamples": 28,
+  "expandedPacketSamples": 2,
+  "maximumDatagram": 460,
+  "verified": [
+    "shared contiguous datagram sequence",
+    "full-width interface source/input/output IDs",
+    "64-bit counters and link speed",
+    "source sequence reset on changed generation without counter decrease",
+    "independent packet-sample sequence",
+    "IPv6 agent identity",
+    "sampled Ethernet size including FCS",
+    "FCS stripped count",
+    "bounded captured header with preserved IPv4/UDP decode"
+  ],
+  "boundary": "native public encoders over UDP; generation input simulated, not Linux counter-generation producer or daemon config proof"
+}

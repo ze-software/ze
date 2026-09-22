@@ -1,0 +1,70 @@
+{
+  "scope": "Verify implemented capabilities, add missing tests, and fix exposed defects. Absent RFC features require separately agreed implementation scope.",
+  "owner_directives": [
+    {
+      "date": "2026-09-22",
+      "text": "Full RFC support is the long-term goal, not every session’s acceptance criterion.",
+      "requirements": [
+        "First verify implemented capabilities through their real entry points, including interoperability where applicable.",
+        "Add missing tests for those capabilities and fix defects they expose.",
+        "Record unimplemented RFC requirements as explicit gaps. Recording a gap does not authorize implementing it.",
+        "Do not add an absent RFC feature without a separately agreed implementation scope.",
+        "Report implemented-and-tested, implemented-but-unverified, and unimplemented behavior separately. Do not claim full support where gaps remain.",
+        "Preserve existing unfinished work, but do not expand it merely to complete an RFC."
+      ]
+    },
+    {"date": "2026-09-22", "text": "you can not reference data in the session folder, it is volatile"},
+    {"date": "2026-09-22", "text": "all started implementation before my directive can be completed fully"},
+    {"date": "2026-09-22", "text": "once we first close the testing gap"}
+  ],
+  "started_work_completion": "Implementation started before the baseline-first directive is authorized for full completion only after the testing gap is closed.",
+  "baseline_complete": false,
+  "full_rfc_support_claimed": false,
+  "source_state": "Uncommitted protocol changes are preserved. Feature expansion stopped at the owner's baseline-first directive.",
+  "implemented_and_tested": [
+    {
+      "behavior": "NetFlow v9 and IPFIX public encoders sending UDP to nfcapd/nfdump 1.7.3",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/flow-interop-proof.json",
+      "boundary": "320 independently decoded records. This does not prove daemon configuration or live interface-counter collection."
+    },
+    {
+      "behavior": "sFlow public encoders sending UDP to sflowtool 6.11",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/sflow-interop-proof.json",
+      "boundary": "12 decoded datagrams, 28 counter samples and two packet samples. Counter generations were supplied by the smoke program, not the Linux collector."
+    }
+  ],
+  "implemented_but_unverified": [
+    "Latest PPP/L2TP ownership, authentication and session-lifetime fixes; earlier package results do not cover all subsequent edits.",
+    "RSVP reservation-control API migration and native forwarding changes remain unfinished and do not compile.",
+    "Native BGP-LS export, AIGP metric reannouncement, RTR mutual TLS and MOBIKE migration contain newly introduced work. Its completion remains held until the testing gap is closed.",
+    "Remaining OSPF, IS-IS, FlowSpec, EVPN/MUP/SRv6 and gateway changes lack a completed, current end-to-end baseline."
+  ],
+  "unimplemented_requirement_records": [
+    {
+      "source": "rfc/short/rfc1661.md",
+      "record": "Support remaining records configurable restart limits and remaining PPP phase/framing obligations."
+    },
+    {
+      "source": "rfc/short/rfc2205.md",
+      "record": "Support remaining records unfinished RSVP obligations, including refresh timing and missing runtime proof."
+    },
+    {
+      "source": "rfc/short/rfc3209.md",
+      "record": "Support remaining records absent Hello, ATM/Frame Relay, IPv6 signaling and other features. Existing planning records do not authorize implementation."
+    }
+  ],
+  "gap_record_limit": "These are existing declared gaps, not a fresh source audit. Reconcile them against preserved unfinished code before publishing coverage counts. Missing test coverage alone does not prove missing implementation.",
+  "observed_failures_before_minimal_build_repairs": [
+    "Documentation verification cannot build the live catalog: undefined ppp.CloseFD in reactor_kernel.go.",
+    "RSVP engine.go calls undefined refreshPeriod; show_data.go still assigns float64 bandwidth to float32 fields.",
+    "OSPF BGP-LS export calls missing IsRouterInformation and DecodeLANAdjSIDValueV6 APIs.",
+    "The IGP package run also found IS-IS/OSPF test compilation errors and failed TestNSSASourcePreferencePreservesOtherExits.",
+    "Documentation verification found stale firewall digest links to the removed localaddr.go."
+  ],
+  "igp_run_evidence": "plan/verification-evidence/2026-09-22-baseline/igp-debt-race.log",
+  "build_only_evidence": {
+    "result": "The Linux 7.2 runtime kernel built successfully. Packet forwarding, fragmentation and XFRM migration have not been proved by that build.",
+    "log": "plan/verification-evidence/2026-09-22-baseline/runtime-kernel-build.log"
+  },
+  "next_verification_boundary": "Close the testing gap for implemented capabilities. Allow only defects and minimal build or fixture repairs needed for that proof. Complete pre-cutoff implementation afterward; do not start absent features."
+}
