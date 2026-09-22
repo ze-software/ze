@@ -1,0 +1,4 @@
+=== RUN   TestIntegrationMonitorPreexistingLinkDown
+    monitor_integration_linux_test.go:113: timed out waiting for matching monitor event "down"
+--- FAIL: TestIntegrationMonitorPreexistingLinkDown (5.17s)
+FAIL

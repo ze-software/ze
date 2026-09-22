@@ -145,8 +145,8 @@ func (m *monitor) start() error {
 // Seeded AFTER the subscriptions are live so a link appearing between the two is
 // still delivered by the subscription; a duplicate Store is harmless.
 //
-// `m.known` remains empty so the first update still announces each interface.
-// handleLinkUpdate also emits that update's carrier state.
+// `m.known` is deliberately NOT seeded here: it gates the `created` event, and
+// this restores address events only, without changing create/down semantics.
 func (m *monitor) seedLinkNames() {
 	links, err := listLinks()
 	if err != nil {
@@ -272,9 +272,8 @@ func (m *monitor) handleLinkUpdate(lu netlink.LinkUpdate) {
 			m.emit(ifaceevents.EventCreated, linkEventPayload{
 				Name: name, Type: lu.Type(), Index: idx, MTU: attrs.MTU,
 			})
+			return
 		}
-		// A link can predate this monitor. Its first observed update can be
-		// the failure itself, so announcing it must not consume its state.
 		if isLinkUp(attrs) {
 			m.emit(ifaceevents.EventUp, stateEventPayload{Name: name, Index: idx})
 		} else {

@@ -61,20 +61,20 @@ func newTestMonitor() (*monitor, *collectingEventBus) {
 }
 
 func TestHandleLinkUpdate_Create(t *testing.T) {
-	// VALIDATES: First RTM_NEWLINK for an index emits (interface, created).
-	// PREVENTS: New interfaces misclassified as state changes.
+	// The first update announces the link and reports its current down state.
+	// A pre-existing interface can fail before the monitor sees any other update.
 	m, bus := newTestMonitor()
 
 	lu := netlink.LinkUpdate{
-		Link: &netlink.Dummy{Name: "eth0", Index: 5, MTU: 1500},
+		Link: &netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: "eth0", Index: 5, MTU: 1500, OperState: netlink.OperDown}},
 	}
 	lu.Header = unix.NlMsghdr{Type: unix.RTM_NEWLINK}
 
 	m.handleLinkUpdate(lu)
 
 	events := bus.snapshot()
-	if len(events) != 1 {
-		t.Fatalf("expected 1 event, got %d", len(events))
+	if len(events) != 2 {
+		t.Fatalf("expected created and down events, got %d", len(events))
 	}
 	if events[0].Namespace != "interface" {
 		t.Errorf("namespace = %q, want %q", events[0].Namespace, "interface")
@@ -82,11 +82,28 @@ func TestHandleLinkUpdate_Create(t *testing.T) {
 	if events[0].EventType != ifaceevents.EventCreated {
 		t.Errorf("event type = %q, want %q", events[0].EventType, ifaceevents.EventCreated)
 	}
+	if events[1].EventType != ifaceevents.EventDown {
+		t.Errorf("first state event = %q, want %q", events[1].EventType, ifaceevents.EventDown)
+	}
+	raw, ok := events[1].Payload.(string)
+	if !ok {
+		t.Fatalf("down payload = %T, want string", events[1].Payload)
+	}
+	var state stateEventPayload
+	if err := json.Unmarshal([]byte(raw), &state); err != nil {
+		t.Fatal(err)
+	}
+	if state.Name != "eth0" {
+		t.Errorf("down event name = %q, want eth0", state.Name)
+	}
+	if state.Index != 5 {
+		t.Errorf("down event index = %d, want 5", state.Index)
+	}
 }
 
 func TestHandleLinkUpdate_StateChange(t *testing.T) {
-	// VALIDATES: Second RTM_NEWLINK for same index emits (interface, up/down).
-	// PREVENTS: State changes on existing interfaces misclassified as created.
+	// Every RTM_NEWLINK reports current carrier state, while creation is
+	// announced only once for a live index.
 	m, bus := newTestMonitor()
 
 	attrs := netlink.LinkAttrs{Name: "eth0", Index: 5, MTU: 1500, OperState: netlink.OperUp}
@@ -95,28 +112,34 @@ func TestHandleLinkUpdate_StateChange(t *testing.T) {
 
 	m.handleLinkUpdate(lu)
 	events := bus.snapshot()
+	if len(events) != 2 {
+		t.Fatalf("expected created and up events, got %d", len(events))
+	}
 	if events[0].EventType != ifaceevents.EventCreated {
 		t.Fatalf("first event type = %q, want %q", events[0].EventType, ifaceevents.EventCreated)
+	}
+	if events[1].EventType != ifaceevents.EventUp {
+		t.Errorf("first state event = %q, want %q", events[1].EventType, ifaceevents.EventUp)
 	}
 
 	m.handleLinkUpdate(lu)
 	events = bus.snapshot()
-	if len(events) != 2 {
-		t.Fatalf("expected 2 events, got %d", len(events))
+	if len(events) != 3 {
+		t.Fatalf("expected 3 events, got %d", len(events))
 	}
-	if events[1].EventType != ifaceevents.EventUp {
-		t.Errorf("second event type = %q, want %q", events[1].EventType, ifaceevents.EventUp)
+	if events[2].EventType != ifaceevents.EventUp {
+		t.Errorf("second state event = %q, want %q", events[2].EventType, ifaceevents.EventUp)
 	}
 
 	attrs.OperState = netlink.OperDown
 	lu.Link = &netlink.Dummy{LinkAttrs: attrs}
 	m.handleLinkUpdate(lu)
 	events = bus.snapshot()
-	if len(events) != 3 {
-		t.Fatalf("expected 3 events, got %d", len(events))
+	if len(events) != 4 {
+		t.Fatalf("expected 4 events, got %d", len(events))
 	}
-	if events[2].EventType != ifaceevents.EventDown {
-		t.Errorf("third event type = %q, want %q", events[2].EventType, ifaceevents.EventDown)
+	if events[3].EventType != ifaceevents.EventDown {
+		t.Errorf("third state event = %q, want %q", events[3].EventType, ifaceevents.EventDown)
 	}
 }
 
@@ -134,21 +157,21 @@ func TestHandleLinkUpdate_Delete(t *testing.T) {
 	lu.Header = unix.NlMsghdr{Type: unix.RTM_DELLINK}
 	m.handleLinkUpdate(lu)
 	events := bus.snapshot()
-	if len(events) != 2 {
-		t.Fatalf("expected 2 events, got %d", len(events))
+	if len(events) != 3 {
+		t.Fatalf("expected 3 events, got %d", len(events))
 	}
-	if events[1].EventType != ifaceevents.EventDown {
-		t.Errorf("delete event type = %q, want %q (down)", events[1].EventType, ifaceevents.EventDown)
+	if events[2].EventType != ifaceevents.EventDown {
+		t.Errorf("delete event type = %q, want %q (down)", events[2].EventType, ifaceevents.EventDown)
 	}
 
 	lu.Header = unix.NlMsghdr{Type: unix.RTM_NEWLINK}
 	m.handleLinkUpdate(lu)
 	events = bus.snapshot()
-	if len(events) != 3 {
-		t.Fatalf("expected 3 events, got %d", len(events))
+	if len(events) != 5 {
+		t.Fatalf("expected 5 events, got %d", len(events))
 	}
-	if events[2].EventType != ifaceevents.EventCreated {
-		t.Errorf("re-create event type = %q, want %q", events[2].EventType, ifaceevents.EventCreated)
+	if events[3].EventType != ifaceevents.EventCreated {
+		t.Errorf("re-create event type = %q, want %q", events[3].EventType, ifaceevents.EventCreated)
 	}
 }
 
@@ -300,8 +323,8 @@ func TestEmitCreatedPayload(t *testing.T) {
 	m.handleLinkUpdate(lu)
 
 	events := bus.snapshot()
-	if len(events) != 1 {
-		t.Fatalf("expected 1 event, got %d", len(events))
+	if len(events) != 2 {
+		t.Fatalf("expected created and down events, got %d", len(events))
 	}
 
 	raw, ok := events[0].Payload.(string)

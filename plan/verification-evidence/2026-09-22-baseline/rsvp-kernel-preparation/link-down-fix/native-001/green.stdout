@@ -1,0 +1,7 @@
+=== RUN   TestIntegrationMonitorPreexistingLinkDown
+--- PASS: TestIntegrationMonitorPreexistingLinkDown (0.20s)
+=== RUN   TestIntegrationMonitorLinkDeleted
+--- PASS: TestIntegrationMonitorLinkDeleted (0.22s)
+=== RUN   TestIntegrationMonitorLinkUpDown
+--- PASS: TestIntegrationMonitorLinkUpDown (0.32s)
+PASS

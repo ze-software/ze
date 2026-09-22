@@ -94,6 +94,28 @@ func TestIntegrationMonitorLinkCreated(t *testing.T) {
 	})
 }
 
+func TestIntegrationMonitorPreexistingLinkDown(t *testing.T) {
+	// The real startup snapshot sees this up link before its first notification.
+	// That first notification must reach down subscribers without a priming update.
+	withNetNS(t, func() {
+		createDummyForTest(t, "test0")
+		requireLinkUp(t, "test0")
+		link, err := netlink.LinkByName("test0")
+		if err != nil {
+			t.Fatalf("LinkByName: %v", err)
+		}
+		bus := &collectingBus{}
+		startTestMonitor(t, bus)
+
+		if err := netlink.LinkSetDown(link); err != nil {
+			t.Fatalf("LinkSetDown: %v", err)
+		}
+		waitForMonitorPayload(t, bus, ifaceevents.EventDown, func(p monitorTestPayload) bool {
+			return p.Name == "test0"
+		})
+	})
+}
+
 func TestIntegrationMonitorAddrAdded(t *testing.T) {
 	// VALIDATES: Monitor emits (interface, addr-added) when an IP is assigned.
 	// PREVENTS: Address events lost or wrong family reported.
@@ -168,6 +190,11 @@ func TestIntegrationMonitorLinkDeleted(t *testing.T) {
 			t.Fatalf("CreateDummy: %v", err)
 		}
 		waitForEvent(t, bus, ifaceevents.EventCreated)
+		waitForEvent(t, bus, ifaceevents.EventUp)
+		// Exclude the creation-time down state from the deletion assertion.
+		bus.mu.Lock()
+		bus.events = nil
+		bus.mu.Unlock()
 
 		if err := DeleteInterface("test0"); err != nil {
 			t.Fatalf("DeleteInterface: %v", err)
@@ -194,8 +221,11 @@ func TestIntegrationMonitorLinkUpDown(t *testing.T) {
 		time.Sleep(200 * time.Millisecond)
 
 		createDummyForTest(t, "test0")
-		// CreateDummy brings the link UP, so we get a created event.
-		waitForEvent(t, bus, ifaceevents.EventCreated)
+		// Wait until all creation-time carrier events have been observed.
+		waitForEvent(t, bus, ifaceevents.EventUp)
+		bus.mu.Lock()
+		bus.events = nil
+		bus.mu.Unlock()
 
 		// Bring the link down.
 		link, err := netlink.LinkByName("test0")
