@@ -362,7 +362,7 @@ func refuseUnrun(carrier Carrier, tag Tag) error {
 // testdata holds fixtures rather than tests.
 var skipDirs = map[string]bool{".git": true, "vendor": true, "testdata": true}
 
-// ScanTree answers every tag under the three test roots.
+// ScanTree answers every tag under the declared test roots.
 //
 // The walk visits a directory's files before its subdirectories and takes both
 // them in sorted order. It is load-bearing because an unrun carrier refuses on

@@ -1,11 +1,10 @@
 // Design: docs/architecture/core-design.md -- the registry of RFC obligations
 // Overview: rfc.go -- the types, the paths and the closed sets every reader here shares
 //
-// summary.go reads rfc/short/*.md. Each Compliance Checklist line carries a
-// permanent id anchored to the section it cites, and that anchor is the whole
-// design: RFCs are immutable, so a section number is the most stable name
-// available, and an id claiming §5.3 on a line citing §7.1 is a contradiction
-// the parser refuses rather than a drift nobody notices.
+// summary.go reads rfc/short/*.md. Every checklist id is permanent. Its form,
+// stem and ordinal are checked here; agreement with the cited section is
+// checked at allocation by checkIDAllocation, so correcting a citation keeps
+// the id that tests and evidence already reference.
 package rfc
 
 import (
@@ -29,6 +28,7 @@ import (
 var (
 	sectionRE     = regexp.MustCompile(reSection())
 	crossRFCSecRE = regexp.MustCompile(reCrossRFCSec())
+	idSectionRE   = regexp.MustCompile(reIDSection())
 )
 
 const (
@@ -40,6 +40,11 @@ func reSection() string {
 	var tb textbuf.Buffer
 	return tb.Str(`(?:§\s*(`).Str(secBody).Str(`)|\bSection\s+(`).Str(secBody).
 		Str(`)|\bS(`).Str(secDigit).Str(`))`).String()
+}
+
+func reIDSection() string {
+	var tb textbuf.Buffer
+	return tb.Byte('^').Str(secBody).Byte('$').String()
 }
 
 func reCrossRFCSec() string {
@@ -425,11 +430,10 @@ func stripMarkers(rest, where string) (*Annotation, *Successor, string, error) {
 	}
 }
 
-// validateID refuses an id that is not <PREFIX>-<section>-<ordinal>, and one
-// whose section disagrees with the section the line cites. That cross-check is
-// the payoff of anchoring to sections: a sequential counter can drift away from
-// the text it names and nothing notices.
-func validateID(rid, stem, section, where string) error {
+// validateID checks the permanent id's form, stem and positive ordinal.
+// Citation agreement belongs to checkIDAllocation, where HEAD distinguishes
+// a new allocation from a correction to an existing requirement.
+func validateID(rid, stem, where string) error {
 	var tb textbuf.Buffer
 	found := idRE.FindStringSubmatch(rid)
 	if found == nil {
@@ -437,22 +441,16 @@ func validateID(rid, stem, section, where string) error {
 			Str("; expected ").Str(Prefix(stem)).Str("-<section>-<n>, e.g. ").
 			Str(Prefix(stem)).Str("-5.3-4"))
 	}
-	anchor := section
-	if anchor == "" {
-		anchor = noSection
+	head := found[1]
+	split := strings.LastIndexByte(head, '-')
+	if split < 0 || !idSectionRE.MatchString(head[split+1:]) {
+		return parseErr(tb.Str(where).Str(": malformed requirement id ").Str(pyRepr(rid)).
+			Str("; expected ").Str(Prefix(stem)).Str("-<section>-<n>"))
 	}
-	var want textbuf.Buffer
-	wantHead := want.Str(Prefix(stem)).Byte('-').Str(anchor).String()
-	if found[1] != wantHead {
-		cited := "no section"
-		if section != "" {
-			var cite textbuf.Buffer
-			cited = cite.Str("§").Str(section).String()
-		}
+	if head[:split] != Prefix(stem) {
 		return parseErr(tb.Str(where).Str(": id ").Str(pyRepr(rid)).
-			Str(" disagrees with its section (").Str(cited).Str("); expected ").
-			Str(wantHead).Str("-<n>. The id is anchored to the section it cites, so the ").
-			Str("two can never drift apart"))
+			Str(" belongs to a different summary; expected ").Str(Prefix(stem)).
+			Str("-<section>-<n>"))
 	}
 	ordinal, err := strconv.Atoi(found[2])
 	if err != nil || ordinal < 1 {
@@ -487,7 +485,7 @@ func parseChecklistLine(line, stem, source string, lineno int) (*Requirement, er
 				Str(": checklist line carries an RFC 2119 keyword but does not parse: ").
 				Str(pyRepr(strings.TrimSpace(line))).Str(". Expected: - [ ] [").
 				Str(Prefix(stem)).Str("-<section>-<n>] [MUST] text (§N). (The old ").
-				Str(Prefix(stem)).Str("-RNNN counter form is retired -- ids are anchored ").
+				Str(Prefix(stem)).Str("-RNNN counter form is retired -- new ids are anchored ").
 				Str("to the section they cite.)"))
 		}
 		// An ad-hoc category tag ([FORMAT], [IPSEC]) with no 2119 keyword is
@@ -513,7 +511,7 @@ func parseChecklistLine(line, stem, source string, lineno int) (*Requirement, er
 		return nil, err
 	}
 	section := extractSection(rest)
-	if err := validateID(rid, stem, section, where); err != nil {
+	if err := validateID(rid, stem, where); err != nil {
 		return nil, err
 	}
 	return &Requirement{

@@ -59,16 +59,6 @@ func TestALineCarryingAKeywordBracketIsRefusedRatherThanSkipped(t *testing.T) {
 	}
 }
 
-func TestAnIdMustAgreeWithTheSectionItsLineCites(t *testing.T) {
-	_, err := oneLine(t, "- [ ] [RFC9999-5.3-1] [MUST] A speaker MUST send it (§2)")
-	if err == nil {
-		t.Fatal("an id claiming §5.3 on a line citing §2 was accepted")
-	}
-	if !strings.Contains(err.Error(), "disagrees with its section") {
-		t.Errorf("the refusal does not name the contradiction: %v", err)
-	}
-}
-
 func TestAnOrdinalStartsAtOne(t *testing.T) {
 	_, err := oneLine(t, "- [ ] [RFC9999-2-0] [MUST] A speaker MUST send it (§2)")
 	if err == nil || !strings.Contains(err.Error(), "ordinal starts at 1") {

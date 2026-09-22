@@ -103,6 +103,23 @@ means the evidence held rather than that nobody looked.
 `check_audit.go`) compare against HEAD on the same footing, for requirement id
 allocation and recorded audit verdicts.
 
+Requirement IDs are permanent. `parseChecklistLine` checks every row's ID form,
+summary stem and positive ordinal, and `parseSummaryText` rejects duplicate IDs.
+`checkIDAllocation` requires an ID known to be absent from the HEAD baseline to
+match the row's cited section, using `x` when it has no citation. A readable
+baseline with no requirements still enforces this rule. When the baseline
+cannot be read, allocation comparisons judge nothing; when only one summary's
+blob is missing or unparsable, only that summary's allocation history is unknown.
+The baseline reader carries these states to the guard without another Git probe,
+and structural validation still runs over every current row.
+
+Once allocated, the ID stays unchanged when its citation is corrected:
+`RFC1334-2.2-1` can correctly cite §2.2.1 without losing the checklist or its
+existing test references. The correction grants no coverage or extraction
+evidence. Retired IDs remain unavailable, and new ordinals must exceed the
+high-water mark for the section encoded in the ID, even when an existing row's
+citation has moved elsewhere.
+
 Summaries that predate HEAD are the existing backlog and are deliberately
 grandfathered. A rule that reds the gate on unrelated work gets removed rather
 than obeyed. Where git cannot answer, every ratchet judges nothing rather than

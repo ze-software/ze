@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -104,6 +105,276 @@ func TestRFCCheckClearsTheViolationWhenBothPolaritiesAreProven(t *testing.T) {
 		t.Fatalf("a proven requirement answered %d with %d violation(s):\n%s",
 			code, len(report.Violations), report.Text())
 	}
+}
+
+// VALIDATES: Check preserves allocated IDs when citations are corrected, while
+// refusing a new misanchored ID and retaining the form and high-water guards.
+// PREVENTS: one corrected citation erasing a checklist and turning its existing
+// test tags into unknown IDs, or a parser relaxation accepting new bad IDs.
+func TestRFCCheckEnforcesPermanentIDAllocation(t *testing.T) {
+	const checklist = "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n"
+	const original = "- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2)\n"
+	const corrected = "- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2.1)\n"
+	const highWater = "- [ ] [RFC9999-2-3] [SHOULD] A speaker SHOULD count widgets (§2)\n"
+	for _, one := range []struct {
+		name      string
+		baseline  string
+		current   string
+		violation string
+	}{
+		{name: "corrected citation", baseline: original, current: corrected},
+		{name: "correction already at HEAD", baseline: corrected, current: corrected},
+		{
+			name: "new matching ID", baseline: original,
+			current: corrected + "- [ ] [RFC9999-2-4] [SHOULD] A speaker SHOULD count widgets (§2)\n",
+		},
+		{
+			name: "new mismatched ID", baseline: original,
+			current:   corrected + "- [ ] [RFC9999-5.3-1] [SHOULD] A speaker SHOULD count widgets (§2)\n",
+			violation: "new id 'RFC9999-5.3-1'",
+		},
+		{
+			name: "new missing citation", baseline: original,
+			current:   corrected + "- [ ] [RFC9999-2-4] [SHOULD] A speaker SHOULD count widgets\n",
+			violation: "new id 'RFC9999-2-4'",
+		},
+		{
+			name: "malformed section", baseline: original,
+			current:   corrected + "- [ ] [RFC9999-2..1-4] [SHOULD] A speaker SHOULD count widgets (§2)\n",
+			violation: "malformed requirement id",
+		},
+		{
+			name: "wrong stem", baseline: original,
+			current:   corrected + "- [ ] [RFC99990-2-4] [SHOULD] A speaker SHOULD count widgets (§2)\n",
+			violation: "RFC99990-2-4",
+		},
+		{
+			name: "zero ordinal", baseline: original,
+			current:   corrected + "- [ ] [RFC9999-2-0] [SHOULD] A speaker SHOULD count widgets (§2)\n",
+			violation: "ordinal starts at 1",
+		},
+		{
+			name: "duplicate allocated ID", baseline: original,
+			current:   corrected + original,
+			violation: "duplicate requirement id",
+		},
+		{
+			name: "retired ordinal", baseline: original,
+			current:   corrected + "- [ ] [RFC9999-2-2] [SHOULD] A speaker SHOULD count widgets (§2)\n",
+			violation: "reuses a retired id",
+		},
+	} {
+		t.Run(one.name, func(t *testing.T) {
+			files := fixtureCorpus()
+			files[selftestSummaryRel] = checklist + one.baseline + highWater
+			root := commitFixtureTree(t, files, nil)
+			baseline, baselineCode := Check(root)
+			if baseline.CannotRun != "" {
+				t.Fatalf("the baseline fixture could not run: %s", baseline.CannotRun)
+			}
+			// Write the overlay without rendering: malformed cases must reach
+			// Check itself rather than fail in the fixture's ledger generator.
+			writeFixtureFiles(t, root, map[string]string{
+				selftestSummaryRel: checklist + one.current + highWater,
+			})
+			report, code := Check(root)
+			if report.CannotRun != "" {
+				t.Fatalf("the fixture tree could not run: %s", report.CannotRun)
+			}
+			if one.violation != "" {
+				if code != 2 || !strings.Contains(strings.Join(report.Violations, "\n"), one.violation) {
+					t.Fatalf("want a refusal naming %q, got exit %d:\n%s", one.violation, code, report.Text())
+				}
+				return
+			}
+			if code != baselineCode || !slices.Equal(report.Violations, baseline.Violations) {
+				t.Fatalf("ID allocation changed the baseline refusals, exit %d:\n%s", code, report.Text())
+			}
+			assertPermanentIDCoverage(t, root)
+			if report.Signed != 0 || report.DiscriminationProven != 0 {
+				t.Fatalf("a citation correction invented extraction or discrimination evidence:\n%s", report.Text())
+			}
+		})
+	}
+}
+
+// assertPermanentIDCoverage reads the population directly because Check returns
+// before filling its counters when the independent extraction gate refuses it.
+func assertPermanentIDCoverage(t *testing.T, root string) {
+	t.Helper()
+	collected, err := Collect(root)
+	if err != nil {
+		t.Fatalf("collect the corrected checklist: %v", err)
+	}
+	if len(collected.ParseErrors) != 0 {
+		t.Fatalf("corrected checklist failed to parse: %v", collected.ParseErrors)
+	}
+	var gated []string
+	for _, req := range collected.Requirements {
+		if req.Gated() && collected.Enrolled[req.RFC] {
+			gated = append(gated, req.RID)
+		}
+	}
+	if !slices.Equal(gated, []string{selftestRIDSend}) || len(collected.Tags) != 2 {
+		t.Fatalf("citation correction lost coverage: gated %v, tags %v", gated, collected.Tags)
+	}
+	if findings := evaluate(collected.Requirements, collected.Tags, collected.Enrolled); len(findings) != 0 {
+		t.Fatalf("retained tags no longer cover the corrected checklist: %v", findingMessages(findings))
+	}
+}
+
+// VALIDATES: unavailable allocation history cannot classify permanent IDs as
+// new, while coverage and structural validation still read the working tree.
+func TestRFCCheckIDAllocationUnknownHistory(t *testing.T) {
+	const checklist = "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n"
+	const original = "- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2)\n"
+	const corrected = "- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2.1)\n"
+	for _, history := range []string{"no git", "unparsable summary", "non-blob summary"} {
+		t.Run(history, func(t *testing.T) {
+			root := checkFixtureTree(t, fixtureCorpus())
+			if history != "no git" {
+				gitFixture(t, root, []string{"init", "-q"})
+				if history == "unparsable summary" {
+					writeFixtureFiles(t, root, map[string]string{
+						selftestSummaryRel: checklist + original + original,
+					})
+				}
+				commitFixture(t, root, "allocation history")
+				if history == "non-blob summary" {
+					head, ok := gitOutput(root, "rev-parse", "HEAD")
+					if !ok {
+						t.Fatal("cannot resolve the fixture commit")
+					}
+					// A gitlink is listed at the summary path but has no blob
+					// the baseline reader can parse.
+					gitFixture(t, root, []string{"update-index", "--add", "--cacheinfo",
+						"160000," + strings.TrimSpace(string(head)) + "," + selftestSummaryRel})
+					gitFixture(t, root, []string{"-c", "user.email=fixture@example.invalid",
+						"-c", "user.name=rfc-fixture", "commit", "-q", "-m", "unreadable summary"})
+				}
+			}
+			writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: checklist + original})
+			baseline, baselineCode := Check(root)
+			if baseline.CannotRun != "" {
+				t.Fatalf("cannot check the control: %s", baseline.CannotRun)
+			}
+			writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: checklist + corrected})
+			report, code := Check(root)
+			if report.CannotRun != "" || code != baselineCode || !slices.Equal(report.Violations, baseline.Violations) {
+				t.Fatalf("unknown history accused a corrected ID, exit %d:\n%s", code, report.Text())
+			}
+			assertPermanentIDCoverage(t, root)
+
+			writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: checklist + corrected +
+				"- [ ] [RFC9999-2-0] [SHOULD] A speaker SHOULD count widgets (§2)\n"})
+			report, code = Check(root)
+			if report.CannotRun != "" || code != 2 ||
+				!strings.Contains(strings.Join(report.Violations, "\n"), "ordinal starts at 1") {
+				t.Fatalf("unknown history bypassed structural validation, exit %d:\n%s", code, report.Text())
+			}
+		})
+	}
+}
+
+// VALIDATES: an empty but readable HEAD still anchors every newly allocated ID.
+func TestRFCCheckIDAllocationKnownEmptyHistory(t *testing.T) {
+	const checklist = "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n"
+	for _, history := range []string{"empty summary", "absent summary"} {
+		t.Run(history, func(t *testing.T) {
+			root := checkFixtureTree(t, fixtureCorpus())
+			gitFixture(t, root, []string{"init", "-q"})
+			body := checklist
+			if history == "absent summary" {
+				body = fixtureRemoved
+			}
+			writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: body})
+			commitFixture(t, root, "known empty allocation history")
+			writeFixtureFiles(t, root, map[string]string{selftestSummaryRel: checklist +
+				"- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2.1)\n"})
+			report, code := Check(root)
+			if report.CannotRun != "" || code != 2 ||
+				!strings.Contains(strings.Join(report.Violations, "\n"), "new id 'RFC9999-2-1'") {
+				t.Fatalf("known-empty history failed to anchor a new ID, exit %d:\n%s", code, report.Text())
+			}
+			assertPermanentIDCoverage(t, root)
+		})
+	}
+}
+
+// VALIDATES: one unreadable baseline summary cannot disarm allocation guards
+// for a different summary whose history is readable.
+func TestRFCCheckIDAllocationScopesUnreadableHistory(t *testing.T) {
+	const checklist = "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n"
+	const original = "- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2)\n"
+	const otherRel = "rfc/short/rfc9998.md"
+	const other = "# RFC 9998\n\n" + selftestMeta + "\n## Compliance Checklist\n\n" +
+		"- [ ] [RFC9998-2-3] [SHOULD] A speaker SHOULD count widgets (§2)\n"
+	root := checkFixtureTree(t, fixtureCorpus())
+	gitFixture(t, root, []string{"init", "-q"})
+	writeFixtureFiles(t, root, map[string]string{
+		selftestSummaryRel: checklist + original + original,
+		otherRel:           other,
+	})
+	commitFixture(t, root, "partially unreadable allocation history")
+	writeFixtureFiles(t, root, map[string]string{
+		selftestSummaryRel: checklist + strings.Replace(original, "(§2)", "(§2.1)", 1),
+		otherRel: other +
+			"- [ ] [RFC9998-5-1] [SHOULD] A speaker SHOULD count widgets (§2)\n" +
+			"- [ ] [RFC9998-2-2] [SHOULD] A speaker SHOULD count widgets (§2)\n",
+	})
+	report, code := Check(root)
+	violations := strings.Join(report.Violations, "\n")
+	if report.CannotRun != "" || code != 2 ||
+		!strings.Contains(violations, "new id 'RFC9998-5-1'") ||
+		!strings.Contains(violations, "RFC9998-2-2 reuses a retired id") ||
+		strings.Contains(violations, "new id 'RFC9999-2-1'") {
+		t.Fatalf("unreadable history escaped its summary, exit %d:\n%s", code, report.Text())
+	}
+}
+
+// VALIDATES: preserving an allocated ID through a citation correction does not
+// permit removing another obligation from the same enrolled summary.
+func TestRFCCheckCitationCorrectionPreservesRetirementGuard(t *testing.T) {
+	const checklist = "# RFC 9999\n\n" + selftestMeta + "\n## Compliance Checklist\n\n"
+	const original = "- [ ] [RFC9999-2-1] [MUST] A speaker MUST send the widget (§2)\n"
+	files := fixtureCorpus()
+	files[selftestSummaryRel] = checklist + original +
+		"- [ ] [RFC9999-2-3] [SHOULD] A speaker SHOULD count widgets (§2)\n"
+	root := commitFixtureTree(t, files, nil)
+	writeFixtureFiles(t, root, map[string]string{
+		selftestSummaryRel: checklist + strings.Replace(original, "(§2)", "(§2.1)", 1),
+	})
+	report, code := Check(root)
+	violations := strings.Join(report.Violations, "\n")
+	if report.CannotRun != "" || code != 2 ||
+		!strings.Contains(violations, "RFC9999-2-3 was in rfc/short/rfc9999.md at HEAD and is now gone") ||
+		strings.Contains(violations, "new id 'RFC9999-2-1'") {
+		t.Fatalf("citation correction lost the retirement guard, exit %d:\n%s", code, report.Text())
+	}
+	assertPermanentIDCoverage(t, root)
+}
+
+func TestRFCCheckReportsUnknownRequirementInCommandTests(t *testing.T) {
+	const path = "cmd/widget/widget_test.go"
+	const requirement = "RFC9999-99-1"
+	files := fixtureCorpus()
+	files["go.mod"] = "module example.com/widget\n\ngo 1.27.0\n"
+	files[path] = "package widget\n\nimport \"testing\"\n\n" +
+		"// RFC requirement: " + requirement + " positive -- the command rejects invalid input.\n" +
+		"func TestReject(t *testing.T) { t.Fatal(\"invalid input\") }\n"
+	report, code := Check(checkFixtureTree(t, files))
+	if report.CannotRun != "" {
+		t.Fatalf("cannot check command fixture: %s", report.CannotRun)
+	}
+	if code != 2 {
+		t.Fatalf("unknown command-test requirement answered %d, want 2:\n%s", code, report.Text())
+	}
+	for _, violation := range report.Violations {
+		if strings.Contains(violation, path) && strings.Contains(violation, requirement) {
+			return
+		}
+	}
+	t.Fatalf("unknown command-test requirement was not reported:\n%s", report.Text())
 }
 
 // VALIDATES: AC-1 -- an armed drain schedule reds `./le rfc check` at its public entry

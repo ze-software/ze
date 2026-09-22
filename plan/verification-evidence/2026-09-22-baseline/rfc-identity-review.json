@@ -1,0 +1,16 @@
+{
+  "findings": [
+    {
+      "title": "Distinguish an unreadable baseline before classifying IDs as new",
+      "body": "`check` always passes `baselineIDs(baselineLevels(tree))` here, but `baselineLevels` returns an empty map when HEAD cannot be listed/read and drops a summary's IDs when its baseline cannot parse. Consequently, a permanent ID with a corrected citation (for example `RFC9999-2-1` citing §2.1) is reported as a new misanchored ID in a source export without Git or after a baseline-read failure. This contradicts the documented rule that unavailable baselines judge nothing and makes the newly supported correction fail solely because its allocation history is unavailable. Preserve baseline-read status (including unreadable summary scope), skip the allocation comparison where it is unknown, and cover that path through `Check` while retaining checks for a known-empty baseline.",
+      "priority": 2,
+      "confidence": 0.97,
+      "file_path": "internal/le/rfc/check_ratchets.go",
+      "line_start": 56,
+      "line_end": 59
+    }
+  ],
+  "overall_correctness": "incorrect",
+  "explanation": "The parser-to-allocation split preserves structural validation and routes new-ID refusals through Check, but unavailable or unparsable HEAD baselines are mistaken for known absence, incorrectly rejecting permanent IDs whose citations were corrected. Coverage and proof remain independently derived; the deleted mismatch assertions have real-entry-point replacements. This is a scoped source review only: Main owns validation and the concurrently revised positive-test oracle.",
+  "confidence": 0.97
+}

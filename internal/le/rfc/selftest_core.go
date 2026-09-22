@@ -113,10 +113,6 @@ func runSummarySelftest(fixture summaryFixture) ([]leroot.SelftestResult, error)
 		successorOK = first.Superseded.Disposition == successorRestated
 		successorOK = successorOK && first.Superseded.Target == "RFC10000-3-1"
 	}
-	_, mismatch := parseChecklistLine(
-		"- [ ] [RFC9999-3-1] [MUST] A speaker MUST send the widget (§2)",
-		selftestStem, selftestSummaryRel, 1,
-	)
 	corrections := parseCorrections(fixture.text)
 	correctionOK := len(corrections) == 1
 	if correctionOK {
@@ -134,8 +130,6 @@ func runSummarySelftest(fixture summaryFixture) ([]leroot.SelftestResult, error)
 			"the single-polarity annotation did not retain its polarity and reason"),
 		selftestResult("summary/successor", successorOK,
 			"the successor marker did not compose with the coverage annotation"),
-		selftestResult("summary/anchor-refusal", mismatch != nil,
-			"a checklist id that disagrees with its section was accepted"),
 		selftestResult("summary/correction", correctionOK,
 			"the correction paragraph did not retain its id and quote"),
 	}, nil
@@ -350,10 +344,10 @@ var Gating = []string{suiteParse, suiteUI}
 	if parseErr != nil {
 		return nil, parseErr
 	}
-	req := Requirement{RFC: selftestStem, RID: selftestRIDSend, Level: levelMust, Source: selftestSummaryRel, Line: 5}
+	req := Requirement{RFC: selftestStem, RID: selftestRIDSend, Level: levelMust, Section: "2", Source: selftestSummaryRel, Line: 5}
 	enrolled := map[string]bool{selftestStem: true}
 	baselineEnrolled := map[string]bool{selftestStem: true}
-	idLoss := checkIDAllocation([]Requirement{req}, map[string]bool{selftestRIDDrop: true})
+	idLoss := checkIDAllocation([]Requirement{req}, map[string]bool{selftestRIDDrop: true}, nil, true)
 	coverageLoss := checkCoverageRatchet(
 		[]Requirement{req}, nil, enrolled,
 		map[string]map[string]bool{req.RID: {PolarityNegative: true}}, baselineEnrolled,

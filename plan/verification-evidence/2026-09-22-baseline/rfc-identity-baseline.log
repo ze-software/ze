@@ -1,0 +1,57 @@
+=== RUN   TestRFCCheckEnforcesPermanentIDAllocation
+=== RUN   TestRFCCheckEnforcesPermanentIDAllocation/corrected_citation
+    check_test.go:186: allocated requirement or its coverage was lost, exit 2:
+        rfc-requirements: 1 violation(s)
+        
+          * rfc9999 is enrolled with no valid extraction sign-off at rfc/extraction/rfc9999.json. Enrolling gates the requirements the summary LISTS; nothing bounds what it MISSED until the source text has been walked site by site (ai/rules/rfc-compliance.md, Extraction Completeness). Run: ./le rfc extraction-create stem rfc9999, then classify every site and section
+        
+        Rules: every MUST-level requirement of an enrolled RFC needs
+        a positive AND a negative test tagged `RFC requirement: <ID> <polarity>`,
+        or an annotation saying why not. See ai/skills/ze-rfc.md.
+=== RUN   TestRFCCheckEnforcesPermanentIDAllocation/correction_already_at_HEAD
+    check_test.go:186: allocated requirement or its coverage was lost, exit 2:
+        rfc-requirements: 1 violation(s)
+        
+          * rfc9999 is enrolled with no valid extraction sign-off at rfc/extraction/rfc9999.json. Enrolling gates the requirements the summary LISTS; nothing bounds what it MISSED until the source text has been walked site by site (ai/rules/rfc-compliance.md, Extraction Completeness). Run: ./le rfc extraction-create stem rfc9999, then classify every site and section
+        
+        Rules: every MUST-level requirement of an enrolled RFC needs
+        a positive AND a negative test tagged `RFC requirement: <ID> <polarity>`,
+        or an annotation saying why not. See ai/skills/ze-rfc.md.
+=== RUN   TestRFCCheckEnforcesPermanentIDAllocation/new_matching_ID
+    check_test.go:186: allocated requirement or its coverage was lost, exit 2:
+        rfc-requirements: 1 violation(s)
+        
+          * rfc9999 is enrolled with no valid extraction sign-off at rfc/extraction/rfc9999.json. Enrolling gates the requirements the summary LISTS; nothing bounds what it MISSED until the source text has been walked site by site (ai/rules/rfc-compliance.md, Extraction Completeness). Run: ./le rfc extraction-create stem rfc9999, then classify every site and section
+        
+        Rules: every MUST-level requirement of an enrolled RFC needs
+        a positive AND a negative test tagged `RFC requirement: <ID> <polarity>`,
+        or an annotation saying why not. See ai/skills/ze-rfc.md.
+=== RUN   TestRFCCheckEnforcesPermanentIDAllocation/new_mismatched_ID
+=== RUN   TestRFCCheckEnforcesPermanentIDAllocation/new_missing_citation
+=== RUN   TestRFCCheckEnforcesPermanentIDAllocation/malformed_section
+=== RUN   TestRFCCheckEnforcesPermanentIDAllocation/wrong_stem
+=== RUN   TestRFCCheckEnforcesPermanentIDAllocation/zero_ordinal
+=== RUN   TestRFCCheckEnforcesPermanentIDAllocation/duplicate_allocated_ID
+=== RUN   TestRFCCheckEnforcesPermanentIDAllocation/retired_ordinal
+--- FAIL: TestRFCCheckEnforcesPermanentIDAllocation (5.48s)
+    --- FAIL: TestRFCCheckEnforcesPermanentIDAllocation/corrected_citation (0.54s)
+    --- FAIL: TestRFCCheckEnforcesPermanentIDAllocation/correction_already_at_HEAD (0.49s)
+    --- FAIL: TestRFCCheckEnforcesPermanentIDAllocation/new_matching_ID (0.53s)
+    --- PASS: TestRFCCheckEnforcesPermanentIDAllocation/new_mismatched_ID (0.51s)
+    --- PASS: TestRFCCheckEnforcesPermanentIDAllocation/new_missing_citation (0.51s)
+    --- PASS: TestRFCCheckEnforcesPermanentIDAllocation/malformed_section (0.74s)
+    --- PASS: TestRFCCheckEnforcesPermanentIDAllocation/wrong_stem (0.60s)
+    --- PASS: TestRFCCheckEnforcesPermanentIDAllocation/zero_ordinal (0.51s)
+    --- PASS: TestRFCCheckEnforcesPermanentIDAllocation/duplicate_allocated_ID (0.51s)
+    --- PASS: TestRFCCheckEnforcesPermanentIDAllocation/retired_ordinal (0.53s)
+=== RUN   TestRFCSelftestEveryStageContributesAResult
+--- PASS: TestRFCSelftestEveryStageContributesAResult (137.93s)
+=== RUN   TestALineCarryingAKeywordBracketIsRefusedRatherThanSkipped
+--- PASS: TestALineCarryingAKeywordBracketIsRefusedRatherThanSkipped (0.00s)
+=== RUN   TestAnOrdinalStartsAtOne
+--- PASS: TestAnOrdinalStartsAtOne (0.00s)
+=== RUN   TestADuplicateIdIsRefused
+--- PASS: TestADuplicateIdIsRefused (0.00s)
+FAIL
+FAIL	github.com/ze-software/ze/internal/le/rfc	143.602s
+FAIL

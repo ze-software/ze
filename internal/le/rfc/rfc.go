@@ -60,8 +60,8 @@ const (
 // every relocation to a spec in plan/immediate/ or plan/pre-release/.
 func specDirNames() []string { return specpath.Dirs() }
 
-// testRoots are the three trees a tag may live under.
-var testRoots = [...]string{"internal", "pkg", "test"}
+// testRoots are the source trees that can contain requirement tags.
+var testRoots = [...]string{"cmd", "internal", "pkg", "test"}
 
 // levelMust is the gated keyword a checklist row carries most often, and the
 // one the fixtures and the ratchet messages spell.

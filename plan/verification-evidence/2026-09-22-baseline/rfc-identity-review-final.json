@@ -1,0 +1,6 @@
+{
+  "overall_correctness": "correct",
+  "explanation": "The prior P2 finding is repaired: baselineLevels preserves unavailable, known-empty and per-summary unreadable history, and check passes those states directly to checkIDAllocation without another allocation-history Git probe; current ID validation remains independent. The Check regressions have meaningful rejection and retention oracles for unknown history, empty or absent summaries, unreadable-scope isolation, malformed IDs, high-water allocation and retirement; positive cases preserve baseline refusals and verify actual Collect/evaluate coverage without synthetic extraction or discrimination proof. No residual defect found in this scoped source review; documentation matches the implementation, and no validation commands were run.",
+  "confidence": 0.96,
+  "findings": []
+}

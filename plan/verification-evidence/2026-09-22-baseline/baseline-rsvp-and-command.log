@@ -1,0 +1,12 @@
+=== RUN   TestConfirmationRequestForwardedOnce
+--- PASS: TestConfirmationRequestForwardedOnce (0.00s)
+=== RUN   TestEngineZeToZeRefreshInterop
+--- PASS: TestEngineZeToZeRefreshInterop (0.00s)
+=== RUN   TestEngineZeToZeTransitRefreshInterop
+--- PASS: TestEngineZeToZeTransitRefreshInterop (0.00s)
+PASS
+ok  	github.com/ze-software/ze/internal/plugins/rsvpte	1.064s
+=== RUN   TestRFCCheckReportsUnknownRequirementInCommandTests
+--- PASS: TestRFCCheckReportsUnknownRequirementInCommandTests (6.84s)
+PASS
+ok  	github.com/ze-software/ze/internal/le/rfc	7.905s

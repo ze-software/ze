@@ -249,30 +249,36 @@ func baselineSummaryStems(tree string) (map[string]bool, bool) {
 	return out, true
 }
 
-func baselineLevels(tree string) map[string]string {
+// baselineLevels keeps unreadable summaries separate from known-empty history.
+// A listed path without a readable checklist cannot establish that an ID is new.
+func baselineLevels(tree string) (map[string]string, map[string]bool, bool) {
 	paths, ok := gitTreePaths(tree, summaryRel, ".md")
 	if !ok {
-		return map[string]string{}
+		return nil, nil, false
 	}
-	// A git that cannot answer leaves no level here, which is how this reader
-	// already treats a summary HEAD does not hold.
-	blobs, _ := gitCatBlobs(tree, headRevision, paths)
+	blobs, ok := gitCatBlobs(tree, headRevision, paths)
+	if !ok {
+		return nil, nil, false
+	}
 	out := map[string]string{}
+	unreadable := map[string]bool{}
 	for _, rel := range paths {
+		stem := strings.TrimSuffix(filepath.Base(rel), ".md")
 		text, held := blobs[rel]
 		if !held {
+			unreadable[stem] = true
 			continue
 		}
-		stem := strings.TrimSuffix(filepath.Base(rel), ".md")
 		requirements, err := parseSummaryText(text, stem, rel)
 		if err != nil {
+			unreadable[stem] = true
 			continue
 		}
 		for _, req := range requirements {
 			out[req.RID] = req.Level
 		}
 	}
-	return out
+	return out, unreadable, true
 }
 
 func baselineIDs(levels map[string]string) map[string]bool {

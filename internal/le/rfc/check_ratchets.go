@@ -47,20 +47,41 @@ func highWater(ids map[string]bool) map[string]int {
 	return out
 }
 
-func checkIDAllocation(requirements []Requirement, baseline map[string]bool) []string {
+// checkIDAllocation anchors new IDs to their citations and preserves allocated
+// IDs through citation corrections. The section encoded in a permanent ID also
+// keeps its original high-water mark, even when the citation changes.
+func checkIDAllocation(requirements []Requirement, baseline, unreadable map[string]bool, known bool) []string {
+	if !known {
+		return nil
+	}
 	marks := highWater(baseline)
 	var errs []string
 	for _, req := range requirements {
+		if baseline[req.RID] || unreadable[req.RFC] {
+			continue
+		}
 		match := idRE.FindStringSubmatch(req.RID)
 		if match == nil {
 			continue
+		}
+		section := req.Section
+		if section == "" {
+			section = noSection
+		}
+		var want textbuf.Buffer
+		wantHead := want.Str(Prefix(req.RFC)).Byte('-').Str(section).String()
+		if match[1] != wantHead {
+			var tb textbuf.Buffer
+			errs = append(errs, tb.Str(requirementWhere(req)).Str(": new id ").Str(pyRepr(req.RID)).
+				Str(" disagrees with its section (").Str(section).Str("); expected ").
+				Str(wantHead).Str("-<n>. A new id must be anchored to the section it cites.").String())
 		}
 		ordinal, err := strconv.Atoi(match[2])
 		if err != nil {
 			continue
 		}
 		mark, held := marks[match[1]]
-		if !held || ordinal > mark || baseline[req.RID] {
+		if !held || ordinal > mark {
 			continue
 		}
 		var tb textbuf.Buffer

@@ -306,7 +306,7 @@ func check(tree string, today time.Time) (CheckReport, error) {
 	if !enrolledKnown {
 		baseEnrolled = map[string]bool{}
 	}
-	levels := baselineLevels(tree)
+	levels, unreadableLevels, levelsKnown := baselineLevels(tree)
 	ids := baselineIDs(levels)
 	baselineStems, stemsKnown := baselineSummaryStems(tree)
 	if !stemsKnown {
@@ -383,7 +383,7 @@ func check(tree string, today time.Time) (CheckReport, error) {
 			collected.Enrolled, carriers, baselineEvidence(tree, committed.Tags), baseEnrolled))...)
 	}
 	findings = append(findings, notes(collected.ParseErrors)...)
-	findings = append(findings, notes(checkIDAllocation(collected.Requirements, ids))...)
+	findings = append(findings, notes(checkIDAllocation(collected.Requirements, ids, unreadableLevels, levelsKnown))...)
 	findings = append(findings, evaluate(collected.Requirements, collected.Tags, collected.Enrolled)...)
 	successors := successorsFrom(collected.Metas)
 	findings = append(findings, notes(checkSuperseded(tree, collected.Requirements, successors, stems))...)
