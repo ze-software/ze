@@ -1,6 +1,5 @@
 {
   "scope": "Verify implemented capabilities, add missing tests, and fix exposed defects. Absent RFC features require separately agreed implementation scope.",
-  "evidence_retention": "plan/verification-evidence/2026-09-22-baseline/artifact-retention.json",
   "owner_directives": [
     {
       "date": "2026-09-22",
@@ -27,457 +26,705 @@
       "text": "once we first close the testing gap"
     },
     {
-      "date": "2026-09-22",
-      "text": "Native six-part sweep authorized after baseline fixes are committed. Temporary native verification worktrees only; no worktree agents or push.",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/verification-worktree-authorization.json"
+      "date": "2026-09-23",
+      "text": "Both",
+      "requirements": [
+        "Exclude the exact plan/verification-evidence/ subtree from repository verification inputs.",
+        "Do not use that data or its external archives as proof for current work.",
+        "Preserve historical records and archives. Use canonical source and fresh runs, without a replacement proof-record collection."
+      ]
     }
   ],
   "started_work_completion": "Implementation started before the baseline-first directive is authorized for full completion only after the testing gap is closed.",
   "baseline_complete": false,
   "full_rfc_support_claimed": false,
   "source_state": "Uncommitted protocol changes are preserved. Feature expansion stopped at the owner's baseline-first directive.",
+  "next_verification_boundary": "Close the testing gap for implemented capabilities. Allow only defects and minimal build or fixture repairs needed for that proof. Complete pre-cutoff implementation afterward; do not start absent features.",
+  "current_sweep_status": "The old snapshot sweep is superseded. Part five was cancelled. Part six must not run against that snapshot.",
+  "classification_status": "Only the bounded results below are current directly observed verification. Earlier capability and gap classifications require current source or runtime verification.",
   "implemented_and_tested": [
     {
-      "behavior": "PPP LCP interruption, NCP lifetime reset and stale Configure-reply rejection",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/assignment-stop-current-030-result.json",
-      "log": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/assignment-stop-current-030-test.log",
-      "boundary": "Focused lifecycle, stale-reply, PAP interruption, accepted-principal, cleanup-failure, assignment-ordering and cancellation cases passed with race detection through compiler-selected production files. Canonical PPP manager_test.go duplicate declarations remain red. Native CHAP-MD5/IPv4 restart has separate passing evidence below; this carrier is not a full PPP package pass."
-    },
-    {
-      "behavior": "Subscriber network-lifetime withdrawal and RADIUS per-lifetime accounting",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/consumer-current-016-result.json",
-      "log": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/consumer-current-016-test.log",
-      "boundary": "Before the assignment barrier, full PPPoE, authradius, subscriber and netlink package tests passed with race detection. The L2TP package stopped on a nil-map panic in deliverOwnedKernelSuccess test setup; its focused lifecycle and identity cases passed separately in l2tp-consumer-current-021-result.json. Real UDP accounting proof covers retained-unit replacement, display clears, gigaword boundaries and unavailable values. No live FreeRADIUS retained-unit restart is claimed."
-    },
-    {
-      "behavior": "Same-transport PPP LCP restart with independent xl2tpd/pppd",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/assignment-barrier-proof-032.json",
-      "boundary": "Linux 7.2 native run passed with the rebuilt assignment-barrier daemon. Fresh CHAP-MD5 preceded IPv4 IPCP, both network lifetimes published alice, and both directions received three ICMP replies after restart. Tunnel and session identities stayed unchanged. Final peer shutdown withdrew routes and released the pool address. This is not native PAP, MS-CHAP-v2, IPv6 or full RFC proof."
-    },
-    {
-      "behavior": "IP-assignment publication precedes PPP forwarding; cancellation retains final teardown",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/assignment-barrier-proof-032.json",
-      "boundary": "IPv4 and IPv6 ordering regressions fail before the barrier. Six session-cancellation regressions fail before the final-teardown fix. All pass afterward with race detection. Independent source reviews are clear. L2TP and PPPoE native runs exercise both acknowledgment consumers; they do not force the blocked-callback race or prove live RADIUS accounting."
-    },
-    {
-      "behavior": "Point-to-point address removal preserves kernel peer metadata and permits reuse",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-fixed-002/guest/kernel-current/stdout.log",
-      "boundary": "TestRemovePointToPointAddressAllowsReuse failed against the old adapter with EADDRNOTAVAIL and passed against the repaired adapter on Linux 7.2. Both cycles removed the installed address and connected route before reuse. No skip."
-    },
-    {
-      "behavior": "NetFlow v9 and IPFIX public encoders sending UDP to nfcapd/nfdump 1.7.3",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/flow-interop-proof.json",
-      "boundary": "320 independently decoded records. This does not prove daemon configuration or live interface-counter collection."
-    },
-    {
-      "behavior": "sFlow public encoders sending UDP to sflowtool 6.11",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/sflow-interop-proof.json",
-      "boundary": "12 decoded datagrams, 28 counter samples and two packet samples. Counter generations were supplied by the smoke program, not the Linux collector."
-    },
-    {
-      "behavior": "PPP kernel-worker descriptor ownership and cancellation",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/ppp-ownership-baseline.log",
-      "boundary": "Five focused tests passed with the race detector on Linux. This does not prove live PPP kernel operation or interoperability."
-    },
-    {
-      "behavior": "Approved existing BGP receive, OPEN, collision, KEEPALIVE and SRv6 encoder regression cases",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/bgp-approved-baseline.log",
-      "boundary": "Five existing tests passed with the race detector. Native positive discrimination also succeeded for RFC5492-3-3, RFC5492-3-4 and RFC5492-5-2 through TestOpenIgnoresUnknownCapability. This is package-level evidence, not daemon interoperability or complete RFC proof.",
-      "discrimination_evidence": "rfc/discrimination/rfc5492.json"
-    },
-    {
-      "behavior": "RPKI route retention, revalidation and disable through registered plugin callbacks",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rpki-baseline-lifecycle.log",
-      "boundary": "Two lifecycle tests passed with the race detector. This does not prove live-daemon reload, foreign RTR transport or every arrival-order boundary."
-    },
-    {
-      "behavior": "IS-IS periodic recovery of a missed L2 update and OSPF per-source NSSA propagation",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/igp-baseline-targeted.log",
-      "boundary": "The IS-IS recovery case and all five OSPF address-family variants passed with the race detector. These are package-level observations, not foreign-daemon interoperability."
-    },
-    {
-      "behavior": "ExaBGP API default-route fixtures use a valid NEXT_HOP",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/exabgp-api-repaired.log",
-      "boundary": "api-check, api-api and api-health passed against rebuilt native artifacts. The earlier run passed 39 of 40 API cases; this is not a fresh whole-suite result."
-    },
-    {
-      "behavior": "ExaBGP IPv6 FlowSpec offset encoding",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/exabgp-baseline-entry.log",
-      "boundary": "The corrected conf-flow draft passed through the native encoding runner before promotion. Route and JSON assertions were retained."
-    },
-    {
-      "behavior": "OSPF NSSA origination requires a usable forwarding address",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/baseline-edge-repairs.log",
-      "boundary": "The approved focused race test passed for positive origination, absent-address non-origination and MaxAge withdrawal. Native discrimination observed both tagged polarities fail under their producer mutations.",
-      "discrimination_evidence": [
-        "plan/verification-evidence/2026-09-22-baseline/nssa-positive-discrimination.log",
-        "plan/verification-evidence/2026-09-22-baseline/nssa-negative-discrimination.log",
-        "rfc/discrimination/rfc5340.json"
-      ]
-    },
-    {
-      "behavior": "RPKI callback transaction boundaries and selection-first arrival while disabled",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/baseline-edge-repairs.log",
-      "boundary": "Three focused race tests passed through registered callbacks or route selection. Separate evidence now proves live policy reload over TCP. Mutual TLS reload remains unverified."
-    },
-    {
-      "behavior": "Explicit local no-auth L2TP admission through the daemon and Linux PPPoL2TP",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-attempt-002/native-report.json",
-      "boundary": "Linux 7.2 QEMU interop against xl2tpd/pppd passed address negotiation, kernel interface checks, tunnel ping, peer-initiated route withdrawal and cleanup. Attempt 001 failed before the local-handler fix. This does not prove PPPoE or RADIUS interoperability."
-    },
-    {
-      "behavior": "PPPoE client with CHAP-MD5, IPCP and kernel forwarding against accel-ppp",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/pppoe-client-attempt-002/native-report.json",
-      "boundary": "The native client lab passed on runtime kernel 7.2.0 against accel-ppp 1.13.0-r1. Both PPP interfaces had the negotiated point-to-point addresses, ICMP crossed the PPP link, and both interfaces disappeared after Ze stopped. This proves the client role only."
-    },
-    {
-      "behavior": "RSVP packet-entry baseline with corrected legal fixtures and fresh-response observation",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-approved-fixtures-final-race.log",
-      "boundary": "The package race run passed. Independent review found no remaining defect in the bounded fixture corrections. Native discrimination covers all 25 changed claims selected for this correction. The two previously stale RRO records were also replaced. Foreign-peer and live-kernel RSVP operation are not proved.",
-      "discrimination_evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-discrimination-progress.json"
-    },
-    {
-      "behavior": "Registered local credential reload and rollback of an initially absent credential table",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/provider-reload-preparation/local-nil-rollback-green.log",
-      "boundary": "Both focused cases passed with the race detector. The initial-table rollback case failed against the preserved earlier producer in local-nil-rollback-red.log. This is registered SDK entry proof, not live subscriber interoperability."
-    },
-    {
-      "behavior": "RSVP confirmation relay, refresh and forwarding-acceptance retry",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-pop-conversion-green.log",
-      "boundary": "Four focused packet-entry race tests passed. The conversion regression failed before the fix, as recorded in rsvp-pop-conversion-red.log. These tests do not prove foreign-peer or live-kernel operation."
-    },
-    {
-      "behavior": "IPFIX flow and counter Export Time ordering under clock rollback",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/flow-time-ordering/green.log",
-      "boundary": "Both loopback UDP regressions failed with the combined before-source overlay and passed with the race detector after the fix. FlowEncoder.sendTemplateMessage/sendDataMessage and CounterEncoder.EncodeTemplate retain the successful-template Export Time floor. This proves encoder packet ordering only; daemon ingestion, foreign collectors, host clock adjustment and 2106 wraparound remain outside this proof.",
-      "discrimination_evidence": [
-        "plan/verification-evidence/2026-09-22-baseline/flow-time-ordering/red.log",
-        "plan/verification-evidence/2026-09-22-baseline/FlowOrderingReview.json"
-      ]
-    },
-    {
-      "behavior": "ASPA consecutive-prepend compression through structured UPDATE handling",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/aspa-compression/baseline-green.log",
-      "boundary": "The structured UPDATE tests passed with the race detector. Retaining prepends changed three valid paths to invalid/rejected; deduplicating all ASNs changed the separated-repeat path from invalid/rejected to valid/accepted. Native positive and negative discrimination records succeeded for ASPA5.1-1 through the two structured UPDATE tests. This does not prove daemon delivery, Adj-RIB-In enforcement, downstream export or JSON-fallback compression.",
-      "discrimination_evidence": [
-        "plan/verification-evidence/2026-09-22-baseline/aspa-compression/keep-prepends-red.log",
-        "plan/verification-evidence/2026-09-22-baseline/aspa-compression/separated-repeats-red.log",
-        "plan/verification-evidence/2026-09-22-baseline/AspaBoundaryReview.json",
-        "rfc/discrimination/draft-ietf-sidrops-aspa-verification.json"
-      ]
-    },
-    {
-      "behavior": "RADIUS accounting retirement at whole-reload acceptance and across overlapping reload ownership",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/radius-whole-reload/whole-green.log",
-      "boundary": "The occupied-port regression through doReloadContext failed on premature Admin-Reboot Stop before the fix. The whole run passed with the race detector, including unrelated-participant acceptance and previous-acceptance/newer-rollback cases. Each ownership case also failed with absent accounting records under its isolated before-source overlay. These are reload-entry and UDP accounting observations; the separate FreeRADIUS subscriber proof covers authentication/continuity, not live accounting.",
-      "discrimination_evidence": [
-        "plan/verification-evidence/2026-09-22-baseline/subscriber/radius-whole-reload/red.log",
-        "plan/verification-evidence/2026-09-22-baseline/subscriber/radius-whole-reload/ownership-unrelated-red.log",
-        "plan/verification-evidence/2026-09-22-baseline/subscriber/radius-whole-reload/ownership-overlap-red.log",
-        "plan/verification-evidence/2026-09-22-baseline/RadiusAcceptanceReview-ownership-final.json"
-      ]
-    },
-    {
-      "behavior": "RADIUS authentication-provider package with UDP Accounting-Start coverage",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/radius-whole-reload/package-attempt-002.log",
-      "boundary": "The entire authradius package passed with the race detector after obsolete private-field-copy test coverage moved into the UDP TestRADIUSAcctStart. The first attempt's nil synthetic Client panic is retained in plan/verification-evidence/2026-09-22-baseline/subscriber/radius-whole-reload/package-attempt-001.log. That panic was a fixture failure; it does not establish a production-client failure."
-    },
-    {
-      "behavior": "OSPF queued Full/Down topology origination and synchronized SR label publication, withdrawal and readers",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-receive-fix/green.log",
-      "boundary": "TestReceiveProgressWhileOriginationBlocked and TestSRAdjSIDPublicationAndReuse failed before the fix. Both passed afterward with the race detector, together with TestSRAdjSIDConcurrentReadersAndLifecycle. Ordinary and SR Full/Down hooks queue origination, and SR label readers and writers synchronize lifecycle changes. This is focused package proof; the post-fix QEMU RSVP carrier run remains outstanding.",
-      "discrimination_evidence": [
-        "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-receive-fix/red.log"
-      ]
-    },
-    {
-      "behavior": "Standalone SDK registration of the assigned plugin identity",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rpki-runtime-preparation/identity-bootstrap-fix/verification.json",
-      "boundary": "The preserved composition failed on unregistered ze.plugin.name; the corrected composition returned its assigned identity. Commit 87fe61a3d5 moves registration into SDK bootstrap. No new TLS behavior."
-    },
-    {
-      "behavior": "Live RPKI policy reload without route reannouncement",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rpki-runtime-preparation/run-1642145923/result.json",
-      "boundary": "Four applied SIGHUP generations retain one UPDATE, identical wire attributes/NLRI/next hop and the same BGP connection. Validation/ineligibility changes (3,true), (3,false), (3,true), (0,false), (3,true). Re-enable is not cache-outage recovery. This run uses a same-repository TCP RTR mock, not independent RTR or downstream forwarding.",
-      "review": "plan/verification-evidence/2026-09-22-baseline/RpkiLiveReview-run-1642145923.json"
-    },
-    {
-      "behavior": "PPPoE access concentrator against independent pppd with kernel forwarding and clean shutdown",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/pppoe-ac-preparation/assignment-barrier-006/guest/result.json",
-      "boundary": "The rebuilt assignment-barrier daemon passed Linux 7.2 QEMU discovery/matching REST SID, bidirectional LCP/MRU/magic, CHAP-MD5, IPCP, kernel address/route, three interface-bound ICMP replies, wire PADT and empty teardown state. A separate wrong-secret dial reached explicit CHAP Failure without IPCP. Daemon and peer cleanup completed. Earlier attempt-004 retains the shutdown failure and attempt-005 the shutdown fix. No active-session daemon shutdown, accounting, IPv6 or full-RFC claim.",
-      "discrimination_evidence": [
-        "plan/verification-evidence/2026-09-22-baseline/subscriber/pppoe-ac-preparation/attempt-004/guest/result.json"
+      "behavior": "RADIUS external-startup refusal and internal provider lifecycle",
+      "source": [
+        "internal/component/l2tp/plugins/authradius/register.go:runPlugin",
+        "internal/component/l2tp/plugins/authradius/provider_reload_test.go:TestRegisteredRadiusExternalStartupRefused"
       ],
-      "review": "plan/verification-evidence/2026-09-22-baseline/PppoeAcLiveReview.json"
-    },
-    {
-      "behavior": "Live subscriber provider replacement and ownership across committed reloads",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/provider-live-preparation/attempt-003/guest/result.json",
-      "boundary": "Independent pppd and FreeRADIUS prove local replacement, RADIUS enable, local-table changes under RADIUS ownership, RADIUS removal and local fallback. Stale/foreign secrets reach explicit CHAP refusal. The original process, PPP ifindex and address persist across applied-generation fences with successful ICMP; no redial substitutes for continuity. Final cleanup succeeds. No L2TP carrier, live accounting, failed-candidate rollback or outage claim.",
-      "prior_sequence_review": "plan/verification-evidence/2026-09-22-baseline/subscriber-live-evidence-review.json"
-    },
-    {
-      "behavior": "OSPF DD master-bit preservation and DD admission from Init",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-exchange-followup/green.log",
-      "boundary": "The entire neighbor package passed with the race detector. Before-source overlays fail master-bit exchange and both Init roles. Encoded peers reach Full, recover a lost final reply and retain Down/non-adjacent guards. Native RSVP convergence remains unverified.",
-      "discrimination_evidence": [
-        "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-exchange-fix/red.log",
-        "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-exchange-followup/red.log"
+      "verification": [
+        {
+          "command_argv": [
+            "env",
+            "CGO_ENABLED=0",
+            "./le",
+            "--name",
+            "baseline-radius-boundary",
+            "job",
+            "run",
+            "label",
+            "baseline-radius-internal-green",
+            "quiet",
+            "command",
+            "env",
+            "CGO_ENABLED=1",
+            "go",
+            "test",
+            "-race",
+            "-count=1",
+            "-timeout=5m",
+            "-tags",
+            "ze_core ze_lg ze_ssh ze_web ze_gnmi ze_mcp ze_rest ze_grpc ze_telemetry ze_isis ze_ldp ze_ospf ze_rsvpte ze_vrrp ze_ntp ze_flowexport ze_ddos ze_anomaly ze_as112 ze_geodns ze_dhcpserver ze_pxe ze_trafficusage ze_policyroute ze_cos ze_copp ze_mpls ze_tacacs ze_exabgp ze_bfd ze_vpp ze_ike ze_l2tp ze_radius ze_mrt ze_bgp ze_bmp",
+            "-v",
+            "./internal/component/l2tp/plugins/authradius"
+          ],
+          "result": "234 top-level tests passed with the race detector; no failures or skips. The external-startup regression failed before the guard and passed after it."
+        },
+        {
+          "command_argv": [
+            "env",
+            "CGO_ENABLED=0",
+            "./le",
+            "--name",
+            "baseline-radius-boundary",
+            "plugin",
+            "boundary",
+            "check"
+          ],
+          "result": "plugin-process-boundary: OK; exit 0."
+        }
       ],
-      "review": "plan/verification-evidence/2026-09-22-baseline/OspfInitDDReview.json"
+      "boundary": "Package lifecycle and process-boundary behavior only. This does not establish independent-peer interoperability or whole-daemon credential reload."
     },
     {
-      "behavior": "Native FRR RPKI route validation scenario",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rpki-interop-contract/rpki-frr-result-001.json",
-      "boundary": "The rebuilt native rpki-frr scenario exited zero with Valid, Invalid/ineligible and NotFound checks unchanged. Default native output omitted passing response snapshots before container cleanup. This is a bounded native FRR scenario pass with a Ze-owned RTR mock, not independent RTR proof."
-    },
-    {
-      "behavior": "Independent StayRTR v0.6.4 synchronization at negotiated RTR v1",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rpki-interop-contract/stayrtr-result-003.json",
-      "boundary": "The rebuilt native scenario passed its unchanged four-VRP and validation checks. Retained CLI payloads show one synchronized v1 session, two IPv4 and two IPv6 VRPs with exact ASNs, prefixes and maximum lengths. Existing peer flags correct the initial advertisement; Ze negotiation and timers are unchanged. Earlier attempts remain RED. Native initial-query bytes were not captured. No TLS, outage-recovery or full-RFC claim.",
-      "raw_observations": "plan/verification-evidence/2026-09-22-baseline/rpki-interop-contract/stayrtr-v1-003/sample-001.json",
-      "review": "plan/verification-evidence/2026-09-22-baseline/RtrNativeProofReview.json",
-      "package_evidence": "plan/verification-evidence/2026-09-22-baseline/rpki-interop-contract/negotiation-fix/rpki-package-green.log",
-      "refusal_discrimination": "plan/verification-evidence/2026-09-22-baseline/rpki-interop-contract/negotiation-fix/v0-advertisement-red.log",
-      "primary_source_retention": "plan/verification-evidence/2026-09-22-baseline/rpki-interop-contract/negotiation-fix/source-retention-correction.json"
-    },
-    {
-      "behavior": "Ordinary RSVP PATH avoids an installed endpoint data FEC",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/native-001/result.json",
-      "red": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/native-001/red.stdout",
-      "green": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/native-001/green.stdout",
-      "boundary": "Linux 7.2 native packets distinguish the old endpoint lookup (unexpected label 16011) from corrected adjacent-hop lookup. All five native transport cases pass, including bypass selection. Binary hashes are unchanged across that execution. Formal RFC metadata remains blocked: the native recorder rejects a fingerprint key in rfc/discrimination/rfc2205.json. This is not a full producer or foreign-peer RSVP pass."
-    },
-    {
-      "behavior": "First notification reports a preexisting interface going down",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/link-down-fix/monitor-proof-001.json",
-      "red": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/link-down-fix/native-001/red.stdout",
-      "green": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/link-down-fix/native-001/green.stdout",
-      "commit": "b3d7bba364",
-      "boundary": "Actual StartMonitor and Linux 7.2 link operations: old source times out waiting for down; corrected source passes preexisting-down, deletion, and up/down cases. Focused netlink package race run passes. This does not independently prove RSVP interface-plugin startup ordering."
-    },
-    {
-      "behavior": "Configured RSVP tunnel withdrawal follows the surviving make-before-break generation",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/native-proof-001.json",
-      "red": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/red-001.log",
-      "green": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/green-001.log",
-      "boundary": "Real daemon SIGHUP, captured generation-specific PathTears, and successful kernel FEC readbacks supplement discriminating reconciliation/RESV tests. Full package race passes. The complete native scenario remains red at a separate post-MBB old-path oracle."
-    },
-    {
-      "behavior": "Credentialed L2TP/PPP establishment with an independent xl2tpd/pppd peer",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/positive-proof-002.json",
-      "boundary": "CHAP-MD5 challenge/response/success precedes IPCP; native address, ping-command, peer departure and cleanup assertions pass. Wrong-secret CHAP refusal is separately observed, but a complete live no-IPCP/no-forwarding negative oracle is still absent."
-    },
-    {
-      "behavior": "Native MPLS path MTU, fragmentation progress and IPv4 RR/TS option preservation",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/kernel-mtu-preparation/native-proof-008.json",
-      "boundary": "The unchanged canonical carrier fails on first-fragment RR/TS corruption and an empty DF-set quoted RR slot before the fix. A freshly built Linux 7.2 kernel passes all three parent tests and nine leaf cases without skips. Covers push/transit path and link limits, reassembly, IPv4/IPv6 errors, progress and both option paths. Shared-fragment/GSO execution, route-metric replacement, IPv6 error source selection and complete RFC conformance remain unverified."
-    },
-    {
-      "behavior": "Coupled native RSVP signaling, generation withdrawal and isolated bypass forwarding",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/shutdown-owner-native-proof-001.json",
-      "boundary": "Exact native scenario passed in 17.57 seconds without skips on Linux 7.2. Proves protected generation retirement, surviving generation withdrawal, retained bypass delivery, stale-mark rejection with ordinary positive controls, and head-end shutdown. Independent RSVP-peer interoperability and full RFC conformance remain unverified."
+      "behavior": "Outgoing L2TP call establishment with a capability-correct peer fixture",
+      "source": [
+        "internal/test/fixture/tunnel_fixture_l2tp_session.go:tunnelL2TPOutgoingDriver",
+        "test/l2tp/lns-outgoing-call.ci",
+        "test/l2tp/tunnel-initiate-sccrq.ci"
+      ],
+      "verification": [
+        {
+          "command_argv": [
+            "env",
+            "CGO_ENABLED=0",
+            "./le",
+            "--name",
+            "baseline-radius-boundary",
+            "functional",
+            "l2tp"
+          ],
+          "result": "The command rebuilt the binaries. Both outgoing-call cases passed; the full suite reported 26 passes, no failures, and two skips: radius-acct-wire and session-stopccn-cascade."
+        }
+      ],
+      "boundary": "Fixture-driven control-plane behavior only. This does not establish independent-peer interoperability, PPP dataplane behavior, or full RFC support."
     }
   ],
-  "implemented_but_unverified": [
-    "The PPP required-auth downgrade regression remains unexecuted because manager_test.go redeclares reg and pair at lines 357 and 359. Credentialed local L2TP CHAP-MD5 admission now has separate positive native proof; the wrong-secret negative-oracle limit is recorded below. PPPoE client, AC and FreeRADIUS provider-reload proofs are recorded above. Historical preparation failures and the prior-binary shutdown failure remain preserved.",
-    "The coupled native RSVP daemon scenario passes in attempt-014. Independent RSVP-peer interoperability and the complete RFC requirement set remain unverified. Evidence and exact scope: plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/shutdown-owner-native-proof-001.json.",
-    "Live-daemon sFlow/NetFlow/IPFIX counter proof remains blocked in the independent collector reader. Three attempts produced no correctness pass; further reader repairs are paused. Evidence is preserved in plan/verification-evidence/2026-09-22-baseline/flow-daemon-attempt-001/, flow-daemon-attempt-002/ and flow-daemon-attempt-003/.",
-    "Live RPKI policy reload, native rpki-frr validation and independent StayRTR synchronization have separate passing evidence. Mutual TLS, cache-outage recovery and downstream export remain outside these proofs.",
-    "ASPA structured UPDATE race tests, semantic mutation contrasts and both ASPA5.1-1 native discrimination records are observed. Daemon delivery, Adj-RIB-In enforcement, downstream export and JSON-fallback compression remain outside this proof.",
-    "Native BGP-LS export, AIGP metric reannouncement, RTR mutual TLS and MOBIKE migration contain newly introduced work. Its completion remains held until the testing gap is closed.",
-    "Remaining OSPF, IS-IS, FlowSpec, EVPN/MUP/SRv6 and gateway changes lack a completed, current end-to-end baseline.",
-    "Credentialed L2TP wrong-secret run observes explicit local CHAP rejection and independent peer CHAP Failure, but does not prove the bounded live no-IPCP/no-forwarding conjunction. The positive runner intentionally remains failed, not relabelled a negative pass. Evidence: plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/wrong-secret-observation-001.json.",
-    "The changed PPP IPv6 phase claim still lacks a fresh native discrimination record. The canonical PPP package cannot compile because manager_test.go redeclares reg and pair. Bounded lifecycle tests and native IPv4 restart do not replace that record.",
-    "Native MPLS MTU proof is bounded to the recorded nine cases. Shared-fragment/GSO execution, route-metric replacement and IPv6 error source selection have no runtime assertion in that carrier.",
-    "The final changed-carrier lint run is red on BGP and PPP test compilation and existing style findings. No lint finding names the new MTU carrier, but compilation failures prevent a clean lint claim. Full output: plan/verification-evidence/2026-09-22-baseline/kernel-mtu-preparation/lint-006.stdout."
+  "capabilities_pending_current_verification": [
+    "PPP LCP interruption, NCP lifetime reset and stale Configure-reply rejection",
+    "Subscriber network-lifetime withdrawal and RADIUS per-lifetime accounting",
+    "Same-transport PPP LCP restart with independent xl2tpd/pppd",
+    "IP-assignment publication precedes PPP forwarding; cancellation retains final teardown",
+    "Point-to-point address removal preserves kernel peer metadata and permits reuse",
+    "NetFlow v9 and IPFIX public encoders sending UDP to nfcapd/nfdump 1.7.3",
+    "sFlow public encoders sending UDP to sflowtool 6.11",
+    "PPP kernel-worker descriptor ownership and cancellation",
+    "Approved existing BGP receive, OPEN, collision, KEEPALIVE and SRv6 encoder regression cases",
+    "RPKI route retention, revalidation and disable through registered plugin callbacks",
+    "IS-IS periodic recovery of a missed L2 update and OSPF per-source NSSA propagation",
+    "ExaBGP API default-route fixtures use a valid NEXT_HOP",
+    "ExaBGP IPv6 FlowSpec offset encoding",
+    "OSPF NSSA origination requires a usable forwarding address",
+    "RPKI callback transaction boundaries and selection-first arrival while disabled",
+    "Explicit local no-auth L2TP admission through the daemon and Linux PPPoL2TP",
+    "PPPoE client with CHAP-MD5, IPCP and kernel forwarding against accel-ppp",
+    "RSVP packet-entry baseline with corrected legal fixtures and fresh-response observation",
+    "Registered local credential reload and rollback of an initially absent credential table",
+    "RSVP confirmation relay, refresh and forwarding-acceptance retry",
+    "IPFIX flow and counter Export Time ordering under clock rollback",
+    "ASPA consecutive-prepend compression through structured UPDATE handling",
+    "RADIUS accounting retirement at whole-reload acceptance and across overlapping reload ownership",
+    "RADIUS authentication-provider package with UDP Accounting-Start coverage",
+    "OSPF queued Full/Down topology origination and synchronized SR label publication, withdrawal and readers",
+    "Standalone SDK registration of the assigned plugin identity",
+    "Live RPKI policy reload without route reannouncement",
+    "PPPoE access concentrator against independent pppd with kernel forwarding and clean shutdown",
+    "Live subscriber provider replacement and ownership across committed reloads",
+    "OSPF DD master-bit preservation and DD admission from Init",
+    "Native FRR RPKI route validation scenario",
+    "Independent StayRTR v0.6.4 synchronization at negotiated RTR v1",
+    "Ordinary RSVP PATH avoids an installed endpoint data FEC",
+    "First notification reports a preexisting interface going down",
+    "Configured RSVP tunnel withdrawal follows the surviving make-before-break generation",
+    "Credentialed L2TP/PPP establishment with an independent xl2tpd/pppd peer",
+    "Native MPLS path MTU, fragmentation progress and IPv4 RR/TS option preservation",
+    "Coupled native RSVP signaling, generation withdrawal and isolated bypass forwarding"
   ],
-  "unimplemented_requirement_records": [
-    {
-      "source": "rfc/short/rfc3954.md",
-      "record": "RFC3954-x-2: packet-count template refresh is unimplemented. Time-based refresh exists.",
-      "producer": "internal/plugins/flowexport/exporter.go: notifySnapshot and exportFlows; internal/plugins/flowexport/config.go: CollectorConfig",
-      "primary_requirement": "RFC 3954 Section 7: Both options MUST be configurable by the user on the Exporter.",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/flow-gap-classification.json"
-    },
-    {
-      "source": "rfc/short/rfc7011.md",
-      "record": "RFC7011-10-1: SCTP/PR-SCTP transport is unimplemented. NewSender opens connected UDP sockets.",
-      "producer": "internal/plugins/flowexport/sender.go: NewSender and Send",
-      "primary_requirement": "RFC 7011 Section 10.1: SCTP [RFC4960] using the Partially Reliable SCTP (PR-SCTP) extension as specified in [RFC3758] MUST be implemented by all compliant implementations.",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/flow-gap-classification.json"
-    },
-    {
-      "source": "rfc/short/rfc7011.md",
-      "record": "RFC7011-11.1-2: DTLS support is unimplemented. Send writes unencrypted UDP datagrams.",
-      "producer": "internal/plugins/flowexport/sender.go: NewSender and Send",
-      "primary_requirement": "RFC 7011 Section 11.1: IPFIX Exporting Processes and Collecting Processes using UDP or SCTP MUST support DTLS version 1.0 and SHOULD support DTLS version 1.2 [RFC6347], including the mandatory ciphersuite(s) specified in each version.",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/flow-gap-classification.json"
-    },
-    {
-      "source": "rfc/short/rfc1661.md",
-      "record": "RFC1661-2-2, RFC1661-5-1 and RFC1661-5.6-3: Code-Reject lacks the smaller negotiated peer-MRU clamp. Protocol-Reject has a separate clamp.",
-      "producer": "internal/component/l2tp/ppp/session_run.go: sendCodeReject, sendProtocolReject and writeFrame",
-      "primary_requirement": "RFC 1661 Section 5.6: The Rejected-Packet MUST be truncated to comply with the peer's established MRU.",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/ppp-declared-gap-source-report.json"
-    },
-    {
-      "source": "rfc/short/rfc1661.md",
-      "record": "RFC1661-5.6-2: Code-Reject copies the rejected packet's identifier instead of selecting a new identifier for each response.",
-      "producer": "internal/component/l2tp/ppp/session_run.go: sendCodeReject",
-      "primary_requirement": "RFC 1661 Section 5.6: The Identifier field MUST be changed for each Code-Reject sent.",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/ppp-declared-gap-source-report.json"
-    },
-    {
-      "source": "rfc/short/rfc1661.md",
-      "record": "RFC1661-4.3-3 and RFC1661-5.7-2: RXJ+ processing retains no offending-code or rejected-protocol suppression state.",
-      "producer": "internal/component/l2tp/ppp/session_run.go: codeToEvent, handleLCPPacket, performAction and sendEchoRequest",
-      "primary_requirement": "RFC 1661 Section 4.3: The implementation MUST stop sending the offending packet type. Section 5.7: Upon reception of a Protocol-Reject, the implementation MUST stop sending packets of the indicated protocol at the earliest opportunity.",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/ppp-declared-gap-source-report.json"
-    },
-    {
-      "source": "rfc/short/rfc1661.md",
-      "record": "RFC1661-4.6-1 through RFC1661-4.6-4: restart timing and limits are not configurable. Max-Failure also lacks the counter and Nak-to-Reject threshold.",
-      "producer": "internal/component/l2tp/ppp/session_run.go: armRestartTimer, applyTransition and sendConfigureNakOrReject; internal/component/l2tp/ppp/start_session.go: StartSession",
-      "primary_requirement": "RFC 1661 Section 4.6: The Restart timer MUST be configurable, but SHOULD default to three (3) seconds. Max-Terminate MUST be configurable, but SHOULD default to two (2) transmissions. Max-Configure MUST be configurable, but SHOULD default to ten (10) transmissions. Max-Failure MUST be configurable, but SHOULD default to five (5) transmissions.",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/ppp-declared-gap-source-report.json"
-    },
-    {
-      "source": "rfc/short/rfc2205.md",
-      "record": "RFC2205-3-26, RFC2205-3-27 and RFC2205-3-28: the fixed refresh ticker has no synchronization avoidance, expiry uses factor times received R without enforcing the required floor, and a configured period increase is adopted in one step.",
-      "producer": "internal/plugins/rsvpte/register.go: runRefreshLoop and adoptedRefreshPeriod; internal/plugins/rsvpte/fsm.go: expiredPSBs",
-      "primary_requirement": "RFC 2205 Section 3.7: Since RSVP sends periodic refresh messages, it must avoid message synchronization and ensure that any synchronization that may occur is not stable. To avoid premature loss of state, L must satisfy L >= (K + 0.5)*1.5*R, where K is a small integer. Specifically, the ratio of two successive values R2/R1 must not exceed 1 + Slew.Max.",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-declared-gap-source-report.json"
-    },
-    {
-      "source": "rfc/short/rfc2205.md",
-      "record": "RFC2205-3-30: PATH processing does not compare received IP TTL with Send_TTL or retain non-RSVP-hop knowledge. RFC3209-4.2.5-1's suppression obligation is conditional on known non-RSVP capability, not a claim that address identity provides that knowledge.",
-      "producer": "internal/plugins/rsvpte/engine.go: handlePacket and handlePath; internal/plugins/rsvpte/routing.go: resolveExplicitPath",
-      "primary_requirement": "RFC 2205 Section 3.8: RSVP must also test for the presence of non-RSVP hops in the path and pass this information to traffic control.",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-declared-gap-source-report.json"
-    },
-    {
-      "source": "rfc/short/rfc3209.md",
-      "record": "RFC3209-4.7.4-1 and RFC3209-4.7.4-2: SESSION_ATTRIBUTE affinity masks are skipped and native loose-hop extension does not validate link resource classes against them. The strict-hop MAY is distinct from this loose-hop MUST.",
-      "producer": "internal/plugins/rsvpte/frr.go: decodeSessionAttr; internal/plugins/rsvpte/routing.go: resolveExplicitPath",
-      "primary_requirement": "RFC 3209 Section 4.7.4: When a node is choosing links in order to extend a loose node of an ERO, the node MUST validate the resource classes of those links against the resource affinities.",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-declared-gap-source-report.json"
-    }
-  ],
-  "unimplemented_capability_records": [
-    {
-      "capability": "RADIUS accounting for PPPoE subscribers",
-      "producer": "internal/component/l2tp/plugins/authradius/acct.go: subscribeEventBus",
-      "record": "The accounting owner subscribes to L2TP IP-assigned and down events, not the shared subscriber events. PPPoE accounting is not connected.",
-      "documentation": "docs/architecture/l2tp/subscriber-session-model.md",
-      "scope": "Recorded absence, not implementation authorization or an RFC conformance verdict."
-    },
-    {
-      "capability": "PPP Discard-Request sender",
-      "producer": "internal/component/l2tp/ppp/session_run.go: performAction and handleLCPPacket",
-      "record": "Receive handling exists; no Discard-Request sender exists. Sender-only identifier obligations are conditional.",
-      "scope": "Recorded absence, not implementation authorization or an unconditional conformance failure."
-    },
-    {
-      "capability": "RSVP Hello",
-      "producer": "internal/plugins/rsvpte/engine.go: handlePacket",
-      "record": "Receive dispatch has no Hello handler or acknowledgement producer.",
-      "scope": "Recorded optional capability absence, not implementation authorization."
-    },
-    {
-      "capability": "RSVP ATM and Frame Relay label ranges",
-      "producer": "internal/plugins/rsvpte/message_validation.go: knownCType",
-      "record": "LABEL_REQUEST admits C-Type 1, not the media-specific range variants.",
-      "scope": "Recorded absence; range-conditional obligations are not unconditional baseline failures."
-    },
-    {
-      "capability": "RSVP IPv6 LSP_TUNNEL signaling",
-      "producer": "internal/plugins/rsvpte/message_validation.go: knownCType; internal/plugins/rsvpte/wire.go: decodeSessionIPv4",
-      "record": "Tunnel SESSION and sender/filter decoding accept IPv4 C-Type 7, not IPv6 C-Type 8. An IPv4 reserved-field test does not prove IPv6 behavior.",
-      "scope": "Recorded absence, not implementation authorization."
-    },
-    {
-      "capability": "RSVP per-sender traffic policing",
-      "producer": "internal/plugins/rsvpte/reservation.go: acceptReservation and installReservation",
-      "record": "Reservation acceptance programs forwarding and bandwidth admission, not sender policers.",
-      "scope": "Recorded absence; conditional unique-label requirements are not proof that a policer exists."
-    },
-    {
-      "capability": "RSVP IntServ host reservations",
-      "producer": "internal/plugins/rsvpte/engine.go: handlePath; internal/plugins/rsvpte/message_validation.go: knownCType",
-      "record": "The accepted session is an LSP tunnel and PATH without LABEL_REQUEST is refused. TSPEC, FLOWSPEC and ADSPEC support does not implement general host reservations.",
-      "scope": "Recorded absence, not implementation authorization."
-    },
-    {
-      "capability": "RSVP multicast and wildcard-filter reservations",
-      "producer": "internal/plugins/rsvpte/wire.go: decodeSessionIPv4; internal/plugins/rsvpte/engine.go: handleResv",
-      "record": "Tunnel endpoints must be unicast and supported reservation styles are FF and SE.",
-      "scope": "Recorded absence, not implementation authorization."
-    },
-    {
-      "capability": "Authenticated RSVP POLICY_DATA interpretation",
-      "producer": "internal/plugins/rsvpte/policy.go: reservationPolicy.allows; internal/plugins/rsvpte/wire.go: DecodeMessage",
-      "record": "Local policy evaluates sender and endpoint prefixes. POLICY_DATA is retained for forwarding, not interpreted as credentials.",
-      "scope": "Distinct from the implemented local policy decision; not implementation authorization."
-    },
-    {
-      "capability": "RSVP UDP encapsulation",
-      "producer": "internal/plugins/rsvpte/transport_linux.go: openSockets and SendPath",
-      "record": "The native carrier uses IPv4 raw sockets and has no UDP encapsulation fallback.",
-      "scope": "Recorded absence; host-without-raw-I/O obligations are conditional."
-    }
-  ],
-  "gap_record_limit": "These scoped flow, PPP and RSVP records distinguish source-confirmed missing enforcement, absent capabilities and incomplete proof. Main checked the named producers and primary clauses for the requirement records. The retained scout reports are source investigations, not runtime proof. Missing tests alone do not establish missing implementation. This is not a complete RFC inventory, and no record authorizes feature implementation or a full conformance count.",
-  "metadata_status": "plan/verification-evidence/2026-09-22-baseline/metadata-final-state.json",
-  "observed_failures_before_minimal_build_repairs": [
-    "Documentation verification cannot build the live catalog: undefined ppp.CloseFD in reactor_kernel.go.",
-    "RSVP engine.go calls undefined refreshPeriod; show_data.go still assigns float64 bandwidth to float32 fields.",
-    "OSPF BGP-LS export calls missing IsRouterInformation and DecodeLANAdjSIDValueV6 APIs.",
-    "The IGP package run also found IS-IS/OSPF test compilation errors and failed TestNSSASourcePreferencePreservesOtherExits.",
-    "Documentation verification found stale firewall digest links to the removed localaddr.go."
-  ],
-  "igp_run_evidence": "plan/verification-evidence/2026-09-22-baseline/igp-debt-race.log",
-  "build_only_evidence": {
-    "result": "The Linux 7.2 runtime kernel built successfully. Packet forwarding, fragmentation and XFRM migration have not been proved by that build.",
-    "log": "plan/verification-evidence/2026-09-22-baseline/runtime-kernel-build.log"
-  },
-  "next_verification_boundary": "Close the testing gap for implemented capabilities. Allow only defects and minimal build or fixture repairs needed for that proof. Complete pre-cutoff implementation afterward; do not start absent features.",
-  "superseded_runtime_notes": [
-    "The PPP required-auth downgrade regression could not execute because manager_test.go redeclares reg and pair at lines 357 and 359. Local authentication race tests and PPPoE client kernel interop passed. PPPoE access-concentrator interop, credentialed L2TP admission, RADIUS-backed subscribers and provider reconfiguration still need their own proof. AC attempt-001 failed before VM startup because timeout 1200 lacked a duration unit; evidence is plan/verification-evidence/2026-09-22-baseline/subscriber/pppoe-ac-preparation/attempt-001/native.stderr. This was a host-adapter invocation error, not a product failure. Main corrected the AC/provider host adapters to 1200s/1800s. AC attempt-002 booted kernel 7.2 but failed waiting for Ze to bind eth0; evidence is plan/verification-evidence/2026-09-22-baseline/subscriber/pppoe-ac-preparation/attempt-002/guest/result.json. No AC runtime pass is claimed.",
-    "The selected RSVP fixture claims have fresh native discrimination records. Native kernel attempt-001 failed waiting for three Full OSPF adjacencies before reaching RSVP forwarding assertions. Retained trace shows bidirectional Hellos. The OSPF receive-progress and SR lifecycle fixes have focused RED/GREEN proof, but the post-fix QEMU carrier run is still outstanding. Foreign-peer and live-kernel RSVP proof remain open.",
-    "Live RPKI attempt-001 failed before peer startup because Main built ze-test with ze_core. Evidence is plan/verification-evidence/2026-09-22-baseline/rpki-runtime-preparation/runtime-attempt-001.log. Main is retrying with the corrected test personality. The first attempt's build-selection error does not establish a product failure; live-daemon RPKI proof remains open."
-  ],
-  "archived_generated_sources": {
-    "manifest": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-archive-manifest.json",
-    "result": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-removal-result.json",
-    "archive": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-2026-09-22.zip",
-    "members": 224,
-    "note": "Historical source and overlay references now resolve through this archive. Restore required members to a separate replay checkout; original paths and hashes are preserved.",
-    "additional_runs": [
-      {
-        "attempt": 13,
-        "archive": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-attempt-013.zip",
-        "manifest": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-attempt-013-manifest.json",
-        "result": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-attempt-013-removal.json",
-        "members": 9
-      },
-      {
-        "attempt": 14,
-        "archive": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-attempt-014.zip",
-        "manifest": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-attempt-014-manifest.json",
-        "members": 9,
-        "loose_copies_removed": true
-      }
-    ]
-  },
   "declared_gap_records_pending_source_validation": [
+    {
+      "kind": "requirement",
+      "source": "rfc/short/rfc3954.md",
+      "producer": "internal/plugins/flowexport/exporter.go: notifySnapshot and exportFlows; internal/plugins/flowexport/config.go: CollectorConfig"
+    },
+    {
+      "kind": "requirement",
+      "source": "rfc/short/rfc7011.md",
+      "producer": "internal/plugins/flowexport/sender.go: NewSender and Send"
+    },
+    {
+      "kind": "requirement",
+      "source": "rfc/short/rfc7011.md",
+      "producer": "internal/plugins/flowexport/sender.go: NewSender and Send"
+    },
+    {
+      "kind": "requirement",
+      "source": "rfc/short/rfc1661.md",
+      "producer": "internal/component/l2tp/ppp/session_run.go: sendCodeReject, sendProtocolReject and writeFrame"
+    },
+    {
+      "kind": "requirement",
+      "source": "rfc/short/rfc1661.md",
+      "producer": "internal/component/l2tp/ppp/session_run.go: sendCodeReject"
+    },
+    {
+      "kind": "requirement",
+      "source": "rfc/short/rfc1661.md",
+      "producer": "internal/component/l2tp/ppp/session_run.go: codeToEvent, handleLCPPacket, performAction and sendEchoRequest"
+    },
+    {
+      "kind": "requirement",
+      "source": "rfc/short/rfc1661.md",
+      "producer": "internal/component/l2tp/ppp/session_run.go: armRestartTimer, applyTransition and sendConfigureNakOrReject; internal/component/l2tp/ppp/start_session.go: StartSession"
+    },
+    {
+      "kind": "requirement",
+      "source": "rfc/short/rfc2205.md",
+      "producer": "internal/plugins/rsvpte/register.go: runRefreshLoop and adoptedRefreshPeriod; internal/plugins/rsvpte/fsm.go: expiredPSBs"
+    },
+    {
+      "kind": "requirement",
+      "source": "rfc/short/rfc2205.md",
+      "producer": "internal/plugins/rsvpte/engine.go: handlePacket and handlePath; internal/plugins/rsvpte/routing.go: resolveExplicitPath"
+    },
+    {
+      "kind": "requirement",
+      "source": "rfc/short/rfc3209.md",
+      "producer": "internal/plugins/rsvpte/frr.go: decodeSessionAttr; internal/plugins/rsvpte/routing.go: resolveExplicitPath"
+    },
+    {
+      "kind": "capability",
+      "capability": "RADIUS accounting for PPPoE subscribers",
+      "producer": "internal/component/l2tp/plugins/authradius/acct.go: subscribeEventBus"
+    },
+    {
+      "kind": "capability",
+      "capability": "PPP Discard-Request sender",
+      "producer": "internal/component/l2tp/ppp/session_run.go: performAction and handleLCPPacket"
+    },
+    {
+      "kind": "capability",
+      "capability": "RSVP Hello",
+      "producer": "internal/plugins/rsvpte/engine.go: handlePacket"
+    },
+    {
+      "kind": "capability",
+      "capability": "RSVP ATM and Frame Relay label ranges",
+      "producer": "internal/plugins/rsvpte/message_validation.go: knownCType"
+    },
+    {
+      "kind": "capability",
+      "capability": "RSVP IPv6 LSP_TUNNEL signaling",
+      "producer": "internal/plugins/rsvpte/message_validation.go: knownCType; internal/plugins/rsvpte/wire.go: decodeSessionIPv4"
+    },
+    {
+      "kind": "capability",
+      "capability": "RSVP per-sender traffic policing",
+      "producer": "internal/plugins/rsvpte/reservation.go: acceptReservation and installReservation"
+    },
+    {
+      "kind": "capability",
+      "capability": "RSVP IntServ host reservations",
+      "producer": "internal/plugins/rsvpte/engine.go: handlePath; internal/plugins/rsvpte/message_validation.go: knownCType"
+    },
+    {
+      "kind": "capability",
+      "capability": "RSVP multicast and wildcard-filter reservations",
+      "producer": "internal/plugins/rsvpte/wire.go: decodeSessionIPv4; internal/plugins/rsvpte/engine.go: handleResv"
+    },
+    {
+      "kind": "capability",
+      "capability": "Authenticated RSVP POLICY_DATA interpretation",
+      "producer": "internal/plugins/rsvpte/policy.go: reservationPolicy.allows; internal/plugins/rsvpte/wire.go: DecodeMessage"
+    },
+    {
+      "kind": "capability",
+      "capability": "RSVP UDP encapsulation",
+      "producer": "internal/plugins/rsvpte/transport_linux.go: openSockets and SendPath"
+    },
     {
       "source": "rfc/short/rfc1661.md",
       "record": "Compressed Protocol reception remains unresolved at the actual Linux PPP boundary and under applicable directional negotiation. The Go parser's two-octet input alone does not establish whole-stack nonconformance."
     }
   ],
-  "declared_gap_source_reports": [
-    "plan/verification-evidence/2026-09-22-baseline/ppp-declared-gap-source-report.json",
-    "plan/verification-evidence/2026-09-22-baseline/rsvp-declared-gap-source-report.json"
-  ]
+  "gap_record_limit": "Gap classifications require current inspection of the named canonical producers and primary requirements. Archived scout reports do not validate current classifications. This is not a complete RFC inventory or implementation authorization.",
+  "historical_records_not_for_verification": {
+    "status": "Historical observations only. These records and their referenced archives do not validate the current tree.",
+    "superseded_sweep_authorization": {
+      "date": "2026-09-22",
+      "text": "Native six-part sweep authorized after baseline fixes are committed. Temporary native verification worktrees only; no worktree agents or push.",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/verification-worktree-authorization.json"
+    },
+    "evidence_retention": "plan/verification-evidence/2026-09-22-baseline/artifact-retention.json",
+    "implemented_and_tested": [
+      {
+        "behavior": "PPP LCP interruption, NCP lifetime reset and stale Configure-reply rejection",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/assignment-stop-current-030-result.json",
+        "log": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/assignment-stop-current-030-test.log",
+        "boundary": "Focused lifecycle, stale-reply, PAP interruption, accepted-principal, cleanup-failure, assignment-ordering and cancellation cases passed with race detection through compiler-selected production files. Canonical PPP manager_test.go duplicate declarations remain red. Native CHAP-MD5/IPv4 restart has separate passing evidence below; this carrier is not a full PPP package pass."
+      },
+      {
+        "behavior": "Subscriber network-lifetime withdrawal and RADIUS per-lifetime accounting",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/consumer-current-016-result.json",
+        "log": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/consumer-current-016-test.log",
+        "boundary": "Before the assignment barrier, full PPPoE, authradius, subscriber and netlink package tests passed with race detection. The L2TP package stopped on a nil-map panic in deliverOwnedKernelSuccess test setup; its focused lifecycle and identity cases passed separately in l2tp-consumer-current-021-result.json. Real UDP accounting proof covers retained-unit replacement, display clears, gigaword boundaries and unavailable values. No live FreeRADIUS retained-unit restart is claimed."
+      },
+      {
+        "behavior": "Same-transport PPP LCP restart with independent xl2tpd/pppd",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/assignment-barrier-proof-032.json",
+        "boundary": "Linux 7.2 native run passed with the rebuilt assignment-barrier daemon. Fresh CHAP-MD5 preceded IPv4 IPCP, both network lifetimes published alice, and both directions received three ICMP replies after restart. Tunnel and session identities stayed unchanged. Final peer shutdown withdrew routes and released the pool address. This is not native PAP, MS-CHAP-v2, IPv6 or full RFC proof."
+      },
+      {
+        "behavior": "IP-assignment publication precedes PPP forwarding; cancellation retains final teardown",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/assignment-barrier-proof-032.json",
+        "boundary": "IPv4 and IPv6 ordering regressions fail before the barrier. Six session-cancellation regressions fail before the final-teardown fix. All pass afterward with race detection. Independent source reviews are clear. L2TP and PPPoE native runs exercise both acknowledgment consumers; they do not force the blocked-callback race or prove live RADIUS accounting."
+      },
+      {
+        "behavior": "Point-to-point address removal preserves kernel peer metadata and permits reuse",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-fixed-002/guest/kernel-current/stdout.log",
+        "boundary": "TestRemovePointToPointAddressAllowsReuse failed against the old adapter with EADDRNOTAVAIL and passed against the repaired adapter on Linux 7.2. Both cycles removed the installed address and connected route before reuse. No skip."
+      },
+      {
+        "behavior": "NetFlow v9 and IPFIX public encoders sending UDP to nfcapd/nfdump 1.7.3",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/flow-interop-proof.json",
+        "boundary": "320 independently decoded records. This does not prove daemon configuration or live interface-counter collection."
+      },
+      {
+        "behavior": "sFlow public encoders sending UDP to sflowtool 6.11",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/sflow-interop-proof.json",
+        "boundary": "12 decoded datagrams, 28 counter samples and two packet samples. Counter generations were supplied by the smoke program, not the Linux collector."
+      },
+      {
+        "behavior": "PPP kernel-worker descriptor ownership and cancellation",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/ppp-ownership-baseline.log",
+        "boundary": "Five focused tests passed with the race detector on Linux. This does not prove live PPP kernel operation or interoperability."
+      },
+      {
+        "behavior": "Approved existing BGP receive, OPEN, collision, KEEPALIVE and SRv6 encoder regression cases",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/bgp-approved-baseline.log",
+        "boundary": "Five existing tests passed with the race detector. Native positive discrimination also succeeded for RFC5492-3-3, RFC5492-3-4 and RFC5492-5-2 through TestOpenIgnoresUnknownCapability. This is package-level evidence, not daemon interoperability or complete RFC proof.",
+        "discrimination_evidence": "rfc/discrimination/rfc5492.json"
+      },
+      {
+        "behavior": "RPKI route retention, revalidation and disable through registered plugin callbacks",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rpki-baseline-lifecycle.log",
+        "boundary": "Two lifecycle tests passed with the race detector. This does not prove live-daemon reload, foreign RTR transport or every arrival-order boundary."
+      },
+      {
+        "behavior": "IS-IS periodic recovery of a missed L2 update and OSPF per-source NSSA propagation",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/igp-baseline-targeted.log",
+        "boundary": "The IS-IS recovery case and all five OSPF address-family variants passed with the race detector. These are package-level observations, not foreign-daemon interoperability."
+      },
+      {
+        "behavior": "ExaBGP API default-route fixtures use a valid NEXT_HOP",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/exabgp-api-repaired.log",
+        "boundary": "api-check, api-api and api-health passed against rebuilt native artifacts. The earlier run passed 39 of 40 API cases; this is not a fresh whole-suite result."
+      },
+      {
+        "behavior": "ExaBGP IPv6 FlowSpec offset encoding",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/exabgp-baseline-entry.log",
+        "boundary": "The corrected conf-flow draft passed through the native encoding runner before promotion. Route and JSON assertions were retained."
+      },
+      {
+        "behavior": "OSPF NSSA origination requires a usable forwarding address",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/baseline-edge-repairs.log",
+        "boundary": "The approved focused race test passed for positive origination, absent-address non-origination and MaxAge withdrawal. Native discrimination observed both tagged polarities fail under their producer mutations.",
+        "discrimination_evidence": [
+          "plan/verification-evidence/2026-09-22-baseline/nssa-positive-discrimination.log",
+          "plan/verification-evidence/2026-09-22-baseline/nssa-negative-discrimination.log",
+          "rfc/discrimination/rfc5340.json"
+        ]
+      },
+      {
+        "behavior": "RPKI callback transaction boundaries and selection-first arrival while disabled",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/baseline-edge-repairs.log",
+        "boundary": "Three focused race tests passed through registered callbacks or route selection. Separate evidence now proves live policy reload over TCP. Mutual TLS reload remains unverified."
+      },
+      {
+        "behavior": "Explicit local no-auth L2TP admission through the daemon and Linux PPPoL2TP",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-attempt-002/native-report.json",
+        "boundary": "Linux 7.2 QEMU interop against xl2tpd/pppd passed address negotiation, kernel interface checks, tunnel ping, peer-initiated route withdrawal and cleanup. Attempt 001 failed before the local-handler fix. This does not prove PPPoE or RADIUS interoperability."
+      },
+      {
+        "behavior": "PPPoE client with CHAP-MD5, IPCP and kernel forwarding against accel-ppp",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/pppoe-client-attempt-002/native-report.json",
+        "boundary": "The native client lab passed on runtime kernel 7.2.0 against accel-ppp 1.13.0-r1. Both PPP interfaces had the negotiated point-to-point addresses, ICMP crossed the PPP link, and both interfaces disappeared after Ze stopped. This proves the client role only."
+      },
+      {
+        "behavior": "RSVP packet-entry baseline with corrected legal fixtures and fresh-response observation",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-approved-fixtures-final-race.log",
+        "boundary": "The package race run passed. Independent review found no remaining defect in the bounded fixture corrections. Native discrimination covers all 25 changed claims selected for this correction. The two previously stale RRO records were also replaced. Foreign-peer and live-kernel RSVP operation are not proved.",
+        "discrimination_evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-discrimination-progress.json"
+      },
+      {
+        "behavior": "Registered local credential reload and rollback of an initially absent credential table",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/provider-reload-preparation/local-nil-rollback-green.log",
+        "boundary": "Both focused cases passed with the race detector. The initial-table rollback case failed against the preserved earlier producer in local-nil-rollback-red.log. This is registered SDK entry proof, not live subscriber interoperability."
+      },
+      {
+        "behavior": "RSVP confirmation relay, refresh and forwarding-acceptance retry",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-pop-conversion-green.log",
+        "boundary": "Four focused packet-entry race tests passed. The conversion regression failed before the fix, as recorded in rsvp-pop-conversion-red.log. These tests do not prove foreign-peer or live-kernel operation."
+      },
+      {
+        "behavior": "IPFIX flow and counter Export Time ordering under clock rollback",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/flow-time-ordering/green.log",
+        "boundary": "Both loopback UDP regressions failed with the combined before-source overlay and passed with the race detector after the fix. FlowEncoder.sendTemplateMessage/sendDataMessage and CounterEncoder.EncodeTemplate retain the successful-template Export Time floor. This proves encoder packet ordering only; daemon ingestion, foreign collectors, host clock adjustment and 2106 wraparound remain outside this proof.",
+        "discrimination_evidence": [
+          "plan/verification-evidence/2026-09-22-baseline/flow-time-ordering/red.log",
+          "plan/verification-evidence/2026-09-22-baseline/FlowOrderingReview.json"
+        ]
+      },
+      {
+        "behavior": "ASPA consecutive-prepend compression through structured UPDATE handling",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/aspa-compression/baseline-green.log",
+        "boundary": "The structured UPDATE tests passed with the race detector. Retaining prepends changed three valid paths to invalid/rejected; deduplicating all ASNs changed the separated-repeat path from invalid/rejected to valid/accepted. Native positive and negative discrimination records succeeded for ASPA5.1-1 through the two structured UPDATE tests. This does not prove daemon delivery, Adj-RIB-In enforcement, downstream export or JSON-fallback compression.",
+        "discrimination_evidence": [
+          "plan/verification-evidence/2026-09-22-baseline/aspa-compression/keep-prepends-red.log",
+          "plan/verification-evidence/2026-09-22-baseline/aspa-compression/separated-repeats-red.log",
+          "plan/verification-evidence/2026-09-22-baseline/AspaBoundaryReview.json",
+          "rfc/discrimination/draft-ietf-sidrops-aspa-verification.json"
+        ]
+      },
+      {
+        "behavior": "RADIUS accounting retirement at whole-reload acceptance and across overlapping reload ownership",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/radius-whole-reload/whole-green.log",
+        "boundary": "The occupied-port regression through doReloadContext failed on premature Admin-Reboot Stop before the fix. The whole run passed with the race detector, including unrelated-participant acceptance and previous-acceptance/newer-rollback cases. Each ownership case also failed with absent accounting records under its isolated before-source overlay. These are reload-entry and UDP accounting observations; the separate FreeRADIUS subscriber proof covers authentication/continuity, not live accounting.",
+        "discrimination_evidence": [
+          "plan/verification-evidence/2026-09-22-baseline/subscriber/radius-whole-reload/red.log",
+          "plan/verification-evidence/2026-09-22-baseline/subscriber/radius-whole-reload/ownership-unrelated-red.log",
+          "plan/verification-evidence/2026-09-22-baseline/subscriber/radius-whole-reload/ownership-overlap-red.log",
+          "plan/verification-evidence/2026-09-22-baseline/RadiusAcceptanceReview-ownership-final.json"
+        ]
+      },
+      {
+        "behavior": "RADIUS authentication-provider package with UDP Accounting-Start coverage",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/radius-whole-reload/package-attempt-002.log",
+        "boundary": "The entire authradius package passed with the race detector after obsolete private-field-copy test coverage moved into the UDP TestRADIUSAcctStart. The first attempt's nil synthetic Client panic is retained in plan/verification-evidence/2026-09-22-baseline/subscriber/radius-whole-reload/package-attempt-001.log. That panic was a fixture failure; it does not establish a production-client failure."
+      },
+      {
+        "behavior": "OSPF queued Full/Down topology origination and synchronized SR label publication, withdrawal and readers",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-receive-fix/green.log",
+        "boundary": "TestReceiveProgressWhileOriginationBlocked and TestSRAdjSIDPublicationAndReuse failed before the fix. Both passed afterward with the race detector, together with TestSRAdjSIDConcurrentReadersAndLifecycle. Ordinary and SR Full/Down hooks queue origination, and SR label readers and writers synchronize lifecycle changes. This is focused package proof; the post-fix QEMU RSVP carrier run remains outstanding.",
+        "discrimination_evidence": [
+          "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-receive-fix/red.log"
+        ]
+      },
+      {
+        "behavior": "Standalone SDK registration of the assigned plugin identity",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rpki-runtime-preparation/identity-bootstrap-fix/verification.json",
+        "boundary": "The preserved composition failed on unregistered ze.plugin.name; the corrected composition returned its assigned identity. Commit 87fe61a3d5 moves registration into SDK bootstrap. No new TLS behavior."
+      },
+      {
+        "behavior": "Live RPKI policy reload without route reannouncement",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rpki-runtime-preparation/run-1642145923/result.json",
+        "boundary": "Four applied SIGHUP generations retain one UPDATE, identical wire attributes/NLRI/next hop and the same BGP connection. Validation/ineligibility changes (3,true), (3,false), (3,true), (0,false), (3,true). Re-enable is not cache-outage recovery. This run uses a same-repository TCP RTR mock, not independent RTR or downstream forwarding.",
+        "review": "plan/verification-evidence/2026-09-22-baseline/RpkiLiveReview-run-1642145923.json"
+      },
+      {
+        "behavior": "PPPoE access concentrator against independent pppd with kernel forwarding and clean shutdown",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/pppoe-ac-preparation/assignment-barrier-006/guest/result.json",
+        "boundary": "The rebuilt assignment-barrier daemon passed Linux 7.2 QEMU discovery/matching REST SID, bidirectional LCP/MRU/magic, CHAP-MD5, IPCP, kernel address/route, three interface-bound ICMP replies, wire PADT and empty teardown state. A separate wrong-secret dial reached explicit CHAP Failure without IPCP. Daemon and peer cleanup completed. Earlier attempt-004 retains the shutdown failure and attempt-005 the shutdown fix. No active-session daemon shutdown, accounting, IPv6 or full-RFC claim.",
+        "discrimination_evidence": [
+          "plan/verification-evidence/2026-09-22-baseline/subscriber/pppoe-ac-preparation/attempt-004/guest/result.json"
+        ],
+        "review": "plan/verification-evidence/2026-09-22-baseline/PppoeAcLiveReview.json"
+      },
+      {
+        "behavior": "Live subscriber provider replacement and ownership across committed reloads",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/provider-live-preparation/attempt-003/guest/result.json",
+        "boundary": "Independent pppd and FreeRADIUS prove local replacement, RADIUS enable, local-table changes under RADIUS ownership, RADIUS removal and local fallback. Stale/foreign secrets reach explicit CHAP refusal. The original process, PPP ifindex and address persist across applied-generation fences with successful ICMP; no redial substitutes for continuity. Final cleanup succeeds. No L2TP carrier, live accounting, failed-candidate rollback or outage claim.",
+        "prior_sequence_review": "plan/verification-evidence/2026-09-22-baseline/subscriber-live-evidence-review.json"
+      },
+      {
+        "behavior": "OSPF DD master-bit preservation and DD admission from Init",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-exchange-followup/green.log",
+        "boundary": "The entire neighbor package passed with the race detector. Before-source overlays fail master-bit exchange and both Init roles. Encoded peers reach Full, recover a lost final reply and retain Down/non-adjacent guards. Native RSVP convergence remains unverified.",
+        "discrimination_evidence": [
+          "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-exchange-fix/red.log",
+          "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-exchange-followup/red.log"
+        ],
+        "review": "plan/verification-evidence/2026-09-22-baseline/OspfInitDDReview.json"
+      },
+      {
+        "behavior": "Native FRR RPKI route validation scenario",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rpki-interop-contract/rpki-frr-result-001.json",
+        "boundary": "The rebuilt native rpki-frr scenario exited zero with Valid, Invalid/ineligible and NotFound checks unchanged. Default native output omitted passing response snapshots before container cleanup. This is a bounded native FRR scenario pass with a Ze-owned RTR mock, not independent RTR proof."
+      },
+      {
+        "behavior": "Independent StayRTR v0.6.4 synchronization at negotiated RTR v1",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rpki-interop-contract/stayrtr-result-003.json",
+        "boundary": "The rebuilt native scenario passed its unchanged four-VRP and validation checks. Retained CLI payloads show one synchronized v1 session, two IPv4 and two IPv6 VRPs with exact ASNs, prefixes and maximum lengths. Existing peer flags correct the initial advertisement; Ze negotiation and timers are unchanged. Earlier attempts remain RED. Native initial-query bytes were not captured. No TLS, outage-recovery or full-RFC claim.",
+        "raw_observations": "plan/verification-evidence/2026-09-22-baseline/rpki-interop-contract/stayrtr-v1-003/sample-001.json",
+        "review": "plan/verification-evidence/2026-09-22-baseline/RtrNativeProofReview.json",
+        "package_evidence": "plan/verification-evidence/2026-09-22-baseline/rpki-interop-contract/negotiation-fix/rpki-package-green.log",
+        "refusal_discrimination": "plan/verification-evidence/2026-09-22-baseline/rpki-interop-contract/negotiation-fix/v0-advertisement-red.log",
+        "primary_source_retention": "plan/verification-evidence/2026-09-22-baseline/rpki-interop-contract/negotiation-fix/source-retention-correction.json"
+      },
+      {
+        "behavior": "Ordinary RSVP PATH avoids an installed endpoint data FEC",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/native-001/result.json",
+        "red": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/native-001/red.stdout",
+        "green": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/native-001/green.stdout",
+        "boundary": "Linux 7.2 native packets distinguish the old endpoint lookup (unexpected label 16011) from corrected adjacent-hop lookup. All five native transport cases pass, including bypass selection. Binary hashes are unchanged across that execution. Formal RFC metadata remains blocked: the native recorder rejects a fingerprint key in rfc/discrimination/rfc2205.json. This is not a full producer or foreign-peer RSVP pass."
+      },
+      {
+        "behavior": "First notification reports a preexisting interface going down",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/link-down-fix/monitor-proof-001.json",
+        "red": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/link-down-fix/native-001/red.stdout",
+        "green": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/link-down-fix/native-001/green.stdout",
+        "commit": "b3d7bba364",
+        "boundary": "Actual StartMonitor and Linux 7.2 link operations: old source times out waiting for down; corrected source passes preexisting-down, deletion, and up/down cases. Focused netlink package race run passes. This does not independently prove RSVP interface-plugin startup ordering."
+      },
+      {
+        "behavior": "Configured RSVP tunnel withdrawal follows the surviving make-before-break generation",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/native-proof-001.json",
+        "red": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/red-001.log",
+        "green": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/green-001.log",
+        "boundary": "Real daemon SIGHUP, captured generation-specific PathTears, and successful kernel FEC readbacks supplement discriminating reconciliation/RESV tests. Full package race passes. The complete native scenario remains red at a separate post-MBB old-path oracle."
+      },
+      {
+        "behavior": "Credentialed L2TP/PPP establishment with an independent xl2tpd/pppd peer",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/positive-proof-002.json",
+        "boundary": "CHAP-MD5 challenge/response/success precedes IPCP; native address, ping-command, peer departure and cleanup assertions pass. Wrong-secret CHAP refusal is separately observed, but a complete live no-IPCP/no-forwarding negative oracle is still absent."
+      },
+      {
+        "behavior": "Native MPLS path MTU, fragmentation progress and IPv4 RR/TS option preservation",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/kernel-mtu-preparation/native-proof-008.json",
+        "boundary": "The unchanged canonical carrier fails on first-fragment RR/TS corruption and an empty DF-set quoted RR slot before the fix. A freshly built Linux 7.2 kernel passes all three parent tests and nine leaf cases without skips. Covers push/transit path and link limits, reassembly, IPv4/IPv6 errors, progress and both option paths. Shared-fragment/GSO execution, route-metric replacement, IPv6 error source selection and complete RFC conformance remain unverified."
+      },
+      {
+        "behavior": "Coupled native RSVP signaling, generation withdrawal and isolated bypass forwarding",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/shutdown-owner-native-proof-001.json",
+        "boundary": "Exact native scenario passed in 17.57 seconds without skips on Linux 7.2. Proves protected generation retirement, surviving generation withdrawal, retained bypass delivery, stale-mark rejection with ordinary positive controls, and head-end shutdown. Independent RSVP-peer interoperability and full RFC conformance remain unverified."
+      },
+      {
+        "behavior": "RADIUS external-startup refusal and internal provider lifecycle",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/final-debt-sweep/follow-on-repairs.json",
+        "boundary": "The registered-engine regression fails before the startup guard and passes afterward. All 234 package race tests pass, including internal reload and accounting lifetimes. The plugin process-boundary check passes. Full-tree lint remains red."
+      },
+      {
+        "behavior": "Outgoing L2TP call establishment with a capability-correct peer fixture",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/final-debt-sweep/follow-on-repairs.json",
+        "boundary": "Both outgoing-call cases fail in frozen sweep part one and pass after the fixture advertises Bearer Capabilities. Rebuilt native binaries pass 26 L2TP cases; two existing cases skip. This is not independent-peer interoperability."
+      }
+    ],
+    "implemented_but_unverified": [
+      "The PPP required-auth downgrade regression remains unexecuted because manager_test.go redeclares reg and pair at lines 357 and 359. Credentialed local L2TP CHAP-MD5 admission now has separate positive native proof; the wrong-secret negative-oracle limit is recorded below. PPPoE client, AC and FreeRADIUS provider-reload proofs are recorded above. Historical preparation failures and the prior-binary shutdown failure remain preserved.",
+      "The coupled native RSVP daemon scenario passes in working-tree attempt-014, using OSPF identity publishers outside the committed baseline. Committed-only runtime closure, independent RSVP-peer interoperability and the complete RFC requirement set remain unverified. Evidence: plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/shutdown-owner-native-proof-001.json.",
+      "Live-daemon sFlow/NetFlow/IPFIX counter proof remains blocked in the independent collector reader. Three attempts produced no correctness pass; further reader repairs are paused. Evidence is preserved in plan/verification-evidence/2026-09-22-baseline/flow-daemon-attempt-001/, flow-daemon-attempt-002/ and flow-daemon-attempt-003/.",
+      "Live RPKI policy reload, native rpki-frr validation and independent StayRTR synchronization have separate passing evidence. Mutual TLS, cache-outage recovery and downstream export remain outside these proofs.",
+      "ASPA structured UPDATE race tests, semantic mutation contrasts and both ASPA5.1-1 native discrimination records are observed. Daemon delivery, Adj-RIB-In enforcement, downstream export and JSON-fallback compression remain outside this proof.",
+      "Native BGP-LS export, AIGP metric reannouncement, RTR mutual TLS and MOBIKE migration contain newly introduced work. Its completion remains held until the testing gap is closed.",
+      "Remaining OSPF, IS-IS, FlowSpec, EVPN/MUP/SRv6 and gateway changes lack a completed, current end-to-end baseline.",
+      "Credentialed L2TP wrong-secret run observes explicit local CHAP rejection and independent peer CHAP Failure, but does not prove the bounded live no-IPCP/no-forwarding conjunction. The positive runner intentionally remains failed, not relabelled a negative pass. Evidence: plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/wrong-secret-observation-001.json.",
+      "The changed PPP IPv6 phase claim still lacks a fresh native discrimination record. The canonical PPP package cannot compile because manager_test.go redeclares reg and pair. Bounded lifecycle tests and native IPv4 restart do not replace that record.",
+      "Native MPLS MTU proof is bounded to the recorded nine cases. Shared-fragment/GSO execution, route-metric replacement and IPv6 error source selection have no runtime assertion in that carrier.",
+      "The final changed-carrier lint run is red on BGP and PPP test compilation and existing style findings. No lint finding names the new MTU carrier, but compilation failures prevent a clean lint claim. Full output: plan/verification-evidence/2026-09-22-baseline/kernel-mtu-preparation/lint-006.stdout."
+    ],
+    "unimplemented_requirement_records": [
+      {
+        "source": "rfc/short/rfc3954.md",
+        "record": "RFC3954-x-2: packet-count template refresh is unimplemented. Time-based refresh exists.",
+        "producer": "internal/plugins/flowexport/exporter.go: notifySnapshot and exportFlows; internal/plugins/flowexport/config.go: CollectorConfig",
+        "primary_requirement": "RFC 3954 Section 7: Both options MUST be configurable by the user on the Exporter.",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/flow-gap-classification.json"
+      },
+      {
+        "source": "rfc/short/rfc7011.md",
+        "record": "RFC7011-10-1: SCTP/PR-SCTP transport is unimplemented. NewSender opens connected UDP sockets.",
+        "producer": "internal/plugins/flowexport/sender.go: NewSender and Send",
+        "primary_requirement": "RFC 7011 Section 10.1: SCTP [RFC4960] using the Partially Reliable SCTP (PR-SCTP) extension as specified in [RFC3758] MUST be implemented by all compliant implementations.",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/flow-gap-classification.json"
+      },
+      {
+        "source": "rfc/short/rfc7011.md",
+        "record": "RFC7011-11.1-2: DTLS support is unimplemented. Send writes unencrypted UDP datagrams.",
+        "producer": "internal/plugins/flowexport/sender.go: NewSender and Send",
+        "primary_requirement": "RFC 7011 Section 11.1: IPFIX Exporting Processes and Collecting Processes using UDP or SCTP MUST support DTLS version 1.0 and SHOULD support DTLS version 1.2 [RFC6347], including the mandatory ciphersuite(s) specified in each version.",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/flow-gap-classification.json"
+      },
+      {
+        "source": "rfc/short/rfc1661.md",
+        "record": "RFC1661-2-2, RFC1661-5-1 and RFC1661-5.6-3: Code-Reject lacks the smaller negotiated peer-MRU clamp. Protocol-Reject has a separate clamp.",
+        "producer": "internal/component/l2tp/ppp/session_run.go: sendCodeReject, sendProtocolReject and writeFrame",
+        "primary_requirement": "RFC 1661 Section 5.6: The Rejected-Packet MUST be truncated to comply with the peer's established MRU.",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/ppp-declared-gap-source-report.json"
+      },
+      {
+        "source": "rfc/short/rfc1661.md",
+        "record": "RFC1661-5.6-2: Code-Reject copies the rejected packet's identifier instead of selecting a new identifier for each response.",
+        "producer": "internal/component/l2tp/ppp/session_run.go: sendCodeReject",
+        "primary_requirement": "RFC 1661 Section 5.6: The Identifier field MUST be changed for each Code-Reject sent.",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/ppp-declared-gap-source-report.json"
+      },
+      {
+        "source": "rfc/short/rfc1661.md",
+        "record": "RFC1661-4.3-3 and RFC1661-5.7-2: RXJ+ processing retains no offending-code or rejected-protocol suppression state.",
+        "producer": "internal/component/l2tp/ppp/session_run.go: codeToEvent, handleLCPPacket, performAction and sendEchoRequest",
+        "primary_requirement": "RFC 1661 Section 4.3: The implementation MUST stop sending the offending packet type. Section 5.7: Upon reception of a Protocol-Reject, the implementation MUST stop sending packets of the indicated protocol at the earliest opportunity.",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/ppp-declared-gap-source-report.json"
+      },
+      {
+        "source": "rfc/short/rfc1661.md",
+        "record": "RFC1661-4.6-1 through RFC1661-4.6-4: restart timing and limits are not configurable. Max-Failure also lacks the counter and Nak-to-Reject threshold.",
+        "producer": "internal/component/l2tp/ppp/session_run.go: armRestartTimer, applyTransition and sendConfigureNakOrReject; internal/component/l2tp/ppp/start_session.go: StartSession",
+        "primary_requirement": "RFC 1661 Section 4.6: The Restart timer MUST be configurable, but SHOULD default to three (3) seconds. Max-Terminate MUST be configurable, but SHOULD default to two (2) transmissions. Max-Configure MUST be configurable, but SHOULD default to ten (10) transmissions. Max-Failure MUST be configurable, but SHOULD default to five (5) transmissions.",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/ppp-declared-gap-source-report.json"
+      },
+      {
+        "source": "rfc/short/rfc2205.md",
+        "record": "RFC2205-3-26, RFC2205-3-27 and RFC2205-3-28: the fixed refresh ticker has no synchronization avoidance, expiry uses factor times received R without enforcing the required floor, and a configured period increase is adopted in one step.",
+        "producer": "internal/plugins/rsvpte/register.go: runRefreshLoop and adoptedRefreshPeriod; internal/plugins/rsvpte/fsm.go: expiredPSBs",
+        "primary_requirement": "RFC 2205 Section 3.7: Since RSVP sends periodic refresh messages, it must avoid message synchronization and ensure that any synchronization that may occur is not stable. To avoid premature loss of state, L must satisfy L >= (K + 0.5)*1.5*R, where K is a small integer. Specifically, the ratio of two successive values R2/R1 must not exceed 1 + Slew.Max.",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-declared-gap-source-report.json"
+      },
+      {
+        "source": "rfc/short/rfc2205.md",
+        "record": "RFC2205-3-30: PATH processing does not compare received IP TTL with Send_TTL or retain non-RSVP-hop knowledge. RFC3209-4.2.5-1's suppression obligation is conditional on known non-RSVP capability, not a claim that address identity provides that knowledge.",
+        "producer": "internal/plugins/rsvpte/engine.go: handlePacket and handlePath; internal/plugins/rsvpte/routing.go: resolveExplicitPath",
+        "primary_requirement": "RFC 2205 Section 3.8: RSVP must also test for the presence of non-RSVP hops in the path and pass this information to traffic control.",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-declared-gap-source-report.json"
+      },
+      {
+        "source": "rfc/short/rfc3209.md",
+        "record": "RFC3209-4.7.4-1 and RFC3209-4.7.4-2: SESSION_ATTRIBUTE affinity masks are skipped and native loose-hop extension does not validate link resource classes against them. The strict-hop MAY is distinct from this loose-hop MUST.",
+        "producer": "internal/plugins/rsvpte/frr.go: decodeSessionAttr; internal/plugins/rsvpte/routing.go: resolveExplicitPath",
+        "primary_requirement": "RFC 3209 Section 4.7.4: When a node is choosing links in order to extend a loose node of an ERO, the node MUST validate the resource classes of those links against the resource affinities.",
+        "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-declared-gap-source-report.json"
+      }
+    ],
+    "unimplemented_capability_records": [
+      {
+        "capability": "RADIUS accounting for PPPoE subscribers",
+        "producer": "internal/component/l2tp/plugins/authradius/acct.go: subscribeEventBus",
+        "record": "The accounting owner subscribes to L2TP IP-assigned and down events, not the shared subscriber events. PPPoE accounting is not connected.",
+        "documentation": "docs/architecture/l2tp/subscriber-session-model.md",
+        "scope": "Recorded absence, not implementation authorization or an RFC conformance verdict."
+      },
+      {
+        "capability": "PPP Discard-Request sender",
+        "producer": "internal/component/l2tp/ppp/session_run.go: performAction and handleLCPPacket",
+        "record": "Receive handling exists; no Discard-Request sender exists. Sender-only identifier obligations are conditional.",
+        "scope": "Recorded absence, not implementation authorization or an unconditional conformance failure."
+      },
+      {
+        "capability": "RSVP Hello",
+        "producer": "internal/plugins/rsvpte/engine.go: handlePacket",
+        "record": "Receive dispatch has no Hello handler or acknowledgement producer.",
+        "scope": "Recorded optional capability absence, not implementation authorization."
+      },
+      {
+        "capability": "RSVP ATM and Frame Relay label ranges",
+        "producer": "internal/plugins/rsvpte/message_validation.go: knownCType",
+        "record": "LABEL_REQUEST admits C-Type 1, not the media-specific range variants.",
+        "scope": "Recorded absence; range-conditional obligations are not unconditional baseline failures."
+      },
+      {
+        "capability": "RSVP IPv6 LSP_TUNNEL signaling",
+        "producer": "internal/plugins/rsvpte/message_validation.go: knownCType; internal/plugins/rsvpte/wire.go: decodeSessionIPv4",
+        "record": "Tunnel SESSION and sender/filter decoding accept IPv4 C-Type 7, not IPv6 C-Type 8. An IPv4 reserved-field test does not prove IPv6 behavior.",
+        "scope": "Recorded absence, not implementation authorization."
+      },
+      {
+        "capability": "RSVP per-sender traffic policing",
+        "producer": "internal/plugins/rsvpte/reservation.go: acceptReservation and installReservation",
+        "record": "Reservation acceptance programs forwarding and bandwidth admission, not sender policers.",
+        "scope": "Recorded absence; conditional unique-label requirements are not proof that a policer exists."
+      },
+      {
+        "capability": "RSVP IntServ host reservations",
+        "producer": "internal/plugins/rsvpte/engine.go: handlePath; internal/plugins/rsvpte/message_validation.go: knownCType",
+        "record": "The accepted session is an LSP tunnel and PATH without LABEL_REQUEST is refused. TSPEC, FLOWSPEC and ADSPEC support does not implement general host reservations.",
+        "scope": "Recorded absence, not implementation authorization."
+      },
+      {
+        "capability": "RSVP multicast and wildcard-filter reservations",
+        "producer": "internal/plugins/rsvpte/wire.go: decodeSessionIPv4; internal/plugins/rsvpte/engine.go: handleResv",
+        "record": "Tunnel endpoints must be unicast and supported reservation styles are FF and SE.",
+        "scope": "Recorded absence, not implementation authorization."
+      },
+      {
+        "capability": "Authenticated RSVP POLICY_DATA interpretation",
+        "producer": "internal/plugins/rsvpte/policy.go: reservationPolicy.allows; internal/plugins/rsvpte/wire.go: DecodeMessage",
+        "record": "Local policy evaluates sender and endpoint prefixes. POLICY_DATA is retained for forwarding, not interpreted as credentials.",
+        "scope": "Distinct from the implemented local policy decision; not implementation authorization."
+      },
+      {
+        "capability": "RSVP UDP encapsulation",
+        "producer": "internal/plugins/rsvpte/transport_linux.go: openSockets and SendPath",
+        "record": "The native carrier uses IPv4 raw sockets and has no UDP encapsulation fallback.",
+        "scope": "Recorded absence; host-without-raw-I/O obligations are conditional."
+      }
+    ],
+    "gap_record_limit": "These scoped flow, PPP and RSVP records distinguish source-confirmed missing enforcement, absent capabilities and incomplete proof. Main checked the named producers and primary clauses for the requirement records. The retained scout reports are source investigations, not runtime proof. Missing tests alone do not establish missing implementation. This is not a complete RFC inventory, and no record authorizes feature implementation or a full conformance count.",
+    "metadata_status": "plan/verification-evidence/2026-09-22-baseline/metadata-final-state.json",
+    "final_debt_sweep": "plan/verification-evidence/2026-09-22-baseline/final-debt-sweep/results.json",
+    "observed_failures_before_minimal_build_repairs": [
+      "Documentation verification cannot build the live catalog: undefined ppp.CloseFD in reactor_kernel.go.",
+      "RSVP engine.go calls undefined refreshPeriod; show_data.go still assigns float64 bandwidth to float32 fields.",
+      "OSPF BGP-LS export calls missing IsRouterInformation and DecodeLANAdjSIDValueV6 APIs.",
+      "The IGP package run also found IS-IS/OSPF test compilation errors and failed TestNSSASourcePreferencePreservesOtherExits.",
+      "Documentation verification found stale firewall digest links to the removed localaddr.go."
+    ],
+    "igp_run_evidence": "plan/verification-evidence/2026-09-22-baseline/igp-debt-race.log",
+    "build_only_evidence": {
+      "result": "The Linux 7.2 runtime kernel built successfully. Packet forwarding, fragmentation and XFRM migration have not been proved by that build.",
+      "log": "plan/verification-evidence/2026-09-22-baseline/runtime-kernel-build.log"
+    },
+    "superseded_runtime_notes": [
+      "The PPP required-auth downgrade regression could not execute because manager_test.go redeclares reg and pair at lines 357 and 359. Local authentication race tests and PPPoE client kernel interop passed. PPPoE access-concentrator interop, credentialed L2TP admission, RADIUS-backed subscribers and provider reconfiguration still need their own proof. AC attempt-001 failed before VM startup because timeout 1200 lacked a duration unit; evidence is plan/verification-evidence/2026-09-22-baseline/subscriber/pppoe-ac-preparation/attempt-001/native.stderr. This was a host-adapter invocation error, not a product failure. Main corrected the AC/provider host adapters to 1200s/1800s. AC attempt-002 booted kernel 7.2 but failed waiting for Ze to bind eth0; evidence is plan/verification-evidence/2026-09-22-baseline/subscriber/pppoe-ac-preparation/attempt-002/guest/result.json. No AC runtime pass is claimed.",
+      "The selected RSVP fixture claims have fresh native discrimination records. Native kernel attempt-001 failed waiting for three Full OSPF adjacencies before reaching RSVP forwarding assertions. Retained trace shows bidirectional Hellos. The OSPF receive-progress and SR lifecycle fixes have focused RED/GREEN proof, but the post-fix QEMU carrier run is still outstanding. Foreign-peer and live-kernel RSVP proof remain open.",
+      "Live RPKI attempt-001 failed before peer startup because Main built ze-test with ze_core. Evidence is plan/verification-evidence/2026-09-22-baseline/rpki-runtime-preparation/runtime-attempt-001.log. Main is retrying with the corrected test personality. The first attempt's build-selection error does not establish a product failure; live-daemon RPKI proof remains open."
+    ],
+    "archived_generated_sources": {
+      "manifest": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-archive-manifest.json",
+      "result": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-removal-result.json",
+      "archive": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-2026-09-22.zip",
+      "members": 224,
+      "note": "Historical source and overlay references now resolve through this archive. Restore required members to a separate replay checkout; original paths and hashes are preserved.",
+      "additional_runs": [
+        {
+          "attempt": 13,
+          "archive": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-attempt-013.zip",
+          "manifest": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-attempt-013-manifest.json",
+          "result": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-attempt-013-removal.json",
+          "members": 9
+        },
+        {
+          "attempt": 14,
+          "archive": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-attempt-014.zip",
+          "manifest": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-attempt-014-manifest.json",
+          "members": 9,
+          "loose_copies_removed": true
+        }
+      ]
+    },
+    "declared_gap_records_pending_source_validation": [
+      {
+        "source": "rfc/short/rfc1661.md",
+        "record": "Compressed Protocol reception remains unresolved at the actual Linux PPP boundary and under applicable directional negotiation. The Go parser's two-octet input alone does not establish whole-stack nonconformance."
+      }
+    ],
+    "declared_gap_source_reports": [
+      "plan/verification-evidence/2026-09-22-baseline/ppp-declared-gap-source-report.json",
+      "plan/verification-evidence/2026-09-22-baseline/rsvp-declared-gap-source-report.json"
+    ]
+  }
 }

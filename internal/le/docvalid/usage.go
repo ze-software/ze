@@ -436,7 +436,7 @@ func cmdModulePaths(root string) (map[string]string, error) {
 	}
 	files := map[string]string{}
 	for rel := range strings.SplitSeq(string(listed), "\x00") {
-		if rel == "" || strings.Contains(rel, "/testdata/") {
+		if rel == "" || strings.Contains(rel, "/testdata/") || lepath.IsVerificationArchive(rel) {
 			continue
 		}
 		name := path.Base(rel)

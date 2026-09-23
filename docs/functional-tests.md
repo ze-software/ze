@@ -17,6 +17,18 @@ Functional tests exercise release-gate behavior across BGP wire encoding and dec
 
 ## Release Gate Coverage
 
+Historical files under `plan/verification-evidence/` are not verification inputs.
+Repository checks exclude that subtree from code, test, documentation, and proof
+populations. This exclusion does not apply to neighboring paths or canonical
+source files.
+Go package discovery applies the rooted `ignore` directive in `go.mod`.
+Other repository scans use the shared `lepath.IsVerificationArchive` predicate.
+<!-- source: internal/le/lepath/lepath.go -- IsVerificationArchive -->
+
+Archives remain recovery material. Do not use their contents or historical proof
+references to validate current work. Read canonical source and run the relevant
+check against the current implementation.
+
 The stage list is **not reproduced here**. It lives in `stagesForMode`
 (`internal/le/verify/engine/stages.go`) and nowhere else. Each shard of
 `.github/workflows/verify.yml` reads that same list through

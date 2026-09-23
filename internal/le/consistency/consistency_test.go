@@ -137,6 +137,33 @@ func TestCheckReportsUnwalkableTree(t *testing.T) {
 	}
 }
 
+func TestVerificationArchiveDirectoryIsNotOpened(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root can read a directory with no permissions")
+	}
+	root := t.TempDir()
+	const archived = "plan/verification-evidence"
+	const canonical = "plan/verification-evidence-other"
+	for _, relative := range []string{archived, canonical} {
+		writeFixture(t, root, relative+"/hidden.go", "package fixture\n")
+		directory := filepath.Join(root, filepath.FromSlash(relative))
+		if err := os.Chmod(directory, 0o000); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { _ = os.Chmod(directory, 0o750) })
+	}
+	report := Check(root)
+	unreadable := findingsFor(report, "unreadable")
+	if len(unreadable) == 0 {
+		t.Fatal("the unreadable canonical directory was not reported")
+	}
+	for _, finding := range unreadable {
+		if finding.File != canonical {
+			t.Errorf("an excluded directory reached the reader: %+v", finding)
+		}
+	}
+}
+
 // TestCheckKeepsWalkingPastAnUnreadableDirectory pins that the walk error is
 // reported AND the walk continues: one closed directory must not cost the rest
 // of the tree its checks.

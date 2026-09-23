@@ -161,6 +161,50 @@ func TestSuppressionReasonsAreAuditedAcrossTrackedFiles(t *testing.T) {
 	}
 }
 
+func TestVerificationArchiveCannotContributeDocumentFindings(t *testing.T) {
+	const bad = "`internal/gone.go` <!-- doc-links: ignore () -->\n"
+	const archived = "plan/verification-evidence/nested/record.md"
+	const neighbor = "plan/verification-evidence-other/record.md"
+	root := fixtureRepository(t, map[string]string{
+		archived:          bad,
+		neighbor:          bad,
+		"docs/current.md": bad,
+	})
+	report, err := checkLinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := report.Text()
+	if strings.Contains(text, archived) {
+		t.Fatalf("historical input contributed a finding: %s", text)
+	}
+	for _, path := range []string{neighbor, "docs/current.md"} {
+		if !strings.Contains(text, path) {
+			t.Errorf("canonical defect at %s was not reported: %s", path, text)
+		}
+	}
+}
+
+func TestVerificationArchiveCannotSupplyALiveHookName(t *testing.T) {
+	files := map[string]string{
+		"ai/rules/repo-maintenance.md":                     "Run `retired-hook.sh` and `current-hook.sh`.\n",
+		"plan/verification-evidence/retired-hook.sh":       "historical input\n",
+		"plan/verification-evidence-other/current-hook.sh": "canonical input\n",
+	}
+	for _, source := range nameLintSources {
+		files[source] = "package hooks\nfunc currentCheck() {}\n"
+	}
+	root := fixtureRepository(t, files)
+	report, err := checkLinks(root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	text := report.Text()
+	if !strings.Contains(text, "retired-hook.sh") || strings.Contains(text, "current-hook.sh") {
+		t.Fatalf("historical and canonical hook names were not distinguished: %s", text)
+	}
+}
+
 func TestBaselinePairsGrandfatherOnlyTheirCiter(t *testing.T) {
 	// VALIDATES: the baseline keys on both citing file and dead target.
 	// PREVENTS: one grandfathered target allowing rot to spread into another file.

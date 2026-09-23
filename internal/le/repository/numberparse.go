@@ -64,6 +64,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 // NumberParseAllowlistPath is the tree-relative allowlist: one `count path`
@@ -97,6 +98,16 @@ func numberParseCounts(tree string) (map[string]int, error) {
 		if walkErr != nil {
 			return walkErr
 		}
+		rel, relErr := filepath.Rel(tree, path)
+		if relErr != nil {
+			return relErr
+		}
+		if lepath.IsVerificationArchive(rel) {
+			if entry.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		name := entry.Name()
 		if entry.IsDir() {
 			if path != tree && (numberParseSkipDirs[name] || strings.HasPrefix(name, ".")) {
@@ -114,10 +125,6 @@ func numberParseCounts(tree string) (map[string]int, error) {
 		found := len(numberParseRe.FindAll(data, -1))
 		if found == 0 {
 			return nil
-		}
-		rel, relErr := filepath.Rel(tree, path)
-		if relErr != nil {
-			return relErr
 		}
 		counts[filepath.ToSlash(rel)] = found
 		return nil

@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 const gitTimeout = 10 * time.Minute
@@ -52,7 +53,10 @@ func trackedNames(root string) ([]string, error) {
 	names := make([]string, 0, bytes.Count(out, []byte{0}))
 	for token := range bytes.SplitSeq(out, []byte{0}) {
 		if len(token) > 0 {
-			names = append(names, filepath.ToSlash(string(token)))
+			rel := filepath.ToSlash(string(token))
+			if !lepath.IsVerificationArchive(rel) {
+				names = append(names, rel)
+			}
 		}
 	}
 	slices.Sort(names)

@@ -160,6 +160,8 @@ func TestTheFirstMatchingCarrierWinsAndTheIncubatorIsSkipped(t *testing.T) {
 		{path: "internal/x/x_test.go", want: "unit", held: true},
 		{path: "internal/rfc/audit_test.go", want: "unit", held: true},
 		{path: "internal/le/rfc/audit_test.go", held: false},
+		{path: "plan/verification-evidence/x_test.go", held: false},
+		{path: "plan/verification-evidence-other/x_test.go", want: "unit", held: true},
 		{path: "test/plugin/x.ci", want: "functional-plugin", held: true},
 		{path: "test/nosuite/x.ci", want: "functional-unrun", held: true},
 		{path: "test/editor/x.et", want: "editor-editor", held: true},

@@ -152,6 +152,30 @@ func TestProposedInputAndReconstructedFilesAreBounded(t *testing.T) {
 	}
 }
 
+func TestProposedVerificationArchiveIsExcludedBeforeReads(t *testing.T) {
+	root := t.TempDir()
+	archived := filepath.Join(root, "plan", "verification-evidence", "a_test.go")
+	if err := os.MkdirAll(archived, 0o750); err != nil {
+		t.Fatal(err)
+	}
+	report, err := proposedFixture(root, ProposedRequest{
+		Tool: "Write", ToolInput: ProposedToolInput{FilePath: archived, Content: "package a\n"},
+	})
+	if err != nil || report.ExitCode() != 0 || report.Blocking || report.Notice {
+		t.Fatalf("archive path reached file or approval checks: %#v, %v", report, err)
+	}
+
+	oldText := "package a\nfunc TestA(t *testing.T) { require.Equal(t, 1, got) }\n"
+	newText := "package a\nfunc TestA(t *testing.T) { t.Skip(\"later\"); require.Equal(t, 1, got) }\n"
+	writeProposedFile(t, root, fixtureShard, fixtureLedgerHeader)
+	report, err = proposedFixture(root, ProposedRequest{
+		Path: "plan/verification-evidence/../../pkg/a_test.go", Tool: "Edit", Old: &oldText, New: &newText,
+	})
+	if err != nil || !report.Blocking || len(report.Weakened) != 1 || report.Weakened[0].Name != "TestA" {
+		t.Fatalf("a path that leaves the archive escaped canonical checks: %#v, %v", report, err)
+	}
+}
+
 // proposedFixture names the fixture commit session on every request, because
 // the shards the hook reads are derived from it and a fixture that let the
 // live identity resolve would read a different file each run.

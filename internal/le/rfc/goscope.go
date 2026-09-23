@@ -14,6 +14,8 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+
+	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 // ScopeKind states how a tagged unit or path is resolved.
@@ -54,8 +56,11 @@ func ScopeReader(path string) ScopeKind {
 	return ScopeFile
 }
 
-// IsTagCarrier reports whether the RFC scanner treats path as test evidence.
+// IsTagCarrier reports whether a repository-relative path can carry RFC evidence.
 func IsTagCarrier(path string) bool {
+	if lepath.IsVerificationArchive(path) {
+		return false
+	}
 	if strings.HasPrefix(filepath.ToSlash(path), "internal/le/interoplab/") &&
 		strings.HasSuffix(path, ".go") {
 		return true

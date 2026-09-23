@@ -185,6 +185,9 @@ func trackedExistingFiles(t *testing.T, root string) []string {
 			continue
 		}
 		rel := filepath.Clean(string(raw))
+		if lepath.IsVerificationArchive(rel) {
+			continue
+		}
 		info, statErr := os.Stat(filepath.Join(root, rel))
 		if os.IsNotExist(statErr) {
 			continue

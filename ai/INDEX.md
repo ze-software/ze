@@ -572,6 +572,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | ADD-PATH | `edge-cases/addpath.md` |
 | extended message | `edge-cases/extended-message.md` |
 | test, functional, .ci, verify failures | `docs/functional-tests.md` (top-level, not architecture/), `testing/ci-format.md` |
+| archival verification inputs, verification-evidence exclusion, current proof | `docs/functional-tests.md` (Release Gate Coverage), `ai/rules/evidence.md`, `internal/le/lepath/lepath.go` |
 | RFC requirement coverage, RFC MUST tests, rfc-requirements, RFC requirement tag, ./le rfc check, ./le rfc index-update | `./le rfc check`, `rfc/requirements/<stem>.md` (one RFC's rows), `ai/RFC-REQUIREMENTS.md` (the index), `ai/skills/ze-rfc.md`, `docs/contributing/rfc-implementation-guide.md`, `docs/functional-tests.md` (RFC Requirement Tags) |
 | RFC extraction sign-off, extraction completeness, what the summary MISSED, unextracted obligation, normative site, extraction register, rfc2119/prose/manual-walk, drain budget, ./le rfc extraction-create, ./le rfc extraction-status | `rfc/extraction/README.md`, `./le rfc extraction-create`, `./le rfc extraction-status`, `rfc/drain-budget.txt`, `ai/rules/rfc-compliance.md` (Extraction Completeness, the five ratchets), `ai/RFC-REQUIREMENTS.md` (Extraction sign-off) |
 | Apply a whole extraction walk, bulk classification, decisions file, site disposition, exclusion kind, binds-another-role producer, feature-out-of-scope quote, residual note, ./le rfc extraction-classify | `rfc/extraction/README.md` (Applying a walk), `docs/contributing/rfc-conformance-gates.md` (The extraction sign-off), `./le rfc extraction-classify decisions <path>` |
@@ -636,7 +637,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | .ci test prerequisite, option=needs-path, caps=net-raw, caps=net-admin, caps=bpf, test skips instead of failing, missing modcache, setup install prerequisite | `docs/architecture/testing/ci-format.md` (Options table), `ai/rules/platform-linux.md`, `internal/test/runner/caps.go`, `internal/test/runner/needs_path.go`, `./le setup install` |
 | test passes on macOS but fails in CI, works locally red in CI, unprivileged runner, 4-vCPU runner | `ai/rules/platform-linux.md` (skip-os is not a capability declaration), `ai/rules/completion.md` |
 | code-to-docs, reverse index, which docs | `ai/CODE-TO-DOCS.md` (generated, `./le docs-to-code index-update`) |
-| mutation testing, gomu, mutation score, mutant | `./le mutation`, `internal/le/mutation/`, `ai/rules/testing.md` (Mutation Testing section) |
+| mutation testing, gomu, mutation score, mutant | `docs/contributing/testing.md` (Mutation tests), `./le mutation`, `internal/le/mutation/` |
 | test health, testing dashboard, proof density, assert-nothing, tests that cannot fail, tag-orphan, test KPI, is our testing correct | `docs/features/test-health.md`, `docs/architecture/testing/test-health.md` (architecture), `test/health/README.md`, `internal/le/testhealth.Answer`, `internal/le/testsensitivity.Answer`, `ai/rules/testing.md` (Test Sensitivity Ratchets) |
 | find bugs, hunt bugs, bug classes, latent bugs, recurring traps, taxonomy sweep, silent fall-through, unwired feature | `ai/skills/ze-hunt.md`, `plan/learned/RECURRING-PATTERNS.md` |
 

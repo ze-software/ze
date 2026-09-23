@@ -24,6 +24,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 // godebugRemovedRow captures the Name of a removed setting in the toolchain's own
@@ -33,13 +35,16 @@ var godebugRemovedRow = regexp.MustCompile(`\{Name: "([a-z0-9]+)",[^}]*Removed: 
 // subtractedTrees are the tracked paths this scan does not judge. `vendor` holds
 // third-party modules ze did not write, and `testdata` holds inputs to tests,
 // including this file's own defect fixture, which exists precisely BECAUSE it
-// carries the forbidden text. Neither is guidance ze gives. Every other exclusion
-// comes free: the population is what git tracks, so build output, scratch, and a
-// downloaded module cache are outside it already.
+// carries the forbidden text. Neither is guidance Ze gives. Historical
+// verification data is excluded separately. Git omits ignored build output,
+// scratch files, and downloaded module caches.
 var subtractedTrees = []string{"vendor", "testdata"}
 
-// pathIsSubtracted answers whether rel lies in a subtracted tree, at any depth.
+// pathIsSubtracted reports whether rel is outside current guidance checks.
 func pathIsSubtracted(rel string) bool {
+	if lepath.IsVerificationArchive(rel) {
+		return true
+	}
 	for part := range strings.SplitSeq(rel, "/") {
 		if slices.Contains(subtractedTrees, part) {
 			return true

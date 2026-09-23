@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/rfc"
 	"github.com/ze-software/ze/internal/le/testweakened"
 )
@@ -50,6 +51,9 @@ func rfcChangeProblems(
 	pairsByOld := make(map[string]testweakened.RenamePair)
 	pairedNew := make(map[string]bool)
 	for _, pair := range prospective.RenamePairs {
+		if lepath.IsVerificationArchive(pair.OldPath) || lepath.IsVerificationArchive(pair.NewPath) {
+			continue
+		}
 		pairsByOld[pair.OldPath] = pair
 		pairedNew[pair.NewPath] = true
 	}

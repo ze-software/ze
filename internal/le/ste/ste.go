@@ -36,6 +36,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
@@ -193,6 +194,9 @@ type unit struct {
 
 // excluded reports whether a repository-relative path is outside every review.
 func excluded(rel string) bool {
+	if lepath.IsVerificationArchive(rel) {
+		return true
+	}
 	for _, dir := range excludeDirs {
 		if strings.HasPrefix(rel, dir) {
 			return true

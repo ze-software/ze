@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/rfc"
 )
 
@@ -146,11 +147,14 @@ func Proposed(root string, input io.Reader) (ProposedReport, error) {
 	if rawPath == "" {
 		rawPath = request.ToolInput.FilePath
 	}
-	path, err := proposedPath(root, rawPath)
+	path, err := repositoryPath(root, rawPath)
 	if err != nil {
 		return ProposedReport{}, err
 	}
 	report := ProposedReport{Path: path, Tool: request.Tool}
+	if lepath.IsVerificationArchive(path) {
+		return report, nil
+	}
 	if request.Exists != nil && !*request.Exists {
 		return report, nil
 	}
@@ -338,7 +342,7 @@ func validUTF8(content []byte) string {
 	return strings.ToValidUTF8(string(content), "\uFFFD")
 }
 
-func proposedPath(root, raw string) (string, error) {
+func repositoryPath(root, raw string) (string, error) {
 	if raw == "" || strings.ContainsAny(raw, "\x00\r\n") {
 		return "", errors.New("proposed path is empty or unsafe")
 	}

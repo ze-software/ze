@@ -144,6 +144,13 @@ func TestAllCoversEveryGoDirectoryOfTheCheckout(t *testing.T) {
 			if path == root {
 				return nil
 			}
+			relative, relErr := filepath.Rel(root, path)
+			if relErr != nil {
+				return relErr
+			}
+			if lepath.IsVerificationArchive(relative) {
+				return fs.SkipDir
+			}
 			// No pattern selects any of these, so their absence from the sweep
 			// is not a hole. The go command itself skips a vendor directory, a
 			// testdata directory, and any name starting with a dot or an

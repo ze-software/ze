@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 const cannotRunPrefix = "check could not run: "
@@ -91,6 +92,11 @@ func check(request Request, ledgerCarried bool) Result {
 			Str("the checkout root is empty").String()}
 		return result
 	}
+	if err := normalizeRequestPaths(&request); err != nil {
+		var text textbuf.Buffer
+		result.Problems = []string{text.Str(cannotRunPrefix).Err(err).String()}
+		return result
+	}
 	session, shard, problem := sessionShard(request.Root, WeakenedDir, request.Session)
 	if problem != "" {
 		result.Problems = []string{problem}
@@ -164,6 +170,45 @@ func check(request Request, ledgerCarried bool) Result {
 		unmatchedProblems(shard, landed, parsed, findings))
 	result.Keep, result.Landed = keptRows(parsed, findings)
 	return result
+}
+
+func normalizeRequestPaths(request *Request) error {
+	for _, paths := range []*[]string{&request.Paths, &request.Removed} {
+		copied := false
+		for index, raw := range *paths {
+			path, err := repositoryPath(request.Root, raw)
+			if err != nil {
+				return err
+			}
+			if path != raw {
+				if !copied {
+					*paths = slices.Clone(*paths)
+					copied = true
+				}
+				(*paths)[index] = path
+			}
+		}
+	}
+	copied := false
+	for index, pair := range request.RenamePairs {
+		oldPath, err := repositoryPath(request.Root, pair.OldPath)
+		if err != nil {
+			return err
+		}
+		newPath, err := repositoryPath(request.Root, pair.NewPath)
+		if err != nil {
+			return err
+		}
+		if oldPath != pair.OldPath || newPath != pair.NewPath {
+			if !copied {
+				request.RenamePairs = slices.Clone(request.RenamePairs)
+				copied = true
+			}
+			request.RenamePairs[index].OldPath = oldPath
+			request.RenamePairs[index].NewPath = newPath
+		}
+	}
+	return nil
 }
 
 // writeTheShard is the refusal an author meets before they have a shard. It
@@ -308,13 +353,28 @@ func weakenedTests(
 		removedSet[path] = true
 	}
 	for _, pair := range renamePairs {
+		oldArchive := lepath.IsVerificationArchive(pair.OldPath)
+		newArchive := lepath.IsVerificationArchive(pair.NewPath)
+		if oldArchive {
+			if newArchive || !isTestPath(pair.NewPath) {
+				continue
+			}
+			pair.OldPath = pair.NewPath
+		} else if newArchive {
+			if !isTestPath(pair.OldPath) {
+				continue
+			}
+			pair.NewPath = ""
+		}
 		if seen[pair.OldPath] || seen[pair.NewPath] {
 			problems = append(problems, text.Reset().Str(cannotRunPrefix).
 				Str("rename path appears in more than one pair, so no rename was compared").String())
 			continue
 		}
 		seen[pair.OldPath] = true
-		seen[pair.NewPath] = true
+		if pair.NewPath != "" {
+			seen[pair.NewPath] = true
+		}
 		pairFindings, problem := comparePath(root, pair.OldPath, pair.NewPath, anchor)
 		if problem != "" {
 			problems = append(problems, text.Reset().Str(cannotRunPrefix).Str(problem).String())
@@ -590,6 +650,9 @@ func findingNameCount(findings []Finding, name string) int {
 }
 
 func isTestPath(path string) bool {
+	if lepath.IsVerificationArchive(path) {
+		return false
+	}
 	if strings.HasSuffix(path, "_test.go") {
 		return true
 	}

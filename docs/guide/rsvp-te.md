@@ -9,9 +9,8 @@ requires `CAP_NET_RAW`.
 > incomplete. The engine emits
 > push/swap/pop forwarding entries on the `mpls-fib` event bus and `fib-kernel`
 > programs them into the kernel (IP route + label for push, AF_MPLS routes for
-> swap/pop). The native daemon scenario verifies forwarding and generation
-> withdrawal, including bypass isolation and shutdown on a live kernel.
-> Independent RSVP-peer interoperability remains unverified.
+> swap/pop). Native forwarding and independent RSVP-peer interoperability remain
+> unverified for the committed baseline.
 > Use for evaluation, not production forwarding.
 
 <!-- source: internal/plugins/rsvpte/producer_integration_linux_test.go -- TestRSVPNativeProducer -->

@@ -18,7 +18,7 @@
 // lets `| json` feed a script and `| match` keep one check's rows, and it is why
 // nothing here writes a line of JSON, YAML or table code.
 //
-// The walk is bounded by the filesystem: filepath.Walk does not follow
+// The walk is bounded by the filesystem: filepath.WalkDir does not follow
 // symbolic links, so a linked tree is visited once and a link cycle cannot make
 // it repeat.
 
@@ -388,7 +388,7 @@ func (c *checker) checkPluginStructure() {
 // every file under an unreadable directory, and a check that reads no file
 // finds nothing, which is indistinguishable from a clean tree.
 func (c *checker) walkGoFiles(fn func(path string)) {
-	_ = filepath.Walk(c.root, func(path string, info os.FileInfo, err error) error {
+	_ = filepath.WalkDir(c.root, func(path string, info os.DirEntry, err error) error {
 		rel, relErr := filepath.Rel(c.root, path)
 		if relErr != nil {
 			rel = path
@@ -398,6 +398,12 @@ func (c *checker) walkGoFiles(fn func(path string)) {
 			return nil
 		}
 		// Skip hidden dirs (except the root itself), vendor, research, caches, tmp.
+		if lepath.IsVerificationArchive(rel) {
+			if info.IsDir() {
+				return filepath.SkipDir
+			}
+			return nil
+		}
 		if info.IsDir() {
 			base := filepath.Base(path)
 			if base == "vendor" || base == "node_modules" || base == "research" || base == "modcache" || base == "tmp" {

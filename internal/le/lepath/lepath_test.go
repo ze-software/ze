@@ -357,3 +357,23 @@ func mustGetwd(t *testing.T) string {
 	}
 	return wd
 }
+
+func TestVerificationArchiveBoundary(t *testing.T) {
+	for _, test := range []struct {
+		path     string
+		excluded bool
+	}{
+		{"plan/verification-evidence", true},
+		{"./plan/verification-evidence/nested/check.go", true},
+		{"plan/other/../verification-evidence/check.go", true},
+		{"plan/verification-evidence/../../pkg/check.go", false},
+		{"plan/verification-evidence-other/check.go", false},
+		{"other/plan/verification-evidence/check.go", false},
+		{"../plan/verification-evidence/check.go", false},
+		{"/plan/verification-evidence/check.go", false},
+	} {
+		if got := IsVerificationArchive(test.path); got != test.excluded {
+			t.Errorf("IsVerificationArchive(%q) = %v, want %v", test.path, got, test.excluded)
+		}
+	}
+}

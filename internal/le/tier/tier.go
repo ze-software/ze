@@ -36,6 +36,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/le/lepath"
 	pluginimports "github.com/ze-software/ze/internal/le/plugin/imports"
 )
 
@@ -145,7 +146,7 @@ func collectEdges(tree, module string) (Edges, error) {
 			if rel == "." {
 				return nil
 			}
-			if skipWalk[entry.Name()] || rel == modCacheDir {
+			if skipWalk[entry.Name()] || rel == modCacheDir || lepath.IsVerificationArchive(rel) {
 				return fs.SkipDir
 			}
 			return nil
