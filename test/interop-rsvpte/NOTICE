@@ -1,0 +1,25 @@
+freeRouter independent RSVP-TE peer
+
+Upstream: https://github.com/mc36/freeRtr
+Revision: 6c295d8ae79c834ef631d3d21d373c335fb05328
+Project: http://www.freertr.org/
+License: https://creativecommons.org/licenses/by-sa/4.0/
+
+The build uses the upstream Java sources and misc/iface/tapInt.c without
+source modifications. The compiler and packaging commands are in
+Dockerfile.freertr. The exported source.tar.gz contains the original source
+and attribution; upstream-version.java preserves the original license text.
+The peer artifacts are separate from Ze and retain their upstream license.
+
+The following notice is from src/org/freertr/util/version.java:
+
+place on the web: http://www.freertr.org/
+license: http://creativecommons.org/licenses/by-sa/4.0/
+the beer-ware license for selected group of people:
+sprscc13@mrn0b0dy wrote these files. as long as you retain this notice you
+can do whatever you want with this stuff. if we meet some day, and
+you think this stuff is worth it, you can buy me a beer in return
+
+This carrier relies on the public CC BY-SA 4.0 license, not membership of the
+selected group mentioned in the alternative notice. Redistribution must retain
+attribution, the license link, and any required indication of modifications.

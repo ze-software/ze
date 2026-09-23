@@ -1,0 +1,28 @@
+# Build/export only. Runtime is Java 21 plus tapInt.bin in the Linux guest.
+# freeRouter and its unchanged TAP helper are CC BY-SA 4.0; retain /peer/NOTICE
+# and /peer/source.tar.gz when redistributing these artifacts.
+FROM alpine:3.21.3 AS build
+RUN apk add --no-cache ca-certificates curl openjdk21-jdk build-base linux-headers zip
+WORKDIR /src/freertr
+RUN curl --fail --location --output /tmp/source.tar.gz \
+    https://codeload.github.com/mc36/freeRtr/tar.gz/6c295d8ae79c834ef631d3d21d373c335fb05328 \
+    && tar -xzf /tmp/source.tar.gz --strip-components=1
+# Upstream src/compiler.txt selects --release 21 and compiles router.java's
+# dependencies. src/cp.sh packages binOut with the upstream manifest.
+WORKDIR /src/freertr/src
+RUN mkdir -p ../binOut && javac @compiler.txt && sh cp.sh
+WORKDIR /src/freertr
+# Upstream misc/iface/c.sh uses pthreads for tapInt; static musl permits the
+# resulting executable to run directly in the Alpine guest.
+RUN mkdir -p /peer \
+    && cc -O2 -static -pthread -o /peer/tapInt.bin misc/iface/tapInt.c \
+    && cp src/rtr.jar /peer/rtr.jar \
+    && cp /tmp/source.tar.gz /peer/source.tar.gz \
+    && cp readme.md /peer/upstream-readme.md \
+    && cp src/org/freertr/util/version.java /peer/upstream-version.java \
+    && printf '%s\n' 6c295d8ae79c834ef631d3d21d373c335fb05328 > /peer/REVISION
+COPY NOTICE /peer/NOTICE
+WORKDIR /peer
+RUN sha256sum rtr.jar tapInt.bin > SHA256SUMS
+FROM scratch
+COPY --from=build /peer /peer
