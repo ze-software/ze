@@ -203,6 +203,8 @@ func tunnelL2TPOutgoingDriver(peerTID, peerSID uint16, requireSessionIDs bool) D
 				}
 				response := append(tunnelL2TPAVP(true, 0, tunnelL2TPU16(2)), tunnelL2TPAVP(true, 2, []byte{1, 0})...)
 				response = append(response, tunnelL2TPAVP(true, 3, tunnelL2TPU32(3))...)
+				// RFC 2661 Section 4.4.3: "This AVP MUST be present if the sender can place outgoing calls when requested."
+				response = append(response, tunnelL2TPAVP(true, 4, tunnelL2TPU32(3))...)
 				peerName := "py-lns"
 				if requireSessionIDs {
 					peerName = "py-lac"
