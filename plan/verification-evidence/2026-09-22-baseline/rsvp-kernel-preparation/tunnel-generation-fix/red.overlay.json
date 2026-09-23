@@ -1,0 +1,8 @@
+{
+  "Replace": {
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/register.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/before/internal__plugins__rsvpte__register.go.before",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/reroute.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/before/internal__plugins__rsvpte__reroute.go.before",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/frr.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/before/internal__plugins__rsvpte__frr.go.before",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/engine.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/before/internal__plugins__rsvpte__engine.go.before"
+  }
+}

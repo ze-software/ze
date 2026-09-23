@@ -58,8 +58,12 @@ func checkMandatoryObjects(msg *ParsedMessage) error {
 	// [ <sender descriptor> ]".
 	case MsgTypePathErr:
 		required = []uint8{ClassSession, ClassErrorSpec}
-	// ResvErr, ResvTear and ResvConf reach no handler in engine.go, so ze states
-	// no requirement for them rather than one nothing reads.
+	case MsgTypeResvErr:
+		required = []uint8{ClassSession, ClassRSVPHop, ClassErrorSpec, ClassStyle}
+	case MsgTypeResvTear:
+		required = []uint8{ClassSession, ClassRSVPHop, ClassStyle}
+	case MsgTypeResvConf:
+		required = []uint8{ClassSession, ClassErrorSpec, ClassResvConfirm, ClassStyle}
 	default:
 		return nil
 	}
@@ -91,6 +95,8 @@ func objectPresence(msg *ParsedMessage, classNum uint8) (string, bool) {
 		return "STYLE", msg.HasStyle
 	case ClassErrorSpec:
 		return "ERROR_SPEC", msg.HasErrorSpec
+	case ClassResvConfirm:
+		return "RESV_CONFIRM", msg.HasResvConfirm
 	}
 	panic("BUG: rsvp: mandatory object class with no presence flag")
 }

@@ -1,0 +1,10 @@
+{
+  "commit": "b3d7bba364",
+  "subject": "fix(iface): retain state on first link notification",
+  "message": "tmp/commit-msg-7e722ae0-j-ee1d5c.txt",
+  "script": "tmp/commit-7e722ae0-j-d203ca.sh",
+  "files_changed": 15,
+  "pushed": false,
+  "verification": "Native first-down RED/GREEN and the focused netlink race run preceded this commit. No gate was rerun for the commit.",
+  "held": "docs/features/interfaces.md remains uncommitted because its separate counter-generation prose names producers absent from HEAD. Source and documentation are preserved."
+}

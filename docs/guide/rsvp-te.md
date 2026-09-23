@@ -5,11 +5,16 @@ tunnels with bandwidth reservation. It runs directly over IP as protocol 46 and
 requires `CAP_NET_RAW`.
 
 > **Status: experimental.** The control plane (signaling, admission, reroute)
-> and the dataplane wiring are implemented and unit-tested: the engine emits
+> and the dataplane wiring are implemented, but their verification baseline is
+> incomplete. The engine emits
 > push/swap/pop forwarding entries on the `mpls-fib` event bus and `fib-kernel`
 > programs them into the kernel (IP route + label for push, AF_MPLS routes for
-> swap/pop). End-to-end and FRR interop validation on a live kernel is still
-> pending. Use for evaluation, not production forwarding.
+> swap/pop). The native daemon scenario verifies forwarding and generation
+> withdrawal, including bypass isolation and shutdown on a live kernel.
+> Independent RSVP-peer interoperability remains unverified.
+> Use for evaluation, not production forwarding.
+
+<!-- source: internal/plugins/rsvpte/producer_integration_linux_test.go -- TestRSVPNativeProducer -->
 
 ## Configuration
 
@@ -50,8 +55,10 @@ rsvp-te {
 }
 ```
 
-- `router-id` -- this LSR's address; also the raw-socket source and the SESSION
-  extended-tunnel-id.
+- `router-id` identifies this LSR and sets the SESSION extended-tunnel-id.
+  RESV replies use an IPv4 address assigned to the outgoing interface.
+  <!-- source: internal/plugins/rsvpte/register.go -- tunnelKey -->
+  <!-- source: internal/plugins/rsvpte/transport_linux.go -- rawTransport.Send, rawTransport.outgoingSource -->
 - `refresh-period` -- how often ze re-sends PATH and RESV, 1 to 65535 seconds,
   default 30. Ze advertises this value in TIME_VALUES, and a neighbor derives the
   lifetime of the state ze created from it (RFC 2205 Section 3.7).
@@ -77,8 +84,9 @@ rsvp-te {
   backup. Presence of the container is what enables protection.
 - `bypass` -- a facility-backup bypass LSP from this node (a Point of Local
   Repair) to a `merge-point` along an `explicit-route` that avoids the protected
-  resource. ze has no IGP/CSPF, so bypass paths are explicit. `node-protection
-  true` marks a bypass that merges at a next-next hop (for node protection).
+  resource. Configure the bypass path explicitly. `node-protection true` marks
+  a bypass that merges at a next-next hop (for node protection).
+  <!-- source: internal/plugins/rsvpte/register.go -- setupBypass -->
 
 ### What a commit changes
 
@@ -91,8 +99,12 @@ stay up, because a withdrawn bandwidth declaration is not a teardown request
 (RFC 2205 Section 2.4). An interface removed and added back accounts from zero
 until those LSPs drain.
 
-Tunnels and bypasses reconcile the same way: an added tunnel signals, a changed
-explicit route reroutes make-before-break, and a removed tunnel is torn down.
+An added tunnel or bypass signals, and removing one tears down its LSPs.
+A tunnel removal includes every make-before-break generation, even a replacement
+whose reservation is still pending. Other tunnels and retained bypasses stay up.
+Changing a tunnel's explicit route reroutes its current generation
+make-before-break. A second route change supersedes a pending replacement while
+the established LSP continues forwarding until the latest replacement is up.
 
 `router-id` is the one leaf a commit does not change. The engine keeps the
 running value and logs a warning, because the LSP keys and the message encoders
@@ -110,10 +122,16 @@ are built from it. Restart ze to change it.
 4. **Ingress** records the downstream label and the LSP comes up.
 5. Soft-state is maintained by periodic PATH refresh; `PathTear` removes it.
 
-Admission control reserves the requested bandwidth per interface; an
-oversubscribed link is rejected with a `PathErr` (admission-control failure).
+Admission control reserves the requested bandwidth per interface. If a RESV
+exceeds the available bandwidth, Ze sends a `ResvErr` (admission-control failure).
+
+<!-- source: internal/plugins/rsvpte/reservation.go -- acceptReservation -->
+<!-- source: internal/plugins/rsvpte/reservation_build.go -- rejectReservation, sendResvError -->
+
 Make-before-break reroute signals a replacement LSP (new LSP-ID, SHARED-EXPLICIT
 style) and tears the old one down only once the new one is up.
+
+<!-- source: internal/plugins/rsvpte/reservation.go -- acceptReservation -->
 
 ## Fast Reroute (RFC 4090)
 
@@ -132,15 +150,16 @@ resource):
    pushing the bypass label over the protected label (a 2-label stack) and
    forwarding via the bypass next hop -- within the link-down event handling, no
    re-signaling round trip. It records "local protection in use".
-4. The PLR sends a `PathErr` "Notify" (code 25, value 3 "Tunnel locally
+4. Where an upstream hop exists, the PLR sends a `PathErr` "Notify" (code 25, value 3 "Tunnel locally
    repaired") toward the head-end and **keeps the LSP up** (it does not tear it
    down). For node protection it pushes the next-next hop's recorded label (label
    recording is requested automatically).
 5. The head-end re-optimizes onto a fresh path (make-before-break) and tears the
    locally-repaired LSP once the replacement is up.
 
-An LSP with no matching bypass keeps the base behaviour (tear down + `PathErr` on
-a link failure). One-to-one (detour) backup is tracked separately
+Without a usable bypass, Ze withdraws the affected LSP. Transit and egress nodes
+send `PathErr` to a known upstream hop; the ingress publishes a local path-error
+event. One-to-one (detour) backup is tracked separately
 (`spec-mpls-9-rsvp-te-one-to-one-backup`).
 
 ## Inspecting LSPs

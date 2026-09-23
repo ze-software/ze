@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "ip",
+    "netns",
+    "exec",
+    "rsvp-1409-e",
+    "ip",
+    "-statistics",
+    "-details",
+    "link",
+    "show"
+  ],
+  "started": {
+    "unix_ns": 1790095580754513631,
+    "monotonic_ns": 72079768571
+  },
+  "exit_code": 0,
+  "stdout": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-010/samples/rsvp-1409-e/013/links.stdout",
+  "stderr": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-010/samples/rsvp-1409-e/013/links.stderr",
+  "pid": 1800,
+  "status": "ok",
+  "finished": {
+    "unix_ns": 1790095580769023963,
+    "monotonic_ns": 72094280127
+  }
+}

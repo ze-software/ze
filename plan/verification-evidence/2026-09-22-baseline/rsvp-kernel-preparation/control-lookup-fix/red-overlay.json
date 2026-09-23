@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/transport_linux.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/internal__plugins__rsvpte__transport_linux.go.before.txt"
+  }
+}

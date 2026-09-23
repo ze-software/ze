@@ -1,0 +1,48 @@
+Execution owner: Main. These instructions have not been executed by the writer.
+
+Scope: the new native regression plus the existing native carriage/bypass cases. RED changes only transport_linux.go through a Go build overlay; the test and all other worktree inputs remain current. No source restoration is needed.
+
+The overlay uses this exact pre-fix source:
+plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/internal__plugins__rsvpte__transport_linux.go.before.txt
+SHA-256: 055c5f7ac4aabb8495ee62325451c13caa5a9924f8e489fdfe27fa33085a95f7
+
+Host build commands, from /home/thomas/Code/github.com/ze-software/ze/main, after Main formats the owned Go changes:
+
+env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go test -c -tags=integration,ze_core,ze_lg,ze_ssh,ze_web,ze_gnmi,ze_mcp,ze_rest,ze_grpc,ze_telemetry,ze_isis,ze_ldp,ze_ospf,ze_rsvpte,ze_vrrp,ze_ntp,ze_flowexport,ze_ddos,ze_anomaly,ze_as112,ze_geodns,ze_dhcpserver,ze_pxe,ze_trafficusage,ze_policyroute,ze_cos,ze_copp,ze_mpls,ze_tacacs,ze_exabgp,ze_bfd,ze_vpp,ze_ike,ze_l2tp,ze_radius,ze_mrt,ze_bgp,ze_bmp -overlay=/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/red-overlay.json -o plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/rsvp-control-red.test ./internal/plugins/rsvpte
+env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go test -c -tags=integration,ze_core,ze_lg,ze_ssh,ze_web,ze_gnmi,ze_mcp,ze_rest,ze_grpc,ze_telemetry,ze_isis,ze_ldp,ze_ospf,ze_rsvpte,ze_vrrp,ze_ntp,ze_flowexport,ze_ddos,ze_anomaly,ze_as112,ze_geodns,ze_dhcpserver,ze_pxe,ze_trafficusage,ze_policyroute,ze_cos,ze_copp,ze_mpls,ze_tacacs,ze_exabgp,ze_bfd,ze_vpp,ze_ike,ze_l2tp,ze_radius,ze_mrt,ze_bgp,ze_bmp -o plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/rsvp-control-green.test ./internal/plugins/rsvpte
+
+These are the same build tags as loopback-rpf-carrier-build.json. Main can place each command inside the existing accepted job runner. The output binaries are intentional proof products; retain their build logs and digests under Main's evidence policy.
+
+Native guest prerequisites: root with CAP_SYS_ADMIN, CAP_NET_ADMIN and CAP_NET_RAW; CONFIG_NET_NS, veth and CONFIG_MPLS_IPTUNNEL. Use Main's existing native QEMU guest and /workspace mount. The tests create isolated namespaces and restore the original namespace themselves. They do not need a running Ze daemon. A SKIP is unverified, never PASS.
+
+Exact RED guest command (30-second test deadline):
+/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/rsvp-control-red.test -test.v '-test.run=^TestIntegrationRSVPPathAvoidsDataFEC$' -test.timeout=30s
+
+Expected RED: the positive control first proves endpoint encapsulation with label 16011. The ordinary PATH then fails with "ordinary PATH entered endpoint data FEC with labels [16011]". This is a predicted outcome, not an observed result. A build failure, prerequisite skip, empty capture or a failure in the FEC positive control does not establish the regression.
+
+Exact GREEN guest command (60-second test deadline):
+/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/rsvp-control-green.test -test.v '-test.run=^TestIntegrationRSVP(PathCarriage|PathAvoidsDataFEC|SelectedBypass|ReceiveOversize|CloseIdle)$' -test.timeout=60s
+
+Accept GREEN only when all five top-level tests PASS without skips. The new case requires the installed endpoint FEC's labeled positive control, then plain IPv4 PATH at the adjacent peer's MAC and production Recv channel. Existing assertions check original source/destination, Router Alert, Send_TTL, RSVP payload, receive interface and metadata. The selected-bypass case retains its label/interface selection, missing-context rejection, concurrent send and socket-mark clearing assertions.
+
+The new case calls native ResolveRoute after installing the FEC and passes NextHop, Lookup and IfIndex unchanged into SendPath, as the producer does. The payload starts with the adjacent strict ERO hop followed by the loose endpoint. This tests carriage of that expanded route; it does not independently prove engine expansion or end-to-end LSP state.
+
+Full producer confirmation remains Main's separate acceptance step. Rebuild BOTH the native carrier and the Ze daemon against the fixed transport source before a new invocation of the existing capture-native-guest.py producer runner. Preserve Main's loopback-RPF correction and other fixture changes. On the ordinary loose tunnel, data UDP must remain MPLS-carried while PATH refreshes reach M as IPv4 protocol 46 with the original source/destination and Router Alert. M must consume its initial ERO subobject before relaying. The explicit facility-bypass control path must retain its selected MPLS context. Keep the existing run deadline and evidence capture; do not count an old daemon paired with a new carrier as after-fix proof.
+
+Modified existing files:
+internal/plugins/rsvpte/transport_linux.go
+internal/plugins/rsvpte/transport_integration_linux_test.go
+docs/architecture/rsvpte/mpls-rsvp-te.md
+
+New evidence files in this directory:
+diagnosis.txt
+proof.txt
+red-overlay.json
+internal__plugins__rsvpte__transport_linux.go.before.txt
+internal__plugins__rsvpte__transport_integration_linux_test.go.before.txt
+docs__architecture__rsvpte__mpls-rsvp-te.md.before.txt
+internal__plugins__rsvpte__transport.go.before.txt
+internal__plugins__rsvpte__routing.go.before.txt
+internal__plugins__rsvpte__engine.go.before.txt
+
+No producer_integration_linux_test.go, kernel/FIB source, journal, baseline metadata, staging or commit changes were made by this writer. No formatting, tests, builds or runtime commands were executed.

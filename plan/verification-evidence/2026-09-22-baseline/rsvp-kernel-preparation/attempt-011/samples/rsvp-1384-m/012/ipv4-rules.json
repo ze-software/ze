@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "ip",
+    "netns",
+    "exec",
+    "rsvp-1384-m",
+    "ip",
+    "-4",
+    "rule",
+    "show"
+  ],
+  "started": {
+    "unix_ns": 1790097369226055854,
+    "monotonic_ns": 79319456885
+  },
+  "exit_code": 0,
+  "stdout": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-011/samples/rsvp-1384-m/012/ipv4-rules.stdout",
+  "stderr": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-011/samples/rsvp-1384-m/012/ipv4-rules.stderr",
+  "pid": 1756,
+  "status": "ok",
+  "finished": {
+    "unix_ns": 1790097369237589635,
+    "monotonic_ns": 79330991831
+  }
+}

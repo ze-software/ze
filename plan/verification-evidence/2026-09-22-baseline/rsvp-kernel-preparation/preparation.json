@@ -1,0 +1,120 @@
+{
+  "status": "prepared-not-run",
+  "date": "2026-09-22",
+  "scope": "Reuse one existing native RSVP producer carrier. No package/fabric baseline, mutation population, product edit, harness edit, build, or runtime validation was performed by this preparation worker.",
+  "selected_carrier": {
+    "package": "./internal/plugins/rsvpte",
+    "build_tags": ["integration"],
+    "test": "TestRSVPNativeProducer",
+    "source": "internal/plugins/rsvpte/producer_integration_linux_test.go",
+    "selection": "^TestRSVPNativeProducer$",
+    "reason": "This existing carrier already launches three complete Ze daemons and crosses configuration, raw RSVP, native forwarding acknowledgement, installed netlink state and packet delivery. Its scenarios are one top-level test, so the smallest unchanged selection includes its existing FRR cases.",
+    "observer": "TestRSVPNativeProducerObserver is invoked by each daemon as an external read-only SDK plugin. rsvpProducerObserve subscribes to lsp-up and reads AF_INET/AF_MPLS routes; it never accepts or installs FIB entries.",
+    "config_source": "rsvpProducerNode.configuration, rsvpProducerTunnel and rsvpProducerBypass produce all configs. No parallel configuration set is needed."
+  },
+  "commands_for_main": {
+    "compile_carrier_if_no_matching_artifact": "CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go test -c -tags integration -o plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/rsvpte.test ./internal/plugins/rsvpte",
+    "compile_boundary": "Preparation only: this command has not been run. Main owns compilation and must retain its command, output and binary/source provenance. The carrier and daemon must correspond to the source under examination.",
+    "native_host_execution": "bin/le-testing-baseline-final/le le qemu run kernel tmp/kernel/build/vmlinuz packages 'iproute2 python3 strace' timeout 8m command 'python3 /workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/run-guest.py /workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/rsvpte.test /workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/testbin-baseline-noauth-fixed-7e722ae0/bin/ze /workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-001'",
+    "artifact_selection": "Main must replace the daemon and carrier arguments with its selected matching artifacts and choose a fresh attempt directory. The session daemon above is an available runtime input supplied by Main, not evidence. Save the host action stdout/stderr under rsvp-kernel-preparation as well.",
+    "bare_guest_carrier": "/absolute/guest/path/rsvpte.test -test.v -test.run '^TestRSVPNativeProducer$' -test.timeout 4m -rsvp-producer-daemon /absolute/guest/path/ze",
+    "bare_guest_boundary": "The bare command is the shortest executable proof. The provided wrapper adds durable syscall evidence because the existing carrier removes its testing.T temporary files and keeps AF_PACKET captures in memory. Use the wrapper for the durable evidence run.",
+    "native_action_sources": [
+      "internal/le/qemu/actions.go: actions (qemu run)",
+      "internal/le/qemu/run_exec.go: Run.executePlan, Run.assertRuntimeKernel",
+      "docs/architecture/testing/qemu-integration.md: Running ONE .ci test in a throwaway guest; A run boots ze's kernel when it is given one"
+    ]
+  },
+  "requirements": {
+    "host": ["QEMU for amd64", "OpenSSH client", "native le tool dependencies", "available runtime kernel tmp/kernel/build/vmlinuz", "centralized QEMU scheduling by Main"],
+    "guest": ["root", "iproute2", "python3 with hashlib.file_digest (3.11 or newer)", "strace and ptrace support for durable capture", "CAP_SYS_ADMIN", "CAP_NET_ADMIN", "CAP_NET_RAW", "CONFIG_NET_NS", "CONFIG_VETH", "CONFIG_PACKET", "CONFIG_IP_MULTIPLE_TABLES", "CONFIG_MPLS_ROUTING", "CONFIG_MPLS_IPTUNNEL"],
+    "daemon": ["statically linked Linux amd64 artifact", "ze_core registered start verb", "ze_rsvpte feature composition", "OSPF", "interface/netlink", "fib-kernel", "sysctl", "SSH and configured authentication/authorization", "external SDK plugin support"],
+    "namespace_setup": "newRSVPProducerLab configures forwarding, rp_filter, MPLS platform_labels and MPLS input inside private namespaces. The resulting proof does not cover product-driven interface/sysctl provisioning.",
+    "kernel_boundary": "The native action checks the booted release against internal/appliance/kernel.version when kernel is supplied. The wrapper also records uname. A capability skip, a host-only run, or an Alpine-default kernel run leaves the shipping-kernel question unverified."
+  },
+  "production_chain": [
+    "cmd/ze/ze_core_dispatch.go: registered start handler -> cmdStart",
+    "cmd/ze/ze_core_start.go: cmdStart explicit-file mode -> hub.Run with bound config source",
+    "internal/component/plugin/all/all_ze_rsvpte.go: ze_rsvpte feature import",
+    "internal/plugins/rsvpte/register.go: registerRSVPTE declares fib-kernel/sysctl dependencies and runRSVPTEEngine; OnStarted constructs the production raw transport and busFIB; OnConfigApply calls reconcileTunnels",
+    "internal/plugins/rsvpte/engine.go: handlePathEgress installs programPop before emitting RESV and Up",
+    "internal/plugins/rsvpte/reservation.go: acceptReservation calls installReservation before RESV/Up; installReservation selects swap or push",
+    "internal/plugins/rsvpte/fib.go: busFIB.emit -> mplsfib.Apply",
+    "internal/core/mplsfib/events.go: Apply rejects absent native acknowledgement and propagates owner errors",
+    "internal/plugins/fib/kernel/mplsentry_linux.go: netlinkBackend.addMPLSSwap installs AF_MPLS routes, including pop through loopback"
+  ],
+  "assertions": [
+    {
+      "name": "native-owner-refusal",
+      "producer": "TestRSVPNativeProducer; rsvpProducerNode.requireNoUp; rsvpProducerLab.requireNoMessage",
+      "success": "An occupied native egress label causes PathErr for tunnel 91; after repeated PATH refresh, no daemon reports Up, no observer records Up, no RESV is captured, and the foreign protocol-100 label remains.",
+      "failure": "Any Up/RESV after the refused install or replacement of the foreign label."
+    },
+    {
+      "name": "installed-state-at-up",
+      "producer": "rsvpProducerObserve; rsvpProducerNode.requireUpRoute; rsvpProducerNode.requirePush",
+      "success": "Observer snapshots contain the owner-protocol route at each asserted Up: ingress FEC, table and outgoing label; transit/egress matching nonzero incoming label. Bypass lookups return the expected private table-selected label stack and output device, with the carrier's MTU assertion.",
+      "failure": "Up without an installed route, plain-IP push lookup, wrong labels/device, or rejected MTU assertion."
+    },
+    {
+      "name": "actual-forwarding",
+      "producer": "rsvpProducerLab.deliver; rsvpProducerLab.capture",
+      "success": "Fresh dynamically allocated destination sockets receive the exact payload and unchanged ingress IP source. Inbound AF_PACKET capture on M observes the same payload, negotiated label stack and selected link destination MAC. Cases include loose-native, primary-native, context-a, context-b and repaired-native.",
+      "failure": "Receive timeout, wrong payload/source/labels/MAC, capture failure, or missing inbound frame. Mere socket send success is insufficient."
+    },
+    {
+      "name": "withdrawal-and-surviving-forwarding",
+      "producer": "TestRSVPNativeProducer; rsvpProducerLab.requireStaleBlocked",
+      "success": "SIGHUP removal produces the protected PathTear; removing bypass a leaves b delivering b-survives-reload. Sending through removed a returns ENETUNREACH and its payload never appears on the capture, while an unmarked positive-control payload reaches the same destination/link. After daemon shutdown both former context marks are blocked and unmarked forwarding still works.",
+      "failure": "Withdrawn context sends successfully, its payload escapes through ordinary routing, surviving b stops delivering, or the positive control fails."
+    }
+  ],
+  "durable_outputs": {
+    "producer.log": "Exact selected carrier output including PASS/FAIL/SKIP and failure daemon logs.",
+    "network.trace": "strace follows the test and its children and records network syscalls without fault injection. Retains netlink route replies, AF_PACKET frame receives, successful UDP receives and withdrawal ENETUNREACH errors before carrier cleanup.",
+    "invocation.json": "Exact executed argv, kernel release, input executable hashes and source snapshot hashes.",
+    "sources/": "Copies of assertion and producer sources used to interpret the trace; Main must establish that binaries match them.",
+    "result.json": "Carrier status based on exact test PASS, process exit, absence of test SKIP and a nonempty trace. It does not independently decode captured bytes or establish foreign interoperability.",
+    "guest-process-status.txt": "Guest UID and capability context.",
+    "ip-version.txt": "iproute2 version used by namespace launch."
+  },
+  "pass_policy": "Accept kernel evidence only after the selected carrier executes all its assertions without skip/failure, its binary provenance matches the saved source, the native host action confirms the selected runtime kernel and durable trace/log files exist. A prepared driver, successful compilation, nonempty trace, or exit zero with SKIP is insufficient.",
+  "other_existing_carriers": [
+    {
+      "source": "internal/plugins/rsvpte/transport_integration_linux_test.go: TestIntegrationRSVPPathCarriage, TestIntegrationRSVPSelectedBypass",
+      "boundary": "Production raw transport and Linux namespace packet carriage, with hand-built signaling state. Useful diagnostics but no full daemon producer acceptance proof on their own. Do not repeat for this preparation."
+    },
+    {
+      "source": "internal/plugins/fib/kernel/mplsentry_integration_linux_test.go and mplsframe_integration_linux_test.go",
+      "boundary": "Kernel MPLS entries and frame forwarding driven directly at the FIB boundary; does not establish RSVP producer coupling."
+    },
+    {
+      "source": "internal/le/qemu/alltests.go: vmSuites and integration package population; internal/le/qemu/guestlabs.go: netnsSuiteNames",
+      "boundary": "all-tests includes rsvpte; qemu netns-test targets firewall/policy/ospf/ospfv3/pppoe and has no RSVP selector. Use qemu run with the precise carrier instead of all-tests or an invented RSVP action."
+    },
+    {
+      "source": "test/rsvpte/rsvpte-lsp-setup.ci; internal/test/fixture/routing_fixture.go: rsvpteSetupScenario",
+      "boundary": "Single-daemon configuration and show coverage; no peer or labeled end-to-end forwarding proof."
+    }
+  ],
+  "foreign_peer": {
+    "status": "missing-prerequisite-in-repository-labs",
+    "named_peer": null,
+    "searched": ["contrib/netlab", "docs/labs", "website/labs", "test/interop", "internal/le/interoplab", "internal/le/qemu/guestlabs.go"],
+    "evidence": "Case-insensitive searches for RSVP, rsvpd, rsvpte and rsvp-te returned no matching lab configuration in these roots. Interop lab directories cover BGP, IPsec, PPPoE, L2TP and RADIUS. test/rsvpte/rsvpte-lsp-setup.ci explicitly describes its missing live RSVP peer.",
+    "scope": "This establishes absence from the inspected repository labs, not absence of possible external implementations or owner-managed equipment.",
+    "required_before_claim": "A named independent RSVP implementation/version, accessible image or device, runnable configuration, compatible protocol/topology and captured PATH/RESV plus labeled packet/withdrawal evidence.",
+    "kernel_independence": "Ze-to-Ze is sufficient to attempt the native producer/kernel coupling question. It cannot be reported as foreign or cross-vendor RSVP interoperability."
+  },
+  "bounded_limitations": [
+    "No runtime result is claimed, and the driver was not executed or syntax-checked under this preparation-only assignment.",
+    "The unchanged carrier also depends on native OSPF adjacency/identity, SSH readiness and config reload; failures there block this execution rather than prove an RSVP kernel defect.",
+    "The carrier checks kernel-route snapshots when its asynchronous Up observer handles the event; it does not timestamp netlink installation against the instant the producer publishes the event. Source sequencing and the real EEXIST negative case support the acceptance-order boundary.",
+    "Normal tunnel removal asserts session disappearance and protected PathTear; the discriminating post-withdrawal packet check is for private bypass contexts. Do not expand it into proof that every downstream AF_MPLS label is absent after all ordinary withdrawals.",
+    "The carrier validates end-to-end delivery and incoming label stacks at M; it does not assert a standalone captured swap label on every transit link.",
+    "strace adds observation overhead. A timeout remains a failed or incomplete attempt; do not turn it into a pass. Preserve the trace to distinguish readiness, timeout and dataplane assertions.",
+    "The carrier has an explicit native-push MTU assertion. Failure of that assertion must be inspected against current producer/kernel semantics, without weakening it merely to obtain a pass.",
+    "RESV_CONFIRM is requested by augmenting a genuinely captured reservation; this injected request does not constitute a foreign-peer implementation.",
+    "The already-passed package/fabric baseline and 25 selected mutation claims are intentionally outside this execution."
+  ]
+}

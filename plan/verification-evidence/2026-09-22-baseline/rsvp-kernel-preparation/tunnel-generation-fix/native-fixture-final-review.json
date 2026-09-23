@@ -1,0 +1,6 @@
+{
+  "overall_correctness": "correct",
+  "explanation": "No findings within this delta: internal/plugins/rsvpte/producer_integration_linux_test.go::TestRSVPNativeProducer observes automatic retirement using the repaired sender and bypass-a label, then verifies a distinct established replacement and its withdrawal over bypass-b and tail; requireNoSelectedControl checks both SENDER_TEMPLATE and decoded FILTER_SPEC generations, retaining the relevant wrong-path rejection without rejecting legitimate replacement traffic. In that file, start registers shutdown cleanup after successful Start and before readiness checks, while stopDaemon owns SIGTERM, checks both already-exited and awaited nonzero exits, and retains the 10-second grace period followed by kill/reap; requireStaleBlocked requires ENETUNREACH, and deliver supplies an ordinary-route positive control with exact payload, source, label-stack and destination-MAC checks. Inspected attempt-014/result.json and producer.stdout record the exact test PASS in 17.57 seconds with no skips, unlike attempt-013's cleanup failure: this is native Ze-to-Ze evidence with an injected confirmation request, not independent RSVP-peer interoperability or full RFC conformance, and no validation commands were run during this review.",
+  "confidence": 0.91,
+  "findings": []
+}

@@ -1,0 +1,17 @@
+{
+  "index_argv": [
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le",
+    "le",
+    "docs-to-code",
+    "index-update"
+  ],
+  "verify_argv": [
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le",
+    "le",
+    "doc",
+    "check",
+    "verify"
+  ],
+  "changed_doc": "docs/guide/rsvp-te.md",
+  "reason": "Correct reply-source, explicit-bypass and reservation-admission descriptions against their producing functions."
+}

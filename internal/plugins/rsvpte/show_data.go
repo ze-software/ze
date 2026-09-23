@@ -17,7 +17,7 @@ func showSessions(lspTable *lspTable) any {
 		SenderAddr     string   `json:"sender-address"`
 		State          string   `json:"state"`
 		Role           string   `json:"role"`
-		Bandwidth      float32  `json:"bandwidth"`
+		Bandwidth      float64  `json:"bandwidth"`
 		InLabel        uint32   `json:"in-label"`
 		OutLabel       uint32   `json:"out-label"`
 		ERO            []string `json:"ero,omitempty"`
@@ -77,7 +77,7 @@ func showTunnels(lspTable *lspTable) any {
 		TunnelEndpoint string  `json:"tunnel-endpoint"`
 		TunnelID       uint16  `json:"tunnel-id"`
 		State          string  `json:"state"`
-		Bandwidth      float32 `json:"bandwidth"`
+		Bandwidth      float64 `json:"bandwidth"`
 		EROHops        int     `json:"ero-hops"`
 	}
 	lsps := lspTable.All()

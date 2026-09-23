@@ -1,0 +1,28 @@
+{
+  "argv": [
+    "ip",
+    "netns",
+    "exec",
+    "rsvp-1372-m",
+    "ip",
+    "-4",
+    "-details",
+    "route",
+    "show",
+    "table",
+    "all"
+  ],
+  "started": {
+    "unix_ns": 1790093185210770410,
+    "monotonic_ns": 37564997095
+  },
+  "exit_code": 0,
+  "stdout": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-008/samples/rsvp-1372-m/001/ipv4-routes.stdout",
+  "stderr": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-008/samples/rsvp-1372-m/001/ipv4-routes.stderr",
+  "pid": 1426,
+  "status": "ok",
+  "finished": {
+    "unix_ns": 1790093185227053658,
+    "monotonic_ns": 37581279732
+  }
+}

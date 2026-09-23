@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "ip",
+    "netns",
+    "exec",
+    "rsvp-1363-e",
+    "ip",
+    "-4",
+    "-statistics",
+    "neigh",
+    "show"
+  ],
+  "started": {
+    "unix_ns": 1790113676221759258,
+    "monotonic_ns": 48837672167
+  },
+  "exit_code": 0,
+  "stdout": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-013/samples/rsvp-1363-e/006/neighbors.stdout",
+  "stderr": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-013/samples/rsvp-1363-e/006/neighbors.stderr",
+  "pid": 1607,
+  "status": "ok",
+  "finished": {
+    "unix_ns": 1790113676235543701,
+    "monotonic_ns": 48851457001
+  }
+}

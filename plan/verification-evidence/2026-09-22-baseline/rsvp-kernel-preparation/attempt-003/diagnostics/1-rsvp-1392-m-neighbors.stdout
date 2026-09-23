@@ -1,0 +1,17 @@
+[
+  {
+    "address": "10.12.0.1",
+    "area": "0.0.0.0",
+    "bdr": "",
+    "dd-sequence": 0,
+    "dead-time": 0,
+    "dr": "",
+    "interface": "bypass-a",
+    "master": false,
+    "opaque-capable": false,
+    "priority": 1,
+    "request-count": 0,
+    "router-id": "198.18.1.1",
+    "state": "down"
+  }
+]

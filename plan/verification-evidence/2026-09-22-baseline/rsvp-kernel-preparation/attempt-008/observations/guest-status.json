@@ -1,0 +1,20 @@
+{
+  "argv": [
+    "/usr/bin/python3",
+    "-c",
+    "from pathlib import Path; print(Path('/proc/self/status').read_text(), end='')"
+  ],
+  "started": {
+    "unix_ns": 1790093182536169429,
+    "monotonic_ns": 34890395001
+  },
+  "exit_code": 0,
+  "stdout": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-008/observations/guest-status.stdout",
+  "stderr": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-008/observations/guest-status.stderr",
+  "pid": 1371,
+  "status": "ok",
+  "finished": {
+    "unix_ns": 1790093182611475880,
+    "monotonic_ns": 34965703367
+  }
+}

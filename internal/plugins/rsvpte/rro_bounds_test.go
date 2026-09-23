@@ -11,20 +11,22 @@ import (
 
 func TestPrependRROCapsDepth(t *testing.T) {
 	// VALIDATES: F9 -- prependRRO bounds the recorded route so a long path or a
-	// routing loop cannot grow it past what the message buffer can encode, and
-	// reports the truncation so callers can surface it (not silent).
+	// routing loop cannot grow it past what the message buffer can encode: an
+	// over-limit route is dropped whole (RFC 3209 Section 4.4.3) and the drop is
+	// reported so callers can surface it (not silent).
 	down := make([]rroEntry, maxRecordRouteHops+10)
 	for i := range down {
 		down[i] = rroEntry{Type: RROSubIPv4, Address: netip.MustParseAddr("10.0.0.2")}
 	}
-	out, truncated := prependRRO(netip.MustParseAddr("10.0.0.1"), down)
-	assert.LessOrEqual(t, len(out), maxRecordRouteHops)
-	assert.True(t, truncated, "an over-limit recorded route must report truncation, not drop hops silently")
+	out, dropped := prependRRO(netip.MustParseAddr("10.0.0.1"), down, 0)
+	assert.Empty(t, out, "an over-limit recorded route is dropped whole, never truncated")
+	assert.True(t, dropped, "an over-limit recorded route must report the drop, not lose the RRO silently")
 
-	// A route within the limit is not flagged as truncated.
+	// A route within the limit is kept and not flagged as dropped.
 	short := []rroEntry{{Type: RROSubIPv4, Address: netip.MustParseAddr("10.0.0.2")}}
-	_, shortTrunc := prependRRO(netip.MustParseAddr("10.0.0.1"), short)
-	assert.False(t, shortTrunc, "a short recorded route is not truncated")
+	kept, shortDropped := prependRRO(netip.MustParseAddr("10.0.0.1"), short, 0)
+	assert.Len(t, kept, 2)
+	assert.False(t, shortDropped, "a short recorded route is not dropped")
 }
 
 func TestBuildResvOverlongRRODoesNotOverflow(t *testing.T) {
@@ -42,8 +44,11 @@ func TestBuildResvOverlongRRODoesNotOverflow(t *testing.T) {
 	filter := senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1}
 	raw := buildResv(rsb, filter, DefaultRefreshPeriod, netip.MustParseAddr("10.0.0.5"))
 	assert.LessOrEqual(t, len(raw), maxRSVPMessage, "encoded RESV must fit the fixed message buffer")
-	_, err := DecodeMessage(raw)
-	require.NoError(t, err, "truncated-RRO RESV must still decode")
+	msg, err := DecodeMessage(raw)
+	require.NoError(t, err, "a RESV without the overlong RRO must still decode")
+	require.Len(t, msg.FlowDescriptors, 1)
+	require.Len(t, msg.FlowDescriptors[0].Filters, 1)
+	assert.False(t, msg.FlowDescriptors[0].Filters[0].HasRRO, "the encoder must drop the entire oversized RRO")
 }
 
 func TestDecodeRROCapsEntries(t *testing.T) {

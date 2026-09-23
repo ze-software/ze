@@ -1,0 +1,10 @@
+unicast 10.14.0.0/24 dev tail table main proto kernel scope link src 10.14.0.2 
+unicast 198.18.1.0/24 via 10.14.0.1 dev tail table main proto 100 scope global 
+unicast 198.18.2.0/24 via 10.14.0.1 dev tail table main proto 100 scope global 
+local 10.14.0.2 dev tail table local proto kernel scope host src 10.14.0.2 
+broadcast 10.14.0.255 dev tail table local proto kernel scope link src 10.14.0.2 
+local 127.0.0.0/8 dev lo table local proto kernel scope host src 127.0.0.1 
+local 127.0.0.1 dev lo table local proto kernel scope host src 127.0.0.1 
+broadcast 127.255.255.255 dev lo table local proto kernel scope link src 127.0.0.1 
+local 198.18.3.1 dev lo table local proto kernel scope host src 198.18.3.1 
+local 198.18.3.2 dev lo table local proto kernel scope host src 198.18.3.2 

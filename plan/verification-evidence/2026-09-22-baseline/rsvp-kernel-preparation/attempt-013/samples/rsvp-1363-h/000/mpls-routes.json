@@ -1,0 +1,29 @@
+{
+  "argv": [
+    "ip",
+    "netns",
+    "exec",
+    "rsvp-1363-h",
+    "ip",
+    "-f",
+    "mpls",
+    "-details",
+    "route",
+    "show",
+    "table",
+    "all"
+  ],
+  "started": {
+    "unix_ns": 1790113663850224266,
+    "monotonic_ns": 36466137857
+  },
+  "exit_code": 0,
+  "stdout": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-013/samples/rsvp-1363-h/000/mpls-routes.stdout",
+  "stderr": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-013/samples/rsvp-1363-h/000/mpls-routes.stderr",
+  "pid": 1378,
+  "status": "ok",
+  "finished": {
+    "unix_ns": 1790113663891910425,
+    "monotonic_ns": 36507822954
+  }
+}

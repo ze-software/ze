@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/iface/netlink/monitor_linux.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/link-down-fix/before/internal__plugins__iface__netlink__monitor_linux.go"
+  }
+}

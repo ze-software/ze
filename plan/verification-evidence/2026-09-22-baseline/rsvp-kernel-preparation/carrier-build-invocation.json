@@ -1,0 +1,14 @@
+{
+  "command": "env CGO_ENABLED=0 bin/le-testing-baseline-final/le le job run label baseline-rsvp-native-carrier command go test -c -tags integration -o tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/rsvp-kernel-runtime/rsvpte.test ./internal/plugins/rsvpte",
+  "result": {
+    "text": "Backgrounded as job bg_1; result will be delivered automatically.",
+    "details": {
+      "async": {
+        "state": "running",
+        "jobId": "bg_1",
+        "type": "bash"
+      },
+      "timeoutSeconds": 600
+    }
+  }
+}

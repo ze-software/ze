@@ -173,9 +173,9 @@ func TestReconcileInterfacesRemovesDropped(t *testing.T) {
 	require.Len(t, prev, 2)
 
 	// Both links carry a live reservation before the reload.
-	sess := sessionID{endpoint: netip.MustParseAddr("10.0.0.9"), tunnelID: 1}
-	require.NoError(t, adm.reserveSession("eth0", sess, 2e8))
-	require.NoError(t, adm.reserveSession("eth1", sess, 3e8))
+	key := lspKey{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1}
+	require.NoError(t, adm.reserve("eth0", key, StyleSharedExplicit, 2e8))
+	require.NoError(t, adm.reserve("eth1", key, StyleSharedExplicit, 3e8))
 
 	// The operator removes eth1 and commits.
 	cfg.Interfaces = cfg.Interfaces[:1]

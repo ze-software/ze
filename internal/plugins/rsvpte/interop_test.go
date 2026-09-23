@@ -7,12 +7,13 @@
 // encoded bytes (buildPath via sendPath, buildResv/buildPathErr inside the
 // handlers) are delivered to the peer's DecodeMessage. Nothing in the exchange is
 // hand-built: a test only originates an LSP at the head-end and inspects the
-// resulting state, labels, RRO and FIB programming at every node. A green run is
-// the fully-open evidence that ze's RSVP-TE encoder and decoder agree on the wire
-// across nodes, in the absence of any open-source RSVP-TE peer to interop against.
+// resulting state, labels, RRO and FIB programming at every node. These tests
+// exercise codecs and engine state transitions, not native socket routing or
+// MPLS packet forwarding.
 package rsvpte
 
 import (
+	"fmt"
 	"net/netip"
 	"sync"
 	"testing"
@@ -23,15 +24,8 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
 
-// fabric is an in-memory RSVP transport mesh. A node's Send is delivered to the
-// next node along the path as a Packet whose Src is the sender's router address
-// (the (src, payload) shape the real raw-IP transport yields on Recv). RESV,
-// PathErr and PathTear go to their addressed destination; a PATH instead follows
-// its explicit route -- it is delivered to the first remaining ERO hop, modeling
-// the Router Alert hop-by-hop interception RSVP-TE relies on. Each node strips
-// itself from the ERO before relaying (engine.nextHopFromERO), so ERO[0] is always
-// the immediate downstream neighbor. A packet to an unattached address is dropped,
-// as on a real network with no listener.
+// fabric delivers to the next hop explicitly selected by the engine. It never
+// decodes an ERO to repair a wrong transport destination.
 type fabric struct {
 	mu    sync.Mutex
 	ports map[netip.Addr]*fabricPort
@@ -65,32 +59,47 @@ func (fab *fabric) attach(self netip.Addr) *fabricPort {
 }
 
 func (p *fabricPort) Send(dst netip.Addr, msg []byte) error {
-	cp := append([]byte(nil), msg...) // the engine reuses its send buffer; copy out
+	return p.deliver(dst, Packet{Src: p.self, Dst: dst, Payload: append([]byte(nil), msg...)})
+}
 
-	// A PATH follows its explicit route: deliver to the first remaining ERO hop
-	// (the immediate downstream neighbor), not straight to the tunnel endpoint.
-	deliverTo := dst
+func (p *fabricPort) SendPath(route PathRoute, msg []byte) error {
+	return p.deliver(route.NextHop, Packet{Src: route.Source, Dst: route.Destination, Payload: append([]byte(nil), msg...)})
+}
+
+func (p *fabricPort) deliver(dst netip.Addr, pkt Packet) error {
 	var msgType uint8
-	if parsed, err := DecodeMessage(cp); err == nil {
+	if parsed, err := DecodeMessage(pkt.Payload); err == nil {
 		msgType = parsed.Header.MsgType
-		if msgType == MsgTypePath && parsed.HasERO && len(parsed.ERO) > 0 {
-			deliverTo = parsed.ERO[0].Address.Addr()
-		}
 	}
-
 	p.fab.mu.Lock()
-	p.fab.tap = append(p.fab.tap, deliveredMsg{dst: deliverTo, msgType: msgType})
-	peer := p.fab.ports[deliverTo]
+	p.fab.tap = append(p.fab.tap, deliveredMsg{dst: dst, msgType: msgType})
+	peer := p.fab.ports[dst]
 	p.fab.mu.Unlock()
-	if peer == nil {
-		return nil // no node at the destination: dropped, like a packet to nowhere
+	if peer != nil {
+		peer.recvCh <- pkt
 	}
-	peer.recvCh <- Packet{Src: p.self, Payload: cp}
 	return nil
 }
 
 func (p *fabricPort) Recv() <-chan Packet { return p.recvCh }
 func (p *fabricPort) Close() error        { return nil }
+
+func (p *fabricPort) LocalAddresses() ([]InterfaceAddress, error) {
+	return []InterfaceAddress{{Address: p.self, Up: true, MTU: 1500}}, nil
+}
+
+func (p *fabricPort) ResolveRoute(target netip.Prefix, destination netip.Addr, _ uint32) (RouteInfo, error) {
+	next := target.Addr()
+	if target.Contains(destination) {
+		next = destination
+	}
+	p.fab.mu.Lock()
+	defer p.fab.mu.Unlock()
+	if _, ok := p.fab.ports[next]; !ok {
+		return RouteInfo{}, fmt.Errorf("no fabric node at %s", next)
+	}
+	return RouteInfo{NextHop: next, Lookup: next, MTU: 1500}, nil
+}
 
 // delivered counts packets of msgType the fabric routed to dst.
 func (fab *fabric) delivered(dst netip.Addr, msgType uint8) int {
@@ -162,6 +171,8 @@ func originateLSPProtected(t *testing.T, e *engine, sender, endpoint netip.Addr,
 	psb := &pathStateBlock{
 		Session:        sessionIPv4{TunnelEndpoint: endpoint, TunnelID: tunnelID, ExtTunnelID: 0x0a000001},
 		SenderTemplate: senderTemplateIPv4{SenderAddr: sender, LSPID: 1},
+		RRO:            []rroEntry{{Type: RROSubIPv4, Address: sender}},
+		RecordRoute:    true,
 		SenderTSpec:    FlowSpec{TokenRate: 1e8, TokenBucket: 1e8, PeakRate: 1e8},
 		LabelRequest:   labelRequest{L3PID: 0x0800},
 		RefreshPeriod:  DefaultRefreshPeriod,

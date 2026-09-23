@@ -1,0 +1,200 @@
+--- before/internal/plugins/ospf/instance.go
++++ internal/plugins/ospf/instance.go
+@@ -945,7 +945,7 @@
+ 		rt.SetEventSink(e.sink)
+ 	}
+ 	if e.neighbors != nil {
+-		rt.SetNeighborSink(nsmAdapter{table: e.neighbors, ipsec: e.ipsec, onChange: e.originateSelfLSAs, onChangeDeferred: e.originateSelfLSAsDeferred, auth: e.auth})
++		rt.SetNeighborSink(nsmAdapter{table: e.neighbors, ipsec: e.ipsec, onChange: e.originateSelfLSAsDeferred, auth: e.auth})
+ 	}
+ 	e.interfaces[ic.Name] = rt
+ 	if ic.Passive || ic.NetworkType == types.NetworkLoopback || e.transport == nil || e.transport.InterfaceOpen(ic.Name) {
+@@ -1103,7 +1103,7 @@
+ 		s.onLost(snap)
+ 	}
+ 	if s.onChange != nil {
+-		go s.onChange()
++		s.onChange()
+ 	}
+ }
+ 
+@@ -1113,12 +1113,11 @@
+ 	// and on a virtual link. It is told each neighbor's link-local by the Hello and each
+ 	// drop by the state machine, and installs and removes that neighbor's outbound SA.
+ 	ipsec *ipsecInstaller
+-	// onChange re-originates the self-LSAs inline. onChangeDeferred does the same on a
+-	// goroutine the engine joins, and InterfaceDown MUST use it: that callback arrives from
+-	// under the engine's mu, which the origination itself takes.
+-	onChange         func()
+-	onChangeDeferred func()
+-	auth             *authStore
++	// onChange queues a topology re-evaluation on the engine's maintenance worker.
++	// It MUST NOT originate inline: receive callbacks must return without waiting
++	// for topology queries, and InterfaceDown can arrive under the engine's mu.
++	onChange func()
++	auth     *authStore
+ }
+ 
+ var _ ospfiface.NeighborSink = nsmAdapter{}
+@@ -1195,8 +1194,8 @@
+ 	if a.auth != nil {
+ 		a.auth.resetInterface(interfaceName)
+ 	}
+-	if a.onChangeDeferred != nil {
+-		a.onChangeDeferred()
++	if a.onChange != nil {
++		a.onChange()
+ 	}
+ }
+ 
+--- before/internal/plugins/ospf/bfd_client.go
++++ internal/plugins/ospf/bfd_client.go
+@@ -113,7 +113,7 @@
+ 		sink:     e.sink,
+ 		onFull:   e.onNeighborFull,
+ 		onLost:   e.bfdNeighborLost,
+-		onChange: e.originateSelfLSAs,
++		onChange: e.originateSelfLSAsDeferred,
+ 	}
+ }
+ 
+--- before/internal/plugins/ospf/virtual_link.go
++++ internal/plugins/ospf/virtual_link.go
+@@ -256,7 +256,7 @@
+ 	// interface" for a virtual link, keyed on the global endpoint addresses, and ze
+ 	// configures no such SA (rfc/short/rfc4552.md, RFC4552-9-1). The interface installer
+ 	// holds nothing under a virtual link's name, so wiring it here would protect nothing.
+-	ifc.SetNeighborSink(nsmAdapter{table: e.neighbors, onChange: e.originateSelfLSAs, onChangeDeferred: e.originateSelfLSAsDeferred, auth: e.auth})
++	ifc.SetNeighborSink(nsmAdapter{table: e.neighbors, onChange: e.originateSelfLSAsDeferred, auth: e.auth})
+ 	rt.iface = ifc
+ 	e.interfaces[rt.name] = ifc
+ 	if e.neighbors != nil {
+--- /dev/null
++++ internal/plugins/ospf/receive_origination_test.go
+@@ -0,0 +1,126 @@
++// Design: docs/architecture/ospf/ospf-7-lsdb-flooding.md -- receive-side origination notifications.
++package ospf
++
++import (
++	"net/netip"
++	"sync"
++	"sync/atomic"
++	"testing"
++	"testing/synctest"
++
++	ospflsdb "github.com/ze-software/ze/internal/plugins/ospf/lsdb"
++	"github.com/ze-software/ze/internal/plugins/ospf/packet"
++	"github.com/ze-software/ze/internal/plugins/ospf/transport"
++	"github.com/ze-software/ze/internal/plugins/ospf/types"
++)
++
++// VALIDATES: Hello and Full-state processing leave receive progress independent
++// of a blocked topology read. Changes during that read cause another pass without
++// a timer tick.
++// PREVENTS: synchronous neighbor origination starving the engine's receive loop,
++// or a notification arriving during active origination being discarded.
++func TestReceiveProgressWhileOriginationBlocked(t *testing.T) {
++	synctest.Test(t, func(t *testing.T) {
++		cfg, err := parseOSPFConfig(ospfSec(`{"ospf":{"router-id":"10.0.0.1","areas":{"area":{"0":{"area-id":"0"}}},"interfaces":{"interface":{"eth0":{"area":"0","network-type":"point-to-point","cost":"10"},"eth1":{"area":"0","network-type":"point-to-point","cost":"10"},"eth2":{"area":"0","network-type":"point-to-point","cost":"10"}}}}}`), nil)
++		if err != nil {
++			t.Fatalf("parseOSPFConfig: %v", err)
++		}
++		fb := &fakeBackend{}
++		eng := newEngine(transport.New(fb))
++		eng.setConfig(cfg)
++		eng.lsdb.SetTopology(func() []ospflsdb.InterfaceInfo { return nil })
++		release := make(chan struct{})
++		releaseWork := sync.OnceFunc(func() { close(release) })
++		defer func() {
++			releaseWork()
++			eng.shutdown()
++		}()
++		if err := eng.openInterfaces(); err != nil {
++			t.Fatalf("openInterfaces: %v", err)
++		}
++		synctest.Wait()
++
++		entered := make(chan struct{})
++		var calls atomic.Uint64
++		eng.lsdb.SetTopology(func() []ospflsdb.InterfaceInfo {
++			if calls.Add(1) == 1 {
++				// Hold an empty snapshot in flight. A subsequent notification must
++				// publish the enrolled topology after this stale read completes.
++				close(entered)
++				<-release
++				return nil
++			}
++			topology := eng.lsdbTopology()
++			for idx := range topology {
++				topology[idx].Address = [4]byte{10, 0, byte(idx), 1}
++				topology[idx].NetworkMask = [4]byte{255, 255, 255, 0}
++			}
++			return topology
++		})
++		peer := ridOf("10.0.0.2")
++		send := func(name string, payload []byte) {
++			fb.mu.Lock()
++			handle := fb.handles[name]
++			fb.mu.Unlock()
++			handle.recv <- transport.RawPacket{
++				IfIndex: handle.ifindex,
++				Src:     netip.AddrFrom4([4]byte(peer)),
++				Payload: payload,
++			}
++		}
++		sendHello := func(name string) { send(name, helloFromPeer(peer, types.BackboneArea)) }
++		sendHello("eth0")
++		synctest.Wait()
++		select {
++		case <-entered:
++		default:
++			t.Fatal("Hello did not request topology origination")
++		}
++		sendHello("eth1")
++		sendHello("eth2")
++		synctest.Wait()
++		rows := eng.neighborSnapshot()
++		if len(rows) != 3 {
++			t.Fatalf("neighbors while origination is blocked = %d, want one on each of three interfaces", len(rows))
++		}
++
++		twoWay := packet.Hello{
++			HelloInterval: DefaultHelloInterval, DeadInterval: uint32(DefaultDeadInterval),
++			Options: types.OptionE, Priority: 1, Neighbors: []types.RouterID{cfg.RouterID},
++		}
++		sendPacket := func(name string, p packet.Packet) {
++			p.Header.RouterID = peer
++			payload := make([]byte, p.EncodedLen())
++			p.WriteTo(payload, 0)
++			send(name, payload)
++		}
++		sendPacket("eth0", packet.Packet{Hello: &twoWay})
++		sendPacket("eth0", packet.Packet{DBDesc: &packet.DBDesc{
++			InterfaceMTU: 1500, Options: types.OptionE,
++			Flags: packet.DDFlagInit | packet.DDFlagMore | packet.DDFlagMaster, DDSequence: 7,
++		}})
++		sendPacket("eth0", packet.Packet{DBDesc: &packet.DBDesc{
++			InterfaceMTU: 1500, Options: types.OptionE,
++			Flags: packet.DDFlagMaster, DDSequence: 8,
++		}})
++		synctest.Wait()
++		if snap, ok := eng.neighbors.Lookup("eth0", peer); !ok || snap.State != neighborStateFull {
++			t.Fatalf("eth0 after DD exchange: present %v, state %s, want Full", ok, snap.State)
++		}
++		// Full is recorded before its event callback returns. A later packet on
++		// another interface proves that callback has released the receive loop.
++		sendPacket("eth1", packet.Packet{Hello: &twoWay})
++		synctest.Wait()
++		if snap, ok := eng.neighbors.Lookup("eth1", peer); !ok || snap.State != "exstart" {
++			t.Fatalf("eth1 after eth0 reaches Full: present %v, state %s, want ExStart", ok, snap.State)
++		}
++
++		releaseWork()
++		synctest.Wait()
++		// The synthetic clock has not advanced: only the pending notification can
++		// publish this Router-LSA, so the maintenance ticker cannot hide a lost request.
++		if links, ok := selfRouterLinkCount(t, eng, cfg.RouterID); !ok || links != 4 {
++			t.Fatalf("Router-LSA after pending notification: present %v, links %d, want three stubs and the Full adjacency", ok, links)
++		}
++	})
++}

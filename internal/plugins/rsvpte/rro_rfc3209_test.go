@@ -14,7 +14,7 @@ import (
 func TestRFC3209RRONewSubobjectIsOwnAddress(t *testing.T) {
 	self := netip.MustParseAddr("10.0.0.5")
 	downstream := []rroEntry{{Type: RROSubIPv4, Address: netip.MustParseAddr("10.0.0.9")}}
-	out, truncated := prependRRO(self, downstream)
+	out, truncated := prependRRO(self, downstream, 0)
 	require.False(t, truncated)
 	require.Len(t, out, 2)
 	assert.Equal(t, rroEntry{Type: RROSubIPv4, Address: self}, out[0])
@@ -24,7 +24,7 @@ func TestRFC3209RRONewSubobjectIsOwnAddress(t *testing.T) {
 // RFC requirement: RFC3209-4.4.3-1 negative — with no valid own address there is nothing that could be this router's IP address, so prependRRO pushes no subobject and the downstream route is returned unchanged.
 func TestRFC3209RRONoSubobjectWithoutOwnAddress(t *testing.T) {
 	downstream := []rroEntry{{Type: RROSubIPv4, Address: netip.MustParseAddr("10.0.0.9")}}
-	out, truncated := prependRRO(netip.Addr{}, downstream)
+	out, truncated := prependRRO(netip.Addr{}, downstream, 0)
 	require.False(t, truncated)
 	assert.Equal(t, downstream, out, "no subobject is pushed")
 }

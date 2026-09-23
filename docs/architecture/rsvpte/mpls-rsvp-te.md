@@ -24,30 +24,33 @@ Fast Reroute (RFC 4090) is a separate layer: see
 ## Decision: every node refreshes, not only the ingress
 
 Egress and transit re-send RESV upstream on the refresh tick, alongside the
-ingress PATH refresh. A transit node re-relays each received RESV, so an egress
-refresh propagates and the whole chain stays alive when only the ingress stops
-refreshing.
+ingress PATH refresh. Transit relays received RESV unless it confirms the
+request locally. PATH lifetime follows incoming refreshes. Sending a RESV
+does not keep an abandoned PATH
+alive. During facility repair, the PLR and merge point also refresh PATH
+downstream, without extending the lifetime of their incoming branches.
+
+An unchanged accepted egress label and path MTU do not cause another pop
+installation. A changed path MTU requires forwarding acceptance before RESV.
+Requests confirmed locally do not cause an immediate upstream RESV relay;
+ordinary and periodic refreshes continue.
 
 <!-- source: internal/plugins/rsvpte/engine.go -- sendResv, the refresh path -->
+<!-- source: internal/plugins/rsvpte/reservation.go -- acceptReservation -->
 
 ## Decision: an unknown object class is classified, not skipped
 
 The decode switch has a case per object class ze processes. Its default arm
 applies RFC 2205 Section 3.10, which chooses by the two high-order bits of the
-Class-Num: `0bbbbbbb` rejects the whole message and returns Error Code 13
-("Unknown object class") with the object's (Class-Num, C-Type) as the Error
-Value, `10bbbbbb` is ignored, and `11bbbbbb` is ignored but forwarded unexamined.
-ze forwards no object it did not decode, so the last two forms both ignore.
+Class-Num: `0bbbbbbb` rejects the whole message, `10bbbbbb` is discarded, and
+`11bbbbbb` is retained for unchanged forwarding. Ze copies retained objects
+into PATH or RESV state and includes them in the resulting messages.
 
-The rule covers a class the node does not KNOW. A short list of classes ze knows
-and reads no body for is exempt from it: NULL, INTEGRITY, SCOPE, ADSPEC,
-POLICY_DATA and RESV_CONFIRM. NULL (Class-Num 0) heads the list of classes RFC
-2205 Section 3.1 says an implementation must recognize: it "may appear anywhere
-in a sequence of objects, and its contents will be ignored by the receiver". RFC
-2205 Sections 3.1.3 and 3.1.4 make each of the other five optional in a Path or a
-Resv, so rejecting them would refuse a message a conformant peer is entitled to
-send. Every one of them has a Class-Num whose high-order bit is zero, which is
-why the exemption has to be written down.
+NULL, INTEGRITY, SCOPE and POLICY_DATA are recognized without decoding their
+bodies. POLICY_DATA is retained for forwarding. ADSPEC has a separate
+validation and retention path. RESV_CONFIRM is decoded as an IPv4 receiver
+address. Recognizing an object does not, by itself, prove that its optional
+feature is implemented.
 
 RFC 4090 Section 4.2 is what the reject arm is for today. An LSR that does not
 support the DETOUR object (Class-Num 63) MUST reject a Path carrying one and
@@ -56,20 +59,27 @@ established while this node holds no detour state. Adding a DETOUR case to the
 decode switch removes the object from the default arm at the same time, so
 one-to-one backup support turns the rejection off where it should.
 
-Only a Path is answered. ze builds no ResvErr, so a Resv, a Tear or a PathErr
-carrying such an object is dropped with a log line and no error message.
+A rejected PATH with SESSION and SENDER_TEMPLATE produces PathErr. A rejected
+RESV with SESSION and STYLE produces ResvErr for each decoded flow descriptor,
+or one without a descriptor when none was decoded. Other message types are
+logged and dropped. The error code is 13 for an unknown class or 14 for an
+unknown C-Type. Error Value carries Class-Num and C-Type.
 
 <!-- source: internal/plugins/rsvpte/wire.go -- classifyUnknownClass, classKnownUnprocessed -->
 <!-- source: internal/plugins/rsvpte/engine.go -- rejectUnknownObject -->
+<!-- source: internal/plugins/rsvpte/reservation.go -- receivedPathState, receivedReservation -->
+<!-- source: internal/plugins/rsvpte/build.go -- buildPath, buildResv -->
+<!-- source: internal/plugins/rsvpte/reservation_build.go -- rejectReservation, sendResvError -->
 
 ## Decision: a message that omits a mandatory object is dropped
 
 RFC 2205 Section 3.1 writes each message type as a BNF where a square bracket
 marks an optional object. Everything unbracketed is mandatory: SESSION, RSVP_HOP
 and TIME_VALUES in a Path, those three plus STYLE in a Resv, SESSION and RSVP_HOP
-in a PathTear, SESSION and ERROR_SPEC in a PathErr. `DecodeMessage` refuses a
-message that omits one, and the sender descriptor is bracketed everywhere, so
-SENDER_TEMPLATE is never required there. Inside the descriptor SENDER_TSPEC is
+in a PathTear, SESSION and ERROR_SPEC in a PathErr, and SESSION, ERROR_SPEC,
+RESV_CONFIRM and STYLE in a ResvConf. `DecodeMessage` refuses a message that
+omits one. The handlers require the sender or filter identity needed for their
+LSP lookup. Inside a PATH sender descriptor, SENDER_TSPEC is
 unbracketed, `<sender descriptor> ::= <SENDER_TEMPLATE> <SENDER_TSPEC>`, and
 Section 2 says the same in prose: "A Path message is required to carry a Sender
 Tspec". `handlePath` drops a PATH that names a sender and carries no
@@ -93,18 +103,23 @@ the state between two of that sender's refreshes.
 
 ## Decision: link failure comes from the interface component
 
-Ze has no IGP, so the interface component's netlink down event is the available
-link-state source. The engine subscribes to it and matches LSPs by their
-admission interface. A transit or egress node sends a PathErr upstream (RFC 3209
-error code 24, value 5, "No route available toward destination"); an ingress node
-emits a local path-error event. Local state is torn down after either.
+RSVP-TE loads the interface component and consumes its link-down notifications.
+The native monitor emits the current carrier state even when the same update
+first announces an interface. This lets the first down event for an interface
+that predates monitor startup reach RSVP-TE. The engine matches an LSP's
+downstream next hop to its configured interface prefix. A usable bypass triggers
+local repair. Otherwise a transit sends PathErr upstream and an ingress emits a
+local path-error event before withdrawing its forwarding state. An upstream
+link failure alone does not tear down the merge point's downstream reservation.
 
 <!-- source: internal/plugins/rsvpte/engine.go -- handleLinkDown -->
+<!-- source: internal/plugins/rsvpte/register.go -- registerRSVPTE, runRSVPTEEngine -->
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- handleLinkUpdate -->
 
-**Limit.** The match is by admission interface. An LSP whose admission was
-skipped, because no interface address prefix resolved, carries an empty
-admission interface and is not matched. Precise next-hop to interface resolution
-would be needed to close that.
+**Limit.** With several configured interfaces, a downstream next hop outside
+their address prefixes cannot be matched to the failed link. With one interface,
+the engine uses that interface without a prefix match. The match does not depend
+on whether bandwidth admission recorded an interface for the LSP.
 
 **Concurrency.** Link-failure handling runs on the interface event goroutine, and
 the cleanup loop mutates the LSP table off the engine goroutine too. The LSP
@@ -122,6 +137,24 @@ Without the `OnConfigApply` caller an added tunnel never signals, a changed
 explicit route never reroutes, and a removed tunnel leaks its LSP and its FIB
 state. The head-end teardown and reroute paths are unreachable in that state, so
 they are also untested by construction.
+
+A configured tunnel keeps its SESSION and sender address when make-before-break
+changes its LSP ID. Reconciliation therefore follows that identity across all
+live generations. Removing a tunnel tears down its current LSP and any pending
+replacement, while other tunnels and retained bypasses keep their state.
+An explicit-route update applies to the latest generation. If a replacement
+is still pending, the new attempt retains the established predecessor until
+its own reservation succeeds. Reconciliation, received signaling, link-failure
+handling, refreshes and expiry share the engine control lock. Configuration
+withdrawal cannot race replacement creation or a refresh send.
+
+Each PathTear follows the path of the generation it removes. A locally repaired
+generation uses its selected bypass. Once make-before-break has retired that
+generation, a later configuration withdrawal tears the replacement along its
+own path; it does not send another tear through the former repair bypass.
+
+<!-- source: internal/plugins/rsvpte/register.go -- reconcileTunnels, setupTunnel, refreshPaths, cleanupTick -->
+<!-- source: internal/plugins/rsvpte/reroute.go -- reroute, teardownLSP, pathTearLocked -->
 
 The same hook reconciles the interface set. `reconcileInterfaces` calls
 `setInterface` for every configured interface, then `removeInterface` for every
@@ -162,9 +195,10 @@ message."
 So an egress or transit PSB takes its `RefreshPeriod` from the PATH that created
 it, never from this node's `refresh-period`. The sender refreshes on its own
 schedule, and a local commit that shortened the lifetime of state a neighbor keeps
-alive would delete a live reservation on the next cleanup tick. A transit node
-relays the received period downstream for the same reason: it relays a PATH only
-when one arrives, so the downstream cadence is the sender's.
+alive would delete a live reservation on the next cleanup tick. An ordinary
+transit relay keeps the received period downstream. A PLR's backup PATH and a
+merge point's periodically refreshed PATH advertise the local period instead;
+their upstream expiry deadlines remain independent.
 
 A PATH or a RESV without TIME_VALUES is malformed and ze drops it, so no message
 reaching this point is missing the object (see "a message that omits a mandatory
@@ -181,6 +215,7 @@ node sends upstream (`buildResv` reads the engine's configuration).
 
 <!-- source: internal/plugins/rsvpte/register.go -- refreshPaths -->
 <!-- source: internal/plugins/rsvpte/engine.go -- sendResv -->
+<!-- source: internal/plugins/rsvpte/engine.go -- sendPath -->
 
 Two RFC 2205 Section 3.7 timing rules are still open. The cleanup timeout is K*R
 where item 2 sets the floor at `L >= (K + 0.5)*1.5*R`
@@ -191,12 +226,67 @@ changes live timing behavior, so each is an owner decision.
 
 ## Decision: the head-end holds the recorded path
 
-Each node prepends its address to the Record Route Object as the RESV travels
-upstream (RFC 3209 section 4.4), so the head-end's reservation state block holds
-the full path for `show rsvp-te session`.
+The head-end requests route recording in PATH. Each transit stores the received
+route with its own address prepended and relays it downstream. The egress starts
+the reverse RRO in RESV, and each upstream node prepends itself. The head-end
+keeps the resulting route for `show rsvp-te session`.
 
-<!-- source: internal/plugins/rsvpte/engine.go -- recordRoute -->
+<!-- source: internal/plugins/rsvpte/register.go -- setupTunnel, setupBypass -->
+<!-- source: internal/plugins/rsvpte/build.go -- buildPath -->
+<!-- source: internal/plugins/rsvpte/engine.go -- handlePathTransit, handlePathEgress -->
+<!-- source: internal/plugins/rsvpte/reservation.go -- acceptReservation, receivedReservation -->
+
+RFC 3209 section 4.4.3 states: "A received Path message without an RRO indicates
+that the sender node no longer needs route recording. Subsequent Resv messages
+SHALL NOT contain an RRO." Transit and egress therefore follow the latest PATH
+request, and a withdrawal removes the cached RESV route before the next refresh.
+The transit also sends an immediate RESV update when it removes a cached route.
+
+<!-- source: internal/plugins/rsvpte/engine.go -- handlePathTransit, handlePathEgress, sendResv -->
+
+The local route limit is 32 subobjects, including recorded labels. A route that
+exceeds this limit is dropped whole, and reservation processing continues.
+`encodeRRO` also drops the whole object if the available output buffer is too
+small. A transit remembers a local overflow on its reservation state
+(`RRODropped`), so subsequent RESV refreshes retain that suppression until route
+recording is withdrawn. This overflow policy is separate from the RFC's rule
+about a PATH without an RRO.
+
+<!-- source: internal/plugins/rsvpte/engine.go -- recordRoute, handleResvTransit -->
 <!-- source: internal/plugins/rsvpte/rro.go -- prependRRO, formatERO, formatRRO -->
+
+## Decision: a PATH without LABEL_REQUEST is refused
+
+Ze reserves for LSP tunnels only. A PATH that carries no LABEL_REQUEST asks for
+a reservation Ze cannot hold, so `handlePath` installs no state and sends no
+RESV for it, logging the refusal. That keeps every LABEL Ze emits behind a
+request, as RFC 3209 section 4.2.4 requires ("If a LABEL_REQUEST object was not
+present in the Path message, a node MUST NOT include a LABEL object in a Resv
+message for that Path message's session and PHOP").
+
+<!-- source: internal/plugins/rsvpte/engine.go -- handlePath -->
+
+## Decision: a transit relays SESSION_ATTRIBUTE byte for byte
+
+RFC 3209 section 4.7.4: "All RSVP routers, whether they support the
+SESSION_ATTRIBUTE object or not, SHALL forward the object unmodified." The
+decoder keeps the first received object's bytes (`ParsedMessage.SessionAttrRaw`),
+and the transit holds an owned copy in its path state block. Unchanged refreshes
+reuse that copy. A C-Type 1 object keeps its affinity masks and flags even when
+it requests no protection. Only the head-end builds a SESSION_ATTRIBUTE from its
+own protection request.
+
+<!-- source: internal/plugins/rsvpte/build.go -- buildPath -->
+<!-- source: internal/plugins/rsvpte/engine.go -- handlePathTransit -->
+
+The one-octet Name Length bounds the padded name at 256 bytes. The decoder
+refuses an object larger than the C-Type 1 layout can hold, and the message
+buffer accommodates the maximum supported ERO, SESSION_ATTRIBUTE and RRO
+together. A large received object cannot consume space needed by the sender
+descriptor that follows it.
+
+<!-- source: internal/plugins/rsvpte/frr.go -- maxSessionAttrLen, decodeSessionAttr -->
+<!-- source: internal/plugins/rsvpte/build.go -- maxRSVPMessage -->
 
 ## Trap: the delivered config shape
 
@@ -210,26 +300,56 @@ path order is lost. A parser reading the wrong shape leaves the engine idle.
 `Dispatcher.ForwardToPlugin`, never `Dispatch`. Re-dispatching re-matches the
 builtin and recurses.
 
-## Interop: no open-source peer exists
+## Interop evidence
 
-No actively maintained open-source daemon implements RSVP-TE signaling. FRR ships
-`ldpd`, not an RSVP daemon; BIRD and GoBGP do BGP-signaled MPLS only.
-Cross-vendor interop needs a proprietary lab container.
+Cross-vendor RSVP-TE interop needs a named peer and a runnable lab configuration.
 
-The substitute is a multi-node Ze-to-Ze harness: two to four real engines wired
-through an in-memory fabric, so each engine's own encoded PATH, RESV, PathErr and
-PathTear is decoded and acted on by a peer. It covers a direct LSP both ways, a
-three-node label stack (push, swap, pop) with RRO across hops, PathErr rejection,
-hop-by-hop teardown, soft-state refresh, admission denial, and make-before-break
-reroute including the config-reload-triggered form.
+The local multi-node harness connects Ze engines through an in-memory fabric.
+The fabric delivers to the engine's explicitly selected next hop; it does not
+decode an ERO and silently correct the destination. It exercises signaling,
+recorded routes, teardown, soft-state refresh, admission and make-before-break.
+It does not prove raw-socket routing or MPLS forwarding.
+
+Separate Linux namespace carriers observe actual IP options, next-hop delivery
+and labeled packets. End-to-end evidence must also exercise the RSVP producer,
+native FIB acceptance and kernel packet path together.
 
 Verify a named interop peer exists before an acceptance criterion names it.
 
 ## Dataplane
 
-The engine writes swap and pop entries onto the MPLS FIB event bus; the kernel
-backend programs them as `AF_MPLS` routes. See
-[`../mpls/mpls-kernel.md`](../mpls/mpls-kernel.md).
+The engine submits push, swap and pop entries to the native MPLS FIB owner.
+An Up transition or outgoing label advertisement follows successful acceptance,
+not merely event publication. The kernel backend programs the corresponding IP
+and `AF_MPLS` routes. Bypass control traffic uses private mark-selected contexts.
+See [`../mpls/mpls-kernel.md`](../mpls/mpls-kernel.md).
 
 <!-- source: internal/plugins/rsvpte/fib.go -- busFIB programSwap, programPop, programPush -->
 <!-- source: internal/core/mplsfib/events.go -- the MPLS forwarding-entry event -->
+
+PATH, PathTear and ResvConf use IPv4 Router Alert and an explicitly selected
+output interface. A PATH's IP source remains the sender, while RSVP_HOP names
+the preceding node's outgoing interface. Ordinary replies use that interface
+as their IP source too, so a received RESV supplies an adjacent MPLS next hop
+rather than a potentially remote router ID. The transport's current assigned
+IPv4 addresses identify the local node when consuming an ERO or terminating a
+session; configured link prefixes remain admission metadata, not proof of address
+ownership. Linux transit interception needs IPv4 forwarding, a usable route toward
+the session endpoint, and reverse-path filtering that
+accepts that preserved source. Creating the sockets needs `CAP_NET_RAW`;
+setting a bypass packet mark also needs `CAP_NET_ADMIN` on kernels before 5.17.
+The doctor check probes raw-socket capability, not these forwarding conditions.
+
+The ERO resolver records both the native lookup destination and its adjacent next
+hop. Ordinary PATH carriage uses that next hop for the Linux route query and
+`IP_HDRINCL` socket destination. Reusing the endpoint lookup after installing a
+data FEC would label the refresh and bypass intermediate RSVP processing.
+The IP header still names the original sender and session endpoint.
+RFC 3209 Section 4.3.4.1 selects the control next hop; RFC 2205 Section 3.1.3
+requires each RSVP-capable node along the path to capture and process PATH.
+
+Marked facility-backup sends retain the merge-point lookup in the selected
+private table, including its MPLS stack. This carries the protected control
+traffic through the bypass as RFC 4090 Section 6.4.3 requires.
+
+<!-- source: internal/plugins/rsvpte/transport_linux.go -- openRawTransport, rawTransport.SendPath -->

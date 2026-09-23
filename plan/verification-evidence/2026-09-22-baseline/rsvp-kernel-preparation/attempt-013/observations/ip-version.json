@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "ip",
+    "-Version"
+  ],
+  "started": {
+    "unix_ns": 1790113663351014871,
+    "monotonic_ns": 35966925967
+  },
+  "exit_code": 0,
+  "stdout": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-013/observations/ip-version.stdout",
+  "stderr": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-013/observations/ip-version.stderr",
+  "pid": 1360,
+  "status": "ok",
+  "finished": {
+    "unix_ns": 1790113663362949733,
+    "monotonic_ns": 35978861470
+  }
+}

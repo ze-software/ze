@@ -5,14 +5,9 @@
 // RFC 3209 Section 4.7: Admission control checks available bandwidth
 // per interface before accepting a reservation.
 //
-// RFC 3209 Section 6.1 (SHARED EXPLICIT): during make-before-break the ingress
-// signals a replacement LSP for the same SESSION (new LSP_ID, SE style) that
-// must SHARE bandwidth with the LSP it replaces on common links, so admission
-// does not double-count the reservation and reject the reroute. ReserveSession/
-// ReleaseSession implement this: per interface, per SESSION we keep the multiset
-// of the LSPs' reservations and account only the session's MAXIMUM (its link
-// footprint) against the interface, not the sum. Two LSPs of one session at the
-// same rate therefore consume that rate once, not twice.
+// SE reservations share the session's maximum on each link. FF reservations
+// charge each sender independently. Rates at this boundary are bits per second;
+// the signaling engine converts the RFC 2210 byte-rate once on receipt.
 package rsvpte
 
 import (
@@ -40,46 +35,25 @@ func sessionFromKey(k lspKey) sessionID {
 	return sessionID{endpoint: k.TunnelEndpoint, tunnelID: k.TunnelID, extID: k.ExtTunnelID}
 }
 
-// sessionReservation is the multiset of per-LSP reservations sharing a link for
-// one SESSION. The session's interface footprint is the largest holder (SE).
+type reservationCharge struct {
+	style uint32
+	bandwidth float64
+}
+
 type sessionReservation struct {
-	holders []float64
+	holders map[lspKey]reservationCharge
 }
 
 func (sr *sessionReservation) footprint() float64 {
-	maxBW := 0.0
-	for _, h := range sr.holders {
-		if h > maxBW {
-			maxBW = h
+	var shared, fixed float64
+	for _, holder := range sr.holders {
+		if holder.style == StyleSharedExplicit {
+			shared = max(shared, holder.bandwidth)
+		} else {
+			fixed += holder.bandwidth
 		}
 	}
-	return maxBW
-}
-
-func (sr *sessionReservation) add(bw float64) {
-	sr.holders = append(sr.holders, bw)
-}
-
-// remove drops one holder equal to bw (the LSP being torn down). If no exact
-// match exists it removes the largest holder, keeping the footprint monotonic
-// and never under-counting.
-func (sr *sessionReservation) remove(bw float64) {
-	for i, h := range sr.holders {
-		if h == bw {
-			sr.holders = append(sr.holders[:i], sr.holders[i+1:]...)
-			return
-		}
-	}
-	if len(sr.holders) == 0 {
-		return
-	}
-	maxIdx := 0
-	for i, h := range sr.holders {
-		if h > sr.holders[maxIdx] {
-			maxIdx = i
-		}
-	}
-	sr.holders = append(sr.holders[:maxIdx], sr.holders[maxIdx+1:]...)
+	return shared + fixed
 }
 
 // interfaceBandwidth tracks bandwidth state for one interface.
@@ -123,72 +97,64 @@ func newAdmissionController() *admissionController {
 	}
 }
 
-// reserveSession reserves bandwidth for one LSP of a SESSION on an interface
-// using SHARED EXPLICIT semantics: the interface is charged only the increase
-// in the session's footprint (max over its LSPs), so a make-before-break
-// replacement at the same rate adds nothing. Returns errAdmissionDenied when the
-// incremental demand would exceed the reservable limit.
-func (ac *admissionController) reserveSession(iface string, sess sessionID, bandwidth float64) error {
+// reserve replaces exactly one sender's charge. A failed increase leaves the
+// old charge untouched; callers MUST restore it if native installation fails.
+func (ac *admissionController) reserve(iface string, key lspKey, style uint32, bandwidth float64) error {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
-	ib, ok := ac.interfaces[iface]
-	if !ok {
+	ib := ac.interfaces[iface]
+	if ib == nil {
 		return nil
 	}
+	session := sessionFromKey(key)
 	per := ac.sessions[iface]
 	if per == nil {
 		per = make(map[sessionID]*sessionReservation)
 		ac.sessions[iface] = per
 	}
-	sr := per[sess]
+	sr := per[session]
 	if sr == nil {
-		sr = &sessionReservation{}
-		per[sess] = sr
+		sr = &sessionReservation{holders: make(map[lspKey]reservationCharge)}
+		per[session] = sr
 	}
-	old := sr.footprint()
-	newFootprint := old
-	if bandwidth > newFootprint {
-		newFootprint = bandwidth
-	}
-	delta := newFootprint - old
-	if ib.ReservedBandwidth+delta > ib.MaxReservable {
+	before := sr.footprint()
+	old, existed := sr.holders[key]
+	sr.holders[key] = reservationCharge{style: style, bandwidth: bandwidth}
+	delta := sr.footprint() - before
+	if delta > 0 && ib.ReservedBandwidth+delta > ib.MaxReservable {
+		if existed {
+			sr.holders[key] = old
+		} else {
+			delete(sr.holders, key)
+		}
 		if len(sr.holders) == 0 {
-			delete(per, sess)
+			delete(per, session)
 		}
 		return errAdmissionDenied
 	}
-	sr.add(bandwidth)
 	ib.ReservedBandwidth += delta
 	return nil
 }
 
-// ReleaseSession releases one LSP's reservation for a SESSION, returning to the
-// interface only the reduction in the session's footprint (SE). The session's
-// shared reservation persists until its last LSP is released.
-func (ac *admissionController) ReleaseSession(iface string, sess sessionID, bandwidth float64) {
+// release removes only this sender, never a different equal-rate holder.
+func (ac *admissionController) release(iface string, key lspKey) {
 	ac.mu.Lock()
 	defer ac.mu.Unlock()
-	ib, ok := ac.interfaces[iface]
-	if !ok {
+	ib := ac.interfaces[iface]
+	if ib == nil {
 		return
 	}
 	per := ac.sessions[iface]
-	if per == nil {
-		return
-	}
-	sr := per[sess]
+	session := sessionFromKey(key)
+	sr := per[session]
 	if sr == nil {
 		return
 	}
-	old := sr.footprint()
-	sr.remove(bandwidth)
-	newFootprint := sr.footprint()
-	ib.ReservedBandwidth -= old - newFootprint
-	if ib.ReservedBandwidth < 0 {
-		ib.ReservedBandwidth = 0
-	}
+	before := sr.footprint()
+	delete(sr.holders, key)
+	ib.ReservedBandwidth -= before - sr.footprint()
 	if len(sr.holders) == 0 {
-		delete(per, sess)
+		delete(per, session)
 	}
 }
 

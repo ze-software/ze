@@ -1,0 +1,102 @@
+{
+  "status": "generation-withdrawal-observed; full-scenario-red",
+  "native_invocation": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/host-invocation-001.json",
+  "unit_discrimination": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/run-001.json",
+  "packets": [
+    {
+      "node": "h",
+      "timestamp_utc": "2026-09-22 18:13:22.442423",
+      "direction": "Out",
+      "ifindex": 10,
+      "label": "1000",
+      "sender": "10.12.0.1",
+      "lsp_id": 1,
+      "hop": "10.12.0.1",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/attempt-012-control-h.stdout"
+    },
+    {
+      "node": "h",
+      "timestamp_utc": "2026-09-22 18:13:22.636528",
+      "direction": "Out",
+      "ifindex": 11,
+      "label": null,
+      "sender": "198.18.1.1",
+      "lsp_id": 2,
+      "hop": "10.13.0.1",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/attempt-012-control-h.stdout"
+    },
+    {
+      "node": "m",
+      "timestamp_utc": "2026-09-22 18:13:22.442428",
+      "direction": "In",
+      "ifindex": 10,
+      "label": "1000",
+      "sender": "10.12.0.1",
+      "lsp_id": 1,
+      "hop": "10.12.0.1",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/attempt-012-control-m.stdout"
+    },
+    {
+      "node": "m",
+      "timestamp_utc": "2026-09-22 18:13:22.442435",
+      "direction": "In",
+      "ifindex": 1,
+      "label": null,
+      "sender": "10.12.0.1",
+      "lsp_id": 1,
+      "hop": "10.12.0.1",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/attempt-012-control-m.stdout"
+    },
+    {
+      "node": "m",
+      "timestamp_utc": "2026-09-22 18:13:22.636537",
+      "direction": "In",
+      "ifindex": 11,
+      "label": null,
+      "sender": "198.18.1.1",
+      "lsp_id": 2,
+      "hop": "10.13.0.1",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/attempt-012-control-m.stdout"
+    },
+    {
+      "node": "m",
+      "timestamp_utc": "2026-09-22 18:13:22.639072",
+      "direction": "Out",
+      "ifindex": 12,
+      "label": null,
+      "sender": "198.18.1.1",
+      "lsp_id": 2,
+      "hop": "10.14.0.1",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/attempt-012-control-m.stdout"
+    },
+    {
+      "node": "e",
+      "timestamp_utc": "2026-09-22 18:13:22.639083",
+      "direction": "In",
+      "ifindex": 9,
+      "label": null,
+      "sender": "198.18.1.1",
+      "lsp_id": 2,
+      "hop": "10.14.0.1",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/attempt-012-control-e.stdout"
+    }
+  ],
+  "route_observations": [
+    {
+      "metadata": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-012/samples/rsvp-1374-h/007/ipv4-routes.json",
+      "output": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-012/samples/rsvp-1374-h/007/ipv4-routes.stdout",
+      "observed": "Successful all-table query lacks the protected 198.18.3.1/32 FEC while bypass tables 1510013228 and 1510014437 retain labels 1000 and 1001."
+    },
+    {
+      "metadata": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-012/samples/rsvp-1374-h/016/ipv4-routes.json",
+      "output": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-012/samples/rsvp-1374-h/016/ipv4-routes.stdout",
+      "observed": "Successful all-table query lacks the protected 198.18.3.1/32 FEC while bypass tables 1510013228 and 1510014437 retain labels 1000 and 1001."
+    }
+  ],
+  "limits": [
+    "The unchanged full scenario still fails at producer_integration_linux_test.go:283. No third fixture repair was made.",
+    "Ordinary fallback /24 routes remain: FEC removal is not a claim that all IPv4 forwarding stops.",
+    "Packet headers identify encapsulation and interfaces, not a socket SO_MARK value.",
+    "Later bypass-removal/stale-context/shutdown checkpoints and foreign-peer RSVP remain unverified."
+  ]
+}

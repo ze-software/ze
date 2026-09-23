@@ -1,0 +1,143 @@
+--- FAIL: TestReconcileTunnelsWithdrawsReoptimizedGenerations (0.00s)
+    --- FAIL: TestReconcileTunnelsWithdrawsReoptimizedGenerations/replacement-pending (0.00s)
+        register_test.go:215: 
+            	Error Trace:	/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/register_test.go:215
+            	Error:      	Should be false
+            	Test:       	TestReconcileTunnelsWithdrawsReoptimizedGenerations/replacement-pending
+            	Messages:   	withdrawal left generation 2
+        register_test.go:234: 
+            	Error Trace:	/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/register_test.go:234
+            	Error:      	Not equal: 
+            	            	expected: map[rsvpte.lspKey]bool{rsvpte.lspKey{TunnelEndpoint:netip.Addr{addr:netip.uint128{hi:0x0, lo:0xffff0a000009}, z:unique.Handle[net/netip.addrDetail]{value:(*netip.addrDetail)(0x29789ccb83a8)}}, TunnelID:0x1, ExtTunnelID:0xa000001, SenderAddr:netip.Addr{addr:netip.uint128{hi:0x0, lo:0xffff0a000001}, z:unique.Handle[net/netip.addrDetail]{value:(*netip.addrDetail)(0x29789ccb83a8)}}, LSPID:0x1}:true, rsvpte.lspKey{TunnelEndpoint:netip.Addr{addr:netip.uint128{hi:0x0, lo:0xffff0a000009}, z:unique.Handle[net/netip.addrDetail]{value:(*netip.addrDetail)(0x29789ccb83a8)}}, TunnelID:0x1, ExtTunnelID:0xa000001, SenderAddr:netip.Addr{addr:netip.uint128{hi:0x0, lo:0xffff0a000001}, z:unique.Handle[net/netip.addrDetail]{value:(*netip.addrDetail)(0x29789ccb83a8)}}, LSPID:0x2}:true}
+            	            	actual  : map[rsvpte.lspKey]bool{rsvpte.lspKey{TunnelEndpoint:netip.Addr{addr:netip.uint128{hi:0x0, lo:0xffff0a000009}, z:unique.Handle[net/netip.addrDetail]{value:(*netip.addrDetail)(0x29789ccb83a8)}}, TunnelID:0x1, ExtTunnelID:0xa000001, SenderAddr:netip.Addr{addr:netip.uint128{hi:0x0, lo:0xffff0a000001}, z:unique.Handle[net/netip.addrDetail]{value:(*netip.addrDetail)(0x29789ccb83a8)}}, LSPID:0x1}:true}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,31 +1,2 @@
+            	            	-(map[rsvpte.lspKey]bool) (len=2) {
+            	            	- (rsvpte.lspKey) {
+            	            	-  TunnelEndpoint: (netip.Addr) {
+            	            	-   addr: (netip.uint128) {
+            	            	-    hi: (uint64) 0,
+            	            	-    lo: (uint64) 281470849515529
+            	            	-   },
+            	            	-   z: (unique.Handle[net/netip.addrDetail]) {
+            	            	-    value: (*netip.addrDetail)({
+            	            	-     isV6: (bool) false,
+            	            	-     zoneV6: (string) ""
+            	            	-    })
+            	            	-   }
+            	            	-  },
+            	            	-  TunnelID: (uint16) 1,
+            	            	-  ExtTunnelID: (uint32) 167772161,
+            	            	-  SenderAddr: (netip.Addr) {
+            	            	-   addr: (netip.uint128) {
+            	            	-    hi: (uint64) 0,
+            	            	-    lo: (uint64) 281470849515521
+            	            	-   },
+            	            	-   z: (unique.Handle[net/netip.addrDetail]) {
+            	            	-    value: (*netip.addrDetail)({
+            	            	-     isV6: (bool) false,
+            	            	-     zoneV6: (string) ""
+            	            	-    })
+            	            	-   }
+            	            	-  },
+            	            	-  LSPID: (uint16) 2
+            	            	- }: (bool) true,
+            	            	+(map[rsvpte.lspKey]bool) (len=1) {
+            	            	  (rsvpte.lspKey) {
+            	Test:       	TestReconcileTunnelsWithdrawsReoptimizedGenerations/replacement-pending
+            	Messages:   	every withdrawn generation signals its own PathTear
+        register_test.go:239: 
+            	Error Trace:	/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/register_test.go:239
+            	Error:      	Should be false
+            	Test:       	TestReconcileTunnelsWithdrawsReoptimizedGenerations/replacement-pending
+            	Messages:   	a late RESV cannot resurrect a withdrawn replacement
+        register_test.go:240: 
+            	Error Trace:	/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/register_test.go:240
+            	Error:      	"[10.0.0.9/32 10.0.0.8/32 10.0.0.9/32 10.0.0.9/32]" should have 3 item(s), but has 4
+            	Test:       	TestReconcileTunnelsWithdrawsReoptimizedGenerations/replacement-pending
+            	Messages:   	late RESV cannot restore the withdrawn FEC
+    --- FAIL: TestReconcileTunnelsWithdrawsReoptimizedGenerations/replacement-established (0.00s)
+        register_test.go:215: 
+            	Error Trace:	/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/register_test.go:215
+            	Error:      	Should be false
+            	Test:       	TestReconcileTunnelsWithdrawsReoptimizedGenerations/replacement-established
+            	Messages:   	withdrawal left generation 2
+        register_test.go:219: 
+            	Error Trace:	/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/register_test.go:219
+            	Error:      	[]netip.Prefix(nil) does not contain netip.Prefix{ip:netip.Addr{addr:netip.uint128{hi:0x0, lo:0xffff0a000009}, z:unique.Handle[net/netip.addrDetail]{value:(*netip.addrDetail)(0x29789ccb83a8)}}, bitsPlusOne:0x21}
+            	Test:       	TestReconcileTunnelsWithdrawsReoptimizedGenerations/replacement-established
+        register_test.go:234: 
+            	Error Trace:	/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/register_test.go:234
+            	Error:      	Not equal: 
+            	            	expected: map[rsvpte.lspKey]bool{rsvpte.lspKey{TunnelEndpoint:netip.Addr{addr:netip.uint128{hi:0x0, lo:0xffff0a000009}, z:unique.Handle[net/netip.addrDetail]{value:(*netip.addrDetail)(0x29789ccb83a8)}}, TunnelID:0x1, ExtTunnelID:0xa000001, SenderAddr:netip.Addr{addr:netip.uint128{hi:0x0, lo:0xffff0a000001}, z:unique.Handle[net/netip.addrDetail]{value:(*netip.addrDetail)(0x29789ccb83a8)}}, LSPID:0x2}:true}
+            	            	actual  : map[rsvpte.lspKey]bool{}
+            	            	
+            	            	Diff:
+            	            	--- Expected
+            	            	+++ Actual
+            	            	@@ -1,31 +1,2 @@
+            	            	-(map[rsvpte.lspKey]bool) (len=1) {
+            	            	- (rsvpte.lspKey) {
+            	            	-  TunnelEndpoint: (netip.Addr) {
+            	            	-   addr: (netip.uint128) {
+            	            	-    hi: (uint64) 0,
+            	            	-    lo: (uint64) 281470849515529
+            	            	-   },
+            	            	-   z: (unique.Handle[net/netip.addrDetail]) {
+            	            	-    value: (*netip.addrDetail)({
+            	            	-     isV6: (bool) false,
+            	            	-     zoneV6: (string) ""
+            	            	-    })
+            	            	-   }
+            	            	-  },
+            	            	-  TunnelID: (uint16) 1,
+            	            	-  ExtTunnelID: (uint32) 167772161,
+            	            	-  SenderAddr: (netip.Addr) {
+            	            	-   addr: (netip.uint128) {
+            	            	-    hi: (uint64) 0,
+            	            	-    lo: (uint64) 281470849515521
+            	            	-   },
+            	            	-   z: (unique.Handle[net/netip.addrDetail]) {
+            	            	-    value: (*netip.addrDetail)({
+            	            	-     isV6: (bool) false,
+            	            	-     zoneV6: (string) ""
+            	            	-    })
+            	            	-   }
+            	            	-  },
+            	            	-  LSPID: (uint16) 2
+            	            	- }: (bool) true
+            	            	+(map[rsvpte.lspKey]bool) {
+            	            	 }
+            	Test:       	TestReconcileTunnelsWithdrawsReoptimizedGenerations/replacement-established
+            	Messages:   	every withdrawn generation signals its own PathTear
+        register_test.go:239: 
+            	Error Trace:	/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/register_test.go:239
+            	Error:      	Should be false
+            	Test:       	TestReconcileTunnelsWithdrawsReoptimizedGenerations/replacement-established
+            	Messages:   	a late RESV cannot resurrect a withdrawn replacement
+        register_test.go:240: 
+            	Error Trace:	/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/register_test.go:240
+            	Error:      	"[10.0.0.9/32 10.0.0.8/32 10.0.0.9/32 10.0.0.9/32 10.0.0.9/32]" should have 4 item(s), but has 5
+            	Test:       	TestReconcileTunnelsWithdrawsReoptimizedGenerations/replacement-established
+            	Messages:   	late RESV cannot restore the withdrawn FEC
+--- FAIL: TestReconcileTunnelsUpdatesCurrentGeneration (0.00s)
+    register_test.go:266: 
+        	Error Trace:	/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/register_test.go:266
+        	Error:      	"[{{{0 281470849515525} {0x29789ccb83a8}} [16 1 162 40 64 0 0 172 0 16 1 7 10 0 0 9 0 0 0 1 10 0 0 1 0 12 3 1 10 0 0 1 0 0 0 0 0 8 5 1 0 0 117 48 0 12 20 1 1 8 10 0 0 5 32 0 0 8 19 1 0 0 8 0 0 12 11 7 10 0 0 1 0 0 0 1 0 36 12 2 0 0 0 7 1 0 0 6 127 0 0 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 20 0 0 255 255 0 48 13 2 0 0 0 10 1 0 0 8 4 0 0 1 0 0 0 1 6 0 0 1 0 0 0 0 8 0 0 1 255 255 255 255 10 0 0 1 0 0 5 220 5 0 0 0 0 12 21 1 1 8 10 0 0 1 32 0] {{{0 281470849515529} {0x29789ccb83a8}} {{0 281470849515521} {0x29789ccb83a8}} {{0 281470849515525} {0x29789ccb83a8}} 0 0 {{0 281470849515525} {0x29789ccb83a8}}}} {{{0 281470849515526} {0x29789ccb83a8}} [16 1 162 38 64 0 0 172 0 16 1 7 10 0 0 9 0 0 0 1 10 0 0 1 0 12 3 1 10 0 0 1 0 0 0 0 0 8 5 1 0 0 117 48 0 12 20 1 1 8 10 0 0 6 32 0 0 8 19 1 0 0 8 0 0 12 11 7 10 0 0 1 0 0 0 2 0 36 12 2 0 0 0 7 1 0 0 6 127 0 0 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 20 0 0 255 255 0 48 13 2 0 0 0 10 1 0 0 8 4 0 0 1 0 0 0 1 6 0 0 1 0 0 0 0 8 0 0 1 255 255 255 255 10 0 0 1 0 0 5 220 5 0 0 0 0 12 21 1 1 8 10 0 0 1 32 0] {{{0 281470849515529} {0x29789ccb83a8}} {{0 281470849515521} {0x29789ccb83a8}} {{0 281470849515526} {0x29789ccb83a8}} 0 0 {{0 281470849515526} {0x29789ccb83a8}}}} {{{0 281470849515525} {0x29789ccb83a8}} [16 5 236 20 64 0 0 84 0 16 1 7 10 0 0 9 0 0 0 1 10 0 0 1 0 12 3 1 10 0 0 1 0 0 0 0 0 12 11 7 10 0 0 1 0 0 0 1 0 36 12 2 0 0 0 7 1 0 0 6 127 0 0 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 20 0 0 255 255] {{{0 281470849515529} {0x29789ccb83a8}} {{0 281470849515521} {0x29789ccb83a8}} {{0 281470849515525} {0x29789ccb83a8}} 0 0 {{0 281470849515525} {0x29789ccb83a8}}}} {{{0 281470849515526} {0x29789ccb83a8}} [16 1 162 39 64 0 0 172 0 16 1 7 10 0 0 9 0 0 0 1 10 0 0 1 0 12 3 1 10 0 0 1 0 0 0 0 0 8 5 1 0 0 117 48 0 12 20 1 1 8 10 0 0 6 32 0 0 8 19 1 0 0 8 0 0 12 11 7 10 0 0 1 0 0 0 1 0 36 12 2 0 0 0 7 1 0 0 6 127 0 0 5 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 20 0 0 255 255 0 48 13 2 0 0 0 10 1 0 0 8 4 0 0 1 0 0 0 1 6 0 0 1 0 0 0 0 8 0 0 1 255 255 255 255 10 0 0 1 0 0 5 220 5 0 0 0 0 12 21 1 1 8 10 0 0 1 32 0] {{{0 281470849515529} {0x29789ccb83a8}} {{0 281470849515521} {0x29789ccb83a8}} {{0 281470849515526} {0x29789ccb83a8}} 0 0 {{0 281470849515526} {0x29789ccb83a8}}}}]" should have 3 item(s), but has 4
+        	Test:       	TestReconcileTunnelsUpdatesCurrentGeneration
+        	Messages:   	unchanged reload must not recreate the retired generation
+    register_test.go:268: 
+        	Error Trace:	/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/register_test.go:268
+        	Error:      	Should be false
+        	Test:       	TestReconcileTunnelsUpdatesCurrentGeneration
+    register_test.go:274: 
+        	Error Trace:	/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/register_test.go:159
+        	            				/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/register_test.go:274
+        	Error:      	Should be true
+        	Test:       	TestReconcileTunnelsUpdatesCurrentGeneration
+FAIL
+FAIL	github.com/ze-software/ze/internal/plugins/rsvpte	0.015s
+FAIL

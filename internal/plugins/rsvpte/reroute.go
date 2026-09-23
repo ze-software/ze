@@ -4,7 +4,7 @@
 // Related: engine.go -- sends the new PATH and tears the old LSP once up
 // Related: fsm.go -- LSP.Replaces links the new LSP to the one it supersedes
 //
-// RFC 3209 Section 6.1 (make-before-break): to reroute an LSP without dropping
+// RFC 3209 Section 4.6.4 (make-before-break): to reroute an LSP without dropping
 // traffic, the ingress signals a NEW LSP for the same SESSION using a fresh
 // LSP_ID in the SENDER_TEMPLATE and the SHARED EXPLICIT (SE) reservation style.
 // SE lets the new and old LSPs share bandwidth on common links so admission
@@ -18,9 +18,10 @@ import (
 )
 
 // reroute starts a make-before-break reroute of the ingress LSP identified by
-// oldKey along newERO. It creates a replacement LSP with the next LSP_ID and the
-// SE style, sends its PATH, and records the link so handleResv tears the old LSP
-// down once the replacement is up. Returns the new LSP key.
+// oldKey along newERO. It creates a replacement LSP with an unused LSP_ID and the
+// SE style, sends its PATH, and records the link so handleResv tears the established
+// predecessor down once the replacement is up. An older pending attempt is
+// superseded immediately. Returns the new LSP key.
 func (e *engine) reroute(oldKey lspKey, newERO []eroHop) (lspKey, bool) {
 	old, ok := e.table.Get(oldKey)
 	if !ok {
@@ -36,36 +37,66 @@ func (e *engine) reroute(oldKey lspKey, newERO []eroHop) (lspKey, bool) {
 	bandwidth := old.Bandwidth
 	setupPrio := old.SetupPriority
 	holdPrio := old.HoldPriority
+	replaced := oldKey
+	if old.Replaces != nil {
+		replaced = *old.Replaces
+	}
+	retirePending := old.State != LSPStateUp
 	var tspec FlowSpec
+	var protection *protectionRequest
 	if old.PSB != nil {
 		tspec = old.PSB.SenderTSpec
+		protection = old.PSB.Protection
 	}
 	old.mu.Unlock()
 
 	newKey := oldKey
-	newKey.LSPID = oldKey.LSPID + 1
-	newLSP, _ := e.table.GetOrCreate(newKey)
+	// RFC 3209 Section 4.6.4: "The ingress node picks a new LSP_ID to form a
+	// new SENDER_TEMPLATE."
+	// The uint16 walk is bounded by returning to the current generation.
+	var newLSP *LSP
+	for {
+		newKey.LSPID++
+		if newKey.LSPID == oldKey.LSPID {
+			e.log.Warn("rsvp-te: no LSP ID available for make-before-break", "lsp", oldKey.String())
+			return lspKey{}, false
+		}
+		var existed bool
+		newLSP, existed = e.table.GetOrCreate(newKey)
+		if !existed {
+			break
+		}
+	}
 
 	newLSP.mu.Lock()
 	newLSP.Role = RoleIngress
 	newLSP.Bandwidth = bandwidth
 	newLSP.SetupPriority = setupPrio
 	newLSP.HoldPriority = holdPrio
-	replaced := oldKey
 	newLSP.Replaces = &replaced
 	newLSP.PSB = &pathStateBlock{
 		Session:        sessionIPv4{TunnelEndpoint: newKey.TunnelEndpoint, TunnelID: newKey.TunnelID, ExtTunnelID: newKey.ExtTunnelID},
 		SenderTemplate: senderTemplateIPv4{SenderAddr: newKey.SenderAddr, LSPID: newKey.LSPID},
 		ERO:            newERO,
+		RRO:            []rroEntry{{Type: RROSubIPv4, Address: e.cfg().RouterID}},
+		RecordRoute:    true,
 		SenderTSpec:    tspec,
 		LabelRequest:   labelRequest{L3PID: 0x0800},
 		RefreshPeriod:  e.cfg().RefreshPeriod,
 		LastRefresh:    time.Now(),
+		Protection:     protection,
 	}
 	newLSP.setState(LSPStatePathSent)
 	newLSP.mu.Unlock()
 
-	if err := e.sendPath(newLSP); err != nil {
+	err := e.sendPath(newLSP)
+	// Superseding a pending attempt must still retire its established
+	// predecessor when the newest RESV succeeds, without retaining the
+	// abandoned attempt or changing its on-wire path under the same LSP ID.
+	if retirePending {
+		e.teardownLSP(oldKey)
+	}
+	if err != nil {
 		e.log.Warn("rsvp-te: make-before-break PATH send failed", "lsp", newKey.String(), "error", err)
 		return newKey, false
 	}
@@ -87,36 +118,105 @@ func (e *engine) teardownLSP(key lspKey) {
 	// Snapshot the removed LSP's fields under its lock; a refresh or show
 	// goroutine may still hold a reference until it next consults the table.
 	lsp.mu.Lock()
-	psb := lsp.PSB
-	dst := lsp.NextHop
-	bandwidth := lsp.Bandwidth
+	route, raw := e.pathTearLocked(lsp)
 	inLabel := lsp.InLabel
 	admIface := lsp.AdmissionIface
 	isBypass := lsp.IsBypass
 	lsp.mu.Unlock()
 
-	if psb != nil {
-		raw := buildPathTear(psb, e.cfg().RouterID)
-		if !dst.IsValid() {
-			dst = key.TunnelEndpoint
-		}
-		if err := e.transport.Send(dst, raw); err != nil {
+	if isBypass {
+		e.clearBypassReferences(key)
+	}
+	if len(raw) > 0 {
+		if err := e.transport.SendPath(route, raw); err != nil {
 			e.log.Warn("rsvp-te: head-end PathTear send failed", "lsp", key.String(), "error", err)
 		}
 	}
 	if admIface != "" {
-		e.admission.ReleaseSession(admIface, sessionFromKey(key), float64(bandwidth))
+		e.admission.release(admIface, key)
 	}
-	if e.fib != nil {
+	// A replacement already owns the same ingress FEC. Retiring its old LSP
+	// must not withdraw the push entry just installed by the replacement RESV.
+	replaced := false
+	for _, other := range e.table.All() {
+		other.mu.Lock()
+		replaced = other.Role == RoleIngress && other.State == LSPStateUp &&
+			!isBypass && !other.IsBypass && other.Key.TunnelEndpoint == key.TunnelEndpoint
+		other.mu.Unlock()
+		if replaced {
+			break
+		}
+	}
+	if e.fib != nil && !replaced {
 		fec := netip.PrefixFrom(key.TunnelEndpoint, key.TunnelEndpoint.BitLen())
-		if err := e.fib.removePush(fec); err != nil {
+		tableID := uint32(0)
+		if isBypass {
+			tableID = bypassTableID(key)
+		}
+		if err := e.fib.removePush(fec, tableID); err != nil {
 			e.log.Warn("rsvp-te: head-end fib remove failed", "lsp", key.String(), "error", err)
 		}
 	}
 	e.table.releaseLabel(inLabel)
-	if isBypass {
-		e.clearBypassReferences(key)
-	}
 	emitLSPDown(e.log, lsp, e.table.Len())
 	e.log.Info("rsvp-te: ingress LSP torn down", "lsp", key.String())
+}
+
+// pathTearLocked snapshots the sender identity and exact forwarding context
+// before either the protected reservation or its bypass is withdrawn.
+func (e *engine) pathTearLocked(lsp *LSP) (PathRoute, []byte) {
+	if lsp.PSB == nil || lsp.Role == RoleEgress {
+		return PathRoute{}, nil
+	}
+	psb := lsp.PSB
+	route := e.pathRoute(psb, lsp.NextHop)
+	if lsp.ProtectionInUse && lsp.Bypass != nil {
+		backup := *psb
+		backup.SenderTemplate.SenderAddr = lsp.RepairSender
+		psb = &backup
+		route.Source = lsp.RepairSender
+		route.NextHop = lsp.Bypass.TunnelEndpoint
+		route.Lookup = lsp.Bypass.TunnelEndpoint
+		route.IfIndex = 0
+		route.TableID = bypassTableID(*lsp.Bypass)
+	}
+	return route, buildPathTear(psb, e.cfg().RouterID)
+}
+
+// shutdown runs after signaling, refresh and cleanup workers have stopped.
+// Retire protected senders before removing the bypass contexts they still use.
+func (e *engine) shutdown() {
+	if !e.stopped.CompareAndSwap(false, true) {
+		return
+	}
+	lsps := e.table.All()
+	for pass := range 2 {
+		for _, lsp := range lsps {
+			lsp.mu.Lock()
+			role, isBypass := lsp.Role, lsp.IsBypass
+			if isBypass != (pass == 1) {
+				lsp.mu.Unlock()
+				continue
+			}
+			var route PathRoute
+			var raw []byte
+			if role != RoleIngress {
+				route, raw = e.pathTearLocked(lsp)
+			}
+			lsp.mu.Unlock()
+			if role == RoleIngress {
+				e.teardownLSP(lsp.Key)
+				continue
+			}
+			if len(raw) > 0 {
+				if err := e.transport.SendPath(route, raw); err != nil {
+					e.log.Warn("rsvp-te: shutdown PathTear failed", "lsp", lsp.Key.String(), "error", err)
+				}
+			}
+			e.tearLSPLocal(lsp.Key)
+		}
+	}
+	if err := e.transport.Close(); err != nil {
+		e.log.Warn("rsvp-te: transport close", "error", err)
+	}
 }

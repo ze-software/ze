@@ -16,6 +16,7 @@ package fibkernel
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"strconv"
 	"sync"
@@ -173,12 +174,13 @@ type fibKernel struct {
 	installed map[string]string // prefix -> next-hop
 	// mplsInstalled tracks which installed prefixes carry MPLS labels (push).
 	mplsInstalled map[string]bool
-	// mplsSwaps tracks installed AF_MPLS swap/pop entries by incoming label.
-	mplsSwaps map[uint32]bool
+	// mplsSwaps records the source that owns each AF_MPLS incoming label.
+	mplsSwaps map[uint32]uint16
 	// pending tracks routes that failed FIB programming with their first
 	// failure time. Used for fib-programming-lag detection (AC-14).
 	pending map[string]time.Time
 	backend routeBackend
+	stopped bool
 	mu      sync.RWMutex
 }
 
@@ -194,7 +196,7 @@ func newFIBKernel(backend routeBackend) *fibKernel {
 	return &fibKernel{
 		installed:     make(map[string]string),
 		mplsInstalled: make(map[string]bool),
-		mplsSwaps:     make(map[uint32]bool),
+		mplsSwaps:     make(map[uint32]uint16),
 		pending:       make(map[string]time.Time),
 		backend:       backend,
 	}
@@ -207,7 +209,7 @@ func newFIBKernel(backend routeBackend) *fibKernel {
 // kernel with neither a gateway nor an interface and be refused.
 func hasRichFields(c *incomingChange) bool {
 	return c.RouteType != 0 || c.Metric != 0 || c.TableID != 0 || c.Interface != "" ||
-		c.Weight != 0 || len(c.ECMPPaths) > 0 || len(c.Labels) > 0 ||
+		c.OnLink || c.Weight != 0 || len(c.ECMPPaths) > 0 || len(c.Labels) > 0 ||
 		c.SRv6SID.IsValid() || len(c.Backup) > 0
 }
 
@@ -216,6 +218,7 @@ func changeToRichRoute(c *incomingChange) RichRoute {
 		Prefix:    c.Prefix,
 		NextHop:   c.NextHop,
 		Interface: c.Interface,
+		OnLink:    c.OnLink,
 		Weight:    c.Weight,
 		RouteType: c.RouteType,
 		Metric:    c.Metric,
@@ -268,6 +271,9 @@ func (f *fibKernel) processEvent(batch *incomingBatch) {
 
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if f.stopped {
+		return
+	}
 
 	now := time.Now()
 	rb := f.asRichBackend()
@@ -460,12 +466,13 @@ func (f *fibKernel) sweepStale(stale map[string]string) {
 	}
 }
 
-// run subscribes to (sysrib, best-change) on the EventBus and blocks until
-// ctx is canceled.
-func (f *fibKernel) run(ctx context.Context, flushOnStop bool) {
+// run subscribes to the forwarding events and reports subscription readiness
+// before replay. The caller MUST receive ready before starting producers and
+// MUST cancel ctx and join run before closing the backend.
+func (f *fibKernel) run(ctx context.Context, flushOnStop bool, ready chan<- error) {
 	eb := getEventBus()
 	if eb == nil {
-		logger().Warn("fib-kernel: no event bus configured")
+		ready <- errors.New("fib-kernel: no event bus configured")
 		return
 	}
 
@@ -476,6 +483,7 @@ func (f *fibKernel) run(ctx context.Context, flushOnStop bool) {
 	// LDP). fib-kernel is the single kernel-FIB owner, so it programs these too.
 	unsubMPLS := mplsfibevents.EntryChange.Subscribe(eb, f.handleMPLSEntry)
 	defer unsubMPLS()
+	ready <- nil
 
 	// Request full-table replay from sysrib so we populate even if sysrib
 	// started before us. Broadcast hop: the token addresses every consumer.
@@ -494,6 +502,9 @@ func (f *fibKernel) run(ctx context.Context, flushOnStop bool) {
 
 	// Wait for monitor to exit before closing backend.
 	monitorDone.Wait()
+	f.mu.Lock()
+	f.stopped = true
+	f.mu.Unlock()
 
 	if flushOnStop {
 		f.flushRoutes()

@@ -1,0 +1,14 @@
+{
+  "command": "env CGO_ENABLED=1 /home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le le job run label baseline-ospf-receive-red quiet command go test -race -count=1 -v -timeout=120s -tags ze_core,ze_lg,ze_ssh,ze_web,ze_gnmi,ze_mcp,ze_rest,ze_grpc,ze_telemetry,ze_isis,ze_ldp,ze_ospf,ze_rsvpte,ze_vrrp,ze_ntp,ze_flowexport,ze_ddos,ze_anomaly,ze_as112,ze_geodns,ze_dhcpserver,ze_pxe,ze_trafficusage,ze_policyroute,ze_cos,ze_copp,ze_mpls,ze_tacacs,ze_exabgp,ze_bfd,ze_vpp,ze_ike,ze_l2tp,ze_radius,ze_mrt,ze_bgp,ze_bmp -overlay=plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-receive-fix/before.json ./internal/plugins/ospf -run '^(TestReceiveProgressWhileOriginationBlocked|TestSRAdjSIDPublicationAndReuse)$'",
+  "launch": {
+    "text": "Backgrounded as job bg_1; result will be delivered automatically.",
+    "details": {
+      "async": {
+        "state": "running",
+        "jobId": "bg_1",
+        "type": "bash"
+      },
+      "timeoutSeconds": 360
+    }
+  }
+}

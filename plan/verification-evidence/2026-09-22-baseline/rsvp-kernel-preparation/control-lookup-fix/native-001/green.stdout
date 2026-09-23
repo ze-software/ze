@@ -1,0 +1,17 @@
+=== RUN   TestIntegrationRSVPPathCarriage
+=== RUN   TestIntegrationRSVPPathCarriage/PATH
+=== RUN   TestIntegrationRSVPPathCarriage/PathTear
+=== RUN   TestIntegrationRSVPPathCarriage/ResvConf
+--- PASS: TestIntegrationRSVPPathCarriage (0.08s)
+    --- PASS: TestIntegrationRSVPPathCarriage/PATH (0.01s)
+    --- PASS: TestIntegrationRSVPPathCarriage/PathTear (0.00s)
+    --- PASS: TestIntegrationRSVPPathCarriage/ResvConf (0.00s)
+=== RUN   TestIntegrationRSVPPathAvoidsDataFEC
+--- PASS: TestIntegrationRSVPPathAvoidsDataFEC (0.04s)
+=== RUN   TestIntegrationRSVPSelectedBypass
+--- PASS: TestIntegrationRSVPSelectedBypass (0.35s)
+=== RUN   TestIntegrationRSVPReceiveOversize
+--- PASS: TestIntegrationRSVPReceiveOversize (0.04s)
+=== RUN   TestIntegrationRSVPCloseIdle
+--- PASS: TestIntegrationRSVPCloseIdle (0.04s)
+PASS

@@ -17,7 +17,7 @@ type lSPEvent struct {
 	TunnelEndpoint string  `json:"tunnel-endpoint"`
 	TunnelID       uint16  `json:"tunnel-id"`
 	LSPID          uint16  `json:"lsp-id"`
-	Bandwidth      float32 `json:"bandwidth"`
+	Bandwidth      float64 `json:"bandwidth"`
 	State          string  `json:"state"`
 }
 

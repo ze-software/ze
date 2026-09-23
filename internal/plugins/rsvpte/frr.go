@@ -13,9 +13,13 @@
 package rsvpte
 
 import (
+	"bytes"
 	"encoding/binary"
+	"fmt"
 	"math"
 	"net/netip"
+	"slices"
+	"time"
 )
 
 // fastReroute is the FAST_REROUTE object (RFC 4090 Section 4.1). The head-end
@@ -74,6 +78,17 @@ func decodeFastReroute(body []byte) (fastReroute, error) {
 // the name well inside a single subobject. RFC 3209 does not cap it.
 const maxSessionName = 64
 
+// maxSessionAttrLen covers C-Type 1's object header (4), affinity masks (12),
+// priorities/flags/name length (4), and the padded one-octet name (256).
+//
+// RFC 3209 Section 4.7.1, byte offsets:
+//
+//	0..3   Length | Class-Num | C-Type
+//	4..15  Exclude-any | Include-any | Include-all
+//	16..19 Setup | Hold | Flags | Name Length
+//	20..   Session Name, padded to a four-byte boundary
+const maxSessionAttrLen = 276
+
 // sessionAttribute is the SESSION_ATTRIBUTE object (RFC 3209 Section 4.7.2,
 // C-Type 7 LSP_TUNNEL without resource affinities). The Flags byte carries the
 // RFC 4090 Section 4.3 local/node/bandwidth protection-desired bits.
@@ -113,6 +128,9 @@ func encodeSessionAttr(buf []byte, sa sessionAttribute) int {
 // 3209 Section 4.7.1) that ze does not use; C-Type 7 (LSP_TUNNEL) has no prefix.
 // Without this the protection Flags byte would be misread for a C-Type 1 peer.
 func decodeSessionAttr(body []byte, cType uint8) (sessionAttribute, error) {
+	if len(body) > maxSessionAttrLen-objHdrLen {
+		return sessionAttribute{}, errBadObjLen
+	}
 	off := 0
 	if cType == CTypeSessionAttrRA {
 		off = 12 // skip Exclude-any / Include-any / Include-all
@@ -242,6 +260,12 @@ func protectionFromPath(msg *ParsedMessage) *protectionRequest {
 // distinctly). parseConfig rejects a configured tunnel-id in this range.
 const bypassTunnelIDBase uint16 = 0xF000
 
+// Each bypass owns a distinct mark-selected forwarding table even when several
+// bypasses merge at the same address. The MPLS owner guards this mark namespace.
+func bypassTableID(key lspKey) uint32 {
+	return 0x5a000000 | uint32(key.TunnelID)
+}
+
 // bypassNameHash derives a stable 12-bit id from the bypass name (FNV-1a). The
 // bypass lspKey is keyed by this, not by the slice index, so a bypass keeps the
 // same key across a config reload that reorders the bypass list (the index is not
@@ -309,9 +333,16 @@ func (e *engine) selectBypass(rem []eroHop, pr *protectionRequest) (lspKey, bool
 // stays clear: a bypass reserves no bandwidth of its own (setupBypass), so it
 // never guarantees the protected LSP's bandwidth, and RFC 4090 Section 4.4 says
 // "If the requested bandwidth is not guaranteed, the PLR MUST NOT set this
-// flag". Callers hold lsp.mu.
+// flag". Callers hold lsp.mu, and MUST call it only once bypassEstablished
+// has answered true for lsp.Bypass: an armed bypass is a configuration match,
+// and RFC 4090 Section 6 says "Until a PLR has a backup path available, the
+// PLR MUST clear the relevant four flags in the corresponding RRO IPv4 or IPv6
+// sub-object", so the flags follow the bypass LSP's state, not the match.
 func rroProtectionFlags(lsp *LSP) uint8 {
 	if lsp.Bypass == nil {
+		return 0
+	}
+	if lsp.Role != RoleIngress && lsp.InLabel == 0 || lsp.BackupLabel == 0 {
 		return 0
 	}
 	flags := RROFlagProtectionAvailable
@@ -324,10 +355,32 @@ func rroProtectionFlags(lsp *LSP) uint8 {
 	return flags
 }
 
+// bypassEstablished reports whether the armed bypass has forwarding state:
+// the LSP is Up with an outgoing label and next hop. It answers false for no
+// bypass, a removed bypass, or one without usable forwarding state.
+// RFC 4090 Section 6: "If no established
+// one-to-one backup LSP or bypass tunnel exists, or if the one-to-one LSP and
+// the bypass tunnel is in 'DOWN' state, the PLR MUST clear the 'local
+// protection available' flag in its IPv4 (or IPv6) address sub-object of the
+// RRO". Callers MUST NOT hold the protected LSP's mu: the bypass LSP's state is
+// read under the bypass's own mu, and the two LSPs share no lock order.
+func (e *engine) bypassEstablished(key *lspKey) bool {
+	if key == nil {
+		return false
+	}
+	bypass, ok := e.table.Get(*key)
+	if !ok {
+		return false
+	}
+	bypass.mu.Lock()
+	defer bypass.mu.Unlock()
+	return bypass.State == LSPStateUp && bypass.OutLabel != 0 && bypass.NextHop.IsValid()
+}
+
 // tryLocalRepair performs RFC 4090 facility-backup local repair for a protected
-// transit LSP whose downstream link failed: it redirects the LSP onto its armed
-// bypass by programming a 2-label swap -- the bypass label pushed over the
-// (swapped) protected label, forwarded via the bypass next hop -- and marks
+// LSP whose downstream link failed: it redirects transit traffic with a
+// two-label swap, or ingress traffic with a two-label push. The bypass label
+// is outermost, above the merge point's protected label, and the LSP marks
 // protection in use. It returns true when the LSP is now protected and MUST be
 // retained (the caller skips teardown), and false when no usable bypass is
 // available (the caller falls back to the base tear-down behavior). Idempotent:
@@ -336,6 +389,7 @@ func (e *engine) tryLocalRepair(lsp *LSP, key lspKey) bool {
 	lsp.mu.Lock()
 	bypass := lsp.Bypass
 	inLabel := lsp.InLabel
+	role := lsp.Role
 	// The inner label the PLR pushes under the bypass is the merge point's label
 	// for the protected LSP: the NHOP's advertised label for link protection, or
 	// the NNHOP's recorded label for node protection (RFC 4090 Section 6.4.2).
@@ -344,6 +398,11 @@ func (e *engine) tryLocalRepair(lsp *LSP, key lspKey) bool {
 	// even if a PATH refresh re-armed the bypass.
 	protectedOut := lsp.BackupLabel
 	already := lsp.ProtectionInUse
+	sender := e.repairSender(lsp.Key.SenderAddr)
+	pathMTU := uint32(0)
+	if lsp.RSB != nil {
+		pathMTU = lsp.RSB.PathMTU
+	}
 	lsp.mu.Unlock()
 	if already {
 		return true
@@ -352,7 +411,7 @@ func (e *engine) tryLocalRepair(lsp *LSP, key lspKey) bool {
 	// with no swap entry), or no resolved merge-point label: nothing to safely
 	// redirect, so fall back to the base tear-down rather than claim a repair the
 	// data plane never made or would deliver to the wrong label.
-	if bypass == nil || inLabel == 0 || protectedOut == 0 {
+	if bypass == nil || role != RoleIngress && inLabel == 0 || protectedOut == 0 || !sender.IsValid() {
 		return false
 	}
 
@@ -365,18 +424,32 @@ func (e *engine) tryLocalRepair(lsp *LSP, key lspKey) bool {
 	bypassLabel := bl.OutLabel
 	bypassNextHop := bl.NextHop
 	bypassUp := bl.State == LSPStateUp
+	if bl.RSB == nil {
+		pathMTU = 0
+	} else {
+		pathMTU = min(pathMTU, bl.RSB.PathMTU)
+	}
 	bl.mu.Unlock()
 	if !bypassUp || !bypassNextHop.IsValid() || bypassLabel == 0 {
 		e.log.Warn("rsvp-te: bypass not ready, cannot locally repair", "lsp", key.String(), "bypass", bypass.String())
 		return false
 	}
 
+	if e.fib == nil {
+		return false
+	}
 	// RFC 4090 Section 3.2: push the bypass label on top of the swapped protected
 	// label and forward over the bypass next hop. labels[0] is the outermost label
 	// (the bypass label), so the merge point pops it and continues the protected
 	// LSP. The kernel AF_MPLS swap accepts this multi-label stack directly.
 	if e.fib != nil {
-		if err := e.fib.programBackup(inLabel, []uint32{bypassLabel, protectedOut}, bypassNextHop); err != nil {
+		var err error
+		if role == RoleIngress {
+			err = e.fib.programPush(netip.PrefixFrom(key.TunnelEndpoint, key.TunnelEndpoint.BitLen()), []uint32{bypassLabel, protectedOut}, bypassNextHop, 0, pathMTU)
+		} else {
+			err = e.fib.programBackup(inLabel, []uint32{bypassLabel, protectedOut}, bypassNextHop, pathMTU)
+		}
+		if err != nil {
 			e.log.Error("rsvp-te: local repair FIB program failed", "lsp", key.String(), "error", err)
 			return false
 		}
@@ -384,7 +457,16 @@ func (e *engine) tryLocalRepair(lsp *LSP, key lspKey) bool {
 
 	lsp.mu.Lock()
 	lsp.ProtectionInUse = true
+	lsp.RepairSender = sender
 	lsp.mu.Unlock()
+	// RFC 4090 Section 6.4.3 moves control traffic as well as data traffic.
+	// The bypass's ingress host route imposes its label on packets to the MP.
+	if err := e.sendPath(lsp); err != nil {
+		e.log.Warn("rsvp-te: protected PATH through bypass failed", "lsp", key.String(), "error", err)
+	}
+	if err := e.sendResv(lsp); err != nil {
+		e.log.Warn("rsvp-te: local-repair RESV refresh failed", "lsp", key.String(), "error", err)
+	}
 	if m := rsvpteMetricsPtr.Load(); m != nil {
 		m.localRepairs.Inc()
 	}
@@ -397,8 +479,8 @@ func (e *engine) tryLocalRepair(lsp *LSP, key lspKey) bool {
 // Section 6.5) at the head-end: it starts a make-before-break reroute of the
 // ingress LSP onto a fresh path (its configured ERO), which tears the old,
 // locally-repaired LSP once the replacement is up. It only acts on an ingress
-// LSP this node head-ends, and skips if a reroute for the next LSP_ID is already
-// in flight so repeated Notifies do not spawn a storm of replacements.
+// LSP this node head-ends, and skips if a replacement is already in flight so
+// repeated Notifies do not spawn a storm of replacements.
 func (e *engine) reoptimizeOnNotify(key lspKey) {
 	lsp, ok := e.table.Get(key)
 	if !ok {
@@ -414,28 +496,71 @@ func (e *engine) reoptimizeOnNotify(key lspKey) {
 	if !isIngress {
 		return
 	}
-	newKey := key
-	newKey.LSPID = key.LSPID + 1
-	if _, inFlight := e.table.Get(newKey); inFlight {
-		return // a make-before-break reroute is already under way
+	for _, replacement := range e.table.All() {
+		replacement.mu.Lock()
+		inFlight := replacement.Replaces != nil && *replacement.Replaces == key
+		replacement.mu.Unlock()
+		if inFlight {
+			return
+		}
 	}
 	if _, started := e.reroute(key, ero); started {
 		e.log.Info("rsvp-te: head-end re-optimizing after local-repair Notify", "lsp", key.String())
 	}
 }
 
-// clearBypassReferences clears the armed-bypass association on every protected
-// LSP that pointed at the given (now-removed) bypass LSP, so they stop reporting
-// "protection available"/"in use" for a bypass that no longer exists. The next
-// PATH refresh re-arms (via selectBypass) if a matching bypass returns.
+// clearBypassReferences withdraws repairs that depended on a departing bypass.
+// A protected PSB survives so a subsequent PATH/RESV can re-establish forwarding,
+// but no stale reservation or repair stack remains advertised as usable.
 func (e *engine) clearBypassReferences(bypass lspKey) {
 	for _, lsp := range e.table.All() {
 		lsp.mu.Lock()
-		if lsp.Bypass != nil && *lsp.Bypass == bypass {
-			lsp.Bypass = nil
-			lsp.ProtectionInUse = false
+		if lsp.Bypass == nil || *lsp.Bypass != bypass {
+			lsp.mu.Unlock()
+			continue
+		}
+		repaired := lsp.ProtectionInUse
+		var route PathRoute
+		var raw []byte
+		if repaired {
+			route, raw = e.pathTearLocked(lsp)
+		}
+		key, role, label := lsp.Key, lsp.Role, lsp.InLabel
+		lsp.Bypass = nil
+		lsp.ProtectionInUse = false
+		lsp.RepairSender = netip.Addr{}
+		lsp.RepairPathMTU = 0
+		if repaired {
+			lsp.RSB = nil
+			lsp.BackupLabel = 0
+			lsp.OutLabel = 0
+			if role == RoleIngress {
+				lsp.setState(LSPStatePathSent)
+			} else {
+				lsp.setState(LSPStatePathReceived)
+			}
 		}
 		lsp.mu.Unlock()
+		if !repaired {
+			continue
+		}
+		if len(raw) > 0 {
+			if err := e.transport.SendPath(route, raw); err != nil {
+				e.log.Warn("rsvp-te: retiring backup sender failed", "lsp", key.String(), "error", err)
+			}
+		}
+		if e.fib != nil {
+			var err error
+			if role == RoleIngress {
+				err = e.fib.removePush(netip.PrefixFrom(key.TunnelEndpoint, key.TunnelEndpoint.BitLen()), 0)
+			} else if label != 0 {
+				err = e.fib.removeSwap(label)
+			}
+			if err != nil {
+				e.log.Warn("rsvp-te: retiring backup forwarding failed", "lsp", key.String(), "error", err)
+			}
+		}
+		emitLSPDown(e.log, lsp, e.table.Len())
 	}
 }
 
@@ -459,4 +584,256 @@ func updateFRRGauges(lspTable *lspTable) {
 	}
 	m.protectedLSPs.Set(float64(protected))
 	m.bypassLSPs.Set(float64(bypass))
+}
+
+// backupPath constructs the sender-template-specific PATH carried inside an
+// established bypass. The original PSB is not mutated: upstream refreshes and
+// RESVs still name the protected sender.
+func backupPath(psb *pathStateBlock, mp, plr, sender netip.Addr, period time.Duration, bypassMTU uint32) (*pathStateBlock, error) {
+	index := slices.IndexFunc(psb.ERO, func(h eroHop) bool { return h.Address.Contains(mp) })
+	if index < 0 {
+		return nil, fmt.Errorf("rsvp-te: merge point %s absent from protected ERO", mp)
+	}
+	backup := *psb
+	// RFC 4090 Sections 6.4.3 and 6.4.4: "The PLR MUST generate an
+	// EXPLICIT_ROUTE object toward the egress", removing nodes before the MP
+	// and replacing its first subobject with the bypass destination.
+	backup.ERO = slices.Clone(psb.ERO[index:])
+	backup.ERO[0] = eroHop{Address: netip.PrefixFrom(mp, mp.BitLen())}
+	backup.SenderTemplate.SenderAddr = sender
+	backup.RefreshPeriod = period
+	// Do not retain the failed primary link's minimum in the repaired PATH.
+	// A transit starts from its received advertisement; a head-end starts a
+	// fresh advertisement of the selected bypass's actual budget.
+	backup.Adspec = nil
+	if len(psb.ReceivedAdspec) > 0 {
+		backup.Adspec = bytes.Clone(psb.ReceivedAdspec)
+		if err := updateAdspec(backup.Adspec, bypassMTU); err != nil {
+			return nil, err
+		}
+	} else if len(psb.Adspec) > 0 && bypassMTU != 0 {
+		service := psb.SenderTSpec.Service
+		if service == 0 || service == serviceGeneral {
+			service = serviceControlledLoad
+		}
+		backup.Adspec = make([]byte, adspecSize)
+		if encodeAdspec(backup.Adspec, bypassMTU, service) <= 0 {
+			return nil, errIntserv
+		}
+	}
+	backup.Protection = nil
+	backup.SessionAttr = bytes.Clone(psb.SessionAttr)
+	if len(backup.SessionAttr) == 0 && psb.Protection != nil {
+		buf := make([]byte, maxSessionAttrLen)
+		n := encodeSessionAttr(buf, psb.Protection.sessionAttr())
+		backup.SessionAttr = buf[:n]
+	}
+	if len(backup.SessionAttr) > 0 {
+		flags := 6
+		if backup.SessionAttr[3] == CTypeSessionAttrRA {
+			flags = 18
+		}
+		// Section 6.4.3 allows only these protection bits to change.
+		backup.SessionAttr[flags] &^= SessAttrLocalProtection | SessAttrNodeProtection | SessAttrBandwidthProtection
+	}
+	backup.RRO = slices.Clone(psb.RRO)
+	if len(backup.RRO) > 0 && backup.RRO[0].Address == plr {
+		backup.RRO[0].Flags |= RROFlagProtectionAvailable | RROFlagProtectionInUse
+	}
+	return &backup, nil
+}
+
+func (e *engine) bypassPathMTU(key *lspKey) uint32 {
+	if key == nil {
+		return 0
+	}
+	bypass, ok := e.table.Get(*key)
+	if !ok {
+		return 0
+	}
+	bypass.mu.Lock()
+	defer bypass.mu.Unlock()
+	if bypass.State != LSPStateUp || bypass.RSB == nil {
+		return 0
+	}
+	return bypass.RSB.PathMTU
+}
+
+// repairedLSP resolves the PLR's backup FILTER_SPEC back to its protected LSP.
+// SESSION and LSP_ID stay unchanged; the backup sender is the PLR itself.
+func (e *engine) repairedLSP(key lspKey, src netip.Addr) (*LSP, bool) {
+	for _, lsp := range e.table.All() {
+		lsp.mu.Lock()
+		match := sameTunnelLSP(lsp.Key, key) && lsp.ProtectionInUse &&
+			lsp.RepairSender == key.SenderAddr && lsp.Bypass != nil && e.samePeer(lsp.Bypass.TunnelEndpoint, src)
+		lsp.mu.Unlock()
+		if match {
+			return lsp, true
+		}
+	}
+	return nil, false
+}
+
+func sameTunnelLSP(a, b lspKey) bool {
+	return a.TunnelEndpoint == b.TunnelEndpoint && a.TunnelID == b.TunnelID &&
+		a.ExtTunnelID == b.ExtTunnelID && a.LSPID == b.LSPID
+}
+
+// refreshBackupForwarding updates the inner label learned from the MP without
+// restoring the failed normal next hop. No pair of LSP locks is held together.
+func (e *engine) refreshBackupForwarding(lsp *LSP, inner, pathMTU uint32) error {
+	lsp.mu.Lock()
+	key, in := lsp.Bypass, lsp.InLabel
+	role, endpoint := lsp.Role, lsp.Key.TunnelEndpoint
+	lsp.mu.Unlock()
+	if key == nil || inner == 0 || e.fib == nil {
+		return errForwardingUnavailable
+	}
+	bypass, ok := e.table.Get(*key)
+	if !ok {
+		return errForwardingUnavailable
+	}
+	bypass.mu.Lock()
+	label, hop, state := bypass.OutLabel, bypass.NextHop, bypass.State
+	if bypass.RSB == nil {
+		pathMTU = 0
+	} else {
+		pathMTU = min(pathMTU, bypass.RSB.PathMTU)
+	}
+	bypass.mu.Unlock()
+	if state != LSPStateUp || label == 0 || !hop.IsValid() {
+		return errForwardingUnavailable
+	}
+	if role == RoleIngress {
+		return e.fib.programPush(netip.PrefixFrom(endpoint, endpoint.BitLen()), []uint32{label, inner}, hop, 0, pathMTU)
+	}
+	return e.fib.programBackup(in, []uint32{label, inner}, hop, pathMTU)
+}
+
+// mergeBackupPath joins a facility-backup sender to the protected downstream
+// PATH, retaining independent upstream refresh deadlines and RESV destinations.
+// RFC 4090 Section 7.1.1: the final PATH "MUST be that of the protected LSP".
+func (e *engine) mergeBackupPath(src netip.Addr, msg *ParsedMessage, rem []eroHop) bool {
+	if !e.isLocalAddress(msg.Session.TunnelEndpoint) && msg.Header.TTL <= 1 {
+		return false // let the normal transit path enforce its hop limit
+	}
+	key := keyFromMessage(msg)
+	if lsp, ok := e.table.Get(key); ok {
+		lsp.mu.Lock()
+		if lsp.MergedPaths != nil {
+			lsp.MergedPaths[msg.SenderTemplate] = mergedPath{PrevHop: src, Hop: msg.Hop, LastRefresh: time.Now(),
+				RefreshPeriod: receivedRefreshPeriod(msg), RecordRoute: msg.HasRRO,
+				Adspec: bytes.Clone(msg.AdspecRaw), ForwardObjects: ownObjects(msg.ForwardObjects)}
+		}
+		lsp.mu.Unlock()
+		return false
+	}
+	if msg.HasFastReroute || msg.HasSessionAttr && msg.SessionAttr.Flags&SessAttrLocalProtection != 0 ||
+		!msg.HasHop || msg.Hop.NextHop != src {
+		return false
+	}
+	for _, lsp := range e.table.All() {
+		lsp.mu.Lock()
+		if !sameTunnelLSP(lsp.Key, key) || lsp.PSB == nil || lsp.PSB.Protection == nil ||
+			lsp.PSB.SenderTSpec != msg.SenderTSpec ||
+			(lsp.Role != RoleEgress && !slices.Equal(lsp.PSB.ERO, rem)) {
+			lsp.mu.Unlock()
+			continue
+		}
+		if lsp.MergedPaths == nil {
+			lsp.MergedPaths = map[senderTemplateIPv4]mergedPath{
+				lsp.PSB.SenderTemplate: {PrevHop: lsp.PrevHop, Hop: lsp.PSB.Hop, LastRefresh: lsp.PSB.LastRefresh,
+					RefreshPeriod: lsp.PSB.RefreshPeriod, RecordRoute: lsp.PSB.RecordRoute,
+					Adspec: bytes.Clone(lsp.PSB.ReceivedAdspec), ForwardObjects: ownObjects(lsp.PSB.ForwardObjects)},
+			}
+		}
+		lsp.MergedPaths[msg.SenderTemplate] = mergedPath{PrevHop: src, Hop: msg.Hop, LastRefresh: time.Now(),
+			RefreshPeriod: receivedRefreshPeriod(msg), RecordRoute: msg.HasRRO,
+			Adspec: bytes.Clone(msg.AdspecRaw), ForwardObjects: ownObjects(msg.ForwardObjects)}
+		recomputeMergedAdspecLocked(lsp)
+		transit := lsp.Role == RoleTransit
+		lsp.mu.Unlock()
+		if transit {
+			if err := e.sendPath(lsp); err != nil {
+				e.log.Warn("rsvp-te: merged PATH refresh failed", "lsp", lsp.Key.String(), "error", err)
+			}
+		}
+		if err := e.sendResv(lsp); err != nil {
+			e.log.Warn("rsvp-te: merged RESV refresh failed", "lsp", lsp.Key.String(), "error", err)
+		}
+		return true
+	}
+	return false
+}
+
+// recomputeMergedAdspecLocked removes a departed branch's MTU restriction while
+// retaining the minimum of every live branch. Unknown discovery on any branch
+// keeps the merged discovery unknown. lsp.mu must be held.
+func recomputeMergedAdspecLocked(lsp *LSP) {
+	if lsp.PSB == nil || len(lsp.MergedPaths) == 0 {
+		return
+	}
+	psb := lsp.PSB
+	selected, have := lsp.MergedPaths[psb.SenderTemplate]
+	mtu := adspecPathMTU(selected.Adspec, psb.SenderTSpec.Service)
+	var objects [][]byte
+	if have {
+		objects = appendObjectUnion(objects, selected.ForwardObjects)
+	}
+	for sender, branch := range lsp.MergedPaths {
+		if sender == psb.SenderTemplate {
+			continue
+		}
+		candidate := adspecPathMTU(branch.Adspec, psb.SenderTSpec.Service)
+		if !have || candidate < mtu {
+			selected, mtu, have = branch, candidate, true
+		}
+		objects = appendObjectUnion(objects, branch.ForwardObjects)
+	}
+	psb.ReceivedAdspec = bytes.Clone(selected.Adspec)
+	psb.Adspec = bytes.Clone(selected.Adspec)
+	if lsp.Role == RoleTransit && len(psb.Adspec) > 0 {
+		if err := updateAdspec(psb.Adspec, psb.Route.MTU); err != nil {
+			psb.Adspec = nil
+		}
+	}
+	psb.ForwardObjects = objects
+}
+
+// mergedLSP finds the MP state that owns a non-canonical sender's branch.
+func (e *engine) mergedLSP(key lspKey) (*LSP, bool) {
+	filter := senderTemplateIPv4{SenderAddr: key.SenderAddr, LSPID: key.LSPID}
+	for _, lsp := range e.table.All() {
+		lsp.mu.Lock()
+		_, merged := lsp.MergedPaths[filter]
+		match := sameTunnelLSP(lsp.Key, key) && merged
+		lsp.mu.Unlock()
+		if match {
+			return lsp, true
+		}
+	}
+	return nil, false
+}
+
+// repairSender chooses a distinct local sender for a head-end acting as PLR.
+// RFC 4090 Section 6.1.1: it "MUST choose an IP address different from the one
+// used in the SENDER_TEMPLATE of the original LSP tunnel".
+func (e *engine) repairSender(original netip.Addr) netip.Addr {
+	cfg := e.cfg()
+	e.peers.RLock()
+	defer e.peers.RUnlock()
+	var alternate netip.Addr
+	for _, iface := range e.peers.local {
+		address := iface.Address
+		if !iface.Up || !address.Is4() || !address.IsGlobalUnicast() || address == original {
+			continue
+		}
+		if address == cfg.RouterID {
+			return address
+		}
+		if !alternate.IsValid() {
+			alternate = address
+		}
+	}
+	return alternate
 }

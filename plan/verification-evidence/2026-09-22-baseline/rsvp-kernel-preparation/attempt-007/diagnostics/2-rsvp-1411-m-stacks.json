@@ -1,0 +1,7 @@
+{
+  "namespace": "rsvp-1411-m",
+  "command": "show system goroutines full",
+  "started_unix": 1790090399.0271187,
+  "finished_unix": 1790090399.3743162,
+  "exit_code": 0
+}

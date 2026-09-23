@@ -17,24 +17,33 @@ import (
 
 // prependRRO returns a new RRO with this node's IPv4 address recorded at the
 // head, ahead of the route recorded by downstream nodes (RFC 3209 Section 4.4).
-// An invalid self address is not recorded. The second result reports whether the
-// recorded route was truncated at maxRecordRouteHops -- callers MUST surface that
-// (a route longer than the limit means a pathological path or a routing loop, and
-// must not be dropped silently).
-func prependRRO(self netip.Addr, downstream []rroEntry) (out []rroEntry, truncated bool) {
-	out = make([]rroEntry, 0, len(downstream)+1)
+// An invalid self address is not recorded. The second result reports that the
+// route grew past maxRecordRouteHops, the most one message buffer encodes, and
+// was dropped whole. RFC 3209 Section 4.4.3: "If the newly added subobject
+// causes the RRO to be too big to fit in a Path (or Resv) message, the RRO
+// object SHALL be dropped from the message and message processing continues as
+// normal." Callers MUST surface the drop. A recorded label counts toward the
+// same bound and is added only with this node's address.
+func prependRRO(self netip.Addr, downstream []rroEntry, recordLabel uint32) (out []rroEntry, dropped bool) {
+	entries := len(downstream)
+	if self.IsValid() {
+		entries++
+		if recordLabel != 0 {
+			entries++
+		}
+	}
+	if entries > maxRecordRouteHops {
+		return nil, true
+	}
+	out = make([]rroEntry, 0, entries)
 	if self.IsValid() {
 		out = append(out, rroEntry{Type: RROSubIPv4, Address: self})
+		if recordLabel != 0 {
+			out = append(out, rroEntry{Type: RROSubLabel, Label: recordLabel})
+		}
 	}
 	out = append(out, downstream...)
-	// Bound the recorded route so a long path (or a routing loop) cannot grow it
-	// past what the fixed message buffer can encode. Keep the head (this node and
-	// the nearest hops); the far tail is the least useful for the head-end view.
-	if len(out) > maxRecordRouteHops {
-		out = out[:maxRecordRouteHops]
-		truncated = true
-	}
-	return out, truncated
+	return out, false
 }
 
 // formatERO renders ERO hops as "prefix strict|loose" strings for display.

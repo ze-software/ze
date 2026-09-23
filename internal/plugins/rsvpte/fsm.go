@@ -99,6 +99,11 @@ type pathStateBlock struct {
 	SenderTemplate senderTemplateIPv4
 	Hop            rsvpHop
 	ERO            []eroHop
+	// RRO holds the PATH route including this node, ready for relay. RecordRoute
+	// distinguishes a request whose RRO overflowed from a PATH with no request.
+	RRO            []rroEntry
+	RecordRoute    bool
+	RecordLabels   bool
 	SenderTSpec    FlowSpec
 	LabelRequest   labelRequest
 	RefreshPeriod  time.Duration
@@ -107,6 +112,19 @@ type pathStateBlock struct {
 	// then carries SESSION_ATTRIBUTE (protection-desired flags) and FAST_REROUTE.
 	// A transit node fills it from the received PATH (protectionFromPath).
 	Protection *protectionRequest
+	// SessionAttr is the SESSION_ATTRIBUTE object exactly as a transit node
+	// received it, header included, and nil at the head-end and when the PATH
+	// carried none. RFC 3209 Section 4.7.4: "All RSVP routers, whether they
+	// support the SESSION_ATTRIBUTE object or not, SHALL forward the object
+	// unmodified", so the relay copies these bytes rather than rebuilding the
+	// object from the decoded fields (which would drop a C-Type 1 peer's
+	// resource affinities and rewrite its flags).
+	SessionAttr []byte
+	Route RouteInfo
+	Adspec []byte
+	ReceivedAdspec []byte
+	SenderTSpecRaw []byte
+	ForwardObjects [][]byte
 }
 
 // resvStateBlock (RSB) stores RESV state for an LSP (RFC 2205 Section 2.1).
@@ -117,8 +135,32 @@ type resvStateBlock struct {
 	Style    uint32
 	Hop      rsvpHop
 	RRO      []rroEntry
+	// ResvConfirm is forwarded once for the received request, never refreshed.
+	ResvConfirm netip.Addr
+	// RRODropped suppresses later RESV recording after a local route overflow.
+	// A PATH that withdraws route recording also clears the cached RRO.
+	RRODropped bool
+	PathMTU uint32
+	FlowSpecRaw []byte
+	ForwardObjects [][]byte
+	RefreshPeriod time.Duration
+	Blockade FlowSpec
+	BlockadeUntil time.Time
 
 	LastRefresh time.Time
+}
+
+// mergedPath retains one incoming branch of a sender-template-specific merge.
+// Each branch expires independently; the protected PSB remains the downstream
+// identity while any branch is alive (RFC 4090 Section 7.1.1).
+type mergedPath struct {
+	PrevHop netip.Addr
+	LastRefresh time.Time
+	RefreshPeriod time.Duration
+	RecordRoute bool
+	Hop rsvpHop
+	Adspec []byte
+	ForwardObjects [][]byte
 }
 
 // LSP tracks the full state of one LSP at this node.
@@ -142,7 +184,7 @@ type LSP struct {
 	NextHop  netip.Addr
 	PrevHop  netip.Addr
 
-	Bandwidth float32
+	Bandwidth float64
 
 	SetupPriority uint8
 	HoldPriority  uint8
@@ -174,6 +216,11 @@ type LSP struct {
 	ProtectionInUse bool
 	IsBypass        bool
 	BackupLabel     uint32
+	RepairSender netip.Addr // alternate local address when the head-end is the PLR
+	RepairPathMTU uint32
+	// MergedPaths is populated at an MP when backup senders join the protected
+	// PATH. It includes the original sender until that branch tears or expires.
+	MergedPaths map[senderTemplateIPv4]mergedPath
 
 	CreatedAt   time.Time
 	LastChanged time.Time
@@ -296,6 +343,22 @@ func (t *lspTable) expiredPSBs(now time.Time, factor int) []lspKey {
 			continue
 		}
 		deadline := lsp.PSB.LastRefresh.Add(lsp.PSB.RefreshPeriod * time.Duration(factor))
+		if lsp.MergedPaths != nil {
+			deadline = time.Time{}
+			changed := false
+			for sender, branch := range lsp.MergedPaths {
+				expires := branch.LastRefresh.Add(branch.RefreshPeriod * time.Duration(factor))
+				if now.After(expires) {
+					delete(lsp.MergedPaths, sender)
+					changed = true
+				} else if expires.After(deadline) {
+					deadline = expires
+				}
+			}
+			if changed {
+				recomputeMergedAdspecLocked(lsp)
+			}
+		}
 		lsp.mu.Unlock()
 		if now.After(deadline) {
 			expired = append(expired, key)

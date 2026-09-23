@@ -1,0 +1,25 @@
+{
+  "argv": [
+    "ip",
+    "netns",
+    "exec",
+    "rsvp-1361-h",
+    "ip",
+    "-4",
+    "address",
+    "show"
+  ],
+  "started": {
+    "unix_ns": 1790093841227933161,
+    "monotonic_ns": 37425168222
+  },
+  "exit_code": 0,
+  "stdout": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-009/samples/rsvp-1361-h/001/addresses.stdout",
+  "stderr": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-009/samples/rsvp-1361-h/001/addresses.stderr",
+  "pid": 1427,
+  "status": "ok",
+  "finished": {
+    "unix_ns": 1790093841247126467,
+    "monotonic_ns": 37444362649
+  }
+}

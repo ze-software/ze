@@ -1,0 +1,169 @@
+=== RUN   TestRSVPNativeProducer
+    producer_integration_linux_test.go:147: timed out waiting for native OSPF adjacencies on rsvp-1384-h
+    producer_integration_linux_test.go:492: rsvp-1384-e shutdown: context canceled
+    producer_integration_linux_test.go:495: rsvp-1384-e daemon output:
+        2026/09/22 11:17:07 WARN YANG command node missing ze:help summary path="show policy"
+        2026/09/22 11:17:07 WARN YANG command node missing ze:help summary path=request
+        created live store: /tmp/TestRSVPNativeProducer3047172878/003/database
+        warning: running as root, set ze.user to drop privileges
+        time=2026-09-22T11:17:12.001Z level=DEBUG msg="fib-kernel plugin starting (RPC)" subsystem=fib.kernel
+        time=2026-09-22T11:17:12.008Z level=DEBUG msg="rsvp-te engine starting" subsystem=rsvp.te
+        2026/09/22 11:17:12 INFO generated SSH host key subsystem=ssh path=/tmp/TestRSVPNativeProducer3047172878/003/ssh_host_ed25519_key
+        Starting ze with config: /tmp/TestRSVPNativeProducer3047172878/003/ze.conf
+        2026/09/22 11:17:13 INFO SSH server listening subsystem=ssh address=127.0.0.1:2222
+        time=2026-09-22T11:17:13.253Z level=INFO msg="fib-kernel: emitted forwarding defaults via sysctl" subsystem=fib.kernel
+        time=2026-09-22T11:17:13.299Z level=INFO msg="fib-kernel: startup sweep" subsystem=fib.kernel stale-routes=0
+        time=2026-09-22T11:17:13.316Z level=INFO msg="fib-kernel: running" subsystem=fib.kernel
+        time=2026-09-22T11:17:13.353Z level=INFO msg="fib-kernel: route monitor started (routewatch consumer)" subsystem=fib.kernel
+        Ze running. Press Ctrl+C to stop.
+        2026/09/22 11:17:16 INFO SSH auth success subsystem=ssh username=admin remote=127.0.0.1:56180 source=local profiles=[admin]
+        
+        Shutting down (Ctrl+C again to force)...
+        time=2026-09-22T11:17:36.473Z level=INFO msg="fib-kernel: route monitor stopped" subsystem=fib.kernel
+        time=2026-09-22T11:17:36.490Z level=INFO msg="fib-kernel: stopped" subsystem=fib.kernel
+        time=2026-09-22T11:17:36.494Z level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=rib
+        time=2026-09-22T11:17:36.517Z level=WARN msg="rsvp-te: receive poller stopped" subsystem=rsvp.te err="use of closed file"
+        Ze stopped.
+        2026/09/22 11:17:36 INFO SSH server stopping subsystem=ssh
+    producer_integration_linux_test.go:492: rsvp-1384-m shutdown: exit status 1
+    producer_integration_linux_test.go:495: rsvp-1384-m daemon output:
+        2026/09/22 11:17:00 WARN YANG command node missing ze:help summary path="show policy"
+        2026/09/22 11:17:00 WARN YANG command node missing ze:help summary path=request
+        created live store: /tmp/TestRSVPNativeProducer3047172878/002/database
+        warning: running as root, set ze.user to drop privileges
+        time=2026-09-22T11:17:02.380Z level=DEBUG msg="rsvp-te engine starting" subsystem=rsvp.te
+        time=2026-09-22T11:17:02.383Z level=DEBUG msg="fib-kernel plugin starting (RPC)" subsystem=fib.kernel
+        2026/09/22 11:17:02 INFO generated SSH host key subsystem=ssh path=/tmp/TestRSVPNativeProducer3047172878/002/ssh_host_ed25519_key
+        Starting ze with config: /tmp/TestRSVPNativeProducer3047172878/002/ze.conf
+        2026/09/22 11:17:02 INFO SSH server listening subsystem=ssh address=127.0.0.1:2222
+        time=2026-09-22T11:17:04.610Z level=INFO msg="fib-kernel: emitted forwarding defaults via sysctl" subsystem=fib.kernel
+        time=2026-09-22T11:17:04.635Z level=INFO msg="fib-kernel: startup sweep" subsystem=fib.kernel stale-routes=0
+        time=2026-09-22T11:17:04.644Z level=INFO msg="fib-kernel: running" subsystem=fib.kernel
+        time=2026-09-22T11:17:04.653Z level=INFO msg="fib-kernel: route monitor started (routewatch consumer)" subsystem=fib.kernel
+        Ze running. Press Ctrl+C to stop.
+        2026/09/22 11:17:05 INFO SSH auth success subsystem=ssh username=admin remote=127.0.0.1:51176 source=local profiles=[admin]
+        time=2026-09-22T11:17:36.487Z level=INFO msg="fib-kernel: route monitor stopped" subsystem=fib.kernel
+        time=2026-09-22T11:17:36.501Z level=INFO msg="fib-kernel: stopped" subsystem=fib.kernel
+        
+        Shutting down (Ctrl+C again to force)...
+        time=2026-09-22T11:17:36.547Z level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=interface
+        time=2026-09-22T11:17:36.611Z level=WARN msg="rsvp-te: receive poller stopped" subsystem=rsvp.te err="use of closed file"
+    producer_integration_linux_test.go:492: rsvp-1384-h shutdown: exit status 1
+    producer_integration_linux_test.go:495: rsvp-1384-h daemon output:
+        2026/09/22 11:16:57 WARN YANG command node missing ze:help summary path=request
+        2026/09/22 11:16:57 WARN YANG command node missing ze:help summary path="show policy"
+        created live store: /tmp/TestRSVPNativeProducer3047172878/001/database
+        warning: running as root, set ze.user to drop privileges
+        time=2026-09-22T11:16:58.359Z level=DEBUG msg="fib-kernel plugin starting (RPC)" subsystem=fib.kernel
+        time=2026-09-22T11:16:58.359Z level=DEBUG msg="rsvp-te engine starting" subsystem=rsvp.te
+        2026/09/22 11:16:58 INFO generated SSH host key subsystem=ssh path=/tmp/TestRSVPNativeProducer3047172878/001/ssh_host_ed25519_key
+        Starting ze with config: /tmp/TestRSVPNativeProducer3047172878/001/ze.conf
+        2026/09/22 11:16:58 INFO SSH server listening subsystem=ssh address=127.0.0.1:2222
+        time=2026-09-22T11:16:59.141Z level=INFO msg="fib-kernel: emitted forwarding defaults via sysctl" subsystem=fib.kernel
+        time=2026-09-22T11:16:59.158Z level=INFO msg="fib-kernel: startup sweep" subsystem=fib.kernel stale-routes=0
+        time=2026-09-22T11:16:59.165Z level=INFO msg="fib-kernel: running" subsystem=fib.kernel
+        time=2026-09-22T11:16:59.168Z level=INFO msg="fib-kernel: route monitor started (routewatch consumer)" subsystem=fib.kernel
+        Ze running. Press Ctrl+C to stop.
+        2026/09/22 11:16:59 INFO SSH auth success subsystem=ssh username=admin remote=127.0.0.1:51170 source=local profiles=[admin]
+        2026/09/22 11:17:16 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:16 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:16 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:17 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:17 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:17 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:17 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:17 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:18 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:18 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:18 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:18 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:18 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:19 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:19 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:19 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:19 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:20 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:20 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:20 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:20 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:20 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:21 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:21 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:21 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:21 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:21 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:22 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:22 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:22 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:22 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:23 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:23 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:23 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:23 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:23 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:24 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:24 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:24 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:24 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:25 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:25 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:25 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:25 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:26 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:26 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:26 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:26 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:26 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:27 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:27 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:27 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:27 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:27 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:28 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:28 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:28 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:28 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:28 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:29 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:29 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:29 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:29 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:29 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:30 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:30 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:30 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:30 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:31 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:31 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:31 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:31 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:31 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:32 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:32 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:32 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:32 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:32 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:33 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:33 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:33 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:33 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:33 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:34 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:34 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:34 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:34 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:34 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:35 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:35 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:35 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:35 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:36 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        2026/09/22 11:17:36 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:51170
+        time=2026-09-22T11:17:36.462Z level=WARN msg="plugin exited and is not to be started again, so ze continues without it" subsystem=plugin.server plugin=rib
+        
+        Shutting down (Ctrl+C again to force)...
+        time=2026-09-22T11:17:36.502Z level=INFO msg="fib-kernel: route monitor stopped" subsystem=fib.kernel
+        time=2026-09-22T11:17:36.508Z level=INFO msg="fib-kernel: stopped" subsystem=fib.kernel
+        time=2026-09-22T11:17:36.632Z level=WARN msg="rsvp-te: receive poller stopped" subsystem=rsvp.te err="use of closed file"
+--- FAIL: TestRSVPNativeProducer (41.50s)
+FAIL

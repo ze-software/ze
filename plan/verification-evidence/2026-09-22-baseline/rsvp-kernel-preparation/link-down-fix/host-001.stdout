@@ -1,0 +1,78 @@
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/main/x86_64/APKINDEX.tar.gz
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/community/x86_64/APKINDEX.tar.gz
+v3.21.8 [https://dl-cdn.alpinelinux.org/alpine/v3.21/main]
+v3.21.7-256-g56dd60806f0 [https://dl-cdn.alpinelinux.org/alpine/v3.21/community]
+OK: 25422 distinct packages available
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/main/x86_64/APKINDEX.tar.gz
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/community/x86_64/APKINDEX.tar.gz
+(1/15) Upgrading musl (1.2.5-r9 -> 1.2.5-r11)
+(2/15) Installing brotli-libs (1.1.0-r2)
+(3/15) Installing c-ares (1.34.8-r0)
+(4/15) Installing libunistring (1.2-r0)
+(5/15) Installing libidn2 (2.3.7-r0)
+(6/15) Installing nghttp2-libs (1.69.0-r0)
+(7/15) Installing libpsl (0.21.5-r3)
+(8/15) Installing zstd-libs (1.5.6-r2)
+(9/15) Installing libcurl (8.14.1-r2)
+(10/15) Installing curl (8.14.1-r2)
+(11/15) Installing libexpat (2.8.4-r0)
+(12/15) Installing pcre2 (10.43-r0)
+(13/15) Installing git (2.47.3-r0)
+(14/15) Installing git-init-template (2.47.3-r0)
+(15/15) Installing musl-dev (1.2.5-r11)
+Executing busybox-1.37.0-r12.trigger
+OK: 37 MiB in 50 packages
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/main/x86_64/APKINDEX.tar.gz
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/community/x86_64/APKINDEX.tar.gz
+(1/24) Installing libelf (0.191-r0)
+(2/24) Installing libmnl (1.0.5-r2)
+(3/24) Installing iproute2-minimal (6.11.0-r0)
+(4/24) Installing ifupdown-ng-iproute2 (0.12.1-r6)
+(5/24) Installing libxtables (1.8.11-r1)
+(6/24) Installing iproute2-tc (6.11.0-r0)
+(7/24) Installing iproute2-ss (6.11.0-r0)
+(8/24) Installing iproute2 (6.11.0-r0)
+Executing iproute2-6.11.0-r0.post-install
+(9/24) Installing libbz2 (1.0.8-r6)
+(10/24) Installing libffi (3.4.7-r0)
+(11/24) Installing gdbm (1.24-r0)
+(12/24) Installing xz-libs (5.8.4-r0)
+(13/24) Installing libgcc (14.2.0-r4)
+(14/24) Installing libstdc++ (14.2.0-r4)
+(15/24) Installing mpdecimal (4.0.0-r0)
+(16/24) Installing libpanelw (6.5_p20241006-r3)
+(17/24) Installing readline (8.2.13-r0)
+(18/24) Installing sqlite-libs (3.48.0-r4)
+(19/24) Installing python3 (3.12.14-r0)
+(20/24) Installing python3-pycache-pyc0 (3.12.14-r0)
+(21/24) Installing pyc (3.12.14-r0)
+(22/24) Installing python3-pyc (3.12.14-r0)
+(23/24) Installing libpcap (1.10.7-r0)
+(24/24) Installing tcpdump (4.99.5-r0)
+Executing busybox-1.37.0-r12.trigger
+OK: 77 MiB in 74 packages
+CONNTRACK-SETUP: acct=1 rules=0
+0
+{
+  "red_expected_failure_observed": true,
+  "green_three_cases_passed": true,
+  "inputs_unchanged": true,
+  "red_exit": 1,
+  "green_exit": 0,
+  "producer_action": {
+    "argv": [
+      "/usr/bin/python3",
+      "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/capture-native-guest.py",
+      "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/rsvpte.test",
+      "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/ze",
+      "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-011"
+    ],
+    "started_ns": 1790097335835724754,
+    "exit_code": 1,
+    "stdout": "producer-action.stdout",
+    "stderr": "producer-action.stderr",
+    "finished_ns": 1790097385419320973
+  },
+  "boundary": "Actual monitor startup and first-down discrimination. The OSPF-containing producer cannot independently prove the added RSVP interface dependency. No foreign-peer RSVP claim."
+}
+QEMU VM: FAIL (exit code 1)

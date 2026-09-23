@@ -1,0 +1,22 @@
+[
+  {
+    "source": "docs/architecture/ospf/ospf-6-neighbor-nsm.md",
+    "before": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-exchange-followup/before/docs/architecture/ospf/ospf-6-neighbor-nsm.md",
+    "sha256": "292c49259116b29a978b0b8064066e6ff27873d201f23b3a61e94fa06bf576f5"
+  },
+  {
+    "source": "internal/plugins/ospf/neighbor/dd.go",
+    "before": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-exchange-followup/before/internal/plugins/ospf/neighbor/dd.go",
+    "sha256": "783f5e6b6473ac9d3326b0f3206134dcf603368b770319c0dc27c80bbc134215"
+  },
+  {
+    "source": "internal/plugins/ospf/neighbor/table.go",
+    "before": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-exchange-followup/before/internal/plugins/ospf/neighbor/table.go",
+    "sha256": "ee20bcfa2a09ef915fb1d431d5e47d18691861da0359c9af126cdb5c0089cd48"
+  },
+  {
+    "source": "internal/plugins/ospf/neighbor/nsm_test.go",
+    "before": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-exchange-followup/before/internal/plugins/ospf/neighbor/nsm_test.go",
+    "sha256": "5344a7f250c4ae036e2ca3a2a310b39d4321920981d2a94f2c8192a3c5ed9733"
+  }
+]

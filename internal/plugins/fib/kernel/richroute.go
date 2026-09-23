@@ -17,14 +17,18 @@ type RichRoute struct {
 	NextHop netip.Addr
 	// Interface is the outgoing device name for NextHop, empty when the gateway
 	// alone names the next-hop. Weight is NextHop's share of the multipath group
-	// ECMPPaths completes, zero for an unweighted route. Both come from an
-	// operator-configured route; a protocol-learned route leaves them empty.
+	// ECMPPaths completes, zero for an unweighted route. OnLink makes the kernel
+	// use this device directly even without a covering gateway subnet.
 	Interface string
+	OnLink    bool
 	Weight    uint8
 	RouteType sysribevents.RouteType
 	Metric    uint32
 	TableID   uint32
 	Labels    []uint32
+	// PathMTU is a labeled path's frame budget, before MPLS encapsulation.
+	// Linux's IP MTU calculation subtracts the LWT label headroom.
+	PathMTU uint32
 	SRv6SID   netip.Addr
 	ECMPPaths []sysribevents.ECMPPath
 	// Backup is the fast-reroute backup next-hop set: programmed as link-down /

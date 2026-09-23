@@ -84,6 +84,9 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 	if uint64(r.TableID) > maxNetlinkInt {
 		return nil, fmt.Errorf("table %d exceeds %d, the largest this build can program through netlink", r.TableID, maxNetlinkInt)
 	}
+	if uint64(r.PathMTU) > maxNetlinkInt {
+		return nil, fmt.Errorf("path MTU %d exceeds the netlink integer range", r.PathMTU)
+	}
 
 	_, cidr, err := net.ParseCIDR(r.Prefix.String())
 	if err != nil {
@@ -94,6 +97,7 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 		Dst:      cidr,
 		Protocol: rtprotZE,
 		Priority: int(r.Metric),
+		MTU:      int(r.PathMTU),
 	}
 
 	if r.TableID != 0 {
@@ -123,6 +127,9 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 		if r.NextHop.IsValid() {
 			route.Gw = r.NextHop.AsSlice()
 		}
+		if r.OnLink {
+			route.Flags |= unix.RTNH_F_ONLINK
+		}
 		// A route may name an outgoing device instead of, or beside, a gateway.
 		// Without the index the kernel gets a route with no next-hop at all and
 		// refuses it, which is how an interface-only route disappears.
@@ -135,10 +142,12 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 		}
 	}
 
-	if len(r.Labels) > 0 && route.Type == unix.RTN_UNICAST {
-		route.Encap = buildMPLSEncap(r.Labels)
-	} else if r.SRv6SID.IsValid() && r.SRv6SID.Is6() && route.Type == unix.RTN_UNICAST {
+	// RFC 9252 Section 5: the Service SID selects IPv6 encapsulation. The
+	// label field can carry transposed SID bits and must not select MPLS.
+	if r.SRv6SID.IsValid() && r.SRv6SID.Is6() && route.Type == unix.RTN_UNICAST {
 		route.Encap = buildSEG6Encap(r.SRv6SID)
+	} else if len(r.Labels) > 0 && route.Type == unix.RTN_UNICAST {
+		route.Encap = buildMPLSEncap(r.Labels)
 	}
 
 	// Fast-reroute backup (RFC 5286 / TI-LFA): program the backup next-hop(s) as
@@ -158,6 +167,7 @@ func buildRichRoute(r RichRoute) (*netlink.Route, error) {
 				route.Encap = nil
 			}
 			route.Gw = nil
+			route.Flags &^= unix.RTNH_F_ONLINK
 		}
 		route.MultiPath = append(route.MultiPath, buildBackupNexthops(r.Backup)...)
 	}
@@ -177,6 +187,9 @@ func buildBackupNexthops(backup []events.ECMPPath) []*netlink.NexthopInfo {
 		nhi := &netlink.NexthopInfo{
 			Gw:    b.NextHop.AsSlice(),
 			Flags: int(unix.RTNH_F_LINKDOWN),
+		}
+		if b.OnLink {
+			nhi.Flags |= unix.RTNH_F_ONLINK
 		}
 		if len(b.Labels) > 0 {
 			nhi.Encap = buildMPLSEncap(b.Labels)
@@ -209,7 +222,7 @@ func routeTypeToLinux(rt events.RouteType) int {
 func buildMultiPath(r RichRoute, ecmpPaths []events.ECMPPath) ([]*netlink.NexthopInfo, error) {
 	paths := make([]*netlink.NexthopInfo, 0, len(ecmpPaths)+1)
 	if namesATarget(r.NextHop, r.Interface) {
-		primary, err := buildNexthopInfo(r.NextHop, r.Interface, r.Weight)
+		primary, err := buildNexthopInfo(r.NextHop, r.Interface, r.Weight, r.OnLink)
 		if err != nil {
 			return nil, err
 		}
@@ -219,7 +232,7 @@ func buildMultiPath(r RichRoute, ecmpPaths []events.ECMPPath) ([]*netlink.Nextho
 		if !namesATarget(p.NextHop, p.Interface) {
 			continue
 		}
-		nhi, err := buildNexthopInfo(p.NextHop, p.Interface, p.Weight)
+		nhi, err := buildNexthopInfo(p.NextHop, p.Interface, p.Weight, p.OnLink)
 		if err != nil {
 			return nil, err
 		}
@@ -239,8 +252,11 @@ func namesATarget(addr netip.Addr, ifaceName string) bool {
 //
 // REQUIRES: namesATarget reports true for (addr, ifaceName). A member that names
 // neither would otherwise become an entry the kernel refuses.
-func buildNexthopInfo(addr netip.Addr, ifaceName string, weight uint8) (*netlink.NexthopInfo, error) {
+func buildNexthopInfo(addr netip.Addr, ifaceName string, weight uint8, onLink bool) (*netlink.NexthopInfo, error) {
 	nhi := &netlink.NexthopInfo{}
+	if onLink {
+		nhi.Flags |= unix.RTNH_F_ONLINK
+	}
 	if addr.IsValid() {
 		nhi.Gw = addr.AsSlice()
 	}

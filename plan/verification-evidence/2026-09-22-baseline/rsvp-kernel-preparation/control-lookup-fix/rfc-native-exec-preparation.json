@@ -1,0 +1,83 @@
+{
+  "status": "prepared-not-run",
+  "purpose": "Pass the compiled Go test binary and its arguments through the existing native QEMU action using standard Go -exec. The existing RFC recorder alone decides reachability, RED attribution, fingerprints and whether to write a discrimination record.",
+  "wrapper": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/rfc-native-exec.py",
+  "host_cwd": "/home/thomas/Code/github.com/ze-software/ze/main",
+  "environment": {
+    "ZE_TAGS": "integration",
+    "CGO_ENABLED": "0",
+    "GOTMPDIR": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/rfc-native-go-tmp",
+    "GOFLAGS": "-exec=/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/rfc-native-exec.py"
+  },
+  "preparation_command_for_main": "mkdir -p /home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/rfc-native-go-tmp",
+  "scratch_policy": "The proposed GOTMPDIR is ignored by .gitignore tmp/*. The wrapper requires its resolved location, the compiled binary, cwd and every supplied coverage destination to remain inside the workspace. It rejects an outside destination, including a symlink escape. It does not create GOTMPDIR or repair scratch configuration.",
+  "record_proposals": [
+    {
+      "id": "RFC2205-3-37",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/transport_linux.go::rawTransport.SendPath",
+      "command": "env ZE_TAGS=integration CGO_ENABLED=0 GOTMPDIR=/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/rfc-native-go-tmp GOFLAGS=-exec=/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/rfc-native-exec.py /home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le le rfc discriminate-record id RFC2205-3-37 polarity positive unit internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC route revert producer internal/plugins/rsvpte/transport_linux.go::rawTransport.SendPath"
+    },
+    {
+      "id": "RFC2205-3-39",
+      "polarity": "positive",
+      "unit": "internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC",
+      "route": "revert",
+      "producer": "internal/plugins/rsvpte/transport_linux.go::rawTransport.SendPath",
+      "command": "env ZE_TAGS=integration CGO_ENABLED=0 GOTMPDIR=/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/rfc-native-go-tmp GOFLAGS=-exec=/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/rfc-native-exec.py /home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le le rfc discriminate-record id RFC2205-3-39 polarity positive unit internal/plugins/rsvpte/transport_integration_linux_test.go::TestIntegrationRSVPPathAvoidsDataFEC route revert producer internal/plugins/rsvpte/transport_linux.go::rawTransport.SendPath"
+    }
+  ],
+  "launcher_note": "These commands invoke the already accepted native le personality directly, including its required literal le prefix, rather than asking ./le to rebuild itself. They are the native ./le rfc discriminate-record route. If Main selects the ./le shell launcher after product edits settle, replace the accepted executable and following literal le token with ./le; retain every environment assignment and rfc argument. The nested QEMU action remains pinned to the accepted prebuilt le.",
+  "native_action": {
+    "argv_template": [
+      "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le",
+      "le", "qemu", "run", "kernel",
+      "/home/thomas/Code/github.com/ze-software/ze/main/tmp/kernel/build/vmlinuz",
+      "packages", "iproute2 python3", "timeout", "8m", "command",
+      "python3 /workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/rfc-native-exec.py --guest /workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/control-lookup-fix/rfc-exec-<unique>/config.json"
+    ],
+    "command_encoding": "The wrapper builds the command string with shlex.join over individual guest operands. The unique directory comes from tempfile.mkdtemp for each actual Go -exec call.",
+    "le_sha256": "f95c1c702156279e2258be8b222c0ca0821a2e4e4911004bf29487022a7b002a",
+    "kernel_sha256": "48b3607b49b79e23e632f0d5a553ba9f7b87c4527ca3b40917eee11501758a83",
+    "identity_source": "host-invocation-001.json, accepted identities recorded before that earlier native invocation",
+    "nested_environment": "Inherit host environment, remove GOFLAGS before invoking native le. The guest also removes the GOFLAGS set by native QEMU setup. Guest test environment inherits the native guest environment, adds CGO_ENABLED=0 and ZE_TAGS, maps GOCOVERDIR when supplied, and carries supplied GOMAXPROCS/GODEBUG/GOTRACEBACK. Host build-tool paths are not injected into the guest. All listed environment choices are recorded for each process.",
+    "lifecycle": "Each child run has a 720-second total deadline and observes original-parent loss or cancellation once per second. It stops the private process group with SIGTERM, waits 10 seconds, then uses SIGKILL and a 5-second wait. A final cancellation check also rejects a zero-exit child that completed during cancellation. Interrupted runs cannot supply a guest completion or a successful host result.",
+    "serialisation": "Main owns host port 2222. Run the two recorder commands sequentially after all source edits settle; do not overlap any other QEMU invocation. Each recorder may invoke the wrapper twice, once clean and once under its own revert overlay."
+  },
+  "coverage_and_output_contract": {
+    "mapping": "Resolve relative binary, cwd and coverage operands against the host execution context, require workspace containment, then substitute the workspace prefix with /workspace. Handle both -test.coverprofile=value and -test.coverprofile value, likewise test.gocoverdir. Honour test.outputdir for profile paths. Also map supplied test log/profile/trace paths and GOCOVERDIR.",
+    "shared_outputs": "Guest test writes the actual profile and coverage directory directly to the shared workspace. The adapter leaves these originals in place for the Go parent, whose coverage processing supplies the recorder's final clean profile. Before returning, the adapter copies any existing coverage operands into its evidence directory because Go can remove its temporary coverage directory afterward. Absence is recorded rather than filled with synthetic coverage.",
+    "producer_reachability": "The recorder's existing clean -coverprofile/-coverpkg run must pass and prove execution of rawTransport.SendPath. A skip or a producer-unreached profile must not be treated as proof. The wrapper makes no coverage or pass judgement.",
+    "revert": "The recorder writes its own Go -overlay replacing rawTransport.SendPath's body with its existing panic halt. The adapter executes the binary it receives from Go without rebuilding it, editing sources, changing argv selection or replacing the overlay. No mutation report is required for route revert.",
+    "red_attribution": "The unaltered output must identify TestIntegrationRSVPPathAvoidsDataFEC through its actual failure/panic stack. The existing recorder owns attribution. The adapter never emits test RUN/PASS/FAIL/SKIP lines or rewrites panic text.",
+    "forwarding": "After native action completion, replay the exact guest stdout bytes to wrapper stdout and exact guest stderr bytes to wrapper stderr, once. Native action progress and JSON output stay in separate evidence files. Output is buffered until completion rather than streamed live; ordering within each stream is retained, cross-stream timing is not.",
+    "exit": "Return the actual guest exit code, independent of native action's coarse pass/fail exit. Python negative signal return codes are retained in JSON and forwarded as conventional 128+signal statuses. Missing guest completion, spawn/precondition failures or a native action failure after guest exit zero return infrastructure status 125. Every observed guest and native action exit remains separate. An incomplete attempt cannot become a clean success."
+  },
+  "per_exec_evidence": {
+    "directory": "rsvp-kernel-preparation/control-lookup-fix/rfc-exec-<unique>/",
+    "received.json": "Wrapper argv, host cwd, timestamps and selected inherited environment values, including incoming GOFLAGS.",
+    "config.json": "Original and mapped binary argv/cwd, coverage paths, guest environment choices, actual binary/kernel/wrapper/le hashes and sizes.",
+    "native-action-invocation.json and native-action-result.json": "Exact native argv, cwd, selected environment with GOFLAGS absent, start/end timestamps, child PID, signals and numeric action exit or spawn error.",
+    "native-action.stdout and native-action.stderr": "Complete native action output, without truncation.",
+    "guest-context.json": "Guest uname/uid, environment choices, guest binary and wrapper hashes before execution.",
+    "test-invocation.json and test-result.json": "Exact test argv/cwd, selected guest environment, start/end timestamps, PID, signals and numeric test exit or spawn error.",
+    "test.stdout and test.stderr": "Complete original guest test output.",
+    "guest-complete.json": "Actual guest test exit and binary identity after execution; absent if the guest did not finish collection.",
+    "coverage-N": "Copies of existing actual coverage files/directories, leaving Go's originals untouched.",
+    "host-result.json or adapter-error.json": "Observed exits, forwarded status, coverage existence/snapshot inventory or explicit infrastructure error. All earlier files remain on every outcome."
+  },
+  "prerequisites_and_limits": [
+    "No execution or syntax check has been performed. Main must validate the adapter and run the recorder only after RsvpLinkDownRepair source changes settle.",
+    "The existing native action must be available through the accepted le and kernel identities. QEMU, its existing image/setup prerequisites and package acquisition remain owned by that action.",
+    "Host Python 3 and guest Python 3 are required. Go tests must compile statically for the native guest architecture with CGO_ENABLED=0; this adapter does not cross-compile or repair a binary.",
+    "The native kernel must provide network namespaces, veth, raw sockets, MPLS IP encapsulation and the guest capabilities required by the tagged test. Existing test skips remain visible; the recorder's reachability requirement must reject an unexecuted producer.",
+    "GOTMPDIR and the recorder-selected coverage destinations must resolve inside the workspace. Relocated scratch outside that root is deliberately unsupported by this strict adapter even if native QEMU has other scratch shares. No symlink or workspace configuration is changed.",
+    "The wrapper itself preserves working sources and existing build overlays. The native recorder remains authorised to create its own overlay and, only after a genuine proof, update rfc/discrimination/rfc2205.json. No manual record JSON is prepared.",
+    "Main must retain each outer recorder command's complete stdout/stderr and exit, because the -exec adapter only sees its compiled-binary invocation. The wrapper's per-exec evidence remains available even when the outer recorder refuses to write a record.",
+    "The native action has an 8-minute command timeout and the recorder has a 15-minute unit observation deadline. Forced host/VM termination can leave partial evidence; missing guest-complete.json is an incomplete attempt."
+  ],
+  "main_lifecycle_smoke": "executor-lifecycle-001/host.log records actual child termination on deadline, injected parent mismatch, and a child that signaled cancellation then exited zero. It does not exercise an actual Go-parent death, forced SIGKILL cleanup, or the full native Go-exec path.",
+  "preparation_verification": "Only source/contract reads and artifact writes were performed. No smoke test, build, formatter, lint, test, QEMU, Docker or native recorder was run by this worker."
+}

@@ -38,6 +38,7 @@ const (
 	MsgTypeResvErr  uint8 = 4
 	MsgTypePathTear uint8 = 5
 	MsgTypeResvTear uint8 = 6
+	MsgTypeResvConf uint8 = 7
 )
 
 // RFC 2205 Section A.1 / RFC 3209: Object class numbers.
@@ -56,6 +57,8 @@ const (
 	ClassLabelRequest   uint8 = 19
 	ClassLabel          uint8 = 16
 	ClassSessionAttr    uint8 = 207
+	ClassResvConfirm uint8 = 15 // RFC 2205 Section A.14: reservation-confirmation receiver.
+	ClassAdspec      uint8 = 13 // RFC 2210 Section 3.3: IntServ path characterization.
 	// RFC 4090 Section 4: Fast Reroute object classes.
 	ClassFastReroute uint8 = 205
 	ClassDetour      uint8 = 63
@@ -76,9 +79,7 @@ const (
 	ClassNull        uint8 = 0  // RFC 2205 Section 3.1: padding; its contents are ignored.
 	ClassIntegrity   uint8 = 4  // RFC 2205 Section A.3: ze implements no RSVP authentication.
 	ClassScope       uint8 = 7  // RFC 2205 Section A.6: WF style only; ze signals FF and SE LSPs.
-	ClassAdspec      uint8 = 13 // RFC 2205 Section A.12: Int-Serv advertisement; label signaling does not read it.
 	ClassPolicyData  uint8 = 14 // RFC 2205 Section A.13: ze runs no policy module.
-	ClassResvConfirm uint8 = 15 // RFC 2205 Section A.14: ze requests no reservation confirmation.
 )
 
 // classNumIgnoreBit is the high-order bit of the Class-Num. RFC 2205 Section
@@ -180,8 +181,9 @@ var (
 	errBadObjLen    = errors.New("rsvp: invalid object length")
 	errShortERO     = errors.New("rsvp: ERO subobject too short")
 	errShortRRO     = errors.New("rsvp: RRO subobject too short")
-	errBadBandwidth = errors.New("rsvp: negative bandwidth")
+	errBadBandwidth = errors.New("rsvp: invalid token rate")
 	errObjectAbsent = errors.New("rsvp: mandatory object absent")
+	errBadChecksum = errors.New("rsvp: invalid checksum")
 )
 
 // Header is the RSVP common header (RFC 2205 Section 3.1).
@@ -250,6 +252,10 @@ func decodeObjectHeader(buf []byte) (objectHeader, error) {
 	if o.Length < objHdrLen {
 		return objectHeader{}, fmt.Errorf("%w: %d", errBadObjLen, o.Length)
 	}
+	// RFC 2205 Section 3.1.2: "Must always be a multiple of 4, and at least 4."
+	if o.Length%4 != 0 {
+		return objectHeader{}, fmt.Errorf("%w: %d", errBadObjLen, o.Length)
+	}
 	return o, nil
 }
 
@@ -275,13 +281,17 @@ func encodeSessionIPv4(buf []byte, s sessionIPv4) int {
 
 // decodeSessionIPv4 reads a SESSION object body (after object header).
 func decodeSessionIPv4(body []byte) (sessionIPv4, error) {
-	if len(body) < 12 {
+	if len(body) != 12 {
 		return sessionIPv4{}, errShortObject
 	}
 	s := sessionIPv4{
 		TunnelEndpoint: netip.AddrFrom4([4]byte(body[0:4])),
 		TunnelID:       binary.BigEndian.Uint16(body[6:8]),
 		ExtTunnelID:    binary.BigEndian.Uint32(body[8:12]),
+	}
+	// RFC 2205 Appendix A.1: "This field must be non-zero."
+	if s.TunnelEndpoint.IsUnspecified() || s.TunnelEndpoint.IsMulticast() {
+		return sessionIPv4{}, fmt.Errorf("rsvp: invalid unicast tunnel endpoint")
 	}
 	return s, nil
 }
@@ -338,8 +348,11 @@ func encodeSenderIdentity(buf []byte, classNum uint8, st senderTemplateIPv4) int
 // RFC 3209 Section 4.6.3.1: "The format of the LSP_TUNNEL_IPv4 FILTER_SPEC
 // object is identical to the LSP_TUNNEL_IPv4 SENDER_TEMPLATE object.".
 func decodeSenderTemplate(body []byte) (senderTemplateIPv4, error) {
-	if len(body) < 8 {
+	if len(body) != 8 {
 		return senderTemplateIPv4{}, errShortObject
+	}
+	if body[0] == 0 && body[1] == 0 && body[2] == 0 && body[3] == 0 {
+		return senderTemplateIPv4{}, fmt.Errorf("rsvp: unspecified sender")
 	}
 	return senderTemplateIPv4{
 		SenderAddr: netip.AddrFrom4([4]byte(body[0:4])),
@@ -544,15 +557,22 @@ type rroEntry struct {
 	Flags   uint8
 }
 
-// encodeRRO writes an RRO object. Returns bytes written.
+// encodeRRO writes a whole RRO or returns zero when it does not fit. Callers MUST
+// append it last, so a dropped object leaves no bytes inside the message length.
 func encodeRRO(buf []byte, entries []rroEntry) int {
+	// RFC 3209 Section 4.4.3: "the RRO object SHALL be dropped from the
+	// message and message processing continues as normal."
+	if len(entries) == 0 || len(entries) > maxRecordRouteHops || len(buf) < objHdrLen {
+		return 0
+	}
 	off := objHdrLen
 	for _, e := range entries {
-		// Never write past the fixed message buffer: each subobject is at most
-		// 20 bytes (IPv6). Stop early rather than overflow if a caller passes an
-		// over-long RRO (defense in depth; callers also cap via prependRRO).
-		if off+20 > len(buf) {
-			break
+		size := 8
+		if e.Type == RROSubIPv6 {
+			size = 20
+		}
+		if size > len(buf)-off {
+			return 0
 		}
 		switch e.Type {
 		case RROSubIPv4:
@@ -637,8 +657,11 @@ func decodeRRO(body []byte) ([]rroEntry, error) {
 	return entries, nil
 }
 
-// FlowSpec encodes token-bucket parameters (RFC 2210 / RFC 2215).
+// FlowSpec holds RFC 2210 token-bucket or RFC 2997 Null Service parameters.
 type FlowSpec struct {
+	// Service is the IntServ service number. Zero selects the standard token
+	// bucket: service 1 in SENDER_TSPEC and service 5 in FLOWSPEC.
+	Service        uint8
 	TokenRate      float32
 	TokenBucket    float32
 	PeakRate       float32
@@ -646,8 +669,31 @@ type FlowSpec struct {
 	MaxPacketSize  uint32
 }
 
-// encodeFlowSpec writes a FLOWSPEC (or SENDER_TSPEC) object. Returns bytes written.
+// encodeFlowSpec writes a FLOWSPEC or SENDER_TSPEC into the caller's buffer.
+// It returns the byte count, or -1 for insufficient space or unsupported service.
 func encodeFlowSpec(buf []byte, classNum uint8, fs FlowSpec) int {
+	if fs.Service == serviceNull {
+		if len(buf) < 20 {
+			return -1
+		}
+		// RFC 2997 Sections 4.3 and 4.4: service 6, parameter 128, one M word.
+		// Bytes 4-7: version/length; 8-11: service; 12-15: parameter; 16-19: M.
+		clear(buf[:20])
+		encodeObjectHeader(buf, objectHeader{Length: 20, ClassNum: classNum, CType: 2})
+		binary.BigEndian.PutUint16(buf[6:8], 3)
+		buf[8] = serviceNull
+		binary.BigEndian.PutUint16(buf[10:12], 2)
+		buf[12] = 128
+		binary.BigEndian.PutUint16(buf[14:16], 1)
+		binary.BigEndian.PutUint32(buf[16:20], fs.MaxPacketSize)
+		return 20
+	}
+	if fs.Service != 0 && fs.Service != serviceGeneral && fs.Service != serviceControlledLoad {
+		return -1
+	}
+	if len(buf) < objHdrLen+32 {
+		return -1
+	}
 	objLen := uint16(objHdrLen + 32)
 	encodeObjectHeader(buf, objectHeader{Length: objLen, ClassNum: classNum, CType: 2})
 	off := objHdrLen
@@ -657,7 +703,13 @@ func encodeFlowSpec(buf []byte, classNum uint8, fs FlowSpec) int {
 	binary.BigEndian.PutUint16(buf[off+2:off+4], 7)
 	off += 4
 
-	buf[off] = 5
+	// RFC 2210 Section 3.1: "The required RSVP SENDER_TSPEC object
+	// contains a global Token_Bucket_TSpec parameter (service_number 1,
+	// parameter 127, as defined in [RFC 2215])."
+	buf[off] = serviceControlledLoad
+	if classNum == ClassSenderTSpec {
+		buf[off] = serviceGeneral
+	}
 	buf[off+1] = 0
 	binary.BigEndian.PutUint16(buf[off+2:off+4], 6)
 	off += 4
@@ -679,24 +731,63 @@ func encodeFlowSpec(buf []byte, classNum uint8, fs FlowSpec) int {
 	return int(objLen)
 }
 
-// decodeFlowSpec reads a FLOWSPEC or SENDER_TSPEC object body.
+// decodeFlowSpec reads RFC 2210 token buckets and RFC 2997 Null Service TSpecs.
+// Every nested length is checked before the first parameter value is read.
 func decodeFlowSpec(body []byte) (FlowSpec, error) {
 	var fs FlowSpec
-	if len(body) < 32 {
-		return fs, errShortObject
+	if err := intservHeader(body); err != nil {
+		return fs, err
 	}
-	off := 12
-	fs.TokenRate = math.Float32frombits(binary.BigEndian.Uint32(body[off : off+4]))
-	off += 4
-	fs.TokenBucket = math.Float32frombits(binary.BigEndian.Uint32(body[off : off+4]))
-	off += 4
-	fs.PeakRate = math.Float32frombits(binary.BigEndian.Uint32(body[off : off+4]))
-	off += 4
-	fs.MinPolicedUnit = binary.BigEndian.Uint32(body[off : off+4])
-	off += 4
-	fs.MaxPacketSize = binary.BigEndian.Uint32(body[off : off+4])
-	if fs.TokenRate < 0 {
-		return fs, errBadBandwidth
+	for off := 4; off < len(body); {
+		n, err := intservBlock(body[off:])
+		if err != nil {
+			return fs, err
+		}
+		service := body[off]
+		if body[off+1]&intservBreak != 0 {
+			return fs, errIntserv
+		}
+		if fs.Service != 0 {
+			// RFC 2997 Section 3.2: "If guaranteed or controlled load
+			// services are also offered in the ADSPEC, then the new Tspec
+			// is appended following the standard Intserv token-bucket Tspec."
+			if fs.Service != serviceGeneral || service != serviceNull || off != 32 {
+				return fs, errIntserv
+			}
+		}
+		var current FlowSpec
+		current.Service = service
+		switch service {
+		case serviceGeneral, serviceControlledLoad:
+			if n != 28 || body[off+4] != 127 || body[off+5]&intservBreak != 0 ||
+				binary.BigEndian.Uint16(body[off+6:off+8]) != 5 {
+				return fs, errIntserv
+			}
+			current.TokenRate = math.Float32frombits(binary.BigEndian.Uint32(body[off+8:off+12]))
+			current.TokenBucket = math.Float32frombits(binary.BigEndian.Uint32(body[off+12:off+16]))
+			current.PeakRate = math.Float32frombits(binary.BigEndian.Uint32(body[off+16:off+20]))
+			current.MinPolicedUnit = binary.BigEndian.Uint32(body[off+20:off+24])
+			current.MaxPacketSize = binary.BigEndian.Uint32(body[off+24:off+28])
+			if current.TokenRate < 0 || math.IsNaN(float64(current.TokenRate)) ||
+				math.IsInf(float64(current.TokenRate), 0) {
+				return fs, errBadBandwidth
+			}
+		case serviceNull:
+			if n != 12 || body[off+4] != 128 || body[off+5]&intservBreak != 0 ||
+				binary.BigEndian.Uint16(body[off+6:off+8]) != 1 {
+				return fs, errIntserv
+			}
+			current.MaxPacketSize = binary.BigEndian.Uint32(body[off+8:off+12])
+		default:
+			return fs, errIntserv
+		}
+		if fs.Service == 0 {
+			fs = current
+		}
+		off += n
+	}
+	if fs.Service == 0 {
+		return fs, errIntserv
 	}
 	return fs, nil
 }
@@ -750,30 +841,44 @@ type ParsedMessage struct {
 	Hop            rsvpHop
 	TimeValues     timeValues
 	LabelRequest   labelRequest
-	Label          labelObject
 	ERO            []eroHop
 	RRO            []rroEntry
-	FlowSpec       FlowSpec
 	SenderTSpec    FlowSpec
 	ErrorSpec      errorSpec
 	Style          uint32
+	ResvConfirm    netip.Addr
 	FastReroute    fastReroute
 	SessionAttr    sessionAttribute
+	// SessionAttrRaw is the SESSION_ATTRIBUTE object as it arrived, header
+	// included. It aliases the decode buffer, so a holder that outlives the
+	// packet copies it (handlePathTransit). RFC 3209 Section 4.7.4 requires a
+	// transit to forward the object unmodified.
+	SessionAttrRaw []byte
+	// The raw objects alias the decode buffer. State holders MUST keep owned
+	// copies before releasing the packet. Builders preserve opaque contents.
+	AdspecRaw      []byte
+	SenderTSpecRaw []byte
+	// ForwardObjects retains unknown 11bbbbbb classes and opaque POLICY_DATA.
+	ForwardObjects [][]byte
+	FlowDescriptors []flowDescriptor
+	// PathMTU comes only from a usable ADSPEC, including its service override.
+	// Zero means no complete advertisement. The value includes MPLS labels.
+	PathMTU uint32
 
 	HasSession        bool
 	HasSenderTemplate bool
 	HasHop            bool
 	HasTimeValues     bool
 	HasLabelRequest   bool
-	HasLabel          bool
 	HasERO            bool
 	HasRRO            bool
-	HasFlowSpec       bool
 	HasSenderTSpec    bool
 	HasErrorSpec      bool
 	HasStyle          bool
 	HasFastReroute    bool
 	HasSessionAttr    bool
+	HasResvConfirm bool
+	HasAdspec bool
 
 	// UnknownObject is the header of the first object whose class ze does not
 	// implement and whose Class-Num high-order bit is zero. RFC 2205 Section 3.10
@@ -783,6 +888,7 @@ type ParsedMessage struct {
 	// SENDER_TEMPLATE that follow it to address the error message.
 	UnknownObject    objectHeader
 	HasUnknownObject bool
+	UnknownCType bool
 }
 
 // classifyUnknownClass reports whether an object of this class, for which
@@ -790,9 +896,8 @@ type ParsedMessage struct {
 //
 // RFC 2205 Section 3.10 chooses by the two high-order bits of the Class-Num.
 // 0bbbbbbb rejects the message with an "Unknown Object Class" error, 10bbbbbb is
-// ignored and no error is sent, and 11bbbbbb is ignored but forwarded unexamined
-// in every message that results from this one. ze forwards no object it did not
-// decode, so the last two forms are both a plain ignore here.
+// ignored and no error is sent, and 11bbbbbb is ignored but retained in
+// ForwardObjects for unchanged forwarding in resulting messages.
 //
 // RFC 4090 Section 4.2 rests on the first form: an LSR that does not support the
 // DETOUR object (Class-Num 63) MUST reject a Path carrying one and send a PathErr
@@ -812,7 +917,7 @@ func classifyUnknownClass(classNum uint8) bool {
 // permit a conformant peer to send.
 func classKnownUnprocessed(classNum uint8) bool {
 	switch classNum {
-	case ClassNull, ClassIntegrity, ClassScope, ClassAdspec, ClassPolicyData, ClassResvConfirm:
+	case ClassNull, ClassIntegrity, ClassScope, ClassPolicyData:
 		return true
 	}
 	return false
@@ -827,13 +932,30 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 	if int(hdr.Length) > len(data) {
 		return nil, fmt.Errorf("rsvp: message length %d exceeds buffer %d", hdr.Length, len(data))
 	}
+	if hdr.Length < rsvpHdrLen {
+		return nil, fmt.Errorf("rsvp: message length %d is smaller than its header", hdr.Length)
+	}
+	if hdr.Length%4 != 0 {
+		return nil, errBadObjLen
+	}
+	if hdr.Length > maxRSVPPacket {
+		return nil, fmt.Errorf("rsvp: message length %d exceeds carrier limit", hdr.Length)
+	}
+	// RFC 2205 Section 3.1.1: "An all-zero value means that no checksum
+	// was transmitted." Otherwise verify exactly the declared RSVP message.
+	if hdr.Checksum != 0 {
+		if internetChecksum(data[:hdr.Length]) != 0 {
+			return nil, errBadChecksum
+		}
+	}
 
 	msg := &ParsedMessage{Header: hdr}
+	var seen [256]bool
 
 	off := rsvpHdrLen
 	end := int(hdr.Length)
 	for off < end {
-		objHdr, err := decodeObjectHeader(data[off:])
+		objHdr, err := decodeObjectHeader(data[off:end])
 		if err != nil {
 			return msg, err
 		}
@@ -841,6 +963,16 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 			return msg, fmt.Errorf("rsvp: object overflows message at offset %d", off)
 		}
 		body := data[off+objHdrLen : off+int(objHdr.Length)]
+		if err := checkObjectPlacement(msg, objHdr, off, &seen); err != nil {
+			return msg, err
+		}
+		if !knownCType(objHdr) {
+			if !msg.HasUnknownObject {
+				msg.UnknownObject, msg.HasUnknownObject, msg.UnknownCType = objHdr, true, true
+			}
+			off += int(objHdr.Length)
+			continue
+		}
 
 		switch objHdr.ClassNum {
 		case ClassSession:
@@ -850,22 +982,21 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 			}
 			msg.Session = s
 			msg.HasSession = true
-		// The two classes carry one body (RFC 3209 Section 4.6.3.1) and one
-		// meaning, the sender the message is about, so ze reads the identity
-		// from whichever arrives. A Resv naming it as SENDER_TEMPLATE or a Path
-		// naming it as FILTER_SPEC breaks the Section 3.1 BNF, and RFC 2205
-		// Appendix B leaves that detection to the implementation: "The choice
-		// of message formatting errors that an RSVP may detect and log locally
-		// is implementation-specific". ze does not detect this one. The
-		// encoders are strict: buildResv writes FILTER_SPEC and the Path family
-		// writes SENDER_TEMPLATE.
-		case ClassSenderTemplate, ClassFilterSpec:
+		case ClassSenderTemplate:
 			st, err := decodeSenderTemplate(body)
 			if err != nil {
 				return msg, err
 			}
 			msg.SenderTemplate = st
 			msg.HasSenderTemplate = true
+		case ClassFilterSpec:
+			st, err := decodeSenderTemplate(body)
+			if err != nil {
+				return msg, err
+			}
+			if err := msg.appendFilter(st); err != nil {
+				return msg, err
+			}
 		case ClassRSVPHop:
 			h, err := decodeRSVPHop(body)
 			if err != nil {
@@ -892,8 +1023,11 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 			if err != nil {
 				return msg, err
 			}
-			msg.Label = l
-			msg.HasLabel = true
+			filter := msg.lastFilter()
+			if filter == nil || filter.HasLabel || filter.HasRRO {
+				return msg, fmt.Errorf("rsvp: misplaced or duplicate LABEL")
+			}
+			filter.Label, filter.HasLabel = l, true
 		case ClassExplicitRoute:
 			hops, err := decodeERO(body)
 			if err != nil {
@@ -906,22 +1040,65 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 			if err != nil {
 				return msg, err
 			}
-			msg.RRO = entries
-			msg.HasRRO = true
+			if reservationMessage(hdr.MsgType) {
+				filter := msg.lastFilter()
+				if filter == nil || !filter.HasLabel || filter.HasRRO {
+					return msg, fmt.Errorf("rsvp: misplaced or duplicate RECORD_ROUTE")
+				}
+				filter.RRO, filter.HasRRO = entries, true
+			} else {
+				msg.RRO, msg.HasRRO = entries, true
+			}
 		case ClassFlowSpec:
+			if hdr.MsgType == MsgTypeResvTear {
+				off += int(objHdr.Length)
+				continue
+			}
+			if objHdr.CType != 2 {
+				return msg, errIntserv
+			}
 			fs, err := decodeFlowSpec(body)
 			if err != nil {
 				return msg, err
 			}
-			msg.FlowSpec = fs
-			msg.HasFlowSpec = true
+			if fs.Service != serviceControlledLoad && fs.Service != serviceNull {
+				return msg, errIntserv
+			}
+			if err := msg.appendFlowSpec(fs, data[off:off+int(objHdr.Length)]); err != nil {
+				return msg, err
+			}
 		case ClassSenderTSpec:
+			if hdr.MsgType == MsgTypePathTear {
+				off += int(objHdr.Length)
+				continue
+			}
+			if objHdr.CType != 2 {
+				return msg, errIntserv
+			}
 			ts, err := decodeFlowSpec(body)
 			if err != nil {
 				return msg, err
 			}
+			if ts.Service != serviceGeneral && ts.Service != serviceNull {
+				return msg, errIntserv
+			}
 			msg.SenderTSpec = ts
 			msg.HasSenderTSpec = true
+			msg.SenderTSpecRaw = data[off : off+int(objHdr.Length)]
+		case ClassAdspec:
+			if hdr.MsgType == MsgTypePathTear {
+				off += int(objHdr.Length)
+				continue
+			}
+			if msg.HasAdspec {
+				return msg, errIntserv
+			}
+			raw := data[off : off+int(objHdr.Length)]
+			if err := validateAdspec(raw); err != nil {
+				return msg, err
+			}
+			msg.AdspecRaw = raw
+			msg.HasAdspec = true
 		case ClassErrorSpec:
 			es, err := decodeErrorSpec(body)
 			if err != nil {
@@ -929,11 +1106,18 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 			}
 			msg.ErrorSpec = es
 			msg.HasErrorSpec = true
-		case ClassStyle:
-			if len(body) >= 4 {
-				msg.Style = binary.BigEndian.Uint32(body[0:4])
-				msg.HasStyle = true
+		case ClassResvConfirm:
+			if objHdr.CType != CTypeIPv4 || len(body) != 4 {
+				return msg, fmt.Errorf("rsvp: invalid IPv4 RESV_CONFIRM object")
 			}
+			msg.ResvConfirm = netip.AddrFrom4([4]byte(body))
+			msg.HasResvConfirm = true
+		case ClassStyle:
+			if len(body) != 4 {
+				return msg, errBadObjLen
+			}
+			msg.Style = binary.BigEndian.Uint32(body[0:4]) & 0x00ffffff
+			msg.HasStyle = true
 		case ClassFastReroute:
 			fr, err := decodeFastReroute(body)
 			if err != nil {
@@ -942,11 +1126,18 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 			msg.FastReroute = fr
 			msg.HasFastReroute = true
 		case ClassSessionAttr:
+			// RFC 3209 Section 4.7.4: "If a Path message contains multiple
+			// SESSION_ATTRIBUTE objects, only the first SESSION_ATTRIBUTE
+			// object is meaningful."
+			if msg.HasSessionAttr {
+				break
+			}
 			sa, err := decodeSessionAttr(body, objHdr.CType)
 			if err != nil {
 				return msg, err
 			}
 			msg.SessionAttr = sa
+			msg.SessionAttrRaw = data[off : off+int(objHdr.Length)]
 			msg.HasSessionAttr = true
 		default:
 			// RFC 2205 Section 3.10: the Class-Num of an object ze has no case for
@@ -957,12 +1148,24 @@ func DecodeMessage(data []byte) (*ParsedMessage, error) {
 				msg.UnknownObject = objHdr
 				msg.HasUnknownObject = true
 			}
+			// RFC 2205 Section 3.1.3: "Any POLICY_DATA, SENDER_TSPEC, and
+			// ADSPEC objects are also saved in the path state."
+			if objHdr.ClassNum&0xc0 == 0xc0 || objHdr.ClassNum == ClassPolicyData {
+				msg.ForwardObjects = append(msg.ForwardObjects, data[off:off+int(objHdr.Length)])
+			}
 		}
 
 		off += int(objHdr.Length)
 	}
 
+	msg.PathMTU = adspecPathMTU(msg.AdspecRaw, msg.SenderTSpec.Service)
+	if msg.HasUnknownObject {
+		return msg, nil
+	}
 	if err := checkMandatoryObjects(msg); err != nil {
+		return msg, err
+	}
+	if err := checkFlowDescriptors(msg); err != nil {
 		return msg, err
 	}
 	return msg, nil

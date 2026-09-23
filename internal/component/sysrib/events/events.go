@@ -45,9 +45,8 @@ const (
 // ECMPPath is a single next-hop within an ECMP group.
 //
 // Interface is the outgoing device name, empty when NextHop alone names the
-// target, which is every protocol-learned next-hop. A configured route may name
-// a device instead of, or beside, a gateway, and the FIB plugin resolves the
-// name to its own index: a kernel ifindex for netlink, a sw_if_index for VPP.
+// target. A learned adjacency can name its device without sharing an IP subnet.
+// The FIB plugin resolves the name to a kernel ifindex or a VPP sw_if_index.
 //
 // Weight is this member's share of the group. Zero means the producer states no
 // weight and every member shares equally, which is what a protocol-learned
@@ -55,6 +54,7 @@ const (
 type ECMPPath struct {
 	NextHop   netip.Addr `json:"next-hop"`
 	Interface string     `json:"interface,omitempty"`
+	OnLink    bool      `json:"on-link,omitempty"`
 	Weight    uint8      `json:"weight,omitempty"`
 	Labels    []uint32   `json:"labels,omitempty"`
 }
@@ -71,12 +71,11 @@ type BestChangeEntry struct {
 	Prefix  netip.Prefix       `json:"prefix"`
 	NextHop netip.Addr         `json:"next-hop,omitzero"`
 	// Interface is the outgoing device for NextHop and Weight is NextHop's share
-	// of the multipath group ECMPPaths completes. Both are empty for a
-	// protocol-learned route, which names a gateway address and no device. A
-	// route whose only next-hop is a device leaves NextHop invalid and names the
-	// device here; the FIB then programs an interface route rather than dropping
-	// the entry for want of a gateway.
+	// of the multipath group ECMPPaths completes. OnLink states that the
+	// gateway is directly reachable on Interface even outside its IP subnet.
+	// A device-only route leaves NextHop invalid and names its device here.
 	Interface string     `json:"interface,omitempty"`
+	OnLink    bool      `json:"on-link,omitempty"`
 	Weight    uint8      `json:"weight,omitempty"`
 	Protocol  string     `json:"protocol"`
 	Labels    []uint32   `json:"labels,omitempty"`

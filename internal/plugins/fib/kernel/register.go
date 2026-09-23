@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin/cli"
@@ -193,7 +194,19 @@ func runFIBKernelPlugin(conn net.Conn) int {
 	defer func() { _ = p.Close() }()
 
 	backend := newBackend()
+	defer func() {
+		if err := backend.close(); err != nil {
+			logger().Warn("fib-kernel: backend close failed", "error", err)
+		}
+	}()
 	f := newFIBKernel(backend)
+	ctx, cancel := sdk.SignalContext()
+	var workers sync.WaitGroup
+	// Cancel and join both workers before the deferred backend close.
+	defer func() {
+		cancel()
+		workers.Wait()
+	}()
 
 	var activeJournal *sdk.Journal
 	var pendingCfg fibConfig
@@ -236,18 +249,24 @@ func runFIBKernelPlugin(conn net.Conn) int {
 
 		stale := f.startupSweep()
 
-		go f.run(ctx, cfg.FlushOnStop)
+		ready := make(chan error, 1)
+		workers.Go(func() { f.run(ctx, cfg.FlushOnStop, ready) })
+		// Dependencies may emit immediately after OnStarted returns. We MUST
+		// wait until both native forwarding subscriptions can acknowledge them.
+		if err := <-ready; err != nil {
+			return err
+		}
 
 		if len(stale) > 0 {
 			delay := cfg.SweepDelay
-			go func() {
+			workers.Go(func() {
 				select {
 				case <-ctx.Done():
 					return
 				case <-time.After(delay):
 					f.sweepStale(stale)
 				}
-			}()
+			})
 		}
 
 		return nil
@@ -261,8 +280,6 @@ func runFIBKernelPlugin(conn net.Conn) int {
 		return "error", "", fmt.Errorf("unknown command: %s", command)
 	})
 
-	ctx, cancel := sdk.SignalContext()
-	defer cancel()
 	err := p.Run(ctx, sdk.Registration{
 		WantsConfig:  []string{configRoot},
 		VerifyBudget: 1,
@@ -272,10 +289,6 @@ func runFIBKernelPlugin(conn net.Conn) int {
 	if err != nil {
 		logger().Error("fib-kernel plugin failed", "error", err)
 		return 1
-	}
-
-	if err := backend.close(); err != nil {
-		logger().Warn("fib-kernel: backend close failed", "error", err)
 	}
 
 	return 0

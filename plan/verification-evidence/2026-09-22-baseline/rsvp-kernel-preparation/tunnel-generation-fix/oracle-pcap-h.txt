@@ -1,0 +1,1303 @@
+2026-09-22 21:47:55.235330 ?     Out ifindex 9 7a:14:6b:94:f2:9b ethertype IPv4 (0x0800), length 264: (tos 0x0, ttl 64, id 38489, offset 0, flags [none], proto RSVP (46), length 244, options (RA))
+    198.18.1.1 > 198.18.3.1: 
+	RSVPv1 Path Message (1), Flags: [none], length: 220, ttl: 64, checksum: 0xef01
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005b, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005b c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.11.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0b 0001 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  ERO Object (20) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 20
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    Subobject Type: IPv4 prefix, length 8, Loose, 198.18.3.1/32, Flags: [none]
+	    0x0000:  0108 c612 0201 2000 8108 c612 0301 2000
+	  Label Request Object (19) Flags: [reject if unknown], Class-Type: without label range (1), length: 8
+	    L3 Protocol ID: IPv4
+	    0x0000:  0000 0800
+	  Session Attribute Object (207) Flags: [ignore and forward if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    Session Name: denied
+	    Setup Priority: 7, Holding Priority: 7, Flags: [Local Protection, Label Recording, SE Style] (0x7)
+	    0x0000:  0707 0706 6465 6e69 6564 0000
+	  Fast Re-Route Object (205) Flags: [ignore and forward if unknown], Class-Type: 1 (1), length: 24
+	    Setup Priority: 7, Holding Priority: 7, Hop-limit: 16, Bandwidth: 0.001000000047 Mbps
+	    Include-any: 0x00000000, Exclude-any: 0x00000000, Include-all: 0x00000000
+	    0x0000:  0707 1002 42fa 0000 0000 0000 0000 0000
+	    0x0010:  0000 0000
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 ffff
+	  Adspec Object (13) Flags: [reject if unknown], Class-Type: IntServ (2), length: 48
+	    Msg-Version: 0, length: 40
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 32
+	      Parameter ID: IS hop cnt (4), length: 4, Flags: [0x00]
+		IS hop count: 1
+	      Parameter ID: Path b/w estimate (6), length: 4, Flags: [0x00]
+		Path b/w estimate: 0 Mbps
+	      Parameter ID: Minimum path latency (8), length: 4, Flags: [0x00]
+		Minimum path latency: don't care
+	      Parameter ID: Composed MTU (10), length: 4, Flags: [0x00]
+		Composed MTU: 1500 bytes
+	    Service Type: Controlled Load (5), break bit not set, Service length: 0
+	    0x0000:  0000 000a 0100 0008 0400 0001 0000 0001
+	    0x0010:  0600 0001 0000 0000 0800 0001 ffff ffff
+	    0x0020:  0a00 0001 0000 05dc 0500 0000
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.1.1/32, Flags: [none]
+	    0x0000:  0108 c612 0101 2000
+2026-09-22 21:47:55.244844 ?     In  ifindex 9 1a:4a:79:e2:b2:4b ethertype IPv4 (0x0800), length 124: (tos 0x0, ttl 64, id 38939, offset 0, flags [DF], proto RSVP (46), length 104)
+    10.11.0.2 > 10.11.0.1: 
+	RSVPv1 PathErr Message (3), Flags: [none], length: 84, ttl: 64, checksum: 0x2775
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005b, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005b c612 0101
+	  Error Spec Object (6) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Error Node Address: 198.18.3.1, Flags: [0x00]
+	    Error Code: unknown (22), Unknown Error Value (0)
+	    0x0000:  c612 0301 0016 0000
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 ffff
+2026-09-22 21:47:56.233178 ?     Out ifindex 9 7a:14:6b:94:f2:9b ethertype IPv4 (0x0800), length 264: (tos 0x0, ttl 64, id 38791, offset 0, flags [none], proto RSVP (46), length 244, options (RA))
+    198.18.1.1 > 198.18.3.1: 
+	RSVPv1 Path Message (1), Flags: [none], length: 220, ttl: 64, checksum: 0xef01
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005b, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005b c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.11.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0b 0001 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  ERO Object (20) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 20
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    Subobject Type: IPv4 prefix, length 8, Loose, 198.18.3.1/32, Flags: [none]
+	    0x0000:  0108 c612 0201 2000 8108 c612 0301 2000
+	  Label Request Object (19) Flags: [reject if unknown], Class-Type: without label range (1), length: 8
+	    L3 Protocol ID: IPv4
+	    0x0000:  0000 0800
+	  Session Attribute Object (207) Flags: [ignore and forward if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    Session Name: denied
+	    Setup Priority: 7, Holding Priority: 7, Flags: [Local Protection, Label Recording, SE Style] (0x7)
+	    0x0000:  0707 0706 6465 6e69 6564 0000
+	  Fast Re-Route Object (205) Flags: [ignore and forward if unknown], Class-Type: 1 (1), length: 24
+	    Setup Priority: 7, Holding Priority: 7, Hop-limit: 16, Bandwidth: 0.001000000047 Mbps
+	    Include-any: 0x00000000, Exclude-any: 0x00000000, Include-all: 0x00000000
+	    0x0000:  0707 1002 42fa 0000 0000 0000 0000 0000
+	    0x0010:  0000 0000
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 ffff
+	  Adspec Object (13) Flags: [reject if unknown], Class-Type: IntServ (2), length: 48
+	    Msg-Version: 0, length: 40
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 32
+	      Parameter ID: IS hop cnt (4), length: 4, Flags: [0x00]
+		IS hop count: 1
+	      Parameter ID: Path b/w estimate (6), length: 4, Flags: [0x00]
+		Path b/w estimate: 0 Mbps
+	      Parameter ID: Minimum path latency (8), length: 4, Flags: [0x00]
+		Minimum path latency: don't care
+	      Parameter ID: Composed MTU (10), length: 4, Flags: [0x00]
+		Composed MTU: 1500 bytes
+	    Service Type: Controlled Load (5), break bit not set, Service length: 0
+	    0x0000:  0000 000a 0100 0008 0400 0001 0000 0001
+	    0x0010:  0600 0001 0000 0000 0800 0001 ffff ffff
+	    0x0020:  0a00 0001 0000 05dc 0500 0000
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.1.1/32, Flags: [none]
+	    0x0000:  0108 c612 0101 2000
+2026-09-22 21:47:56.237716 ?     In  ifindex 9 1a:4a:79:e2:b2:4b ethertype IPv4 (0x0800), length 124: (tos 0x0, ttl 64, id 39572, offset 0, flags [DF], proto RSVP (46), length 104)
+    10.11.0.2 > 10.11.0.1: 
+	RSVPv1 PathErr Message (3), Flags: [none], length: 84, ttl: 64, checksum: 0x2775
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005b, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005b c612 0101
+	  Error Spec Object (6) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Error Node Address: 198.18.3.1, Flags: [0x00]
+	    Error Code: unknown (22), Unknown Error Value (0)
+	    0x0000:  c612 0301 0016 0000
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 ffff
+2026-09-22 21:47:56.445589 ?     Out ifindex 9 7a:14:6b:94:f2:9b ethertype IPv4 (0x0800), length 128: (tos 0x0, ttl 64, id 38805, offset 0, flags [none], proto RSVP (46), length 108, options (RA))
+    198.18.1.1 > 198.18.3.1: 
+	RSVPv1 PathTear Message (5), Flags: [none], length: 84, ttl: 64, checksum: 0xe990
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005b, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005b c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.11.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0b 0001 0000 0000
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 ffff
+2026-09-22 21:47:56.788950 ?     Out ifindex 9 7a:14:6b:94:f2:9b ethertype IPv4 (0x0800), length 224: (tos 0x0, ttl 64, id 42579, offset 0, flags [none], proto RSVP (46), length 204, options (RA))
+    198.18.1.1 > 198.18.3.2: 
+	RSVPv1 Path Message (1), Flags: [none], length: 180, ttl: 64, checksum: 0xe9a2
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.2, Tunnel ID: 0x005c, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0302 0000 005c c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.11.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0b 0001 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  ERO Object (20) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 20
+	    Subobject Type: IPv4 prefix, length 8, Strict, 10.11.0.2/32, Flags: [none]
+	    Subobject Type: IPv4 prefix, length 8, Loose, 198.18.3.2/32, Flags: [none]
+	    0x0000:  0108 0a0b 0002 2000 8108 c612 0302 2000
+	  Label Request Object (19) Flags: [reject if unknown], Class-Type: without label range (1), length: 8
+	    L3 Protocol ID: IPv4
+	    0x0000:  0000 0800
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 ffff
+	  Adspec Object (13) Flags: [reject if unknown], Class-Type: IntServ (2), length: 48
+	    Msg-Version: 0, length: 40
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 32
+	      Parameter ID: IS hop cnt (4), length: 4, Flags: [0x00]
+		IS hop count: 1
+	      Parameter ID: Path b/w estimate (6), length: 4, Flags: [0x00]
+		Path b/w estimate: 0 Mbps
+	      Parameter ID: Minimum path latency (8), length: 4, Flags: [0x00]
+		Minimum path latency: don't care
+	      Parameter ID: Composed MTU (10), length: 4, Flags: [0x00]
+		Composed MTU: 1500 bytes
+	    Service Type: Controlled Load (5), break bit not set, Service length: 0
+	    0x0000:  0000 000a 0100 0008 0400 0001 0000 0001
+	    0x0010:  0600 0001 0000 0000 0800 0001 ffff ffff
+	    0x0020:  0a00 0001 0000 05dc 0500 0000
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.1.1/32, Flags: [none]
+	    0x0000:  0108 c612 0101 2000
+2026-09-22 21:47:56.795765 ?     In  ifindex 9 1a:4a:79:e2:b2:4b ethertype IPv4 (0x0800), length 168: (tos 0x0, ttl 64, id 39672, offset 0, flags [DF], proto RSVP (46), length 148)
+    10.11.0.2 > 10.11.0.1: 
+	RSVPv1 Resv Message (2), Flags: [none], length: 128, ttl: 64, checksum: 0xd63e
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.2, Tunnel ID: 0x005c, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0302 0000 005c c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.11.0.2, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0b 0002 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  Style Object (8) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Reservation Style: Shared Explicit, Flags: [0x00]
+	    0x0000:  0000 0012
+	  Flowspec Object (9) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Controlled Load (5), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 1500 bytes
+	    0x0000:  0000 0007 0500 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 05dc
+	  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    Source Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8
+	    Label: 1000
+	    0x0000:  0000 03e8
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 20
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.3.1/32, Flags: [none]
+	    0x0000:  0108 c612 0201 2000 0108 c612 0301 2000
+2026-09-22 21:47:56.989842 ?     Out ifindex 9 7a:14:6b:94:f2:9b ethertype MPLS unicast (0x8847), length 64: MPLS (label 1000, tc 0, [S], ttl 64)
+	(tos 0x0, ttl 64, id 62428, offset 0, flags [DF], proto UDP (17), length 40)
+    198.18.1.1.40467 > 198.18.3.2.56628: [bad udp cksum 0x904d -> 0x5a15!] UDP, length 12
+2026-09-22 21:47:57.109556 ?     In  ifindex 9 1a:4a:79:e2:b2:4b ethertype IPv4 (0x0800), length 168: (tos 0x0, ttl 64, id 39894, offset 0, flags [DF], proto RSVP (46), length 148)
+    10.11.0.2 > 10.11.0.1: 
+	RSVPv1 Resv Message (2), Flags: [none], length: 128, ttl: 64, checksum: 0xd63e
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.2, Tunnel ID: 0x005c, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0302 0000 005c c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.11.0.2, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0b 0002 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  Style Object (8) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Reservation Style: Shared Explicit, Flags: [0x00]
+	    0x0000:  0000 0012
+	  Flowspec Object (9) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Controlled Load (5), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 1500 bytes
+	    0x0000:  0000 0007 0500 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 05dc
+	  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    Source Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8
+	    Label: 1000
+	    0x0000:  0000 03e8
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 20
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.3.1/32, Flags: [none]
+	    0x0000:  0108 c612 0201 2000 0108 c612 0301 2000
+2026-09-22 21:47:57.198321 ?     Out ifindex 9 7a:14:6b:94:f2:9b ethertype IPv4 (0x0800), length 128: (tos 0x0, ttl 64, id 42701, offset 0, flags [none], proto RSVP (46), length 108, options (RA))
+    198.18.1.1 > 198.18.3.2: 
+	RSVPv1 PathTear Message (5), Flags: [none], length: 84, ttl: 64, checksum: 0xe98e
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.2, Tunnel ID: 0x005c, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0302 0000 005c c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.11.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0b 0001 0000 0000
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 ffff
+2026-09-22 21:47:57.560757 ?     Out ifindex 9 7a:14:6b:94:f2:9b ethertype IPv4 (0x0800), length 268: (tos 0x0, ttl 64, id 39485, offset 0, flags [none], proto RSVP (46), length 248, options (RA))
+    198.18.1.1 > 198.18.3.1: 
+	RSVPv1 Path Message (1), Flags: [none], length: 224, ttl: 64, checksum: 0x0978
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005d, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005d c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.11.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0b 0001 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  ERO Object (20) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 20
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    Subobject Type: IPv4 prefix, length 8, Loose, 198.18.3.1/32, Flags: [none]
+	    0x0000:  0108 c612 0201 2000 8108 c612 0301 2000
+	  Label Request Object (19) Flags: [reject if unknown], Class-Type: without label range (1), length: 8
+	    L3 Protocol ID: IPv4
+	    0x0000:  0000 0800
+	  Session Attribute Object (207) Flags: [ignore and forward if unknown], Class-Type: Tunnel IPv4 (7), length: 20
+	    Session Name: protected
+	    Setup Priority: 7, Holding Priority: 7, Flags: [Local Protection, Label Recording, SE Style] (0x7)
+	    0x0000:  0707 0709 7072 6f74 6563 7465 6400 0000
+	  Fast Re-Route Object (205) Flags: [ignore and forward if unknown], Class-Type: 1 (1), length: 24
+	    Setup Priority: 7, Holding Priority: 7, Hop-limit: 16, Bandwidth: 0.001000000047 Mbps
+	    Include-any: 0x00000000, Exclude-any: 0x00000000, Include-all: 0x00000000
+	    0x0000:  0707 1002 42fa 0000 0000 0000 0000 0000
+	    0x0010:  0000 0000
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 ffff
+	  Adspec Object (13) Flags: [reject if unknown], Class-Type: IntServ (2), length: 48
+	    Msg-Version: 0, length: 40
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 32
+	      Parameter ID: IS hop cnt (4), length: 4, Flags: [0x00]
+		IS hop count: 1
+	      Parameter ID: Path b/w estimate (6), length: 4, Flags: [0x00]
+		Path b/w estimate: 0 Mbps
+	      Parameter ID: Minimum path latency (8), length: 4, Flags: [0x00]
+		Minimum path latency: don't care
+	      Parameter ID: Composed MTU (10), length: 4, Flags: [0x00]
+		Composed MTU: 1500 bytes
+	    Service Type: Controlled Load (5), break bit not set, Service length: 0
+	    0x0000:  0000 000a 0100 0008 0400 0001 0000 0001
+	    0x0010:  0600 0001 0000 0000 0800 0001 ffff ffff
+	    0x0020:  0a00 0001 0000 05dc 0500 0000
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.1.1/32, Flags: [none]
+	    0x0000:  0108 c612 0101 2000
+2026-09-22 21:47:57.561455 ?     Out ifindex 10 86:5f:ba:d7:c5:12 ethertype IPv4 (0x0800), length 216: (tos 0x0, ttl 64, id 12622, offset 0, flags [none], proto RSVP (46), length 196, options (RA))
+    198.18.1.1 > 198.18.2.1: 
+	RSVPv1 Path Message (1), Flags: [none], length: 172, ttl: 64, checksum: 0x24ed
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.2.1, Tunnel ID: 0xf92c, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0201 0000 f92c c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.12.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0c 0001 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  ERO Object (20) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 10.12.0.2/32, Flags: [none]
+	    0x0000:  0108 0a0c 0002 2000
+	  Label Request Object (19) Flags: [reject if unknown], Class-Type: without label range (1), length: 8
+	    L3 Protocol ID: IPv4
+	    0x0000:  0000 0800
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0 Mbps
+		Token Bucket Size: 0 bytes
+		Peak Data Rate: 0 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 0000 0000
+	    0x0010:  0000 0000 0000 0000 0000 0014 0000 ffff
+	  Adspec Object (13) Flags: [reject if unknown], Class-Type: IntServ (2), length: 48
+	    Msg-Version: 0, length: 40
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 32
+	      Parameter ID: IS hop cnt (4), length: 4, Flags: [0x00]
+		IS hop count: 1
+	      Parameter ID: Path b/w estimate (6), length: 4, Flags: [0x00]
+		Path b/w estimate: 0 Mbps
+	      Parameter ID: Minimum path latency (8), length: 4, Flags: [0x00]
+		Minimum path latency: don't care
+	      Parameter ID: Composed MTU (10), length: 4, Flags: [0x00]
+		Composed MTU: 1500 bytes
+	    Service Type: Controlled Load (5), break bit not set, Service length: 0
+	    0x0000:  0000 000a 0100 0008 0400 0001 0000 0001
+	    0x0010:  0600 0001 0000 0000 0800 0001 ffff ffff
+	    0x0020:  0a00 0001 0000 05dc 0500 0000
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.1.1/32, Flags: [none]
+	    0x0000:  0108 c612 0101 2000
+2026-09-22 21:47:57.561947 ?     Out ifindex 11 66:4f:4f:1a:3c:dc ethertype IPv4 (0x0800), length 216: (tos 0x0, ttl 64, id 12623, offset 0, flags [none], proto RSVP (46), length 196, options (RA))
+    198.18.1.1 > 198.18.2.1: 
+	RSVPv1 Path Message (1), Flags: [none], length: 172, ttl: 64, checksum: 0x2032
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.2.1, Tunnel ID: 0xfde5, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0201 0000 fde5 c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.13.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0d 0001 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  ERO Object (20) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 10.13.0.2/32, Flags: [none]
+	    0x0000:  0108 0a0d 0002 2000
+	  Label Request Object (19) Flags: [reject if unknown], Class-Type: without label range (1), length: 8
+	    L3 Protocol ID: IPv4
+	    0x0000:  0000 0800
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0 Mbps
+		Token Bucket Size: 0 bytes
+		Peak Data Rate: 0 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 0000 0000
+	    0x0010:  0000 0000 0000 0000 0000 0014 0000 ffff
+	  Adspec Object (13) Flags: [reject if unknown], Class-Type: IntServ (2), length: 48
+	    Msg-Version: 0, length: 40
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 32
+	      Parameter ID: IS hop cnt (4), length: 4, Flags: [0x00]
+		IS hop count: 1
+	      Parameter ID: Path b/w estimate (6), length: 4, Flags: [0x00]
+		Path b/w estimate: 0 Mbps
+	      Parameter ID: Minimum path latency (8), length: 4, Flags: [0x00]
+		Minimum path latency: don't care
+	      Parameter ID: Composed MTU (10), length: 4, Flags: [0x00]
+		Composed MTU: 1500 bytes
+	    Service Type: Controlled Load (5), break bit not set, Service length: 0
+	    0x0000:  0000 000a 0100 0008 0400 0001 0000 0001
+	    0x0010:  0600 0001 0000 0000 0800 0001 ffff ffff
+	    0x0020:  0a00 0001 0000 05dc 0500 0000
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.1.1/32, Flags: [none]
+	    0x0000:  0108 c612 0101 2000
+2026-09-22 21:47:57.562408 ?     In  ifindex 10 7e:d7:25:28:5c:1a ethertype IPv4 (0x0800), length 160: (tos 0x0, ttl 64, id 6914, offset 0, flags [DF], proto RSVP (46), length 140)
+    10.12.0.2 > 10.12.0.1: 
+	RSVPv1 Resv Message (2), Flags: [none], length: 120, ttl: 64, checksum: 0x9188
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.2.1, Tunnel ID: 0xf92c, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0201 0000 f92c c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.12.0.2, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0c 0002 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  Style Object (8) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Reservation Style: Shared Explicit, Flags: [0x00]
+	    0x0000:  0000 0012
+	  Flowspec Object (9) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Controlled Load (5), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0 Mbps
+		Token Bucket Size: 0 bytes
+		Peak Data Rate: 0 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 1500 bytes
+	    0x0000:  0000 0007 0500 0006 7f00 0005 0000 0000
+	    0x0010:  0000 0000 0000 0000 0000 0014 0000 05dc
+	  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    Source Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8
+	    Label: 1000
+	    0x0000:  0000 03e8
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    0x0000:  0108 c612 0201 2000
+2026-09-22 21:47:57.562902 ?     In  ifindex 11 62:f1:78:be:7a:4d ethertype IPv4 (0x0800), length 160: (tos 0x0, ttl 64, id 16998, offset 0, flags [DF], proto RSVP (46), length 140)
+    10.13.0.2 > 10.13.0.1: 
+	RSVPv1 Resv Message (2), Flags: [none], length: 120, ttl: 64, checksum: 0x8ccd
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.2.1, Tunnel ID: 0xfde5, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0201 0000 fde5 c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.13.0.2, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0d 0002 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  Style Object (8) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Reservation Style: Shared Explicit, Flags: [0x00]
+	    0x0000:  0000 0012
+	  Flowspec Object (9) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Controlled Load (5), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0 Mbps
+		Token Bucket Size: 0 bytes
+		Peak Data Rate: 0 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 1500 bytes
+	    0x0000:  0000 0007 0500 0006 7f00 0005 0000 0000
+	    0x0010:  0000 0000 0000 0000 0000 0014 0000 05dc
+	  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    Source Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8
+	    Label: 1001
+	    0x0000:  0000 03e9
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    0x0000:  0108 c612 0201 2000
+2026-09-22 21:47:57.563521 ?     In  ifindex 9 1a:4a:79:e2:b2:4b ethertype IPv4 (0x0800), length 184: (tos 0x0, ttl 64, id 40200, offset 0, flags [DF], proto RSVP (46), length 164)
+    10.11.0.2 > 10.11.0.1: 
+	RSVPv1 Resv Message (2), Flags: [none], length: 144, ttl: 64, checksum: 0xc83a
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005d, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005d c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.11.0.2, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0b 0002 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  Style Object (8) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Reservation Style: Shared Explicit, Flags: [0x00]
+	    0x0000:  0000 0012
+	  Flowspec Object (9) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Controlled Load (5), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 1500 bytes
+	    0x0000:  0000 0007 0500 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 05dc
+	  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    Source Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8
+	    Label: 1002
+	    0x0000:  0000 03ea
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 36
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    Subobject Type: Label, length 8, Flags: [none] (0), Class-Type: Unknown (0), 1002
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.3.1/32, Flags: [none]
+	    Subobject Type: Label, length 8, Flags: [none] (0), Class-Type: Unknown (0), 1000
+	    0x0000:  0108 c612 0201 2000 0308 0000 0000 03ea
+	    0x0010:  0108 c612 0301 2000 0308 0000 0000 03e8
+2026-09-22 21:47:57.602365 ?     In  ifindex 9 1a:4a:79:e2:b2:4b ethertype IPv4 (0x0800), length 184: (tos 0x0, ttl 64, id 40219, offset 0, flags [DF], proto RSVP (46), length 164)
+    10.11.0.2 > 10.11.0.1: 
+	RSVPv1 Resv Message (2), Flags: [none], length: 144, ttl: 64, checksum: 0xc83a
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005d, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005d c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.11.0.2, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0b 0002 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  Style Object (8) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Reservation Style: Shared Explicit, Flags: [0x00]
+	    0x0000:  0000 0012
+	  Flowspec Object (9) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Controlled Load (5), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 1500 bytes
+	    0x0000:  0000 0007 0500 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 05dc
+	  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    Source Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8
+	    Label: 1002
+	    0x0000:  0000 03ea
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 36
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    Subobject Type: Label, length 8, Flags: [none] (0), Class-Type: Unknown (0), 1002
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.3.1/32, Flags: [none]
+	    Subobject Type: Label, length 8, Flags: [none] (0), Class-Type: Unknown (0), 1000
+	    0x0000:  0108 c612 0201 2000 0308 0000 0000 03ea
+	    0x0010:  0108 c612 0301 2000 0308 0000 0000 03e8
+2026-09-22 21:47:57.760284 ?     Out ifindex 10 86:5f:ba:d7:c5:12 ethertype MPLS unicast (0x8847), length 61: MPLS (label 1000, tc 0, [S], ttl 64)
+	(tos 0x0, ttl 64, id 5316, offset 0, flags [DF], proto UDP (17), length 37)
+    198.18.1.1.33547 > 198.18.2.1.40214: [bad udp cksum 0x8f49 -> 0x43f9!] UDP, length 9
+2026-09-22 21:47:57.811256 ?     Out ifindex 11 66:4f:4f:1a:3c:dc ethertype MPLS unicast (0x8847), length 61: MPLS (label 1001, tc 0, [S], ttl 64)
+	(tos 0x0, ttl 64, id 5329, offset 0, flags [DF], proto UDP (17), length 37)
+    198.18.1.1.44650 > 198.18.2.1.55524: [bad udp cksum 0x8f49 -> 0xdbcb!] UDP, length 9
+2026-09-22 21:47:57.862396 ?     Out ifindex 9 7a:14:6b:94:f2:9b ethertype MPLS unicast (0x8847), length 66: MPLS (label 1002, tc 0, [S], ttl 64)
+	(tos 0x0, ttl 64, id 52169, offset 0, flags [DF], proto UDP (17), length 42)
+    198.18.1.1.42876 > 198.18.3.1.55784: [bad udp cksum 0x904e -> 0xe085!] UDP, length 14
+2026-09-22 21:47:57.867767 ?     Out ifindex 10 86:5f:ba:d7:c5:12 ethertype MPLS unicast (0x8847), length 248: MPLS (label 1000, tc 0, [S], ttl 64)
+	(tos 0x0, ttl 64, id 36091, offset 0, flags [none], proto RSVP (46), length 224, options (RA))
+    10.12.0.1 > 198.18.3.1: 
+	RSVPv1 Path Message (1), Flags: [none], length: 200, ttl: 64, checksum: 0xeeaf
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005d, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005d c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.12.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0c 0001 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  ERO Object (20) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 20
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    Subobject Type: IPv4 prefix, length 8, Loose, 198.18.3.1/32, Flags: [none]
+	    0x0000:  0108 c612 0201 2000 8108 c612 0301 2000
+	  Label Request Object (19) Flags: [reject if unknown], Class-Type: without label range (1), length: 8
+	    L3 Protocol ID: IPv4
+	    0x0000:  0000 0800
+	  Session Attribute Object (207) Flags: [ignore and forward if unknown], Class-Type: Tunnel IPv4 (7), length: 20
+	    Session Name: protected
+	    Setup Priority: 7, Holding Priority: 7, Flags: [Label Recording, SE Style] (0x6)
+	    0x0000:  0707 0609 7072 6f74 6563 7465 6400 0000
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 10.12.0.1, LSP-ID: 0x0001
+	    0x0000:  0a0c 0001 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 ffff
+	  Adspec Object (13) Flags: [reject if unknown], Class-Type: IntServ (2), length: 48
+	    Msg-Version: 0, length: 40
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 32
+	      Parameter ID: IS hop cnt (4), length: 4, Flags: [0x00]
+		IS hop count: 1
+	      Parameter ID: Path b/w estimate (6), length: 4, Flags: [0x00]
+		Path b/w estimate: 0 Mbps
+	      Parameter ID: Minimum path latency (8), length: 4, Flags: [0x00]
+		Minimum path latency: don't care
+	      Parameter ID: Composed MTU (10), length: 4, Flags: [0x00]
+		Composed MTU: 1500 bytes
+	    Service Type: Controlled Load (5), break bit not set, Service length: 0
+	    0x0000:  0000 000a 0100 0008 0400 0001 0000 0001
+	    0x0010:  0600 0001 0000 0000 0800 0001 ffff ffff
+	    0x0020:  0a00 0001 0000 05dc 0500 0000
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.1.1/32, Flags: [Local protection available, Local protection in use]
+	    0x0000:  0108 c612 0101 2003
+2026-09-22 21:47:57.868793 ?     In  ifindex 10 7e:d7:25:28:5c:1a ethertype IPv4 (0x0800), length 184: (tos 0x0, ttl 64, id 7194, offset 0, flags [DF], proto RSVP (46), length 164)
+    10.12.0.2 > 10.12.0.1: 
+	RSVPv1 Resv Message (2), Flags: [none], length: 144, ttl: 64, checksum: 0x8540
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005d, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005d c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.12.0.2, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0c 0002 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  Style Object (8) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Reservation Style: Shared Explicit, Flags: [0x00]
+	    0x0000:  0000 0012
+	  Flowspec Object (9) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Controlled Load (5), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 1500 bytes
+	    0x0000:  0000 0007 0500 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 05dc
+	  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    Source Address: 10.12.0.1, LSP-ID: 0x0001
+	    0x0000:  0a0c 0001 0000 0001
+	  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8
+	    Label: 1002
+	    0x0000:  0000 03ea
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 36
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    Subobject Type: Label, length 8, Flags: [none] (0), Class-Type: Unknown (0), 1002
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.3.1/32, Flags: [none]
+	    Subobject Type: Label, length 8, Flags: [none] (0), Class-Type: Unknown (0), 1000
+	    0x0000:  0108 c612 0201 2000 0308 0000 0000 03ea
+	    0x0010:  0108 c612 0301 2000 0308 0000 0000 03e8
+2026-09-22 21:47:57.870281 ?     Out ifindex 11 66:4f:4f:1a:3c:dc ethertype IPv4 (0x0800), length 268: (tos 0x0, ttl 64, id 39672, offset 0, flags [none], proto RSVP (46), length 248, options (RA))
+    198.18.1.1 > 198.18.3.1: 
+	RSVPv1 Path Message (1), Flags: [none], length: 224, ttl: 64, checksum: 0x0975
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005d, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005d c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.13.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0d 0001 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  ERO Object (20) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 20
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    Subobject Type: IPv4 prefix, length 8, Loose, 198.18.3.1/32, Flags: [none]
+	    0x0000:  0108 c612 0201 2000 8108 c612 0301 2000
+	  Label Request Object (19) Flags: [reject if unknown], Class-Type: without label range (1), length: 8
+	    L3 Protocol ID: IPv4
+	    0x0000:  0000 0800
+	  Session Attribute Object (207) Flags: [ignore and forward if unknown], Class-Type: Tunnel IPv4 (7), length: 20
+	    Session Name: protected
+	    Setup Priority: 7, Holding Priority: 7, Flags: [Local Protection, Label Recording, SE Style] (0x7)
+	    0x0000:  0707 0709 7072 6f74 6563 7465 6400 0000
+	  Fast Re-Route Object (205) Flags: [ignore and forward if unknown], Class-Type: 1 (1), length: 24
+	    Setup Priority: 7, Holding Priority: 7, Hop-limit: 16, Bandwidth: 0.001000000047 Mbps
+	    Include-any: 0x00000000, Exclude-any: 0x00000000, Include-all: 0x00000000
+	    0x0000:  0707 1002 42fa 0000 0000 0000 0000 0000
+	    0x0010:  0000 0000
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0002
+	    0x0000:  c612 0101 0000 0002
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 ffff
+	  Adspec Object (13) Flags: [reject if unknown], Class-Type: IntServ (2), length: 48
+	    Msg-Version: 0, length: 40
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 32
+	      Parameter ID: IS hop cnt (4), length: 4, Flags: [0x00]
+		IS hop count: 1
+	      Parameter ID: Path b/w estimate (6), length: 4, Flags: [0x00]
+		Path b/w estimate: 0 Mbps
+	      Parameter ID: Minimum path latency (8), length: 4, Flags: [0x00]
+		Minimum path latency: don't care
+	      Parameter ID: Composed MTU (10), length: 4, Flags: [0x00]
+		Composed MTU: 1500 bytes
+	    Service Type: Controlled Load (5), break bit not set, Service length: 0
+	    0x0000:  0000 000a 0100 0008 0400 0001 0000 0001
+	    0x0010:  0600 0001 0000 0000 0800 0001 ffff ffff
+	    0x0020:  0a00 0001 0000 05dc 0500 0000
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.1.1/32, Flags: [none]
+	    0x0000:  0108 c612 0101 2000
+2026-09-22 21:47:57.871616 ?     Out ifindex 10 86:5f:ba:d7:c5:12 ethertype MPLS unicast (0x8847), length 71: MPLS (label 1000, tc 0, ttl 64)
+	(label 1002, tc 0, [S], ttl 64)
+	(tos 0x0, ttl 64, id 52171, offset 0, flags [DF], proto UDP (17), length 43)
+    198.18.1.1.33209 > 198.18.3.1.34822: [bad udp cksum 0x904f -> 0x56e2!] UDP, length 15
+2026-09-22 21:47:57.871746 ?     In  ifindex 10 7e:d7:25:28:5c:1a ethertype IPv4 (0x0800), length 192: (tos 0x0, ttl 64, id 7197, offset 0, flags [DF], proto RSVP (46), length 172)
+    10.12.0.2 > 10.12.0.1: 
+	RSVPv1 Resv Message (2), Flags: [none], length: 152, ttl: 64, checksum: 0xad1b
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005d, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005d c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.12.0.2, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0c 0002 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  Confirm Object (15) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 8
+	    IPv4 Receiver Address: 198.18.3.1
+	    0x0000:  c612 0301
+	  Style Object (8) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Reservation Style: Shared Explicit, Flags: [0x00]
+	    0x0000:  0000 0012
+	  Flowspec Object (9) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Controlled Load (5), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 1500 bytes
+	    0x0000:  0000 0007 0500 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 05dc
+	  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    Source Address: 10.12.0.1, LSP-ID: 0x0001
+	    0x0000:  0a0c 0001 0000 0001
+	  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8
+	    Label: 1002
+	    0x0000:  0000 03ea
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 36
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    Subobject Type: Label, length 8, Flags: [none] (0), Class-Type: Unknown (0), 1002
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.3.1/32, Flags: [none]
+	    Subobject Type: Label, length 8, Flags: [none] (0), Class-Type: Unknown (0), 1000
+	    0x0000:  0108 c612 0201 2000 0308 0000 0000 03ea
+	    0x0010:  0108 c612 0301 2000 0308 0000 0000 03e8
+2026-09-22 21:47:57.871984 ?     In  ifindex 10 7e:d7:25:28:5c:1a ethertype IPv4 (0x0800), length 184: (tos 0x0, ttl 64, id 7198, offset 0, flags [DF], proto RSVP (46), length 164)
+    10.12.0.2 > 10.12.0.1: 
+	RSVPv1 Resv Message (2), Flags: [none], length: 144, ttl: 64, checksum: 0x8540
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005d, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005d c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.12.0.2, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0c 0002 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  Style Object (8) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Reservation Style: Shared Explicit, Flags: [0x00]
+	    0x0000:  0000 0012
+	  Flowspec Object (9) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Controlled Load (5), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 1500 bytes
+	    0x0000:  0000 0007 0500 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 05dc
+	  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    Source Address: 10.12.0.1, LSP-ID: 0x0001
+	    0x0000:  0a0c 0001 0000 0001
+	  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8
+	    Label: 1002
+	    0x0000:  0000 03ea
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 36
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    Subobject Type: Label, length 8, Flags: [none] (0), Class-Type: Unknown (0), 1002
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.3.1/32, Flags: [none]
+	    Subobject Type: Label, length 8, Flags: [none] (0), Class-Type: Unknown (0), 1000
+	    0x0000:  0108 c612 0201 2000 0308 0000 0000 03ea
+	    0x0010:  0108 c612 0301 2000 0308 0000 0000 03e8
+2026-09-22 21:47:57.873240 ?     Out ifindex 10 86:5f:ba:d7:c5:12 ethertype MPLS unicast (0x8847), length 148: MPLS (label 1000, tc 0, [S], ttl 64)
+	(tos 0x0, ttl 64, id 39674, offset 0, flags [none], proto RSVP (46), length 124, options (RA))
+    198.18.1.1 > 198.18.3.1: 
+	RSVPv1 ResvConf Message (7), Flags: [none], length: 100, ttl: 64, checksum: 0x0068
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005d, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005d c612 0101
+	  Error Spec Object (6) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Error Node Address: 198.18.1.1, Flags: [0x00]
+	    Error Code: unknown (0), Unknown Error Value (0)
+	    0x0000:  c612 0101 0000 0000
+	  Confirm Object (15) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 8
+	    IPv4 Receiver Address: 198.18.3.1
+	    0x0000:  c612 0301
+	  Style Object (8) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Reservation Style: Shared Explicit, Flags: [0x00]
+	    0x0000:  0000 0012
+	  Flowspec Object (9) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Controlled Load (5), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 1500 bytes
+	    0x0000:  0000 0007 0500 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 05dc
+	  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    Source Address: 10.12.0.1, LSP-ID: 0x0001
+	    0x0000:  0a0c 0001 0000 0001
+2026-09-22 21:47:57.877829 ?     In  ifindex 11 62:f1:78:be:7a:4d ethertype IPv4 (0x0800), length 184: (tos 0x0, ttl 64, id 17174, offset 0, flags [DF], proto RSVP (46), length 164)
+    10.13.0.2 > 10.13.0.1: 
+	RSVPv1 Resv Message (2), Flags: [none], length: 144, ttl: 64, checksum: 0xc834
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005d, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005d c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.13.0.2, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0d 0002 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  Style Object (8) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Reservation Style: Shared Explicit, Flags: [0x00]
+	    0x0000:  0000 0012
+	  Flowspec Object (9) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Controlled Load (5), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 1500 bytes
+	    0x0000:  0000 0007 0500 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 05dc
+	  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    Source Address: 198.18.1.1, LSP-ID: 0x0002
+	    0x0000:  c612 0101 0000 0002
+	  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8
+	    Label: 1003
+	    0x0000:  0000 03eb
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 36
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    Subobject Type: Label, length 8, Flags: [none] (0), Class-Type: Unknown (0), 1003
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.3.1/32, Flags: [none]
+	    Subobject Type: Label, length 8, Flags: [none] (0), Class-Type: Unknown (0), 1001
+	    0x0000:  0108 c612 0201 2000 0308 0000 0000 03eb
+	    0x0010:  0108 c612 0301 2000 0308 0000 0000 03e9
+2026-09-22 21:47:57.878719 ?     Out ifindex 10 86:5f:ba:d7:c5:12 ethertype MPLS unicast (0x8847), length 132: MPLS (label 1000, tc 0, [S], ttl 64)
+	(tos 0x0, ttl 64, id 36095, offset 0, flags [none], proto RSVP (46), length 108, options (RA))
+    10.12.0.1 > 198.18.3.1: 
+	RSVPv1 PathTear Message (5), Flags: [none], length: 84, ttl: 64, checksum: 0xa694
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005d, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005d c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.12.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0c 0001 0000 0000
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 10.12.0.1, LSP-ID: 0x0001
+	    0x0000:  0a0c 0001 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 ffff
+2026-09-22 21:47:58.072623 ?     Out ifindex 11 66:4f:4f:1a:3c:dc ethertype IPv4 (0x0800), length 128: (tos 0x0, ttl 64, id 39751, offset 0, flags [none], proto RSVP (46), length 108, options (RA))
+    198.18.1.1 > 198.18.3.1: 
+	RSVPv1 PathTear Message (5), Flags: [none], length: 84, ttl: 64, checksum: 0xe98b
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.3.1, Tunnel ID: 0x005d, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0301 0000 005d c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.13.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0d 0001 0000 0000
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0002
+	    0x0000:  c612 0101 0000 0002
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0.001000000047 Mbps
+		Token Bucket Size: 125 bytes
+		Peak Data Rate: 0.001000000047 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 42fa 0000
+	    0x0010:  42fa 0000 42fa 0000 0000 0014 0000 ffff
+2026-09-22 21:47:58.109287 ?     In  ifindex 10 7e:d7:25:28:5c:1a ethertype IPv4 (0x0800), length 160: (tos 0x0, ttl 64, id 7291, offset 0, flags [DF], proto RSVP (46), length 140)
+    10.12.0.2 > 10.12.0.1: 
+	RSVPv1 Resv Message (2), Flags: [none], length: 120, ttl: 64, checksum: 0x9188
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.2.1, Tunnel ID: 0xf92c, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0201 0000 f92c c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.12.0.2, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0c 0002 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  Style Object (8) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Reservation Style: Shared Explicit, Flags: [0x00]
+	    0x0000:  0000 0012
+	  Flowspec Object (9) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Controlled Load (5), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0 Mbps
+		Token Bucket Size: 0 bytes
+		Peak Data Rate: 0 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 1500 bytes
+	    0x0000:  0000 0007 0500 0006 7f00 0005 0000 0000
+	    0x0010:  0000 0000 0000 0000 0000 0014 0000 05dc
+	  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    Source Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8
+	    Label: 1000
+	    0x0000:  0000 03e8
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    0x0000:  0108 c612 0201 2000
+2026-09-22 21:47:58.109403 ?     In  ifindex 11 62:f1:78:be:7a:4d ethertype IPv4 (0x0800), length 160: (tos 0x0, ttl 64, id 17213, offset 0, flags [DF], proto RSVP (46), length 140)
+    10.13.0.2 > 10.13.0.1: 
+	RSVPv1 Resv Message (2), Flags: [none], length: 120, ttl: 64, checksum: 0x8ccd
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.2.1, Tunnel ID: 0xfde5, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0201 0000 fde5 c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.13.0.2, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0d 0002 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  Style Object (8) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Reservation Style: Shared Explicit, Flags: [0x00]
+	    0x0000:  0000 0012
+	  Flowspec Object (9) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Controlled Load (5), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0 Mbps
+		Token Bucket Size: 0 bytes
+		Peak Data Rate: 0 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 1500 bytes
+	    0x0000:  0000 0007 0500 0006 7f00 0005 0000 0000
+	    0x0010:  0000 0000 0000 0000 0000 0014 0000 05dc
+	  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    Source Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8
+	    Label: 1001
+	    0x0000:  0000 03e9
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    0x0000:  0108 c612 0201 2000
+2026-09-22 21:47:58.233415 ?     Out ifindex 11 66:4f:4f:1a:3c:dc ethertype IPv4 (0x0800), length 216: (tos 0x0, ttl 64, id 12649, offset 0, flags [none], proto RSVP (46), length 196, options (RA))
+    198.18.1.1 > 198.18.2.1: 
+	RSVPv1 Path Message (1), Flags: [none], length: 172, ttl: 64, checksum: 0x2032
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.2.1, Tunnel ID: 0xfde5, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0201 0000 fde5 c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.13.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0d 0001 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  ERO Object (20) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 10.13.0.2/32, Flags: [none]
+	    0x0000:  0108 0a0d 0002 2000
+	  Label Request Object (19) Flags: [reject if unknown], Class-Type: without label range (1), length: 8
+	    L3 Protocol ID: IPv4
+	    0x0000:  0000 0800
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0 Mbps
+		Token Bucket Size: 0 bytes
+		Peak Data Rate: 0 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 0000 0000
+	    0x0010:  0000 0000 0000 0000 0000 0014 0000 ffff
+	  Adspec Object (13) Flags: [reject if unknown], Class-Type: IntServ (2), length: 48
+	    Msg-Version: 0, length: 40
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 32
+	      Parameter ID: IS hop cnt (4), length: 4, Flags: [0x00]
+		IS hop count: 1
+	      Parameter ID: Path b/w estimate (6), length: 4, Flags: [0x00]
+		Path b/w estimate: 0 Mbps
+	      Parameter ID: Minimum path latency (8), length: 4, Flags: [0x00]
+		Minimum path latency: don't care
+	      Parameter ID: Composed MTU (10), length: 4, Flags: [0x00]
+		Composed MTU: 1500 bytes
+	    Service Type: Controlled Load (5), break bit not set, Service length: 0
+	    0x0000:  0000 000a 0100 0008 0400 0001 0000 0001
+	    0x0010:  0600 0001 0000 0000 0800 0001 ffff ffff
+	    0x0020:  0a00 0001 0000 05dc 0500 0000
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.1.1/32, Flags: [none]
+	    0x0000:  0108 c612 0101 2000
+2026-09-22 21:47:58.234386 ?     Out ifindex 10 86:5f:ba:d7:c5:12 ethertype IPv4 (0x0800), length 216: (tos 0x0, ttl 64, id 12650, offset 0, flags [none], proto RSVP (46), length 196, options (RA))
+    198.18.1.1 > 198.18.2.1: 
+	RSVPv1 Path Message (1), Flags: [none], length: 172, ttl: 64, checksum: 0x24ed
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.2.1, Tunnel ID: 0xf92c, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0201 0000 f92c c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.12.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0c 0001 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  ERO Object (20) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 10.12.0.2/32, Flags: [none]
+	    0x0000:  0108 0a0c 0002 2000
+	  Label Request Object (19) Flags: [reject if unknown], Class-Type: without label range (1), length: 8
+	    L3 Protocol ID: IPv4
+	    0x0000:  0000 0800
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0 Mbps
+		Token Bucket Size: 0 bytes
+		Peak Data Rate: 0 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 0000 0000
+	    0x0010:  0000 0000 0000 0000 0000 0014 0000 ffff
+	  Adspec Object (13) Flags: [reject if unknown], Class-Type: IntServ (2), length: 48
+	    Msg-Version: 0, length: 40
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 32
+	      Parameter ID: IS hop cnt (4), length: 4, Flags: [0x00]
+		IS hop count: 1
+	      Parameter ID: Path b/w estimate (6), length: 4, Flags: [0x00]
+		Path b/w estimate: 0 Mbps
+	      Parameter ID: Minimum path latency (8), length: 4, Flags: [0x00]
+		Minimum path latency: don't care
+	      Parameter ID: Composed MTU (10), length: 4, Flags: [0x00]
+		Composed MTU: 1500 bytes
+	    Service Type: Controlled Load (5), break bit not set, Service length: 0
+	    0x0000:  0000 000a 0100 0008 0400 0001 0000 0001
+	    0x0010:  0600 0001 0000 0000 0800 0001 ffff ffff
+	    0x0020:  0a00 0001 0000 05dc 0500 0000
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.1.1/32, Flags: [none]
+	    0x0000:  0108 c612 0101 2000
+2026-09-22 21:47:58.234601 ?     In  ifindex 11 62:f1:78:be:7a:4d ethertype IPv4 (0x0800), length 160: (tos 0x0, ttl 64, id 17312, offset 0, flags [DF], proto RSVP (46), length 140)
+    10.13.0.2 > 10.13.0.1: 
+	RSVPv1 Resv Message (2), Flags: [none], length: 120, ttl: 64, checksum: 0x8ccd
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.2.1, Tunnel ID: 0xfde5, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0201 0000 fde5 c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.13.0.2, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0d 0002 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  Style Object (8) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Reservation Style: Shared Explicit, Flags: [0x00]
+	    0x0000:  0000 0012
+	  Flowspec Object (9) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Controlled Load (5), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0 Mbps
+		Token Bucket Size: 0 bytes
+		Peak Data Rate: 0 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 1500 bytes
+	    0x0000:  0000 0007 0500 0006 7f00 0005 0000 0000
+	    0x0010:  0000 0000 0000 0000 0000 0014 0000 05dc
+	  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    Source Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8
+	    Label: 1001
+	    0x0000:  0000 03e9
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    0x0000:  0108 c612 0201 2000
+2026-09-22 21:47:58.235202 ?     In  ifindex 10 7e:d7:25:28:5c:1a ethertype IPv4 (0x0800), length 160: (tos 0x0, ttl 64, id 7309, offset 0, flags [DF], proto RSVP (46), length 140)
+    10.12.0.2 > 10.12.0.1: 
+	RSVPv1 Resv Message (2), Flags: [none], length: 120, ttl: 64, checksum: 0x9188
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.2.1, Tunnel ID: 0xf92c, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0201 0000 f92c c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.12.0.2, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0c 0002 0000 0000
+	  Time Values Object (5) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Refresh Period: 1000ms
+	    0x0000:  0000 03e8
+	  Style Object (8) Flags: [reject if unknown], Class-Type: 1 (1), length: 8
+	    Reservation Style: Shared Explicit, Flags: [0x00]
+	    0x0000:  0000 0012
+	  Flowspec Object (9) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Controlled Load (5), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0 Mbps
+		Token Bucket Size: 0 bytes
+		Peak Data Rate: 0 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 1500 bytes
+	    0x0000:  0000 0007 0500 0006 7f00 0005 0000 0000
+	    0x0010:  0000 0000 0000 0000 0000 0014 0000 05dc
+	  FilterSpec Object (10) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    Source Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Label Object (16) Flags: [reject if unknown], Class-Type: Label (1), length: 8
+	    Label: 1000
+	    0x0000:  0000 03e8
+	  RRO Object (21) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Subobject Type: IPv4 prefix, length 8, Strict, 198.18.2.1/32, Flags: [none]
+	    0x0000:  0108 c612 0201 2000
+2026-09-22 21:47:58.433656 ?     Out ifindex 10 86:5f:ba:d7:c5:12 ethertype IPv4 (0x0800), length 128: (tos 0x0, ttl 64, id 12822, offset 0, flags [none], proto RSVP (46), length 108, options (RA))
+    198.18.1.1 > 198.18.2.1: 
+	RSVPv1 PathTear Message (5), Flags: [none], length: 84, ttl: 64, checksum: 0xbaac
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.2.1, Tunnel ID: 0xf92c, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0201 0000 f92c c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.12.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0c 0001 0000 0000
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0 Mbps
+		Token Bucket Size: 0 bytes
+		Peak Data Rate: 0 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 0000 0000
+	    0x0010:  0000 0000 0000 0000 0000 0014 0000 ffff
+2026-09-22 21:47:58.633293 ?     Out ifindex 11 66:4f:4f:1a:3c:dc ethertype MPLS unicast (0x8847), length 69: MPLS (label 1001, tc 0, [S], ttl 64)
+	(tos 0x0, ttl 64, id 5554, offset 0, flags [DF], proto UDP (17), length 45)
+    198.18.1.1.33119 > 198.18.2.1.51905: [bad udp cksum 0x8f51 -> 0xa730!] UDP, length 17
+2026-09-22 21:47:58.635375 ?     Out ifindex 11 66:4f:4f:1a:3c:dc ethertype IPv4 (0x0800), length 128: (tos 0x0, ttl 64, id 12900, offset 0, flags [none], proto RSVP (46), length 108, options (RA))
+    198.18.1.1 > 198.18.2.1: 
+	RSVPv1 PathTear Message (5), Flags: [none], length: 84, ttl: 64, checksum: 0xb5f2
+	  Session Object (1) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 16
+	    IPv4 Tunnel EndPoint: 198.18.2.1, Tunnel ID: 0xfde5, Extended Tunnel ID: 198.18.1.1
+	    0x0000:  c612 0201 0000 fde5 c612 0101
+	  RSVP Hop Object (3) Flags: [reject if unknown], Class-Type: IPv4 (1), length: 12
+	    Previous/Next Interface: 10.13.0.1, Logical Interface Handle: 0x00000000
+	    0x0000:  0a0d 0001 0000 0000
+	  Sender Template Object (11) Flags: [reject if unknown], Class-Type: Tunnel IPv4 (7), length: 12
+	    IPv4 Tunnel Sender Address: 198.18.1.1, LSP-ID: 0x0001
+	    0x0000:  c612 0101 0000 0001
+	  Sender TSpec Object (12) Flags: [reject if unknown], Class-Type: IntServ (2), length: 36
+	    Msg-Version: 0, length: 28
+	    Service Type: Default/Global Information (1), break bit not set, Service length: 24
+	      Parameter ID: Token Bucket TSpec (127), length: 20, Flags: [0x00]
+		Token Bucket Rate: 0 Mbps
+		Token Bucket Size: 0 bytes
+		Peak Data Rate: 0 Mbps
+		Minimum Policed Unit: 20 bytes
+		Maximum Packet Size: 65535 bytes
+	    0x0000:  0000 0007 0100 0006 7f00 0005 0000 0000
+	    0x0010:  0000 0000 0000 0000 0000 0014 0000 ffff

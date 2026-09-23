@@ -14,7 +14,7 @@ func TestPrependRROAddsSelfAtHead(t *testing.T) {
 	// the downstream route (RFC 3209 Section 4.4).
 	self := netip.MustParseAddr("10.0.0.1")
 	downstream := []rroEntry{{Type: RROSubIPv4, Address: netip.MustParseAddr("10.0.0.2")}}
-	got, _ := prependRRO(self, downstream)
+	got, _ := prependRRO(self, downstream, 0)
 	if assert.Len(t, got, 2) {
 		assert.Equal(t, self, got[0].Address)
 		assert.Equal(t, RROSubIPv4, got[0].Type)
@@ -25,7 +25,7 @@ func TestPrependRROAddsSelfAtHead(t *testing.T) {
 func TestPrependRROInvalidSelf(t *testing.T) {
 	// VALIDATES: an invalid self address is not recorded (no zero-address entry).
 	downstream := []rroEntry{{Type: RROSubIPv4, Address: netip.MustParseAddr("10.0.0.2")}}
-	got, _ := prependRRO(netip.Addr{}, downstream)
+	got, _ := prependRRO(netip.Addr{}, downstream, 0)
 	assert.Len(t, got, 1)
 }
 

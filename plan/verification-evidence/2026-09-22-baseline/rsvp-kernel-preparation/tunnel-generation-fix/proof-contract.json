@@ -1,0 +1,55 @@
+{
+  "status": "Prepared; Main must run RED and GREEN. No validation or native execution was performed by this agent.",
+  "red_overlay": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/red.overlay.json",
+  "focused_tests": [
+    "TestReconcileTunnelsWithdrawsReoptimizedGenerations",
+    "TestReconcileTunnelsUpdatesCurrentGeneration"
+  ],
+  "red_command": "go test -overlay=plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/red.overlay.json ./internal/plugins/rsvpte -run '^TestReconcileTunnels(WithdrawsReoptimizedGenerations|UpdatesCurrentGeneration)$' -count=1",
+  "green_command": "go test ./internal/plugins/rsvpte -run '^TestReconcileTunnels(WithdrawsReoptimizedGenerations|UpdatesCurrentGeneration)$' -count=1",
+  "race_regression_command": "go test -race ./internal/plugins/rsvpte -run '^(TestReconcileTunnels|TestEngineMakeBeforeBreak|TestSetupTunnelEROChangeReroutes|TestRFC4090HeadEndUsesDistinctSender)' -count=1",
+  "expected_red": [
+    "Withdrawal leaves replacement generation 2 present in both pending and completed MBB cases; no PathTear for that generation is emitted.",
+    "An unchanged reload after completed MBB recreates retired generation 1 instead of leaving generation 2 alone."
+  ],
+  "expected_green": [
+    "After a real Notify-created MBB, withdrawing the configured tunnel removes every current/pending generation, signals the exact set of sender-specific PathTears and removes its ingress FEC.",
+    "A configured tunnel with the same tunnel ID at a different endpoint remains Up; a bypass to the withdrawn tunnel endpoint remains Up and its forwarding table is not removed.",
+    "A delayed RESV cannot recreate withdrawn state or reinstall the FEC.",
+    "ERO changes after MBB target the current generation; unchanged reloads create no new PATH, including while a replacement is pending.",
+    "A second ERO update supersedes the pending attempt, keeps the established predecessor forwarding, ignores the superseded RESV and retires the established predecessor only when the latest replacement succeeds.",
+    "Repeated repair Notify finds the latest pending replacement even after an intermediate LSP ID has been abandoned."
+  ],
+  "native_evidence": {
+    "stdout": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-011/producer.stdout",
+    "pcaps": [
+      "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-011/captures/rsvp-1384-h.pcap",
+      "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-011/captures/rsvp-1384-m.pcap",
+      "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-011/captures/rsvp-1384-e.pcap"
+    ],
+    "head_end_timing": "MBB old1/new2 at 17:15:58.113; old1 teardown at 58.122; removal log at 58.326; new2 teardown only at shutdown 17:16:18.529.",
+    "pcap_analysis": "Preserved native evidence pointers only; this agent did not decode captures or execute the native fixture."
+  },
+  "native_oracle": {
+    "verdict": "The unchanged post-reload protected-PathTear oracle is invalid after legitimate MBB has retired the protected generation; no promise that the native test will pass.",
+    "fixture_setup": "rsvpProducerTunnel uses strict MP router-id 198.18.2.1 then loose egress; TestRSVPNativeProducer keeps native OSPF and usable bypass-b routing, invokes local repair, requests confirmation, then marks capture immediately before removing the tunnel. awaitMessage searches only frames after that mark on bypass-a with its bypass label. requireNoSelectedControl rejects every same-tunnel message on bypass-b in that window.",
+    "product_source": "engine.handleLinkDown immediately calls reoptimizeOnNotify for a repaired ingress. reroute creates a fresh, un-repaired generation; acceptReservation retires Replaces once the new generation is Up. pathTearLocked uses a bypass only for a generation with ProtectionInUse. Reload must tear the surviving replacement along that replacement path, not replay an earlier protected generation teardown.",
+    "primary_text": [
+      "rfc/full/rfc3209.txt Section 4.6.4",
+      "rfc/full/rfc4090.txt Sections 6.4.3 and 6.5.2",
+      "rfc/full/rfc2205.txt Section 3.1.5"
+    ],
+    "fixture_changes": "None. No re-timing, weakening or reoptimization suppression."
+  },
+  "changed_producers": {
+    "register.go": "reconcileTunnels serializes under engine.control and removes all exact SESSION/sender generations, protected senders before bypasses; setupTunnel selects latest live generation rather than always generation 1.",
+    "reroute.go": "reroute preserves the established predecessor across superseded pending attempts, tears the abandoned pending attempt and refuses to overwrite an existing generation.",
+    "frr.go": "reoptimizeOnNotify detects in-flight replacement by its Replaces relationship, including across abandoned intermediate IDs.",
+    "engine.go": "handleLinkDown holds the same control lock as signaling and reconciliation so replacement creation cannot race withdrawal."
+  },
+  "documentation": [
+    "docs/architecture/rsvpte/mpls-rsvp-te.md reload decision",
+    "docs/guide/rsvp-te.md What a commit changes"
+  ],
+  "scope_limits": "No transport/monitor/native-fixture/RFC-record edits. No absent RFC capability implemented; no commit, build, tests, formatter, linter or runtime invoked."
+}

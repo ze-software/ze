@@ -1,0 +1,27 @@
+{
+  "test_status": "failure",
+  "test_exit_code": 1,
+  "exact_test_pass": false,
+  "pass_marker": false,
+  "skip_marker": false,
+  "failure_marker": true,
+  "collection_status": "complete",
+  "collection_errors": [],
+  "observed_namespaces": [
+    "rsvp-1409-e",
+    "rsvp-1409-h",
+    "rsvp-1409-m"
+  ],
+  "samples_per_namespace": {
+    "rsvp-1409-h": 17,
+    "rsvp-1409-m": 17,
+    "rsvp-1409-e": 17
+  },
+  "finished": {
+    "unix_ns": 1790095594233674233,
+    "monotonic_ns": 85558930916
+  },
+  "forwarding_boundary": "Only the unchanged carrier's exact-payload receive/source/label/MAC assertions prove delivery. A route readback or pcap file alone does not. Foreign in-label EEXIST is the intended negative control.",
+  "review_required": "Check input build provenance, packet chronology and tcpdump loss counters; no automatic pcap forwarding verdict.",
+  "adapter_exit_code": 1
+}

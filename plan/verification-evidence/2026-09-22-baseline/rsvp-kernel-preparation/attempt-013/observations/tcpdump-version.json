@@ -1,0 +1,19 @@
+{
+  "argv": [
+    "tcpdump",
+    "--version"
+  ],
+  "started": {
+    "unix_ns": 1790113663370847024,
+    "monotonic_ns": 35986758751
+  },
+  "exit_code": 0,
+  "stdout": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-013/observations/tcpdump-version.stdout",
+  "stderr": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-013/observations/tcpdump-version.stderr",
+  "pid": 1361,
+  "status": "ok",
+  "finished": {
+    "unix_ns": 1790113663384775837,
+    "monotonic_ns": 36000687614
+  }
+}

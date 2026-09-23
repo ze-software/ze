@@ -1,0 +1,10 @@
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN group default qlen 1000
+    inet 127.0.0.1/8 scope host lo
+       valid_lft forever preferred_lft forever
+    inet 198.18.3.1/32 scope global lo
+       valid_lft forever preferred_lft forever
+    inet 198.18.3.2/32 scope global lo
+       valid_lft forever preferred_lft forever
+9: tail@if12: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default  link-netns rsvp-1372-m
+    inet 10.14.0.2/24 brd 10.14.0.255 scope global tail
+       valid_lft forever preferred_lft forever

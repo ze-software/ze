@@ -27,7 +27,8 @@ const rtprotZE = rtproto.FIBKernel
 
 // netlinkBackend programs routes via Linux netlink.
 type netlinkBackend struct {
-	handle *netlink.Handle
+	handle   *netlink.Handle
+	contexts mplsContextState
 }
 
 func newBackend() routeBackend {
@@ -36,7 +37,13 @@ func newBackend() routeBackend {
 		logger().Error("fib-kernel: netlink handle failed, route programming disabled", "error", err)
 		return &failedBackend{err: fmt.Errorf("netlink unavailable: %w", err)}
 	}
-	return &netlinkBackend{handle: h}
+	backend := &netlinkBackend{handle: h}
+	for _, family := range []int{netlink.FAMILY_V4, netlink.FAMILY_V6} {
+		if err := backend.ensureMPLSGuard(family); err != nil {
+			logger().Error("fib-kernel: private MPLS guard unavailable", "family", family, "error", err)
+		}
+	}
+	return backend
 }
 
 // failedBackend returns errors for all operations when netlink init failed.
@@ -99,11 +106,20 @@ func (n *netlinkBackend) listZeRoutes() ([]installedRoute, error) {
 	return result, nil
 }
 
+// close removes private routes/selectors even when ordinary routes survive
+// graceful restart. Fixed namespace guards remain for late marked packets.
 func (n *netlinkBackend) close() error {
+	n.contexts.mu.Lock()
+	defer n.contexts.mu.Unlock()
+	if n.contexts.closed {
+		return nil
+	}
+	n.contexts.closed = true
+	err := n.closeMPLSContexts()
 	if n.handle != nil {
 		n.handle.Close()
 	}
-	return nil
+	return err
 }
 
 // buildRoute creates a netlink.Route from prefix and next-hop strings.

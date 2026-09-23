@@ -1,0 +1,22 @@
+{
+  "status": "source-and-retained-wire diagnosis; validation belongs to Main",
+  "symptom": "Attempt005 ends with all H/M neighbours in ExStart. Its first bypass-a DD exchange carries the corrected master bit and completes the final sequence echo; a later round on all links stalls after initial DDs.",
+  "root_cause": "Table.handleDBDesc rejects every state below ExStart. RFC2328 section 10.6 requires an Init neighbour's DD to execute 2-WayReceived, enter ExStart when adjacency is required, and process the same DD. In attempt005 M's initial DD arrives before its next two-way Hello on every H interface; the producer discards the only master negotiation packet in this round.",
+  "owner": "internal/plugins/ospf/neighbor/dd.go: Table.handleDBDesc; shared 2-WayReceived transition in table.go",
+  "workaround": "Wait longer, increase protocol timers, weaken readiness, or assume every peer sends another DD promptly.",
+  "workaround_rejected": "These leave the RFC-required Init transition missing and cannot make the received first DD negotiate. The timer and readiness contracts remain unchanged.",
+  "source_fix": "Share the existing Hello 2-WayReceived transition with handleDBDesc for stateInit, then retain the ordinary admission, role, duplicate and sequence checks. An Init DROther still becomes only 2-Way when neither router is DR/BDR.",
+  "wire_source": "../attempt-005/network.trace",
+  "excluded_old_cause": {"lines": [8906, 8931, 8970, 9008], "flags": [7, 0, 1, 0], "sequences": [3323068929, 3323068929, 3323068930, 3323068930], "meaning": "bypass-a now sends MS on its master Exchange DD and H echoes the sequence"},
+  "new_cycle": [
+    {"interface": "bypass-a", "last_one_way_hello_rx": 20589, "master_initial_dd_rx": 20797, "first_two_way_hello_rx": 21564, "slave_initial_dd_tx": 21609},
+    {"interface": "bypass-b", "last_one_way_hello_rx": 20438, "master_initial_dd_rx": 20899, "first_two_way_hello_rx": 21395, "slave_initial_dd_tx": 21428},
+    {"interface": "primary", "last_one_way_hello_rx": 20238, "master_initial_dd_rx": 21175, "first_two_way_hello_rx": 21220, "slave_initial_dd_tx": 21285}
+  ],
+  "wire_checks": "All 11 captured DD receives have valid IPv4 and OSPF checksums. The six second-round initial sends are paired with receives. After line21611 no DD occurs in the retained trace, while two-way Hellos continue.",
+  "inference_boundary": "Init at each master-DD arrival follows from the last Hello's absent local Router ID plus Table.hello's one-way transition; retained diagnostics do not contain a per-packet handler result. The data supports the missing Init transition but does not establish it as the only native convergence defect.",
+  "separate_observation": "All retained H/M maintenance stacks are inside topology/origination processing; the latest receive loops are selecting. The trace contains no later DD retransmissions. This report does not diagnose a specific scheduling defect or alter deferred origination.",
+  "primary_sources": ["https://www.rfc-editor.org/rfc/rfc2328#section-10.3", "https://www.rfc-editor.org/rfc/rfc2328#section-10.6", "https://www.rfc-editor.org/rfc/rfc2328#section-10.8"],
+  "preserved_changes": "The prior MS sender repair, deferred origination and SR changes remain in place.",
+  "verification": "No build, test, runtime, formatter or validation command has run in this worker. Main must demonstrate red with the before-source overlay and green without it, then rebuild BOTH carrier and daemon and rerun native RSVP."
+}

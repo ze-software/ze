@@ -6,13 +6,15 @@
 // label-switching entries from label-distribution sources (RSVP-TE, LDP) on the
 // (mpls-fib, entry) topic and programs them: push reuses the rich-route path (an
 // IP route with an imposed label stack), swap/pop use AF_MPLS routes keyed by
-// the incoming label. The AF_MPLS programming lives in mplsentry_linux.go; on
-// non-Linux the backend does not implement mplsBackend, so asMPLSBackend returns
-// nil and swap/pop entries are skipped (no kernel MPLS dataplane there).
+// the incoming label. The AF_MPLS programming lives in mplsentry_linux.go.
+// Unsupported backends reject entries through the synchronous acknowledgment.
 package fibkernel
 
 import (
+	"errors"
+	"fmt"
 	"net/netip"
+	"syscall"
 
 	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
 )
@@ -22,8 +24,9 @@ import (
 type mplsBackend interface {
 	// addMPLSSwap installs an AF_MPLS route: packets arriving with inLabel are
 	// forwarded to nextHop with outLabels imposed (a single-element stack is a
-	// swap; an empty stack is a pop / disposition).
-	addMPLSSwap(inLabel uint32, outLabels []uint32, nextHop netip.Addr) error
+	// swap; an empty stack is a pop / disposition). replace is true only when
+	// this producer already owns the incoming label.
+	addMPLSSwap(inLabel uint32, outLabels []uint32, nextHop netip.Addr, pathMTU uint32, replace bool) error
 	// delMPLSSwap removes the AF_MPLS route for inLabel.
 	delMPLSSwap(inLabel uint32) error
 }
@@ -39,7 +42,11 @@ func (f *fibKernel) asMPLSBackend() mplsBackend {
 // mplsCountLocked returns the total MPLS forwarding entries (push + swap/pop)
 // for the gauge. Caller holds f.mu.
 func (f *fibKernel) mplsCountLocked() int {
-	return len(f.mplsInstalled) + len(f.mplsSwaps)
+	count := len(f.mplsInstalled) + len(f.mplsSwaps)
+	if backend, ok := f.backend.(mplsContextBackend); ok {
+		count += backend.mplsContextCount()
+	}
+	return count
 }
 
 // handleMPLSEntry programs a batch of MPLS forwarding entries from a label
@@ -49,111 +56,150 @@ func (f *fibKernel) handleMPLSEntry(batch *mplsfibevents.EntryBatch) {
 		return
 	}
 	f.mu.Lock()
-	defer f.mu.Unlock()
+	var result error
+	defer func() {
+		f.mu.Unlock()
+		if batch.Acknowledge != nil {
+			batch.Acknowledge(result)
+		}
+	}()
+	if f.stopped {
+		result = errors.New("mpls-fib: forwarding owner stopped")
+		return
+	}
 
 	rb := f.asRichBackend()
 	mb := f.asMPLSBackend()
 	for i := range batch.Entries {
 		e := &batch.Entries[i]
+		if e.TableID != 0 {
+			if e.Op != mplsfibevents.OpPush {
+				result = errors.Join(result, errors.New("mpls-fib: swap/pop require table zero"))
+				continue
+			}
+			if e.TableID&mplsContextMask != mplsContextMark {
+				result = errors.Join(result, fmt.Errorf("mpls-fib: private table %#x is outside the bypass namespace", e.TableID))
+				continue
+			}
+		}
 		switch e.Action {
 		case mplsfibevents.ActionAdd:
-			f.addMPLSEntryLocked(e, rb, mb)
+			result = errors.Join(result, f.addMPLSEntryLocked(e, rb, mb))
 		case mplsfibevents.ActionRemove:
-			f.delMPLSEntryLocked(e, rb, mb)
-		case mplsfibevents.ActionUnspecified:
-			logger().Warn("fib-kernel: mpls entry with unspecified action", "op", e.Op)
+			result = errors.Join(result, f.delMPLSEntryLocked(e, rb, mb))
+		default:
+			result = errors.Join(result, fmt.Errorf("mpls-fib: unsupported entry action %d", e.Action))
 		}
 	}
 }
 
-func (f *fibKernel) addMPLSEntryLocked(e *mplsfibevents.Entry, rb richRouteBackend, mb mplsBackend) {
+func (f *fibKernel) addMPLSEntryLocked(e *mplsfibevents.Entry, rb richRouteBackend, mb mplsBackend) error {
 	switch e.Op {
 	case mplsfibevents.OpPush:
 		if err := validateMPLSLabels(e.OutLabels); err != nil {
 			logger().Error("fib-kernel: mpls push validation failed", "fec", e.FEC, "error", err)
 			f.recordMPLSAddErrorLocked()
-			return
+			return err
 		}
 		if rb == nil || !e.FEC.IsValid() {
 			logger().Warn("fib-kernel: cannot program mpls push (no rich backend or invalid FEC)", "fec", e.FEC)
-			return
+			return fmt.Errorf("mpls-fib: cannot program push: backend available=%t, FEC=%s", rb != nil, e.FEC)
 		}
-		// Use Replace only to relabel a push this owner already installed; for a
-		// first install use Add. The MPLS push path bypasses sysrib's best-path
-		// arbitration and shares the FIB with other writers (sysrib/BGP, static,
-		// connected). RouteReplace keys on prefix, not protocol, so an unconditional
-		// replace would clobber a foreign route for the same prefix; Add fails EEXIST
-		// instead, leaving the other route intact. A genuine relabel of ze's own push
-		// (mplsInstalled already set) is safe to Replace so the new label takes effect.
-		key := e.FEC.String()
-		rr := RichRoute{Prefix: e.FEC, NextHop: e.NextHop, Labels: e.OutLabels}
-		var perr error
-		if f.mplsInstalled[key] {
-			perr = rb.replaceRichRoute(rr)
-		} else {
-			perr = rb.addRichRoute(rr)
-		}
-		if perr != nil {
-			logger().Error("fib-kernel: mpls push install failed", "fec", e.FEC, "error", perr)
+		if err := f.addMPLSPushLocked(e, rb); err != nil {
+			logger().Error("fib-kernel: mpls push install failed", "fec", e.FEC, "table", e.TableID, "error", err)
 			f.recordMPLSAddErrorLocked()
-			return
+			return err
 		}
-		f.mplsInstalled[key] = true
 	case mplsfibevents.OpSwap, mplsfibevents.OpPop:
 		if e.InLabel > maxMPLSLabel {
 			logger().Error("fib-kernel: mpls in-label exceeds 20-bit maximum", "in-label", e.InLabel)
 			f.recordMPLSAddErrorLocked()
-			return
+			return fmt.Errorf("mpls-fib: in-label %d exceeds 20 bits", e.InLabel)
 		}
 		if e.Op == mplsfibevents.OpSwap {
 			if err := validateMPLSLabels(e.OutLabels); err != nil {
 				logger().Error("fib-kernel: mpls swap validation failed", "in-label", e.InLabel, "error", err)
 				f.recordMPLSAddErrorLocked()
-				return
+				return err
 			}
 		}
 		if mb == nil {
 			logger().Warn("fib-kernel: cannot program mpls swap/pop (no AF_MPLS backend)", "in-label", e.InLabel)
-			return
+			return errors.New("mpls-fib: no AF_MPLS backend")
 		}
-		if err := mb.addMPLSSwap(e.InLabel, e.OutLabels, e.NextHop); err != nil {
+		owner, installed := f.mplsSwaps[e.InLabel]
+		if installed && owner != e.Source {
+			return fmt.Errorf("mpls-fib: in-label %d belongs to source %d, not %d: %w",
+				e.InLabel, owner, e.Source, syscall.EEXIST)
+		}
+		if err := mb.addMPLSSwap(e.InLabel, e.OutLabels, e.NextHop, e.PathMTU, installed); err != nil {
 			logger().Error("fib-kernel: mpls swap/pop install failed", "in-label", e.InLabel, "error", err)
 			f.recordMPLSAddErrorLocked()
-			return
+			return err
 		}
-		f.mplsSwaps[e.InLabel] = true
-	case mplsfibevents.OpUnspecified:
-		logger().Warn("fib-kernel: mpls entry with unspecified op", "in-label", e.InLabel)
-		return
+		f.mplsSwaps[e.InLabel] = e.Source
+	default:
+		return fmt.Errorf("mpls-fib: unsupported label operation %d", e.Op)
 	}
 	if m := fibMetricsPtr.Load(); m != nil {
 		m.mplsInstalls.Inc()
 		m.mplsRoutesInstalled.Set(float64(f.mplsCountLocked()))
 	}
+	return nil
 }
 
-func (f *fibKernel) delMPLSEntryLocked(e *mplsfibevents.Entry, rb richRouteBackend, mb mplsBackend) {
+func (f *fibKernel) delMPLSEntryLocked(e *mplsfibevents.Entry, rb richRouteBackend, mb mplsBackend) error {
 	switch e.Op {
 	case mplsfibevents.OpPush:
+		if e.TableID != 0 {
+			backend, ok := f.backend.(mplsContextBackend)
+			if !ok {
+				return errors.New("mpls-fib: backend cannot remove private push contexts")
+			}
+			if !e.FEC.IsValid() {
+				return errors.New("mpls-fib: cannot remove push without valid FEC")
+			}
+			if err := backend.delMPLSContext(e.FEC.Masked(), e.TableID); err != nil {
+				return err
+			}
+			break
+		}
 		if rb != nil && e.FEC.IsValid() {
 			if err := rb.delRichRoute(e.FEC, 0); err != nil {
 				logger().Warn("fib-kernel: mpls push remove failed", "fec", e.FEC, "error", err)
+				return err
 			}
+		}
+		if rb == nil || !e.FEC.IsValid() {
+			return errors.New("mpls-fib: cannot remove push without backend and valid FEC")
 		}
 		delete(f.mplsInstalled, e.FEC.String())
 	case mplsfibevents.OpSwap, mplsfibevents.OpPop:
+		owner, installed := f.mplsSwaps[e.InLabel]
+		if !installed {
+			break
+		}
+		if owner != e.Source {
+			return fmt.Errorf("mpls-fib: in-label %d belongs to source %d, not %d: %w",
+				e.InLabel, owner, e.Source, syscall.EEXIST)
+		}
 		if mb != nil {
 			if err := mb.delMPLSSwap(e.InLabel); err != nil {
 				logger().Warn("fib-kernel: mpls swap/pop remove failed", "in-label", e.InLabel, "error", err)
+				return err
 			}
 		}
+		if mb == nil {
+			return errors.New("mpls-fib: cannot remove label without AF_MPLS backend")
+		}
 		delete(f.mplsSwaps, e.InLabel)
-	case mplsfibevents.OpUnspecified:
-		return
+	default:
+		return fmt.Errorf("mpls-fib: unsupported label operation %d", e.Op)
 	}
 	if m := fibMetricsPtr.Load(); m != nil {
 		m.mplsRoutesInstalled.Set(float64(f.mplsCountLocked()))
 	}
+	return nil
 }
 
 // recordMPLSAddErrorLocked bumps the backend-error counter for a failed MPLS

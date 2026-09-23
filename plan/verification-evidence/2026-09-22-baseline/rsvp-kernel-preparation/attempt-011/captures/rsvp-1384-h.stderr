@@ -1,0 +1,5 @@
+dropped privs to root
+tcpdump: listening on any, link-type LINUX_SLL2 (Linux cooked v2), snapshot length 262144 bytes
+432 packets captured
+450 packets received by filter
+0 packets dropped by kernel

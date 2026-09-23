@@ -1,0 +1,50 @@
+{
+  "namespace": "rsvp-1409-h",
+  "started": {
+    "unix_ns": 1790095554371521762,
+    "monotonic_ns": 45696775657
+  },
+  "exit_code": 0,
+  "pcap": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-010/captures/rsvp-1409-h.pcap",
+  "stdout": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-010/captures/rsvp-1409-h.stdout",
+  "stderr": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-010/captures/rsvp-1409-h.stderr",
+  "signals": [
+    {
+      "signal": "SIGINT",
+      "requested": {
+        "unix_ns": 1790095588379710411,
+        "monotonic_ns": 79704964249
+      }
+    }
+  ],
+  "argv": [
+    "ip",
+    "netns",
+    "exec",
+    "rsvp-1409-h",
+    "tcpdump",
+    "-i",
+    "any",
+    "-p",
+    "-n",
+    "-s",
+    "0",
+    "-U",
+    "-B",
+    "2048",
+    "-Z",
+    "root",
+    "-w",
+    "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-010/captures/rsvp-1409-h.pcap",
+    "ether proto 0x8847 or ether proto 0x8848 or arp or (ip and (udp or ip proto 46 or ip proto 89 or icmp))"
+  ],
+  "pid": 1418,
+  "status": "ok",
+  "exited_before_stop": false,
+  "finished": {
+    "unix_ns": 1790095588411627690,
+    "monotonic_ns": 79736882920
+  },
+  "pcap_present": true,
+  "pcap_bytes": 64720
+}

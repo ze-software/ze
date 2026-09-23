@@ -13,9 +13,11 @@
 package mplsfib
 
 import (
+	"errors"
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/core/events"
+	"github.com/ze-software/ze/pkg/ze"
 )
 
 // Namespace is the event namespace for MPLS forwarding entries.
@@ -57,12 +59,21 @@ type Entry struct {
 
 	// FEC is the destination prefix for push entries. Unused for swap/pop.
 	FEC netip.Prefix
+	// TableID isolates a push forwarding context. Zero selects the ordinary IP
+	// FIB; nonzero installs a private table selected by an equal packet mark.
+	// Swap/pop entries are in-label keyed and require zero.
+	TableID uint32
 
 	// OutLabels is the outgoing label stack for push/swap. Empty for pop.
 	OutLabels []uint32
 
 	// NextHop is the downstream neighbor the labeled packet is sent to.
 	NextHop netip.Addr
+
+	// PathMTU is the minimum downstream frame payload MTU, including the
+	// complete outgoing label stack. Zero means unknown: use the output
+	// device's MTU. The kernel subtracts retained as well as imposed labels.
+	PathMTU uint32
 
 	// Source identifies the producing protocol for diagnostics/ownership.
 	Source uint16
@@ -72,8 +83,39 @@ type Entry struct {
 // producer applied together.
 type EntryBatch struct {
 	Entries []Entry
+	// Acknowledge reports the native FIB owner's synchronous install result.
+	// The callback is immutable payload; only Apply owns the result it captures.
+	// Process subscribers cannot acknowledge a native kernel installation.
+	Acknowledge func(error) `json:"-"`
 }
 
 // EntryChange is the typed handle for (mpls-fib, entry). Producers Emit;
 // fib-kernel Subscribes.
 var EntryChange = events.Register[*EntryBatch](Namespace, EventEntry)
+
+var errNoOwnerAcknowledgement = errors.New("mpls-fib: no native forwarding owner acknowledged the batch")
+
+// Apply returns only after the native forwarding owner has attempted the batch.
+// A successful Emit is not an installation acknowledgement. A batch may be
+// partially applied on error; producers must not advertise the failed result.
+func Apply(bus ze.EventBus, entries []Entry) error {
+	if bus == nil {
+		return errNoOwnerAcknowledgement
+	}
+	var result error
+	acknowledged := false
+	batch := &EntryBatch{
+		Entries: entries,
+		Acknowledge: func(err error) {
+			acknowledged = true
+			result = errors.Join(result, err)
+		},
+	}
+	if _, err := EntryChange.Emit(bus, batch); err != nil {
+		return err
+	}
+	if !acknowledged {
+		return errNoOwnerAcknowledgement
+	}
+	return result
+}

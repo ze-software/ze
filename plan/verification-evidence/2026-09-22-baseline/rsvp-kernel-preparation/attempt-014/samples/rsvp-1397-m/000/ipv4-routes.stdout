@@ -1,0 +1,16 @@
+unicast 10.11.0.0/24 dev primary table main proto kernel scope link src 10.11.0.2 
+unicast 10.12.0.0/24 dev bypass-a table main proto kernel scope link src 10.12.0.2 
+unicast 10.13.0.0/24 dev bypass-b table main proto kernel scope link src 10.13.0.2 
+unicast 10.14.0.0/24 dev tail table main proto kernel scope link src 10.14.0.1 
+local 10.11.0.2 dev primary table local proto kernel scope host src 10.11.0.2 
+broadcast 10.11.0.255 dev primary table local proto kernel scope link src 10.11.0.2 
+local 10.12.0.2 dev bypass-a table local proto kernel scope host src 10.12.0.2 
+broadcast 10.12.0.255 dev bypass-a table local proto kernel scope link src 10.12.0.2 
+local 10.13.0.2 dev bypass-b table local proto kernel scope host src 10.13.0.2 
+broadcast 10.13.0.255 dev bypass-b table local proto kernel scope link src 10.13.0.2 
+local 10.14.0.1 dev tail table local proto kernel scope host src 10.14.0.1 
+broadcast 10.14.0.255 dev tail table local proto kernel scope link src 10.14.0.1 
+local 127.0.0.0/8 dev lo table local proto kernel scope host src 127.0.0.1 
+local 127.0.0.1 dev lo table local proto kernel scope host src 127.0.0.1 
+broadcast 127.255.255.255 dev lo table local proto kernel scope link src 127.0.0.1 
+local 198.18.2.1 dev lo table local proto kernel scope host src 198.18.2.1 

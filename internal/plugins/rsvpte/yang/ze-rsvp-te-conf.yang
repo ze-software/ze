@@ -7,8 +7,8 @@ module ze-rsvp-te-conf {
 
     container rsvp-te {
         description "RSVP-TE traffic engineering configuration. Signaling is IPv4 only. Without a router-id the engine stays
-            idle, and no tunnel and no bypass signals. Ze has no IGP and no CSPF, so every path is given as an
-            explicit route.";
+            idle, and no tunnel and no bypass signals. RSVP-TE does not consume a traffic-engineering database
+            or run CSPF, so paths are configured explicitly.";
         ze:help "RSVP-TE traffic engineering configuration";
 
         leaf router-id {
@@ -43,6 +43,72 @@ module ze-rsvp-te-conf {
                 defaults. Expiry releases the reserved bandwidth, the MPLS forwarding entry and the label, then
                 sends an lsp-down event.";
             ze:help "Number of missed refreshes before state cleanup";
+        }
+
+        container reservation-policy {
+            description "Local network-address authorization for RSVP reservations. Rules match the IPv4 sender in
+                SENDER_TEMPLATE or FILTER_SPEC and the tunnel endpoint in SESSION. Authorization and bandwidth
+                admission must both permit a reservation. This policy does not provide cryptographic user
+                authentication or interpret POLICY_DATA objects.";
+            ze:help "Local reservation authorization by sender and tunnel endpoint";
+
+            leaf default-action {
+                type enumeration {
+                    enum permit { ze:help "Permit a reservation when no rule matches."; }
+                    enum deny { ze:help "Deny a reservation when no rule matches."; }
+                }
+                default permit;
+                description "Action when no rule matches. The default is permit, so configurations without a
+                    reservation policy keep their existing authorization behavior.";
+                ze:help "Action when no reservation rule matches";
+            }
+
+            list rule {
+                key "index";
+                description "Rules are evaluated by ascending numeric index. The first matching rule decides.
+                    Both configured prefixes must match. An omitted prefix matches every address; a rule with
+                    neither prefix matches every reservation.";
+                ze:help "Reservation authorization rule";
+
+                leaf index {
+                    type uint16;
+                    description "Evaluation order from 0 to 65535, lowest first. Use a decimal integer without
+                        leading zeros. The index decides precedence, regardless of configuration file order.";
+                    ze:help "Rule index, lowest first";
+                }
+
+                leaf sender-prefix {
+                    type string {
+                        length "7..18";
+                    }
+                    ze:validate "ipv4-prefix";
+                    description "IPv4 prefix for the sender address. A /32 matches one host and /0 matches every
+                        IPv4 sender. Host bits are masked before matching. Omit this leaf to match any sender.";
+                    ze:help "Sender IPv4 prefix";
+                }
+
+                leaf endpoint-prefix {
+                    type string {
+                        length "7..18";
+                    }
+                    ze:validate "ipv4-prefix";
+                    description "IPv4 prefix for the SESSION tunnel endpoint. A /32 matches one host and /0
+                        matches every IPv4 endpoint. Host bits are masked before matching. Omit this leaf to
+                        match any tunnel endpoint.";
+                    ze:help "Tunnel endpoint IPv4 prefix";
+                }
+
+                leaf action {
+                    type enumeration {
+                        enum permit { ze:help "Permit a reservation that matches this rule."; }
+                        enum deny { ze:help "Deny a reservation that matches this rule."; }
+                    }
+                    mandatory true;
+                    description "Required authorization decision for a matching reservation. A permit still
+                        requires bandwidth admission.";
+                    ze:help "Authorization action for a matching reservation";
+                }
+            }
         }
 
         list interface {
@@ -204,7 +270,7 @@ module ze-rsvp-te-conf {
                 key "index";
                 ordered-by user;
                 description "Explicit route hops. The list becomes the ERO object the PATH carries (RFC 3209 Section 4.3).
-                    Ze has no IGP and no CSPF, so the operator gives every hop. A tunnel with no hop here is signaled
+                    RSVP-TE does not run CSPF, so the operator supplies the hops. A tunnel with no hop here is signaled
                     with no ERO object. A commit that changes the list starts a make-before-break reroute.";
                 ze:help "Explicit route hops";
 
@@ -242,8 +308,8 @@ module ze-rsvp-te-conf {
             description "Facility-backup bypass LSP (RFC 4090 Section 3.2): an LSP from this PLR to a merge point, explicitly
                 routed to avoid the protected resource. A protected transit LSP is redirected onto this bypass on a
                 local failure. The redirected LSP is one whose next hop (link protection) or next-next hop (node
-                protection) is this bypass's merge point. The route is explicit because Ze has no IGP and no CSPF to
-                compute a backup path.";
+                protection) is this bypass's merge point. RSVP-TE does not consume a traffic-engineering database
+                or run CSPF to compute a backup path.";
             ze:help "Facility-backup bypass LSP from this PLR to a merge point (RFC 4090 Section 3.2).";
 
             leaf name {
@@ -274,8 +340,8 @@ module ze-rsvp-te-conf {
                 key "index";
                 ordered-by user;
                 description "Bypass path hops. The route has to avoid the link or the node this bypass protects, because a
-                    backup that crosses the protected resource fails with it. Ze has no IGP and no CSPF, so the
-                    operator gives the hops. The hops are ordered by the numeric index key.";
+                    backup that crosses the protected resource fails with it. RSVP-TE does not run CSPF, so the
+                    operator supplies the hops. The hops are ordered by the numeric index key.";
                 ze:help "Bypass path hops (must avoid the protected resource)";
 
                 leaf index {

@@ -1,0 +1,47 @@
+[
+  {
+    "address": "10.12.0.1",
+    "area": "0.0.0.0",
+    "bdr": "",
+    "dd-sequence": 3323068930,
+    "dead-time": 3,
+    "dr": "",
+    "interface": "bypass-a",
+    "master": true,
+    "opaque-capable": false,
+    "priority": 1,
+    "request-count": 1,
+    "router-id": "198.18.1.1",
+    "state": "exchange"
+  },
+  {
+    "address": "10.13.0.1",
+    "area": "0.0.0.0",
+    "bdr": "",
+    "dd-sequence": 3323068929,
+    "dead-time": 3,
+    "dr": "",
+    "interface": "bypass-b",
+    "master": true,
+    "opaque-capable": false,
+    "priority": 1,
+    "request-count": 0,
+    "router-id": "198.18.1.1",
+    "state": "exstart"
+  },
+  {
+    "address": "10.11.0.1",
+    "area": "0.0.0.0",
+    "bdr": "",
+    "dd-sequence": 3323068930,
+    "dead-time": 3,
+    "dr": "",
+    "interface": "primary",
+    "master": true,
+    "opaque-capable": false,
+    "priority": 1,
+    "request-count": 1,
+    "router-id": "198.18.1.1",
+    "state": "exchange"
+  }
+]

@@ -1,0 +1,32 @@
+{
+  "argv": [
+    "/home/thomas/.venv/bin/python3",
+    "-c",
+    "import time; time.sleep(60)"
+  ],
+  "cwd": "/home/thomas/Code/github.com/ze-software/ze/main",
+  "started_ns": 1790097701534317780,
+  "exit_code": null,
+  "stdout": "deadline.stdout",
+  "stderr": "deadline.stderr",
+  "parent_pid": 2565100,
+  "timeout_seconds": 0.05,
+  "environment_choices": {
+    "ZE_TAGS": null,
+    "CGO_ENABLED": null,
+    "GOFLAGS": null,
+    "GOTMPDIR": null,
+    "GOCOVERDIR": null,
+    "GOOS": null,
+    "GOARCH": null,
+    "GOROOT": null,
+    "GOTOOLCHAIN": null,
+    "GOENV": null,
+    "GOWORK": null,
+    "GOCACHE": null,
+    "GOMODCACHE": null,
+    "GOMAXPROCS": null,
+    "GODEBUG": null,
+    "GOTRACEBACK": null
+  }
+}

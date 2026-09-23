@@ -1,0 +1,15 @@
+{
+  "owner_answers": {
+    "native_cleanup_repair": "Fix shutdown ownership and rerun",
+    "regenerated_snapshot_cleanup": "Archive and remove after each run"
+  },
+  "authorized_fixture_change": "Give explicit native-test cleanup one shutdown owner. Retain shutdown timeout and nonzero-exit checks, then rerun with the unchanged daemon.",
+  "authorized_removal": "Loose generated source copies from this and subsequent baseline reruns, only after byte comparison with a retained archive.",
+  "preserve": [
+    "canonical source",
+    "drivers",
+    "logs",
+    "captures"
+  ],
+  "no_absent_feature_authorized": true
+}

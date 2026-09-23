@@ -124,9 +124,10 @@ func TestAdmissionRemoveInterface(t *testing.T) {
 	ac := newAdmissionController()
 	ac.setInterface("eth0", 10e9, 8e9)
 	ac.setInterface("eth1", 1e9, 1e9)
-	sess := sessionID{endpoint: netip.MustParseAddr("10.0.0.9"), tunnelID: 7}
-	if err := ac.reserveSession("eth1", sess, 5e8); err != nil {
-		t.Fatalf("reserveSession on eth1: %v", err)
+	key := lspKey{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 7,
+		SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1}
+	if err := ac.reserve("eth1", key, StyleSharedExplicit, 5e8); err != nil {
+		t.Fatalf("reserve on eth1: %v", err)
 	}
 
 	if dropped := ac.removeInterface("eth1"); dropped != 1 {

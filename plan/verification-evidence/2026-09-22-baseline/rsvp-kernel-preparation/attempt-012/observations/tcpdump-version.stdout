@@ -1,0 +1,4 @@
+tcpdump version 4.99.5
+libpcap version 1.10.7 (64-bit time_t, with TPACKET_V3)
+OpenSSL 3.3.3 11 Feb 2025
+64-bit build, 64-bit time_t

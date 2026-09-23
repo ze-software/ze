@@ -1,0 +1,39 @@
+{
+  "status": "source repair proposed; no validation executed by worker",
+  "symptom": "attempt-010 times out at TestRSVPNativeProducer native link-down facility repair; tunnel 93 never projects protection-in-use after primary LinkSetDown.",
+  "root-cause": {
+    "file": "internal/plugins/iface/netlink/monitor_linux.go",
+    "symbols": [
+      "monitor.start",
+      "monitor.seedLinkNames",
+      "monitor.handleLinkUpdate"
+    ],
+    "mechanism": "start subscribes to future link updates, seeds linkNames but leaves known empty. The first RTM_NEWLINK for an index emits created and returns before the up/down branch. For a pre-existing primary link, the first down update is swallowed by that return.",
+    "owning-layer": "native interface notification producer",
+    "confidence": "Exact source defect. The retained native timeout and packet sequence are consistent with it, but attempt-010 has no event-bus capture proving the first update seen by this monitor."
+  },
+  "related-caller-defect": {
+    "file": "internal/plugins/rsvpte/register.go",
+    "symbol": "registerRSVPTE",
+    "mechanism": "RSVP consumes interface/down in OnStarted but declares only fib-kernel and sysctl dependencies. OSPF loads interface in attempt-010; RSVP alone does not ensure its notification producer is loaded."
+  },
+  "candidates": {
+    "workaround": "Prime the fixture with an extra primary link update before LinkSetDown, or synthesize an interface/down event.",
+    "source": "Preserve the created event and emit the same RTM_NEWLINK current carrier state as well; declare interface as an RSVP dependency.",
+    "why-workaround-is-wrong": "Priming hides the lost first carrier notification on every pre-existing interface and changes the fixture instead of repairing the producer."
+  },
+  "ruled-out": {
+    "prefix-match": "Initial H capture has tunnel 93 RESV source and RSVP_HOP 10.11.0.2 on ifindex 9. acceptReservation stores src as NextHop; configuration assigns primary 10.11.0.1/24, so handleLinkDown would match primary before refresh convergence.",
+    "projection": "showFastReroute emits tunnel-id and protection-in-use from the LSP ProtectionInUse field; the native oracle reads those exact fields.",
+    "bypass-selection": "selectBypass selects configured a for merge-point 198.18.2.1. Both native private contexts were established and UDP was delivered before the failure trigger. No repair FIB failure or local-repair log appears in H output."
+  },
+  "evidence": [
+    "attempt-010/producer.stdout",
+    "attempt-010/sources/internal__plugins__rsvpte__producer_integration_linux_test.go",
+    "attempt-010/samples/rsvp-1409-h/010/links.stdout",
+    "attempt-010/samples/rsvp-1409-h/010/ipv4-routes.stdout",
+    "link-down-fix/capture-inspection.json"
+  ],
+  "scope": "Existing notification and caller dependency repairs only. No fixture, transport or RFC feature extension.",
+  "normative-claims": "None. This diagnosis concerns the documented internal notification contract."
+}

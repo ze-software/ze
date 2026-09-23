@@ -1,0 +1,59 @@
+{
+  "status": "prepared, not executed; Main owns all validation",
+  "red": [
+    "./le",
+    "job",
+    "run",
+    "label",
+    "ospf-exchange-red",
+    "quiet",
+    "command",
+    "go",
+    "test",
+    "-overlay=plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-exchange-fix/before-overlay.json",
+    "-count=1",
+    "-run",
+    "^(TestOSPFLocalMasterSendsNextDDAfterNegotiation|TestOSPFDDPeerExchange)$",
+    "./internal/plugins/ospf/neighbor"
+  ],
+  "green": [
+    "./le",
+    "job",
+    "run",
+    "label",
+    "ospf-exchange-green",
+    "quiet",
+    "command",
+    "go",
+    "test",
+    "-count=1",
+    "-run",
+    "^(TestOSPFLocalMasterSendsNextDDAfterNegotiation|TestOSPFDDPeerExchange)$",
+    "./internal/plugins/ospf/neighbor"
+  ],
+  "related_regressions": [
+    "./le",
+    "job",
+    "run",
+    "label",
+    "ospf-neighbor-regressions",
+    "quiet",
+    "command",
+    "go",
+    "test",
+    "./internal/plugins/ospf/neighbor"
+  ],
+  "expected_red": "Existing corrected master test rejects flags=0. Peer-exchange regression rejects the first retransmitted Exchange DD with seq-number-mismatch before either peer reaches Full.",
+  "expected_green": "Both focused tests pass. Peer test exercises first and subsequent master DDs, cached retransmission, and slave responses through encoded packets and the actual neighbor consumer.",
+  "overlay_boundary": "Host overlay replaces only dd.go with its pre-repair before-image. Current tests stay in place. No live file restoration is needed. Absolute paths target this host checkout.",
+  "native_acceptance": "Rebuild daemon, then rerun unchanged TestRSVPNativeProducer in QEMU with the existing three-Full-adjacency readiness condition. Preserve attempt-004. Main selects the next unused attempt directory.",
+  "unchanged_paths": [
+    "internal/plugins/ospf/instance.go",
+    "internal/plugins/ospf/bfd_client.go",
+    "internal/plugins/ospf/virtual_link.go",
+    "internal/plugins/ospf/sr_adjsid.go",
+    "internal/plugins/ospf/sr_tilfa.go",
+    "internal/plugins/rsvpte/producer_integration_linux_test.go"
+  ],
+  "documentation": "Updated ospf-6-neighbor-nsm.md. ospf.md and ospf-7-lsdb-flooding.md remain unchanged because their deferred-origination statements still apply."
+}

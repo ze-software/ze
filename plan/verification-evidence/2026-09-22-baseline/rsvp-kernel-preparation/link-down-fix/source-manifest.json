@@ -1,0 +1,47 @@
+{
+  "source-state": "after edits, unvalidated",
+  "files": [
+    {
+      "path": "internal/plugins/iface/netlink/monitor_linux.go",
+      "before": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/link-down-fix/before/internal__plugins__iface__netlink__monitor_linux.go",
+      "before-sha256": "b9ad44a6e1ae57e78d6171d6408aed0aba03d683ef8e73b463d193eb8ba34f45",
+      "after-sha256": "f76ad794995122d78f7f5b40b02acaef4d7596efdffb12cd8b4be67039dd19be"
+    },
+    {
+      "path": "internal/plugins/iface/netlink/monitor_linux_test.go",
+      "before": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/link-down-fix/before/internal__plugins__iface__netlink__monitor_linux_test.go",
+      "before-sha256": "7e5481ec07ecdd8c80efe28ee5b921c9a0608f203f8ac02e44203bed4b145506",
+      "after-sha256": "1fe9dc353e4cf5a9bfce1f6f097a2fb07b95adb1d71212fa9cfeba325cbb7fdc"
+    },
+    {
+      "path": "internal/plugins/rsvpte/engine.go",
+      "before": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/link-down-fix/before/internal__plugins__rsvpte__engine.go",
+      "before-sha256": "b9e7ea2d9d1362ece510b21ffe72631f96ffb2bf4ab43c3b8c9c29cf1446534b",
+      "after-sha256": "285815fd38d4accd43d3d11680d86b1482708b4425d7591e7cf249e52b17225f"
+    },
+    {
+      "path": "internal/plugins/rsvpte/register.go",
+      "before": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/link-down-fix/before/internal__plugins__rsvpte__register.go",
+      "before-sha256": "fc50ae8d4f4df7ecc3681db7d9c3d7640b6be830ecaffa9f656ae71fc739e0fa",
+      "after-sha256": "e3bf28170e45effa2e1447686086d161e06c9c1d33878af9c0bce993e7379094"
+    },
+    {
+      "path": "docs/architecture/rsvpte/mpls-rsvp-te.md",
+      "before": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/link-down-fix/before/docs__architecture__rsvpte__mpls-rsvp-te.md",
+      "before-sha256": "27bf67eb8c11c30eeafc0ba507a78c58f8a86d93fd1badef29c98424f476c55d",
+      "after-sha256": "8963e48f1b7bb6cc2d4764b3cb11b01281eac492e82c4f89d322c2c3d308d1a3"
+    },
+    {
+      "path": "docs/features/interfaces.md",
+      "before": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/link-down-fix/before/docs__features__interfaces.md",
+      "before-sha256": "4d0b99c2ffa93ad9c86f4474421b9b692caa511a4a8ae91758ca94eeb4ab2516",
+      "after-sha256": "cc002666b63ca470798c6f7a8874267b7808bf42e269352a2565511168475f3c"
+    },
+    {
+      "path": "internal/component/iface/monitor_integration_linux_test.go",
+      "before": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/link-down-fix/before/internal__component__iface__monitor_integration_linux_test.go",
+      "before-sha256": "dcbe729ff9174093e177ba8e8280c4a829a60da8136cf79e529b6b59eec56f10",
+      "after-sha256": "3ff4be3668117590cb2754bc5c68166064fbc55d052b30a3ff47da33f6805908"
+    }
+  ]
+}

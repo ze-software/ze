@@ -1,0 +1,28 @@
+{
+  "passed": true,
+  "observations": [
+    {
+      "case": "deadline",
+      "accepted": true,
+      "duration_seconds": 1.0034921509941341,
+      "exit_code": -15,
+      "stop_reason": "deadline"
+    },
+    {
+      "case": "parent-exited",
+      "accepted": true,
+      "duration_seconds": 0.0030732290033483878,
+      "exit_code": -15,
+      "stop_reason": "parent-exited"
+    },
+    {
+      "case": "signal",
+      "accepted": true,
+      "duration_seconds": 0.11524082699907012,
+      "exit_code": 0,
+      "stop_reason": "signal"
+    }
+  ],
+  "wrapper_sha256": "2c2461b5f122095a3773a067c9699625a73af8759d8f0c1fe9bd32467151ad90",
+  "boundary": "Real child cancellation through run(). Parent loss is injected by an impossible expected parent PID, not an actual Go-parent death. Full native Go-exec and forced SIGKILL cleanup are not exercised here."
+}

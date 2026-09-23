@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/iface-monitor-green.test",
+    "-test.v",
+    "-test.run=^TestIntegrationMonitor(PreexistingLinkDown|LinkDeleted|LinkUpDown)$",
+    "-test.timeout=60s"
+  ],
+  "started_ns": 1790097334633578618,
+  "exit_code": 0,
+  "stdout": "green.stdout",
+  "stderr": "green.stderr",
+  "finished_ns": 1790097335817847626
+}

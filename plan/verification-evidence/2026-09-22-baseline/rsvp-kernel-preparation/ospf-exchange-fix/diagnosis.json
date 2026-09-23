@@ -1,0 +1,26 @@
+{
+  "status": "source-diagnosed; validation delegated to Main",
+  "symptom": "attempt-004 retains three H-to-M adjacencies in Exchange/ExStart although receive processing continues and dead-time remains 3",
+  "root_cause": "neighbor.sendDBDescLocked never adds the negotiated Master's MS bit. handleExStartDDLocked and handleExchangeDDLocked both call it with flags=0 for noninitial DDs. M therefore advertises slave while remaining master internally. H handleExchangeDDLocked correctly rejects peerMaster == n.Master and restarts ExStart.",
+  "owner": "internal/plugins/ospf/neighbor/dd.go: sendDBDescLocked",
+  "workaround": "Ignore the role mismatch on receive, increase timers, or weaken the three-Full-adjacency readiness criterion.",
+  "workaround_rejected": "The transmitted role is invalid; slower timers cannot correct it and relaxing the receiver hides the protocol defect.",
+  "source_fix": "Set DDFlagMaster centrally in sendDBDescLocked whenever n.Master is true. Keep the initial I/M/MS packet unchanged for both routers; cache the corrected DD for retransmission.",
+  "affected_paths": ["first Exchange DD after negotiation", "later Exchange summary pages", "empty final master DD", "cached DD retransmission", "shared OSPFv2/OSPFv3 neighbor producer"],
+  "wire_source": "../attempt-004/network.trace",
+  "wire_examples": [
+    {"line": 9996, "router_id": "198.18.2.1", "destination": "10.12.0.1", "flags": 7, "sequence": 3323068929, "meaning": "M proposes master"},
+    {"line": 10024, "router_id": "198.18.1.1", "destination": "10.12.0.2", "flags": 0, "sequence": 3323068929, "meaning": "H acknowledges as slave"},
+    {"line": 10063, "router_id": "198.18.2.1", "destination": "10.12.0.1", "flags": 0, "sequence": 3323068930, "meaning": "M sends the next DD without MS"},
+    {"line": 10103, "router_id": "198.18.1.1", "destination": "10.12.0.2", "flags": 7, "sequence": 3323068673, "meaning": "H restarts ExStart"}
+  ],
+  "wire_population": "Decoded sendto records contain 405 noninitial M DDs with flags=0: primary 115, bypass-a 151, bypass-b 139. Each link also repeatedly sends initial I/M/MS DDs. Extraction counts full syscall argument records, not successful send completions.",
+  "existing_test_defect": "TestOSPFLocalMasterSendsNextDDAfterNegotiation explicitly expects flags=0 for the master's next DD, contradicting RFC2328 Appendix A.3.3 and the receiver's existing role check. Correct that expectation; retain its sequencing and Full-state assertions.",
+  "regression_plan": "Two neighbor tables exchange their encoded DD output. Cover an empty database and paged summaries, including retransmission of the first Exchange DD, and require both peers to reach Full without SeqNumberMismatch. This isolates the DD producer/consumer contract; unchanged native carrier remains Main's operator-entry proof.",
+  "primary_sources": [
+    "https://www.rfc-editor.org/rfc/rfc2328#section-10.6",
+    "https://www.rfc-editor.org/rfc/rfc2328#section-10.8",
+    "https://www.rfc-editor.org/rfc/rfc2328#appendix-A.3.3"
+  ],
+  "boundary": "No test, build, formatter, runtime or validation command has run in this worker. Native readiness after the repair remains unverified. Attempt-003 blocking stacks are not used as current cause. Existing deferred-origination changes remain untouched."
+}

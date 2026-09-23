@@ -1,0 +1,13 @@
+{
+  "argv": [
+    "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/rsvp-control-red.test",
+    "-test.v",
+    "-test.run=^TestIntegrationRSVPPathAvoidsDataFEC$",
+    "-test.timeout=30s"
+  ],
+  "started_ns": 1790095545679484758,
+  "exit_code": 1,
+  "stdout": "red.stdout",
+  "stderr": "red.stderr",
+  "finished_ns": 1790095546158798802
+}

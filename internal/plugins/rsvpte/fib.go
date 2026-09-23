@@ -9,7 +9,6 @@
 package rsvpte
 
 import (
-	"log/slog"
 	"net/netip"
 
 	mplsfibevents "github.com/ze-software/ze/internal/core/mplsfib"
@@ -22,55 +21,38 @@ const mplsSourceRSVPTE uint16 = 1
 
 type busFIB struct {
 	bus ze.EventBus
-	log *slog.Logger
 }
 
-func newBusFIB(bus ze.EventBus, log *slog.Logger) *busFIB {
-	return &busFIB{bus: bus, log: log}
-}
 
-func (b *busFIB) emit(e mplsfibevents.Entry) {
+func (b *busFIB) emit(e mplsfibevents.Entry) error {
 	e.Source = mplsSourceRSVPTE
-	if b.bus == nil {
-		b.log.Warn("rsvp-te: no event bus, cannot program MPLS entry", "op", e.Op)
-		return
-	}
-	batch := &mplsfibevents.EntryBatch{Entries: []mplsfibevents.Entry{e}}
-	if _, err := mplsfibevents.EntryChange.Emit(b.bus, batch); err != nil {
-		b.log.Warn("rsvp-te: mpls-fib emit failed", "op", e.Op, "error", err)
-	}
+	return mplsfibevents.Apply(b.bus, []mplsfibevents.Entry{e})
 }
 
-func (b *busFIB) programPush(fec netip.Prefix, label uint32, nextHop netip.Addr) error {
-	b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpPush, FEC: fec, OutLabels: []uint32{label}, NextHop: nextHop})
-	return nil
+func (b *busFIB) programPush(fec netip.Prefix, labels []uint32, nextHop netip.Addr, tableID, pathMTU uint32) error {
+	return b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpPush, FEC: fec, OutLabels: labels, NextHop: nextHop, TableID: tableID, PathMTU: pathMTU})
 }
 
-func (b *busFIB) programSwap(inLabel, outLabel uint32, nextHop netip.Addr) error {
-	b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpSwap, InLabel: inLabel, OutLabels: []uint32{outLabel}, NextHop: nextHop})
-	return nil
+func (b *busFIB) programSwap(inLabel, outLabel uint32, nextHop netip.Addr, pathMTU uint32) error {
+	return b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpSwap, InLabel: inLabel, OutLabels: []uint32{outLabel}, NextHop: nextHop, PathMTU: pathMTU})
 }
 
 // programBackup emits a swap whose OutLabels is the facility-backup stack (bypass
 // label over the swapped protected label). fib-kernel's addMPLSSwap programs the
 // whole stack on the AF_MPLS route (RFC 4090 Section 3.2); the entry replaces the
 // single-label swap installed for this in-label.
-func (b *busFIB) programBackup(inLabel uint32, outLabels []uint32, nextHop netip.Addr) error {
-	b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpSwap, InLabel: inLabel, OutLabels: outLabels, NextHop: nextHop})
-	return nil
+func (b *busFIB) programBackup(inLabel uint32, outLabels []uint32, nextHop netip.Addr, pathMTU uint32) error {
+	return b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpSwap, InLabel: inLabel, OutLabels: outLabels, NextHop: nextHop, PathMTU: pathMTU})
 }
 
-func (b *busFIB) programPop(inLabel uint32, nextHop netip.Addr) error {
-	b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpPop, InLabel: inLabel, NextHop: nextHop})
-	return nil
+func (b *busFIB) programPop(inLabel uint32, nextHop netip.Addr, pathMTU uint32) error {
+	return b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionAdd, Op: mplsfibevents.OpPop, InLabel: inLabel, NextHop: nextHop, PathMTU: pathMTU})
 }
 
-func (b *busFIB) removePush(fec netip.Prefix) error {
-	b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionRemove, Op: mplsfibevents.OpPush, FEC: fec})
-	return nil
+func (b *busFIB) removePush(fec netip.Prefix, tableID uint32) error {
+	return b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionRemove, Op: mplsfibevents.OpPush, FEC: fec, TableID: tableID})
 }
 
 func (b *busFIB) removeSwap(inLabel uint32) error {
-	b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionRemove, Op: mplsfibevents.OpSwap, InLabel: inLabel})
-	return nil
+	return b.emit(mplsfibevents.Entry{Action: mplsfibevents.ActionRemove, Op: mplsfibevents.OpSwap, InLabel: inLabel})
 }

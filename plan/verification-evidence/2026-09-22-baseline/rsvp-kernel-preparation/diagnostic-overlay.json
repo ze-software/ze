@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/rsvpte/producer_integration_linux_test.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/diagnostic-carrier.go.txt"
+  }
+}

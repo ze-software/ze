@@ -1,0 +1,297 @@
+{
+  "recorded_at": "2026-09-23T06:42:43.580Z",
+  "review": {
+    "summary": "The nine-file proposal expands to an RSVP state/codec/admission cutover plus the native MPLS owner, private-context backend, shared sysrib event types, and canonical test migrations. The source-interface boundary below is statically closed for the targeted RSVP repairs against the recorded product HEAD; this is not a build or behavior-verification result. A broader boundary that also endorses every claim in the linked FRR and MPLS architecture documents is NOT CLOSED: native IGP identity publishers and the patched runtime kernel are separate product dependencies, not evidence files.",
+    "files": [
+      {
+        "path": "internal/plugins/rsvpte/register.go",
+        "description": "Generation-aware reconciliation, live configuration, shared control locking, policy parsing, startup/shutdown and transport/FIB wiring."
+      },
+      {
+        "path": "internal/plugins/rsvpte/reroute.go",
+        "description": "Unused uint16 LSP-ID selection, pending predecessor retention, generation-specific tears and replacement-FEC preservation."
+      },
+      {
+        "path": "internal/plugins/rsvpte/engine.go",
+        "description": "Control lock and signaling consumers; changed fibProgrammer, routing, reservation, codec and identity contracts."
+      },
+      {
+        "path": "internal/plugins/rsvpte/frr.go",
+        "description": "Replaces-based Notify deduplication plus inherited repair sender, merge branches, private table and MTU consumers."
+      },
+      {
+        "path": "internal/plugins/rsvpte/transport.go",
+        "description": "HEAD-missing PathRoute, RouteInfo, InterfaceAddress, Packet metadata and Transport methods."
+      },
+      {
+        "path": "internal/plugins/rsvpte/transport_linux.go",
+        "description": "Native implementation of extended Transport; ordinary PATH lookup/socket target uses NextHop, marked carriage retains Lookup."
+      },
+      {
+        "path": "internal/plugins/rsvpte/transport_other.go",
+        "description": "Already-committed !linux sibling; returns nil Transport and unsupported error, so no method migration is needed."
+      },
+      {
+        "path": "internal/plugins/rsvpte/fsm.go",
+        "description": "Expanded PSB/RSB, mergedPath, repair state, float64 bandwidth and independent state expiry."
+      },
+      {
+        "path": "internal/plugins/rsvpte/wire.go",
+        "description": "Expanded ParsedMessage and FlowSpec, confirmation type, opaque objects, descriptor parsing and MTU decoding."
+      },
+      {
+        "path": "internal/plugins/rsvpte/build.go",
+        "description": "Changed message builders, opaque/raw encoders and carrier sizing; consumes state, MTU and confirmation encoders."
+      },
+      {
+        "path": "internal/plugins/rsvpte/message_validation.go",
+        "description": "Recorded untracked, hence absent from product HEAD: flowDescriptor/reservationFilter and message grammar methods used by wire.go."
+      },
+      {
+        "path": "internal/plugins/rsvpte/mandatory.go",
+        "description": "ResvConf and changed reservation-message mandatory-object checks."
+      },
+      {
+        "path": "internal/plugins/rsvpte/reservation.go",
+        "description": "Recorded HEAD-missing reservation producer: admission/native acceptance before accepted state, error/tear handling and rollback."
+      },
+      {
+        "path": "internal/plugins/rsvpte/reservation_build.go",
+        "description": "Recorded HEAD-missing reservation-control encoders, filter key conversion and rejection helpers."
+      },
+      {
+        "path": "internal/plugins/rsvpte/confirmation.go",
+        "description": "Recorded HEAD-missing ResvConf codec and ordinary/protected forwarding."
+      },
+      {
+        "path": "internal/plugins/rsvpte/mtu.go",
+        "description": "Recorded HEAD-missing IntServ/ADSPEC validation, composition, services and negotiated MTU producer."
+      },
+      {
+        "path": "internal/plugins/rsvpte/routing.go",
+        "description": "Recorded HEAD-missing pathSelection and explicit/implicit native route resolution."
+      },
+      {
+        "path": "internal/plugins/rsvpte/peer_identity.go",
+        "description": "Recorded HEAD-missing assigned-address and native snapshot identity consumer."
+      },
+      {
+        "path": "internal/plugins/rsvpte/policy.go",
+        "description": "Recorded HEAD-missing reservationPolicy and configuration parser used by register.go and reservation acceptance."
+      },
+      {
+        "path": "internal/plugins/rsvpte/admission.go",
+        "description": "Sender-keyed reserve/release replace session/rate multiset APIs; retains existing ordinary Reserve/Release APIs."
+      },
+      {
+        "path": "internal/plugins/rsvpte/rro.go",
+        "description": "prependRRO gains recorded-label argument and whole-object overflow behavior."
+      },
+      {
+        "path": "internal/plugins/rsvpte/events.go",
+        "description": "Lifecycle event bandwidth changes to float64 to accept LSP.Bandwidth."
+      },
+      {
+        "path": "internal/plugins/rsvpte/show_data.go",
+        "description": "Show builders migrate bandwidth fields to float64."
+      },
+      {
+        "path": "internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang",
+        "description": "Whole-file config/schema companion, including inherited reservation policy."
+      },
+      {
+        "path": "internal/core/linkstateevents/events.go",
+        "description": "Recorded HEAD-missing leaf snapshot schema, source registry and replay request required by peer_identity.go; does not itself publish IGP data."
+      },
+      {
+        "path": "internal/core/mplsfib/events.go",
+        "description": "Adds Apply, Entry.TableID/PathMTU and EntryBatch.Acknowledge."
+      },
+      {
+        "path": "internal/plugins/rsvpte/fib.go",
+        "description": "Migrates every fibProgrammer method; submits native acknowledged entries rather than treating publication as installation."
+      },
+      {
+        "path": "internal/plugins/fib/kernel/mplsentry.go",
+        "description": "Acknowledging native owner; source-owned label dispatch, changed mplsBackend method and private context dispatch."
+      },
+      {
+        "path": "internal/plugins/fib/kernel/mplsentry_linux.go",
+        "description": "addMPLSSwap gains pathMTU and replace; actual native output-link, ownership and MTU programming."
+      },
+      {
+        "path": "internal/plugins/fib/kernel/mplscontext.go",
+        "description": "Recorded HEAD-missing mplsContextBackend, reserved mark constants and push dispatch."
+      },
+      {
+        "path": "internal/plugins/fib/kernel/mplscontext_linux.go",
+        "description": "Recorded HEAD-missing mplsContextState and actual route/selector/guard install, rollback and shutdown producers."
+      },
+      {
+        "path": "internal/plugins/fib/kernel/backend_linux.go",
+        "description": "Owns mplsContextState and starts guards; close joins context lifecycle."
+      },
+      {
+        "path": "internal/plugins/fib/kernel/backend_other.go",
+        "description": "Already-committed !linux sibling rejects unsupported programming; does not implement optional MPLS interfaces."
+      },
+      {
+        "path": "internal/plugins/fib/kernel/fibkernel.go",
+        "description": "Changed label ownership map, stopped state, ready-channel run contract and whole-file OnLink consumption."
+      },
+      {
+        "path": "internal/plugins/fib/kernel/register.go",
+        "description": "Migrates run caller and waits for native subscriptions before producers can emit; joins workers before backend close."
+      },
+      {
+        "path": "internal/plugins/fib/kernel/richroute.go",
+        "description": "Adds PathMTU and OnLink to native rich route."
+      },
+      {
+        "path": "internal/plugins/fib/kernel/nexthop_linux.go",
+        "description": "Consumes PathMTU/OnLink; changes buildNexthopInfo and retains inherited SRv6-before-label encapsulation choice."
+      },
+      {
+        "path": "internal/component/sysrib/events/events.go",
+        "description": "Required beyond RSVP/MPLS: HEAD-missing BestChangeEntry.OnLink and ECMPPath.OnLink consumed by whole native files."
+      },
+      {
+        "path": "internal/plugins/rsvpte/engine_test.go",
+        "description": "Canonical fakeTransport/fakeFIB migrations and fields required by register tests and other RSVP tests."
+      },
+      {
+        "path": "internal/plugins/rsvpte/interop_test.go",
+        "description": "The other Transport implementation: fabricPort gains all methods and delivers to selected next hop."
+      },
+      {
+        "path": "internal/plugins/rsvpte/register_test.go",
+        "description": "Generation repair regressions and new canonical fake-field consumers."
+      },
+      {
+        "path": "internal/plugins/rsvpte/transport_integration_linux_test.go",
+        "description": "Required original target carrier, recorded HEAD-missing; uses extended Transport and owns namespace/wire helper definitions."
+      },
+      {
+        "path": "internal/plugins/rsvpte/fib_test.go",
+        "description": "Migrates removed newBusFIB constructor and changed FIB method/acknowledgment contract."
+      },
+      {
+        "path": "internal/plugins/rsvpte/admission_se_test.go",
+        "description": "Migrates reserveSession/ReleaseSession and seSession helper to full sender keys."
+      },
+      {
+        "path": "internal/plugins/rsvpte/admission_test.go",
+        "description": "Migrates sender-keyed interface accounting caller."
+      },
+      {
+        "path": "internal/plugins/rsvpte/reload_test.go",
+        "description": "Migrates retained-reservation setup to sender-keyed admission."
+      },
+      {
+        "path": "internal/plugins/rsvpte/rro_test.go",
+        "description": "Migrates prependRRO recorded-label argument."
+      },
+      {
+        "path": "internal/plugins/rsvpte/rro_bounds_test.go",
+        "description": "Migrates prependRRO and overflow behavior."
+      },
+      {
+        "path": "internal/plugins/rsvpte/rro_rfc3209_test.go",
+        "description": "Migrates prependRRO recorded-label argument."
+      },
+      {
+        "path": "internal/plugins/fib/kernel/mplsentry_test.go",
+        "description": "Migrates mplsMockBackend.addMPLSSwap and source-owned map assertions."
+      },
+      {
+        "path": "internal/plugins/fib/kernel/fibkernel_test.go",
+        "description": "Canonical richMockBackend constructor correction carried with native acceptance tests."
+      },
+      {
+        "path": "docs/architecture/rsvpte/mpls-rsvp-te.md",
+        "description": "Original target document; whole-file claims require the expanded reservation/codec/transport/native-owner producers."
+      },
+      {
+        "path": "docs/guide/rsvp-te.md",
+        "description": "Original target guide; generation claims accompany source, experimental/incomplete evidence status remains."
+      },
+      {
+        "path": "docs/architecture/rsvpte/mpls-rsvp-te-fast-reroute.md",
+        "description": "Additional document whose whole-file native alias claim requires IGP publishers absent from HEAD, beyond the leaf snapshot API."
+      },
+      {
+        "path": "docs/architecture/mpls/mpls-kernel.md",
+        "description": "Additional document whose whole-file fragmentation/ICMP claims require the patched kernel, not merely Go PathMTU plumbing."
+      }
+    ],
+    "architecture": "The engine serializes packet handling, configuration generation changes, link failure, refresh and expiry. RSVP state/codec/admission helpers form one package-level cutover. busFIB crosses into a synchronous native owner whose private-table and MTU implementation requires additional backend and shared event definitions. Native IGP snapshots and kernel packet-size enforcement are separate runtime producers, not supplied by those API definitions.",
+    "report": "## Basis\nRead both named documents first, then the recorded build-002 HEAD diff, its JSON and adjacent head-before.stdout, recorded status, and current canonical producers/callers. The diff is `git diff --binary HEAD`, exit 0, recorded at 2026-09-22T18:32:31Z against b3d7bba364a1296a9b39d083062f82bff64416c7. The assignment establishes product equivalence with current 616dc2fa76. Recorded `??` entries establish that the new helper files were absent from product HEAD; absence from the tracked diff alone was not used for that conclusion. No commands, edits, validation, archive restoration or cleanup were performed.\n\n## Closure verdict\n**Source-interface closure for the target repairs: CLOSED by static dependency inspection, using the production paths and compulsory test migrations listed in `files`, plus already-committed siblings.** This is a coherent conservative boundary, not a claim of minimality, compilability established by execution, completed implementation, or working native scenario. Optional added APIs do not require importing every independent producer that may later use them.\n\n**Whole-document/runtime closure across the linked FRR and MPLS pages: NOT CLOSED by that source set.** Do not use the first verdict to endorse native IGP alias discovery or the kernel fragmentation/ICMP claims. Their additional producer boundaries are identified below and remain separate from verification debts.\n\n## Groups that must land together\n\n### 1. Target repairs and inherited RSVP source\nThe RSVP production entries in `files` form one package cutover. The actual repair sites are register.go::reconcileTunnels/setupTunnel, reroute.go::reroute, frr.go::reoptimizeOnNotify, engine.go::handleLinkDown and transport_linux.go::SendPath. Whole-file selection imports all the state/codec/routing/reservation/confirmation/MTU/policy behavior in the same files; those helpers cannot be left behind.\n\nTransport closure: transport.go defines SendPath, LocalAddresses and ResolveRoute plus route/address/packet types. Repository searches found the implementations in transport_linux.go, engine_test.go and interop_test.go; all are in the set. Non-Linux openRawTransport already returns `(nil, errTransportUnsupported)` and needs no new methods. Production consumers are engine.go, reroute.go, frr.go, confirmation.go, routing.go and peer_identity.go. The integration carrier is source, not an evidence artifact.\n\nState/codec closure: fsm.go adds RouteInfo, raw/opaque objects, route-recording state, confirmation/MTU/blockade fields, RepairSender, RepairPathMTU and MergedPaths, and widens Bandwidth. wire.go's flowDescriptor/reservationFilter are actually produced by message_validation.go, not by callers. The wire decoder also needs mandatory.go and mtu.go. build.go consumes confirmation and MTU encoders; reservation_build.go consumes its raw-object/message builders. reservation.go consumes routing, peer identity, policy, admission and native FIB acceptance. events.go and show_data.go are required float64 consumers missed by the nine-file boundary.\n\nRemoved/changed internal calls were checked: reserveSession, ReleaseSession, newBusFIB, nextHopFromERO, stripIPv4Header and the old handleResvIngress/handleResvTransit definitions have no remaining executable RSVP callers in current source. handlePathTransit's selected-path argument and handlePathErr's source argument are migrated in engine.go. encodeMessage and buildPathErr extensions are variadic, so existing shorter calls remain valid. prependRRO's extra argument is not optional: its engine and three test-file consumers are included.\n\nAdmission closure: reserve/release now identify the exact sender key; SE charges the session maximum and FF charges separate senders. Callers are engine.go, reroute.go, reservation.go, admission_test.go, admission_se_test.go and reload_test.go. Existing Reserve/Release users remain valid; those APIs were not removed. A stale ReleaseSession mention remains in a comment, not executable code; preserve it under the no-cleanup constraint.\n\n### 2. Native MPLS owner, including dependencies beyond the previous report\nRequired paths are internal/core/mplsfib/events.go and the fib/kernel production entries in `files`, plus internal/component/sysrib/events/events.go.\n\nApply is not satisfied by adding its declaration alone. mplsentry.go acknowledges after processing and returns native errors. Its mplsBackend.addMPLSSwap now takes `(inLabel, outLabels, nextHop, pathMTU, replace)`; the Linux implementation and mplsMockBackend migrate together. Source ownership changes mplsSwaps from bool values to uint16 source IDs, requiring fibkernel.go and mplsentry_test.go.\n\nPrivate push dispatch requires the actual mplscontext.go and mplscontext_linux.go producers. backend_linux.go owns their state, initializes guards and invokes cleanup. nexthop_linux.go translates RichRoute.PathMTU to the native metric; mplsentry_linux.go does so for AF_MPLS. The optional backend interfaces reject unsupported targets rather than requiring a new non-Linux implementation.\n\nWhole-file fibkernel.go changes run to accept a readiness channel. Its known callers are register.go and the added mplsowner_integration_linux_test.go. register.go waits for readiness and joins workers before closing the backend. The native integration caller already uses the new signature.\n\n**Additional transitive dependency:** whole fibkernel.go/nexthop_linux.go also read OnLink from BestChangeEntry and ECMPPath. These fields are absent from HEAD and defined in internal/component/sysrib/events/events.go. Including richroute.go alone does not close that edge. buildNexthopInfo's new bool argument has only its two migrated calls in nexthop_linux.go. The unrelated inherited SRv6 encapsulation precedence change introduces no new source symbol requirement.\n\nThe shared MPLS additions retain EntryChange and allow nil Acknowledge. Existing LDP (`internal/plugins/ldp/fib.go`) and OSPF SR (`internal/plugins/ospf/sr_fib.go`) publish keyed EntryBatch values without Apply and remain source-compatible; do not rewrite them into synchronous-acceptance producers as part of this assignment. The separate current EPE producer (`internal/component/bgp/plugins/nlri/ls/epe_source.go`) calls Apply and its proof bus acknowledges, but the new API does not require landing that independent capability. Likewise OnLink additions allow existing HEAD producers to leave false; this boundary does not claim the separate system-RIB OnLink producer path is complete.\n\nThe synchronous delivery prerequisite already exists in internal/core/events/typed.go and internal/component/plugin/server/engine_event.go: native handlers run before Emit returns. No new event-bus implementation is needed for this RSVP acknowledgment path.\n\n### 3. Test sources, not verification results\nCompulsory signature/fake migrations are enumerated individually in `files`. In particular engine_test.go alone is insufficient: interop_test.go implements Transport independently; admission_se_test.go changes seSession's return type; three RRO test files call the changed helper; fib_test.go used the removed constructor.\n\nTo retain the entire already-written RSVP baseline test postimages alongside the package cutover, also group these exact existing paths under internal/plugins/rsvpte/: build_test.go, config_test.go, engine_rfc2205_test.go, engine_rfc3209_test.go, frr_rfc4090_test.go, frr_test.go, mandatory_test.go, refresh_rro_test.go, softstate_test.go, wire_rfc2205_test.go, wire_rfc3209_test.go, wire_test.go. Their recorded diffs adapt assertions/fixtures to the inherited grammar, admission, identity and recording behavior; they are not prerequisites for production compilation.\n\nAlready-written additional source carriers/helpers, which can accompany that baseline without implementing anything: internal/plugins/rsvpte/confirmation_test.go, forwarding_context_test.go, frr_bypass_rfc4090_test.go, mtu_test.go, path_rfc2205_test.go, policy_test.go, producer_integration_linux_test.go, relay_rfc3209_test.go, wire_boundary_test.go. forwarding_context_test.go defines signalBypass/lastPathCarriage/twoBypassPLR and depends on canonical frr_test.go support. producer_integration_linux_test.go is a real daemon/namespace carrier and consumes the transport carrier's namespace/wire helpers; keep transport_integration_linux_test.go when selecting it. Its external daemon artifact is a verification input, not a Go definition.\n\nNative additional carriers: internal/plugins/fib/kernel/mplsapply_test.go, mplscontext_integration_linux_test.go, mplsmtu_integration_linux_test.go, mplsowner_integration_linux_test.go. mplsapply_test.go supplies newMPLSApplyBus; native integration files also use already-committed integration_linux_test.go, mplsentry_integration_linux_test.go and mplsframe_integration_linux_test.go helpers. Preserve the existing integration_linux_test.go postimage if grouping those baseline carriers. The separate native OnLink and SRv6 carriers are not necessary to compile the RSVP repair.\n\nNo test was executed or judged passing here. The recorded source set and static callsite search are the evidence for dependency closure, not runtime acceptance.\n\n### 4. Platform siblings already available\ninternal/plugins/rsvpte/transport_other.go and internal/plugins/fib/kernel/backend_other.go were read directly. Neither requires migration: they return unsupported results and do not claim to implement the extended optional interfaces. Existing fib/kernel/monitor_other.go supplies the non-Linux monitoring selection; Linux-only context state is only referenced from Linux files. Existing rsvpte/doctor_linux.go and doctor_other.go remain separate readiness probes. No synthetic mplscontext_other.go or mplsentry_other.go is required.\n\nThe link-down source claim in the base architecture uses internal/plugins/iface/netlink/monitor_linux.go::handleLinkUpdate. Current code emits carrier state even for a newly announced interface. The canonical path is not a modified/untracked entry in the recorded status, so it is an already-committed producer, not another pending RSVP commit dependency. The similarly named archived before snapshot must not be confused with canonical source.\n\n## Documentation dependencies and limits\n\n1. **docs/architecture/rsvpte/mpls-rsvp-te.md** requires the expanded RSVP and native-owner source set, not just the latest repair files. Its reservation/confirmation/opaque forwarding clauses specifically need reservation.go, reservation_build.go, confirmation.go, message_validation.go and mtu.go, all recorded absent from HEAD. It also explicitly leaves the RFC 2205 lifetime floor and 1.30 refresh growth rule open. Preserve those gaps; closure of source interfaces does not resolve them.\n\n2. **docs/guide/rsvp-te.md** retains experimental/incomplete verification status. Its inherited prose has mismatches with the current producers: transit admission denial is a ResvErr from reservation.go, not universally the guide's PathErr; raw replies select the outgoing interface rather than universally using router-id; and the guide says Ze has no IGP whereas the FRR architecture correctly distinguishes native IGP availability from absent RSVP CSPF consumption. These are documentation debts, not instructions to add or change capabilities.\n\n3. **docs/architecture/rsvpte/mpls-rsvp-te-fast-reroute.md** claims live native OSPF/IS-IS address attribution. peer_identity.go plus internal/core/linkstateevents/events.go provide only the consumer/schema. The actual HEAD-missing publishers are internal/plugins/ospf/bgpls_export.go and internal/plugins/isis/bgpls_export.go, proven untracked in recorded status. They register sources, subscribe to Request, publish snapshots and withdraw domains. OSPF additionally embeds bgplsSource in internal/plugins/ospf/instance.go; the exporters consume their native database/lifecycle adapters. Their complete IGP whole-file dependency sets were not established here. This is a named product-closure uncertainty if that document's complete postimage is included—not a reason to invent IGP functionality or declare alias support proven from the consumer alone.\n\n4. **docs/architecture/mpls/mpls-kernel.md** goes beyond Entry.PathMTU/RTA_METRICS programming. Its native fragmentation, IPv6 PTB and IPv4 ICMP behavior requires gokrazy/kernel/patches/0002-mpls-ip-mtu.patch (recorded absent from HEAD), gokrazy/kernel/patches/series, gokrazy/kernel/runtime.config and gokrazy/kernel/runtime.require. The recorded diff also changes internal/appliance/kernelreq.go for the capability. These are runtime product inputs. A rebuilt guest kernel and its packet observations are verification debts, not substitutes for those inputs. The patch's own complete whole-file dependency/acceptance boundary was not audited here; do not mark the linked document bundle CLOSED.\n\n## Remaining uncertainty, explicitly bounded\nNo missing mandatory RSVP/native Go definition or unmigrated non-additive consumer was found in the inspected boundary. There was no validation run, and current whole-file byte identity with the older recorded postimages was not certified. The optional system-RIB OnLink and native IGP exporter capabilities are not being declared complete or silently absorbed into this repair commit. A request to commit all linked documentation as an implemented runtime contract crosses those producer boundaries and remains NOT CLOSED until those separately owned whole-file sets are established. Existing unfinished source and the previously reported native scenario failure remain untouched."
+  },
+  "included_canonical_paths": [
+    "internal/plugins/rsvpte/register.go",
+    "internal/plugins/rsvpte/reroute.go",
+    "internal/plugins/rsvpte/engine.go",
+    "internal/plugins/rsvpte/frr.go",
+    "internal/plugins/rsvpte/transport.go",
+    "internal/plugins/rsvpte/transport_linux.go",
+    "internal/plugins/rsvpte/transport_other.go",
+    "internal/plugins/rsvpte/fsm.go",
+    "internal/plugins/rsvpte/wire.go",
+    "internal/plugins/rsvpte/build.go",
+    "internal/plugins/rsvpte/message_validation.go",
+    "internal/plugins/rsvpte/mandatory.go",
+    "internal/plugins/rsvpte/reservation.go",
+    "internal/plugins/rsvpte/reservation_build.go",
+    "internal/plugins/rsvpte/confirmation.go",
+    "internal/plugins/rsvpte/mtu.go",
+    "internal/plugins/rsvpte/routing.go",
+    "internal/plugins/rsvpte/peer_identity.go",
+    "internal/plugins/rsvpte/policy.go",
+    "internal/plugins/rsvpte/admission.go",
+    "internal/plugins/rsvpte/rro.go",
+    "internal/plugins/rsvpte/events.go",
+    "internal/plugins/rsvpte/show_data.go",
+    "internal/plugins/rsvpte/yang/ze-rsvp-te-conf.yang",
+    "internal/core/linkstateevents/events.go",
+    "internal/core/mplsfib/events.go",
+    "internal/plugins/rsvpte/fib.go",
+    "internal/plugins/fib/kernel/mplsentry.go",
+    "internal/plugins/fib/kernel/mplsentry_linux.go",
+    "internal/plugins/fib/kernel/mplscontext.go",
+    "internal/plugins/fib/kernel/mplscontext_linux.go",
+    "internal/plugins/fib/kernel/backend_linux.go",
+    "internal/plugins/fib/kernel/backend_other.go",
+    "internal/plugins/fib/kernel/fibkernel.go",
+    "internal/plugins/fib/kernel/register.go",
+    "internal/plugins/fib/kernel/richroute.go",
+    "internal/plugins/fib/kernel/nexthop_linux.go",
+    "internal/component/sysrib/events/events.go",
+    "internal/plugins/rsvpte/engine_test.go",
+    "internal/plugins/rsvpte/interop_test.go",
+    "internal/plugins/rsvpte/register_test.go",
+    "internal/plugins/rsvpte/transport_integration_linux_test.go",
+    "internal/plugins/rsvpte/fib_test.go",
+    "internal/plugins/rsvpte/admission_se_test.go",
+    "internal/plugins/rsvpte/admission_test.go",
+    "internal/plugins/rsvpte/reload_test.go",
+    "internal/plugins/rsvpte/rro_test.go",
+    "internal/plugins/rsvpte/rro_bounds_test.go",
+    "internal/plugins/rsvpte/rro_rfc3209_test.go",
+    "internal/plugins/fib/kernel/mplsentry_test.go",
+    "internal/plugins/fib/kernel/fibkernel_test.go",
+    "docs/architecture/rsvpte/mpls-rsvp-te.md",
+    "docs/guide/rsvp-te.md"
+  ],
+  "held_documents": [
+    {
+      "path": "docs/architecture/rsvpte/mpls-rsvp-te-fast-reroute.md",
+      "reason": "Depends on uncommitted IGP identity publishers outside this bounded baseline."
+    },
+    {
+      "path": "docs/architecture/mpls/mpls-kernel.md",
+      "reason": "Kernel patch and native MTU validation are a separate active change."
+    }
+  ],
+  "runtime_evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/shutdown-owner-native-proof-001.json",
+  "limit": "Static source closure plus the named generation/teardown native proof, not complete RSVP verification or foreign-peer interoperability."
+}

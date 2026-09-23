@@ -1,0 +1,9 @@
+{
+  "Replace": {
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/ospf/instance.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-receive-fix/instance.go.before",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/ospf/bfd_client.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-receive-fix/bfd_client.go.before",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/ospf/virtual_link.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-receive-fix/virtual_link.go.before",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/ospf/sr_adjsid.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-receive-fix/sr_adjsid.go.before",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/ospf/sr_tilfa.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-receive-fix/sr_tilfa.go.before"
+  }
+}

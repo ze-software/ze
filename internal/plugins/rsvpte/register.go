@@ -120,6 +120,7 @@ type rsvpteConfig struct {
 	Interfaces        []ifaceConfig
 	Tunnels           []tunnelConfig
 	Bypasses          []bypassConfig
+	Policy            reservationPolicy
 }
 
 type ifaceConfig struct {
@@ -133,7 +134,7 @@ type tunnelConfig struct {
 	Name          string
 	Destination   netip.Addr
 	TunnelID      uint16
-	Bandwidth     float32
+	Bandwidth     float64
 	SetupPriority uint8
 	HoldPriority  uint8
 	ERO           []eroHop
@@ -155,7 +156,7 @@ func (fr *frrTunnelConfig) protection(tc tunnelConfig) *protectionRequest {
 		NodeProtection:      fr.NodeProtection,
 		BandwidthProtection: fr.BandwidthProtection,
 		HopLimit:            fr.HopLimit,
-		Bandwidth:           tc.Bandwidth,
+		Bandwidth:           float32(tc.Bandwidth / 8),
 		SetupPrio:           tc.SetupPriority,
 		HoldPrio:            tc.HoldPriority,
 		Name:                tc.Name,
@@ -280,6 +281,11 @@ func parseConfig(sections []sdk.ConfigSection) (rsvpteConfig, error) {
 		if tree == nil {
 			continue
 		}
+		policy, err := parseReservationPolicy(tree)
+		if err != nil {
+			return cfg, err
+		}
+		cfg.Policy = policy
 		if v, ok := tree["router-id"].(string); ok {
 			addr, err := netip.ParseAddr(v)
 			if err != nil {
@@ -351,7 +357,7 @@ func parseConfig(sections []sdk.ConfigSection) (rsvpteConfig, error) {
 				tc.TunnelID = uint16(v)
 			}
 			if v, ok := rsvpteNumber(m["bandwidth"]); ok {
-				tc.Bandwidth = float32(v)
+				tc.Bandwidth = v
 			}
 			if v, ok := rsvpteNumber(m["setup-priority"]); ok {
 				tc.SetupPriority = uint8(v)
@@ -425,16 +431,17 @@ func validateBypasses(cfg rsvpteConfig) error {
 	if !cfg.RouterID.IsValid() {
 		return nil
 	}
-	seen := make(map[lspKey]string, len(cfg.Bypasses))
+	seen := make(map[uint32]string, len(cfg.Bypasses))
 	for _, bc := range cfg.Bypasses {
 		if !bc.MergePoint.IsValid() {
 			continue
 		}
 		k := bypassKey(bc, cfg.RouterID)
-		if prev, dup := seen[k]; dup {
-			return fmt.Errorf("rsvp-te: bypass %q and %q collide on the same key; rename one", prev, bc.Name)
+		tableID := bypassTableID(k)
+		if prev, dup := seen[tableID]; dup {
+			return fmt.Errorf("rsvp-te: bypass %q and %q collide on the same forwarding context; rename one", prev, bc.Name)
 		}
-		seen[k] = bc.Name
+		seen[tableID] = bc.Name
 	}
 	return nil
 }
@@ -448,7 +455,7 @@ func registerRSVPTE() {
 		Features:     "yang",
 		YANG:         rsvpteyang.ZeRSVPTEConfYANG,
 		ConfigRoots:  []string{Namespace},
-		Dependencies: []string{"fib-kernel", "sysctl"},
+		Dependencies: []string{"interface", "fib-kernel", "sysctl"},
 		RunEngine:    runRSVPTEEngine,
 		Commands:     commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
@@ -501,6 +508,21 @@ func runRSVPTEEngine(conn net.Conn) int {
 	var configuredTunnels map[lspKey]bool
 	var configuredInterfaces map[string]bool
 	var tunnelsMu sync.Mutex // guards activeCfg/pendingCfg/havePending, eng, configuredTunnels, configuredInterfaces
+	var workers sync.WaitGroup
+	var stopWorkers context.CancelFunc
+	defer func() {
+		if stopWorkers != nil {
+			stopWorkers()
+		}
+		workers.Wait()
+		tunnelsMu.Lock()
+		running := eng
+		eng = nil
+		tunnelsMu.Unlock()
+		if running != nil {
+			running.shutdown()
+		}
+	}()
 
 	p.OnConfigVerify(func(sections []sdk.ConfigSection) error {
 		cfg, err := parseConfig(sections)
@@ -566,6 +588,7 @@ func runRSVPTEEngine(conn net.Conn) int {
 			log.Warn("rsvp-te: no router-id configured, engine idle")
 			return nil
 		}
+		ctx, stopWorkers = context.WithCancel(ctx)
 
 		// Open the raw IP transport (protocol 46). On platforms without it, or
 		// without CAP_NET_RAW, the component stays up for config/show but cannot
@@ -574,22 +597,12 @@ func runRSVPTEEngine(conn net.Conn) int {
 		if err != nil {
 			log.Warn("rsvp-te: raw IP transport unavailable, signaling disabled", "error", err)
 		} else {
-			e := newEngine(t, lspTable, admission, newBusFIB(getEventBus(), log), cfg, log)
+			e := newEngine(t, lspTable, admission, &busFIB{bus: getEventBus()}, cfg, log)
+			e.startPeerIdentity(ctx)
 			tunnelsMu.Lock()
 			eng = e
 			tunnelsMu.Unlock()
-			go func() {
-				e.run(ctx)
-				if cerr := t.Close(); cerr != nil {
-					log.Warn("rsvp-te: transport close", "error", cerr)
-				}
-			}()
-			go func() {
-				<-ctx.Done()
-				if cerr := t.Close(); cerr != nil {
-					log.Warn("rsvp-te: transport close on shutdown", "error", cerr)
-				}
-			}()
+			workers.Go(func() { e.run(ctx) })
 		}
 
 		// With several interfaces, admission maps each LSP to a link by matching
@@ -609,19 +622,19 @@ func runRSVPTEEngine(conn net.Conn) int {
 			}
 		}
 
-		go runRefreshLoop(ctx, log, lspTable, cfg, eng)
+		workers.Go(func() { runRefreshLoop(ctx, log, lspTable, cfg, eng) })
 
-		go runCleanupLoop(ctx, log, lspTable, cfg, eng)
+		workers.Go(func() { runCleanupLoop(ctx, log, lspTable, cfg, eng) })
 
-		// React to interface-down events: an LSP whose downstream link fails is
-		// torn down and a PathErr reported toward the head-end (AC-6). Only
-		// meaningful when signaling is active (eng != nil). The EventBus handler
-		// MUST NOT block (pkg/ze/eventbus.go), so it only enqueues the interface
-		// name; a worker goroutine does the raw-socket sends and FIB mutation.
+		// React to interface-down events: repair an LSP over a usable bypass,
+		// otherwise tear it down and report a PathErr toward the head-end.
+		// Only meaningful when signaling is active (eng != nil). The EventBus
+		// handler MUST NOT block (pkg/ze/eventbus.go), so it only enqueues the
+		// interface name; a worker does the raw-socket sends and FIB mutation.
 		if eng != nil {
 			if eb := getEventBus(); eb != nil {
 				linkDownCh := make(chan string, 16)
-				go func() {
+				workers.Go(func() {
 					for {
 						select {
 						case <-ctx.Done():
@@ -630,7 +643,7 @@ func runRSVPTEEngine(conn net.Conn) int {
 							eng.handleLinkDown(name)
 						}
 					}
-				}()
+				})
 				unsub := eb.Subscribe(ifaceevents.Namespace, ifaceevents.EventDown, events.AsString(func(data string) {
 					var ev struct {
 						Name string `json:"name"`
@@ -642,10 +655,10 @@ func runRSVPTEEngine(conn net.Conn) int {
 						}
 					}
 				}))
-				go func() {
+				workers.Go(func() {
 					<-ctx.Done()
 					unsub()
-				}()
+				})
 			}
 		}
 
@@ -692,9 +705,9 @@ func addrToUint32(addr netip.Addr) uint32 {
 	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
 }
 
-// tunnelKey is the LSP key a configured tunnel maps to: the head-end identity
-// (this router as sender, the tunnel's destination and ID). Shared by setupTunnel
-// and reconcileTunnels so the configured set and the live LSPs key identically.
+// tunnelKey supplies the initial LSP key and the stable configured-set key.
+// Reoptimization changes LSPID only; reconciliation matches every generation
+// against the remaining SESSION and sender fields.
 func tunnelKey(tc tunnelConfig, routerID netip.Addr) lspKey {
 	return lspKey{
 		TunnelEndpoint: tc.Destination,
@@ -707,9 +720,9 @@ func tunnelKey(tc tunnelConfig, routerID netip.Addr) lspKey {
 
 // reconcileTunnels brings the live LSP set in line with cfg's tunnels: it sets up
 // (or, for a changed ERO on an up LSP, reroutes) every configured tunnel and tears
-// down the head-end LSP of any tunnel removed since prev. It returns the new
-// configured-key set. eng may be nil (no transport): setup records intent only and
-// teardown is skipped, since there is no signaled LSP to remove.
+// down every ingress generation of any tunnel removed since prev. It returns the
+// new configured-key set. eng may be nil (no transport): setup records intent
+// only and teardown is skipped, since there is no signaled LSP to remove.
 func reconcileTunnels(log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, eng *engine, prev map[lspKey]bool) map[lspKey]bool {
 	// Tunnel and bypass keys derive from the router-id (addrToUint32 -> As4), which
 	// panics on the zero Addr. Without a router-id the engine is idle and nothing
@@ -717,6 +730,12 @@ func reconcileTunnels(log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, en
 	// OnConfigApply (reload) does not, so guard here to cover every caller.
 	if !cfg.RouterID.IsValid() {
 		return prev
+	}
+	if eng != nil {
+		// Serialize generation selection/removal with RESV completion and
+		// link-failure reoptimization, which also hold control.
+		eng.control.Lock()
+		defer eng.control.Unlock()
 	}
 	next := make(map[lspKey]bool, len(cfg.Tunnels)+len(cfg.Bypasses))
 	for _, tc := range cfg.Tunnels {
@@ -730,11 +749,23 @@ func reconcileTunnels(log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, en
 		next[bypassKey(bc, cfg.RouterID)] = true
 	}
 	if eng != nil {
-		for key := range prev {
-			if !next[key] {
-				eng.teardownLSP(key)
-				log.Info("rsvp-te: tunnel removed from config, LSP torn down",
-					"dest", key.TunnelEndpoint, "tunnel-id", key.TunnelID)
+		lsps := lspTable.All()
+		// Retire protected senders before bypasses they may still use.
+		for pass := range 2 {
+			for _, lsp := range lsps {
+				lsp.mu.Lock()
+				role, isBypass := lsp.Role, lsp.IsBypass
+				lsp.mu.Unlock()
+				if role != RoleIngress || isBypass != (pass == 1) {
+					continue
+				}
+				key := lsp.Key
+				key.LSPID = 1 // configured-set identity, independent of generation
+				if prev[key] && !next[key] {
+					eng.teardownLSP(lsp.Key)
+					log.Info("rsvp-te: tunnel generation removed from config",
+						"lsp", lsp.Key.String())
+				}
 			}
 		}
 	}
@@ -771,14 +802,31 @@ func setupTunnel(log *slog.Logger, lspTable *lspTable, tc tunnelConfig, cfg rsvp
 	extID := addrToUint32(cfg.RouterID)
 	key := tunnelKey(tc, cfg.RouterID)
 
-	lsp, existed := lspTable.GetOrCreate(key)
-	if existed && lsp.State == LSPStateUp {
-		// The LSP is already up. If the configured ERO changed, trigger a
-		// make-before-break reroute (RFC 3209 Section 6.1) rather than
-		// disturbing the live tunnel.
-		lsp.mu.Lock()
-		changed := lsp.PSB != nil && !eroEqual(lsp.PSB.ERO, tc.ERO)
-		lsp.mu.Unlock()
+	// A completed reroute has removed generation 1. Use the latest live
+	// generation, including a pending replacement, rather than recreating it.
+	var lsp *LSP
+	for _, candidate := range lspTable.All() {
+		configured := candidate.Key
+		configured.LSPID = key.LSPID
+		if configured != key {
+			continue
+		}
+		candidate.mu.Lock()
+		ingress := candidate.Role == RoleIngress && !candidate.IsBypass
+		candidate.mu.Unlock()
+		if ingress && (lsp == nil || candidate.CreatedAt.After(lsp.CreatedAt)) {
+			lsp = candidate
+		}
+	}
+	if lsp == nil {
+		lsp, _ = lspTable.GetOrCreate(key)
+	}
+	key = lsp.Key
+	lsp.mu.Lock()
+	signaled := lsp.PSB != nil && (lsp.State == LSPStateUp || lsp.State == LSPStatePathSent)
+	changed := signaled && !eroEqual(lsp.PSB.ERO, tc.ERO)
+	lsp.mu.Unlock()
+	if signaled {
 		if changed && eng != nil {
 			if _, ok := eng.reroute(key, tc.ERO); ok {
 				log.Info("rsvp-te: tunnel reroute (make-before-break) started", "name", tc.Name, "dest", tc.Destination)
@@ -800,13 +848,15 @@ func setupTunnel(log *slog.Logger, lspTable *lspTable, tc tunnelConfig, cfg rsvp
 		},
 		SenderTemplate: senderTemplateIPv4{
 			SenderAddr: cfg.RouterID,
-			LSPID:      1,
+			LSPID:      key.LSPID,
 		},
-		ERO: tc.ERO,
+		ERO:         tc.ERO,
+		RRO:         []rroEntry{{Type: RROSubIPv4, Address: cfg.RouterID}},
+		RecordRoute: true,
 		SenderTSpec: FlowSpec{
-			TokenRate:      tc.Bandwidth,
-			TokenBucket:    tc.Bandwidth,
-			PeakRate:       tc.Bandwidth,
+			TokenRate:      float32(tc.Bandwidth / 8),
+			TokenBucket:    float32(tc.Bandwidth / 8),
+			PeakRate:       float32(tc.Bandwidth / 8),
 			MinPolicedUnit: 20,
 			MaxPacketSize:  65535,
 		},
@@ -863,6 +913,8 @@ func setupBypass(log *slog.Logger, lspTable *lspTable, bc bypassConfig, cfg rsvp
 		},
 		SenderTemplate: senderTemplateIPv4{SenderAddr: cfg.RouterID, LSPID: 1},
 		ERO:            bc.ERO,
+		RRO:            []rroEntry{{Type: RROSubIPv4, Address: cfg.RouterID}},
+		RecordRoute:    true,
 		SenderTSpec: FlowSpec{
 			MinPolicedUnit: 20,
 			MaxPacketSize:  65535,
@@ -964,6 +1016,11 @@ func runRefreshLoop(ctx context.Context, log *slog.Logger, lspTable *lspTable, c
 // transport is available (eng nil) it only stamps the PSB so local state stays
 // consistent.
 func refreshPaths(log *slog.Logger, lspTable *lspTable, eng *engine) {
+	if eng != nil {
+		// Keep the snapshot and sends before any concurrent withdrawal.
+		eng.control.Lock()
+		defer eng.control.Unlock()
+	}
 	for _, lsp := range lspTable.All() {
 		// Decide eligibility and stamp the refresh under the LSP lock, then
 		// release it before sendPath/sendResv (which take the same lock).
@@ -974,6 +1031,7 @@ func refreshPaths(log *slog.Logger, lspTable *lspTable, eng *engine) {
 		}
 		isIngress := lsp.Role == RoleIngress
 		hasRSB := lsp.RSB != nil
+		refreshDownstream := !isIngress && (lsp.ProtectionInUse || len(lsp.MergedPaths) > 0 && lsp.Role == RoleTransit)
 		// Only the PATH originator (ingress) refreshes its own PSB soft-state
 		// here. A transit/egress PSB is refreshed by the incoming PATH it relays
 		// (RFC 2205 Section 3.4); stamping it locally would stop the cleanup loop
@@ -995,6 +1053,14 @@ func refreshPaths(log *slog.Logger, lspTable *lspTable, eng *engine) {
 		}
 		lsp.mu.Unlock()
 
+		// RFC 4090 Sections 6.4.3 and 7.1.1 require the PLR and MP to
+		// refresh downstream even while the failed branch sends nothing.
+		// Do not stamp the received PSB: upstream silence must still expire it.
+		if eng != nil && refreshDownstream {
+			if err := eng.sendPath(lsp); err != nil {
+				log.Warn("rsvp-te: backup PATH refresh send failed", "lsp", lsp.Key.String(), "error", err)
+			}
+		}
 		switch {
 		case eng != nil && isIngress:
 			if err := eng.sendPath(lsp); err != nil {
@@ -1018,6 +1084,10 @@ func refreshPaths(log *slog.Logger, lspTable *lspTable, eng *engine) {
 // reloaded refresh-multiplier takes effect here rather than staying at the value the
 // loop started with.
 func cleanupTick(log *slog.Logger, lspTable *lspTable, cfg rsvpteConfig, eng *engine, now time.Time, period time.Duration) (time.Duration, bool) {
+	if eng != nil {
+		eng.control.Lock()
+		defer eng.control.Unlock()
+	}
 	live := liveConfig(cfg, eng)
 	expired := lspTable.expiredPSBs(now, live.RefreshMultiplier)
 	for _, key := range expired {

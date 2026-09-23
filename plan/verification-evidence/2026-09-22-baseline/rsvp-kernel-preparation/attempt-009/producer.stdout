@@ -1,0 +1,126 @@
+=== RUN   TestRSVPNativeProducer
+    producer_integration_linux_test.go:214: push has no native owner/negotiated MTU: {Ifindex: 10 Dst: 198.18.2.1/32 Encap: 1001 Src: <nil> Gw: 10.12.0.2 Flags: [onlink] Table: 1510013228 Realm: 0}
+    producer_integration_linux_test.go:494: rsvp-1361-e shutdown: exit status 1
+    producer_integration_linux_test.go:497: rsvp-1361-e daemon output:
+        created live store: /tmp/TestRSVPNativeProducer3743960172/003/database
+        warning: running as root, set ze.user to drop privileges
+        time=2026-09-22T16:17:25.764Z level=DEBUG msg="fib-kernel plugin starting (RPC)" subsystem=fib.kernel
+        time=2026-09-22T16:17:25.764Z level=DEBUG msg="rsvp-te engine starting" subsystem=rsvp.te
+        time=2026-09-22T16:17:25.768Z level=INFO msg="fib-kernel: emitted forwarding defaults via sysctl" subsystem=fib.kernel
+        time=2026-09-22T16:17:25.770Z level=INFO msg="fib-kernel: startup sweep" subsystem=fib.kernel stale-routes=0
+        time=2026-09-22T16:17:25.771Z level=INFO msg="fib-kernel: running" subsystem=fib.kernel
+        time=2026-09-22T16:17:25.771Z level=INFO msg="fib-kernel: route monitor started (routewatch consumer)" subsystem=fib.kernel
+        2026/09/22 16:17:25 INFO generated SSH host key subsystem=ssh path=/tmp/TestRSVPNativeProducer3743960172/003/ssh_host_ed25519_key
+        Starting ze with config: /tmp/TestRSVPNativeProducer3743960172/003/ze.conf
+        Ze running. Press Ctrl+C to stop.
+        2026/09/22 16:17:25 INFO SSH server listening subsystem=ssh address=127.0.0.1:2222
+        2026/09/22 16:17:25 INFO SSH auth success subsystem=ssh username=admin remote=127.0.0.1:58852 source=local profiles=[admin]
+        time=2026-09-22T16:17:30.239Z level=ERROR msg="fib-kernel: mpls swap/pop install failed" subsystem=fib.kernel in-label=1000 error="mpls label install in-label 1000: file exists"
+        time=2026-09-22T16:17:31.230Z level=ERROR msg="fib-kernel: mpls swap/pop install failed" subsystem=fib.kernel in-label=1000 error="mpls label install in-label 1000: file exists"
+        2026/09/22 16:17:31 INFO SSH exec command subsystem=ssh user=admin command="show rsvp-te session | json" remote=127.0.0.1:58852
+        2026/09/22 16:17:32 INFO SSH exec command subsystem=ssh user=admin command="show rsvp-te session | json" remote=127.0.0.1:58852
+        2026/09/22 16:17:32 INFO SSH exec command subsystem=ssh user=admin command="show rsvp-te session | json" remote=127.0.0.1:58852
+        time=2026-09-22T16:17:32.727Z level=WARN msg="rsvp-te: receiver reservation rejected" subsystem=rsvp.te code=3 flags=0
+        
+        Shutting down (Ctrl+C again to force)...
+        time=2026-09-22T16:17:32.737Z level=INFO msg="fib-kernel: route monitor stopped" subsystem=fib.kernel
+        time=2026-09-22T16:17:32.737Z level=INFO msg="fib-kernel: stopped" subsystem=fib.kernel
+    producer_integration_linux_test.go:494: rsvp-1361-m shutdown: exit status 1
+    producer_integration_linux_test.go:497: rsvp-1361-m daemon output:
+        created live store: /tmp/TestRSVPNativeProducer3743960172/002/database
+        warning: running as root, set ze.user to drop privileges
+        time=2026-09-22T16:17:23.707Z level=DEBUG msg="fib-kernel plugin starting (RPC)" subsystem=fib.kernel
+        time=2026-09-22T16:17:23.707Z level=DEBUG msg="rsvp-te engine starting" subsystem=rsvp.te
+        time=2026-09-22T16:17:23.718Z level=INFO msg="fib-kernel: emitted forwarding defaults via sysctl" subsystem=fib.kernel
+        time=2026-09-22T16:17:23.720Z level=INFO msg="fib-kernel: startup sweep" subsystem=fib.kernel stale-routes=0
+        time=2026-09-22T16:17:23.720Z level=INFO msg="fib-kernel: running" subsystem=fib.kernel
+        time=2026-09-22T16:17:23.722Z level=INFO msg="fib-kernel: route monitor started (routewatch consumer)" subsystem=fib.kernel
+        2026/09/22 16:17:24 INFO generated SSH host key subsystem=ssh path=/tmp/TestRSVPNativeProducer3743960172/002/ssh_host_ed25519_key
+        Starting ze with config: /tmp/TestRSVPNativeProducer3743960172/002/ze.conf
+        Ze running. Press Ctrl+C to stop.
+        2026/09/22 16:17:24 INFO SSH server listening subsystem=ssh address=127.0.0.1:2222
+        2026/09/22 16:17:24 INFO SSH auth success subsystem=ssh username=admin remote=127.0.0.1:58800 source=local profiles=[admin]
+        2026/09/22 16:17:26 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:58800
+        time=2026-09-22T16:17:30.235Z level=INFO msg="rsvp-te: transit PATH relayed" subsystem=rsvp.te lsp=198.18.3.1/91/3323068673/198.18.1.1/1 next-hop=10.14.0.2
+        time=2026-09-22T16:17:30.721Z level=DEBUG msg="rsvp-te: refresh" subsystem=rsvp.te lsp=198.18.3.1/91/3323068673/198.18.1.1/1
+        time=2026-09-22T16:17:31.229Z level=INFO msg="rsvp-te: transit PATH relayed" subsystem=rsvp.te lsp=198.18.3.1/91/3323068673/198.18.1.1/1 next-hop=10.14.0.2
+        2026/09/22 16:17:31 INFO SSH exec command subsystem=ssh user=admin command="show rsvp-te session | json" remote=127.0.0.1:58800
+        time=2026-09-22T16:17:31.471Z level=INFO msg="rsvp-te: PathTear processed" subsystem=rsvp.te lsp=198.18.3.1/91/3323068673/198.18.1.1/1
+        time=2026-09-22T16:17:31.811Z level=INFO msg="rsvp-te: transit PATH relayed" subsystem=rsvp.te lsp=198.18.3.2/92/3323068673/198.18.1.1/1 next-hop=10.14.0.2
+        2026/09/22 16:17:31 INFO SSH exec command subsystem=ssh user=admin command="show rsvp-te session | json" remote=127.0.0.1:58800
+        time=2026-09-22T16:17:32.505Z level=INFO msg="rsvp-te: transit PATH relayed" subsystem=rsvp.te lsp=198.18.3.1/93/3323068673/198.18.1.1/1 next-hop=10.14.0.2
+        2026/09/22 16:17:32 INFO SSH exec command subsystem=ssh user=admin command="show rsvp-te session | json" remote=127.0.0.1:58800
+        
+        Shutting down (Ctrl+C again to force)...
+        time=2026-09-22T16:17:32.738Z level=INFO msg="fib-kernel: route monitor stopped" subsystem=fib.kernel
+        time=2026-09-22T16:17:32.740Z level=INFO msg="fib-kernel: stopped" subsystem=fib.kernel
+        time=2026-09-22T16:17:32.741Z level=WARN msg="rsvp-te: fib remove failed on link-down" subsystem=rsvp.te lsp=198.18.2.1/63788/3323068673/198.18.1.1/1 error="mpls-fib: forwarding owner stopped"
+        time=2026-09-22T16:17:32.741Z level=WARN msg="rsvp-te: fib remove failed on link-down" subsystem=rsvp.te lsp=198.18.2.1/64997/3323068673/198.18.1.1/1 error="mpls-fib: no native forwarding owner acknowledged the batch"
+        time=2026-09-22T16:17:32.741Z level=WARN msg="rsvp-te: fib remove failed on link-down" subsystem=rsvp.te lsp=198.18.3.2/92/3323068673/198.18.1.1/1 error="mpls-fib: no native forwarding owner acknowledged the batch"
+        time=2026-09-22T16:17:32.741Z level=WARN msg="rsvp-te: receive poller stopped" subsystem=rsvp.te err="use of closed file"
+        forced exit
+    producer_integration_linux_test.go:494: rsvp-1361-h shutdown: exit status 1
+    producer_integration_linux_test.go:497: rsvp-1361-h daemon output:
+        created live store: /tmp/TestRSVPNativeProducer3743960172/001/database
+        warning: running as root, set ze.user to drop privileges
+        time=2026-09-22T16:17:22.145Z level=DEBUG msg="fib-kernel plugin starting (RPC)" subsystem=fib.kernel
+        time=2026-09-22T16:17:22.145Z level=DEBUG msg="rsvp-te engine starting" subsystem=rsvp.te
+        time=2026-09-22T16:17:22.211Z level=INFO msg="fib-kernel: emitted forwarding defaults via sysctl" subsystem=fib.kernel
+        time=2026-09-22T16:17:22.215Z level=INFO msg="fib-kernel: startup sweep" subsystem=fib.kernel stale-routes=0
+        time=2026-09-22T16:17:22.220Z level=INFO msg="fib-kernel: running" subsystem=fib.kernel
+        time=2026-09-22T16:17:22.221Z level=INFO msg="fib-kernel: route monitor started (routewatch consumer)" subsystem=fib.kernel
+        2026/09/22 16:17:22 INFO generated SSH host key subsystem=ssh path=/tmp/TestRSVPNativeProducer3743960172/001/ssh_host_ed25519_key
+        2026/09/22 16:17:22 INFO SSH server listening subsystem=ssh address=127.0.0.1:2222
+        Starting ze with config: /tmp/TestRSVPNativeProducer3743960172/001/ze.conf
+        Ze running. Press Ctrl+C to stop.
+        2026/09/22 16:17:22 INFO SSH auth success subsystem=ssh username=admin remote=127.0.0.1:58768 source=local profiles=[admin]
+        2026/09/22 16:17:25 INFO SSH exec command subsystem=ssh user=admin command="show ospf neighbor | json" remote=127.0.0.1:58768
+        received SIGHUP, reloading config...
+        time=2026-09-22T16:17:26.180Z level=WARN msg="rsvp-te: initial PATH send failed" subsystem=rsvp.te name=denied dest=198.18.3.1 error="strict node 198.18.2.1/32 is not adjacent through 198.18.1.1/32"
+        time=2026-09-22T16:17:26.180Z level=INFO msg="rsvp-te: tunnel configured" subsystem=rsvp.te name=denied dest=198.18.3.1 tunnel-id=91
+        time=2026-09-22T16:17:26.227Z level=WARN msg="rsvp-te: PATH refresh send failed" subsystem=rsvp.te lsp=198.18.3.1/91/3323068673/198.18.1.1/1 error="strict node 198.18.2.1/32 is not adjacent through 198.18.1.1/32"
+        sighup reload complete
+        time=2026-09-22T16:17:27.227Z level=WARN msg="rsvp-te: PATH refresh send failed" subsystem=rsvp.te lsp=198.18.3.1/91/3323068673/198.18.1.1/1 error="strict node 198.18.2.1/32 is not adjacent through 198.18.1.1/32"
+        time=2026-09-22T16:17:28.227Z level=WARN msg="rsvp-te: PATH refresh send failed" subsystem=rsvp.te lsp=198.18.3.1/91/3323068673/198.18.1.1/1 error="strict node 198.18.2.1/32 is not adjacent through 198.18.1.1/32"
+        time=2026-09-22T16:17:29.228Z level=WARN msg="rsvp-te: PATH refresh send failed" subsystem=rsvp.te lsp=198.18.3.1/91/3323068673/198.18.1.1/1 error="strict node 198.18.2.1/32 is not adjacent through 198.18.1.1/32"
+        time=2026-09-22T16:17:30.241Z level=INFO msg="rsvp-te: PathErr received" subsystem=rsvp.te tunnel=198.18.3.1 code=22 value=0
+        time=2026-09-22T16:17:31.231Z level=INFO msg="rsvp-te: PathErr received" subsystem=rsvp.te tunnel=198.18.3.1 code=22 value=0
+        2026/09/22 16:17:31 INFO SSH exec command subsystem=ssh user=admin command="show rsvp-te session | json" remote=127.0.0.1:58768
+        received SIGHUP, reloading config...
+        time=2026-09-22T16:17:31.470Z level=WARN msg="fib-kernel: mpls push remove failed" subsystem=fib.kernel fec=198.18.3.1/32 error="no such process"
+        time=2026-09-22T16:17:31.470Z level=WARN msg="rsvp-te: head-end fib remove failed" subsystem=rsvp.te lsp=198.18.3.1/91/3323068673/198.18.1.1/1 error="no such process"
+        time=2026-09-22T16:17:31.471Z level=INFO msg="rsvp-te: ingress LSP torn down" subsystem=rsvp.te lsp=198.18.3.1/91/3323068673/198.18.1.1/1
+        time=2026-09-22T16:17:31.471Z level=INFO msg="rsvp-te: tunnel removed from config, LSP torn down" subsystem=rsvp.te dest=198.18.3.1 tunnel-id=91
+        sighup reload complete
+        received SIGHUP, reloading config...
+        time=2026-09-22T16:17:31.810Z level=INFO msg="rsvp-te: tunnel configured" subsystem=rsvp.te name=loose dest=198.18.3.2 tunnel-id=92
+        sighup reload complete
+        2026/09/22 16:17:31 INFO SSH exec command subsystem=ssh user=admin command="show rsvp-te session | json" remote=127.0.0.1:58768
+        received SIGHUP, reloading config...
+        time=2026-09-22T16:17:32.165Z level=INFO msg="rsvp-te: ingress LSP torn down" subsystem=rsvp.te lsp=198.18.3.2/92/3323068673/198.18.1.1/1
+        time=2026-09-22T16:17:32.165Z level=INFO msg="rsvp-te: tunnel removed from config, LSP torn down" subsystem=rsvp.te dest=198.18.3.2 tunnel-id=92
+        sighup reload complete
+        2026/09/22 16:17:32 INFO SSH exec command subsystem=ssh user=admin command="show rsvp-te session | json" remote=127.0.0.1:58768
+        received SIGHUP, reloading config...
+        time=2026-09-22T16:17:32.503Z level=INFO msg="rsvp-te: tunnel configured" subsystem=rsvp.te name=protected dest=198.18.3.1 tunnel-id=93
+        time=2026-09-22T16:17:32.504Z level=INFO msg="rsvp-te: bypass configured" subsystem=rsvp.te name=a merge-point=198.18.2.1 node-protection=false
+        time=2026-09-22T16:17:32.505Z level=INFO msg="rsvp-te: bypass configured" subsystem=rsvp.te name=b merge-point=198.18.2.1 node-protection=false
+        sighup reload complete
+        2026/09/22 16:17:32 INFO SSH exec command subsystem=ssh user=admin command="show rsvp-te session | json" remote=127.0.0.1:58768
+        2026/09/22 16:17:32 INFO SSH exec command subsystem=ssh user=admin command="show rsvp-te session | json" remote=127.0.0.1:58768
+        2026/09/22 16:17:32 INFO SSH exec command subsystem=ssh user=admin command="show rsvp-te session | json" remote=127.0.0.1:58768
+        
+        Shutting down (Ctrl+C again to force)...
+        time=2026-09-22T16:17:32.737Z level=INFO msg="fib-kernel: route monitor stopped" subsystem=fib.kernel
+        time=2026-09-22T16:17:32.738Z level=INFO msg="fib-kernel: stopped" subsystem=fib.kernel
+        time=2026-09-22T16:17:32.738Z level=WARN msg="rsvp-te: head-end fib remove failed" subsystem=rsvp.te lsp=198.18.3.1/93/3323068673/198.18.1.1/1 error="mpls-fib: forwarding owner stopped"
+        time=2026-09-22T16:17:32.738Z level=INFO msg="rsvp-te: ingress LSP torn down" subsystem=rsvp.te lsp=198.18.3.1/93/3323068673/198.18.1.1/1
+        time=2026-09-22T16:17:32.739Z level=WARN msg="rsvp-te: head-end fib remove failed" subsystem=rsvp.te lsp=198.18.2.1/64997/3323068673/198.18.1.1/1 error="mpls-fib: no native forwarding owner acknowledged the batch"
+        time=2026-09-22T16:17:32.739Z level=INFO msg="rsvp-te: ingress LSP torn down" subsystem=rsvp.te lsp=198.18.2.1/64997/3323068673/198.18.1.1/1
+        time=2026-09-22T16:17:32.740Z level=WARN msg="rsvp-te: head-end fib remove failed" subsystem=rsvp.te lsp=198.18.2.1/63788/3323068673/198.18.1.1/1 error="mpls-fib: no native forwarding owner acknowledged the batch"
+        time=2026-09-22T16:17:32.740Z level=INFO msg="rsvp-te: ingress LSP torn down" subsystem=rsvp.te lsp=198.18.2.1/63788/3323068673/198.18.1.1/1
+        time=2026-09-22T16:17:32.740Z level=WARN msg="rsvp-te: receive poller stopped" subsystem=rsvp.te err="use of closed file"
+        Ze stopped.
+        2026/09/22 16:17:32 INFO SSH server stopping subsystem=ssh
+--- FAIL: TestRSVPNativeProducer (13.94s)
+FAIL

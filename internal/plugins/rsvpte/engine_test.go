@@ -2,6 +2,7 @@
 package rsvpte
 
 import (
+	"errors"
 	"net/netip"
 	"slices"
 	"sync"
@@ -16,12 +17,15 @@ import (
 type sentMsg struct {
 	dst     netip.Addr
 	payload []byte
+	route   PathRoute
 }
 
 type fakeTransport struct {
-	mu     sync.Mutex
-	sent   []sentMsg
-	recvCh chan Packet
+	mu             sync.Mutex
+	sent           []sentMsg
+	recvCh         chan Packet
+	localAddresses []netip.Addr
+	routes         map[netip.Prefix]RouteInfo
 }
 
 func newFakeTransport() *fakeTransport {
@@ -35,6 +39,41 @@ func (f *fakeTransport) Send(dst netip.Addr, msg []byte) error {
 	copy(cp, msg)
 	f.sent = append(f.sent, sentMsg{dst: dst, payload: cp})
 	return nil
+}
+
+func (f *fakeTransport) SendPath(route PathRoute, msg []byte) error {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.sent = append(f.sent, sentMsg{dst: route.NextHop, payload: slices.Clone(msg), route: route})
+	return nil
+}
+
+func (f *fakeTransport) LocalAddresses() ([]InterfaceAddress, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	addresses := make([]InterfaceAddress, len(f.localAddresses))
+	for i, address := range f.localAddresses {
+		addresses[i] = InterfaceAddress{Address: address, Up: true, MTU: 1500}
+	}
+	return addresses, nil
+}
+
+func (f *fakeTransport) ResolveRoute(target netip.Prefix, destination netip.Addr, _ uint32) (RouteInfo, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if f.routes != nil {
+		if route, ok := f.routes[target]; ok {
+			return route, nil
+		}
+		return RouteInfo{}, errors.New("no fixture route")
+	}
+	next := target.Addr()
+	if target.Contains(destination) {
+		next = destination
+	} else if target.Bits() != 32 {
+		return RouteInfo{}, errors.New("abstract node needs an explicit fixture route")
+	}
+	return RouteInfo{NextHop: next, Lookup: next, MTU: 1500}, nil
 }
 
 func (f *fakeTransport) Recv() <-chan Packet { return f.recvCh }
@@ -63,36 +102,47 @@ type backupRec struct {
 }
 
 type fakeFIB struct {
-	pushed      []netip.Prefix
-	removed     []netip.Prefix
-	swapped     []swapRec
-	backups     []backupRec
-	popped      []uint32
-	removedSwap []uint32
+	pushed       []netip.Prefix
+	pushLabels   [][]uint32
+	pushTables   []uint32
+	removed      []netip.Prefix
+	removeTables []uint32
+	swapped      []swapRec
+	backups      []backupRec
+	popped       []uint32
+	removedSwap  []uint32
+	pathMTUs     []uint32
 }
 
-func (f *fakeFIB) programPush(fec netip.Prefix, _ uint32, _ netip.Addr) error {
+func (f *fakeFIB) programPush(fec netip.Prefix, labels []uint32, _ netip.Addr, tableID, pathMTU uint32) error {
+	f.pathMTUs = append(f.pathMTUs, pathMTU)
 	f.pushed = append(f.pushed, fec)
+	f.pushLabels = append(f.pushLabels, slices.Clone(labels))
+	f.pushTables = append(f.pushTables, tableID)
 	return nil
 }
 
-func (f *fakeFIB) programSwap(inLabel, outLabel uint32, _ netip.Addr) error {
+func (f *fakeFIB) programSwap(inLabel, outLabel uint32, _ netip.Addr, pathMTU uint32) error {
+	f.pathMTUs = append(f.pathMTUs, pathMTU)
 	f.swapped = append(f.swapped, swapRec{in: inLabel, out: outLabel})
 	return nil
 }
 
-func (f *fakeFIB) programBackup(inLabel uint32, outLabels []uint32, nextHop netip.Addr) error {
+func (f *fakeFIB) programBackup(inLabel uint32, outLabels []uint32, nextHop netip.Addr, pathMTU uint32) error {
+	f.pathMTUs = append(f.pathMTUs, pathMTU)
 	f.backups = append(f.backups, backupRec{in: inLabel, out: append([]uint32(nil), outLabels...), nextHop: nextHop})
 	return nil
 }
 
-func (f *fakeFIB) programPop(inLabel uint32, _ netip.Addr) error {
+func (f *fakeFIB) programPop(inLabel uint32, _ netip.Addr, pathMTU uint32) error {
+	f.pathMTUs = append(f.pathMTUs, pathMTU)
 	f.popped = append(f.popped, inLabel)
 	return nil
 }
 
-func (f *fakeFIB) removePush(fec netip.Prefix) error {
+func (f *fakeFIB) removePush(fec netip.Prefix, tableID uint32) error {
 	f.removed = append(f.removed, fec)
+	f.removeTables = append(f.removeTables, tableID)
 	return nil
 }
 
@@ -108,6 +158,7 @@ func testEngine(t *testing.T, routerID string, cfg func(*rsvpteConfig)) (*engine
 		cfg(&c)
 	}
 	ft := newFakeTransport()
+	ft.localAddresses = []netip.Addr{c.RouterID}
 	fib := &fakeFIB{}
 	e := newEngine(ft, newLSPTable(), newAdmissionController(), fib, c, slogutil.DiscardLogger())
 	return e, ft, fib
@@ -130,29 +181,72 @@ func TestEngineEgressPathToResv(t *testing.T) {
 	resv, dst, ok := ft.lastByType(MsgTypeResv)
 	require.True(t, ok, "egress sends a RESV")
 	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), dst, "RESV goes to PATH source")
-	require.True(t, resv.HasLabel)
-	assert.GreaterOrEqual(t, resv.Label.Label, uint32(1000), "label allocated from pool")
+	require.Len(t, resv.FlowDescriptors, 1)
+	require.Len(t, resv.FlowDescriptors[0].Filters, 1)
+	require.True(t, resv.FlowDescriptors[0].Filters[0].HasLabel)
+	assert.GreaterOrEqual(t, resv.FlowDescriptors[0].Filters[0].Label.Label, uint32(1000), "label allocated from pool")
 
-	lsp, ok := e.table.Get(keyFromMessage(resv))
+	lsp, ok := e.table.Get(keyFromFilter(resv.Session, resv.FlowDescriptors[0].Filters[0].Filter))
 	require.True(t, ok)
 	assert.Equal(t, LSPStateUp, lsp.State)
 	assert.Equal(t, RoleEgress, lsp.Role)
 
 	require.Len(t, fib.popped, 1, "egress programs a pop for its in-label")
-	assert.Equal(t, resv.Label.Label, fib.popped[0])
+	assert.Equal(t, resv.FlowDescriptors[0].Filters[0].Label.Label, fib.popped[0])
+}
+
+func TestAssignedInterfaceAddressIsLocalRSVPHop(t *testing.T) {
+	local := netip.MustParseAddr("192.0.2.5")
+	ingress := netip.MustParseAddr("10.0.0.1")
+	peer := netip.MustParseAddr("192.0.2.1")
+	for _, role := range []string{"transit", "egress", "prefix-only"} {
+		t.Run(role, func(t *testing.T) {
+			e, ft, fib := testEngine(t, "10.0.0.5", func(cfg *rsvpteConfig) {
+				cfg.Interfaces = []ifaceConfig{{Name: "eth0", Prefix: netip.PrefixFrom(local, 24).Masked()}}
+			})
+			ft.localAddresses = append(ft.localAddresses, local)
+			e.admission.setInterface("eth0", 1e9, 1e9)
+			endpoint := netip.MustParseAddr("10.0.0.9")
+			if role == "egress" {
+				endpoint = local
+			} else if role == "prefix-only" {
+				endpoint = e.cfg().Interfaces[0].Prefix.Addr()
+			}
+			psb := &pathStateBlock{
+				Session:        sessionIPv4{TunnelEndpoint: endpoint, TunnelID: 1, ExtTunnelID: 1},
+				SenderTemplate: senderTemplateIPv4{SenderAddr: ingress, LSPID: 1},
+				ERO:            []eroHop{{Address: netip.PrefixFrom(local, 32)}, {Address: netip.PrefixFrom(endpoint, 32)}},
+				LabelRequest:   labelRequest{L3PID: 0x0800},
+			}
+			e.handlePacket(Packet{Src: ingress, Payload: buildPath(psb, peer, defaultIPTTL)})
+			if role != "egress" {
+				path, dst, ok := ft.lastByType(MsgTypePath)
+				require.True(t, ok)
+				assert.Equal(t, endpoint, dst, "do not send the PATH back to a local address")
+				require.Len(t, path.ERO, 1)
+				assert.Equal(t, endpoint, path.ERO[0].Address.Addr())
+				return
+			}
+			resv, dst, ok := ft.lastByType(MsgTypeResv)
+			require.True(t, ok, "an assigned interface endpoint terminates the PATH")
+			assert.Equal(t, peer, dst, "reply follows RSVP_HOP, not the preserved sender IP")
+			assert.Equal(t, endpoint, resv.Session.TunnelEndpoint)
+			require.Len(t, fib.popped, 1)
+			assert.Equal(t, fib.popped[0], resv.FlowDescriptors[0].Filters[0].Label.Label)
+		})
+	}
 }
 
 // VALIDATES: AC-4 -- RESV at ingress records the label, programs push, LSP up.
 func TestEngineIngressResvToUp(t *testing.T) {
-	e, _, fib := testEngine(t, "10.0.0.1", nil)
+	e, ft, fib := testEngine(t, "10.0.0.1", nil)
 
 	key := lspKey{
 		TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1,
 		ExtTunnelID: 0x0a000001, SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1,
 	}
-	lsp, _ := e.table.GetOrCreate(key)
-	lsp.Role = RoleIngress
-	lsp.setState(LSPStatePathSent)
+	setupTunnel(e.log, e.table, tunnelConfig{Destination: key.TunnelEndpoint, TunnelID: key.TunnelID}, e.cfg(), e)
+	require.Equal(t, 1, ft.countByType(MsgTypePath), "ingress signaled the PATH")
 
 	rsb := &resvStateBlock{
 		Session: sessionIPv4{TunnelEndpoint: key.TunnelEndpoint, TunnelID: key.TunnelID, ExtTunnelID: key.ExtTunnelID},
@@ -223,7 +317,7 @@ func TestEngineTransitForwarding(t *testing.T) {
 	resv, resvDst, ok := ft.lastByType(MsgTypeResv)
 	require.True(t, ok, "transit relays RESV upstream")
 	assert.Equal(t, ingress, resvDst, "RESV relayed to the upstream PHOP")
-	assert.Equal(t, up.InLabel, resv.Label.Label, "upstream RESV carries our local label")
+	assert.Equal(t, up.InLabel, resv.FlowDescriptors[0].Filters[0].Label.Label, "upstream RESV carries our local label")
 }
 
 // VALIDATES: label reuse (regression for N1) -- a released label is handed out
@@ -265,18 +359,21 @@ func TestEngineEgressRefreshIdempotent(t *testing.T) {
 	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.1"), Payload: path})
 	resv1, _, ok := ft.lastByType(MsgTypeResv)
 	require.True(t, ok)
-	label1 := resv1.Label.Label
+	label1 := resv1.FlowDescriptors[0].Filters[0].Label.Label
 	ib, _ := e.admission.GetInterface("eth0")
-	require.InDelta(t, 1e9, ib.ReservedBandwidth, 1, "first PATH reserves once")
+	require.InDelta(t, 8e9, ib.ReservedBandwidth, 1, "first PATH reserves once")
 
 	// Refresh: same PATH again.
+	beforeRefresh := ft.countByType(MsgTypeResv)
 	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.1"), Payload: path})
+	require.Equal(t, beforeRefresh+1, ft.countByType(MsgTypeResv), "refresh emits a new RESV")
+	assert.Zero(t, ft.countByType(MsgTypePathErr), "refresh is accepted, not rejected by admission")
 	ib, _ = e.admission.GetInterface("eth0")
-	assert.InDelta(t, 1e9, ib.ReservedBandwidth, 1, "refresh must not double-reserve")
+	assert.InDelta(t, 8e9, ib.ReservedBandwidth, 1, "refresh must not double-reserve")
 
 	resv2, _, ok := ft.lastByType(MsgTypeResv)
 	require.True(t, ok)
-	assert.Equal(t, label1, resv2.Label.Label, "egress label is stable across refresh")
+	assert.Equal(t, label1, resv2.FlowDescriptors[0].Filters[0].Label.Label, "egress label is stable across refresh")
 	assert.Len(t, e.table.All(), 1, "still one LSP")
 }
 
@@ -329,9 +426,9 @@ func TestEngineAdmissionDeniedPathErr(t *testing.T) {
 // VALIDATES: AC-11 -- PathTear removes LSP state and releases bandwidth.
 func TestEnginePathTearReleases(t *testing.T) {
 	e, _, fib := testEngine(t, "10.0.0.9", func(c *rsvpteConfig) {
-		c.Interfaces = []ifaceConfig{{Name: "eth0", MaxBW: 1e9, MaxReservableBW: 1e9}}
+		c.Interfaces = []ifaceConfig{{Name: "eth0", MaxBW: 10e9, MaxReservableBW: 10e9}}
 	})
-	e.admission.setInterface("eth0", 1e9, 1e9)
+	e.admission.setInterface("eth0", 10e9, 10e9)
 
 	// Establish an egress LSP via PATH.
 	psb := &pathStateBlock{
@@ -342,7 +439,7 @@ func TestEnginePathTearReleases(t *testing.T) {
 	src := netip.MustParseAddr("10.0.0.1")
 	e.handlePacket(Packet{Src: src, Payload: buildPath(psb, src, 64)})
 	ib, _ := e.admission.GetInterface("eth0")
-	require.InDelta(t, 4e8, ib.ReservedBandwidth, 1, "reservation held after PATH")
+	require.InDelta(t, 3.2e9, ib.ReservedBandwidth, 1, "reservation held after PATH")
 
 	require.Len(t, fib.popped, 1, "egress programmed a pop entry")
 	popLabel := fib.popped[0]
@@ -359,18 +456,17 @@ func TestEnginePathTearReleases(t *testing.T) {
 }
 
 // VALIDATES: a RESV that carries no LABEL object is rejected -- the LABEL is
-// mandatory in a RESV, so handleResv drops it and the ingress LSP is not brought up.
+// mandatory in a RESV, so decoding drops it and the ingress LSP is not brought up.
 func TestEngineResvWithoutLabelRejected(t *testing.T) {
-	// RFC requirement: RFC3209-4.1-1 negative -- a RESV with no LABEL object is rejected by handleResv (engine.go:425-427); the ingress LSP stays path-sent and no push is programmed.
-	e, _, fib := testEngine(t, "10.0.0.1", nil)
+	// RFC requirement: RFC3209-4.1-1 negative -- a RESV with no LABEL object is rejected by DecodeMessage; the ingress LSP stays path-sent and no push is programmed.
+	e, ft, fib := testEngine(t, "10.0.0.1", nil)
 
 	key := lspKey{
 		TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1,
 		ExtTunnelID: 0x0a000001, SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1,
 	}
-	lsp, _ := e.table.GetOrCreate(key)
-	lsp.Role = RoleIngress
-	lsp.setState(LSPStatePathSent)
+	setupTunnel(e.log, e.table, tunnelConfig{Destination: key.TunnelEndpoint, TunnelID: key.TunnelID, Bandwidth: 8e6}, e.cfg(), e)
+	require.Equal(t, 1, ft.countByType(MsgTypePath), "ingress signaled the PATH")
 
 	// A RESV carrying every object RFC 2205 Section 3.1.4 makes mandatory, so the
 	// only thing wrong with it is the deliberately absent LABEL.
@@ -381,14 +477,19 @@ func TestEngineResvWithoutLabelRejected(t *testing.T) {
 		func(b []byte) int { return encodeRSVPHop(b, rsvpHop{NextHop: netip.MustParseAddr("10.0.0.9")}) },
 		func(b []byte) int { return encodeTimeValues(b, timeValues{RefreshPeriod: 30000}) },
 		func(b []byte) int { return encodeStyle(b, StyleSharedExplicit) },
-		func(b []byte) int { return encodeSenderTemplate(b, filter) },
+		func(b []byte) int {
+			return encodeFlowSpec(b, ClassFlowSpec, FlowSpec{TokenRate: 1e6, TokenBucket: 1e6, PeakRate: 1e6})
+		},
+		func(b []byte) int { return encodeFilterSpec(b, filter) },
 	})
 
-	// Sanity: the crafted RESV really lacks a LABEL.
+	// The descriptor is otherwise legal; only its mandatory LABEL is absent.
 	msg, err := DecodeMessage(raw)
-	require.NoError(t, err)
+	require.Error(t, err, "a RESV descriptor without LABEL must not decode")
 	require.True(t, msg.HasSession)
-	require.False(t, msg.HasLabel, "crafted RESV must carry no LABEL")
+	require.Len(t, msg.FlowDescriptors, 1)
+	require.Len(t, msg.FlowDescriptors[0].Filters, 1)
+	require.False(t, msg.FlowDescriptors[0].Filters[0].HasLabel, "crafted RESV must carry no LABEL")
 
 	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.9"), Payload: raw})
 
@@ -399,12 +500,13 @@ func TestEngineResvWithoutLabelRejected(t *testing.T) {
 	assert.Empty(t, fib.pushed, "no push programmed for a rejected RESV")
 }
 
-// VALIDATES: when a transit node removes itself from the ERO and no next hop
-// remains, it does NOT forward the PATH; it returns a PathErr (Routing Problem /
-// Bad ERO Object) toward the sender.
+// VALIDATES: when a transit node exhausts the ERO and implicit routing has no
+// route to the destination, it returns Routing Problem / No route available
+// toward the sender without forwarding or installing state.
 func TestEngineTransitNoUsableERONextHop(t *testing.T) {
-	// RFC requirement: RFC3209-4.3.4-1 negative -- after removing itself from the ERO the transit node has no next hop, so it forwards no PATH and sends a PathErr (Routing Problem / Bad ERO, engine.go:314-318).
+	// RFC requirement: RFC3209-4.3.4-1 negative -- after removing the exhausted ERO, a failed implicit lookup forwards no PATH and sends Routing Problem / No route available.
 	e, ft, _ := testEngine(t, "10.0.0.5", nil)
+	ft.routes = map[netip.Prefix]RouteInfo{}
 
 	psb := &pathStateBlock{
 		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1, ExtTunnelID: 0x0a000001},
@@ -421,7 +523,7 @@ func TestEngineTransitNoUsableERONextHop(t *testing.T) {
 	require.True(t, ok, "a PATH with no usable ERO next hop sends a PathErr")
 	assert.Equal(t, src, dst, "PathErr goes back to the PATH source")
 	assert.Equal(t, ErrCodeRoutingProblem, perr.ErrorSpec.ErrorCode)
-	assert.Equal(t, ErrValueBadEROObject, perr.ErrorSpec.ErrorValue)
+	assert.Equal(t, ErrValueNoRouteAvailable, perr.ErrorSpec.ErrorValue)
 
 	if _, _, relayed := ft.lastByType(MsgTypePath); relayed {
 		t.Fatal("no PATH must be relayed when the ERO has no usable next hop")

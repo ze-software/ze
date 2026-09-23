@@ -25,7 +25,7 @@ type mplsMockBackend struct {
 	swapsDeleted []uint32
 }
 
-func (m *mplsMockBackend) addMPLSSwap(in uint32, out []uint32, nh netip.Addr) error { //nolint:unparam // mock satisfies the mplsBackend error contract
+func (m *mplsMockBackend) addMPLSSwap(in uint32, out []uint32, nh netip.Addr, _ uint32, _ bool) error { //nolint:unparam // mock satisfies the mplsBackend error contract
 	m.swapsAdded = append(m.swapsAdded, mplsSwapRec{in: in, out: out, nh: nh})
 	return nil
 }
@@ -103,7 +103,8 @@ func TestHandleMPLSEntrySwapAndRemove(t *testing.T) {
 	require.Len(t, mb.swapsAdded, 1)
 	assert.Equal(t, uint32(1000), mb.swapsAdded[0].in)
 	assert.Equal(t, []uint32{2000}, mb.swapsAdded[0].out)
-	assert.True(t, f.mplsSwaps[1000])
+	_, installed := f.mplsSwaps[1000]
+	assert.True(t, installed)
 
 	f.handleMPLSEntry(&mplsfibevents.EntryBatch{Entries: []mplsfibevents.Entry{{
 		Action:  mplsfibevents.ActionRemove,

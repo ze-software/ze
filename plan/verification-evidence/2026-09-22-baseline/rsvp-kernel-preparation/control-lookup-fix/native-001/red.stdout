@@ -1,0 +1,4 @@
+=== RUN   TestIntegrationRSVPPathAvoidsDataFEC
+    transport_integration_linux_test.go:535: ordinary PATH entered endpoint data FEC with labels [16011]
+--- FAIL: TestIntegrationRSVPPathAvoidsDataFEC (0.08s)
+FAIL

@@ -1,0 +1,208 @@
+{
+  "status": "finished",
+  "adapter_argv": [
+    "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/capture-native-guest.py",
+    "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/rsvpte.test",
+    "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/ze",
+    "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-014"
+  ],
+  "argv": [
+    "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/rsvpte.test",
+    "-test.v",
+    "-test.run=^TestRSVPNativeProducer$",
+    "-test.timeout=4m",
+    "-rsvp-producer-daemon",
+    "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/ze"
+  ],
+  "started": {
+    "unix_ns": 1790116043566552216,
+    "monotonic_ns": 31048326727
+  },
+  "cwd": "/workspace",
+  "kernel": [
+    "Linux",
+    "localhost",
+    "7.2.0",
+    "#1 SMP PREEMPT_DYNAMIC Tue Sep 22 02:19:30 UTC 2026",
+    "x86_64"
+  ],
+  "binary": {
+    "path": "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/rsvpte.test",
+    "sha256_before": "d4e9aac35844ec35f4d7116be04dae2b4fa6f58bda158a375a3e3a9f9a060a8a",
+    "sha256_after": "d4e9aac35844ec35f4d7116be04dae2b4fa6f58bda158a375a3e3a9f9a060a8a"
+  },
+  "daemon": {
+    "path": "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/ze",
+    "sha256_before": "0b5c6e018de39e9305c9f57e0f832f16b50470e108411cee505dff52a003db89",
+    "sha256_after": "0b5c6e018de39e9305c9f57e0f832f16b50470e108411cee505dff52a003db89"
+  },
+  "source_snapshots": [
+    {
+      "path": "/workspace/docs/architecture/mpls/mpls-kernel.md",
+      "copy": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-014/sources/docs__architecture__mpls__mpls-kernel.md",
+      "started": {
+        "unix_ns": 1790116050468410075,
+        "monotonic_ns": 37950185177
+      },
+      "status": "ok",
+      "sha256": "b94c9b3f390db9363bb117f1b3960397456814239aa4b77ad8740a6bc0c2d5d9",
+      "finished": {
+        "unix_ns": 1790116050494828822,
+        "monotonic_ns": 37976603042
+      }
+    },
+    {
+      "path": "/workspace/internal/plugins/rsvpte/producer_integration_linux_test.go",
+      "copy": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-014/sources/internal__plugins__rsvpte__producer_integration_linux_test.go",
+      "started": {
+        "unix_ns": 1790116050495109608,
+        "monotonic_ns": 37976881144
+      },
+      "status": "ok",
+      "sha256": "9c55da21ad4779e4c380926442da61049ce9019a1e3a0ce67821b0a278f018ce",
+      "finished": {
+        "unix_ns": 1790116050526053230,
+        "monotonic_ns": 38007826429
+      }
+    },
+    {
+      "path": "/workspace/internal/plugins/rsvpte/transport_integration_linux_test.go",
+      "copy": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-014/sources/internal__plugins__rsvpte__transport_integration_linux_test.go",
+      "started": {
+        "unix_ns": 1790116050526403567,
+        "monotonic_ns": 38008175794
+      },
+      "status": "ok",
+      "sha256": "598c5d2fc2bcbcd227b48f785db1cb10134e42a6ca5316d9fd2b449e843d0220",
+      "finished": {
+        "unix_ns": 1790116050568915255,
+        "monotonic_ns": 38050690687
+      }
+    },
+    {
+      "path": "/workspace/internal/plugins/rsvpte/register.go",
+      "copy": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-014/sources/internal__plugins__rsvpte__register.go",
+      "started": {
+        "unix_ns": 1790116050569309645,
+        "monotonic_ns": 38051081581
+      },
+      "status": "ok",
+      "sha256": "313f8548364beb12324444746eb9441fd530b88892cd83428ca2344f49eb7c97",
+      "finished": {
+        "unix_ns": 1790116050600306917,
+        "monotonic_ns": 38082080736
+      }
+    },
+    {
+      "path": "/workspace/internal/plugins/rsvpte/engine.go",
+      "copy": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-014/sources/internal__plugins__rsvpte__engine.go",
+      "started": {
+        "unix_ns": 1790116050600571122,
+        "monotonic_ns": 38082342617
+      },
+      "status": "ok",
+      "sha256": "3dea20d47ee1988145a66afb0016486236bfc7fed906c190f3f573c575aeb91e",
+      "finished": {
+        "unix_ns": 1790116050631128731,
+        "monotonic_ns": 38112901929
+      }
+    },
+    {
+      "path": "/workspace/internal/plugins/rsvpte/reservation.go",
+      "copy": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-014/sources/internal__plugins__rsvpte__reservation.go",
+      "started": {
+        "unix_ns": 1790116050631465002,
+        "monotonic_ns": 38113236968
+      },
+      "status": "ok",
+      "sha256": "3ea5991a25fcf7ed481c955631203976616641d8ee2a6406e484904356b4e001",
+      "finished": {
+        "unix_ns": 1790116050652080015,
+        "monotonic_ns": 38133853143
+      }
+    },
+    {
+      "path": "/workspace/internal/plugins/rsvpte/fib.go",
+      "copy": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-014/sources/internal__plugins__rsvpte__fib.go",
+      "started": {
+        "unix_ns": 1790116050652431224,
+        "monotonic_ns": 38134203090
+      },
+      "status": "ok",
+      "sha256": "4e28ba154d8191807b6594fe22f0469b8094a9083e7e6890553134b67f3b6999",
+      "finished": {
+        "unix_ns": 1790116050667638402,
+        "monotonic_ns": 38149410508
+      }
+    },
+    {
+      "path": "/workspace/internal/core/mplsfib/events.go",
+      "copy": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-014/sources/internal__core__mplsfib__events.go",
+      "started": {
+        "unix_ns": 1790116050667890705,
+        "monotonic_ns": 38149662551
+      },
+      "status": "ok",
+      "sha256": "c08845c4a6b367c5fe5e6ae2a2b146d54128d972473fe32a3a9ce548557b771b",
+      "finished": {
+        "unix_ns": 1790116050683614734,
+        "monotonic_ns": 38165386771
+      }
+    },
+    {
+      "path": "/workspace/internal/plugins/fib/kernel/mplsentry_linux.go",
+      "copy": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-014/sources/internal__plugins__fib__kernel__mplsentry_linux.go",
+      "started": {
+        "unix_ns": 1790116050683828866,
+        "monotonic_ns": 38165600682
+      },
+      "status": "ok",
+      "sha256": "a3e9fe285065d3a5e7b32814502391a5a7f609fb6d28e19ef7cb1a2ba401014d",
+      "finished": {
+        "unix_ns": 1790116050699047732,
+        "monotonic_ns": 38180819808
+      }
+    },
+    {
+      "path": "/workspace/internal/plugins/fib/kernel/mplscontext_linux.go",
+      "copy": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-014/sources/internal__plugins__fib__kernel__mplscontext_linux.go",
+      "started": {
+        "unix_ns": 1790116050699206580,
+        "monotonic_ns": 38180978035
+      },
+      "status": "ok",
+      "sha256": "53399d648f7aba63ca77689bfe0658dcf08fc15bcbaf8c1b04f9095353314ed8",
+      "finished": {
+        "unix_ns": 1790116050714689512,
+        "monotonic_ns": 38196461428
+      }
+    },
+    {
+      "path": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/capture-native-guest.py",
+      "copy": "/workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-014/sources/plan__verification-evidence__2026-09-22-baseline__rsvp-kernel-preparation__capture-native-guest.py",
+      "started": {
+        "unix_ns": 1790116050714885300,
+        "monotonic_ns": 38196657045
+      },
+      "status": "ok",
+      "sha256": "43a338ea50414d5b6765fea610406085a199de8aea3edb28b9c00c9c0957380e",
+      "finished": {
+        "unix_ns": 1790116050732942665,
+        "monotonic_ns": 38214714631
+      }
+    }
+  ],
+  "sampling_interval_seconds": 2.0,
+  "maximum_samples_per_namespace": 121,
+  "boundary": "Source copies describe the workspace, not proven binary build provenance. Capture presence is not forwarding proof.",
+  "child_pid": 1397,
+  "owned_namespaces": [
+    "rsvp-1397-h",
+    "rsvp-1397-m",
+    "rsvp-1397-e"
+  ],
+  "finished": {
+    "unix_ns": 1790116077705792225,
+    "monotonic_ns": 65187565253
+  }
+}

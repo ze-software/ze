@@ -1,0 +1,7 @@
+{
+  "namespace": "rsvp-1411-h",
+  "command": "show ospf interface",
+  "started_unix": 1790090375.8275788,
+  "finished_unix": 1790090376.1019273,
+  "exit_code": 0
+}
