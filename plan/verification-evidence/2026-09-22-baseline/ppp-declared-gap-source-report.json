@@ -1,0 +1,99 @@
+{
+  "status": "source investigation; not runtime proof or full RFC inventory",
+  "report": {
+    "summary": "Bounded source classifications only; implemented means source present, not runtime verified. Preserve the baseline-first scope override. The reported manager_test.go compilation blocker and missing IPv6 native discrimination record are proof limitations, not absent implementation; native IPv4 restart fixed-003 is not reopened.",
+    "records": [
+      {
+        "summary_source": "rfc/short/rfc1661.md::Support remaining; RFC1661-5.6-3",
+        "claim": "Peer-MRU clamp outside Protocol-Reject remains absent on the explicit Code-Reject producer.",
+        "kind": "requirement",
+        "state": "unimplemented",
+        "producer_files_symbols": "internal/component/l2tp/ppp/session_run.go: sendCodeReject, sendProtocolReject, writeFrame; internal/component/l2tp/ppp/lcp.go: WriteLCPPacket",
+        "primary_section": "RFC 1661 §5.6",
+        "primary_quote": "The Rejected-Packet MUST be truncated to comply with the peer's established MRU.",
+        "evidence_detail": "sendCodeReject constructs the rejected packet and writes it into getFrameBuf's default-sized buffer without reading negotiatedMRU. WriteLCPPacket copies only to buffer capacity; writeFrame writes directly. sendProtocolReject separately computes its limit from negotiatedMRU.",
+        "caveat": "Source-backed missing enforcement in an implemented sender, not authorization to implement it. This does not claim every other send path is defective."
+      },
+      {
+        "summary_source": "rfc/short/rfc1661.md::Support remaining; RFC1661-3.4-1, RFC1661-3.5-4, RFC1661-3.7-2",
+        "claim": "The explicitly described early IPCP/IPv6CP buffering and termination-phase dispatch gaps now have admission gating.",
+        "kind": "requirement",
+        "state": "implemented",
+        "producer_files_symbols": "internal/component/l2tp/ppp/session_run.go: handleFrame, afterLCPOpen, performAction; internal/component/l2tp/ppp/ncp.go: runNCPPhase, resetNCP; internal/component/l2tp/ppp/ppp_fsm.go: LCPDoTransition",
+        "primary_section": "RFC 1661 §§3.4, 3.5, 3.7",
+        "primary_quote": "§3.4: Any non-LCP packets received during this phase MUST be silently discarded. §3.5: All other packets received during this phase MUST be silently discarded. §3.7: Any non-LCP packets received during this phase MUST be silently discarded.",
+        "evidence_detail": "handleFrame returns before parsing or buffering IPCP/IPv6CP whenever ncpStarted is false. afterLCPOpen requires runAuthPhase success before runNCPPhase sets ncpStarted. TLD invokes resetNCP, which clears ncpStarted before disconnect/cleanup and drops earlyNCPFrames. Opened-to-Closing/Stopping FSM edges carry TLD.",
+        "caveat": "Implemented-but-unverified in this scout. Restricted to the summary's concrete IPCP/IPv6CP examples, not proof that all protocols in every phase satisfy §§3.4–3.7. Blocked IPv6 discrimination must remain a proof record."
+      },
+      {
+        "summary_source": "rfc/short/rfc1661.md::Support remaining; RFC1661-4.3-3, RFC1661-5.7-2",
+        "claim": "RXJ+ offending-code/protocol suppression remains absent.",
+        "kind": "requirement",
+        "state": "unimplemented",
+        "producer_files_symbols": "internal/component/l2tp/ppp/session_run.go: codeToEvent, handleLCPPacket, performAction, sendEchoRequest; internal/component/l2tp/ppp/ppp_fsm.go: LCPDoTransition",
+        "primary_section": "RFC 1661 §§4.3, 5.7",
+        "primary_quote": "§4.3: The implementation MUST stop sending the offending packet type. §5.7: Upon reception of a Protocol-Reject, the implementation MUST stop sending packets of the indicated protocol at the earliest opportunity.",
+        "evidence_detail": "codeToEvent maps both reject codes to RXJPlus without interpreting the rejected code/protocol. handleLCPPacket adds no suppression. Opened RXJPlus returns SER, but performAction answers only an Echo-Request, so this action is inert for rejects; sendEchoRequest remains unconditional.",
+        "caveat": "The older declaration's assertion that every RXJ+ edge has no action is inaccurate: Opened carries SER. Its missing-suppression conclusion nevertheless remains supported by the action producer."
+      },
+      {
+        "summary_source": "rfc/short/rfc1661.md::Support remaining; RFC1661-5.6-2",
+        "claim": "Fresh Code-Reject identifiers remain absent.",
+        "kind": "requirement",
+        "state": "unimplemented",
+        "producer_files_symbols": "internal/component/l2tp/ppp/session_run.go: sendCodeReject; internal/component/l2tp/ppp/lcp.go: WriteLCPPacket",
+        "primary_section": "RFC 1661 §5.6",
+        "primary_quote": "The Identifier field MUST be changed for each Code-Reject sent.",
+        "evidence_detail": "sendCodeReject passes req.Identifier as the outer Code-Reject identifier; WriteLCPPacket writes that argument unchanged. Repeated unknown-code packets with the same identifier therefore select the same outgoing identifier.",
+        "caveat": "Source reasoning only, not an executed reproduction."
+      },
+      {
+        "summary_source": "rfc/short/rfc1661.md::Support remaining; RFC1661-6.5-3",
+        "claim": "Single-octet Protocol parsing is absent in the Go parser; the declared negotiated-reception conformance gap remains unresolved at the actual framing boundary.",
+        "kind": "requirement",
+        "state": "unresolved",
+        "producer_files_symbols": "internal/component/l2tp/ppp/frame.go: ParseFrame, WriteFrame; internal/component/l2tp/ppp/session_run.go: sendConfigureRequest, afterLCPOpen; internal/component/l2tp/ppp/lcp_options.go: negotiatePeerOption; internal/component/l2tp/ppp/devppp_linux.go: DevPPPSetup",
+        "primary_section": "RFC 1661 §6.5",
+        "primary_quote": "When negotiated, PPP implementations MUST accept PPP packets with either double-octet or single-octet Protocol fields, and MUST NOT distinguish between them.",
+        "evidence_detail": "ParseFrame always decodes Uint16 and removes two octets. negotiatePeerOption accepts a valid peer PFC option, but sendConfigureRequest supplies only MRU, Magic and authentication to BuildLocalConfigRequest; it does not advertise local PFC receive capability. DevPPPSetup attaches Linux PPP channel/unit descriptors and afterLCPOpen connects them. The Go parser alone cannot establish what lower-layer receive normalization supplies.",
+        "caveat": "PFC is negotiated directionally; acknowledging the peer's receive capability is not evidence Ze negotiated its own compressed reception. Do not promote parser-only absence or its comments into whole-stack nonconformance. Need applicable negotiation and named Linux receive-producer evidence to resolve this record; no runtime was attempted."
+      },
+      {
+        "summary_source": "rfc/short/rfc1661.md::Support remaining; RFC1661-4.6-1 through RFC1661-4.6-4",
+        "claim": "Restart timer, Max-Terminate, Max-Configure and Max-Failure configurability remain absent.",
+        "kind": "requirement",
+        "state": "unimplemented",
+        "producer_files_symbols": "internal/component/l2tp/ppp/session_run.go: armRestartTimer, applyTransition, sendConfigureNakOrReject; internal/component/l2tp/ppp/start_session.go: StartSession; internal/component/l2tp/yang/ze-l2tp-conf.yang: authentication.timeout, ncp.timeout",
+        "primary_section": "RFC 1661 §4.6",
+        "primary_quote": "The Restart timer MUST be configurable, but SHOULD default to three (3) seconds. Max-Terminate MUST be configurable, but SHOULD default to two (2) transmissions. Max-Configure MUST be configurable, but SHOULD default to ten (10) transmissions. Max-Failure MUST be configurable, but SHOULD default to five (5) transmissions.",
+        "evidence_detail": "armRestartTimer resets to fixed defaultRestartTimer (3s). applyTransition selects fixed defaultMaxConfigure (10) or defaultMaxTerminate (2). sendConfigureNakOrReject derives each response from options, with no Nak-count threshold or configurable Max-Failure input. StartSession has AuthTimeout/IPTimeout and echo settings, but none of the four restart settings; inspected transport YANG exposes authentication/NCP timeouts rather than restart controls.",
+        "caveat": "These explicit MUST configurability declarations are not interchangeable with authentication/NCP phase deadlines. RFC describes the Configure/Failure counters as recommended, but explicitly makes the named parameters configurable; preserve that wording rather than inventing optionality for the MUST sentences."
+      },
+      {
+        "summary_source": "rfc/short/rfc1661.md::Support remaining; RFC1661-5.9-3",
+        "claim": "No Discard-Request sender is implemented; this is an absent optional capability rather than an unconditional identifier violation.",
+        "kind": "capability",
+        "state": "unimplemented",
+        "producer_files_symbols": "internal/component/l2tp/ppp/session_run.go: performAction, handleLCPPacket, sendEchoRequest; internal/component/l2tp/ppp/lcp.go: LCPDiscardRequest, LCPCodeName",
+        "primary_section": "RFC 1661 §5.9",
+        "primary_quote": "Discard-Request packets MUST only be sent in the LCP Opened state. The Identifier field MUST be changed for each Discard-Request sent.",
+        "evidence_detail": "The existing code-11 uses classify/display or receive Discard-Request; the action dispatcher has no Discard transmission, and the active probe sender writes LCPEchoRequest. No sending obligation appears in §5.9; its sender constraints apply to packets actually sent.",
+        "caveat": "Keep as capability absence, with conditional sender obligations outside the conformance count under the existing owner scope decision. The existing proposal is not implementation authorization."
+      }
+    ],
+    "doc_disagreements": [
+      {
+        "page": "docs/guide/l2tp.md",
+        "sentence": "Each phase has a configurable timeout.",
+        "producer": "internal/component/l2tp/ppp/session_run.go: run, armRestartTimer; internal/component/l2tp/ppp/start_session.go: StartSession",
+        "correction": "Authentication and NCP have configurable timeout inputs; run uses fixed defaultNegoTimeout (30s) for LCP negotiation, and armRestartTimer uses fixed defaultRestartTimer (3s). Do not claim every phase timeout is configurable."
+      },
+      {
+        "page": "rfc/short/rfc1661.md",
+        "sentence": "Remaining gaps include the send-side peer-MRU clamp outside Protocol-Reject, phase gating of early NCP traffic, RXJ+ suppression, fresh Code-Reject Identifiers, compressed Protocol reception, and configurable restart limits.",
+        "producer": "internal/component/l2tp/ppp/session_run.go: handleFrame, afterLCPOpen, performAction; internal/component/l2tp/ppp/ncp.go: runNCPPhase, resetNCP; internal/component/l2tp/ppp/frame.go: ParseFrame",
+        "correction": "Separate implemented-but-unverified early IPCP/IPv6CP admission/reset from still-absent reject/restart behaviors. Leave compressed reception unresolved at the negotiated Linux framing boundary rather than claiming parser-only evidence establishes a whole-stack gap."
+      }
+    ]
+  }
+}

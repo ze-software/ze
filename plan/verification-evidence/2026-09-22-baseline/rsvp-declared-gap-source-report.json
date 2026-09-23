@@ -1,0 +1,362 @@
+{
+  "status": "source investigation; not runtime proof or full RFC inventory",
+  "report": {
+    "summary": "Bounded classification of the two summaries' explicit remaining declarations. Implemented means producing source exists, not runtime proof or full conformance. Existing owner scope decisions remain authoritative; absent features do not authorize implementation.",
+    "records": [
+      {
+        "summary_source": "rfc/short/rfc2205.md::Support remaining; RFC2205-3.1-3",
+        "claim": "Receive-side checksum verification is implemented.",
+        "kind": "capability",
+        "state": "implemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/wire.go::DecodeMessage",
+          "internal/plugins/rsvpte/engine.go::handlePacket"
+        ],
+        "primary_section": "RFC 2205 §3.1.1 and Appendix B",
+        "primary_quote": "An all-zero value means that no checksum was transmitted.",
+        "evidence_detail": "DecodeMessage applies internetChecksum to exactly data[:hdr.Length] when the checksum field is nonzero and returns errBadChecksum on mismatch; handlePacket logs and drops decode errors.",
+        "caveat": "The summary's unconditional checksum wording omits the permitted zero checksum. Appendix B lists bad checksums among formatting errors; this source read supplies no execution/discrimination proof."
+      },
+      {
+        "summary_source": "rfc/short/rfc2205.md::message-validation gap annotations",
+        "claim": "Supported FF/SE message grammar, object alignment, first FLOWSPEC and nonzero destination checks are implemented.",
+        "kind": "capability",
+        "state": "implemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/wire.go::DecodeMessage,decodeObjectHeader,decodeSessionIPv4",
+          "internal/plugins/rsvpte/message_validation.go::checkObjectPlacement,appendFilter,checkFlowDescriptors"
+        ],
+        "primary_section": "RFC 2205 §3.1.4",
+        "primary_quote": "The STYLE object followed by the flow descriptor list must occur at the end of the message, and objects within the flow descriptor list must follow the BNF given below.",
+        "evidence_detail": "DecodeMessage invokes placement and descriptor checks; INTEGRITY must immediately follow the header; non-descriptor objects after STYLE fail; appendFilter rejects a first filter without FLOWSPEC except ResvTear; object lengths must be divisible by four; unspecified SESSION endpoints fail.",
+        "caveat": "These replace the blanket 'receive path runs none of these checks' claim, not every host-flow/multicast validation obligation."
+      },
+      {
+        "summary_source": "rfc/short/rfc2205.md::RFC2205-3-10,3-11,3-16",
+        "claim": "PathTear and ResvTear identity matching is implemented for supported LSP state.",
+        "kind": "requirement",
+        "state": "implemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/engine.go::handlePathTear",
+          "internal/plugins/rsvpte/reservation.go::handleResvTear,acceptReservation"
+        ],
+        "primary_section": "RFC 2205 §3.1.5",
+        "primary_quote": "A unicast PathTear must not be forwarded if there is path state for the same (session, sender) pair but a different PHOP.",
+        "evidence_detail": "handlePathTear looks up session/sender identity and compares PSB.Hop or the merged branch's Hop before removal. handleResvTear additionally compares stored STYLE and full RSVP_HOP; acceptReservation checks advertised LIH zero and downstream peer identity.",
+        "caveat": "samePeer can use IGP-derived address aliases. Only its direct equality/domain lookup consumer was read; held publisher correctness and native alias coverage are not established."
+      },
+      {
+        "summary_source": "rfc/short/rfc2205.md::ResvErr/ResvTear gap family",
+        "claim": "ResvErr production/relay, FF descriptor processing, InPlace rejection and ResvTear handling are implemented.",
+        "kind": "capability",
+        "state": "implemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/engine.go::handleResv,handlePacket",
+          "internal/plugins/rsvpte/reservation.go::acceptReservation,handleResvErr,handleResvTear,removeReservation",
+          "internal/plugins/rsvpte/reservation_build.go::buildReservationControl,rejectReservation,sendResvError"
+        ],
+        "primary_section": "RFC 2205 §3.1.8",
+        "primary_quote": "Each flow descriptor in a FF-style Resv message must be processed independently, and a separate ResvErr message must be generated for each one that is in error.",
+        "evidence_detail": "Dispatch includes both message types. Each supported descriptor/filter reaches acceptReservation; failed admission sends ResvErr, retaining the accepted RSB and setting InPlace when old state exists. removeReservation withdraws forwarding and reservation resources, retains PSB and relays a ResvTear to stored previous hops. DecodeMessage ignores PathTear TSPEC/ADSPEC and ResvTear FLOWSPEC bodies.",
+        "caveat": "Not multicast/WF completeness or runtime proof. Source also has blockade handling; its presence does not establish every blockade obligation."
+      },
+      {
+        "summary_source": "rfc/short/rfc2205.md::policy-control absent-feature declaration",
+        "claim": "Local address-based reservation policy is implemented; authenticated POLICY_DATA interpretation remains absent.",
+        "kind": "capability",
+        "state": "implemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/policy.go::reservationPolicy.allows,parseReservationPolicy",
+          "internal/plugins/rsvpte/engine.go::handlePath",
+          "internal/plugins/rsvpte/reservation.go::acceptReservation"
+        ],
+        "primary_section": "RFC 2205 §2.7",
+        "primary_quote": "These two decisions are termed the \"admission control\" decision and the \"policy control\" decision, respectively, and both must be favorable in order for RSVP to make a reservation.",
+        "evidence_detail": "Ordered sender/endpoint prefix rules return permit/deny; handlePath and acceptReservation enforce the result before state/resource acceptance; reservation acceptance also requires admission.reserve and native installation.",
+        "caveat": "This is network-address authorization, not user authentication or credential processing. The unconditional policy decision must not be excluded merely because a richer policy feature is absent; full §2.7 satisfaction remains unverified."
+      },
+      {
+        "summary_source": "rfc/short/rfc2205.md::refresh-timing declarations",
+        "claim": "Received periods and immediate supported-state relays exist, but synchronization avoidance, lifetime floor and bounded slew remain unimplemented.",
+        "kind": "requirement",
+        "state": "unimplemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/reservation.go::receivedPathState,receivedReservation,acceptReservation",
+          "internal/plugins/rsvpte/engine.go::handlePathTransit",
+          "internal/plugins/rsvpte/register.go::runRefreshLoop,adoptedRefreshPeriod,cleanupTick",
+          "internal/plugins/rsvpte/fsm.go::expiredPSBs"
+        ],
+        "primary_section": "RFC 2205 §3.7 items 1,2,5",
+        "primary_quote": "Since RSVP sends periodic refresh messages, it must avoid message synchronization and ensure that any synchronization that may occur is not stable. To avoid premature loss of state, L must satisfy L >= (K + 0.5)*1.5*R, where K is a small integer. Specifically, the ratio of two successive values R2/R1 must not exceed 1 + Slew.Max.",
+        "evidence_detail": "Received PSB/RSB store receivedRefreshPeriod; transit PATH and accepted transit RESV relay immediately, including immediate RESV on RRO withdrawal. runRefreshLoop uses a fixed ticker without jitter; expiredPSBs multiplies received R by factor; adoptedRefreshPeriod returns configured R in one step.",
+        "caveat": "Known timing defects retained, not repaired. 'Refresh loop forwards on tick only' is false as a blanket statement about state propagation. No claim that all immediate-update cases are conformant."
+      },
+      {
+        "summary_source": "rfc/short/rfc2205.md and rfc/short/rfc3209.md::native-transport remaining proof",
+        "claim": "Native Router Alert, source/TTL, selected-link carriage and receive metadata are implemented; proof must be split by observed scenario.",
+        "kind": "capability",
+        "state": "implemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/transport_linux.go::openSockets,SendPath,Send,receivedIPv4Packet"
+        ],
+        "primary_section": "RFC 2205 §3.11.5",
+        "primary_quote": "RSVP must be able to specify the IP source address and IP TTL to be used when sending Path messages.",
+        "evidence_detail": "SendPath builds IPv4 source/destination/TTL and Router Alert bytes, pins IfIndex with IP_PKTINFO and sends via explicit native lookup. openSockets enables IP_ROUTER_ALERT/IP_PKTINFO; receivedIPv4Packet returns source, destination, TTL and receiving ifindex.",
+        "caveat": "Source is not runtime evidence. attempt-014 covers coupled Ze-to-Ze/kernel operation, not every transport requirement's mutation contrast."
+      },
+      {
+        "summary_source": "rfc/short/rfc2205.md::RFC2205-3-38",
+        "claim": "Address inventory is now joined to interface state.",
+        "kind": "capability",
+        "state": "implemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/transport_linux.go::LocalAddresses,ResolveRoute"
+        ],
+        "primary_section": "RFC 2205 §3.11.4",
+        "primary_quote": "RSVP must be able to learn what real and virtual interfaces are active, with their IP addresses.",
+        "evidence_detail": "LocalAddresses joins AddrList to LinkList by index and returns Address, IfIndex, Up and MTU. ResolveRoute rejects output links without FlagUp or positive MTU.",
+        "caveat": "This overturns the specific missing-join annotation; it does not prove every interface consumer filters by Up, nor all virtual-interface behavior."
+      },
+      {
+        "summary_source": "rfc/short/rfc2205.md::routing/interface integration remaining family",
+        "claim": "Received-interface loop checks, generic nonlocal-message forwarding and reverse-interface retention remain absent in the inspected RSVP producer.",
+        "kind": "capability",
+        "state": "unimplemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/engine.go::handlePacket,handlePathTransit,sendResv",
+          "internal/plugins/rsvpte/fsm.go::pathStateBlock",
+          "internal/plugins/rsvpte/transport_linux.go::Send"
+        ],
+        "primary_section": "RFC 2205 §3.11.5; summary's §2.9/§3.9 declarations",
+        "primary_quote": null,
+        "evidence_detail": "handlePacket does not feed pkt.IfIndex or received IP TTL to handlePath; pathStateBlock has outgoing Route but no received interface field; sendResv sends toward stored PHOP through Send's fresh route lookup. Dispatch lacks a generic nonlocal forwarding branch.",
+        "caveat": "Capability classification, not a fresh exhaustive conformance ruling. ResvConf has a separate relay path. Linux Router Alert interception is explicitly allowed by §3.11.5; absence of interception for arbitrary non-RA packets alone should not be promoted to an unconditional gap."
+      },
+      {
+        "summary_source": "rfc/short/rfc2205.md and rfc/short/rfc3209.md::non-RSVP-neighbor declarations",
+        "claim": "Non-RSVP-hop detection/knowledge remains unimplemented.",
+        "kind": "requirement",
+        "state": "unimplemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/engine.go::handlePacket,handlePath",
+          "internal/plugins/rsvpte/routing.go::resolveExplicitPath",
+          "internal/plugins/rsvpte/peer_identity.go::samePeer,peerInPrefix"
+        ],
+        "primary_section": "RFC 2205 §3.8; RFC 3209 §4.2.5",
+        "primary_quote": "RSVP must also test for the presence of non-RSVP hops in the path and pass this information to traffic control. This means that if a router has a neighbor that is known to not be RSVP capable, the router MUST NOT advertise the LABEL_REQUEST object when sending messages that pass through the non-RSVP routers.",
+        "evidence_detail": "The receive dispatcher does not compare received IP TTL with Send_TTL or retain a non-RSVP flag. Routing uses local/peer address membership, not RSVP capability, and no known-non-RSVP branch suppresses LABEL_REQUEST.",
+        "caveat": "Base detection is an applicable missing requirement; the TE suppression requirement is conditional on known capability. IGP address identity is not RSVP-capability knowledge."
+      },
+      {
+        "summary_source": "rfc/short/rfc2205.md::IntServ host-flow/multicast/WF/UDP declarations",
+        "claim": "IntServ host reservations, multicast/WF signaling and UDP encapsulation remain unimplemented capabilities.",
+        "kind": "capability",
+        "state": "unimplemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/message_validation.go::knownCType",
+          "internal/plugins/rsvpte/engine.go::handlePath,handleResv",
+          "internal/plugins/rsvpte/transport_linux.go::openSockets,SendPath"
+        ],
+        "primary_section": "RFC 2205 §§1,2,3.3 and Appendix C",
+        "primary_quote": null,
+        "evidence_detail": "Tunnel SESSION/filter/sender decoding admits C-Type 7 only; handlePath refuses requests without LABEL_REQUEST; handleResv rejects styles other than FF/SE; production transport opens IPv4 raw sockets and provides no UDP fallback.",
+        "caveat": "Not absence of every IntServ wire object: TSPEC/FLOWSPEC/ADSPEC handling exists. RFC4090 branch merging is not general multicast RSVP. Conditional host-without-raw-I/O duties must not be counted as unconditional router gaps."
+      },
+      {
+        "summary_source": "rfc/short/rfc3209.md::strict-hop adjacency/loose-hop expansion",
+        "claim": "Native strict/loose next-hop resolution is implemented, not CSPF.",
+        "kind": "capability",
+        "state": "implemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/routing.go::resolveReceivedPath,resolveOriginatingPath,resolveExplicitPath",
+          "internal/plugins/rsvpte/transport_linux.go::ResolveRoute",
+          "internal/plugins/rsvpte/engine.go::handlePath"
+        ],
+        "primary_section": "RFC 3209 §§4.3.3.1,4.3.4.1",
+        "primary_quote": "The path between a strict node and its preceding node MUST include only network nodes from the strict node and its preceding abstract node.",
+        "evidence_detail": "Resolver checks first abstract-node membership, consumes repeated local subobjects, reads target.Loose, obtains native next hop, checks membership in target/current abstract nodes, rejects nonadjacent strict transitions, and inserts actual adjacent next-hop /32 for loose expansion.",
+        "caveat": "Not full ERO conformance or TE path computation. Alias membership consumes IGP domains whose held publishers were not assessed. Native proof must be scoped to exercised topology."
+      },
+      {
+        "summary_source": "rfc/short/rfc3209.md::Hello skeleton declaration",
+        "claim": "RSVP Hello remains an absent optional signaling capability.",
+        "kind": "capability",
+        "state": "unimplemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/engine.go::handlePacket",
+          "internal/plugins/rsvpte/wire.go::DecodeMessage"
+        ],
+        "primary_section": "RFC 3209 §§3,5",
+        "primary_quote": "All new objects are OPTIONAL with respect to RSVP. An implementation can choose to support a subset of objects. The Hello extension is specifically designed so that one side can use the mechanism while the other side does not.",
+        "evidence_detail": "Engine dispatch implements message types 1–7 and no Hello state/ACK producer; known message and object controls confirm the searched corpus.",
+        "caveat": "No authorization to add Hello; Hello-conditional obligations are not unconditional baseline failures."
+      },
+      {
+        "summary_source": "rfc/short/rfc3209.md::ATM/Frame Relay label-range declarations",
+        "claim": "ATM and Frame Relay range signaling remain absent.",
+        "kind": "capability",
+        "state": "unimplemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/message_validation.go::knownCType",
+          "internal/plugins/rsvpte/wire.go::encodeLabelRequest,decodeLabelRequest"
+        ],
+        "primary_section": "RFC 3209 §4.1.1.1",
+        "primary_quote": "If a label range has been specified in the label request, the label MUST be drawn from that range.",
+        "evidence_detail": "knownCType accepts LABEL_REQUEST C-Type 1 only; encoder/decoder carry reserved bytes and L3PID, no ranges or M-bit.",
+        "caveat": "Absent media-specific variants, not failure to honor a range Ze accepted. LABEL_REQUEST itself is mandatory for RSVP-TE and is implemented."
+      },
+      {
+        "summary_source": "rfc/short/rfc3209.md::IPv6 capability and reserved-field proof",
+        "claim": "IPv6 LSP_TUNNEL codec remains absent; IPv4 output cannot prove IPv6 reserved fields.",
+        "kind": "capability",
+        "state": "unimplemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/message_validation.go::knownCType",
+          "internal/plugins/rsvpte/wire.go::encodeSessionIPv4,encodeSenderIdentity",
+          "internal/plugins/rsvpte/transport_linux.go::SendPath"
+        ],
+        "primary_section": "RFC 3209 §§4.6.1.2,4.6.2.2",
+        "primary_quote": null,
+        "evidence_detail": "Encoders emit C-Type 7 and four-byte addresses; knownCType rejects C-Type 8; native SendPath requires IPv4. The primary IPv6 reserved-field obligation is in the wire diagram ('MUST be zero'), not a prose sentence.",
+        "caveat": "Do not fabricate a whole RFC sentence for a diagram. The existing IPv4 test is neither IPv6 implementation nor IPv6 proof."
+      },
+      {
+        "summary_source": "rfc/short/rfc3209.md::resource-affinity declarations",
+        "claim": "Affinity-mask interpretation/link validation remain unimplemented despite opaque forwarding and loose-hop routing.",
+        "kind": "requirement",
+        "state": "unimplemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/frr.go::decodeSessionAttr",
+          "internal/plugins/rsvpte/routing.go::resolveExplicitPath",
+          "internal/plugins/rsvpte/engine.go::handlePathTransit"
+        ],
+        "primary_section": "RFC 3209 §4.7.4",
+        "primary_quote": "When a new reservation is considered for admission over a strict node in an ERO, a node MAY validate the resource affinities with the resource classes of that link. When a node is choosing links in order to extend a loose node of an ERO, the node MUST validate the resource classes of those links against the resource affinities.",
+        "evidence_detail": "decodeSessionAttr skips twelve affinity bytes; transit retains raw SESSION_ATTRIBUTE; resolveExplicitPath now extends loose nodes but consults no affinity masks/resource classes.",
+        "caveat": "Do not blanket-exclude this as optional just because masks are not decoded: loose-hop extension now exists. Scope/applicability must retain the quoted strict-versus-loose distinction; no authorization to implement affinities."
+      },
+      {
+        "summary_source": "rfc/short/rfc3209.md::per-sender policing",
+        "claim": "Per-sender traffic policing remains an absent capability.",
+        "kind": "capability",
+        "state": "unimplemented",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/reservation.go::acceptReservation,installReservation",
+          "internal/plugins/rsvpte/fib.go::busFIB.programPush,busFIB.programSwap,busFIB.programPop"
+        ],
+        "primary_section": "RFC 3209 §4.1.1.1",
+        "primary_quote": "Note that if a node intends to police individual senders to a session, it MUST assign unique labels to those senders.",
+        "evidence_detail": "Reservation acceptance performs admission and forwarding installation; FIB operations carry labels, next hop and path MTU, not sender policer configuration.",
+        "caveat": "Distinct label allocation is not evidence of policing. Conditional unique-label duty must not be relabeled an unconditional missing-policer requirement."
+      },
+      {
+        "summary_source": "rfc/short/rfc3209.md::§2.6 fragmentation and native MTU declaration",
+        "claim": "Full stack fragmentation behavior remains unresolved by this source-only investigation; MTU programming itself now exists.",
+        "kind": "proof",
+        "state": "unresolved",
+        "producer_files_symbols": [
+          "internal/plugins/rsvpte/reservation.go::reservationPathMTU,installReservation",
+          "internal/plugins/rsvpte/fib.go::busFIB.programPush,busFIB.programSwap,busFIB.programPop"
+        ],
+        "primary_section": "RFC 3209 §2.6",
+        "primary_quote": null,
+        "evidence_detail": "programSwap and other native FIB entries now carry PathMTU. RFC §2.6's full conditional algorithm requires fragmenting oversized DF-clear IPv4 packets and labeling/forwarding each fragment. Source for Linux packet fragmentation was not inspected, and no DF-clear runtime result was supplied by the retained attempt-014 record.",
+        "caveat": "Do not promote bounded exact-fit/DF nonforwarding evidence to the full algorithm. Preserve the declared stack gap pending Main's lower-layer evidence; current RSVP Go source alone cannot independently validate the summary's Linux-wide drop assertion."
+      },
+      {
+        "summary_source": "rfc/short/rfc2205.md and rfc/short/rfc3209.md::runtime/interop remaining proof",
+        "claim": "Coupled native RSVP proof exists, but independent RSVP-peer interop and complete requirement discrimination remain unresolved.",
+        "kind": "proof",
+        "state": "unresolved",
+        "producer_files_symbols": [
+          "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/shutdown-owner-native-proof-001.json::observed_paths,limits"
+        ],
+        "primary_section": null,
+        "primary_quote": null,
+        "evidence_detail": "Retained attempt-014 records exact_test_pass, aggregate_pass, exit 0 and completed body assertions. Observed paths cover old generation retirement through bypass a, replacement establishment/withdrawal through b, retained delivery after removing a, stale-mark isolation and successful daemon shutdown.",
+        "caveat": "Preserved historical evidence, not rerun here. Explicit record limit: native Ze-to-Ze forwarding with injected confirmation is not independent RSVP-peer interoperability or full RFC conformance."
+      }
+    ],
+    "doc_disagreements": [
+      {
+        "page": "rfc/short/rfc2205.md",
+        "sentence": "Receive-side checksum verification remains unimplemented.",
+        "producer": "wire.go::DecodeMessage",
+        "correction": "Implemented for nonzero checksums; zero denotes omitted checksum. Runtime/discrimination scope remains separate."
+      },
+      {
+        "page": "rfc/short/rfc2205.md",
+        "sentence": "the receive path runs none of these checks",
+        "producer": "message_validation.go::checkObjectPlacement,appendFilter,checkFlowDescriptors; engine.go::handlePathTear; reservation.go::handleResvTear; wire.go::decodeSessionIPv4",
+        "correction": "Replace per annotation: supported grammar, descriptor and state-identity checks now exist; do not retain blanket absence."
+      },
+      {
+        "page": "rfc/short/rfc2205.md",
+        "sentence": "the receive path does not enforce %4",
+        "producer": "wire.go::decodeObjectHeader",
+        "correction": "Received object alignment is explicitly enforced."
+      },
+      {
+        "page": "rfc/short/rfc2205.md",
+        "sentence": "Ze builds no ResvErr and handles no ResvTear",
+        "producer": "reservation_build.go::buildReservationControl,sendResvError; reservation.go::handleResvTear",
+        "correction": "Both are implemented for supported FF/SE LSP state; full RFC/runtime proof remains distinct."
+      },
+      {
+        "page": "rfc/short/rfc2205.md",
+        "sentence": "Ze runs admission control and no policy control",
+        "producer": "policy.go::reservationPolicy.allows; reservation.go::acceptReservation",
+        "correction": "Local sender/endpoint policy is enforced alongside admission; credential interpretation is not implemented."
+      },
+      {
+        "page": "rfc/short/rfc2205.md",
+        "sentence": "the refresh loop forwards on tick only, jitters nothing, and uses K*R and a one-step slew",
+        "producer": "engine.go::handlePathTransit; reservation.go::acceptReservation; register.go::runRefreshLoop,adoptedRefreshPeriod; fsm.go::expiredPSBs",
+        "correction": "Immediate supported-state relay exists; no-jitter, K*R and one-step-slew findings remain."
+      },
+      {
+        "page": "rfc/short/rfc2205.md",
+        "sentence": "native assigned-address inventory is available, but it is not joined to active-interface state",
+        "producer": "transport_linux.go::LocalAddresses",
+        "correction": "Address and link inventories are joined and Up/MTU returned; consumer-wide active-state behavior remains separate."
+      },
+      {
+        "page": "rfc/short/rfc3209.md",
+        "sentence": "Strict-hop adjacency and loose-hop expansion remain unimplemented",
+        "producer": "routing.go::resolveExplicitPath",
+        "correction": "Implemented as native next-hop resolution; not CSPF or proof of held IGP publishers."
+      },
+      {
+        "page": "rfc/short/rfc3209.md",
+        "sentence": "nextHopFromERO ignores the L-bit, checks no strict-hop adjacency and expands no loose hop",
+        "producer": "routing.go::resolveExplicitPath",
+        "correction": "Current producer reads Loose, rejects bad strict transitions and expands loose hops; old producer annotation is stale."
+      },
+      {
+        "page": "rfc/short/rfc3209.md",
+        "sentence": "programSwap installs the label operation and no MTU, so the no-forward decision reads nothing Ze writes",
+        "producer": "fib.go::busFIB.programSwap",
+        "correction": "Swap entries now carry PathMTU. This does not establish the complete lower-layer forwarding algorithm."
+      },
+      {
+        "page": "rfc/short/rfc2205.md; rfc/short/rfc3209.md",
+        "sentence": "runtime and discrimination evidence remain owed / native runtime and discrimination evidence still owed",
+        "producer": "shutdown-owner-native-proof-001.json::observed_paths,limits",
+        "correction": "Separate available attempt-014 coupled native proof from still-unverified individual requirement discrimination and foreign-peer interoperability."
+      },
+      {
+        "page": "rfc/short/rfc3209.md",
+        "sentence": "Admission control error: PathErr with Error Code 1 (Admission Control Failure).",
+        "producer": "reservation.go::acceptReservation; reservation_build.go::rejectReservation",
+        "correction": "Failed RESV admission sends ResvErr with code 1; not a universal PathErr response."
+      },
+      {
+        "page": "docs/architecture/rsvpte/mpls-rsvp-te.md",
+        "sentence": "the neighbor recomputes its lifetime from it",
+        "producer": "register.go::adoptedRefreshPeriod; fsm.go::expiredPSBs",
+        "correction": "This is a protocol expectation for the neighbor, not foreign-peer proof. The page correctly retains the two known timing defects."
+      }
+    ],
+    "limits": "No source/test body was treated as runtime proof. No commands, edits, tests, builds, lint, format, Git or implementation proposals. No held OSPF/IS-IS producer investigation. The guide's already-known universal PathErr issue was not reopened. Primary excerpts were read locally; source classifications can be overturned by reachable alternative producers or durable, explicitly scoped runtime records."
+  }
+}

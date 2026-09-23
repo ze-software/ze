@@ -1,0 +1,8 @@
+error: * rfc/short/draft-ietf-sidrops-aspa-verification.md:351: id 'DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1' disagrees with its section (§5.2); expected DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.2-<n>. The id is anchored to the section it cites, so the two can never drift apart
+* rfc/short/rfc1334.md:246: id 'RFC1334-2.2-1' disagrees with its section (§2.2.1); expected RFC1334-2.2.1-<n>. The id is anchored to the section it cites, so the two can never drift apart
+* rfc/short/rfc7311.md:136: id 'RFC7311-3.2-1' disagrees with its section (§3.4.1); expected RFC7311-3.4.1-<n>. The id is anchored to the section it cites, so the two can never drift apart
+* rfc/short/rfc7854.md:114: id 'RFC7854-x-5' disagrees with its section (§4.2); expected RFC7854-4.2-<n>. The id is anchored to the section it cites, so the two can never drift apart
+* rfc/short/rfc8414.md:85: id 'RFC8414-3.3-1' disagrees with its section (§3); expected RFC8414-3-<n>. The id is anchored to the section it cites, so the two can never drift apart
+* rfc/short/rfc8707.md:91: id 'RFC8707-3-1' disagrees with its section (§x); expected RFC8707-x-<n>. The id is anchored to the section it cites, so the two can never drift apart
+* rfc/short/rfc8907.md:384: id 'RFC8907-4.6-1' disagrees with its section (§4.5); expected RFC8907-4.5-<n>. The id is anchored to the section it cites, so the two can never drift apart
+rfc-requirements: refusing to write: a summary did not parse, so its requirements are absent from this render and the prune would delete that RFC's file. Fix the summary, then re-run

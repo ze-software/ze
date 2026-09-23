@@ -268,8 +268,13 @@
       "boundary": "CHAP-MD5 challenge/response/success precedes IPCP; native address, ping-command, peer departure and cleanup assertions pass. Wrong-secret CHAP refusal is separately observed, but a complete live no-IPCP/no-forwarding negative oracle is still absent."
     },
     {
+      "behavior": "Native MPLS path MTU, fragmentation progress and IPv4 RR/TS option preservation",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/kernel-mtu-preparation/native-proof-008.json",
+      "boundary": "The unchanged canonical carrier fails on first-fragment RR/TS corruption and an empty DF-set quoted RR slot before the fix. A freshly built Linux 7.2 kernel passes all three parent tests and nine leaf cases without skips. Covers push/transit path and link limits, reassembly, IPv4/IPv6 errors, progress and both option paths. Shared-fragment/GSO execution, route-metric replacement, IPv6 error source selection and complete RFC conformance remain unverified."
+    },
+    {
       "behavior": "Coupled native RSVP signaling, generation withdrawal and isolated bypass forwarding",
-      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix//shutdown-owner-native-proof-001.json",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/tunnel-generation-fix/shutdown-owner-native-proof-001.json",
       "boundary": "Exact native scenario passed in 17.57 seconds without skips on Linux 7.2. Proves protected generation retirement, surviving generation withdrawal, retained bypass delivery, stale-mark rejection with ordinary positive controls, and head-end shutdown. Independent RSVP-peer interoperability and full RFC conformance remain unverified."
     }
   ],
@@ -283,7 +288,8 @@
     "Remaining OSPF, IS-IS, FlowSpec, EVPN/MUP/SRv6 and gateway changes lack a completed, current end-to-end baseline.",
     "Credentialed L2TP wrong-secret run observes explicit local CHAP rejection and independent peer CHAP Failure, but does not prove the bounded live no-IPCP/no-forwarding conjunction. The positive runner intentionally remains failed, not relabelled a negative pass. Evidence: plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/wrong-secret-observation-001.json.",
     "The changed PPP IPv6 phase claim still lacks a fresh native discrimination record. The canonical PPP package cannot compile because manager_test.go redeclares reg and pair. Bounded lifecycle tests and native IPv4 restart do not replace that record.",
-    "The final assignment-change lint run is red on BGP and PPP test compilation and style findings. It retains three findings in the native LCP fixture: strings.Cut modernization and two capitalized error messages. Full output: plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/lint-current-033-full.log."
+    "Native MPLS MTU proof is bounded to the recorded nine cases. Shared-fragment/GSO execution, route-metric replacement and IPv6 error source selection have no runtime assertion in that carrier.",
+    "The final changed-carrier lint run is red on BGP and PPP test compilation and existing style findings. No lint finding names the new MTU carrier, but compilation failures prevent a clean lint claim. Full output: plan/verification-evidence/2026-09-22-baseline/kernel-mtu-preparation/lint-006.stdout."
   ],
   "unimplemented_requirement_records": [
     {
@@ -306,6 +312,55 @@
       "producer": "internal/plugins/flowexport/sender.go: NewSender and Send",
       "primary_requirement": "RFC 7011 Section 11.1: IPFIX Exporting Processes and Collecting Processes using UDP or SCTP MUST support DTLS version 1.0 and SHOULD support DTLS version 1.2 [RFC6347], including the mandatory ciphersuite(s) specified in each version.",
       "evidence": "plan/verification-evidence/2026-09-22-baseline/flow-gap-classification.json"
+    },
+    {
+      "source": "rfc/short/rfc1661.md",
+      "record": "RFC1661-2-2, RFC1661-5-1 and RFC1661-5.6-3: Code-Reject lacks the smaller negotiated peer-MRU clamp. Protocol-Reject has a separate clamp.",
+      "producer": "internal/component/l2tp/ppp/session_run.go: sendCodeReject, sendProtocolReject and writeFrame",
+      "primary_requirement": "RFC 1661 Section 5.6: The Rejected-Packet MUST be truncated to comply with the peer's established MRU.",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/ppp-declared-gap-source-report.json"
+    },
+    {
+      "source": "rfc/short/rfc1661.md",
+      "record": "RFC1661-5.6-2: Code-Reject copies the rejected packet's identifier instead of selecting a new identifier for each response.",
+      "producer": "internal/component/l2tp/ppp/session_run.go: sendCodeReject",
+      "primary_requirement": "RFC 1661 Section 5.6: The Identifier field MUST be changed for each Code-Reject sent.",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/ppp-declared-gap-source-report.json"
+    },
+    {
+      "source": "rfc/short/rfc1661.md",
+      "record": "RFC1661-4.3-3 and RFC1661-5.7-2: RXJ+ processing retains no offending-code or rejected-protocol suppression state.",
+      "producer": "internal/component/l2tp/ppp/session_run.go: codeToEvent, handleLCPPacket, performAction and sendEchoRequest",
+      "primary_requirement": "RFC 1661 Section 4.3: The implementation MUST stop sending the offending packet type. Section 5.7: Upon reception of a Protocol-Reject, the implementation MUST stop sending packets of the indicated protocol at the earliest opportunity.",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/ppp-declared-gap-source-report.json"
+    },
+    {
+      "source": "rfc/short/rfc1661.md",
+      "record": "RFC1661-4.6-1 through RFC1661-4.6-4: restart timing and limits are not configurable. Max-Failure also lacks the counter and Nak-to-Reject threshold.",
+      "producer": "internal/component/l2tp/ppp/session_run.go: armRestartTimer, applyTransition and sendConfigureNakOrReject; internal/component/l2tp/ppp/start_session.go: StartSession",
+      "primary_requirement": "RFC 1661 Section 4.6: The Restart timer MUST be configurable, but SHOULD default to three (3) seconds. Max-Terminate MUST be configurable, but SHOULD default to two (2) transmissions. Max-Configure MUST be configurable, but SHOULD default to ten (10) transmissions. Max-Failure MUST be configurable, but SHOULD default to five (5) transmissions.",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/ppp-declared-gap-source-report.json"
+    },
+    {
+      "source": "rfc/short/rfc2205.md",
+      "record": "RFC2205-3-26, RFC2205-3-27 and RFC2205-3-28: the fixed refresh ticker has no synchronization avoidance, expiry uses factor times received R without enforcing the required floor, and a configured period increase is adopted in one step.",
+      "producer": "internal/plugins/rsvpte/register.go: runRefreshLoop and adoptedRefreshPeriod; internal/plugins/rsvpte/fsm.go: expiredPSBs",
+      "primary_requirement": "RFC 2205 Section 3.7: Since RSVP sends periodic refresh messages, it must avoid message synchronization and ensure that any synchronization that may occur is not stable. To avoid premature loss of state, L must satisfy L >= (K + 0.5)*1.5*R, where K is a small integer. Specifically, the ratio of two successive values R2/R1 must not exceed 1 + Slew.Max.",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-declared-gap-source-report.json"
+    },
+    {
+      "source": "rfc/short/rfc2205.md",
+      "record": "RFC2205-3-30: PATH processing does not compare received IP TTL with Send_TTL or retain non-RSVP-hop knowledge. RFC3209-4.2.5-1's suppression obligation is conditional on known non-RSVP capability, not a claim that address identity provides that knowledge.",
+      "producer": "internal/plugins/rsvpte/engine.go: handlePacket and handlePath; internal/plugins/rsvpte/routing.go: resolveExplicitPath",
+      "primary_requirement": "RFC 2205 Section 3.8: RSVP must also test for the presence of non-RSVP hops in the path and pass this information to traffic control.",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-declared-gap-source-report.json"
+    },
+    {
+      "source": "rfc/short/rfc3209.md",
+      "record": "RFC3209-4.7.4-1 and RFC3209-4.7.4-2: SESSION_ATTRIBUTE affinity masks are skipped and native loose-hop extension does not validate link resource classes against them. The strict-hop MAY is distinct from this loose-hop MUST.",
+      "producer": "internal/plugins/rsvpte/frr.go: decodeSessionAttr; internal/plugins/rsvpte/routing.go: resolveExplicitPath",
+      "primary_requirement": "RFC 3209 Section 4.7.4: When a node is choosing links in order to extend a loose node of an ERO, the node MUST validate the resource classes of those links against the resource affinities.",
+      "evidence": "plan/verification-evidence/2026-09-22-baseline/rsvp-declared-gap-source-report.json"
     }
   ],
   "unimplemented_capability_records": [
@@ -315,10 +370,64 @@
       "record": "The accounting owner subscribes to L2TP IP-assigned and down events, not the shared subscriber events. PPPoE accounting is not connected.",
       "documentation": "docs/architecture/l2tp/subscriber-session-model.md",
       "scope": "Recorded absence, not implementation authorization or an RFC conformance verdict."
+    },
+    {
+      "capability": "PPP Discard-Request sender",
+      "producer": "internal/component/l2tp/ppp/session_run.go: performAction and handleLCPPacket",
+      "record": "Receive handling exists; no Discard-Request sender exists. Sender-only identifier obligations are conditional.",
+      "scope": "Recorded absence, not implementation authorization or an unconditional conformance failure."
+    },
+    {
+      "capability": "RSVP Hello",
+      "producer": "internal/plugins/rsvpte/engine.go: handlePacket",
+      "record": "Receive dispatch has no Hello handler or acknowledgement producer.",
+      "scope": "Recorded optional capability absence, not implementation authorization."
+    },
+    {
+      "capability": "RSVP ATM and Frame Relay label ranges",
+      "producer": "internal/plugins/rsvpte/message_validation.go: knownCType",
+      "record": "LABEL_REQUEST admits C-Type 1, not the media-specific range variants.",
+      "scope": "Recorded absence; range-conditional obligations are not unconditional baseline failures."
+    },
+    {
+      "capability": "RSVP IPv6 LSP_TUNNEL signaling",
+      "producer": "internal/plugins/rsvpte/message_validation.go: knownCType; internal/plugins/rsvpte/wire.go: decodeSessionIPv4",
+      "record": "Tunnel SESSION and sender/filter decoding accept IPv4 C-Type 7, not IPv6 C-Type 8. An IPv4 reserved-field test does not prove IPv6 behavior.",
+      "scope": "Recorded absence, not implementation authorization."
+    },
+    {
+      "capability": "RSVP per-sender traffic policing",
+      "producer": "internal/plugins/rsvpte/reservation.go: acceptReservation and installReservation",
+      "record": "Reservation acceptance programs forwarding and bandwidth admission, not sender policers.",
+      "scope": "Recorded absence; conditional unique-label requirements are not proof that a policer exists."
+    },
+    {
+      "capability": "RSVP IntServ host reservations",
+      "producer": "internal/plugins/rsvpte/engine.go: handlePath; internal/plugins/rsvpte/message_validation.go: knownCType",
+      "record": "The accepted session is an LSP tunnel and PATH without LABEL_REQUEST is refused. TSPEC, FLOWSPEC and ADSPEC support does not implement general host reservations.",
+      "scope": "Recorded absence, not implementation authorization."
+    },
+    {
+      "capability": "RSVP multicast and wildcard-filter reservations",
+      "producer": "internal/plugins/rsvpte/wire.go: decodeSessionIPv4; internal/plugins/rsvpte/engine.go: handleResv",
+      "record": "Tunnel endpoints must be unicast and supported reservation styles are FF and SE.",
+      "scope": "Recorded absence, not implementation authorization."
+    },
+    {
+      "capability": "Authenticated RSVP POLICY_DATA interpretation",
+      "producer": "internal/plugins/rsvpte/policy.go: reservationPolicy.allows; internal/plugins/rsvpte/wire.go: DecodeMessage",
+      "record": "Local policy evaluates sender and endpoint prefixes. POLICY_DATA is retained for forwarding, not interpreted as credentials.",
+      "scope": "Distinct from the implemented local policy decision; not implementation authorization."
+    },
+    {
+      "capability": "RSVP UDP encapsulation",
+      "producer": "internal/plugins/rsvpte/transport_linux.go: openSockets and SendPath",
+      "record": "The native carrier uses IPv4 raw sockets and has no UDP encapsulation fallback.",
+      "scope": "Recorded absence; host-without-raw-I/O obligations are conditional."
     }
   ],
-  "gap_record_limit": "The three flow gaps were checked against their current producers and primary RFC clauses. Older PPP/RSVP summary declarations are recorded separately pending source validation, not asserted as currently absent behavior. Missing test coverage alone does not prove missing implementation. These are the scoped known-gap records, not a complete RFC inventory. No entry authorizes implementation or a full conformance count.",
-  "metadata_status": "plan/verification-evidence/2026-09-22-baseline/reviewed-metadata-status.json",
+  "gap_record_limit": "These scoped flow, PPP and RSVP records distinguish source-confirmed missing enforcement, absent capabilities and incomplete proof. Main checked the named producers and primary clauses for the requirement records. The retained scout reports are source investigations, not runtime proof. Missing tests alone do not establish missing implementation. This is not a complete RFC inventory, and no record authorizes feature implementation or a full conformance count.",
+  "metadata_status": "plan/verification-evidence/2026-09-22-baseline/metadata-final-state.json",
   "observed_failures_before_minimal_build_repairs": [
     "Documentation verification cannot build the live catalog: undefined ppp.CloseFD in reactor_kernel.go.",
     "RSVP engine.go calls undefined refreshPeriod; show_data.go still assigns float64 bandwidth to float32 fields.",
@@ -363,15 +472,11 @@
   "declared_gap_records_pending_source_validation": [
     {
       "source": "rfc/short/rfc1661.md",
-      "record": "Support remaining records configurable restart limits and remaining PPP phase/framing obligations."
-    },
-    {
-      "source": "rfc/short/rfc2205.md",
-      "record": "Support remaining records unfinished RSVP obligations, including refresh timing and missing runtime proof."
-    },
-    {
-      "source": "rfc/short/rfc3209.md",
-      "record": "Support remaining records absent Hello, ATM/Frame Relay, IPv6 signaling and other features. Existing planning records do not authorize implementation."
+      "record": "Compressed Protocol reception remains unresolved at the actual Linux PPP boundary and under applicable directional negotiation. The Go parser's two-octet input alone does not establish whole-stack nonconformance."
     }
+  ],
+  "declared_gap_source_reports": [
+    "plan/verification-evidence/2026-09-22-baseline/ppp-declared-gap-source-report.json",
+    "plan/verification-evidence/2026-09-22-baseline/rsvp-declared-gap-source-report.json"
   ]
 }

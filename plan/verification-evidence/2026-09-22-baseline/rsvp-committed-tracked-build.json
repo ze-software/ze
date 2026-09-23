@@ -1,0 +1,43 @@
+{
+  "commit": "2dc7ec1802f1",
+  "argv": [
+    "./le",
+    "repository",
+    "tracked-build",
+    "check"
+  ],
+  "result": "passed",
+  "flavors": [
+    {
+      "name": "distro",
+      "seconds": 19.2,
+      "packages": 793
+    },
+    {
+      "name": "test-runner",
+      "seconds": 13.8,
+      "packages": 793
+    },
+    {
+      "name": "appliance",
+      "seconds": 15,
+      "packages": 793
+    },
+    {
+      "name": "setup",
+      "seconds": 11.9,
+      "packages": 792
+    },
+    {
+      "name": "host",
+      "seconds": 10.6,
+      "packages": 792
+    },
+    {
+      "name": "installer",
+      "seconds": 7.9,
+      "packages": 793
+    }
+  ],
+  "limit": "Committed-source compilation only; not complete protocol or test-suite proof."
+}

@@ -1,0 +1,11 @@
+{
+  "started": "2026-09-23T07:00:03.311Z",
+  "argv": [
+    "./le",
+    "rfc",
+    "index-update"
+  ],
+  "scope": "Regenerate derived requirement tables after the bounded PPP/RSVP implementation-versus-proof corrections; this does not validate RFC conformance.",
+  "finished": "2026-09-23T07:00:44.505Z",
+  "exit": 2
+}
