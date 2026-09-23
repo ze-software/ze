@@ -91,16 +91,16 @@ func TestSFlowDatagramHeaderIPv6(t *testing.T) {
 }
 
 // RFC requirement: SFLOW-V5-x-4 positive -- one sub-agent keeps its own sequence space: the per-agent datagram sequence advances 1,2,3 (encoder.go:98,110) while each per-source (ifIndex) sample sequence is tracked independently in seqNums (encoder.go:132-134).
-// RFC requirement: SFLOW-V5-x-5 positive -- a counter batch too large for one datagram spills into a second (encoder.go:120-123) and every emitted datagram stays within the 1400-byte MaxDatagramSize path-MTU cap (sender.go:14).
+// RFC requirement: SFLOW-V5-x-5 positive -- a counter batch too large for the caller's 1400-byte payload bound spills into another datagram, and each emitted datagram stays within that configured bound.
 func TestSFlowMultiInterface(t *testing.T) {
 	buf := make([]byte, flowexport.MaxDatagramSize)
 	agent := netip.MustParseAddr("10.0.0.1")
 	seqNums := make(map[uint32]uint32)
 
-	// CounterSampleSize() = 20 + 8 + 88 = 116 bytes per interface
+	// CounterSampleSize() = 24 + 8 + 88 = 120 bytes per interface.
 	// Header = 28 bytes
 	// Available = 1400 - 28 = 1372 bytes
-	// 1372 / 116 = 11.82, so 11 interfaces fit per datagram
+	// 1372 / 120 rounds down to 11 interfaces per datagram.
 	ifaces := make([]flowexport.InterfaceCounters, 15)
 	for i := range ifaces {
 		ifaces[i] = flowexport.InterfaceCounters{
@@ -122,8 +122,7 @@ func TestSFlowMultiInterface(t *testing.T) {
 		t.Fatalf("expected 2 datagrams, got %d", len(datagrams))
 	}
 
-	// SFLOW-V5-x-5: no emitted datagram may exceed the path-MTU cap; the overflow
-	// into a second datagram above is precisely what keeps each one bounded.
+	// SFLOW-V5-x-5: splitting preserves the configured payload bound.
 	for i, dg := range datagrams {
 		if len(dg) > flowexport.MaxDatagramSize {
 			t.Errorf("datagram %d size %d exceeds MaxDatagramSize %d", i, len(dg), flowexport.MaxDatagramSize)
@@ -166,7 +165,7 @@ func TestSFlowMultiInterface(t *testing.T) {
 		}
 	}
 
-	// First datagram size check: header(28) + 11 * sample(116) = 28 + 1276 = 1304
+	// First datagram size: header(28) + 11 * sample(120) = 1348.
 	expectedSize1 := HeaderSizeIPv4 + 11*counterSampleSize()
 	if len(dg1) != expectedSize1 {
 		t.Errorf("datagram 1 size: expected %d, got %d", expectedSize1, len(dg1))
@@ -222,5 +221,62 @@ func TestSFlowSingleInterface(t *testing.T) {
 	// Verify num_samples = 1
 	if v := binary.BigEndian.Uint32(dg[24:]); v != 1 {
 		t.Errorf("num_samples: expected 1, got %d", v)
+	}
+}
+
+// TestSFlowCounterExpandedChunkBoundary decodes samples across a split that
+// compact-size accounting would miss, and checks an exactly full datagram.
+func TestSFlowCounterExpandedChunkBoundary(t *testing.T) {
+	ifaces := []flowexport.InterfaceCounters{
+		{IfIndex: 0x00FFFFFF},
+		{IfIndex: 0x01000000},
+		{IfIndex: 0xFFFFFFFF},
+	}
+	for _, limit := range []int{267, 268} {
+		buf := make([]byte, limit)
+		datagrams, _ := writeCounterDatagrams(buf, testAgent, 0, 1, 0, ifaces, make(map[uint32]uint32))
+		wantDatagrams := 2
+		if limit == 267 {
+			wantDatagrams = 3
+		}
+		if len(datagrams) != wantDatagrams {
+			t.Fatalf("limit %d: datagrams = %d, want %d", limit, len(datagrams), wantDatagrams)
+		}
+		source := 0
+		for _, dg := range datagrams {
+			if len(dg) > limit {
+				t.Fatalf("datagram length = %d, limit %d", len(dg), limit)
+			}
+			off := 28
+			count := binary.BigEndian.Uint32(dg[24:])
+			for range count {
+				if len(dg)-off < 24 {
+					t.Fatalf("truncated sample at %d", off)
+				}
+				format := binary.BigEndian.Uint32(dg[off:])
+				length := int(binary.BigEndian.Uint32(dg[off+4:]))
+				if format != 4 {
+					t.Fatalf("counter format = %d, want 4", format)
+				}
+				if got := binary.BigEndian.Uint32(dg[off+12:]); got != 0 {
+					t.Fatalf("source type = %d, want 0", got)
+				}
+				sourceOff := off + 16
+				if source >= len(ifaces) {
+					t.Fatal("unexpected extra counter sample")
+				}
+				if got := binary.BigEndian.Uint32(dg[sourceOff:]); got != ifaces[source].IfIndex {
+					t.Errorf("source %d = %#x, want %#x", source, got, ifaces[source].IfIndex)
+				}
+				source++
+				off += 8 + length
+			}
+			if off != len(dg) {
+				t.Fatalf("decoded end = %d, datagram length %d", off, len(dg))
+			}
+		}
+		if source != len(ifaces) {
+			t.Errorf("decoded %d sources, want %d", source, len(ifaces))
+		}
 	}
 }

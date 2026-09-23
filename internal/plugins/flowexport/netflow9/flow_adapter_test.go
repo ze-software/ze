@@ -38,7 +38,7 @@ func newLoopbackEncoderTarget(t *testing.T) (net.PacketConn, *flowexport.Sender)
 	if !ok {
 		t.Fatal("unexpected address type")
 	}
-	s, err := flowexport.NewSender("127.0.0.1", addr.Port, "")
+	s, err := flowexport.NewSender("127.0.0.1", addr.Port, "", flowexport.DatagramSizeDefault)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,6 +88,36 @@ func TestNetflow9FlowSeqNumPerPacket(t *testing.T) {
 	seq1 := binary.BigEndian.Uint32(dgs[1][12:])
 	if seq1-seq0 != 1 {
 		t.Errorf("sequence advanced by %d across two packets, want 1 (RFC 3954 counts packets, not records)", seq1-seq0)
+	}
+}
+
+// TestNetflow9FailedFlowSendDoesNotCreateLoss checks that a refused UDP
+// write leaves the current transport session's sequence unchanged.
+func TestNetflow9FailedFlowSendDoesNotCreateLoss(t *testing.T) {
+	pc, sender := newLoopbackEncoderTarget(t)
+	defer func() { _ = pc.Close() }()
+	defer func() { _ = sender.Close() }()
+	enc := NewFlowEncoder(0, time.Now())
+	flows := []flowexport.ConntrackFlow{{
+		SrcAddr: netip.MustParseAddr("192.0.2.1"),
+		DstAddr: netip.MustParseAddr("198.51.100.1"),
+	}}
+	if sent, err := enc.EncodeFlows(flows, sender); err != nil || sent != 1 {
+		t.Fatalf("initial export sent %d records, error %v", sent, err)
+	}
+	datagrams := recvDatagrams(t, pc, 1)
+	if len(datagrams) != 1 {
+		t.Fatalf("received %d datagrams, want 1", len(datagrams))
+	}
+	want := binary.BigEndian.Uint32(datagrams[0][12:]) + 1
+	if err := sender.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if sent, err := enc.EncodeFlows(flows, sender); err == nil || sent != 0 {
+		t.Fatalf("closed sender exported %d records, error %v", sent, err)
+	}
+	if seq := sender.Sequence(); seq != want {
+		t.Fatalf("failed sender sequence = %d, want %d", seq, want)
 	}
 }
 

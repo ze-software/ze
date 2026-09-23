@@ -12,7 +12,7 @@ import "net/netip"
 type FlowSample struct {
 	IfIndex  uint32
 	Rate     uint32 // 1-in-N sampling rate
-	OrigSize uint32 // original frame length on the wire
+	OrigSize uint32 // kernel packet length before sampling, excluding Ethernet FCS
 	Output   uint32 // egress ifIndex, 0 if unknown
 	Header   []byte // first trunc-size bytes of the sampled frame
 }

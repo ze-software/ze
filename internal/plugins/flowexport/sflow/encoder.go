@@ -70,9 +70,9 @@ func WriteDatagramHeader(buf []byte, off int, agentAddr netip.Addr, subAgentID, 
 
 // writeCounterDatagrams encodes one or more sFlow v5 datagrams containing
 // counter samples for the given interfaces. Each datagram is written into
-// buf (which must be at least MaxDatagramSize bytes). When the next counter
-// sample would overflow the datagram, a copy is made and a new datagram
-// is started.
+// buf, whose length is the datagram bound: the caller slices the pooled
+// buffer to the collector's max-datagram-size. When the next counter sample
+// would overflow the datagram, a copy is made and a new datagram is started.
 //
 // seqNums maps ifIndex to the per-source sequence number. Updated in place.
 // datagramSeq is the starting per-agent datagram sequence number.
@@ -117,15 +117,15 @@ func writeCounterDatagrams(buf []byte, agentAddr netip.Addr, subAgentID, datagra
 
 		// Check if this counter sample fits in the current datagram.
 		sampleSize := counterSampleSize()
-		if off+sampleSize > flowexport.MaxDatagramSize && sampleCount > 0 {
+		if off+sampleSize > len(buf) && sampleCount > 0 {
 			flushDatagram()
 			startDatagram()
 		}
 
 		// Overflow protection: single sample larger than datagram
-		// (should not happen with 1400 byte datagrams and ~116 byte samples,
+		// (cannot happen above the 464-octet floor with 120-byte samples,
 		// but guard against it).
-		if hdrSize+sampleSize > flowexport.MaxDatagramSize {
+		if hdrSize+sampleSize > len(buf) {
 			continue
 		}
 

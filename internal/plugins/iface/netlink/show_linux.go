@@ -52,30 +52,15 @@ func listLinks() ([]netlink.Link, error) {
 }
 
 func (b *netlinkBackend) ListInterfaces() ([]iface.InterfaceInfo, error) {
-	links, err := listLinks()
+	links, err := b.counters.snapshot("")
 	if err != nil {
 		return nil, fmt.Errorf("iface: list interfaces: %w", err)
 	}
 	result := make([]iface.InterfaceInfo, 0, len(links))
 	for _, link := range links {
-		info := linkToInfo(link)
-		info.Addresses = addrList(link)
-		// Populate raw kernel counters: the rate tracker and flow-export
-		// counter snapshot both consume Stats from ListInterfaces. Without
-		// this they see nil Stats and skip every interface.
-		if s := link.Attrs().Statistics; s != nil {
-			info.Stats = &iface.InterfaceStats{
-				RxBytes:     s.RxBytes,
-				RxPackets:   s.RxPackets,
-				RxErrors:    s.RxErrors,
-				RxDropped:   s.RxDropped,
-				RxMulticast: s.Multicast,
-				TxBytes:     s.TxBytes,
-				TxPackets:   s.TxPackets,
-				TxErrors:    s.TxErrors,
-				TxDropped:   s.TxDropped,
-			}
-		}
+		info := linkToInfo(link.link)
+		info.CounterGeneration = link.generation
+		info.Addresses = addrList(link.link)
 		result = append(result, info)
 	}
 	return result, nil
@@ -85,26 +70,16 @@ func (b *netlinkBackend) GetInterface(name string) (*iface.InterfaceInfo, error)
 	if err := iface.ValidateIfaceName(name); err != nil {
 		return nil, err
 	}
-	link, err := netlink.LinkByName(name)
+	links, err := b.counters.snapshot(name)
 	if err != nil {
 		return nil, fmt.Errorf("iface: get %q: %w", name, err)
 	}
-	info := linkToInfo(link)
-	info.Addresses = addrList(link)
-	s := link.Attrs().Statistics
-	if s != nil {
-		info.Stats = &iface.InterfaceStats{
-			RxBytes:     s.RxBytes,
-			RxPackets:   s.RxPackets,
-			RxErrors:    s.RxErrors,
-			RxDropped:   s.RxDropped,
-			RxMulticast: s.Multicast,
-			TxBytes:     s.TxBytes,
-			TxPackets:   s.TxPackets,
-			TxErrors:    s.TxErrors,
-			TxDropped:   s.TxDropped,
-		}
+	if len(links) != 1 {
+		return nil, fmt.Errorf("iface: get %q: expected one link, got %d", name, len(links))
 	}
+	info := linkToInfo(links[0].link)
+	info.CounterGeneration = links[0].generation
+	info.Addresses = addrList(links[0].link)
 	return &info, nil
 }
 
@@ -156,6 +131,21 @@ func linkToInfo(link netlink.Link) iface.InterfaceInfo {
 	if mv, ok := link.(*netlink.Macvlan); ok {
 		info.ParentIndex = attrs.ParentIndex
 		info.MacvlanMode = macvlanModeName(mv.Mode)
+	}
+	// Keep raw counters and their metadata in the same RTM_NEWLINK snapshot.
+	// Display baselines are applied later by iface, never by this producer.
+	if s := attrs.Statistics; s != nil {
+		info.Stats = &iface.InterfaceStats{
+			RxBytes:     s.RxBytes,
+			RxPackets:   s.RxPackets,
+			RxErrors:    s.RxErrors,
+			RxDropped:   s.RxDropped,
+			RxMulticast: s.Multicast,
+			TxBytes:     s.TxBytes,
+			TxPackets:   s.TxPackets,
+			TxErrors:    s.TxErrors,
+			TxDropped:   s.TxDropped,
+		}
 	}
 	return info
 }

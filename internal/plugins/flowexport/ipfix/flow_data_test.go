@@ -7,7 +7,7 @@ import (
 )
 
 func TestIPFIXFlowData(t *testing.T) {
-	// RFC requirement: RFC7012-x-5 positive -- each data record field is written at exactly the width declared for its IE in the template
+	// RFC requirement: RFC7011-6.1.1-1 positive -- the exported IPv4 flow's unsigned ports, protocol, packet and octet counts, and AS numbers decode at their canonical widths in network byte order.
 
 	buf := make([]byte, 256)
 	flows := []FlowRecord{

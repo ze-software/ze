@@ -23,7 +23,7 @@ import (
 // (sender.go:82). countingEncoder records each EncodeTemplate call.
 func TestRFC7011TemplateRetransmittedAtInterval(t *testing.T) {
 	// RFC requirement: RFC7011-8-1 positive -- a snapshot one full template-refresh interval after the first re-sends the Template over the UDP sender (exporter.go:193-201), so templateCalls advances from 1 to 2
-	exp := newTestExporter(t, "ipfix") // TemplateRefresh: 600s, PollingInterval: 1s
+	exp := newTestExporter(t, "ipfix") // TemplateRefresh: 600s, PollingInterval: 1s.
 	enc := &countingEncoder{}
 	exp.setEncoder("c1", enc)
 
@@ -44,7 +44,7 @@ func TestRFC7011TemplateRetransmittedAtInterval(t *testing.T) {
 // the collector.
 func TestRFC7011TemplateNotRetransmittedBeforeInterval(t *testing.T) {
 	// RFC requirement: RFC7011-8-1 negative -- a snapshot arriving before the template-refresh interval elapses does not re-send the Template (exporter.go:193), so templateCalls stays at 1
-	exp := newTestExporter(t, "ipfix") // TemplateRefresh: 600s, PollingInterval: 1s
+	exp := newTestExporter(t, "ipfix") // TemplateRefresh: 600s, PollingInterval: 1s.
 	enc := &countingEncoder{}
 	exp.setEncoder("c1", enc)
 

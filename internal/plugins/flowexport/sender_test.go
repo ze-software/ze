@@ -62,7 +62,7 @@ func TestFlowExportSourceAddress(t *testing.T) {
 	// bind -- proving NewSender actually applies it as the socket's local addr.
 	// 192.0.2.2 is RFC 5737 TEST-NET-1 (not a local address). The error must
 	// name source-address so the misconfiguration is diagnosable.
-	_, bindErr := NewSender("127.0.0.1", 9995, "192.0.2.2")
+	_, bindErr := NewSender("127.0.0.1", 9995, "192.0.2.2", DatagramSizeDefault)
 	if bindErr == nil {
 		t.Fatal("expected bind failure for non-local source-address, got nil")
 	}
@@ -72,12 +72,12 @@ func TestFlowExportSourceAddress(t *testing.T) {
 
 	// An unparseable source-address is rejected, not silently treated as a
 	// wildcard bind.
-	if _, err := NewSender("127.0.0.1", 9995, "not-an-ip"); err == nil {
+	if _, err := NewSender("127.0.0.1", 9995, "not-an-ip", DatagramSizeDefault); err == nil {
 		t.Fatal("expected error for invalid source-address, got nil")
 	}
 
 	// A loopback source is assignable: NewSender succeeds.
-	s, err := NewSender("127.0.0.1", 9995, "127.0.0.1")
+	s, err := NewSender("127.0.0.1", 9995, "127.0.0.1", DatagramSizeDefault)
 	if err != nil {
 		t.Fatalf("NewSender with loopback source: %v", err)
 	}
@@ -100,7 +100,7 @@ func TestSenderUDP(t *testing.T) {
 		t.Fatal("unexpected address type")
 	}
 
-	s, err := NewSender("127.0.0.1", addr.Port, "")
+	s, err := NewSender("127.0.0.1", addr.Port, "", DatagramSizeDefault)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,5 +134,17 @@ func TestSenderUDP(t *testing.T) {
 	}
 	if errors != 0 {
 		t.Fatalf("errors = %d, want 0", errors)
+	}
+}
+
+// TestSenderRejectsOversizedDatagram checks the error path without a socket:
+// an oversized payload must be refused before any network operation.
+func TestSenderRejectsOversizedDatagram(t *testing.T) {
+	s := &Sender{maxDatagram: DatagramSizeMin}
+	if err := s.Send(make([]byte, DatagramSizeMin+1)); err == nil {
+		t.Fatal("oversized datagram accepted")
+	}
+	if datagrams, bytes, errors := s.Stats(); datagrams != 0 || bytes != 0 || errors != 1 {
+		t.Fatalf("stats = %d/%d/%d, want 0/0/1", datagrams, bytes, errors)
 	}
 }

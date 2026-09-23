@@ -20,9 +20,13 @@ func newIPFIXFlowEncoder(cfg flowexport.CollectorConfig, _ time.Time) flowexport
 type FlowEncoder struct {
 	ObservationDomainID uint32
 
-	seqNum         uint32
 	templateBytes  []byte
 	templateBytes6 []byte
+
+	// templateExportTime retains the last successfully sent Template's time.
+	// Both families share the floor so a wall-clock rollback cannot put
+	// their subsequent Template or Data messages before that Template.
+	templateExportTime uint32
 }
 
 // NewFlowEncoder creates an IPFIX flow-record encoder.
@@ -36,8 +40,8 @@ func NewFlowEncoder(observationDomainID uint32) *FlowEncoder {
 
 // EncodeFlows writes IPFIX messages with per-flow data records. IPv4 and IPv6
 // flows use distinct templates (257 / 258), so each family is sent in its own
-// messages, as many as MaxDatagramSize needs. The returned count sums both
-// families.
+// messages, bounded by the collector's max-datagram-size. The returned count
+// sums records successfully sent for both families.
 func (e *FlowEncoder) EncodeFlows(flows []flowexport.ConntrackFlow, sender *flowexport.Sender) (int, error) {
 	if len(flows) == 0 {
 		return 0, nil
@@ -67,37 +71,44 @@ func (e *FlowEncoder) EncodeFlows(flows []flowexport.ConntrackFlow, sender *flow
 		}
 	}
 
+	// Attempt both families and report successful records even if one fails.
 	total := 0
+	var sendErr error
 	if len(recs4) > 0 {
 		n, err := e.sendDataMessage(sender, recs4, false)
 		if err != nil {
-			return total, err
+			sendErr = err
 		}
 		total += n
 	}
 	if len(recs6) > 0 {
 		n, err := e.sendDataMessage(sender, recs6, true)
-		if err != nil {
-			return total, err
+		if err != nil && sendErr == nil {
+			sendErr = err
 		}
 		total += n
 	}
-	return total, nil
+	return total, sendErr
 }
 
 // sendDataMessage encodes and sends the IPFIX messages for a single address
 // family. v6 selects the IPv6 template/Data Set (258); otherwise IPv4 (257).
-// Records are chunked so each datagram stays within MaxDatagramSize; a batch
-// larger than one datagram produces several, and no record is dropped.
+// Records are chunked so each datagram stays within the collector's
+// max-datagram-size. Failed chunks are discarded without advancing the UDP
+// sequence number. The first error is returned after all chunks are attempted.
 func (e *FlowEncoder) sendDataMessage(sender *flowexport.Sender, recs []FlowRecord, v6 bool) (int, error) {
 	buf := flowexport.GetBuf()
 	defer flowexport.PutBuf(buf)
 	b := *buf
 
-	exportTime := uint32(time.Now().Unix())
-	maxPer := maxFlowRecordsPerDatagram(v6)
+	// RFC 7011 Section 8.2: "An Exporting Process MUST NOT export a Data Set
+	// described by a new Template in an IPFIX Message with an Export Time
+	// before the Export Time of the IPFIX Message containing that Template."
+	exportTime := max(uint32(time.Now().Unix()), e.templateExportTime)
+	maxPer := maxFlowRecordsPerDatagram(v6, sender.MaxDatagram())
 
 	total := 0
+	var sendErr error
 	for start := 0; start < len(recs); start += maxPer {
 		end := min(start+maxPer, len(recs))
 
@@ -110,20 +121,28 @@ func (e *FlowEncoder) sendDataMessage(sender *flowexport.Sender, recs []FlowReco
 			n, count = WriteFlowDataSet(b, off, recs[start:end], FlowTemplateID)
 		}
 		off += n
-		WriteMessageHeader(b, 0, uint16(off), exportTime, e.seqNum, e.ObservationDomainID)
-		e.seqNum += count
+		WriteMessageHeader(b, 0, uint16(off), exportTime, sender.Sequence(), e.ObservationDomainID)
 
 		if err := sender.Send(b[:off]); err != nil {
-			return total, err
+			if sendErr == nil {
+				sendErr = err
+			}
+			continue
 		}
+		// RFC 7011 Section 10.3.2: "In the case of UDP, the IPFIX Sequence
+		// Number contains the total number of IPFIX Data Records sent for
+		// the Transport Session prior to the receipt of this IPFIX Message,
+		// modulo 2^32."
+		sender.AdvanceSequence(count)
 		total += int(count)
 	}
-	return total, nil
+	return total, sendErr
 }
 
 // maxFlowRecordsPerDatagram is how many flow records of one family fit one
-// datagram after the message header and Data Set header. At least one.
-func maxFlowRecordsPerDatagram(v6 bool) int {
+// datagram of maxDatagram octets after the message header and Data Set
+// header. At least one.
+func maxFlowRecordsPerDatagram(v6 bool, maxDatagram int) int {
 	recSize := FlowRecordSize()
 	if v6 {
 		recSize = FlowRecordSize6()
@@ -131,7 +150,9 @@ func maxFlowRecordsPerDatagram(v6 bool) int {
 	if recSize <= 0 {
 		return 1
 	}
-	n := (flowexport.MaxDatagramSize - MessageHeaderSize - 4) / recSize
+	// The Data Set writer pads to four octets. Round the budget down before
+	// counting records so padding cannot exceed an odd configured bound.
+	n := ((maxDatagram &^ 3) - MessageHeaderSize - 4) / recSize
 	if n < 1 {
 		return 1
 	}
@@ -153,11 +174,19 @@ func (e *FlowEncoder) sendTemplateMessage(sender *flowexport.Sender, tmpl []byte
 	defer flowexport.PutBuf(buf)
 	b := *buf
 
-	exportTime := uint32(time.Now().Unix())
+	// RFC 7011 Section 8.2: "an Exporting Process MUST sequence all Template
+	// management actions (i.e., Template Records defining new Templates and
+	// Template Withdrawals withdrawing them) using the Export Time field in
+	// the IPFIX Message Header."
+	exportTime := max(uint32(time.Now().Unix()), e.templateExportTime)
 
 	off := MessageHeaderSize
 	off += copy(b[off:], tmpl)
-	WriteMessageHeader(b, 0, uint16(off), exportTime, e.seqNum, e.ObservationDomainID)
+	WriteMessageHeader(b, 0, uint16(off), exportTime, sender.Sequence(), e.ObservationDomainID)
 
-	return sender.Send(b[:off])
+	if err := sender.Send(b[:off]); err != nil {
+		return err
+	}
+	e.templateExportTime = exportTime
+	return nil
 }

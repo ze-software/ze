@@ -63,7 +63,7 @@ func decodeDatagram(t *testing.T, dg []byte) decodedDatagram {
 	return d
 }
 
-// flowSampleFields are the fixed fields of a compact flow_sample plus its
+// flowSampleFields are the fixed fields of an expanded flow sample plus its
 // first flow record.
 type flowSampleFields struct {
 	seq          uint32
@@ -74,23 +74,26 @@ type flowSampleFields struct {
 	header       []byte
 }
 
-// decodeFlowSample reads the compact flow_sample fields and, when a record
+// decodeFlowSample reads the expanded flow sample fields and, when a record
 // follows, the sampled_header record's header bytes.
 func decodeFlowSample(t *testing.T, data []byte) flowSampleFields {
 	t.Helper()
-	if len(data) < 32 {
+	if len(data) < 44 {
 		t.Fatalf("flow_sample too short: %d bytes", len(data))
+	}
+	if got := binary.BigEndian.Uint32(data[4:]); got != 0 {
+		t.Fatalf("source type = %d, want ifIndex 0", got)
 	}
 	f := flowSampleFields{
 		seq:        binary.BigEndian.Uint32(data[0:]),
-		sourceID:   binary.BigEndian.Uint32(data[4:]),
-		pool:       binary.BigEndian.Uint32(data[12:]),
-		numRecords: binary.BigEndian.Uint32(data[28:]),
+		sourceID:   binary.BigEndian.Uint32(data[8:]),
+		pool:       binary.BigEndian.Uint32(data[16:]),
+		numRecords: binary.BigEndian.Uint32(data[40:]),
 	}
 	if f.numRecords == 0 {
 		return f
 	}
-	rec := data[32:]
+	rec := data[44:]
 	if len(rec) < 24 {
 		t.Fatalf("flow record too short: %d bytes", len(rec))
 	}
@@ -105,13 +108,16 @@ func decodeFlowSample(t *testing.T, data []byte) flowSampleFields {
 	return f
 }
 
-// counterSourceID reads the source_id of a compact counters_sample.
+// counterSourceID reads the source index of an expanded counter sample.
 func counterSourceID(t *testing.T, data []byte) uint32 {
 	t.Helper()
-	if len(data) < 12 {
+	if len(data) < 16 {
 		t.Fatalf("counters_sample too short: %d bytes", len(data))
 	}
-	return binary.BigEndian.Uint32(data[4:])
+	if got := binary.BigEndian.Uint32(data[4:]); got != 0 {
+		t.Fatalf("source type = %d, want ifIndex 0", got)
+	}
+	return binary.BigEndian.Uint32(data[8:])
 }
 
 // countersFor builds n interface counter sets with ifIndex 1..n.
@@ -124,8 +130,8 @@ func countersFor(n int) []flowexport.InterfaceCounters {
 	return ifaces
 }
 
-// countersPerDatagram is how many 116-byte counters_samples fit behind a
-// 28-byte IPv4 header inside MaxDatagramSize: 11, since 12 would need 1420.
+// countersPerDatagram is how many 120-byte counter samples fit behind a
+// 28-byte IPv4 header inside MaxDatagramSize: 11, since 12 would need 1468.
 const countersPerDatagram = (flowexport.MaxDatagramSize - HeaderSizeIPv4) / (counterSampleHeaderSize + ifCountersRecordHeaderSize + flowexport.IfCountersSize)
 
 var testAgent = netip.MustParseAddr("10.0.0.1")
@@ -232,9 +238,10 @@ func TestSFlowV5TailDatagramNotWithheld(t *testing.T) {
 	}
 }
 
-// RFC requirement: SFLOW-V5-x-27 positive -- one encoding for every interface: counters_samples for ifIndex 1, 200 and 70000 all decode with the compact data_format 2, and the flow_sample for each decodes with the compact data_format 1.
-func TestSFlowV5CompactEncodingForEveryInterface(t *testing.T) {
-	ifaces := []flowexport.InterfaceCounters{{IfIndex: 1}, {IfIndex: 200}, {IfIndex: 70000}}
+// RFC requirement: SFLOW-V5-x-27 positive -- one expanded encoding covers all interfaces: alternating low and full-width ifIndex values decode unchanged from counter format 4 and flow format 3.
+// RFC requirement: SFLOW-V5-x-12 positive -- source indexes above 24 bits decode unchanged from expanded counter format 4 and expanded flow format 3, including 0xFFFFFFFF.
+func TestSFlowV5ExpandedEncodingForEveryInterface(t *testing.T) {
+	ifaces := []flowexport.InterfaceCounters{{IfIndex: 1}, {IfIndex: 0xFFFFFFFF}, {IfIndex: 200}, {IfIndex: 0x01000000}, {IfIndex: 70000}}
 	buf := make([]byte, flowexport.MaxDatagramSize)
 	datagrams, _ := writeCounterDatagrams(buf, testAgent, 1, 0, 0, ifaces, map[uint32]uint32{})
 	if len(datagrams) != 1 {
@@ -245,8 +252,11 @@ func TestSFlowV5CompactEncodingForEveryInterface(t *testing.T) {
 		t.Fatalf("samples = %d, want %d", len(dg.samples), len(ifaces))
 	}
 	for i, rec := range dg.samples {
-		if rec.format != DataFormatCountersSample {
-			t.Errorf("ifIndex %d: counters data_format = %d, want compact %d", ifaces[i].IfIndex, rec.format, DataFormatCountersSample)
+		if rec.format != 4 {
+			t.Errorf("ifIndex %d: counters data_format = %d, want expanded 4", ifaces[i].IfIndex, rec.format)
+		}
+		if got := counterSourceID(t, rec.data); got != ifaces[i].IfIndex {
+			t.Errorf("counter source index = %#x, want %#x", got, ifaces[i].IfIndex)
 		}
 	}
 
@@ -256,16 +266,18 @@ func TestSFlowV5CompactEncodingForEveryInterface(t *testing.T) {
 	enc := NewFlowEncoder(testAgent, 1, time.Unix(1716000000, 0))
 	for _, ifc := range ifaces {
 		fdg := encodeOne(t, enc, s, pc, flowexport.FlowSample{IfIndex: ifc.IfIndex, Rate: 64, OrigSize: 60, Header: []byte{1}})
-		if fdg.samples[0].format != DataFormatFlowSample {
-			t.Errorf("ifIndex %d: flow data_format = %d, want compact %d", ifc.IfIndex, fdg.samples[0].format, DataFormatFlowSample)
+		if fdg.samples[0].format != 3 {
+			t.Errorf("ifIndex %d: flow data_format = %d, want expanded 3", ifc.IfIndex, fdg.samples[0].format)
+		}
+		if got := decodeFlowSample(t, fdg.samples[0].data).sourceID; got != ifc.IfIndex {
+			t.Errorf("flow source index = %#x, want %#x", got, ifc.IfIndex)
 		}
 	}
 }
 
-// RFC requirement: SFLOW-V5-x-27 negative -- the expanded formats never appear beside the compact ones: across a counter datagram of three interfaces and three flow datagrams, no sample_record carries data_format 3 (flow_sample_expanded) or 4 (counters_sample_expanded), so no datagram mixes encodings.
-func TestSFlowV5ExpandedFormatsNeverMixedIn(t *testing.T) {
-	const flowSampleExpanded, countersSampleExpanded = 3, 4
-	ifaces := []flowexport.InterfaceCounters{{IfIndex: 1}, {IfIndex: 200}, {IfIndex: 70000}}
+// RFC requirement: SFLOW-V5-x-27 negative -- compact formats never accompany expanded formats: alternating low and full-width interface IDs produce only expanded samples across counter and flow datagrams.
+func TestSFlowV5CompactFormatsNeverMixedIn(t *testing.T) {
+	ifaces := []flowexport.InterfaceCounters{{IfIndex: 1}, {IfIndex: 0xFFFFFFFF}, {IfIndex: 200}}
 	buf := make([]byte, flowexport.MaxDatagramSize)
 	datagrams, _ := writeCounterDatagrams(buf, testAgent, 1, 0, 0, ifaces, map[uint32]uint32{})
 
@@ -284,8 +296,8 @@ func TestSFlowV5ExpandedFormatsNeverMixedIn(t *testing.T) {
 	for i, raw := range datagrams {
 		for _, rec := range decodeDatagram(t, raw).samples {
 			records++
-			if rec.format == flowSampleExpanded || rec.format == countersSampleExpanded {
-				t.Errorf("datagram %d: expanded data_format %d emitted", i, rec.format)
+			if rec.format == 1 || rec.format == 2 {
+				t.Errorf("datagram %d: compact data_format %d emitted", i, rec.format)
 			}
 		}
 	}

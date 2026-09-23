@@ -13,6 +13,7 @@ import (
 
 func TestListInterfaces(t *testing.T) {
 	b := &netlinkBackend{}
+	t.Cleanup(func() { require.NoError(t, b.Close()) })
 	ifaces, err := b.ListInterfaces()
 	require.NoError(t, err)
 	require.NotEmpty(t, ifaces, "should find at least one interface")
@@ -33,6 +34,7 @@ func TestListInterfaces(t *testing.T) {
 
 func TestGetInterface(t *testing.T) {
 	b := &netlinkBackend{}
+	t.Cleanup(func() { require.NoError(t, b.Close()) })
 	info, err := b.GetInterface("lo")
 	require.NoError(t, err)
 	require.NotNil(t, info)

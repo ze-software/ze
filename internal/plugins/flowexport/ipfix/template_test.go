@@ -6,7 +6,7 @@ import (
 )
 
 func TestIPFIXTemplateSet(t *testing.T) {
-	// RFC requirement: RFC7012-x-1 positive -- every emitted field specifier has the E bit clear and is exactly 4 octets, carrying no Enterprise Number
+	// RFC requirement: RFC7011-3.2-1 positive -- every emitted field specifier has the E bit clear and is exactly 4 octets, carrying no Enterprise Number.
 
 	tmpl := BuildCounterTemplate()
 

@@ -29,8 +29,7 @@ type FlowEncoder struct {
 	SubAgentID uint32
 	StartTime  time.Time
 
-	datagramSeq uint32
-	seqNums     map[uint32]uint32 // per-source (ifIndex) sample sequence
+	seqNums map[uint32]uint32 // per-source (ifIndex) sample sequence
 }
 
 // NewFlowEncoder creates an sFlow flow-sample encoder.
@@ -43,14 +42,19 @@ func NewFlowEncoder(agentAddr netip.Addr, subAgentID uint32, startTime time.Time
 	}
 }
 
-// flowSampleOverhead is the worst-case byte cost of the datagram header
-// contributions other than the captured packet header: flow_sample header
-// (40) + sampled_header fixed fields (24) + XDR padding slack (4).
-const flowSampleOverhead = 40 + 24 + 4
+// ethernetFCSOctets is the frame check sequence the NIC removes before the
+// kernel sees the frame, so psample's original size is 4 octets short of
+// what was on the wire. sFlow v5, struct sampled_header: frame_length for a
+// layer 2 header_protocol is "total number of octets of data received on the
+// network (excluding framing bits but including FCS octets)", and "Any
+// octets added to the frame_length to compensate for encapsulations removed
+// by the underlying hardware must also be added to the stripped count."
+const ethernetFCSOctets = 4
 
 // EncodeFlowSample assembles and sends one sFlow v5 flow_sample datagram.
 // The captured header is truncated if needed so the datagram stays within
-// MaxDatagramSize (sFlow permits captured length < frame_length).
+// the collector's max-datagram-size (sFlow permits captured length <
+// frame_length).
 func (e *FlowEncoder) EncodeFlowSample(sample flowexport.FlowSample, sender *flowexport.Sender) error {
 	buf := flowexport.GetBuf()
 	defer flowexport.PutBuf(buf)
@@ -58,13 +62,15 @@ func (e *FlowEncoder) EncodeFlowSample(sample flowexport.FlowSample, sender *flo
 
 	uptime := uint32(time.Since(e.StartTime).Milliseconds())
 
-	off := WriteDatagramHeader(b, 0, e.AgentAddr, e.SubAgentID, e.datagramSeq, uptime, 1)
+	off := WriteDatagramHeader(b, 0, e.AgentAddr, e.SubAgentID, sender.Sequence(), uptime, 1)
 
 	seq := e.seqNums[sample.IfIndex] + 1
 	e.seqNums[sample.IfIndex] = seq
 
 	hdr := sample.Header
-	if maxHdr := flowexport.MaxDatagramSize - off - flowSampleOverhead; maxHdr < 0 {
+	// Use expanded samples for every interface: Linux permits full-width
+	// ifIndex, and sFlow forbids mixing compact and expanded samples.
+	if maxHdr := sender.MaxDatagram() - off - flowSampleHeaderSize() - 24 - 4; maxHdr < 0 {
 		hdr = nil
 	} else if len(hdr) > maxHdr {
 		hdr = hdr[:maxHdr]
@@ -77,9 +83,9 @@ func (e *FlowEncoder) EncodeFlowSample(sample flowexport.FlowSample, sender *flo
 
 	fsOff, sampleLengthOff, numRecordsOff := writeFlowSample(
 		b, off, seq, sample.IfIndex, sample.Rate, pool, 0, sample.IfIndex, sample.Output)
-	off = writeSampledHeader(b, fsOff, HeaderProtocolEthernet, sample.OrigSize, 0, hdr)
+	off = writeSampledHeader(b, fsOff, HeaderProtocolEthernet, sample.OrigSize+ethernetFCSOctets, ethernetFCSOctets, hdr)
 	backfillFlowSample(b, sampleLengthOff, numRecordsOff, off, 1)
 
-	e.datagramSeq++
+	sender.AdvanceSequence(1)
 	return sender.Send(b[:off])
 }

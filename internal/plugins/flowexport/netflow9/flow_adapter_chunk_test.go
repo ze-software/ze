@@ -28,7 +28,7 @@ func TestFlowBatchSplitAcrossPackets(t *testing.T) {
 	if !ok {
 		t.Fatal("unexpected address type")
 	}
-	s, err := flowexport.NewSender("127.0.0.1", addr.Port, "")
+	s, err := flowexport.NewSender("127.0.0.1", addr.Port, "", flowexport.DatagramSizeDefault)
 	if err != nil {
 		t.Fatal(err)
 	}

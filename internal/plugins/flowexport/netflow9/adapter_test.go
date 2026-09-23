@@ -23,7 +23,7 @@ func TestNetflow9EncodeChunksManyInterfaces(t *testing.T) {
 		t.Fatal("unexpected address type")
 	}
 
-	s, err := flowexport.NewSender("127.0.0.1", addr.Port, "")
+	s, err := flowexport.NewSender("127.0.0.1", addr.Port, "", flowexport.DatagramSizeDefault)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -57,14 +57,14 @@ func TestNetflow9EncodeChunksManyInterfaces(t *testing.T) {
 // packets sent). The sender's socket is closed up front so Send fails.
 // RFC requirement: RFC3954-x-8 negative -- a failed Send does not advance the export sequence number (adapter.go:33-65); the cumulative per-observation-domain counter counts packets actually sent, so a send error opens no phantom gap.
 func TestNetflow9SeqNumNotAdvancedOnSendError(t *testing.T) {
-	s, err := flowexport.NewSender("127.0.0.1", 65000, "")
+	s, err := flowexport.NewSender("127.0.0.1", 65000, "", flowexport.DatagramSizeDefault)
 	if err != nil {
 		t.Fatal(err)
 	}
 	_ = s.Close() // force subsequent Send to fail
 
 	enc := NewCounterEncoder(0, time.Unix(1716000000, 0))
-	seqBefore := enc.seqNum
+	seqBefore := s.Sequence()
 	snap := flowexport.CounterSnapshot{
 		Time:       time.Unix(1716000000, 0),
 		Interfaces: []flowexport.InterfaceCounters{{IfIndex: 1}},
@@ -72,7 +72,7 @@ func TestNetflow9SeqNumNotAdvancedOnSendError(t *testing.T) {
 	if _, err := enc.Encode(snap, s); err == nil {
 		t.Fatal("expected a send error on a closed sender")
 	}
-	if enc.seqNum != seqBefore {
-		t.Errorf("seqNum advanced to %d after a failed send, want %d", enc.seqNum, seqBefore)
+	if seq := s.Sequence(); seq != seqBefore {
+		t.Errorf("seqNum advanced to %d after a failed send, want %d", seq, seqBefore)
 	}
 }

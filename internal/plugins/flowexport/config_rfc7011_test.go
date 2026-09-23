@@ -50,7 +50,7 @@ func TestRFC7011CollectorPortConfigurable(t *testing.T) {
 	if c.Port != addr.Port {
 		t.Fatalf("port = %d, want %d", c.Port, addr.Port)
 	}
-	s, err := NewSender(c.Address, c.Port, "")
+	s, err := NewSender(c.Address, c.Port, "", DatagramSizeDefault)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestRFC7011CollectorPortConfigurable(t *testing.T) {
 func TestRFC7011CollectorPortOutOfRangeRefused(t *testing.T) {
 	for _, port := range []int{0, 65536} {
 		cfg := &Config{Collectors: []CollectorConfig{
-			{Name: "c1", Address: "127.0.0.1", Port: port, Protocol: "ipfix", PollingInterval: 20, TemplateRefresh: 600},
+			{Name: "c1", Address: "127.0.0.1", Port: port, Protocol: "ipfix", PollingInterval: 20, TemplateRefresh: 600, MaxDatagramSize: DatagramSizeDefault},
 		}}
 		if err := cfg.Validate(); err == nil {
 			t.Fatalf("port %d accepted, want refusal", port)

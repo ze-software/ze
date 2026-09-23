@@ -9,31 +9,37 @@ import (
 )
 
 const (
-	// DataFormatCountersSample is the sFlow v5 counters_sample data_format (enterprise 0, format 2).
-	DataFormatCountersSample = 0x00000002
+	// DataFormatCountersSampleExpanded is counters_sample_expanded (enterprise 0, format 4).
+	DataFormatCountersSampleExpanded = 0x00000004
 
 	// DataFormatIfCounters is the sFlow v5 if_counters record data_format (enterprise 0, format 1).
 	DataFormatIfCounters = 0x00000001
 
-	// counterSampleHeaderSize is the fixed overhead of a counters_sample record (20 bytes).
-	counterSampleHeaderSize = 20
+	// counterSampleHeaderSize includes the expanded sample tag and length.
+	counterSampleHeaderSize = 24
 
 	// ifCountersRecordHeaderSize is the overhead of the if_counters record wrapper (8 bytes).
 	ifCountersRecordHeaderSize = 8
 )
 
-// counterSampleSize returns the total encoded size of one counters_sample
+// counterSampleSize returns the total encoded size of one counters_sample_expanded
 // containing a single if_counters record.
 func counterSampleSize() int {
 	return counterSampleHeaderSize + ifCountersRecordHeaderSize + flowexport.IfCountersSize
 }
 
-// writeCounterSample writes a counters_sample record into buf at off.
+// writeCounterSample writes a counters_sample_expanded record into buf at off.
 // The sample contains a single if_counters record for the given interface.
 // Returns the new offset after the sample.
+//
+// sFlow v5 Section 5, counters_sample_expanded, byte offsets:
+//
+//	0 format | 4 length | 8 sequence | 12 source type | 16 source index
+//	20 record count | 24 counter records
 func writeCounterSample(buf []byte, off int, ifIndex, seqNum uint32, c *flowexport.InterfaceCounters) int {
-	// sFlow v5: counters_sample data_format = enterprise 0, format 2
-	binary.BigEndian.PutUint32(buf[off:], DataFormatCountersSample)
+	// sFlow v5 Section 5: "An agent must not mix compact/expanded encodings."
+	// Linux ifIndex values can exceed 24 bits, so every sample uses expanded encoding.
+	binary.BigEndian.PutUint32(buf[off:], DataFormatCountersSampleExpanded)
 	off += 4
 
 	// Skip-and-backfill: sample_length (bytes following this field)
@@ -44,10 +50,10 @@ func writeCounterSample(buf []byte, off int, ifIndex, seqNum uint32, c *flowexpo
 	binary.BigEndian.PutUint32(buf[off:], seqNum)
 	off += 4
 
-	// sFlow v5: source_id = type (high 8 bits) | index (low 24 bits)
-	// type 0 = ifIndex
-	sourceID := ifIndex & 0x00FFFFFF
-	binary.BigEndian.PutUint32(buf[off:], sourceID)
+	// Expanded source ID: type 0 (ifIndex), then the full-width index.
+	binary.BigEndian.PutUint32(buf[off:], 0)
+	off += 4
+	binary.BigEndian.PutUint32(buf[off:], ifIndex)
 	off += 4
 
 	// sFlow v5: num_records = 1 (single if_counters record)

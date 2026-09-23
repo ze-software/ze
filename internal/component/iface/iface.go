@@ -148,10 +148,16 @@ type InterfaceInfo struct {
 	// writes "ze:owned:<owner>" here to mark plugin-owned macvlan devices it
 	// manages; the reconcile orphan scan reads it back to detect owner release
 	// and crash leftovers. Empty for links with no alias.
-	Alias       string          `json:"alias,omitempty"`
-	Addresses   []AddrInfo      `json:"addresses,omitempty"`
-	Stats       *InterfaceStats `json:"stats,omitempty"`
-	ParentIndex int             `json:"parent-index,omitempty"`
+	Alias     string          `json:"alias,omitempty"`
+	Addresses []AddrInfo      `json:"addresses,omitempty"`
+	Stats     *InterfaceStats `json:"stats,omitempty"`
+	// CounterGeneration is an opaque raw-counter continuity token. Zero means
+	// the backend does not report continuity. Linux changes it on netdevice
+	// replacement, a raw counter decrease, or loss of link notification history.
+	// It does not assert detection of an unreported driver reset whose counters
+	// have already overtaken the previous raw snapshot.
+	CounterGeneration uint64 `json:"counter-generation,omitempty"`
+	ParentIndex       int    `json:"parent-index,omitempty"`
 	// MasterIndex is the index of the aggregating device this one is a member
 	// of (IFLA_MASTER): the bridge it is a port of, or the bond it is enslaved
 	// to. Zero when the device is a member of none. An aggregator takes its

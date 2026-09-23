@@ -152,9 +152,9 @@ func TestSFlowCounterSample(t *testing.T) {
 		t.Fatalf("expected offset %d, got %d", expectedOff, off)
 	}
 
-	// data_format = 0x00000002 (counters_sample)
-	if v := binary.BigEndian.Uint32(buf[0:]); v != DataFormatCountersSample {
-		t.Errorf("data_format: expected 0x%08x, got 0x%08x", DataFormatCountersSample, v)
+	// data_format = 4 (counters_sample_expanded).
+	if v := binary.BigEndian.Uint32(buf[0:]); v != DataFormatCountersSampleExpanded {
+		t.Errorf("data_format: expected 0x%08x, got 0x%08x", DataFormatCountersSampleExpanded, v)
 	}
 
 	// sample_length: should be total - 8 (data_format + sample_length itself)
@@ -169,23 +169,26 @@ func TestSFlowCounterSample(t *testing.T) {
 		t.Errorf("sequence: expected 1, got %d", v)
 	}
 
-	// source_id: type=0 in high 8 bits, ifIndex=7 in low 24 bits = 0x00000007
-	if v := binary.BigEndian.Uint32(buf[12:]); v != 7 {
+	if v := binary.BigEndian.Uint32(buf[12:]); v != 0 {
+		t.Errorf("source type: expected 0, got %d", v)
+	}
+	// The source index follows its separate type field.
+	if v := binary.BigEndian.Uint32(buf[16:]); v != 7 {
 		t.Errorf("source_id: expected 7, got 0x%08x", v)
 	}
 
 	// num_records = 1
-	if v := binary.BigEndian.Uint32(buf[16:]); v != 1 {
+	if v := binary.BigEndian.Uint32(buf[20:]); v != 1 {
 		t.Errorf("num_records: expected 1, got %d", v)
 	}
 
-	// if_counters record starts at offset 20
-	// Verify record_data_format = 0x00000001
-	if v := binary.BigEndian.Uint32(buf[20:]); v != DataFormatIfCounters {
+	// if_counters record starts at offset 24.
+	// Verify record_data_format = 0x00000001.
+	if v := binary.BigEndian.Uint32(buf[24:]); v != DataFormatIfCounters {
 		t.Errorf("if_counters data_format: expected 0x%08x, got 0x%08x", DataFormatIfCounters, v)
 	}
 	// Verify record_length = 88
-	if v := binary.BigEndian.Uint32(buf[24:]); v != flowexport.IfCountersSize {
+	if v := binary.BigEndian.Uint32(buf[28:]); v != flowexport.IfCountersSize {
 		t.Errorf("if_counters record_length: expected %d, got %d", flowexport.IfCountersSize, v)
 	}
 }
@@ -194,40 +197,71 @@ func TestSFlowCounterSampleSourceIDEncoding(t *testing.T) {
 	buf := make([]byte, 256)
 	c := testCounters()
 
-	// Test with large ifIndex that exercises the 24-bit mask
+	// Exercise an index that also fits the old compact format.
 	var largeIndex uint32 = 0x00ABCDEF
 	c.IfIndex = largeIndex
 
 	writeCounterSample(buf, 0, largeIndex, 1, c)
 
-	// source_id should have type=0 in high byte, index=0xABCDEF in low 24 bits
-	sourceID := binary.BigEndian.Uint32(buf[12:])
+	// The full index follows a separate source type.
+	sourceID := binary.BigEndian.Uint32(buf[16:])
 	expected := uint32(0x00ABCDEF)
 	if sourceID != expected {
 		t.Errorf("source_id: expected 0x%08x, got 0x%08x", expected, sourceID)
 	}
 }
 
+// TestSFlowCounterSampleSourceIDOverflow decodes indices across the old compact
+// boundary and verifies that the embedded if_counters identifies the same source.
+// RFC requirement: SFLOW-V5-x-12 negative -- source indexes at and above 2^24 never alias their low 24 bits: expanded source_id_index and the embedded if_counters.ifIndex retain the original value.
 func TestSFlowCounterSampleSourceIDOverflow(t *testing.T) {
-	buf := make([]byte, 256)
-	c := testCounters()
-
-	// ifIndex larger than 24 bits should be masked
-	c.IfIndex = 0x01FFFFFF
-
-	writeCounterSample(buf, 0, 0x01FFFFFF, 1, c)
-
-	sourceID := binary.BigEndian.Uint32(buf[12:])
-	expected := uint32(0x00FFFFFF) // masked to 24 bits
-	if sourceID != expected {
-		t.Errorf("source_id for overflow: expected 0x%08x, got 0x%08x", expected, sourceID)
+	for _, ifIndex := range []uint32{0x00FFFFFF, 0x01000000, 0xFFFFFFFF} {
+		c := testCounters()
+		c.IfIndex = ifIndex
+		buf := make([]byte, counterSampleSize())
+		for i := range buf {
+			buf[i] = 0xFF
+		}
+		off := writeCounterSample(buf, 0, ifIndex, 9, c)
+		if off != len(buf) {
+			t.Fatalf("ifIndex %#x: encoded %d bytes, sized %d", ifIndex, off, len(buf))
+		}
+		const format = 4
+		const recordOff = 24
+		const sourceOff = 16
+		if got := binary.BigEndian.Uint32(buf[12:]); got != 0 {
+			t.Fatalf("ifIndex %#x: source type = %d, want 0", ifIndex, got)
+		}
+		if got := binary.BigEndian.Uint32(buf); got != format {
+			t.Fatalf("ifIndex %#x: sample format = %d, want %d", ifIndex, got, format)
+		}
+		if got := binary.BigEndian.Uint32(buf[sourceOff:]); got != ifIndex {
+			t.Errorf("source index = %#x, want %#x", got, ifIndex)
+		}
+		if got := binary.BigEndian.Uint32(buf[4:]); got != uint32(off-8) {
+			t.Errorf("sample length = %d, want %d", got, off-8)
+		}
+		if got := binary.BigEndian.Uint32(buf[8:]); got != 9 {
+			t.Errorf("sequence = %d, want 9", got)
+		}
+		if got := binary.BigEndian.Uint32(buf[recordOff-4:]); got != 1 {
+			t.Errorf("record count = %d, want 1", got)
+		}
+		if got := binary.BigEndian.Uint32(buf[recordOff:]); got != 1 {
+			t.Errorf("counter format = %d, want 1", got)
+		}
+		if got := binary.BigEndian.Uint32(buf[recordOff+4:]); got != 88 {
+			t.Errorf("counter length = %d, want 88", got)
+		}
+		if got := binary.BigEndian.Uint32(buf[recordOff+8:]); got != ifIndex {
+			t.Errorf("counter ifIndex = %#x, want %#x", got, ifIndex)
+		}
 	}
 }
 
 func TestSFlowCounterSampleTotalSize(t *testing.T) {
-	// Verify CounterSampleSize() returns the correct total
-	// counterSampleHeader(20) + ifCountersRecordHeader(8) + ifCounters(88) = 116
-	expected := 116
+	// Expanded counter sample: header(24) + record header(8) + counters(88).
+	expected := 120
 	if counterSampleSize() != expected {
 		t.Errorf("CounterSampleSize: expected %d, got %d", expected, counterSampleSize())
 	}

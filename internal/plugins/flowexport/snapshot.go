@@ -13,12 +13,19 @@ type CounterSnapshot struct {
 	Interfaces []InterfaceCounters
 }
 
-// InterfaceCounters holds all 19 sFlow if_counters fields plus interface
-// identity. Fields map to SNMP ifTable/ifXTable (RFC 2863) as required
-// by sFlow v5. Callers convert from iface.InterfaceInfo into this type
-// at the boundary; flowexport does not import the iface package.
+// InterfaceCounters holds raw packet totals and the 19 sFlow if_counters
+// fields. The registration boundary converts iface.InterfaceInfo into it.
 type InterfaceCounters struct {
 	Name string
+
+	// CounterGeneration identifies the raw source's counter continuity.
+	// Zero means the source cannot supply generation metadata.
+	CounterGeneration uint64
+
+	// Raw packet totals retain all 64 bits for IPFIX and include multicast
+	// and broadcast packets. They do not carry sFlow availability sentinels.
+	InPackets  uint64
+	OutPackets uint64
 
 	// sFlow v5 if_counters (enterprise 0, format 1), XDR field order.
 	IfIndex            uint32
@@ -41,6 +48,14 @@ type InterfaceCounters struct {
 	IfOutErrors        uint32
 	IfPromiscuousMode  uint32 // 0=false, 1=true
 }
+
+// CounterUnavailable marks a 32-bit counter the source cannot observe. sFlow
+// v5, "Unknown counter": "Use the maximum counter value to indicate that the
+// counter is not available. Within any given sFlow session a particular
+// counter must be always available, or always unavailable." The source
+// writes it from what the kernel exposes, so availability is fixed for the
+// session. An available counter can also reach this value before wrapping.
+const CounterUnavailable = ^uint32(0)
 
 // IfCountersSize is the sFlow v5 if_counters XDR record size.
 // 16 x unsigned int (4 bytes) = 64, plus 3 x unsigned hyper (8 bytes) = 24.

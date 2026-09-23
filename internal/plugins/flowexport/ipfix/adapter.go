@@ -12,12 +12,11 @@ import (
 type CounterEncoder struct {
 	ObservationDomainID uint32
 
-	seqNum        uint32
 	templateBytes []byte
 
-	// templateExportTime is the Export Time the last Template message carried.
-	// A Data message is clamped to it, because the snapshot it encodes was
-	// taken before the Template was sent and can sit one second behind it.
+	// templateExportTime retains the last successfully sent Template's time.
+	// Template refreshes and Data messages use it as a floor after clock
+	// rollback; snapshot record timestamps stay unchanged.
 	templateExportTime uint32
 }
 
@@ -30,9 +29,10 @@ func NewCounterEncoder(observationDomainID uint32) *CounterEncoder {
 }
 
 // Encode writes IPFIX message(s) with counter data and sends them. Interface
-// records are chunked so each datagram stays within MaxDatagramSize; a device
-// with more interfaces than fit one datagram produces several, with the
-// sequence number advancing by the data-record count per RFC 7011.
+// records are chunked so each datagram stays within the collector's
+// max-datagram-size. The sequence counts records successfully sent over UDP.
+// Failed chunks are discarded, and the first error is returned after all
+// chunks have been attempted.
 func (e *CounterEncoder) Encode(snap flowexport.CounterSnapshot, sender *flowexport.Sender) (int, error) {
 	if len(snap.Interfaces) == 0 {
 		return 0, nil
@@ -44,15 +44,16 @@ func (e *CounterEncoder) Encode(snap flowexport.CounterSnapshot, sender *flowexp
 	// described by a new Template in an IPFIX Message with an Export Time
 	// before the Export Time of the IPFIX Message containing that Template."
 	exportTime := max(snapTime, e.templateExportTime)
-	maxPer := maxCounterRecordsPerDatagram()
+	maxPer := maxCounterRecordsPerDatagram(sender.MaxDatagram())
 
 	total := 0
+	var sendErr error
 	for start := 0; start < len(snap.Interfaces); start += maxPer {
 		end := min(start+maxPer, len(snap.Interfaces))
 
 		buf := flowexport.GetBuf()
 		n, dataRecords := WriteMessage(
-			*buf, exportTime, e.seqNum, e.ObservationDomainID,
+			*buf, exportTime, sender.Sequence(), e.ObservationDomainID,
 			nil, false,
 			snap.Interfaces[start:end],
 			snapTime, snapTime,
@@ -60,25 +61,30 @@ func (e *CounterEncoder) Encode(snap flowexport.CounterSnapshot, sender *flowexp
 		err := sender.Send((*buf)[:n])
 		flowexport.PutBuf(buf)
 		if err != nil {
-			return total, err
+			if sendErr == nil {
+				sendErr = err
+			}
+			continue
 		}
-		// RFC 7011: the sequence number counts Data Records actually sent;
-		// advance only after a successful send so a send failure does not open
-		// a phantom gap at the collector.
-		e.seqNum += dataRecords
+		// RFC 7011 Section 10.3.2: "In the case of UDP, the IPFIX Sequence
+		// Number contains the total number of IPFIX Data Records sent for
+		// the Transport Session prior to the receipt of this IPFIX Message,
+		// modulo 2^32."
+		sender.AdvanceSequence(dataRecords)
 		total += int(dataRecords)
 	}
-	return total, nil
+	return total, sendErr
 }
 
 // maxCounterRecordsPerDatagram is how many counter records fit one datagram
-// after the message header and Data Set header. At least one.
-func maxCounterRecordsPerDatagram() int {
+// of maxDatagram octets after the message header and Data Set header. At
+// least one.
+func maxCounterRecordsPerDatagram(maxDatagram int) int {
 	recSize := CounterRecordSize()
 	if recSize <= 0 {
 		return 1
 	}
-	n := (flowexport.MaxDatagramSize - MessageHeaderSize - 4) / recSize
+	n := (maxDatagram - MessageHeaderSize - 4) / recSize
 	if n < 1 {
 		return 1
 	}
@@ -90,14 +96,21 @@ func (e *CounterEncoder) EncodeTemplate(sender *flowexport.Sender) error {
 	buf := flowexport.GetBuf()
 	defer flowexport.PutBuf(buf)
 
-	exportTime := uint32(time.Now().Unix())
-	e.templateExportTime = exportTime
+	// RFC 7011 Section 8.2: "an Exporting Process MUST sequence all Template
+	// management actions (i.e., Template Records defining new Templates and
+	// Template Withdrawals withdrawing them) using the Export Time field in
+	// the IPFIX Message Header."
+	exportTime := max(uint32(time.Now().Unix()), e.templateExportTime)
 
 	n, _ := WriteMessage(
-		*buf, exportTime, e.seqNum, e.ObservationDomainID,
+		*buf, exportTime, sender.Sequence(), e.ObservationDomainID,
 		e.templateBytes, true,
 		nil, 0, 0,
 	)
 
-	return sender.Send((*buf)[:n])
+	if err := sender.Send((*buf)[:n]); err != nil {
+		return err
+	}
+	e.templateExportTime = exportTime
+	return nil
 }

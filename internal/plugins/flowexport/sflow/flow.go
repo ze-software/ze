@@ -9,8 +9,8 @@ import (
 )
 
 const (
-	// DataFormatFlowSample is the sFlow v5 flow_sample data_format (enterprise 0, format 1).
-	DataFormatFlowSample = 0x00000001
+	// DataFormatFlowSampleExpanded is flow_sample_expanded (enterprise 0, format 3).
+	DataFormatFlowSampleExpanded = 0x00000003
 
 	// DataFormatSampledHeader is the sampled_header flow record (enterprise 0, format 1).
 	DataFormatSampledHeader = 0x00000001
@@ -22,18 +22,28 @@ const (
 	HeaderProtocolEthernet uint32 = 1
 )
 
-// writeFlowSample writes a flow_sample record header into buf at off.
-// The caller must write flow records (sampled_header, extended_gateway, etc.)
-// immediately after, then call BackfillFlowSample to set sample_length and
-// flow_records count.
+// flowSampleHeaderSize includes the expanded sample tag and length.
+func flowSampleHeaderSize() int {
+	return 52
+}
+
+// writeFlowSample writes a flow_sample_expanded record header into buf at off.
+// Input and output are full-width ifIndex values; zero means unknown.
+// The caller MUST write flow records immediately after the header, then call
+// backfillFlowSample to set sample_length and flow_records count.
 //
 // Returns the offset after the header. The returned sampleLengthOff and
 // numRecordsOff are positions for backfill.
 //
-// sFlow v5: flow_sample data_format = enterprise 0, format 1.
+// sFlow v5 Section 5, flow_sample_expanded, byte offsets:
+//
+//	0 format | 4 length | 8 sequence | 12 source type | 16 source index
+//	20 rate | 24 pool | 28 drops | 32 input format | 36 input index
+//	40 output format | 44 output index | 48 record count | 52 records
 func writeFlowSample(buf []byte, off int, seqNum, sourceID, rate, pool, drops, input, output uint32) (newOff, sampleLengthOff, numRecordsOff int) {
-	// sFlow v5: flow_sample data_format
-	binary.BigEndian.PutUint32(buf[off:], DataFormatFlowSample)
+	// sFlow v5 Section 5: "An agent must not mix compact/expanded encodings."
+	// Linux ifIndex values can exceed 24 bits, so every sample uses expanded encoding.
+	binary.BigEndian.PutUint32(buf[off:], DataFormatFlowSampleExpanded)
 	off += 4
 
 	// Skip-and-backfill: sample_length
@@ -44,8 +54,10 @@ func writeFlowSample(buf []byte, off int, seqNum, sourceID, rate, pool, drops, i
 	binary.BigEndian.PutUint32(buf[off:], seqNum)
 	off += 4
 
-	// sFlow v5: source_id (type=0 in high 8 bits, index in low 24 bits)
-	binary.BigEndian.PutUint32(buf[off:], sourceID&0x00FFFFFF)
+	// Expanded source ID: type 0 (ifIndex), then the full-width index.
+	binary.BigEndian.PutUint32(buf[off:], 0)
+	off += 4
+	binary.BigEndian.PutUint32(buf[off:], sourceID)
 	off += 4
 
 	// sFlow v5: sampling_rate (1-in-N)
@@ -60,11 +72,15 @@ func writeFlowSample(buf []byte, off int, seqNum, sourceID, rate, pool, drops, i
 	binary.BigEndian.PutUint32(buf[off:], drops)
 	off += 4
 
-	// sFlow v5: input interface (format 0 = single ifIndex in low 30 bits)
+	// Expanded input: format 0 (single interface), then the full-width index.
+	binary.BigEndian.PutUint32(buf[off:], 0)
+	off += 4
 	binary.BigEndian.PutUint32(buf[off:], input)
 	off += 4
 
-	// sFlow v5: output interface
+	// FlowSample.Output is an ifIndex, not packed discard or multicast metadata.
+	binary.BigEndian.PutUint32(buf[off:], 0)
+	off += 4
 	binary.BigEndian.PutUint32(buf[off:], output)
 	off += 4
 
@@ -76,7 +92,8 @@ func writeFlowSample(buf []byte, off int, seqNum, sourceID, rate, pool, drops, i
 }
 
 // backfillFlowSample fills in the sample_length and flow_records count
-// after all flow records have been written.
+// after all flow records have been written. The caller MUST call this after
+// writeFlowSample and before sending the sample.
 func backfillFlowSample(buf []byte, sampleLengthOff, numRecordsOff, endOff int, numRecords uint32) {
 	// sample_length = bytes from after the sample_length field to end
 	sampleLength := uint32(endOff - sampleLengthOff - 4)
@@ -143,7 +160,7 @@ func writeSampledHeader(buf []byte, off int, protocol, frameLength, stripped uin
 // fixed fields (~32 bytes incl. nexthop) + 4*len(dstASPath) + 4*len(communities).
 // This is not wired in production yet; when the BGP AS-path enrichment path
 // calls it, the caller MUST cap dstASPath/communities to the remaining datagram
-// space (see EncodeFlowSample's flowSampleOverhead pattern) before invoking it,
+// space (see EncodeFlowSample's flowSampleHeaderSize bound) before invoking it,
 // since the writes here are not individually bounds-checked.
 func writeExtendedGateway(buf []byte, off int, nextHop netip.Addr, agentAS, srcAS, srcPeerAS uint32, dstASPath, communities []uint32, localPref uint32) int {
 	// Record data_format

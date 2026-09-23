@@ -21,7 +21,6 @@ type FlowEncoder struct {
 	SourceID  uint32
 	StartTime time.Time
 
-	seqNum         uint32
 	templateBytes  []byte
 	templateBytes6 []byte
 }
@@ -76,31 +75,32 @@ func (e *FlowEncoder) EncodeFlows(flows []flowexport.ConntrackFlow, sender *flow
 	total := 0
 	if len(recs4) > 0 {
 		n, err := e.sendDataPacket(sender, recs4, false, sysUpTime, unixSecs)
+		total += n
 		if err != nil {
 			return total, err
 		}
-		total += n
 	}
 	if len(recs6) > 0 {
 		n, err := e.sendDataPacket(sender, recs6, true, sysUpTime, unixSecs)
+		total += n
 		if err != nil {
 			return total, err
 		}
-		total += n
 	}
 	return total, nil
 }
 
 // sendDataPacket encodes and sends the export packets for a single address
 // family. v6 selects the IPv6 template/data FlowSet (258); otherwise IPv4 (257).
-// Records are chunked so each datagram stays within MaxDatagramSize; a batch
+// Records are chunked so each datagram stays within the collector's
+// max-datagram-size; a batch
 // larger than one datagram produces several, and no record is dropped.
 func (e *FlowEncoder) sendDataPacket(sender *flowexport.Sender, recs []FlowRecord, v6 bool, sysUpTime, unixSecs uint32) (int, error) {
 	buf := flowexport.GetBuf()
 	defer flowexport.PutBuf(buf)
 	b := *buf
 
-	maxPer := maxFlowRecordsPerDatagram(v6)
+	maxPer := maxFlowRecordsPerDatagram(v6, sender.MaxDatagram())
 
 	total := 0
 	for start := 0; start < len(recs); start += maxPer {
@@ -115,23 +115,24 @@ func (e *FlowEncoder) sendDataPacket(sender *flowexport.Sender, recs []FlowRecor
 			n, count = writeFlowDataFlowSet(b, off, recs[start:end])
 		}
 		off += n
-		writePacketHeader(b, 0, count, sysUpTime, unixSecs, e.seqNum, e.SourceID)
+		writePacketHeader(b, 0, count, sysUpTime, unixSecs, sender.Sequence(), e.SourceID)
 		// RFC 3954 Section 5.1: the sequence number counts EXPORT PACKETS, not
 		// records or flows. Advance by one per datagram (matches the counter
 		// encoder and the template path), so collectors do not see false loss.
-		e.seqNum++
 
 		if err := sender.Send(b[:off]); err != nil {
 			return total, err
 		}
+		sender.AdvanceSequence(1)
 		total += int(count)
 	}
 	return total, nil
 }
 
 // maxFlowRecordsPerDatagram is how many flow records of one family fit one
-// datagram after the packet header and FlowSet header. At least one.
-func maxFlowRecordsPerDatagram(v6 bool) int {
+// datagram of maxDatagram octets after the packet header and FlowSet header.
+// At least one.
+func maxFlowRecordsPerDatagram(v6 bool, maxDatagram int) int {
 	recSize := FlowRecordSize()
 	if v6 {
 		recSize = FlowRecordSize6()
@@ -139,7 +140,8 @@ func maxFlowRecordsPerDatagram(v6 bool) int {
 	if recSize <= 0 {
 		return 1
 	}
-	n := (flowexport.MaxDatagramSize - HeaderSize - 4) / recSize
+	// Reserve the Data FlowSet's four-octet alignment padding.
+	n := ((maxDatagram &^ 3) - HeaderSize - 4) / recSize
 	if n < 1 {
 		return 1
 	}
@@ -167,10 +169,12 @@ func (e *FlowEncoder) sendTemplatePacket(sender *flowexport.Sender, tmpl []byte,
 
 	off := HeaderSize
 	off += copy(b[off:], tmpl)
-	writePacketHeader(b, 0, 1, sysUpTime, unixSecs, e.seqNum, e.SourceID)
-	e.seqNum++
-
-	return sender.Send(b[:off])
+	writePacketHeader(b, 0, 1, sysUpTime, unixSecs, sender.Sequence(), e.SourceID)
+	if err := sender.Send(b[:off]); err != nil {
+		return err
+	}
+	sender.AdvanceSequence(1)
+	return nil
 }
 
 // relUpTime converts an absolute Unix-ms timestamp to a sysUpTime-relative

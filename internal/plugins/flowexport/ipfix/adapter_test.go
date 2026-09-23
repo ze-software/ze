@@ -24,7 +24,7 @@ func TestIPFIXEncodeChunksManyInterfaces(t *testing.T) {
 		t.Fatal("unexpected address type")
 	}
 
-	s, err := flowexport.NewSender("127.0.0.1", addr.Port, "")
+	s, err := flowexport.NewSender("127.0.0.1", addr.Port, "", flowexport.DatagramSizeDefault)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,28 +53,30 @@ func TestIPFIXEncodeChunksManyInterfaces(t *testing.T) {
 	}
 }
 
-// TestIPFIXSeqNumNotAdvancedOnSendError verifies the IPFIX sequence number only
-// advances when a datagram is actually sent. RFC 7011: the sequence number
-// counts Data Records sent; advancing on a failed send would misreport records
-// the collector never received. The sender's socket is closed up front so Send
-// fails.
+// TestIPFIXSeqNumNotAdvancedOnSendError closes the sender and checks that
+// records rejected by the socket do not count as sent. RFC 7011 Section
+// 10.3.2 defines the UDP sequence as the total Data Records sent.
 func TestIPFIXSeqNumNotAdvancedOnSendError(t *testing.T) {
-	s, err := flowexport.NewSender("127.0.0.1", 65000, "")
+	s, err := flowexport.NewSender("127.0.0.1", 65000, "", flowexport.DatagramSizeDefault)
 	if err != nil {
 		t.Fatal(err)
 	}
 	_ = s.Close() // force subsequent Send to fail
 
 	enc := NewCounterEncoder(0)
-	seqBefore := enc.seqNum
+	seqBefore := s.Sequence()
 	snap := flowexport.CounterSnapshot{
 		Time:       time.Unix(1716000000, 0),
 		Interfaces: []flowexport.InterfaceCounters{{IfIndex: 1}},
 	}
-	if _, err := enc.Encode(snap, s); err == nil {
+	sent, err := enc.Encode(snap, s)
+	if err == nil {
 		t.Fatal("expected a send error on a closed sender")
 	}
-	if enc.seqNum != seqBefore {
-		t.Errorf("seqNum advanced to %d after a failed send, want %d", enc.seqNum, seqBefore)
+	if sent != 0 {
+		t.Fatalf("records reported sent = %d after a failed send, want 0", sent)
+	}
+	if seq := s.Sequence(); seq != seqBefore {
+		t.Errorf("seqNum = %d after a failed send, want %d", seq, seqBefore)
 	}
 }

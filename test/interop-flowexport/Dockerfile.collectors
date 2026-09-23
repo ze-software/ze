@@ -1,0 +1,40 @@
+# Collector peers for internal/plugins/flowexport/interop_integration_linux_test.go.
+# Build from immutable upstream commits; the test binary is mounted at runtime.
+FROM debian:bookworm-slim AS build
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    autoconf automake bison build-essential ca-certificates curl flex \
+    libbz2-dev liblz4-dev libtool libzstd-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# nfdump v1.7.10 (nfcapd and nfdump).
+WORKDIR /src/nfdump
+RUN curl --fail --location --output /tmp/nfdump.tar.gz \
+    https://codeload.github.com/phaag/nfdump/tar.gz/9e47b47daa1c6a8a9a7ea92920b1b6b3ecb2ec7d \
+    && tar -xzf /tmp/nfdump.tar.gz --strip-components=1 \
+    && ./autogen.sh \
+    && ./configure --prefix=/usr/local --disable-shared \
+    && make -j2 \
+    && make install
+
+# sflowtool v6.11.
+WORKDIR /src/sflowtool
+RUN curl --fail --location --output /tmp/sflowtool.tar.gz \
+    https://codeload.github.com/sflow/sflowtool/tar.gz/c953cfe8991286457080938a29fc72019f64718a \
+    && tar -xzf /tmp/sflowtool.tar.gz --strip-components=1 \
+    && ./boot.sh \
+    && ./configure --prefix=/usr/local \
+    && make -j2 \
+    && make install
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libatomic1 libbz2-1.0 liblz4-1 libzstd1 \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=build /usr/local/bin/nfcapd /usr/local/bin/nfdump /usr/local/bin/sflowtool /usr/local/bin/
+COPY --from=build /src/nfdump/BSD-license.txt /usr/share/doc/nfdump/copyright
+COPY --from=build /src/sflowtool/COPYING /usr/share/doc/sflowtool/copyright
+ENV TZ=UTC
+USER 65532:65532
+ENTRYPOINT ["/flowexport.test"]
+CMD ["-test.v", "-test.timeout=2m", "-test.run=^TestFlowExport(NFDump|SFlowTool)Interop$", "-flowexport-peer-dir=/usr/local/bin"]

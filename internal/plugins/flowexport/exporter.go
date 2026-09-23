@@ -15,9 +15,8 @@ import (
 // ProtocolEncoder encodes counter snapshots into wire-format datagrams
 // and sends them via the provided Sender.
 type ProtocolEncoder interface {
-	// Encode writes one or more datagrams for the snapshot into pooled
-	// buffers and sends them. Returns the number of data records exported
-	// (used for IPFIX sequence counting).
+	// Encode writes and sends one or more datagrams using pooled buffers.
+	// Returns the data records sent, including those before a later failure.
 	Encode(snap CounterSnapshot, sender *Sender) (dataRecords int, err error)
 
 	// EncodeTemplate writes template datagrams (NetFlow v9, IPFIX).
@@ -37,7 +36,16 @@ type collectorState struct {
 	lastPoll         time.Time
 	lastTemplate     time.Time
 	flowTemplateLast time.Time
-	sequence         uint32
+}
+
+// recordSent accounts for every successful datagram, including templates sent
+// before a later failure. The caller MUST hold the exporter mutex.
+func (cs *collectorState) recordSent(datagramsBefore, bytesBefore uint64) {
+	datagrams, bytes, _ := cs.sender.Stats()
+	for range datagrams - datagramsBefore {
+		incDatagrams(cs.cfg.Name, cs.cfg.Protocol)
+	}
+	addBytes(cs.cfg.Name, cs.cfg.Protocol, float64(bytes-bytesBefore))
 }
 
 // exporter manages flow export to all configured collectors. It is entirely
@@ -93,7 +101,7 @@ func (e *exporter) setEnricher(en *enrich.Enricher) {
 }
 
 // newExporter creates an exporter from config. Opens UDP sockets
-// to all collectors. Call stop() to release resources.
+// to all collectors. The owner MUST call stop to release resources.
 func newExporter(cfg *Config) (*exporter, error) {
 	e := &exporter{
 		stopCh:    make(chan struct{}),
@@ -107,7 +115,7 @@ func newExporter(cfg *Config) (*exporter, error) {
 
 	for i := range cfg.Collectors {
 		cc := &cfg.Collectors[i]
-		sender, err := NewSender(cc.Address, cc.Port, cc.SourceAddress)
+		sender, err := NewSender(cc.Address, cc.Port, cc.SourceAddress, cc.MaxDatagramSize)
 		if err != nil {
 			e.stop()
 			return nil, err
@@ -188,6 +196,7 @@ func (e *exporter) notifySnapshot(snap CounterSnapshot) {
 			continue
 		}
 
+		dgBefore, bytesBefore, _ := cs.sender.Stats()
 		// Template refresh (NetFlow v9, IPFIX).
 		refreshInterval := time.Duration(cs.cfg.TemplateRefresh) * time.Second
 		if cs.lastTemplate.IsZero() || now.Sub(cs.lastTemplate) >= refreshInterval {
@@ -195,30 +204,23 @@ func (e *exporter) notifySnapshot(snap CounterSnapshot) {
 				log.Warn("flow-export: template send failed",
 					"collector", cs.cfg.Name, "error", err)
 				incErrors(cs.cfg.Name, cs.cfg.Protocol)
-			} else {
-				cs.lastTemplate = now
+				cs.recordSent(dgBefore, bytesBefore)
+				continue
 			}
+			cs.lastTemplate = now
 		}
 
-		dgBefore, bytesBefore, _ := cs.sender.Stats()
-		records, err := cs.encoder.Encode(snap, cs.sender)
+		_, err := cs.encoder.Encode(snap, cs.sender)
 		if err != nil {
 			log.Warn("flow-export: encode/send failed",
 				"collector", cs.cfg.Name, "error", err)
 			incErrors(cs.cfg.Name, cs.cfg.Protocol)
-			continue
 		}
-		dgAfter, bytesAfter, _ := cs.sender.Stats()
 
-		cs.lastPoll = now
-		cs.sequence += uint32(records)
-		// One Encode call may emit multiple datagrams (sFlow batches
-		// counter samples and spills overflow into additional datagrams).
-		// Count each datagram the sender actually transmitted.
-		for range dgAfter - dgBefore {
-			incDatagrams(cs.cfg.Name, cs.cfg.Protocol)
+		if err == nil {
+			cs.lastPoll = now
 		}
-		addBytes(cs.cfg.Name, cs.cfg.Protocol, float64(bytesAfter-bytesBefore))
+		cs.recordSent(dgBefore, bytesBefore)
 	}
 }
 
@@ -243,13 +245,10 @@ func (e *exporter) exportFlowSample(sample FlowSample) {
 			log.Warn("flow-export: flow-sample send failed",
 				"collector", cs.cfg.Name, "error", err)
 			incErrors(cs.cfg.Name, cs.cfg.Protocol)
+			cs.recordSent(dgBefore, bytesBefore)
 			continue
 		}
-		dgAfter, bytesAfter, _ := cs.sender.Stats()
-		for range dgAfter - dgBefore {
-			incDatagrams(cs.cfg.Name, cs.cfg.Protocol)
-		}
-		addBytes(cs.cfg.Name, cs.cfg.Protocol, float64(bytesAfter-bytesBefore))
+		cs.recordSent(dgBefore, bytesBefore)
 	}
 }
 
@@ -291,6 +290,7 @@ func (e *exporter) exportFlows(flows []ConntrackFlow) {
 			continue
 		}
 
+		dgBefore, bytesBefore, _ := cs.sender.Stats()
 		// Flow template refresh shares the collector's template-refresh interval.
 		refreshInterval := time.Duration(cs.cfg.TemplateRefresh) * time.Second
 		if cs.flowTemplateLast.IsZero() || now.Sub(cs.flowTemplateLast) >= refreshInterval {
@@ -298,25 +298,19 @@ func (e *exporter) exportFlows(flows []ConntrackFlow) {
 				log.Warn("flow-export: flow-template send failed",
 					"collector", cs.cfg.Name, "error", err)
 				incErrors(cs.cfg.Name, cs.cfg.Protocol)
-			} else {
-				cs.flowTemplateLast = now
+				cs.recordSent(dgBefore, bytesBefore)
+				continue
 			}
+			cs.flowTemplateLast = now
 		}
 
-		dgBefore, bytesBefore, _ := cs.sender.Stats()
 		records, err := cs.flowRecord.EncodeFlows(flows, cs.sender)
 		if err != nil {
 			log.Warn("flow-export: flow-record send failed",
 				"collector", cs.cfg.Name, "error", err)
 			incErrors(cs.cfg.Name, cs.cfg.Protocol)
-			continue
 		}
-		dgAfter, bytesAfter, _ := cs.sender.Stats()
-		cs.sequence += uint32(records)
-		for range dgAfter - dgBefore {
-			incDatagrams(cs.cfg.Name, cs.cfg.Protocol)
-		}
-		addBytes(cs.cfg.Name, cs.cfg.Protocol, float64(bytesAfter-bytesBefore))
+		cs.recordSent(dgBefore, bytesBefore)
 		addFlows(cs.cfg.Name, float64(records))
 	}
 
@@ -373,7 +367,7 @@ func (e *exporter) status() []map[string]any {
 			"datagrams-sent": datagrams,
 			"bytes-sent":     bytes,
 			"errors":         errors,
-			"sequence":       cs.sequence,
+			"sequence":       cs.sender.Sequence(),
 		}
 		if !cs.lastPoll.IsZero() {
 			m["last-export-time"] = cs.lastPoll.Unix()
@@ -384,7 +378,7 @@ func (e *exporter) status() []map[string]any {
 }
 
 // stop tears down workers, closes all collector senders, and marks the
-// exporter stopped.
+// exporter stopped. The owner MUST call it before discarding the exporter.
 func (e *exporter) stop() {
 	e.mu.Lock()
 	if e.stopped {

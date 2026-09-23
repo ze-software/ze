@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// RFC requirement: SFLOW-V5-x-10 positive -- the flow_sample carries the actual 1-in-N sampling_rate the agent used: the rate handed to WriteFlowSample (2048) decodes back at the sampling_rate offset (flow.go:51-52).
+// RFC requirement: SFLOW-V5-x-10 positive -- the expanded flow sample carries the actual 1-in-N sampling rate: the test decodes sampling_rate as 2048 from the emitted sample.
 func TestSFlowFlowSample(t *testing.T) {
 	buf := make([]byte, 256)
 
@@ -21,9 +21,9 @@ func TestSFlowFlowSample(t *testing.T) {
 	)
 	backfillFlowSample(buf, slOff, nrOff, off, 0)
 
-	// data_format = flow_sample (enterprise 0, format 1)
-	if got := binary.BigEndian.Uint32(buf[0:]); got != 0x00000001 {
-		t.Fatalf("data_format = %#x, want 0x00000001", got)
+	// data_format = flow_sample_expanded (enterprise 0, format 3).
+	if got := binary.BigEndian.Uint32(buf[0:]); got != 3 {
+		t.Fatalf("data_format = %#x, want 3", got)
 	}
 
 	// sequence_number at offset 8
@@ -31,39 +31,98 @@ func TestSFlowFlowSample(t *testing.T) {
 		t.Fatalf("sequence_number = %d, want 42", got)
 	}
 
-	// source_id at offset 12 (masked to 24 bits)
-	if got := binary.BigEndian.Uint32(buf[12:]); got != 100 {
+	if got := binary.BigEndian.Uint32(buf[12:]); got != 0 {
+		t.Fatalf("source type = %d, want 0", got)
+	}
+	// Expanded source index follows its type.
+	if got := binary.BigEndian.Uint32(buf[16:]); got != 100 {
 		t.Fatalf("source_id = %d, want 100", got)
 	}
 
-	// sampling_rate at offset 16
-	if got := binary.BigEndian.Uint32(buf[16:]); got != 2048 {
+	// sampling_rate at offset 20.
+	if got := binary.BigEndian.Uint32(buf[20:]); got != 2048 {
 		t.Fatalf("sampling_rate = %d, want 2048", got)
 	}
 
-	// sample_pool at offset 20
-	if got := binary.BigEndian.Uint32(buf[20:]); got != 5000 {
+	// sample_pool at offset 24.
+	if got := binary.BigEndian.Uint32(buf[24:]); got != 5000 {
 		t.Fatalf("sample_pool = %d, want 5000", got)
 	}
 
-	// drops at offset 24
-	if got := binary.BigEndian.Uint32(buf[24:]); got != 3 {
+	// drops at offset 28.
+	if got := binary.BigEndian.Uint32(buf[28:]); got != 3 {
 		t.Fatalf("drops = %d, want 3", got)
 	}
 
-	// input at offset 28
-	if got := binary.BigEndian.Uint32(buf[28:]); got != 100 {
+	if got := binary.BigEndian.Uint32(buf[32:]); got != 0 {
+		t.Fatalf("input format = %d, want 0", got)
+	}
+	// input at offset 36.
+	if got := binary.BigEndian.Uint32(buf[36:]); got != 100 {
 		t.Fatalf("input = %d, want 100", got)
 	}
 
-	// output at offset 32
-	if got := binary.BigEndian.Uint32(buf[32:]); got != 200 {
+	if got := binary.BigEndian.Uint32(buf[40:]); got != 0 {
+		t.Fatalf("output format = %d, want 0", got)
+	}
+	// output at offset 44.
+	if got := binary.BigEndian.Uint32(buf[44:]); got != 200 {
 		t.Fatalf("output = %d, want 200", got)
 	}
 
-	// Header size: 4 (data_format) + 4 (sample_length) + 8*4 fields = 40 bytes
-	if off != 40 {
-		t.Fatalf("header offset = %d, want 40", off)
+	// Expanded header: sample tag/length(8) + 11 four-byte fields.
+	if off != 52 {
+		t.Fatalf("header offset = %d, want 52", off)
+	}
+}
+
+// TestSFlowFlowSampleFullWidthInterfaces decodes source and interface values
+// across the old 24-bit and 30-bit boundaries, including unknown output.
+func TestSFlowFlowSampleFullWidthInterfaces(t *testing.T) {
+	tests := []struct {
+		name   string
+		source uint32
+		input  uint32
+		output uint32
+	}{
+		{name: "unknown output", source: 7, input: 7, output: 0},
+		{name: "source boundary", source: 0x00FFFFFF, input: 7, output: 8},
+		{name: "source expanded", source: 0x01000000, input: 7, output: 8},
+		{name: "input boundary", source: 7, input: 0x3FFFFFFF, output: 8},
+		{name: "output boundary", source: 7, input: 7, output: 0x3FFFFFFF},
+		{name: "output high bits", source: 7, input: 7, output: 0x40000102},
+		{name: "full width", source: 0xFFFFFFFF, input: 0xFFFFFFFF, output: 0xFFFFFFFF},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			const start = 4
+			buf := make([]byte, start+flowSampleHeaderSize()+28)
+			for i := range buf {
+				buf[i] = 0xFF
+			}
+			off, lengthOff, countOff := writeFlowSample(buf, start, 9, tt.source, 64, 128, 2, tt.input, tt.output)
+			off = writeSampledHeader(buf, off, HeaderProtocolEthernet, 64, 4, []byte{1, 2, 3})
+			backfillFlowSample(buf, lengthOff, countOff, off, 1)
+			if off != len(buf) {
+				t.Fatalf("encoded end = %d, allocated end %d", off, len(buf))
+			}
+			if got := binary.BigEndian.Uint32(buf); got != 0xFFFFFFFF {
+				t.Errorf("prefix before sample = %#x, want unchanged %#x", got, uint32(0xFFFFFFFF))
+			}
+			want := []uint32{3, 72, 9, 0, tt.source, 64, 128, 2, 0, tt.input, 0, tt.output, 1}
+			for i, value := range want {
+				if got := binary.BigEndian.Uint32(buf[start+4*i:]); got != value {
+					t.Errorf("sample word %d = %#x, want %#x", i, got, value)
+				}
+			}
+			record := buf[start+52:]
+			if got := binary.BigEndian.Uint32(record); got != 1 {
+				t.Errorf("flow record format = %d, want sampled_header 1", got)
+			}
+			if record[24] != 1 || record[25] != 2 || record[26] != 3 || record[27] != 0 {
+				t.Errorf("sampled header and padding = %v, want [1 2 3 0]", record[24:])
+			}
+		})
 	}
 }
 

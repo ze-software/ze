@@ -39,7 +39,11 @@ func cfgUint32(v any) (uint32, bool) {
 func cfgInt(v any) (int, bool) {
 	switch n := v.(type) {
 	case float64:
-		return int(n), true
+		i := int(n)
+		if float64(i) != n {
+			return 0, false
+		}
+		return i, true
 	case json.Number:
 		if i, err := n.Int64(); err == nil {
 			return int(i), true
@@ -109,6 +113,7 @@ type CollectorConfig struct {
 	Address           string `json:"address"`
 	Port              int    `json:"port"`
 	SourceAddress     string `json:"source-address"`
+	MaxDatagramSize   int    `json:"max-datagram-size"`
 	Protocol          string `json:"protocol"`
 	PollingInterval   int    `json:"polling-interval"`
 	TemplateRefresh   int    `json:"template-refresh"`
@@ -266,6 +271,7 @@ func parseCollectorMap(name string, m map[string]any) CollectorConfig {
 		PollingInterval: 20,
 		TemplateRefresh: 600,
 		Port:            6343,
+		MaxDatagramSize: DatagramSizeDefault,
 	}
 	if v, ok := m["name"].(string); ok {
 		c.Name = v
@@ -278,6 +284,14 @@ func parseCollectorMap(name string, m map[string]any) CollectorConfig {
 	}
 	if v, ok := cfgInt(m["port"]); ok {
 		c.Port = v
+	}
+	if raw, exists := m["max-datagram-size"]; exists {
+		// An invalid explicit value must reach validation as an error,
+		// rather than silently selecting the default.
+		c.MaxDatagramSize = 0
+		if v, ok := cfgInt(raw); ok {
+			c.MaxDatagramSize = v
+		}
 	}
 	if v, ok := m["protocol"].(string); ok {
 		c.Protocol = v
@@ -365,6 +379,14 @@ func (c *CollectorConfig) validate() error {
 		errs = append(errs, errors.New("protocol is required"))
 	case lookupEncoderFactory(c.Protocol) == nil:
 		errs = append(errs, fmt.Errorf("unknown protocol %q (%s)", c.Protocol, strings.Join(RegisteredProtocols(), ", ")))
+	}
+
+	// RFC 7011 Section 10.3.3: "The maximum size of exported messages MUST be
+	// configured such that the total packet size does not exceed the PMTU."
+	// The ceiling is the pooled buffer size; above it no encoder could honor
+	// the value.
+	if c.MaxDatagramSize < DatagramSizeMin || c.MaxDatagramSize > MaxDatagramSize {
+		errs = append(errs, fmt.Errorf("max-datagram-size %d out of range %d-%d", c.MaxDatagramSize, DatagramSizeMin, MaxDatagramSize))
 	}
 
 	if c.PollingInterval < 1 || c.PollingInterval > 3600 {

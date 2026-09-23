@@ -92,6 +92,11 @@ func TestIntegrationMacvlanCreate_ReadBackMACModeAliasMTU(t *testing.T) {
 	withMacvlanNetNS(t, func() {
 		addMacvlanParent(t, "zvp0", 1400)
 		b := &netlinkBackend{}
+		t.Cleanup(func() {
+			if err := b.Close(); err != nil {
+				t.Error(err)
+			}
+		})
 		spec := iface.MacvlanSpec{Name: "zvm0", Parent: "zvp0", MAC: "00:00:5e:00:01:0a", Alias: "ze:owned:test"}
 		if err := b.CreateMacvlanDevice(spec); err != nil {
 			t.Fatalf("CreateMacvlanDevice: %v", err)

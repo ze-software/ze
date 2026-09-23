@@ -91,7 +91,7 @@ func TestParseConfigYANGKeyedMap(t *testing.T) {
 func TestValidateGoodConfig(t *testing.T) {
 	cfg := &Config{
 		Collectors: []CollectorConfig{
-			{Name: "c1", Address: "10.0.0.1", Port: 6343, Protocol: "sflow", PollingInterval: 20, TemplateRefresh: 600},
+			{Name: "c1", Address: "10.0.0.1", Port: 6343, Protocol: "sflow", PollingInterval: 20, TemplateRefresh: 600, MaxDatagramSize: DatagramSizeDefault},
 		},
 	}
 	if err := cfg.Validate(); err != nil {
@@ -102,7 +102,7 @@ func TestValidateGoodConfig(t *testing.T) {
 func TestValidateBadAddress(t *testing.T) {
 	cfg := &Config{
 		Collectors: []CollectorConfig{
-			{Name: "c1", Address: "not-an-ip", Port: 6343, Protocol: "sflow", PollingInterval: 20, TemplateRefresh: 600},
+			{Name: "c1", Address: "not-an-ip", Port: 6343, Protocol: "sflow", PollingInterval: 20, TemplateRefresh: 600, MaxDatagramSize: DatagramSizeDefault},
 		},
 	}
 	err := cfg.Validate()
@@ -128,7 +128,7 @@ func TestValidatePortBoundary(t *testing.T) {
 	for _, tt := range tests {
 		cfg := &Config{
 			Collectors: []CollectorConfig{
-				{Name: "c1", Address: "10.0.0.1", Port: tt.port, Protocol: "sflow", PollingInterval: 20, TemplateRefresh: 600},
+				{Name: "c1", Address: "10.0.0.1", Port: tt.port, Protocol: "sflow", PollingInterval: 20, TemplateRefresh: 600, MaxDatagramSize: DatagramSizeDefault},
 			},
 		}
 		err := cfg.Validate()
@@ -151,7 +151,7 @@ func TestValidatePollingIntervalBoundary(t *testing.T) {
 	for _, tt := range tests {
 		cfg := &Config{
 			Collectors: []CollectorConfig{
-				{Name: "c1", Address: "10.0.0.1", Port: 6343, Protocol: "sflow", PollingInterval: tt.interval, TemplateRefresh: 600},
+				{Name: "c1", Address: "10.0.0.1", Port: 6343, Protocol: "sflow", PollingInterval: tt.interval, TemplateRefresh: 600, MaxDatagramSize: DatagramSizeDefault},
 			},
 		}
 		err := cfg.Validate()
@@ -174,7 +174,7 @@ func TestValidateTemplateRefreshBoundary(t *testing.T) {
 	for _, tt := range tests {
 		cfg := &Config{
 			Collectors: []CollectorConfig{
-				{Name: "c1", Address: "10.0.0.1", Port: 6343, Protocol: "sflow", PollingInterval: 20, TemplateRefresh: tt.refresh},
+				{Name: "c1", Address: "10.0.0.1", Port: 6343, Protocol: "sflow", PollingInterval: 20, TemplateRefresh: tt.refresh, MaxDatagramSize: DatagramSizeDefault},
 			},
 		}
 		err := cfg.Validate()
@@ -187,7 +187,7 @@ func TestValidateTemplateRefreshBoundary(t *testing.T) {
 func TestValidateBadProtocol(t *testing.T) {
 	cfg := &Config{
 		Collectors: []CollectorConfig{
-			{Name: "c1", Address: "10.0.0.1", Port: 6343, Protocol: "snmp", PollingInterval: 20, TemplateRefresh: 600},
+			{Name: "c1", Address: "10.0.0.1", Port: 6343, Protocol: "snmp", PollingInterval: 20, TemplateRefresh: 600, MaxDatagramSize: DatagramSizeDefault},
 		},
 	}
 	err := cfg.Validate()
@@ -202,7 +202,7 @@ func TestValidateBadProtocol(t *testing.T) {
 func TestValidateMissingAddress(t *testing.T) {
 	cfg := &Config{
 		Collectors: []CollectorConfig{
-			{Name: "c1", Port: 6343, Protocol: "sflow", PollingInterval: 20, TemplateRefresh: 600},
+			{Name: "c1", Port: 6343, Protocol: "sflow", PollingInterval: 20, TemplateRefresh: 600, MaxDatagramSize: DatagramSizeDefault},
 		},
 	}
 	err := cfg.Validate()
@@ -217,7 +217,7 @@ func TestValidateMissingAddress(t *testing.T) {
 func TestValidateIPv6Address(t *testing.T) {
 	cfg := &Config{
 		Collectors: []CollectorConfig{
-			{Name: "c1", Address: "2001:db8::1", Port: 6343, Protocol: "ipfix", PollingInterval: 20, TemplateRefresh: 600},
+			{Name: "c1", Address: "2001:db8::1", Port: 6343, Protocol: "ipfix", PollingInterval: 20, TemplateRefresh: 600, MaxDatagramSize: DatagramSizeDefault},
 		},
 	}
 	if err := cfg.Validate(); err != nil {

@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/netip"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/ze-software/ze/internal/plugins/flowexport"
@@ -38,7 +39,7 @@ func captureSender(t *testing.T) (*flowexport.Sender, net.PacketConn) {
 	if !ok {
 		t.Fatal("unexpected address type")
 	}
-	s, err := flowexport.NewSender("127.0.0.1", addr.Port, "")
+	s, err := flowexport.NewSender("127.0.0.1", addr.Port, "", flowexport.DatagramSizeDefault)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -329,6 +330,154 @@ func TestRFC7011StaleSnapshotClampedToTemplateTime(t *testing.T) {
 	if got != tmplTime {
 		t.Fatalf("Data Export Time = %d, want clamped to %d", got, tmplTime)
 	}
+}
+
+// TestFlowExportTimeAfterClockRollback checks RFC 7011 Section 8.2 at the
+// sender boundary, with and without a template refresh after the clock moves
+// backwards. No encoder state or emitted packet is modified by the test.
+// MUTATION: remove the templateExportTime clamp from sendDataMessage.
+func TestFlowExportTimeAfterClockRollback(t *testing.T) {
+	for _, refresh := range []bool{false, true} {
+		name := "without-refresh"
+		if refresh {
+			name = "with-refresh"
+		}
+		t.Run(name, func(t *testing.T) {
+			s, pc := captureSender(t)
+			enc := NewFlowEncoder(1)
+			if err := enc.EncodeFlowTemplate(s); err != nil {
+				t.Fatal(err)
+			}
+			var templateTime uint32
+			for _, templateID := range []uint16{FlowTemplateID, FlowTemplateID6} {
+				msg := readDatagram(t, pc)
+				id, _ := firstSet(t, msg)
+				if id != 2 || len(msg) < MessageHeaderSize+8 {
+					t.Fatalf("initial template message = %x", msg)
+				}
+				if got := binary.BigEndian.Uint16(msg[MessageHeaderSize+4:]); got != templateID {
+					t.Fatalf("template ID = %d, want %d", got, templateID)
+				}
+				templateTime = max(templateTime, exportTimeOf(msg))
+				t.Logf("initial template ID=%d Export Time=%d", templateID, exportTimeOf(msg))
+			}
+
+			// synctest resets time.Now to 2000-01-01 in this bubble. Only
+			// synchronous UDP sends run inside it; socket reads and their
+			// deadlines stay outside, and no fake-clock advance is needed.
+			var rollbackTime uint32
+			synctest.Test(t, func(t *testing.T) {
+				rollbackTime = uint32(time.Now().Unix())
+				if rollbackTime >= templateTime {
+					t.Fatalf("clock did not roll back: now=%d template=%d", rollbackTime, templateTime)
+				}
+				if refresh {
+					if err := enc.EncodeFlowTemplate(s); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if n, err := enc.EncodeFlows(mixedFlows(), s); err != nil || n != 2 {
+					t.Fatalf("EncodeFlows = (%d, %v), want (2, nil)", n, err)
+				}
+			})
+			t.Logf("wall clock after rollback=%d", rollbackTime)
+
+			if refresh {
+				for range 2 {
+					msg := readDatagram(t, pc)
+					id, _ := firstSet(t, msg)
+					if id != 2 {
+						t.Fatalf("refreshed Set ID = %d, want 2", id)
+					}
+					if got := exportTimeOf(msg); got != templateTime {
+						t.Fatalf("refreshed Template Export Time = %d, want retained %d", got, templateTime)
+					}
+					t.Logf("refreshed template Export Time=%d", exportTimeOf(msg))
+				}
+			}
+			for _, templateID := range []uint16{FlowTemplateID, FlowTemplateID6} {
+				msg := readDatagram(t, pc)
+				id, _ := firstSet(t, msg)
+				if id != int(templateID) {
+					t.Fatalf("Data Set ID = %d, want %d", id, templateID)
+				}
+				if got := exportTimeOf(msg); got != templateTime {
+					t.Fatalf("Data Set %d Export Time = %d, want retained Template time %d (wall clock %d)",
+						id, got, templateTime, rollbackTime)
+				}
+				t.Logf("Data Set ID=%d Export Time=%d", id, exportTimeOf(msg))
+			}
+		})
+	}
+}
+
+// TestCounterExportTimeAfterClockRollbackAndRefresh checks that refreshing
+// a counter template after a clock rollback preserves its original time floor.
+// MUTATION: remove the templateExportTime clamp from EncodeTemplate.
+func TestCounterExportTimeAfterClockRollbackAndRefresh(t *testing.T) {
+	s, pc := captureSender(t)
+	enc := NewCounterEncoder(1)
+	if err := enc.EncodeTemplate(s); err != nil {
+		t.Fatal(err)
+	}
+	initial := readDatagram(t, pc)
+	id, _ := firstSet(t, initial)
+	if id != 2 || len(initial) < MessageHeaderSize+8 {
+		t.Fatalf("initial template message = %x", initial)
+	}
+	if got := binary.BigEndian.Uint16(initial[MessageHeaderSize+4:]); got != CounterTemplateID {
+		t.Fatalf("template ID = %d, want %d", got, CounterTemplateID)
+	}
+	templateTime := exportTimeOf(initial)
+	t.Logf("initial counter template ID=%d Export Time=%d", CounterTemplateID, templateTime)
+
+	var snapshotTime uint32
+	synctest.Test(t, func(t *testing.T) {
+		// Only synchronous sends run against the bubble's 2000-01-01
+		// clock; UDP reads and their deadlines stay outside the bubble.
+		now := time.Now()
+		snapshotTime = uint32(now.Unix())
+		if snapshotTime >= templateTime {
+			t.Fatalf("clock did not roll back: now=%d template=%d", snapshotTime, templateTime)
+		}
+		if err := enc.EncodeTemplate(s); err != nil {
+			t.Fatal(err)
+		}
+		snap := flowexport.CounterSnapshot{
+			Time:       now,
+			Interfaces: []flowexport.InterfaceCounters{{IfIndex: 1}},
+		}
+		if n, err := enc.Encode(snap, s); err != nil || n != 1 {
+			t.Fatalf("Encode = (%d, %v), want (1, nil)", n, err)
+		}
+	})
+
+	refreshed := readDatagram(t, pc)
+	id, _ = firstSet(t, refreshed)
+	if id != 2 {
+		t.Fatalf("refreshed Set ID = %d, want 2", id)
+	}
+	if got := exportTimeOf(refreshed); got != templateTime {
+		t.Errorf("refreshed Template Export Time = %d, want retained %d", got, templateTime)
+	}
+	data := readDatagram(t, pc)
+	id, _ = firstSet(t, data)
+	if id != int(CounterTemplateID) || len(data) < MessageHeaderSize+4+32 {
+		t.Fatalf("counter Data message = %x", data)
+	}
+	if got := exportTimeOf(data); got != templateTime {
+		t.Errorf("Data Export Time = %d, want retained Template time %d (wall clock %d)", got, templateTime, snapshotTime)
+	}
+	// Counter record offsets 24 and 28 carry flowStartSeconds and
+	// flowEndSeconds. Header clamping must preserve the sampled times.
+	record := data[MessageHeaderSize+4:]
+	start := binary.BigEndian.Uint32(record[24:])
+	end := binary.BigEndian.Uint32(record[28:])
+	if start != snapshotTime || end != snapshotTime {
+		t.Errorf("record times = (%d, %d), want snapshot time %d", start, end, snapshotTime)
+	}
+	t.Logf("refreshed counter template Export Time=%d; Data Set ID=%d Export Time=%d; record times=(%d,%d)",
+		exportTimeOf(refreshed), id, exportTimeOf(data), start, end)
 }
 
 // RFC requirement: RFC7011-8.2-3 positive -- a message built with its Template

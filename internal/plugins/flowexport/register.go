@@ -121,6 +121,12 @@ func runEngine(conn net.Conn) int {
 	}
 
 	collectSubID := iface.SubscribeCollectNotify(notifyFromRateTracker)
+	defer func() {
+		iface.UnsubscribeCollectNotify(collectSubID)
+		if exp := activeExporter.Swap(nil); exp != nil {
+			exp.stop()
+		}
+	}()
 
 	// configure builds (or tears down) the exporter from a parsed config.
 	// Shared by OnConfigure (boot) and OnConfigApply (reload): a reload that
@@ -223,15 +229,9 @@ func runEngine(conn net.Conn) int {
 		ApplyBudget:  10,
 	}); err != nil {
 		log.Error("flow-export plugin failed", "error", err)
-		iface.UnsubscribeCollectNotify(collectSubID)
 		return 1
 	}
 
-	iface.UnsubscribeCollectNotify(collectSubID)
-
-	if exp := activeExporter.Swap(nil); exp != nil {
-		exp.stop()
-	}
 	log.Info("flow-export plugin stopped")
 	return 0
 }
@@ -301,7 +301,7 @@ func startFlowSubsystems(exp *exporter, cfg *Config) {
 	}
 }
 
-// notifyFromRateTracker is the callback registered with iface.RegisterCollectNotify.
+// notifyFromRateTracker is the callback registered with iface.SubscribeCollectNotify.
 // It converts raw []iface.InterfaceInfo into a CounterSnapshot and dispatches
 // to the active exporter. Called from the iface rate tracker goroutine.
 func notifyFromRateTracker(ifs []iface.InterfaceInfo) {
@@ -336,12 +336,14 @@ func notifyFromRateTracker(ifs []iface.InterfaceInfo) {
 // InterfaceInfo to keep them off the generic ListInterfaces path).
 // sFlow if_counters fields 7-18 are XDR unsigned int (32-bit); truncation from
 // the kernel's uint64 counters is per spec. ifSpeed is the Mbit/s value scaled
-// to bit/s (0 stays 0 when the kernel reports it unknown); broadcast and
-// out-multicast counters are left zero because rtnl_link_stats64 does not expose
-// them (see docs/guide/flow-export.md Limitations).
+// to bit/s (0 stays 0 when the kernel reports it unknown). Counters that
+// rtnl_link_stats64 does not expose carry CounterUnavailable.
 func interfaceCountersFrom(info *iface.InterfaceInfo, speedMbps int, duplex string) InterfaceCounters {
 	ic := InterfaceCounters{
 		Name:              info.Name,
+		CounterGeneration: info.CounterGeneration,
+		InPackets:         info.Stats.RxPackets,
+		OutPackets:        info.Stats.TxPackets,
 		IfIndex:           uint32(info.Index),
 		IfType:            ifTypeFor(info.Type),
 		IfSpeed:           uint64(speedMbps) * 1_000_000, // Mbit/s -> bit/s; 0 stays 0
@@ -355,6 +357,17 @@ func interfaceCountersFrom(info *iface.InterfaceInfo, speedMbps int, duplex stri
 		IfOutUcastPkts:    uint32(info.Stats.TxPackets),
 		IfOutDiscards:     uint32(info.Stats.TxDropped),
 		IfOutErrors:       uint32(info.Stats.TxErrors),
+		// rtnl_link_stats64 carries no broadcast counters, no transmit
+		// multicast counter and no unknown-protocol counter, so these four
+		// are unavailable on every Linux interface, on every poll. sFlow v5,
+		// "Unknown counter": "Use the maximum counter value to indicate that
+		// the counter is not available. Within any given sFlow session a
+		// particular counter must be always available, or always
+		// unavailable."
+		IfInBroadcastPkts:  CounterUnavailable,
+		IfInUnknownProtos:  CounterUnavailable,
+		IfOutMulticastPkts: CounterUnavailable,
+		IfOutBroadcastPkts: CounterUnavailable,
 	}
 	if info.Promisc {
 		ic.IfPromiscuousMode = 1

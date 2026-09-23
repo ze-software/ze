@@ -44,6 +44,20 @@ configure several collectors at once (for example one sFlow and one IPFIX).
 | `sub-agent-id` | 0 | sFlow sub-agent identifier |
 | `observation-domain` | 0 | IPFIX / NetFlow v9 observation domain ID |
 | `agent-address` | - | sFlow agent address (the device's own stable IP, for example a loopback) |
+| `source-address` | - | Local source IP for the collector's UDP socket |
+| `max-datagram-size` | 464 | Maximum UDP payload bytes, including protocol padding (464-1400) |
+<!-- source: internal/plugins/flowexport/yang/ze-flowexport-conf.yang -- collector -->
+
+The default reserves IPv6 and UDP headers within a 512-byte packet when the
+path MTU is unknown. Raise it only when the path MTU is known, after subtracting
+all IP, UDP and tunnel headers. Encoders split batches or cap sampled headers
+to this bound. Oversized sends return an error.
+<!-- source: internal/plugins/flowexport/sender.go -- DatagramSizeDefault, Sender.Send -->
+
+sFlow uses expanded counter and flow samples for every interface, preserving
+full-width interface indexes without mixing compact and expanded formats.
+<!-- source: internal/plugins/flowexport/sflow/counter.go -- writeCounterSample -->
+<!-- source: internal/plugins/flowexport/sflow/flow.go -- writeFlowSample -->
 
 An sFlow counter collector:
 
@@ -184,12 +198,18 @@ format `environment cli format default` names, whose registered value is `text`.
 | `datagrams-sent` | UDP datagrams sent to this collector |
 | `bytes-sent` | Total bytes sent to this collector |
 | `errors` | Send errors |
-| `sequence` | Current export sequence number |
-| `last-export-time` | Unix timestamp of the most recent poll (omitted before the first poll) |
+| `sequence` | Shared collector sequence: successful data records for IPFIX, successful packets for NetFlow v9, generated datagrams for sFlow |
+| `last-export-time` | Unix timestamp of the most recent successful counter poll (omitted before the first successful poll) |
 
 The command answers structured data, rendered in the format
 `environment cli format default` names. The registered value is `text`. The full
 set of pipe operators selects another one.
+
+Datagram and byte totals include successfully sent templates and any packets
+sent before a later error in the same batch. A failed template blocks its data
+batch until a subsequent template attempt succeeds. Counter and flow exporters
+share the sequence; a configuration reload creates a new transport session.
+<!-- source: internal/plugins/flowexport/exporter.go -- collectorState.recordSent, notifySnapshot, exportFlows, status -->
 
 ## Prometheus Metrics
 
@@ -215,9 +235,12 @@ The component registers the following metrics:
   inbound multicast packets are populated. ifSpeed and ifDirection come from
   sysfs (`/sys/class/net/<if>/speed` and `/duplex`) and read zero / unknown for
   virtual or down links, where the kernel does not report them. Outbound
-  multicast and both inbound and outbound broadcast packet counts are left zero:
-  `rtnl_link_stats64` exposes only an inbound multicast counter, with no
-  transmit-multicast and no broadcast counters at all.
+  multicast, broadcast and unknown-protocol counts carry `0xFFFFFFFF`, the
+  unavailable-counter value: Linux does not expose these counters through
+  `rtnl_link_stats64`. IPFIX packet totals use the original 64-bit receive and
+  transmit counts, without the sFlow sentinels.
+  <!-- source: internal/plugins/flowexport/register.go -- interfaceCountersFrom -->
+  <!-- source: internal/plugins/flowexport/ipfix/data.go -- writeCounterRecord -->
 - **Conntrack export combines periodic dumps with destroy events.** Records
   are emitted on each table dump (`active-timeout`), and a
   `NFNLGRP_CONNTRACK_DESTROY` netlink listener exports each torn-down flow's
@@ -234,7 +257,7 @@ The component registers the following metrics:
 Conntrack per-flow export gives **exact** per-flow accounting and suits edge /
 moderate scale (up to low-thousands of new flows per second). Its cost scales
 with flow **churn**: the delta tracker holds one entry per recently-seen flow,
-the kernel table dump serialises every tracked flow over netlink each
+the kernel table dump serializes every tracked flow over netlink each
 `active-timeout`, and the destroy-event socket must keep up with the teardown
 rate. A torn-down flow's tracking state is reclaimed within a few seconds of its
 destroy event (or at `2 × active-timeout` if the event is missed), so memory is

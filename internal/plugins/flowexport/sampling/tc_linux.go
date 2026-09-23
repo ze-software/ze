@@ -46,18 +46,7 @@ func SetupSampling(ifaceName string, rate, group, truncSize uint32) error {
 		}
 	}
 
-	action := netlink.NewSampleAction()
-	action.Rate = rate
-	action.Group = group
-	action.TruncSize = truncSize
-
-	filter := &netlink.MatchAll{
-		LinkIndex: linkIndex,
-		Parent:    netlink.HANDLE_MIN_INGRESS,
-		Priority:  SampleFilterPriority,
-		Protocol:  unix.ETH_P_ALL,
-		Actions:   []netlink.Action{action},
-	}
+	filter := buildSampleFilter(linkIndex, rate, group, truncSize)
 	if err := netlink.FilterAdd(filter); err != nil {
 		if errors.Is(err, unix.EEXIST) {
 			_ = netlink.FilterDel(filter)
@@ -70,6 +59,37 @@ func SetupSampling(ifaceName string, rate, group, truncSize uint32) error {
 	}
 
 	return nil
+}
+
+// buildSampleFilter is the tc filter Ze installs for one sampler instance:
+// what the kernel's act_sample then reads for every packet on the link.
+//
+// sFlow v5, "Packet Flow Sampling": sampling "must ensure that any packet
+// observed at a Data Source has an equal chance of being sampled,
+// irrespective of the Packet Flow(s) to which it belongs", so the filter is
+// MatchAll on ETH_P_ALL and no packet is classified before the draw.
+// "Each packet must only be considered once for sampling, irrespective of
+// the number of ports it will be forwarded to", so the filter sits on the
+// ingress hook only, where a packet passes once. "Each sFlow sampler
+// instance must operate independently of all other instances", so the
+// instance's own rate, group and truncation ride in its own action and no
+// state is shared between links. "The sampling algorithm must converge so
+// that over time the number of packets sampled approaches 1/Nth of the total
+// number of packets", and act_sample's per-packet random draw at the rate
+// written here is that algorithm.
+func buildSampleFilter(linkIndex int, rate, group, truncSize uint32) *netlink.MatchAll {
+	action := netlink.NewSampleAction()
+	action.Rate = rate
+	action.Group = group
+	action.TruncSize = truncSize
+
+	return &netlink.MatchAll{
+		LinkIndex: linkIndex,
+		Parent:    netlink.HANDLE_MIN_INGRESS,
+		Priority:  SampleFilterPriority,
+		Protocol:  unix.ETH_P_ALL,
+		Actions:   []netlink.Action{action},
+	}
 }
 
 // RemoveSampling removes the sample filter (priority 100) from the named

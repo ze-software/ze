@@ -293,6 +293,12 @@ device appears, and a config is validated on machines that will never run it.
   untouched, as is the VPP backend, which deletes exactly the requested address.
 <!-- source: internal/plugins/iface/netlink/addr_primary.go -- ensureDeleteIsolated, flushedByDelete -->
 <!-- source: internal/plugins/iface/netlink/manage_linux.go -- RemoveAddress delegates to removeAddressGuarded -->
+- **Point-to-point address removal.** A local CIDR identifies the address to remove.
+  The netlink backend reads the installed address and retains its peer metadata for deletion.
+  Linux matches both `IFA_LOCAL` and `IFA_ADDRESS`, so rebuilding the request from the local
+  CIDR alone cannot remove an address whose peer differs. The primary/secondary guard
+  still runs before deletion. Removing the address also removes its kernel connected route.
+<!-- source: internal/plugins/iface/netlink/addr_primary_linux.go -- netlinkAddrRemover.List, netlinkAddrRemover.Delete -->
 - **Virtual interface state.** Dummy/bridge/veth report `OperUnknown` not `OperUp`;
   monitor checks `IFF_UP` flag as fallback.
 - **Tunnel encapsulation as YANG choice/case.** The `tunnel` list at the iface level
@@ -882,17 +888,23 @@ A `ze doctor` check (`doctor-iface-macvlan`) probes kernel macvlan capability
 
 | Topic | Trigger | Payload |
 |---|---|---|
-| `interface/created` | First RTM_NEWLINK for an index | name, type, index, mtu, managed |
-| `interface/deleted` | RTM_DELLINK | name, type, index, mtu, managed |
-| `interface/up` | OperUp or OperUnknown+IFF_UP | name, index |
-| `interface/down` | Other oper states | name, index |
-| `interface/addr/added` | RTM_NEWADDR (DAD complete) | name, unit, index, address, prefix-length, family, managed |
-| `interface/addr/removed` | RTM_DELADDR | name, unit, index, address, prefix-length, family, managed |
-| `interface/dhcp/lease-acquired` | DHCPv4 ACK | name, unit, address, prefix-length, router, dns, lease-time |
-| `interface/dhcp/lease-renewed` | Renewal success | name, unit, address, prefix-length, router, dns, lease-time |
-| `interface/dhcp/lease-expired` | Lease timeout | name, unit, address, prefix-length, router, dns, lease-time |
+| `interface/created` | First RTM_NEWLINK for an index | name, unit, type, index, mtu |
+| `interface/up` | OperUp or OperUnknown+IFF_UP | name, unit, index |
+| `interface/down` | Other oper states or RTM_DELLINK | name, unit, index; deletion also carries type and mtu |
+| `interface/addr-added` | RTM_NEWADDR (DAD complete) | name, unit, index, address, prefix-length, family, origin |
+| `interface/addr-removed` | RTM_DELADDR | name, unit, index, address, prefix-length, family, origin |
+| `interface/dhcp-acquired` | DHCPv4 ACK | name, unit, address, prefix-length, router, dns, lease-time |
+| `interface/dhcp-renewed` | Renewal success | name, unit, address, prefix-length, router, dns, lease-time |
+| `interface/dhcp-expired` | Lease timeout | name, unit, address, prefix-length, router, dns, lease-time |
 
-<!-- source: internal/component/iface/iface.go — Topic* constants, *Payload structs -->
+<!-- source: internal/core/iface/events/events.go -- interface event names -->
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- event payloads -->
+
+Each RTM_NEWLINK also emits the current `up` or `down` state, including the first
+update that emits `created`. An interface can exist before the monitor starts,
+so its first observed update can already be a link failure.
+
+<!-- source: internal/plugins/iface/netlink/monitor_linux.go -- handleLinkUpdate -->
 
 ## Compound Commands (Auto-Ensure Parent)
 
@@ -1013,6 +1025,39 @@ falls back to a per-interface baseline-delta model: the current values
 become a baseline and `GetStats` / `ListInterfaces` / `GetInterface`
 subtract the baseline before returning, so the operator sees
 "since last clear" values.
+
+Raw snapshots also carry `counter-generation`, an opaque process-local
+continuity token. The Linux backend reads counters and link lifecycle events
+on one socket subscribed to `RTNLGRP_LINK`, so a delete and recreate at the same
+ifIndex changes the token even if the replacement's counters have already
+overtaken the previous values. Renames and ordinary down/up transitions preserve
+it. Decreases in exported raw 64-bit counters change it; truncation to a 32-bit
+wire counter does not.
+<!-- source: internal/component/iface/iface.go -- InterfaceInfo.CounterGeneration -->
+<!-- source: internal/plugins/iface/netlink/show_linux.go -- ListInterfaces, GetInterface -->
+<!-- source: internal/plugins/iface/netlink/counter_linux.go -- counterSource.consume, counterStatsDecreased -->
+
+Socket errors discard the incomplete snapshot and invalidate notification
+history. The next successful read assigns fresh tokens rather than treating
+possibly replaced interfaces as continuous. Backends without this metadata
+report zero. Display-counter clearing only changes the baseline, not raw
+continuity.
+<!-- source: internal/plugins/iface/netlink/counter_linux.go -- counterSource.snapshot, counterSource.invalidate -->
+<!-- source: internal/component/iface/counters.go -- ResetCounters -->
+
+The backend owns this subscribed socket. `Close` stops its monitor, waits for
+any bounded counter read, closes the socket and rejects later reads. The iface
+component calls `Close` when replacing or shutting down its backend; direct
+backend users must do the same.
+<!-- source: internal/plugins/iface/netlink/backend_linux.go -- netlinkBackend.Close -->
+<!-- source: internal/plugins/iface/netlink/counter_linux.go -- counterSource.close -->
+
+Linux requires statistics to persist “across routine operations like bringing
+the interface down and up” ([networking statistics documentation](https://docs.kernel.org/networking/statistics.html)).
+Its generic statistics API provides no driver-reset epoch. A driver reset whose
+new counters exceed the previous sample before the next read cannot be inferred
+from these values; the token does not claim to detect it.
+<!-- source: internal/plugins/iface/netlink/counter_linux.go -- counterStatsDecreased -->
 
 ### Netlink (Linux, default)
 

@@ -48,13 +48,21 @@ that set, and `protocols_test.go` holds the two together.
 
 ## Buffer-first encoding
 
-<!-- source: internal/plugins/flowexport/sender.go -- MaxDatagramSize, buffer pool -->
-
 Datagram assembly uses `WriteTo(buf, off) int` with skip-and-backfill for the
-length and count fields. Buffers come from a shared `sync.Pool` of
-`MaxDatagramSize` slices. `MaxDatagramSize` is 1400 bytes and has one home in
-`sender.go`: a duplicate constant in the `sflow` package let the UDP payload
-bound drift between packages, so it was removed.
+length and count fields. Shared pooled buffers have a fixed 1400-byte capacity.
+Each collector sets `max-datagram-size`, from 464 to 1400 UDP payload bytes.
+The default of 464 reserves 48 bytes for IPv6 and UDP within the 512-byte packet
+size recommended by RFC 7011 when the path MTU is unknown.
+<!-- source: internal/plugins/flowexport/sender.go -- MaxDatagramSize, DatagramSizeDefault -->
+
+All encoders use the collector's bound, including alignment padding. A larger
+batch produces multiple datagrams, and sFlow captured headers are truncated to
+fit. `Sender.Send` refuses an oversized datagram and counts a send error.
+Operators who raise the bound must subtract all headers from the known path MTU.
+<!-- source: internal/plugins/flowexport/sender.go -- Sender.MaxDatagram, Sender.Send -->
+<!-- source: internal/plugins/flowexport/ipfix/flow_adapter.go -- maxFlowRecordsPerDatagram -->
+<!-- source: internal/plugins/flowexport/netflow9/flow_adapter.go -- maxFlowRecordsPerDatagram -->
+<!-- source: internal/plugins/flowexport/sflow/flow_adapter.go -- FlowEncoder.EncodeFlowSample -->
 
 ## In-process component with the SDK protocol
 

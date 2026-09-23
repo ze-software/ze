@@ -13,6 +13,8 @@ func TestIPFIXDataSet(t *testing.T) {
 			IfIndex:       42,
 			IfInOctets:    1000,
 			IfOutOctets:   2000,
+			InPackets:     13,
+			OutPackets:    24,
 			IfInUcastPkts: 10, IfInMulticastPkts: 2, IfInBroadcastPkts: 1,
 			IfOutUcastPkts: 20, IfOutMulticastPkts: 3, IfOutBroadcastPkts: 1,
 		},
@@ -54,7 +56,7 @@ func TestIPFIXDataSet(t *testing.T) {
 	}
 	recOff += 8
 
-	// IE 86: packetTotalCount = 10+2+1+20+3+1 = 37.
+	// IE 86: packetTotalCount = receive total 13 + transmit total 24 = 37.
 	pkts := binary.BigEndian.Uint64(buf[recOff:])
 	if pkts != 37 {
 		t.Errorf("packetTotalCount = %d, want 37", pkts)
@@ -140,5 +142,28 @@ func TestIPFIXDataSetEmpty(t *testing.T) {
 	}
 	if count != 0 {
 		t.Errorf("empty: record count = %d, want 0", count)
+	}
+}
+
+// TestIPFIXPacketTotalsIgnoreSFlowSentinels checks that unavailable fields
+// cannot inflate totals and a legitimate 32-bit maximum is never discarded.
+func TestIPFIXPacketTotalsIgnoreSFlowSentinels(t *testing.T) {
+	ic := flowexport.InterfaceCounters{
+		IfIndex:            1,
+		InPackets:          uint64(^uint32(0)),
+		OutPackets:         uint64(^uint32(0)) + 7,
+		IfInUcastPkts:      ^uint32(0),
+		IfInMulticastPkts:  19,
+		IfInBroadcastPkts:  flowexport.CounterUnavailable,
+		IfOutMulticastPkts: flowexport.CounterUnavailable,
+		IfOutBroadcastPkts: flowexport.CounterUnavailable,
+	}
+	var buf [64]byte
+	_, count := WriteDataSet(buf[:], 0, CounterTemplateID, []flowexport.InterfaceCounters{ic}, 0, 0)
+	if count != 1 {
+		t.Fatalf("records = %d, want 1", count)
+	}
+	if got, want := binary.BigEndian.Uint64(buf[16:]), ic.InPackets+ic.OutPackets; got != want {
+		t.Fatalf("packetTotalCount = %d, want %d", got, want)
 	}
 }

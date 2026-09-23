@@ -16,7 +16,7 @@ module ze-flowexport-conf {
             key "name";
             description "A flow export collector endpoint. Ze opens one UDP sender for each entry and encodes for the
                 protocol that entry names. address and protocol are both mandatory, so a commit that leaves either
-                one out is rejected. Each datagram is 1400 bytes at most, to stay under a common path MTU.";
+                one out is rejected. max-datagram-size bounds each UDP payload, including padding.";
             ze:help "A flow export collector endpoint";
 
             leaf name {
@@ -52,6 +52,19 @@ module ze-flowexport-conf {
                     collector to the address. Left out, the kernel selects a source from its route to the collector.
                     The value does not reach the sFlow datagram header, which carries agent-address instead.";
                 ze:help "Source IP address for outbound flow export datagrams";
+            }
+
+            leaf max-datagram-size {
+                type uint16 {
+                    range "464..1400";
+                }
+                default 464;
+                description "Largest UDP payload Ze sends to this collector, in octets. Encoders include padding
+                    within this bound. RFC 7011 Section 10.3.3 recommends packets of at most 512 octets when the
+                    path MTU is unknown. The default 464 reserves 48 octets for IPv6 and UDP headers.
+                    Set a larger value only for a known path MTU, after subtracting all IP, UDP and tunnel headers.
+                    The ceiling 1400 is the encoding buffer size.";
+                ze:help "Largest UDP payload sent to this collector, in octets";
             }
 
             leaf protocol {

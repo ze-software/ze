@@ -71,9 +71,7 @@ func writeCounterRecord(buf []byte, off int, ifc *flowexport.InterfaceCounters, 
 	off += 8
 
 	// IE 86: packetTotalCount (8 bytes) -- rx + tx combined, cumulative
-	totalPkts := uint64(ifc.IfInUcastPkts) + uint64(ifc.IfInMulticastPkts) + uint64(ifc.IfInBroadcastPkts) +
-		uint64(ifc.IfOutUcastPkts) + uint64(ifc.IfOutMulticastPkts) + uint64(ifc.IfOutBroadcastPkts)
-	binary.BigEndian.PutUint64(buf[off:], totalPkts)
+	binary.BigEndian.PutUint64(buf[off:], ifc.InPackets+ifc.OutPackets)
 	off += 8
 
 	// IE 14: egressInterface (4 bytes) -- same as ingress for per-interface counters
