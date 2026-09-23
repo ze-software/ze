@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"testing"
 	"time"
@@ -18,7 +19,7 @@ import (
 
 // Run the registered engine, including its startup handshake and serialized SDK
 // callbacks. The assertions use the shared subscriber handler, not parser fields.
-func startAuthProvider(t *testing.T, name, config string) (context.Context, *rpc.MuxConn) {
+func startAuthProvider(t *testing.T, name, config string) (context.Context, *rpc.DirectBridge) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	t.Cleanup(cancel)
@@ -28,9 +29,11 @@ func startAuthProvider(t *testing.T, name, config string) (context.Context, *rpc
 	}
 	pluginEnd, engineEnd := net.Pipe()
 	mux := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))
+	bridge := rpc.NewDirectBridge()
 	done := make(chan int, 1)
-	go func() { done <- reg.RunEngine(pluginEnd) }()
+	go func() { done <- reg.RunEngine(rpc.NewBridgedConn(pluginEnd, bridge)) }()
 	t.Cleanup(func() {
+		bridge.CloseCallbacks()
 		_ = mux.Close()
 		_ = pluginEnd.Close()
 		_ = engineEnd.Close()
@@ -63,7 +66,47 @@ func startAuthProvider(t *testing.T, name, config string) (context.Context, *rpc
 			}
 		}
 	}
-	return ctx, mux
+	return ctx, bridge
+}
+
+func TestRegisteredRadiusExternalStartupRefused(t *testing.T) {
+	reg := registry.Lookup(Name)
+	if reg == nil {
+		t.Fatal("RADIUS provider is not registered")
+	}
+	pluginEnd, engineEnd := net.Pipe()
+	done := make(chan struct{})
+	var exitCode int
+	go func() {
+		exitCode = reg.RunEngine(pluginEnd)
+		close(done)
+	}()
+	t.Cleanup(func() {
+		_ = engineEnd.Close()
+		_ = pluginEnd.Close()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Error("external RADIUS provider did not stop")
+		}
+	})
+	if err := engineEnd.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	var first [1]byte
+	n, err := engineEnd.Read(first[:])
+	if n != 0 || err != io.EOF {
+		t.Errorf("external provider started RPC instead of refusing startup: bytes=%d error=%v", n, err)
+	}
+	_ = engineEnd.Close()
+	select {
+	case <-done:
+		if exitCode != 1 {
+			t.Errorf("external provider exit=%d, want 1", exitCode)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("external RADIUS provider did not return")
+	}
 }
 
 func authConfigSections(config string) []rpc.ConfigSection {
@@ -73,9 +116,13 @@ func authConfigSections(config string) []rpc.ConfigSection {
 	return []rpc.ConfigSection{{Root: "l2tp", Data: config}}
 }
 
-func authConfigCall(t *testing.T, ctx context.Context, mux *rpc.MuxConn, method string, input any, want string) {
+func authConfigCall(t *testing.T, ctx context.Context, bridge *rpc.DirectBridge, method string, input any, want string) {
 	t.Helper()
-	data, err := mux.CallRPC(ctx, "ze-plugin-callback:"+method, input)
+	params, err := json.Marshal(input)
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := bridge.SendCallback(ctx, "ze-plugin-callback:"+method, params)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,19 +135,19 @@ func authConfigCall(t *testing.T, ctx context.Context, mux *rpc.MuxConn, method 
 	}
 }
 
-func verifyAuthConfig(t *testing.T, ctx context.Context, mux *rpc.MuxConn, config, status string) {
+func verifyAuthConfig(t *testing.T, ctx context.Context, bridge *rpc.DirectBridge, config, status string) {
 	t.Helper()
-	authConfigCall(t, ctx, mux, "config-verify", &rpc.ConfigVerifyInput{Sections: authConfigSections(config)}, status)
+	authConfigCall(t, ctx, bridge, "config-verify", &rpc.ConfigVerifyInput{Sections: authConfigSections(config)}, status)
 }
 
-func applyAuthConfig(t *testing.T, ctx context.Context, mux *rpc.MuxConn) {
+func applyAuthConfig(t *testing.T, ctx context.Context, bridge *rpc.DirectBridge) {
 	t.Helper()
-	authConfigCall(t, ctx, mux, "config-apply", &rpc.ConfigApplyInput{Sections: []rpc.ConfigDiffSection{{Root: "l2tp"}}}, rpc.StatusOK)
+	authConfigCall(t, ctx, bridge, "config-apply", &rpc.ConfigApplyInput{Sections: []rpc.ConfigDiffSection{{Root: "l2tp"}}}, rpc.StatusOK)
 }
 
-func rollbackAuthConfig(t *testing.T, ctx context.Context, mux *rpc.MuxConn) {
+func rollbackAuthConfig(t *testing.T, ctx context.Context, bridge *rpc.DirectBridge) {
 	t.Helper()
-	if _, err := mux.CallRPC(ctx, "ze-plugin-callback:config-rollback", map[string]string{"transaction-id": "provider-reload"}); err != nil {
+	if _, err := bridge.SendCallback(ctx, "ze-plugin-callback:config-rollback", json.RawMessage(`{"transaction-id":"provider-reload"}`)); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -186,7 +233,12 @@ func TestRegisteredProviderReloadTransitions(t *testing.T) {
 	t.Cleanup(func() {
 		cleanupCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		_, _ = remote.CallRPC(cleanupCtx, "ze-plugin-callback:configure", &rpc.ConfigureInput{Sections: authConfigSections(`{}`)})
+		params, err := json.Marshal(&rpc.ConfigureInput{Sections: authConfigSections(`{}`)})
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		_, _ = remote.SendCallback(cleanupCtx, "ze-plugin-callback:configure", params)
 	})
 	server, address := startMockRADIUS(t, []byte("reload-key"), radius.CodeAccessReject)
 	t.Cleanup(func() { _ = server.Close() })

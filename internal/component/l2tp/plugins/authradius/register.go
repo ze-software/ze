@@ -104,6 +104,10 @@ func runPlugin(conn net.Conn) int {
 			logger().Debug("plugin close error", "error", err)
 		}
 	}()
+	if !p.IsInternal() {
+		logger().Error("l2tp-auth-radius requires internal mode for engine-local authentication and accounting")
+		return 1
+	}
 
 	var current, pending, previous *radiusConfig
 	var verified, applied bool

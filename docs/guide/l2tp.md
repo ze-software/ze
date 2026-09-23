@@ -369,6 +369,10 @@ RADIUS client plugin providing:
 - **CoA/DM** -- Change of Authorization and Disconnect-Message listener
   (RFC 5176) for RADIUS-initiated session changes and disconnects
 
+Configure `l2tp-auth-radius` as an internal plugin. It refuses external startup
+because authentication and accounting require the engine's process-local state.
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -- runPlugin -->
+
 The RADIUS handler accepts explicit no-auth sessions without an Access-Request.
 RADIUS remains available for accounting.
 
