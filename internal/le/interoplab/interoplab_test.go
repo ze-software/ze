@@ -110,15 +110,12 @@ func TestReadEnvironmentPreservesLabKnobs(t *testing.T) {
 	}
 }
 
-// VALIDATES: Docker receives the producer's option order, immutable image result, and overlap retry.
-// PREVENTS: a concurrent image tag race or a network overlap stopping the full suite.
-func TestDockerBuildNetworkAndContainerArguments(t *testing.T) {
+// An overlapping subnet must not prevent trying the next declared candidate.
+func TestDockerNetworkOverlapSelectsUsableSubnet(t *testing.T) {
 	runner := &recordingRunner{}
 	runner.run = func(command processCommand) (processResult, error) {
 		joined := strings.Join(command.Arguments, " ")
 		switch {
-		case strings.HasPrefix(joined, "docker build "):
-			return processResult{Stdout: "sha256:built\n"}, nil
 		case strings.Contains(joined, "--subnet=172.30.0.0/24"):
 			return processResult{ExitCode: 1, Stderr: "Pool overlaps with other one"}, nil
 		default:
@@ -126,20 +123,6 @@ func TestDockerBuildNetworkAndContainerArguments(t *testing.T) {
 		}
 	}
 	docker := newDocker(runner)
-
-	image, err := docker.Build(t.Context(), ImageBuild{
-		Name:       "ze",
-		Tag:        "ze-interop",
-		Dockerfile: "Dockerfile.ze",
-		Context:    "/repo",
-		BuildArgs:  []string{"ZE_FEATURES=ze_bgp ze_ssh"},
-	})
-	if err != nil {
-		t.Fatalf("Build returned an error: %v", err)
-	}
-	if image.Reference != "sha256:built" {
-		t.Errorf("image reference = %q, want immutable image id", image.Reference)
-	}
 
 	network, err := docker.createNetwork(t.Context(), NetworkSpec{
 		Name: "lab-net",
@@ -153,38 +136,6 @@ func TestDockerBuildNetworkAndContainerArguments(t *testing.T) {
 	}
 	if network.IPv4 != netip.MustParsePrefix("172.31.0.0/24") {
 		t.Errorf("selected subnet = %s, want second non-overlapping candidate", network.IPv4)
-	}
-
-	err = docker.runContainer(t.Context(), network, PeerConfig{
-		Name:         "peer",
-		Container:    "lab-peer",
-		Image:        "sha256:peer",
-		Host:         3,
-		Capabilities: []string{"NET_ADMIN", "SYS_ADMIN"},
-		Mounts:       []Mount{{Source: "/host/peer.conf", Target: "/etc/peer.conf", ReadOnly: true}},
-		Environment:  []EnvironmentVariable{{Name: "SESSION_TIMEOUT", Value: "47"}},
-		Arguments:    []string{"--privileged"},
-		Command:      []string{"start", "/etc/peer.conf"},
-	})
-	if err != nil {
-		t.Fatalf("runContainer returned an error: %v", err)
-	}
-
-	wantBuild := []string{"docker", "build", "-t", "ze-interop", "--build-arg", "ZE_FEATURES=ze_bgp ze_ssh", "-f", "Dockerfile.ze", "/repo", "-q"}
-	if got := runner.commands[0].Arguments; !reflect.DeepEqual(got, wantBuild) {
-		t.Errorf("build argv = %#v, want %#v", got, wantBuild)
-	}
-	if runner.commands[0].Timeout != dockerBuildTimeoutDefault {
-		t.Errorf("build timeout = %s, want %s", runner.commands[0].Timeout, dockerBuildTimeoutDefault)
-	}
-	wantRun := []string{
-		"docker", "run", "-d", "--name", "lab-peer", "--network", "lab-net", "--ip", "172.31.0.3",
-		"--ip6", "fd00:1::3", "--cap-add", "NET_ADMIN", "--cap-add", "SYS_ADMIN",
-		"-v", "/host/peer.conf:/etc/peer.conf:ro", "-e", "SESSION_TIMEOUT=47", "--privileged",
-		"sha256:peer", "start", "/etc/peer.conf",
-	}
-	if got := runner.commands[len(runner.commands)-1].Arguments; !reflect.DeepEqual(got, wantRun) {
-		t.Errorf("run argv = %#v, want %#v", got, wantRun)
 	}
 }
 

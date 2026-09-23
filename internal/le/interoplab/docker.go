@@ -5,6 +5,7 @@ package interoplab
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -86,6 +87,8 @@ type ImageResult struct {
 	Reference string `json:"reference"`
 	Built     bool   `json:"built"`
 	Error     string `json:"error,omitempty"`
+
+	retainedTag string
 }
 
 // Subnet is one network candidate. IPv6 is invalid when the network is IPv4-only.
@@ -282,34 +285,56 @@ func architectureToken(value string) bool {
 	return true
 }
 
-// Build builds one image and returns the image ID printed by docker build -q.
+// Build retains a built image until Suite.Run releases its run-owned tag.
 func (d *Docker) Build(ctx context.Context, build ImageBuild) (ImageResult, error) {
+	image := ImageResult{Name: build.Name, Tag: build.Tag}
 	timeout := build.Timeout
 	if timeout == 0 {
 		timeout = d.buildTimeout
 	}
 	if timeout <= 0 {
-		return ImageResult{Name: build.Name, Tag: build.Tag}, errors.New("Docker build timeout must be positive")
+		return image, errors.New("Docker build timeout must be positive")
 	}
+	image.retainedTag = "ze-interop-retained:" + rand.Text()
 	arguments := []string{dockerExecutable, "build", "-t", build.Tag}
 	for _, argument := range build.BuildArgs {
 		arguments = append(arguments, "--build-arg", argument)
 	}
-	arguments = append(arguments, "-f", build.Dockerfile, build.Context, "-q")
+	arguments = append(arguments, "-t", image.retainedTag, "-f", build.Dockerfile, build.Context, "-q")
 	result, err := d.command(ctx, timeout, arguments...)
 	if err != nil {
-		return ImageResult{Name: build.Name, Tag: build.Tag}, err
+		return image, err
 	}
 	lines := strings.Fields(result.Stdout)
 	if len(lines) == 0 {
-		return ImageResult{Name: build.Name, Tag: build.Tag}, errors.New("docker build printed no image id")
+		return image, errors.New("docker build printed no image id")
 	}
-	return ImageResult{
-		Name:      build.Name,
-		Tag:       build.Tag,
-		Reference: lines[len(lines)-1],
-		Built:     true,
-	}, nil
+	image.Reference = lines[len(lines)-1]
+	image.Built = true
+	return image, nil
+}
+
+// releaseImage removes only the tag this build owns, never the shared cache tag.
+func (d *Docker) releaseImage(ctx context.Context, image ImageResult) error {
+	if image.retainedTag == "" {
+		return nil
+	}
+	_, err := d.command(ctx, dockerCommandTimeout, dockerExecutable, "image", "rm", "--no-prune", image.retainedTag)
+	if err == nil {
+		return nil
+	}
+	var commandErr *commandError
+	if !errors.As(err, &commandErr) {
+		return err
+	}
+	var tb textbuf.Buffer
+	absent := tb.Str("No such image: ").Str(image.retainedTag).String()
+	for line := range strings.SplitSeq(commandErr.Stderr, "\n") {
+		if strings.HasSuffix(strings.TrimSpace(line), absent) {
+			return nil
+		}
+	}
+	return err
 }
 
 // Pull makes one external image available before the scenarios start.

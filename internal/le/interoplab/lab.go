@@ -76,13 +76,14 @@ type Suite struct {
 
 // SuiteReport is the structured result for one gate invocation.
 type SuiteReport struct {
-	Images      []ImageResult    `json:"images,omitempty"`
-	Scenarios   []ScenarioResult `json:"scenarios,omitempty"`
-	Passed      int              `json:"passed"`
-	Failed      int              `json:"failed"`
-	FailedNames []string         `json:"failed-names,omitempty"`
-	SetupError  string           `json:"setup-error,omitempty"`
-	Code        int              `json:"code"`
+	Images        []ImageResult    `json:"images,omitempty"`
+	Scenarios     []ScenarioResult `json:"scenarios,omitempty"`
+	Passed        int              `json:"passed"`
+	Failed        int              `json:"failed"`
+	FailedNames   []string         `json:"failed-names,omitempty"`
+	SetupError    string           `json:"setup-error,omitempty"`
+	CleanupErrors []string         `json:"cleanup-errors,omitempty"`
+	Code          int              `json:"code"`
 }
 
 // Text renders the report for a terminal, so a failing `./le integration interop`
@@ -104,6 +105,9 @@ func (r SuiteReport) Text() string {
 		for _, cleanup := range scenario.CleanupErrors {
 			out.Str("interop: ").Str(scenario.Name).Str(": cleanup: ").Str(cleanup).Byte('\n')
 		}
+	}
+	for _, cleanup := range r.CleanupErrors {
+		out.Str("interop: image cleanup: ").Str(cleanup).Byte('\n')
 	}
 	out.Str("interop: ").Int(int64(r.Passed)).Str(" passed, ").Int(int64(r.Failed)).Str(" failed")
 	if len(r.FailedNames) != 0 {
@@ -151,8 +155,7 @@ type Lab struct {
 var _ CheckerLab = (*Lab)(nil)
 
 // Run probes Docker once, prepares images once, and runs every scenario.
-func (s Suite) Run(ctx context.Context) SuiteReport {
-	report := SuiteReport{}
+func (s Suite) Run(ctx context.Context) (report SuiteReport) {
 	if s.Docker == nil {
 		report.SetupError = "interop suite has no Docker client"
 		report.Code = 1
@@ -178,6 +181,16 @@ func (s Suite) Run(ctx context.Context) SuiteReport {
 
 	images, references, err := s.prepareImages(ctx)
 	report.Images = images
+	defer func() {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), dockerCommandTimeout)
+		defer cancel()
+		for _, image := range images {
+			if err := s.Docker.releaseImage(cleanupCtx, image); err != nil {
+				report.CleanupErrors = append(report.CleanupErrors, err.Error())
+				report.Code = 1
+			}
+		}
+	}()
 	if err != nil {
 		report.SetupError = err.Error()
 		report.Code = 1

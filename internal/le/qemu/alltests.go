@@ -313,13 +313,16 @@ var integrationPackages = []string{
 	"./internal/component/ike/dataplane",
 	"./internal/component/ike/engine",
 	"./internal/component/l2tp",
+	"./internal/component/l2tp/ppp",
 	"./internal/component/l2tp/pppoeclient",
 	"./internal/component/telemetry/collector",
 	"./internal/core/dnsserver",
 	"./internal/core/smart",
 	"./internal/exabgp/bridge",
+	"./internal/plugins/flowexport",
 	"./internal/plugins/flowexport/conntrack",
 	"./internal/plugins/flowexport/sampling",
+	"./internal/plugins/flowspec-firewall",
 	"./internal/plugins/iface/dhcp",
 	"./internal/plugins/iface/netlink",
 	"./internal/plugins/iface/ra",
@@ -334,7 +337,9 @@ var integrationPackages = []string{
 	// protected port through the CoPP chain and counts what the kernel accepts.
 	"./internal/plugins/copp",
 	"./internal/plugins/static",
+	"./internal/plugins/rsvpte",
 	"./internal/plugins/trafficusage",
+	"./internal/plugins/vrrp",
 	// Added 2026-09-15 with errqueue_integration_linux_test.go, which proves
 	// the socket error queue, the bypass mode and the DF bit against a Linux
 	// router in a clamped three-namespace path.
@@ -355,13 +360,13 @@ var integrationPackages = []string{
 // excludedIntegrationPackages names a package that holds integration tests and
 // is deliberately not run, against the reason it is not.
 //
-// It is EMPTY by design, for the reason excludedSuites is: a package left out
-// of the run needs a reason a reader can check, not an omission. The map is
-// what TestEveryIntegrationPackageIsNamed accepts in place of membership, so
-// excluding one is a decision somebody writes down rather than a silence.
+// Each exclusion needs a reason a reader can check. The map is what
+// TestEveryIntegrationPackageIsNamed accepts in place of QEMU membership.
 var excludedIntegrationPackages = map[string]string{
 	"internal/plugins/as112": "runs as its own verb, `./le integration as112`" +
 		" (internal/le/integration/gates.go), so naming it here would run it twice",
+	"internal/le/interoplab": "requires the host Docker daemon; run TestDockerBuildRetainsImageAcrossRetag" +
+		" through ./le job run as documented in docs/architecture/testing/interop.md",
 }
 
 // optionalPackages are added when the directory is there. Each is a transport
