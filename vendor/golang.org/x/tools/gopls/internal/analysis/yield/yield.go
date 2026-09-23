@@ -35,10 +35,10 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
 	"golang.org/x/tools/go/ssa"
+	"golang.org/x/tools/gopls/internal/util/moremaps"
 	"golang.org/x/tools/gopls/internal/util/safetoken"
 	"golang.org/x/tools/internal/analysis/analyzerutil"
 	"golang.org/x/tools/internal/flow"
-	"golang.org/x/tools/internal/moremaps"
 	"golang.org/x/tools/internal/typesinternal"
 )
 
@@ -584,8 +584,8 @@ func (b *bitset) cmp(other *bitset) int {
 	if d := cmp.Compare(len(b.limbs), len(other.limbs)); d != 0 {
 		return d
 	}
-	for i, v := range slices.Backward(b.limbs) {
-		if d := cmp.Compare(v, other.limbs[i]); d != 0 {
+	for i := len(b.limbs) - 1; i >= 0; i-- {
+		if d := cmp.Compare(b.limbs[i], other.limbs[i]); d != 0 {
 			return d
 		}
 	}

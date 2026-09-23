@@ -17,7 +17,7 @@ import "math/bits"
 // PfxToIdx maps 8bit prefixes to numbers. The prefixes range from 0/0 to 255/7
 // The return values range from 1 to 255.
 //
-//	  [0x0000_00001 .. 0x1111_1111] = [1 .. 255]
+//	  [0x0000_0001 .. 0x1111_1111] = [1 .. 255]
 //
 //		example: octet/pfxLen: 160/3 = 0b1010_0000/3 => IdxToPfx(160/3) => 13
 //
@@ -62,7 +62,7 @@ func IdxToPfx(idx uint8) (octet, pfxLen uint8) {
 	// so we subtract 1 to recover the prefix length (which is always >= 0).
 	// Invariant: idx==0 is invalid
 
-	//nolint:gosec  //G115: integer overflow conversion int -> uint8 (gosec)
+	//nolint:gosec  //G115: integer overflow conversion int -> uint8
 	pfxLen = uint8(bits.Len8(idx)) - 1
 
 	// Compute the number of bits to shift back to obtain the original octet.

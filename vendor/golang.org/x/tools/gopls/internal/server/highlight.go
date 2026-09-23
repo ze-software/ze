@@ -8,7 +8,6 @@ import (
 	"context"
 
 	"golang.org/x/tools/gopls/internal/file"
-	"golang.org/x/tools/gopls/internal/goasm"
 	"golang.org/x/tools/gopls/internal/golang"
 	"golang.org/x/tools/gopls/internal/label"
 	"golang.org/x/tools/gopls/internal/protocol"
@@ -27,8 +26,6 @@ func (s *server) DocumentHighlight(ctx context.Context, params *protocol.Documen
 	defer release()
 
 	switch snapshot.FileKind(fh) {
-	case file.Asm:
-		return goasm.Highlight(ctx, snapshot, fh, params.Range)
 	case file.Tmpl:
 		return template.Highlight(ctx, snapshot, fh, params.Range)
 	case file.Go:

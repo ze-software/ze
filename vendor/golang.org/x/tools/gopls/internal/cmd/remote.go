@@ -14,15 +14,15 @@ import (
 	"os"
 
 	"golang.org/x/tools/gopls/internal/lsprpc"
-	protocolcommand "golang.org/x/tools/gopls/internal/protocol/command"
+	"golang.org/x/tools/gopls/internal/protocol/command"
 )
 
 type remote struct {
-	app *application
+	app *Application
 	subcommands
 }
 
-func newRemote(app *application) *remote {
+func newRemote(app *Application) *remote {
 	return &remote{
 		app: app,
 		subcommands: subcommands{
@@ -44,11 +44,11 @@ func (r *remote) ShortHelp() string {
 
 // listSessions is an inspect subcommand to list current sessions.
 type listSessions struct {
-	app *application
+	app *Application
 }
 
 func (c *listSessions) Name() string   { return "sessions" }
-func (c *listSessions) Parent() string { return "gopls remote" }
+func (c *listSessions) Parent() string { return c.app.Name() }
 func (c *listSessions) Usage() string  { return "" }
 func (c *listSessions) ShortHelp() string {
 	return "print information about current gopls sessions"
@@ -91,12 +91,11 @@ func (c *listSessions) Run(ctx context.Context, args ...string) error {
 }
 
 type startDebugging struct {
-	app *application
+	app *Application
 }
 
-func (c *startDebugging) Name() string   { return "debug" }
-func (c *startDebugging) Parent() string { return "gopls remote" }
-func (c *startDebugging) Usage() string  { return "[host:port]" }
+func (c *startDebugging) Name() string  { return "debug" }
+func (c *startDebugging) Usage() string { return "[host:port]" }
 func (c *startDebugging) ShortHelp() string {
 	return "start the debug server"
 }
@@ -133,11 +132,11 @@ func (c *startDebugging) Run(ctx context.Context, args ...string) error {
 	if len(args) > 0 {
 		debugAddr = args[0]
 	}
-	debugArgs := protocolcommand.DebuggingArgs{
+	debugArgs := command.DebuggingArgs{
 		Addr: debugAddr,
 	}
-	var result protocolcommand.DebuggingResult
-	if err := lsprpc.ExecuteCommand(ctx, remote, protocolcommand.StartDebugging.String(), debugArgs, &result); err != nil {
+	var result command.DebuggingResult
+	if err := lsprpc.ExecuteCommand(ctx, remote, command.StartDebugging.String(), debugArgs, &result); err != nil {
 		return err
 	}
 	if len(result.URLs) == 0 {
