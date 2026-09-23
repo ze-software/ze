@@ -223,16 +223,15 @@ func TestRSVPNativeProducer(t *testing.T) {
 	lab.deliver(t, m.id, bTable, "context-b", "bypass-b", []uint32{b.OutLabel}, 0)
 	lab.deliver(t, e.id, 0, "primary-native", "primary", []uint32{primary.OutLabel}, primaryE.InLabel)
 
-	// Hold unmarked IP_HDRINCL sends to the alternate neighbors until repair
-	// is observed. The selected bypass mark and ordinary UDP remain usable.
+	// Hold the replacement's unmarked explicit-route lookup until repair is
+	// observed. Direct-neighbor bypass refreshes and marked carriage remain clear.
 	hold := netlink.NewRule()
 	hold.Family = unix.AF_INET
 	hold.Priority = 1
-	hold.IPProto = unix.IPPROTO_RAW
 	hold.Type = unix.RTN_BLACKHOLE
 	mask := ^uint32(0)
 	hold.Mask = &mask
-	hold.Dst = &net.IPNet{IP: net.IP{10, 12, 0, 0}, Mask: net.CIDRMask(15, 32)}
+	hold.Dst = &net.IPNet{IP: net.IP(m.id.AsSlice()), Mask: net.CIDRMask(32, 32)}
 	if err := h.routes.RuleAdd(hold); err != nil {
 		t.Fatalf("hold ordinary replacement signaling: %v", err)
 	}

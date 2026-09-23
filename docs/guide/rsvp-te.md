@@ -200,10 +200,11 @@ must reach the receiver and both captured links, with the expected labels.
 
 The carrier also checks rejected forwarding installation, strict and loose
 paths, two bypass contexts, link-down repair, RESV_CONFIRM and make-before-break.
-A temporary policy rule holds ordinary replacement signaling while the
-labelled repair path is observed. Removing that rule lets the daemons complete
-the replacement. Withdrawal must remove its transit and egress labels before
-soft-state expiry. Removing one bypass must preserve the other.
+A temporary policy rule holds the replacement's unmarked merge-point lookup
+while the labelled repair path is observed. Bypass refreshes remain unblocked.
+Removing the rule lets the daemons complete the replacement. Withdrawal must
+remove its transit and egress labels before soft-state expiry. Removing one
+bypass must preserve the other.
 
 Use the integration test binary built below with a matching Linux daemon that
 includes RSVP-TE, OSPF, SSH, the interface component and `fib-kernel`:
