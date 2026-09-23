@@ -1,0 +1,50 @@
+{
+  "commit": "04af845cb14c",
+  "subject": "iface: retain peer metadata when deleting point-to-point addresses",
+  "message": "tmp/commit-msg-916ee49e-b-e8dbfd.txt",
+  "script": "tmp/commit-916ee49e-b-1e2c72.sh",
+  "pushed": false,
+  "files": [
+    "internal/plugins/iface/netlink/addr_primary_linux.go",
+    "internal/plugins/iface/netlink/route_integration_linux_test.go",
+    "plan/journal/address-delete-drops-peer-identity.md",
+    "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/kernel-address-removal-proof-001.json",
+    "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/kernel-teardown-preimage/internal__plugins__iface__netlink__addr_primary_linux.go.txt",
+    "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-fixed-002/guest/kernel-before/result.json",
+    "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-fixed-002/guest/kernel-before/stdout.log",
+    "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-fixed-002/guest/kernel-before/stderr.log",
+    "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-fixed-002/guest/kernel-current/result.json",
+    "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-fixed-002/guest/kernel-current/stdout.log",
+    "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-fixed-002/guest/kernel-current/stderr.log"
+  ],
+  "tracked_build": {
+    "result": "PASS",
+    "flavors": {
+      "distro": {
+        "seconds": 46.8,
+        "packages": 792
+      },
+      "test_runner": {
+        "seconds": 26.5,
+        "packages": 792
+      },
+      "appliance": {
+        "seconds": 15.2,
+        "packages": 792
+      },
+      "setup": {
+        "seconds": 12.3,
+        "packages": 791
+      },
+      "host": {
+        "seconds": 10.4,
+        "packages": 791
+      },
+      "installer": {
+        "seconds": 7.7,
+        "packages": 792
+      }
+    },
+    "boundary": "Compilation of committed source only; no test result is implied."
+  }
+}

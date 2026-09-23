@@ -1,0 +1,247 @@
+{
+  "status": "prepared-source-only; no build, test, formatter, fixture or QEMU execution",
+  "prepared_at": "2026-09-23T00:02:03.672967+00:00",
+  "owner": "NativeLCPDriverPrep",
+  "scope": "Only ignored scratch/native-lcp-restart-driver and this preparation manifest were written. Canonical product and deployment sources remain unchanged by this task.",
+  "scratch_root": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver",
+  "ignore_rule": ".gitignore:12 tmp/*",
+  "archive": {
+    "path": "plan/verification-evidence/2026-09-22-baseline/source-snapshots-2026-09-22.zip",
+    "sha256": "9d3a8abd43ddd0dd92cf67664b6183d14c5bc9772d7433c1379eacf8f374b4de",
+    "members": [
+      {
+        "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/archived/driver.go",
+        "archive_member": "plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/build-002/source-before-overlay/plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/driver.go",
+        "bytes": 3844,
+        "sha256": "088a693cf3afca8bc11e737e342aa1b55754ea905cafd4b711f59c746b533881"
+      },
+      {
+        "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/archived/positive/l2tpppp.go",
+        "archive_member": "plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/build-002/positive/l2tpppp.go",
+        "bytes": 22539,
+        "sha256": "28abcdd297a317c8377bc54602b3aab88306646459e436e1feb9b44cfa6c601a"
+      },
+      {
+        "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/archived/positive/l2tppppinputs.go",
+        "archive_member": "plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/build-002/positive/l2tppppinputs.go",
+        "bytes": 5014,
+        "sha256": "803a88e4392f98a027de46585a4c69f6ee663774a8a68e1ac71da9bfb404189c"
+      },
+      {
+        "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/archived/preimage/l2tpppp.go",
+        "archive_member": "plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/build-002/source-before-overlay/internal/le/deployment/l2tpppp.go",
+        "bytes": 22505,
+        "sha256": "7683cb708cd60b4bfd8f8d9391d21099cea750db2ae7a7f2773541b088550f56"
+      },
+      {
+        "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/archived/preimage/l2tppppinputs.go",
+        "archive_member": "plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/build-002/source-before-overlay/internal/le/deployment/l2tppppinputs.go",
+        "bytes": 4887,
+        "sha256": "a081ec505abbbdfce51f44ef8e8434057a90aee17bdd565241af2177a62a7af9"
+      }
+    ]
+  },
+  "references": [
+    "plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/positive-proof-002.json",
+    "plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/build-002/positive/build.json",
+    "plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/build-002/build-environment.json",
+    "plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/env-selection-diagnosis.json",
+    "docs/architecture/testing/interop.md"
+  ],
+  "current_sources": [
+    {
+      "canonical_path": "internal/le/deployment/l2tpppp.go",
+      "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/current-preimage/l2tpppp.go",
+      "bytes": 22633,
+      "sha256": "a56ff764d5538d372993117cc089052ba2f92f7c92ed3ee4dd360b558175a683"
+    },
+    {
+      "canonical_path": "internal/le/deployment/l2tppppinputs.go",
+      "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/current-preimage/l2tppppinputs.go",
+      "bytes": 4887,
+      "sha256": "a081ec505abbbdfce51f44ef8e8434057a90aee17bdd565241af2177a62a7af9"
+    },
+    {
+      "canonical_path": "internal/le/deployment/l2tpppprestart.go",
+      "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/current-preimage/l2tpppprestart.go",
+      "bytes": 14012,
+      "sha256": "23d7bfe1380b544c0536eccc78cc079d254b77b724282b8e436b505ae866abf9"
+    }
+  ],
+  "prepared_files": [
+    {
+      "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver.go",
+      "bytes": 3844,
+      "sha256": "088a693cf3afca8bc11e737e342aa1b55754ea905cafd4b711f59c746b533881"
+    },
+    {
+      "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay/l2tpppp.go",
+      "bytes": 22667,
+      "sha256": "e4d8e7ca8b5c3e9a3d3c9461c2e476ff410b8e9f653ed4fcfab1fac711517634"
+    },
+    {
+      "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay/l2tppppinputs.go",
+      "bytes": 5026,
+      "sha256": "fa9a2989ab73c0e855660235b64e440c1cc8c1df6468da6108c8d3df78129ae3"
+    },
+    {
+      "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay.json",
+      "bytes": 544,
+      "sha256": "cc4d243cedbab08a1ead30a897ce38b1e86efb36f5a3cd8371ea8f0b8b425ec6"
+    }
+  ],
+  "overlay": {
+    "Replace": {
+      "/home/thomas/Code/github.com/ze-software/ze/main/internal/le/deployment/l2tpppp.go": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay/l2tpppp.go",
+      "/home/thomas/Code/github.com/ze-software/ze/main/internal/le/deployment/l2tppppinputs.go": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay/l2tppppinputs.go"
+    }
+  },
+  "derivation": [
+    "driver.go is the archived 3844-byte build-002 source unchanged. env.Set(EvidenceBinaryKey, binary) updates the cached selector and OS environment before NewL2TPPPP/Run.",
+    "Runner overlay starts from the current l2tpppp.go. The only changes are exposing credential-scratch=<work> and retaining work on success, as in the old positive overlay.",
+    "Input overlay starts from the current l2tppppinputs.go. The only functional change selects local alice/s3cr3t CHAP-MD5 and allow-no-auth false; its authentication comment is corrected. Existing pppd alice/s3cr3t input is unchanged.",
+    "The current assertLCPRestart call, post-restart withdrawal mark and awaitL2TPPPPWithdrawal call remain in the runner. The archived runner is provenance only and is never selected by the overlay.",
+    "l2tpppprestart.go is compiled from the canonical current file without overlay. Its current snapshot is retained for provenance, including rejection of IPCP in either direction before CHAP Success. Main must retain its build-time source identity if it changes before build."
+  ],
+  "build": {
+    "cwd": "/home/thomas/Code/github.com/ze-software/ze/main",
+    "argv": [
+      "go",
+      "build",
+      "-overlay",
+      "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay.json",
+      "-o",
+      "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver-001",
+      "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver.go"
+    ],
+    "env": {
+      "CGO_ENABLED": "0",
+      "GOOS": "linux",
+      "GOARCH": "amd64",
+      "GOFLAGS": ""
+    },
+    "inherit_env": [
+      "GOTOOLCHAIN",
+      "GOWORK",
+      "GOPATH",
+      "GOCACHE"
+    ],
+    "prior_build_environment": {
+      "GOTOOLCHAIN": null,
+      "GOWORK": null,
+      "GOPATH": "/home/thomas/go",
+      "GOCACHE": null
+    },
+    "output": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver-001",
+    "status": "not executed; no binary hash exists",
+    "source_argument": "Build the explicit driver.go file from checkout cwd; do not build its scratch directory as a package because tmp/go.mod is a sentinel module."
+  },
+  "run_contract": "driver CHECKOUT ZE OUTPUT/native; OUTPUT must exist and OUTPUT/native must be fresh. The driver refuses an existing native directory.",
+  "execution_order": [
+    {
+      "ordinal": 1,
+      "daemon": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/ze",
+      "required_sha256": "0b5c6e018de39e9305c9f57e0f832f16b50470e108411cee505dff52a003db89",
+      "output": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-old-001/guest"
+    },
+    {
+      "ordinal": 2,
+      "daemon": "Main-selected rebuilt daemon at a distinct fresh path; record its SHA256 before running",
+      "output": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-fixed-001/guest"
+    }
+  ],
+  "old_daemon_guest_argv": [
+    "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver-001",
+    "/workspace",
+    "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/ze",
+    "/workspace/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-old-001/guest/native"
+  ],
+  "old_daemon_guest_collector_argv": [
+    "python3",
+    "/workspace/plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/guest-exec.py",
+    "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver-001",
+    "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/ze",
+    "/workspace/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-old-001/guest"
+  ],
+  "old_daemon_host_qemu_argv": [
+    "env",
+    "CGO_ENABLED=0",
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le",
+    "le",
+    "qemu",
+    "run",
+    "kernel",
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/kernel/build/vmlinuz",
+    "packages",
+    "iproute2 iputils python3 xl2tpd ppp",
+    "timeout",
+    "8m",
+    "command",
+    "python3 /workspace/plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/guest-exec.py /workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver-001 /workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/ze /workspace/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-old-001/guest"
+  ],
+  "host_cwd": "/home/thomas/Code/github.com/ze-software/ze/main",
+  "guest_dependencies": {
+    "operating_system": "Linux x86_64; use the existing Linux 7.2.0 kernel and serial QEMU ownership with host SSH port 2222 free",
+    "packages": "iproute2 iputils python3 xl2tpd ppp",
+    "programs": [
+      "ip with netns/l2tp support",
+      "iputils ping supporting -I/-c/-W/-w",
+      "xl2tpd",
+      "pppd with PPPoL2TP plugin",
+      "python3 standard library socket/sys",
+      "cat for failure diagnostics"
+    ],
+    "privileges": [
+      "guest root with CAP_NET_ADMIN for links and PPP",
+      "CAP_SYS_ADMIN for namespace creation/setns and mounts",
+      "CAP_NET_RAW for raw IPv4 LCP injection and ping"
+    ],
+    "kernel": [
+      "/dev/ppp character device",
+      "PPP generic and PPPoL2TP",
+      "L2TP core and Generic Netlink family",
+      "network namespaces and veth",
+      "ppp_generic l2tp_core l2tp_netlink pppox l2tp_ppp built-in or loadable"
+    ],
+    "optional": "modprobe is attempted if available; built-in kernel support is accepted",
+    "environment": "ZE_L2TP_SKIP_KERNEL_PROBE and ze.l2tp.skip-kernel-probe must be unset or empty. Driver explicitly sets cached ze.evidence.ze.binary to its ZE argument.",
+    "filesystem": "Writable /tmp and evidence share; /workspace contains checkout and scratch exports. No guest Go compilation is needed by the driver."
+  },
+  "retention": {
+    "native": "result.json and recursive scratch copy of all regular files, including pppd.log, ppp-options, xl2tpd.conf, l2tp-secrets, ze/ze.conf and lcp-restart-boundary.json when reached",
+    "original_work": "/tmp/effective-l2tp-ppp-* remains until guest teardown on both pass and failure; live namespaces/processes retain their native cleanup",
+    "collector": "guest-exec.py captures native.stdout/native.stderr and invocation.json with before/after hashes and timeout status",
+    "special_files": "IPC nodes are listed with path/mode in result.json, without attempting to copy their contents",
+    "timeout_limit": "The driver copies scratch only after Run returns. If the collector kills it after 240 seconds, Main must collect the exposed /tmp work directory before guest shutdown; partial stdout/stderr are already retained.",
+    "fresh_directories": "Main creates each attempt parent before invoking the guest collector. The collector creates guest and the driver creates guest/native. Never reuse an existing attempt."
+  },
+  "reusable_scripts": [
+    {
+      "path": "plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/guest-exec.py",
+      "bytes": 1856,
+      "sha256": "de81ce2d21bd453a8674e11ca2e09acbb78fc8bae4c0b5d8de9e42616b3fb9dd",
+      "usage": "python3 guest-exec.py DRIVER ZE NEW-GUEST-OUTPUT; reusable unchanged with the new driver"
+    },
+    {
+      "path": "plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/run-host.py",
+      "bytes": 3359,
+      "sha256": "523451485f92b190d1b8b7da525940f29bed8b217c4504f3dad2f07b15a3e5c7",
+      "usage": "Existing pinned QEMU invocation/host collection reference. It hard-codes old daemon selection and old evidence build layout; do not invoke unchanged for this driver. Use the explicit host argv in this manifest and retain host stdout/stderr/invocation metadata."
+    }
+  ],
+  "prior_pinned_host_inputs": [
+    {
+      "path": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le",
+      "sha256": "f95c1c702156279e2258be8b222c0ca0821a2e4e4911004bf29487022a7b002a"
+    },
+    {
+      "path": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/kernel/build/vmlinuz",
+      "sha256": "48b3607b49b79e23e632f0d5a553ba9f7b87c4527ca3b40917eee11501758a83"
+    },
+    {
+      "path": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/ze",
+      "sha256": "0b5c6e018de39e9305c9f57e0f832f16b50470e108411cee505dff52a003db89"
+    }
+  ],
+  "acceptance_status": "Source preparation and archive identity recorded. Main owns compilation and old/new daemon execution; no native outcome is claimed."
+}

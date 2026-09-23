@@ -25,8 +25,8 @@ import (
 // IPv4 (IPCP) and IPv6 (IPv6CP) can each fire once per session, so a
 // dual-stack subscriber generates two events.
 //
-// OnSessionDown fires at most once per session, paired with whichever
-// OnSessionIPUp events preceded it.
+// OnSessionDown withdraws a network lifetime and is idempotent. It can also
+// run when the transport later terminates, after LCP already withdrew the routes.
 type RouteObserver interface {
 	// OnSessionIPUp fires when one NCP (IPCP or IPv6CP) successfully
 	// negotiates a peer IP. Called once per family per session.

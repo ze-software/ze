@@ -1,0 +1,34 @@
+=== RUN   TestIPAssignmentAcknowledgmentBeforeConnect
+=== RUN   TestIPAssignmentAcknowledgmentBeforeConnect/ipv4
+=== RUN   TestIPAssignmentAcknowledgmentBeforeConnect/ipv6
+--- PASS: TestIPAssignmentAcknowledgmentBeforeConnect (0.00s)
+    --- PASS: TestIPAssignmentAcknowledgmentBeforeConnect/ipv4 (0.00s)
+    --- PASS: TestIPAssignmentAcknowledgmentBeforeConnect/ipv6 (0.00s)
+=== RUN   TestIPAssignmentCancellation
+=== RUN   TestIPAssignmentCancellation/ipv4/driver/enqueue
+=== RUN   TestIPAssignmentCancellation/ipv4/driver/acknowledgment
+=== RUN   TestIPAssignmentCancellation/ipv4/driver/stop-before-acknowledgment
+=== RUN   TestIPAssignmentCancellation/ipv4/session/enqueue
+=== RUN   TestIPAssignmentCancellation/ipv4/session/acknowledgment
+=== RUN   TestIPAssignmentCancellation/ipv4/session/stop-before-acknowledgment
+=== RUN   TestIPAssignmentCancellation/ipv6/driver/enqueue
+=== RUN   TestIPAssignmentCancellation/ipv6/driver/acknowledgment
+=== RUN   TestIPAssignmentCancellation/ipv6/driver/stop-before-acknowledgment
+=== RUN   TestIPAssignmentCancellation/ipv6/session/enqueue
+=== RUN   TestIPAssignmentCancellation/ipv6/session/acknowledgment
+=== RUN   TestIPAssignmentCancellation/ipv6/session/stop-before-acknowledgment
+--- PASS: TestIPAssignmentCancellation (0.01s)
+    --- PASS: TestIPAssignmentCancellation/ipv4/driver/enqueue (0.00s)
+    --- PASS: TestIPAssignmentCancellation/ipv4/driver/acknowledgment (0.00s)
+    --- PASS: TestIPAssignmentCancellation/ipv4/driver/stop-before-acknowledgment (0.00s)
+    --- PASS: TestIPAssignmentCancellation/ipv4/session/enqueue (0.00s)
+    --- PASS: TestIPAssignmentCancellation/ipv4/session/acknowledgment (0.00s)
+    --- PASS: TestIPAssignmentCancellation/ipv4/session/stop-before-acknowledgment (0.00s)
+    --- PASS: TestIPAssignmentCancellation/ipv6/driver/enqueue (0.00s)
+    --- PASS: TestIPAssignmentCancellation/ipv6/driver/acknowledgment (0.00s)
+    --- PASS: TestIPAssignmentCancellation/ipv6/driver/stop-before-acknowledgment (0.00s)
+    --- PASS: TestIPAssignmentCancellation/ipv6/session/enqueue (0.00s)
+    --- PASS: TestIPAssignmentCancellation/ipv6/session/acknowledgment (0.00s)
+    --- PASS: TestIPAssignmentCancellation/ipv6/session/stop-before-acknowledgment (0.00s)
+PASS
+ok  	command-line-arguments	1.051s

@@ -60,9 +60,9 @@ func TestPPPFrameParseTooShort(t *testing.T) {
 	}
 }
 
-// VALIDATES: ParseFrame rejects buffers above MaxFrameLen.
+// VALIDATES: ParseFrame rejects buffers above MaxFrameBufLen.
 func TestPPPFrameParseTooLong(t *testing.T) {
-	buf := make([]byte, MaxFrameLen+1)
+	buf := make([]byte, MaxFrameBufLen+1)
 	_, _, _, err := ParseFrame(buf)
 	if !errors.Is(err, errFrameTooLong) {
 		t.Errorf("err = %v, want errFrameTooLong", err)

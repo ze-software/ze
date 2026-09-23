@@ -42,6 +42,12 @@ type proxyLCPResult struct {
 	// only for loopback detection on subsequent Echo-Reply traffic.
 	// Zero when the peer did not negotiate Magic-Number.
 	PeerMagic uint32
+
+	// LocalMagic is the Magic-Number from the Last-Sent CONFREQ, the
+	// value the LAC negotiated toward the peer and the LNS now speaks
+	// with. Zero when the LAC did not negotiate Magic-Number, and then
+	// every Echo packet carries zero (RFC 1661 Section 5.8).
+	LocalMagic uint32
 }
 
 // EvaluateProxyLCP parses the three proxied CONFREQ byte streams from
@@ -111,6 +117,12 @@ func EvaluateProxyLCP(initialRecv, lastSent, lastRecv []byte) (proxyLCPResult, e
 	// Peer's Magic from its last CONFREQ toward LAC.
 	if v, ok := lookupOptionUint32(recvOpts, LCPOptMagic); ok {
 		out.PeerMagic = v
+	}
+
+	// The LAC's Magic from its last CONFREQ toward the peer, which the
+	// peer acknowledged; the LNS inherits it as its own negotiated value.
+	if v, ok := lookupOptionUint32(sentOpts, LCPOptMagic); ok {
+		out.LocalMagic = v
 	}
 
 	return out, nil

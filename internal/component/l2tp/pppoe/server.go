@@ -115,11 +115,10 @@ func requireServiceNameTag(pkt *Packet) bool {
 // decision, not an RFC obligation.
 //
 // The count includes every session the table still holds for the MAC,
-// including one mid-teardown (State == StateTeardown): its kernel resources
-// (AF_PPPOX socket, /dev/ppp channel and unit) are not released until Remove
-// runs, so excluding it here would let the MAC hold one more session's worth
-// of descriptors than the cap is meant to bound, for the length of that
-// window. A cap that resolves to zero refuses every PADR rather than
+// including one mid-teardown (State == StateTeardown). Its SID remains
+// reserved while a final PADT is being sent, even though the transport has
+// already disconnected. Excluding it would admit a replacement during that
+// outstanding teardown. A cap that resolves to zero refuses every PADR rather than
 // admitting without limit: len(...) < 0 is never true.
 func (s *InterfaceServer) admitPerMACCap(pkt *Packet) bool {
 	return len(s.sessions.sessionsByMAC(net.HardwareAddr(pkt.SrcMAC[:]))) < s.maxSessionsPerMAC
@@ -315,6 +314,7 @@ func (s *InterfaceServer) handlePADR(pkt *Packet) {
 		UnitFD:          unitFD,
 		UnitNum:         unitNum,
 		LNSMode:         true,
+		PPPoE:          true,
 		AuthMethod:      s.authMethod,
 		AuthRequired:    s.authRequired,
 		MaxMRU:          PPPoEMaxMTU,
@@ -331,6 +331,9 @@ func (s *InterfaceServer) handlePADT(pkt *Packet) {
 	if pkt.SID == 0 {
 		return
 	}
+	if pkt.DstMAC != s.hwAddr {
+		return
+	}
 
 	sess := s.sessions.Lookup(pkt.SID)
 	if sess == nil {
@@ -344,11 +347,17 @@ func (s *InterfaceServer) handlePADT(pkt *Packet) {
 	}
 
 	s.logger.Info("pppoe: PADT received", "sid", pkt.SID)
+	// RFC 2516 Section 5.5: "Even normal PPP termination packets MUST NOT
+	// be sent after sending or receiving a PADT." Disconnect the kernel
+	// transport before waiting for the PPP driver to stop.
+	if s.sessions.markTeardown(pkt.SID) == nil {
+		return
+	}
+	closePPPoxFD(s.sessions.detachTransport(pkt.SID))
 
 	if s.pppDriver != nil {
 		_ = s.pppDriver.StopSession(uint16(s.ifIndex), pkt.SID)
 	}
-
 	closePPPoxFD(s.sessions.Remove(pkt.SID))
 }
 
@@ -368,6 +377,12 @@ func (s *InterfaceServer) handleSessionDown(sid uint16) {
 		return
 	}
 
+	// RFC 2516 Section 5.5: "Even normal PPP termination packets MUST NOT
+	// be sent after sending or receiving a PADT." Session-down notification
+	// can precede the PPP goroutine's final cleanup, so close the transport
+	// before publishing PADT on the discovery socket.
+	closePPPoxFD(s.sessions.detachTransport(sid))
+
 	var dstMAC [EthALen]byte
 	copy(dstMAC[:], sess.MAC)
 
@@ -376,7 +391,6 @@ func (s *InterfaceServer) handleSessionDown(sid uint16) {
 	if frame != nil {
 		s.sendFrame(frame)
 	}
-
 	closePPPoxFD(s.sessions.Remove(sid))
 }
 

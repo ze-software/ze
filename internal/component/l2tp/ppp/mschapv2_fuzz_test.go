@@ -51,8 +51,8 @@ func FuzzParseMSCHAPv2Response(f *testing.F) {
 		vs255,
 		reservedNonZero,
 		flagsNonZero,
-		// Max-frame-sized buffer of zeros.
-		make([]byte, MaxFrameLen-2),
+		// Maximum-sized Information field.
+		make([]byte, MaxFrameLen),
 	}
 	for _, s := range seeds {
 		f.Add(s)

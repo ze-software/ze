@@ -94,6 +94,19 @@ func findCode(t *testing.T, r *frameRecorder, code uint8) (LCPPacket, bool) {
 	return LCPPacket{}, false
 }
 
+// lastLCPConfigureRequest reads the request a peer must answer from the wire.
+func lastLCPConfigureRequest(t *testing.T, rec *frameRecorder) LCPPacket {
+	t.Helper()
+	frames := decodeFrames(t, rec)
+	for i := len(frames)-1; i >= 0; i-- {
+		if frames[i].Proto == ProtoLCP && frames[i].Pkt.Code == LCPConfigureRequest {
+			return frames[i].Pkt
+		}
+	}
+	t.Fatal("no LCP Configure-Request transmitted")
+	return LCPPacket{}
+}
+
 // newRFC1661Session builds a pppSession in the requested LCP state wired to a
 // frameRecorder. Both NCPs are disabled so a transition into Opened does not
 // block on an IP handler; tests that need the NCPs enable them explicitly.
@@ -121,6 +134,7 @@ func newRFC1661Session(state LCPState) (*pppSession, *frameRecorder, chan Event)
 		state:                state,
 		maxMRU:               MaxFrameLen,
 		magic:                0x01020304,
+		magicNegotiated:      true,
 		negotiatedMRU:        MaxFrameLen,
 		configuredAuthMethod: AuthMethodNone,
 		authFallbackOrder:    defaultAuthFallbackOrder(),
@@ -225,6 +239,7 @@ func TestRFC1661NonCompliantProtocolTreatedUnrecognized(t *testing.T) {
 // is 0) and is dispatched to the LCP handler instead of being dropped.
 func TestRFC1661CompliantProtocolRecognized(t *testing.T) {
 	s, rec, _ := newRFC1661Session(LCPStateOpened)
+	s.peerMagic = 0x11223344
 	body := []byte{0x11, 0x22, 0x33, 0x44}
 	if term := s.handleFrame(lcpFrame(ProtoLCP, LCPEchoRequest, 0x31, body)); term {
 		t.Fatal("handleFrame terminated the session on a valid LCP frame")
@@ -1193,6 +1208,7 @@ func TestRFC1661NoCodeRejectForKnownCode(t *testing.T) {
 // the session's negotiated Magic-Number into the Magic-Number field.
 func TestRFC1661EchoReplyInOpened(t *testing.T) {
 	s, rec, _ := newRFC1661Session(LCPStateOpened)
+	s.peerMagic = 0x99887766
 	peerMagic := []byte{0x99, 0x88, 0x77, 0x66}
 	if term := s.handleLCPPacket(LCPPacket{
 		Code: LCPEchoRequest, Identifier: 0x51, Data: peerMagic,

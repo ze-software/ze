@@ -118,7 +118,7 @@ func parseMSCHAPv2Response(buf []byte) (mSCHAPv2Response, error) {
 	if length > len(buf) {
 		return mSCHAPv2Response{}, errMSCHAPv2LengthMismatch
 	}
-	if length > MaxFrameLen-2 {
+	if length > MaxFrameLen {
 		return mSCHAPv2Response{}, errMSCHAPv2LengthMismatch
 	}
 	body := buf[mschapv2HeaderLen:length]
@@ -170,9 +170,8 @@ func parseMSCHAPv2Response(buf []byte) (mSCHAPv2Response, error) {
 // matches WriteCHAPChallenge (shared Auth-Protocol 0xC223 framing) with
 // a fixed Value-Size of 16 per RFC 2759 Section 4.
 //
-// The caller SHOULD pass buf[off:] with cap >= MaxFrameLen - 2 (the
-// PPP-payload room after WriteFrame); smaller buffers clamp Name safely
-// but the emitted packet may not carry the caller's full Name.
+// The caller MUST provide room for the header and Value. A MaxFrameLen-byte
+// Information field permits the largest Name; smaller buffers clamp it.
 //
 // RFC 2759 Section 4 reuses the RFC 1994 Section 4.1 Identifier
 // discipline: the Identifier MUST change each time a Challenge is sent.
@@ -187,7 +186,7 @@ func writeMSCHAPv2Valued(buf []byte, off int, code, identifier uint8, value, nam
 	// Authenticator Challenge is fixed at 16 octets per RFC 2759 Section 4.
 	// A caller that passes a longer value is clamped; a shorter value
 	// leaves the Value tail UNDEFINED because buf comes from a sync.Pool
-	// of reused MaxFrameLen buffers that are not zeroed on Get. The
+	// of reused MaxFrameBufLen buffers that are not zeroed on Get. The
 	// Value-Size byte still reports 16 unconditionally. Production callers
 	// (runMSCHAPv2AuthPhase) MUST pass exactly mschapv2ChallengeValueLen
 	// bytes drawn by drawMSCHAPv2Challenge.
@@ -202,7 +201,7 @@ func writeMSCHAPv2Valued(buf []byte, off int, code, identifier uint8, value, nam
 	// Clamp Name to the smaller of single-frame room and actual buffer
 	// room at off, with a max(, 0) guard for buffers too small to hold
 	// the header + Value (see writeCHAPValued for the full rationale).
-	frameRoom := MaxFrameLen - 2 - mschapv2HeaderLen - 1 - mschapv2ChallengeValueLen
+	frameRoom := MaxFrameLen - mschapv2HeaderLen - 1 - mschapv2ChallengeValueLen
 	bufRoom := len(buf) - off - mschapv2HeaderLen - 1 - mschapv2ChallengeValueLen
 	maxName := max(min(frameRoom, bufRoom), 0)
 	nameLen := min(len(name), maxName)
@@ -228,7 +227,7 @@ func writeMSCHAPv2Valued(buf []byte, off int, code, identifier uint8, value, nam
 // Like CHAP-MD5 Success/Failure there is NO Msg-Length octet between
 // the header and the Message: the Message runs from byte 4 to Length.
 // Hex digits A-F are emitted uppercase per RFC 2759 Section 5. The
-// encoder clamps the combined preface + message to MaxFrameLen - 2 -
+// encoder clamps the combined preface + message to MaxFrameLen -
 // mschapv2HeaderLen so the declared Length always fits a single PPP
 // frame.
 func writeMSCHAPv2Success(buf []byte, off int, identifier uint8, authResponseBlob, message []byte) int {
@@ -242,7 +241,7 @@ func writeMSCHAPv2Success(buf []byte, off int, identifier uint8, authResponseBlo
 		hexdigits  = "0123456789ABCDEF"
 	)
 
-	frameRoom := MaxFrameLen - 2 - mschapv2HeaderLen
+	frameRoom := MaxFrameLen - mschapv2HeaderLen
 	bufRoom := len(buf) - off - mschapv2HeaderLen
 	maxMessage := max(min(frameRoom, bufRoom), 0)
 
@@ -286,7 +285,7 @@ func writeMSCHAPv2Failure(buf []byte, off int, identifier uint8, message []byte)
 func writeMSCHAPv2Reply(buf []byte, off int, code, identifier uint8, message []byte) int {
 	// Clamp Message to the smaller of single-frame room and actual
 	// buffer room at off. Same pattern as writeCHAPReply.
-	frameRoom := MaxFrameLen - 2 - mschapv2HeaderLen
+	frameRoom := MaxFrameLen - mschapv2HeaderLen
 	bufRoom := len(buf) - off - mschapv2HeaderLen
 	maxMessage := max(min(frameRoom, bufRoom), 0)
 	msgLen := min(len(message), maxMessage)

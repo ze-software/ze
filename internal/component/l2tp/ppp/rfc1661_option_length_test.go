@@ -586,7 +586,7 @@ func TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength(t *testing.T) {
 // Configure-Ack, Nak and Reject as it binds a Configure-Request: an option whose
 // Data runs past the end of the Information field leaves the automaton where it
 // was and draws no reply (producer handleLCPPacket's reply-code gate, fed by
-// WalkLCPOptions, internal/component/l2tp/ppp/session_run.go).
+// ValidateLCPReply, internal/component/l2tp/ppp/lcp.go).
 // RFC requirement: RFC1661-6-2 negative -- a reply whose options fit inside the
 // packet still runs the automaton, so ze is not simply ignoring every reply.
 func TestRFC1661LCPReplyWithOptionsPastEndDiscarded(t *testing.T) {
@@ -595,11 +595,16 @@ func TestRFC1661LCPReplyWithOptionsPastEndDiscarded(t *testing.T) {
 
 	t.Run("Configure-Ack past the end leaves req-sent", func(t *testing.T) {
 		s, rec, _ := newRFC1661Session(LCPStateReqSent)
+		if !s.sendConfigureRequest() {
+			t.Fatal("initial Configure-Request failed")
+		}
+		request := lastLCPConfigureRequest(t, rec)
+		before := rec.count()
 
-		if term := s.handleFrame(lcpFrame(ProtoLCP, LCPConfigureAck, 0xB1, pastEnd)); term {
+		if term := s.handleFrame(lcpFrame(ProtoLCP, LCPConfigureAck, request.Identifier, pastEnd)); term {
 			t.Fatal("session terminated on a Configure-Ack RFC 1661 Section 6 discards")
 		}
-		if n := rec.count(); n != 0 {
+		if n := rec.count()-before; n != 0 {
 			t.Fatalf("ze answered a truncated Configure-Ack with %d frame(s)", n)
 		}
 		if got := s.currentState(); got != LCPStateReqSent {
@@ -608,9 +613,12 @@ func TestRFC1661LCPReplyWithOptionsPastEndDiscarded(t *testing.T) {
 	})
 
 	t.Run("Configure-Ack that fits still runs the automaton", func(t *testing.T) {
-		s, _, _ := newRFC1661Session(LCPStateReqSent)
-
-		if term := s.handleFrame(lcpFrame(ProtoLCP, LCPConfigureAck, 0xB2, optStream(mruOption(1460)))); term {
+		s, rec, _ := newRFC1661Session(LCPStateReqSent)
+		if !s.sendConfigureRequest() {
+			t.Fatal("initial Configure-Request failed")
+		}
+		request := lastLCPConfigureRequest(t, rec)
+		if term := s.handleFrame(lcpFrame(ProtoLCP, LCPConfigureAck, request.Identifier, request.Data)); term {
 			t.Fatal("session terminated on a well-formed Configure-Ack")
 		}
 		if got := s.currentState(); got != LCPStateAckRcvd {
@@ -627,11 +635,16 @@ func TestRFC1661LCPReplyWithOptionsPastEndDiscarded(t *testing.T) {
 	} {
 		t.Run(code.name+" past the end leaves ack-rcvd", func(t *testing.T) {
 			s, rec, _ := newRFC1661Session(LCPStateAckRcvd)
+			if !s.sendConfigureRequest() {
+				t.Fatal("initial Configure-Request failed")
+			}
+			request := lastLCPConfigureRequest(t, rec)
+			before := rec.count()
 
-			if term := s.handleFrame(lcpFrame(ProtoLCP, code.code, 0xB3, pastEnd)); term {
+			if term := s.handleFrame(lcpFrame(ProtoLCP, code.code, request.Identifier, pastEnd)); term {
 				t.Fatalf("session terminated on a %s RFC 1661 Section 6 discards", code.name)
 			}
-			if n := rec.count(); n != 0 {
+			if n := rec.count()-before; n != 0 {
 				t.Fatalf("ze answered a truncated %s with %d frame(s); RFC 1661 Section 4.1 makes RCN in ack-rcvd resend the Configure-Request", code.name, n)
 			}
 			if got := s.currentState(); got != LCPStateAckRcvd {
@@ -640,9 +653,16 @@ func TestRFC1661LCPReplyWithOptionsPastEndDiscarded(t *testing.T) {
 		})
 
 		t.Run(code.name+" that fits still runs the automaton", func(t *testing.T) {
-			s, _, _ := newRFC1661Session(LCPStateAckRcvd)
-
-			if term := s.handleFrame(lcpFrame(ProtoLCP, code.code, 0xB4, optStream(mruOption(1460)))); term {
+			s, rec, _ := newRFC1661Session(LCPStateAckRcvd)
+			if !s.sendConfigureRequest() {
+				t.Fatal("initial Configure-Request failed")
+			}
+			request := lastLCPConfigureRequest(t, rec)
+			data := optStream(mruOption(1460))
+			if code.code == LCPConfigureReject {
+				data = request.Data[:4]
+			}
+			if term := s.handleFrame(lcpFrame(ProtoLCP, code.code, request.Identifier, data)); term {
 				t.Fatalf("session terminated on a well-formed %s", code.name)
 			}
 			if got := s.currentState(); got != LCPStateReqSent {

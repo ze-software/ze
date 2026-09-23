@@ -1,0 +1,405 @@
+// Design: docs/guide/l2tp.md -- LCP interruption of authentication/NCP
+
+package ppp
+
+import (
+	"bytes"
+	"net"
+	"net/netip"
+	"testing"
+	"testing/synctest"
+	"time"
+
+	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
+)
+
+// These cases enter periodic authentication through run's real ticker after
+// completing the first authentication. Neither an interrupted auth wait nor
+// its old maintenance timers may replace the resumed LCP exchange.
+func TestPeriodicAuthenticationLCPInterruptions(t *testing.T) {
+	for _, method := range []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2} {
+		for _, terminate := range []bool{true, false} {
+			name := "renegotiate"
+			if terminate {
+				name = "terminate"
+			}
+			t.Run(method.String()+"/"+name, func(t *testing.T) {
+				synctest.Test(t, func(t *testing.T) {
+					s, _, events := newRFC1661Session(LCPStateInitial)
+					s.configuredAuthMethod = method
+					s.authTimeout = 20 * time.Second
+					s.reauthInterval = time.Second
+					s.echoInterval = 2 * time.Second
+					auth := make(chan AuthEvent, 16)
+					s.authEventsOut = auth
+					peer := runLifecycleSession(t, s)
+					openLifecycleLCP(t, peer)
+					initial := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
+					answerLifecycleChallenge(t, s, peer, auth, method, initial, true)
+					awaitLifecycleUp(t, events)
+
+					challenge := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
+					if challenge.Identifier == initial.Identifier {
+						t.Fatal("periodic authentication reused the initial challenge")
+					}
+					if terminate {
+						writeLifecyclePacket(t, peer, ProtoLCP, LCPTerminateRequest, 0x41, nil)
+						ack := readLifecyclePacket(t, peer, ProtoLCP, LCPTerminateAck)
+						if ack.Identifier != 0x41 {
+							t.Fatalf("Terminate-Ack identifier = %d, want 65", ack.Identifier)
+						}
+						// No close/stop is injected: the grace timer must produce the
+						// event that tells the owning transport to disconnect.
+						down := awaitLifecycleDown(t, events)
+						if down.Cause != l2tpevents.TerminateCauseUserRequest {
+							t.Fatalf("interrupted reauth ended for cause %v, want peer termination", down.Cause)
+						}
+						return
+					}
+
+					request := restartLifecycleLCP(t, peer)
+					// Wait for a real Restart-timer retransmission. Both old
+					// maintenance intervals expire first; any Echo or CHAP frame
+					// in their place is out-of-phase traffic, not progress.
+					resent := readLifecyclePacket(t, peer, ProtoLCP, LCPConfigureRequest)
+					if resent.Identifier != request.Identifier || !bytes.Equal(resent.Data, request.Data) {
+						t.Fatal("LCP did not retransmit its pending Configure-Request")
+					}
+					writeLifecyclePacket(t, peer, ProtoLCP, LCPConfigureAck, resent.Identifier, resent.Data)
+					fresh := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
+					answerLifecycleChallenge(t, s, peer, auth, method, fresh, true)
+					awaitLifecycleUp(t, events)
+				})
+			})
+		}
+	}
+}
+
+// The interruption repair must not turn a genuine decision into an LCP restart:
+// an accepted periodic round stays live, and a later rejection still tears down.
+func TestPeriodicAuthenticationDecisions(t *testing.T) {
+	for _, method := range []AuthMethod{AuthMethodCHAPMD5, AuthMethodMSCHAPv2} {
+		t.Run(method.String(), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				s, _, events := newRFC1661Session(LCPStateInitial)
+				s.configuredAuthMethod = method
+				s.authTimeout = 20 * time.Second
+				s.reauthInterval = time.Second
+				s.echoInterval = time.Hour
+				auth := make(chan AuthEvent, 16)
+				s.authEventsOut = auth
+				peer := runLifecycleSession(t, s)
+				openLifecycleLCP(t, peer)
+				initial := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
+				answerLifecycleChallenge(t, s, peer, auth, method, initial, true)
+				awaitLifecycleUp(t, events)
+				accepted := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
+				answerLifecycleChallenge(t, s, peer, auth, method, accepted, true)
+				rejected := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
+				answerLifecycleChallenge(t, s, peer, auth, method, rejected, false)
+				down := awaitLifecycleDown(t, events)
+				if down.Cause != l2tpevents.TerminateCauseNASError {
+					t.Fatalf("auth rejection ended for cause %v, want authentication failure", down.Cause)
+				}
+			})
+		})
+	}
+}
+
+// RFC 1661 Section 3.5: "Advancement from the Authentication phase to the
+// Network-Layer Protocol phase MUST NOT occur until authentication has completed."
+// A Configure-Ack that would complete the old NCP is not permission to publish an
+// address during termination, renegotiation, or the replacement authentication.
+func TestPendingNCPCompletionFollowsLCPLifetime(t *testing.T) {
+	for _, family := range []AddressFamily{AddressFamilyIPv4, AddressFamilyIPv6} {
+		for _, phase := range []string{"valid", "termination", "negotiation", "replacement-auth"} {
+			t.Run(family.String()+"/"+phase, func(t *testing.T) {
+				synctest.Test(t, func(t *testing.T) {
+					s, _, events := newRFC1661Session(LCPStateInitial)
+					s.configuredAuthMethod = AuthMethodCHAPMD5
+					s.authTimeout = 20 * time.Second
+					s.ipTimeout = 20 * time.Second
+					s.echoInterval = time.Hour
+					s.disableIPCP = family != AddressFamilyIPv4
+					s.disableIPv6CP = family != AddressFamilyIPv6
+					backend := s.backend.(*fakeBackend)
+					auth := make(chan AuthEvent, 16)
+					ips := make(chan IPEvent, 4)
+					s.authEventsOut = auth
+					s.ipEventsOut = ips
+					peer := runLifecycleSession(t, s)
+					openLifecycleLCP(t, peer)
+					challenge := readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
+					answerLifecycleChallenge(t, s, peer, auth, AuthMethodCHAPMD5, challenge, true)
+					request, peerID := pendingLifecycleNCP(t, s, peer, ips, family)
+
+					switch phase {
+					case "termination":
+						writeLifecyclePacket(t, peer, ProtoLCP, LCPTerminateRequest, 0x41, nil)
+						readLifecyclePacket(t, peer, ProtoLCP, LCPTerminateAck)
+					case "negotiation", "replacement-auth":
+						replacement := restartLifecycleLCP(t, peer)
+						if phase == "replacement-auth" {
+							writeLifecyclePacket(t, peer, ProtoLCP, LCPConfigureAck, replacement.Identifier, replacement.Data)
+							// Leave this challenge unanswered: LCP is Opened, but
+							// the new authentication has not completed.
+							challenge = readLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeChallenge)
+						}
+					}
+					writeLifecyclePacket(t, peer, ncpProto(family), LCPConfigureAck, request.Identifier, request.Data)
+					// net.Pipe delivery alone only acknowledges the reader. Wait
+					// until the session has processed the queued frame as well.
+					synctest.Wait()
+					if phase == "valid" {
+						assertLifecycleNCPPublished(t, events, backend, family, peerID)
+						return
+					}
+					assertLifecycleNCPUnpublished(t, events, backend)
+					if phase == "replacement-auth" {
+						// A fresh authenticated exchange must still complete; a
+						// blanket NCP discard would fail this control.
+						answerLifecycleChallenge(t, s, peer, auth, AuthMethodCHAPMD5, challenge, true)
+						fresh, freshPeerID := pendingLifecycleNCP(t, s, peer, ips, family)
+						writeLifecyclePacket(t, peer, ncpProto(family), LCPConfigureAck, fresh.Identifier, fresh.Data)
+						synctest.Wait()
+						assertLifecycleNCPPublished(t, events, backend, family, freshPeerID)
+					}
+				})
+			})
+		}
+	}
+}
+
+func runLifecycleSession(t *testing.T, s *pppSession) net.Conn {
+	t.Helper()
+	server, peer := net.Pipe()
+	s.chanFile = server
+	done := make(chan struct{})
+	stop := make(chan struct{})
+	s.stopCh = stop
+	go func() {
+		defer close(done)
+		s.run(&StartSession{})
+	}()
+	t.Cleanup(func() {
+		close(stop)
+		_ = peer.Close()
+		<-done
+	})
+	return peer
+}
+
+// A five-second read bound includes the real three-second LCP Restart timer.
+// synctest advances timer time only when all goroutines are durably blocked.
+func readLifecyclePacket(t *testing.T, peer net.Conn, proto uint16, code uint8) LCPPacket {
+	t.Helper()
+	if err := peer.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]byte, MaxFrameBufLen)
+	n, err := peer.Read(buf)
+	if err != nil {
+		t.Fatalf("reading protocol %#x code %d: %v", proto, code, err)
+	}
+	gotProto, payload, _, err := ParseFrame(buf[:n])
+	if err != nil {
+		t.Fatal(err)
+	}
+	pkt, err := ParseLCPPacket(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if gotProto != proto || pkt.Code != code {
+		t.Fatalf("wire protocol/code = %#x/%d, want %#x/%d", gotProto, pkt.Code, proto, code)
+	}
+	return pkt
+}
+
+func writeLifecyclePacket(t *testing.T, peer net.Conn, proto uint16, code, id uint8, data []byte) {
+	t.Helper()
+	if err := peer.SetWriteDeadline(time.Now().Add(5 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := peer.Write(lcpFrame(proto, code, id, data)); err != nil {
+		t.Fatalf("writing protocol %#x code %d: %v", proto, code, err)
+	}
+}
+
+func openLifecycleLCP(t *testing.T, peer net.Conn) {
+	t.Helper()
+	request := readLifecyclePacket(t, peer, ProtoLCP, LCPConfigureRequest)
+	writeLifecyclePacket(t, peer, ProtoLCP, LCPConfigureAck, request.Identifier, request.Data)
+	writeLifecyclePacket(t, peer, ProtoLCP, LCPConfigureRequest, 0x31, nil)
+	readLifecyclePacket(t, peer, ProtoLCP, LCPConfigureAck)
+}
+
+func restartLifecycleLCP(t *testing.T, peer net.Conn) LCPPacket {
+	t.Helper()
+	writeLifecyclePacket(t, peer, ProtoLCP, LCPConfigureRequest, 0x42, nil)
+	request := readLifecyclePacket(t, peer, ProtoLCP, LCPConfigureRequest)
+	ack := readLifecyclePacket(t, peer, ProtoLCP, LCPConfigureAck)
+	if ack.Identifier != 0x42 {
+		t.Fatalf("Configure-Ack identifier = %d, want 66", ack.Identifier)
+	}
+	return request
+}
+
+func answerLifecycleChallenge(t *testing.T, s *pppSession, peer net.Conn, auth <-chan AuthEvent, method AuthMethod, challenge LCPPacket, accept bool) {
+	t.Helper()
+	value := bytes.Repeat([]byte{0x33}, chapMD5DigestLen)
+	if method == AuthMethodMSCHAPv2 {
+		// Peer-Challenge, Reserved, NT-Response, Flags. The external
+		// authenticator owns verification; reserved octets remain zero.
+		value = make([]byte, mschapv2ResponseValueLen)
+		copy(value, bytes.Repeat([]byte{0x11}, mschapv2PeerChallengeLen))
+		copy(value[24:], bytes.Repeat([]byte{0x22}, mschapv2NTResponseLen))
+	}
+	data := append([]byte{byte(len(value))}, value...)
+	data = append(data, "alice"...)
+	writeLifecyclePacket(t, peer, ProtoCHAP, CHAPCodeResponse, challenge.Identifier, data)
+	for {
+		select {
+		case ev := <-auth:
+			if req, ok := ev.(EventAuthRequest); ok {
+				if req.Method != method || req.Identifier != challenge.Identifier {
+					t.Fatalf("unexpected authentication request: %+v", req)
+				}
+				s.authRespCh <- authResponseMsg{accept: accept, authResponseBlob: make([]byte, mschapv2AuthenticatorResponseLen)}
+				code := uint8(CHAPCodeFailure)
+				if accept {
+					code = CHAPCodeSuccess
+				}
+				readLifecyclePacket(t, peer, ProtoCHAP, code)
+				return
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("authentication handler never received the response")
+		}
+	}
+}
+
+func awaitLifecycleUp(t *testing.T, events <-chan Event) {
+	t.Helper()
+	for {
+		select {
+		case ev := <-events:
+			switch ev.(type) {
+			case EventSessionUp:
+				return
+			case EventSessionDown:
+				t.Fatalf("session went down instead of up: %+v", ev)
+			}
+		case <-time.After(5 * time.Second):
+			t.Fatal("session never came up")
+		}
+	}
+}
+
+func awaitLifecycleDown(t *testing.T, events <-chan Event) EventSessionDown {
+	t.Helper()
+	select {
+	case ev := <-events:
+		if down, ok := ev.(EventSessionDown); ok {
+			return down
+		}
+		t.Fatalf("expected transport session-down event, got %+v", ev)
+	case <-time.After(5 * time.Second):
+		t.Fatal("session-down event never reached the transport")
+	}
+	return EventSessionDown{}
+}
+
+func pendingLifecycleNCP(t *testing.T, s *pppSession, peer net.Conn, ips <-chan IPEvent, family AddressFamily) (LCPPacket, [8]byte) {
+	t.Helper()
+	select {
+	case ev := <-ips:
+		req, ok := ev.(EventIPRequest)
+		if !ok || req.Family != family {
+			t.Fatalf("unexpected address request: %+v", ev)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("NCP never requested an address")
+	}
+	s.ipRespCh <- ipResponseMsg{
+		accept: true, family: family,
+		local: netip.MustParseAddr("192.0.2.1"), peer: netip.MustParseAddr("192.0.2.2"),
+	}
+	proto := ncpProto(family)
+	request := readLifecyclePacket(t, peer, proto, LCPConfigureRequest)
+	peerData := []byte{IPCPOptIPAddress, 6, 192, 0, 2, 2}
+	var peerID [8]byte
+	if family == AddressFamilyIPv6 {
+		opts, err := parseIPv6CPOptions(request.Data)
+		if err != nil || !opts.HasInterfaceID {
+			t.Fatalf("IPv6CP request lacks an interface identifier: %x (%v)", request.Data, err)
+		}
+		peerID = opts.InterfaceID
+		peerID[7] ^= 0xff
+		peerID[0] = 0x02
+		peerData = append([]byte{IPv6CPOptInterfaceID, 10}, peerID[:]...)
+	}
+	writeLifecyclePacket(t, peer, proto, LCPConfigureRequest, 0x51, peerData)
+	ack := readLifecyclePacket(t, peer, proto, LCPConfigureAck)
+	if ack.Identifier != 0x51 || !bytes.Equal(ack.Data, peerData) {
+		t.Fatalf("NCP did not accept the peer's request: %+v", ack)
+	}
+	return request, peerID
+}
+
+func assertLifecycleNCPUnpublished(t *testing.T, events <-chan Event, backend *fakeBackend) {
+	t.Helper()
+	if calls := backend.P2PCalls(); len(calls) != 0 {
+		t.Errorf("old NCP completion installed an address: %+v", calls)
+	}
+	if calls := backend.UpCalls(); len(calls) != 0 {
+		t.Errorf("old NCP completion brought the interface up: %+v", calls)
+	}
+	for len(events) != 0 {
+		ev := <-events
+		switch ev.(type) {
+		case EventSessionIPAssigned, EventSessionUp:
+			t.Errorf("old NCP completion published a network event: %+v", ev)
+		case EventSessionDown:
+			t.Errorf("old NCP completion failed the resumed LCP lifetime: %+v", ev)
+		}
+	}
+}
+
+func assertLifecycleNCPPublished(t *testing.T, events <-chan Event, backend *fakeBackend, family AddressFamily, peerID [8]byte) {
+	t.Helper()
+	assigned, up := false, false
+	for len(events) != 0 {
+		switch ev := (<-events).(type) {
+		case EventSessionIPAssigned:
+			if assigned || ev.Family != family {
+				t.Fatalf("unexpected address publication: %+v", ev)
+			}
+			assigned = true
+			if family == AddressFamilyIPv4 {
+				if ev.Local != netip.MustParseAddr("192.0.2.1") || ev.Peer != netip.MustParseAddr("192.0.2.2") {
+					t.Fatalf("wrong IPv4 assignment: %+v", ev)
+				}
+			} else if ev.InterfaceID != peerID {
+				t.Fatalf("wrong IPv6 peer identifier: %x, want %x", ev.InterfaceID, peerID)
+			}
+		case EventSessionUp:
+			if !assigned {
+				t.Fatal("session came up before its address was published")
+			}
+			up = true
+		case EventSessionDown:
+			t.Fatalf("valid NCP completion tore down the session: %+v", ev)
+		}
+	}
+	if !assigned || !up {
+		t.Fatalf("valid NCP completion: address published=%v, session up=%v", assigned, up)
+	}
+	calls := backend.P2PCalls()
+	if family == AddressFamilyIPv4 {
+		if len(calls) != 1 || calls[0].local != "192.0.2.1/32" || calls[0].peer != "192.0.2.2/32" {
+			t.Fatalf("wrong programmed IPv4 address: %+v", calls)
+		}
+	} else if len(calls) != 0 {
+		t.Fatalf("IPv6-only completion unexpectedly programmed IPv4: %+v", calls)
+	}
+}

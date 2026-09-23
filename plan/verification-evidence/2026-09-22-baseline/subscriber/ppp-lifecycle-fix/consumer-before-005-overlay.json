@@ -1,0 +1,8 @@
+{
+  "Replace": {
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/reactor_kernel.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__reactor_kernel.go.txt",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/subscriber_bridge.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__subscriber_bridge.go.txt",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/pppoe/subsystem.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__pppoe__subsystem.go.txt",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/plugins/authradius/acct.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__plugins__authradius__acct.go.txt"
+  }
+}

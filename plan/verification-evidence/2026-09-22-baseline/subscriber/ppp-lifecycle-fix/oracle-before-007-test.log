@@ -1,0 +1,10 @@
+=== RUN   TestLCPRestartProofRejectsEarlyIPCPInEitherDirection
+=== RUN   TestLCPRestartProofRejectsEarlyIPCPInEitherDirection/sent
+=== RUN   TestLCPRestartProofRejectsEarlyIPCPInEitherDirection/rcvd
+    l2tpppprestart_test.go:31: proof accepted rcvd IPCP before fresh authentication
+--- FAIL: TestLCPRestartProofRejectsEarlyIPCPInEitherDirection (0.00s)
+    --- PASS: TestLCPRestartProofRejectsEarlyIPCPInEitherDirection/sent (0.00s)
+    --- FAIL: TestLCPRestartProofRejectsEarlyIPCPInEitherDirection/rcvd (0.00s)
+FAIL
+FAIL	github.com/ze-software/ze/internal/le/deployment	0.014s
+FAIL

@@ -216,6 +216,9 @@ func (s *pppSession) awaitAuthDecision(req EventAuthRequest, label string) (auth
 
 	select {
 	case decision := <-s.authRespCh:
+		if decision.accept {
+			s.authenticatedUsername = req.Username
+		}
 		return decision, true
 	case <-s.stopCh:
 		return authResponseMsg{}, false
@@ -251,16 +254,14 @@ func (s *pppSession) awaitAuthDecision(req EventAuthRequest, label string) (auth
 // s.handleFrame so LCP keepalive (Echo-Request/Reply) and
 // Terminate-Request stay responsive during the initial auth window
 // and, critically, during every Phase 9 periodic re-auth window. If
-// handleFrame returns term=true (LCP FSM reached Closed/Stopped),
-// the wait returns ok=false so the caller aborts auth.
+// the LCP state changes, the wait returns ok=false so the caller aborts auth
+// and resumes the session loop for a nonterminal LCP transition.
 //
 // parse extracts the method-specific Response struct from a PPP
 // payload and returns (result, identifier, err). The wait uses
 // s.authTimeout as its bound so periodic re-auth never parks
-// indefinitely on a silent peer. On any terminal condition (malformed
-// packet, channel close, stop, timeout) the helper emits
-// EventAuthFailure and calls s.fail so callers may return false
-// directly.
+// indefinitely on a silent peer. Fatal errors report session failure;
+// a nonterminal LCP transition leaves teardown to the session loop.
 //
 // label prefixes all fail-reason strings ("chap" or "chap-v2").
 func waitCHAPLike[T any](
@@ -270,6 +271,7 @@ func waitCHAPLike[T any](
 	parse func([]byte) (T, uint8, error),
 ) (T, bool) {
 	var zero T
+	lcpState := s.currentState()
 	timeout := s.authTimeout
 	if timeout <= 0 {
 		timeout = defaultAuthTimeout
@@ -303,7 +305,7 @@ func waitCHAPLike[T any](
 				// LCP dispatch shim.
 				term := s.handleFrame(f)
 				putFrameBuf(f)
-				if term {
+				if term || s.currentState() != lcpState {
 					return zero, false
 				}
 				continue

@@ -1,0 +1,50 @@
+{
+  "purpose": "Pre-fix consumer sources for NCP publication, LCP-down withdrawal and preserved transport lifetime",
+  "files": [
+    {
+      "path": "internal/component/l2tp/reactor_kernel.go",
+      "snapshot": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__reactor_kernel.go.txt",
+      "sha256": "c45ac2b6261fff5c8378af90ebf7ca1d035bb5b556ac01815ac5102af3abdcbe"
+    },
+    {
+      "path": "internal/component/l2tp/subscriber_bridge.go",
+      "snapshot": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__subscriber_bridge.go.txt",
+      "sha256": "2cb0e28ed57ed2f1bd9806361ad55484549f9f1103494bd7d7a03b26500a970b"
+    },
+    {
+      "path": "internal/component/l2tp/pppoe/subsystem.go",
+      "snapshot": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__pppoe__subsystem.go.txt",
+      "sha256": "aaea8dd33015a2a34502929653d66430230e357dac6f82ecb1ba86520a4d788a"
+    },
+    {
+      "path": "internal/component/l2tp/ppp/events.go",
+      "snapshot": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__ppp__events.go.txt",
+      "sha256": "1d101698fa5e66503ceff8f3a286e5a8a6f64b620298735f45d2d2b926e392f6"
+    },
+    {
+      "path": "internal/component/l2tp/route_observer.go",
+      "snapshot": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__route_observer.go.txt",
+      "sha256": "9b0e2fea051fcf82d728b973d2d8ce3a6c1df5e52841e0973d101c697a041a5a"
+    },
+    {
+      "path": "internal/component/l2tp/subscriber/session.go",
+      "snapshot": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__subscriber__session.go.txt",
+      "sha256": "035b68b960051de0395550d9b5de93c4d5f0b9e06f66cb3118eb01188f892d1f"
+    },
+    {
+      "path": "internal/component/l2tp/subscriber/registry.go",
+      "snapshot": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__subscriber__registry.go.txt",
+      "sha256": "660fe6c245798930f23b2e38b421a0e6c5100d3a8e63b29565756f359627b72f"
+    },
+    {
+      "path": "internal/component/l2tp/events/events.go",
+      "snapshot": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__events__events.go.txt",
+      "sha256": "de735ed2d1fdbed3c59bf7e5717224d85e22f2f4798e56875c3b61e716785736"
+    },
+    {
+      "path": "internal/component/l2tp/plugins/authradius/acct.go",
+      "snapshot": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__plugins__authradius__acct.go.txt",
+      "sha256": "f6d13811601e263383db49301a3792e9a7df133db7a4d0fcca294ccb1b8444ae"
+    }
+  ]
+}

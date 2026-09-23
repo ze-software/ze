@@ -1,0 +1,56 @@
+using channel 1
+Using interface ppp0
+Connect: ppp0 <--> 
+PPPoL2TP options: debugmask 0
+sent [LCP ConfReq id=0x1 <asyncmap 0x0> <magic 0xffd3bd9d>]
+rcvd [LCP ConfAck id=0x1 <asyncmap 0x0> <magic 0xffd3bd9d>]
+rcvd [LCP ConfReq id=0x1 <mru 1500> <auth chap MD5> <magic 0xd7abc5c8>]
+sent [LCP ConfAck id=0x1 <mru 1500> <auth chap MD5> <magic 0xd7abc5c8>]
+PPPoL2TP options: debugmask 0
+rcvd [CHAP Challenge id=0x1 <52626226ba9172506d05a6875e3f868e>, name = "ze"]
+sent [CHAP Response id=0x1 <30fcefa7f56e683c087d710f6444c1c2>, name = "alice"]
+rcvd [CHAP Success id=0x1 ""]
+CHAP authentication succeeded
+CHAP authentication succeeded
+kernel does not support PPP filtering
+sent [IPCP ConfReq id=0x1 <addr 0.0.0.0>]
+rcvd [IPCP ConfReq id=0x1 <addr 10.100.0.1>]
+sent [IPCP ConfAck id=0x1 <addr 10.100.0.1>]
+rcvd [IPCP ConfNak id=0x1 <addr 10.100.0.2> <ms-dns1 8.8.8.8> <ms-dns2 8.8.4.4>]
+sent [IPCP ConfReq id=0x2 <addr 10.100.0.2> <ms-dns1 8.8.8.8> <ms-dns2 8.8.4.4>]
+rcvd [IPCP ConfAck id=0x2 <addr 10.100.0.2> <ms-dns1 8.8.8.8> <ms-dns2 8.8.4.4>]
+local  IP address 10.100.0.2
+remote IP address 10.100.0.1
+primary   DNS address 8.8.8.8
+secondary DNS address 8.8.4.4
+Script /etc/ppp/ip-up started (pid 1428)
+Script /etc/ppp/ip-up finished (pid 1428), status = 0x0
+rcvd [LCP ConfReq id=0x2 <mru 1500> <auth chap MD5> <magic 0xd7abc5c8>]
+Connect time 0.1 minutes.
+Sent 168 bytes, received 168 bytes.
+Script /etc/ppp/ip-down started (pid 1445)
+PPPoL2TP options: debugmask 0
+sent [LCP ConfReq id=0x2 <asyncmap 0x0> <magic 0x6434e601>]
+sent [LCP ConfAck id=0x2 <mru 1500> <auth chap MD5> <magic 0xd7abc5c8>]
+rcvd [LCP ConfAck id=0xa5]
+rcvd [LCP ConfAck id=0x2 <asyncmap 0x0> <magic 0x6434e601>]
+PPPoL2TP options: debugmask 0
+rcvd [CHAP Challenge id=0x2 <6569b492ba0487b8e5cb6bceb793092c>, name = "ze"]
+sent [CHAP Response id=0x2 <a4a74d7fdac04cca801349de3ad78ad9>, name = "alice"]
+rcvd [CHAP Success id=0x2 ""]
+CHAP authentication succeeded
+CHAP authentication succeeded
+kernel does not support PPP filtering
+sent [IPCP ConfReq id=0x3 <addr 10.100.0.2>]
+Script /etc/ppp/ip-down finished (pid 1445), status = 0x0
+rcvd [IPCP ConfReq id=0x2 <addr 10.100.0.1>]
+sent [IPCP ConfAck id=0x2 <addr 10.100.0.1>]
+sent [IPCP ConfReq id=0x3 <addr 10.100.0.2>]
+sent [IPCP ConfReq id=0x3 <addr 10.100.0.2>]
+sent [IPCP ConfReq id=0x3 <addr 10.100.0.2>]
+sent [IPCP ConfReq id=0x3 <addr 10.100.0.2>]
+sent [IPCP ConfReq id=0x3 <addr 10.100.0.2>]
+sent [IPCP ConfReq id=0x3 <addr 10.100.0.2>]
+sent [IPCP ConfReq id=0x3 <addr 10.100.0.2>]
+sent [IPCP ConfReq id=0x3 <addr 10.100.0.2>]
+sent [IPCP ConfReq id=0x3 <addr 10.100.0.2>]

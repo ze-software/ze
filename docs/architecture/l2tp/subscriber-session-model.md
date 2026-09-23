@@ -67,17 +67,66 @@ on the session rather than in each consumer.
 first handled only session-down. Expanding it to session-up and IP-assigned
 required that ordering, or a subscriber to the event does not see the session.
 
+PPP reports each negotiated address before the final session-up event. The
+registry keeps that state as `configuring`; session-up preserves the addresses
+and marks the subscriber `active`.
+
+Both transports MUST acknowledge each IP-assigned event after synchronous
+address publication completes, including its lifecycle callbacks. PPP waits for
+that acknowledgment before NCP succeeds and before it enables forwarding.
+Rejected assignments and missing sessions are also acknowledged, so the producer
+does not remain blocked after the consumer returns.
+
+PPP records the request username only when the authentication handler accepts
+the request. Each IP-assigned event carries that accepted username to the
+transport, which publishes it in the subscriber registry and lifecycle events.
+L2TP also uses it for subscriber routes and accounting. A rejected request
+cannot replace the accepted username.
+
+Explicit no-auth admission has an empty username. L2TP retains a proxy identity
+supplied for the current transport until PPP supplies an accepted username.
+LCP-down clears the accepted username and the transport's network-lifetime
+identity, so replacement admission cannot reuse the previous subscriber.
+
+<!-- source: internal/component/l2tp/ppp/auth.go -- awaitAuthDecision -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- onNCPOpened, resetNCP -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleSessionIPAssigned, handleLCPDown -->
+
+LCP-down ends the network lifetime without ending the transport. L2TP withdraws
+its subscriber routes. Both transports release the old allocation and
+authorization state before they acknowledge LCP-down. PPP waits for that
+acknowledgment before it can start replacement authentication. Session-down
+remains responsible for the L2TP CDN or PPPoE PADT.
+
+Per-session cancellation still publishes the final session-down event. A stop
+while address publication is pending cannot leave the subscriber registered.
+
 <!-- source: internal/component/l2tp/pppoe/subsystem.go -- handlePPPEvent, onSessionUp, onSessionDown -->
 <!-- source: internal/component/l2tp/pppoe/drain.go -- startPPPoEAuthDrain, startPPPoEPoolDrain -->
 
-**A teardown is published even when the registry holds no session.** A session
-that fails an NCP, or whose peer disconnects between IPCP and session-up, never
-reaches the registry. It does hold the address IPCP allocated for it, so a
-publication gated on a registry hit leaks that address. Both transports fall
-back to a session built from the identifiers in hand.
+**A teardown is published even when the registry holds no session.** An address
+can be allocated before its NCP completes. A publication gated on a registry
+hit leaks that address. Both transports use the session identifiers when no
+registry entry exists.
 
 <!-- source: internal/component/l2tp/subscriber/session.go -- PPPKey, AccessIfIndex -->
 <!-- source: internal/component/l2tp/plugins/pool/register.go -- setEventBus, onSessionDown -->
+
+L2TP accounting starts once per network lifetime, not once per address family.
+A later IPv4 assignment updates subsequent records without replacing the
+accounting session. LCP-down stops that session before replacement authentication.
+
+Accounting subtracts each network lifetime's initial raw interface counters.
+Traffic from an earlier lifetime is not billed again when the PPP unit remains.
+The L2TP accounting callback captures this baseline during address publication,
+before PPP enables forwarding. Accounting-Start runs asynchronously, so PPP does
+not wait for a RADIUS server response.
+Clearing display counters does not change accounting. Unavailable counter values
+are omitted and logged, not reported as zero.
+
+PPPoE accounting is not connected to subscriber events.
+
+<!-- source: internal/component/l2tp/plugins/authradius/acct.go -- subscribeEventBus, onSessionIPAssigned -->
 
 **The bridge must not be built on a nil event bus.** L2TP subsystem tests start
 with a nil bus, and the bridge panics on one. Guard before constructing it.

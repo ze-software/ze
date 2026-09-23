@@ -54,16 +54,11 @@ type sessionKey struct {
 	sessionID uint16
 }
 
-// newChanFileFn is the constructor for the chan fd's
-// io.ReadWriteCloser. Production wires NewFDFile (os.NewFile + Go
-// runtime poller). Tests swap this via export_test.go to use
-// net.Pipe so the Driver can be exercised without /dev/ppp.
+// newChanFileFn wraps an owned blocking control-channel descriptor.
+// Tests replace it with a pipe transport.
 var newChanFileFn = NewFDFile
 
-// newUnitFileFn wraps the unit fd for reading received PPP frames.
-// After PPPIOCCONNECT the kernel delivers incoming frames to the unit
-// fd, not the channel fd. Returns nil when fd <= 0 (test path), which
-// makes readFrames fall back to chanFile.
+// newUnitFileFn wraps the owned kernel PPP unit descriptor.
 var newUnitFileFn = func(fd int) io.ReadCloser {
 	if fd <= 0 {
 		return nil
@@ -214,10 +209,7 @@ func (d *Driver) Stop() {
 	// pattern; see goroutine-lifecycle.md.
 	d.mu.Lock()
 	for _, s := range d.sessions {
-		_ = s.chanFile.Close() //nolint:errcheck // shutdown best-effort
-		if s.unitFile != nil {
-			_ = s.unitFile.Close() //nolint:errcheck // shutdown best-effort
-		}
+		s.closeFiles()
 	}
 	d.mu.Unlock()
 
@@ -381,10 +373,7 @@ func (d *Driver) StopSession(tunnelID, sessionID uint16) error {
 	d.mu.Unlock()
 
 	s.sessStopOnce.Do(func() { close(s.sessStop) })
-	_ = s.chanFile.Close() //nolint:errcheck // shutdown best-effort
-	if s.unitFile != nil {
-		_ = s.unitFile.Close() //nolint:errcheck // shutdown best-effort
-	}
+	s.closeFiles()
 	<-s.done
 	return nil
 }
@@ -409,7 +398,27 @@ func (d *Driver) sessionByID(tunnelID, sessionID uint16) (sessionInfo, bool) {
 // per-session goroutines. Exits when stopCh closes.
 func (d *Driver) dispatch() {
 	defer close(d.dispatchDone)
+	defer func() {
+		// Transport producers stop before Driver.Stop. Every queued item
+		// has already transferred ownership, even if never dispatched.
+		for {
+			select {
+			case start, ok := <-d.sessionsIn:
+				if !ok {
+					return
+				}
+				start.closeFiles()
+			default:
+				return
+			}
+		}
+	}()
 	for {
+		select {
+		case <-d.stopCh:
+			return
+		default:
+		}
 		select {
 		case <-d.stopCh:
 			return
@@ -432,22 +441,26 @@ func (d *Driver) spawnSession(start *StartSession) {
 	// is a defensive guard against uninitialized StartSession structs
 	// rather than a meaningful range check.
 	//
-	// Even though no goroutine was spawned for this session, we emit
-	// EventSessionDown so the transport's reconciliation loop sees
-	// the rejection and cleans up its kernel state. PPP does NOT
-	// close the fds -- the transport owns them.
+	// Queue delivery transferred ownership even when the request is refused.
 	if start.ChanFD <= 0 || start.UnitFD <= 0 {
 		d.logger.Warn("ppp: StartSession with invalid fds ignored",
 			"tunnel-id", start.TunnelID, "session-id", start.SessionID,
 			"chan-fd", start.ChanFD, "unit-fd", start.UnitFD)
+		start.closeFiles()
 		d.emitRejection(start, "invalid fds")
 		return
 	}
 	k := sessionKey{start.TunnelID, start.SessionID}
 
 	d.mu.Lock()
+	if d.stopped {
+		d.mu.Unlock()
+		start.closeFiles()
+		return
+	}
 	if _, exists := d.sessions[k]; exists {
 		d.mu.Unlock()
+		start.closeFiles()
 		d.logger.Warn("ppp: duplicate StartSession ignored",
 			"tunnel-id", start.TunnelID, "session-id", start.SessionID)
 		d.emitRejection(start, "duplicate (tunnelID, sessionID)")
@@ -473,6 +486,7 @@ func (d *Driver) spawnSession(start *StartSession) {
 		unitFD:               start.UnitFD,
 		unitNum:              start.UnitNum,
 		lnsMode:              start.LNSMode,
+		pppoe:               start.PPPoE,
 		maxMRU:               maxMRU,
 		echoInterval:         start.EchoInterval,
 		echoFailures:         start.EchoFailures,
@@ -528,11 +542,8 @@ func (d *Driver) spawnSession(start *StartSession) {
 // "PPP never took this session" and "PPP ran this session then it
 // ended" without parsing reason strings.
 //
-// Does NOT close ChanFD or UnitFD: both were opened by the
-// transport (L2TP kernel worker in 6a; PPPoE or similar later), and
-// the transport owns their lifecycle. Closing here could terminate
-// a DIFFERENT session that legitimately holds the same fd -- the
-// dedup key is (tunnelID, sessionID), not fd.
+// The refused request's descriptors have already been released; the transport
+// still owns its PPPoX socket and reconciles that separate resource.
 func (d *Driver) emitRejection(start *StartSession, reason string) {
 	select {
 	case d.eventsOut <- EventSessionRejected{

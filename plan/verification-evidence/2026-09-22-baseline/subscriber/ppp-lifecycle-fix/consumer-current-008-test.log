@@ -1,0 +1,53 @@
+=== RUN   TestL2TPSubscriberNetworkLifetime
+--- PASS: TestL2TPSubscriberNetworkLifetime (1.06s)
+=== RUN   TestL2TPSubscriberRejectsUnusableAssignments
+--- PASS: TestL2TPSubscriberRejectsUnusableAssignments (0.00s)
+=== RUN   TestL2TPSubscriberLCPDownWithdrawsPublishedLifetime
+--- PASS: TestL2TPSubscriberLCPDownWithdrawsPublishedLifetime (0.00s)
+PASS
+ok  	github.com/ze-software/ze/internal/component/l2tp	2.145s
+=== RUN   TestPPPoESubscriberNetworkLifetime
+--- PASS: TestPPPoESubscriberNetworkLifetime (1.06s)
+=== RUN   TestPPPoESubscriberRejectsUnusableAssignments
+2026/09/23 01:08:23 WARN pppoe: invalid IP-assigned event address="" session=1
+2026/09/23 01:08:23 WARN pppoe: invalid IP-assigned event address="" session=1
+2026/09/23 01:08:23 WARN pppoe: invalid IP-assigned event address=2001:db8::99 session=1
+--- PASS: TestPPPoESubscriberRejectsUnusableAssignments (0.00s)
+=== RUN   TestPPPoESubscriberLCPDownWithdrawsPublishedLifetime
+--- PASS: TestPPPoESubscriberLCPDownWithdrawsPublishedLifetime (1.05s)
+PASS
+ok  	github.com/ze-software/ze/internal/component/l2tp/pppoe	3.179s
+=== RUN   TestSessionEventDrivesAddressAndPortID
+--- PASS: TestSessionEventDrivesAddressAndPortID (0.01s)
+=== RUN   TestAccountingCountersRetainedPPPUnit
+--- PASS: TestAccountingCountersRetainedPPPUnit (1.06s)
+=== RUN   TestAccountingCountersIgnoreDisplayClear
+--- PASS: TestAccountingCountersIgnoreDisplayClear (1.27s)
+=== RUN   TestAccountingCountersUnavailableSnapshots
+--- PASS: TestAccountingCountersUnavailableSnapshots (1.26s)
+=== RUN   TestAccountingAddressFamiliesShareLifetime
+=== RUN   TestAccountingAddressFamiliesShareLifetime/IPv4-first
+=== RUN   TestAccountingAddressFamiliesShareLifetime/IPv6-first
+--- PASS: TestAccountingAddressFamiliesShareLifetime (0.01s)
+    --- PASS: TestAccountingAddressFamiliesShareLifetime/IPv4-first (0.00s)
+    --- PASS: TestAccountingAddressFamiliesShareLifetime/IPv6-first (0.00s)
+=== RUN   TestBuildAcctPacketWithCounters
+--- PASS: TestBuildAcctPacketWithCounters (0.00s)
+=== RUN   TestBuildAcctPacketGigawords
+--- PASS: TestBuildAcctPacketGigawords (0.00s)
+=== RUN   TestBuildAcctPacketStartZeroCounters
+--- PASS: TestBuildAcctPacketStartZeroCounters (0.00s)
+=== RUN   TestBuildAcctPacketMissingIface
+--- PASS: TestBuildAcctPacketMissingIface (0.00s)
+=== RUN   TestBuildAcctPacketGetStatsError
+--- PASS: TestBuildAcctPacketGetStatsError (0.00s)
+PASS
+ok  	github.com/ze-software/ze/internal/component/l2tp/plugins/authradius	4.673s
+=== RUN   TestLCPRestartProofRejectsEarlyIPCPInEitherDirection
+=== RUN   TestLCPRestartProofRejectsEarlyIPCPInEitherDirection/sent
+=== RUN   TestLCPRestartProofRejectsEarlyIPCPInEitherDirection/rcvd
+--- PASS: TestLCPRestartProofRejectsEarlyIPCPInEitherDirection (0.00s)
+    --- PASS: TestLCPRestartProofRejectsEarlyIPCPInEitherDirection/sent (0.00s)
+    --- PASS: TestLCPRestartProofRejectsEarlyIPCPInEitherDirection/rcvd (0.00s)
+PASS
+ok  	github.com/ze-software/ze/internal/le/deployment	1.067s

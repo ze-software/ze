@@ -1,0 +1,13 @@
+{
+  "Replace": {
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/ppp/manager_test.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/manager-helpers.go.txt",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/ppp/session_run.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/session_run.go.txt",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/ppp/session.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/session.go.txt",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/ppp/auth.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/auth.go.txt",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/ppp/ncp.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/ncp.go.txt",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/ppp/ops.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__ppp__ops.go.txt",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/ppp/mtu_linux.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__ppp__mtu_linux.go.txt",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/ppp/mtu_other.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before/internal__component__l2tp__ppp__mtu_other.go.txt",
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/ppp/helpers_test.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before-disconnect-helpers_test.go.txt"
+  }
+}

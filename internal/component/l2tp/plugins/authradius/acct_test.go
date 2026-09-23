@@ -25,6 +25,9 @@ type capturedAcct struct {
 	sessionID        string
 	terminateCause   uint32
 	callingStationID string
+	peerAddr         string
+	nasPortID        string
+	numericAttrs     map[uint8][]byte
 }
 
 func newAcctCapture() *acctCapture {
@@ -32,7 +35,16 @@ func newAcctCapture() *acctCapture {
 }
 
 func (c *acctCapture) add(pkt *radius.Packet) {
-	cap := capturedAcct{}
+	cap := capturedAcct{numericAttrs: make(map[uint8][]byte)}
+	for _, attr := range pkt.Attrs {
+		switch attr.Type {
+		case radius.AttrAcctInputOctets, radius.AttrAcctOutputOctets,
+			radius.AttrAcctInputPackets, radius.AttrAcctOutputPackets,
+			radius.AttrAcctInputGigawords, radius.AttrAcctOutputGigawords,
+			radius.AttrAcctSessionTime:
+			cap.numericAttrs[attr.Type] = append([]byte(nil), attr.Value...)
+		}
+	}
 	if v := pkt.FindAttr(radius.AttrAcctStatusType); len(v) == 4 {
 		cap.statusType = v[3]
 	}
@@ -48,6 +60,10 @@ func (c *acctCapture) add(pkt *radius.Packet) {
 	if v := pkt.FindAttr(radius.AttrCallingStationID); v != nil {
 		cap.callingStationID = string(v)
 	}
+	if v := pkt.FindAttr(radius.AttrFramedIPAddress); v != nil {
+		cap.peerAddr = net.IP(v).String()
+	}
+	cap.nasPortID = string(pkt.FindAttr(radius.AttrNASPortID))
 	c.mu.Lock()
 	c.packets = append(c.packets, cap)
 	c.mu.Unlock()
@@ -378,10 +394,14 @@ func TestBuildAcctPacketMissingIface(t *testing.T) {
 
 	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusInterimUpdate, 60)
 
-	assertAttrUint32(t, pkt, radius.AttrAcctInputOctets, 0)
-	assertAttrUint32(t, pkt, radius.AttrAcctOutputOctets, 0)
-	assertAttrUint32(t, pkt, radius.AttrAcctInputPackets, 0)
-	assertAttrUint32(t, pkt, radius.AttrAcctOutputPackets, 0)
+	assertAcctPacketCountersAbsent(t, pkt)
+	assertAttrUint32(t, pkt, radius.AttrAcctSessionTime, 60)
+	if got := string(pkt.FindAttr(radius.AttrUserName)); got != "dave" {
+		t.Errorf("User-Name: got %q, want dave", got)
+	}
+	if got := string(pkt.FindAttr(radius.AttrAcctSessionID)); got != "1-5-1" {
+		t.Errorf("Acct-Session-Id: got %q, want 1-5-1", got)
+	}
 }
 
 func TestBuildAcctPacketGetStatsError(t *testing.T) {
@@ -400,10 +420,27 @@ func TestBuildAcctPacketGetStatsError(t *testing.T) {
 
 	pkt := acct.buildAcctPacket(sess, "nas1", nil, radius.AcctStatusInterimUpdate, 60)
 
-	assertAttrUint32(t, pkt, radius.AttrAcctInputOctets, 0)
-	assertAttrUint32(t, pkt, radius.AttrAcctOutputOctets, 0)
-	assertAttrUint32(t, pkt, radius.AttrAcctInputPackets, 0)
-	assertAttrUint32(t, pkt, radius.AttrAcctOutputPackets, 0)
+	assertAcctPacketCountersAbsent(t, pkt)
+	assertAttrUint32(t, pkt, radius.AttrAcctSessionTime, 60)
+	if got := string(pkt.FindAttr(radius.AttrUserName)); got != "frank" {
+		t.Errorf("User-Name: got %q, want frank", got)
+	}
+	if got := string(pkt.FindAttr(radius.AttrAcctSessionID)); got != "1-6-1" {
+		t.Errorf("Acct-Session-Id: got %q, want 1-6-1", got)
+	}
+}
+
+func assertAcctPacketCountersAbsent(t *testing.T, pkt *radius.Packet) {
+	t.Helper()
+	for _, attr := range []uint8{
+		radius.AttrAcctInputOctets, radius.AttrAcctOutputOctets,
+		radius.AttrAcctInputPackets, radius.AttrAcctOutputPackets,
+		radius.AttrAcctInputGigawords, radius.AttrAcctOutputGigawords,
+	} {
+		if value := pkt.FindAttr(attr); value != nil {
+			t.Errorf("unavailable counter attribute %d present: %x", attr, value)
+		}
+	}
 }
 
 func TestAcctSessionPppInterface(t *testing.T) {

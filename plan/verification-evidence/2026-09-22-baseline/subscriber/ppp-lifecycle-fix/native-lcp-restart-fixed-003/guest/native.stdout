@@ -1,0 +1,30 @@
+{
+  "argv": [
+    "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver-001",
+    "/workspace",
+    "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/ppp-lifecycle-fixed/bin/ze-003",
+    "/workspace/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-fixed-003/guest/native"
+  ],
+  "daemon_sha256_after": "80e3eeeb80b686014061b99e822bf73fbfe913df2788f5bf2f21dd6bd94fd948",
+  "daemon_sha256_before": "80e3eeeb80b686014061b99e822bf73fbfe913df2788f5bf2f21dd6bd94fd948",
+  "finished": "2026-09-23T01:32:05.336236521Z",
+  "hash_error": "",
+  "native_error": "",
+  "native_report": {
+    "peer": "xl2tpd",
+    "ze-namespace": "ze-l2tp-ppp-ze-1386",
+    "lac-namespace": "ze-l2tp-ppp-lac-1386",
+    "ze-interface": "ppp0",
+    "lac-interface": "ppp0",
+    "local-address": "10.100.0.1",
+    "peer-address": "10.100.0.2",
+    "proven": true,
+    "reason": "",
+    "log-tail": null
+  },
+  "negative_oracle": "unavailable; native failure is never credential-refusal proof",
+  "retention_error": "",
+  "scratch_path": "/tmp/effective-l2tp-ppp-1916889806",
+  "special_files": null,
+  "started": "2026-09-23T01:31:55.467970471Z"
+}

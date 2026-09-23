@@ -1,0 +1,234 @@
+credential-scratch=/tmp/effective-l2tp-ppp-2405281762
+ze> created live store: /tmp/effective-l2tp-ppp-2405281762/ze/database
+ze> time=2026-09-23T00:33:18.719Z level=INFO msg="L2TP listener bound" subsystem=l2tp address=172.30.0.1:1701
+ze> warning: running as root, set ze.user to drop privileges
+ze> time=2026-09-23T00:33:18.734Z level=DEBUG msg="l2tp-pool plugin starting (RPC)" subsystem=l2tp.pool
+ze> time=2026-09-23T00:33:18.734Z level=DEBUG msg="l2tp-auth-local plugin starting (RPC)" subsystem=l2tp.auth.local
+ze> time=2026-09-23T00:33:18.742Z level=DEBUG msg="l2tp-shaper plugin starting (RPC)" subsystem=l2tp.shaper
+ze> time=2026-09-23T00:33:18.743Z level=DEBUG msg="l2tp-auth-radius plugin starting (RPC)" subsystem=l2tp.auth.radius
+ze> time=2026-09-23T00:33:18.768Z level=INFO msg="l2tp-auth-local: loaded users" subsystem=l2tp.auth.local count=1
+ze> time=2026-09-23T00:33:18.770Z level=INFO msg="l2tp-pool: configured" subsystem=l2tp.pool total=9 named-pools=0
+ze> Starting ze with config: /tmp/effective-l2tp-ppp-2405281762/ze/ze.conf
+ze> Ze running. Press Ctrl+C to stop.
+xl2tpd> xl2tpd[1457]: Not looking for kernel SAref support.
+xl2tpd> xl2tpd[1457]: Using l2tp kernel support.
+xl2tpd> xl2tpd[1457]: xl2tpd version xl2tpd-1.3.18 started on localhost PID:1457
+xl2tpd> xl2tpd[1457]: Written by Mark Spencer, Copyright (C) 1998, Adtran, Inc.
+xl2tpd> xl2tpd[1457]: Forked by Scott Balmos and David Stipp, (C) 2001
+xl2tpd> xl2tpd[1457]: Inherited by Jeff McAdams, (C) 2002
+xl2tpd> xl2tpd[1457]: Forked again by Xelerance (www.xelerance.com) (C) 2006-2016
+xl2tpd> xl2tpd[1457]: Listening on IP address 0.0.0.0, port 1702
+xl2tpd> xl2tpd[1457]: get_call: allocating new tunnel for host 172.30.0.1, port 1701.
+xl2tpd> xl2tpd[1457]: Connecting to host 172.30.0.1, port 1701
+xl2tpd> xl2tpd[1457]: control_finish: message type is (null)(0).  Tunnel is 0, call is 0.
+xl2tpd> packet dump: 
+xl2tpd> xl2tpd[1457]: control_finish: sending SCCRQ
+ze> time=2026-09-23T00:33:18.939Z level=INFO msg="l2tp: new tunnel created from SCCRQ" subsystem=l2tp from=172.30.0.2:1702 local-tid=1702 peer-tid=41671
+ze> time=2026-09-23T00:33:18.942Z level=INFO msg="l2tp: SCCRP sent; tunnel now wait-ctl-conn" subsystem=l2tp local-tid=1702 peer=172.30.0.2:1702 peer-host="\"localhost\"" peer-tid=41671 peer-framing=0x00000003 challenge=false
+xl2tpd> xl2tpd[1457]: message_type_avp: message type 2 (Start-Control-Connection-Reply)
+xl2tpd> xl2tpd[1457]: protocol_version_avp: peer is using version 1, revision 0.
+xl2tpd> xl2tpd[1457]: framing_caps_avp: supported peer frames: async sync
+xl2tpd> xl2tpd[1457]: bearer_caps_avp: supported peer bearers:
+xl2tpd> xl2tpd[1457]: hostname_avp: peer reports hostname 'ze'
+xl2tpd> xl2tpd[1457]: assigned_tunnel_avp: using peer's tunnel 1702
+xl2tpd> xl2tpd[1457]: receive_window_size_avp: peer wants RWS of 16.  Will use flow control.
+xl2tpd> xl2tpd[1457]: control_finish: message type is Start-Control-Connection-Reply(2).  Tunnel is 1702, call is 0.
+xl2tpd> xl2tpd[1457]: control_finish: sending SCCCN
+xl2tpd> xl2tpd[1457]: Connection established to 172.30.0.1, 1701.  Local: 41671, Remote: 1702 (ref=0/0).
+xl2tpd> xl2tpd[1457]: Calling on tunnel 41671
+xl2tpd> xl2tpd[1457]: control_finish: message type is (null)(0).  Tunnel is 1702, call is 0.
+xl2tpd> HEX: { C8 02 00 6A 00 00 00 00 00 00 00 00 80 08 00 00 00 00 00 01 80 08 00 00 00 02 01 00 80 0A 00 00 00 03 00 00 00 03 80 0A 00 00 00 04 00 00 00 00 00 08 00 00 00 06 06 90 80 0F 00 00 00 07 6C 6F 63 61 6C 68 6F 73 74 00 13 00 00 00 08 78 65 6C 65 72 61 6E 63 65 2E 63 6F 6D 80 08 00 00 00 09 A2 C7 80 08 00 00 00 0A 00 04 }
+xl2tpd> ASCII: {    j                                                          localhost      xelerance.com                }
+xl2tpd> packet dump: 
+xl2tpd> HEX: { 02 C8 48 00 C7 A2 00 00 00 00 01 00 80 08 00 00 00 00 00 02 80 08 00 00 00 02 01 00 80 0A 00 00 00 03 00 00 00 03 80 0A 00 00 00 04 00 00 00 00 80 08 00 00 00 07 7A 65 80 08 00 00 00 09 06 A6 80 08 00 00 00 0A 00 10 }
+xl2tpd> ASCII: {   H                                                   ze                }
+xl2tpd> packet dump: 
+xl2tpd> HEX: { C8 02 00 14 06 A6 00 00 00 01 00 01 80 08 00 00 00 00 00 03 }
+xl2tpd> ASCII: {                     }
+xl2tpd> packet dump: 
+xl2tpd> HEX: { C8 02 00 30 06 A6 00 00 00 02 00 01 80 08 00 00 00 00 00 0A 80 08 00 00 00 0E 98 C2 80 0A 00 00 00 0F 00 00 00 01 80 0A 00 00xl2tpd[1457]: control_finish: sending ICRQ
+xl2tpd> xl2tpd[1457]: message_type_avp: message type 11 (Incoming-Call-Reply)
+xl2tpd> xl2tpd[1457]: assigned_call_avp: using peer's call 1767
+xl2tpd> xl2tpd[1457]: control_finish: message type is Incoming-Call-Reply(11).  Tunnel is 1702, call is 1767.
+xl2tpd> xl2tpd[1457]: control_finish: Sending ICCN
+xl2tpd> xl2tpd[1457]: Call established with 172.30.0.1, Local: 39106, Remote: 1767, Serial: 1 (ref=0/0)
+ze> time=2026-09-23T00:33:18.945Z level=INFO msg="l2tp: tunnel now established" subsystem=l2tp local-tid=1702 peer=172.30.0.2:1702 peer-host="\"localhost\"" peer-tid=41671
+ze> time=2026-09-23T00:33:18.950Z level=INFO msg="l2tp: ICRP sent; session wait-connect" subsystem=l2tp local-tid=1702 peer=172.30.0.2:1702 local-sid=1767 remote-sid=39106 call-serial=1
+ze> time=2026-09-23T00:33:18.951Z level=INFO msg="l2tp: session established (incoming LNS)" subsystem=l2tp local-tid=1702 peer=172.30.0.2:1702 local-sid=1767 remote-sid=39106 tx-speed=0 framing=0x00000001
+ze> time=2026-09-23T00:33:18.954Z level=INFO msg="l2tp: kernel tunnel created" subsystem=l2tp local-tid=1702 remote-tid=41671 peer-addr=172.30.0.2:1702
+ze> time=2026-09-23T00:33:18.957Z level=INFO msg="l2tp: kernel session established" subsystem=l2tp tunnel-id=1702 session-id=1767 ppp-unit=0
+ze> time=2026-09-23T00:33:18.974Z level=INFO msg="l2tp-auth-local: CHAP-MD5 accepted" subsystem=l2tp.auth.local tunnel=1702 session=1767 username=alice
+ze> time=2026-09-23T00:33:18.977Z level=INFO msg="l2tp-pool: allocated address" subsystem=l2tp.pool tunnel=1702 session=1767 address=10.100.0.2
+ze> time=2026-09-23T00:33:18.979Z level=INFO msg="ppp: IPCP addresses obtained, starting NCP FSM" subsystem=l2tp component=ppp tunnel-id=1702 session-id=1767 unit=0
+ze> time=2026-09-23T00:33:18.979Z level=INFO msg="ppp: IPCP FSM started, entering loop" subsystem=l2tp component=ppp tunnel-id=1702 session-id=1767 unit=0 state=req-sent
+ze> time=2026-09-23T00:33:18.980Z level=INFO msg="ppp: IPv6CP declined by handler, continuing IPv4-only" subsystem=l2tp component=ppp tunnel-id=1702 session-id=1767 unit=0 reason="IPv6 not supported by static pool"
+ze> time=2026-09-23T00:33:18.980Z level=DEBUG msg="ppp: NCP loop got frame" subsystem=l2tp component=ppp tunnel-id=1702 session-id=1767 unit=0 len=12
+ze> time=2026-09-23T00:33:18.980Z level=DEBUG msg="ppp: IPCP rx" subsystem=l2tp component=ppp tunnel-id=1702 session-id=1767 unit=0 code=configure-request id=1 len=6
+ze> time=2026-09-23T00:33:18.980Z level=DEBUG msg="ppp: NCP loop got frame" subsystem=l2tp component=ppp tunnel-id=1702 session-id=1767 unit=0 len=12
+ze> time=2026-09-23T00:33:18.980Z level=DEBUG msg="ppp: IPCP rx" subsystem=l2tp component=ppp tunnel-id=1702 session-id=1767 unit=0 code=configure-ack id=1 len=6
+ze> time=2026-09-23T00:33:18.981Z level=DEBUG msg="ppp: NCP loop got frame" subsystem=l2tp component=ppp tunnel-id=1702 session-id=1767 unit=0 len=24
+ze> time=2026-09-23T00:33:18.981Z level=DEBUG msg="ppp: IPCP rx" subsystem=l2tp component=ppp tunnel-id=1702 session-id=1767 unit=0 code=configure-request id=2 len=18
+ze> time=2026-09-23T00:33:19.156Z level=INFO msg="l2tp: subscriber route inject" subsystem=l2tp component=l2tp-redistribute session-id=1767 username=alice address=10.100.0.2 family=ipv4
+ze> time=2026-09-23T00:33:19.156Z level=INFO msg="l2tp: session IP assigned" subsystem=l2tp tunnel-id=1702 session-id=1767 username=alice address=10.100.0.2
+ze> time=2026-09-23T00:33:19.157Z level=INFO msg="l2tp: PPP session up" subsystem=l2tp tunnel-id=1702 session-id=1767 interface=ppp0
+LCP restart boundary: {
+  "at": "2026-09-23T00:33:20.396001461Z",
+  "authentication": "chap-md5",
+  "l2tp_datagram_hex": "4002001006a606e7ff03c02101a50004",
+  "lac_kernel": "Tunnel 41671, encap UDP\n  From 172.30.0.2 to 172.30.0.1\n  Peer tunnel 1702\n  UDP source / dest ports: 1702/1701\n  UDP checksum: disabled\n\nSession 39106 in tunnel 41671\n  Peer session 1767, tunnel 1702\n  offset 0, peer offset 0\n\n",
+  "lac_transport": {
+    "tunnel": 41671,
+    "peer_tunnel": 1702,
+    "session": 39106,
+    "peer_session": 1767,
+    "local": "172.30.0.2",
+    "peer": "172.30.0.1",
+    "local_port": 1702,
+    "peer_port": 1701
+  },
+  "pppd_log_offset": 1255,
+  "udp_datagram_hex": "06a606a5001800004002001006a606e7ff03c02101a50004",
+  "ze_kernel": "Tunnel 1702, encap UDP\n  From 172.30.0.1 to 172.30.0.2\n  Peer tunnel 41671\n  UDP source / dest ports: 1701/1702\n  UDP checksum: enabled\n\nSession 1767 in tunnel 1702\n  Peer session 39106, tunnel 41671\n  offset 0, peer offset 0\n\n",
+  "ze_observation_counts": {
+    "L2TP listener bound": 1,
+    "PPP requested session teardown": 0,
+    "genl family resolve failed": 0,
+    "ip-response timeout": 0,
+    "ipcp: handler rejected": 0,
+    "kernel integration disabled": 0,
+    "kernel session ready but no PPP driver wired": 0,
+    "l2tp-pool: configured": 1,
+    "l2tp: PPP session up": 1,
+    "l2tp: session IP assigned": 1,
+    "l2tp: session established (incoming LNS)": 1,
+    "l2tp: subscriber route inject": 1,
+    "l2tp: subscriber routes withdrawn": 0,
+    "ncp: timeout": 0,
+    "skipping kernel module probe": 0
+  },
+  "ze_transport": {
+    "tunnel": 1702,
+    "peer_tunnel": 41671,
+    "session": 1767,
+    "peer_session": 39106,
+    "local": "172.30.0.1",
+    "peer": "172.30.0.2",
+    "local_port": 1701,
+    "peer_port": 1702
+  }
+}
+LCP restart UDP datagram sent: 06a606a5001800004002001006a606e7ff03c02101a50004
+ze> time=2026-09-23T00:33:20.495Z level=INFO msg="l2tp: subscriber routes withdrawn" subsystem=l2tp component=l2tp-redistribute session-id=1767 username=alice withdrawn=1
+ze> time=2026-09-23T00:33:20.500Z level=INFO msg="l2tp-pool: released address on session-down" subsystem=l2tp.pool session=l2tp-1702-1767 address=10.100.0.2 pool=""
+ze> time=2026-09-23T00:33:20.502Z level=INFO msg="l2tp-auth-local: CHAP-MD5 accepted" subsystem=l2tp.auth.local tunnel=1702 session=1767 username=alice
+ze> time=2026-09-23T00:33:20.503Z level=INFO msg="l2tp-pool: allocated address" subsystem=l2tp.pool tunnel=1702 session=1767 address=10.100.0.2
+ze> time=2026-09-23T00:33:20.504Z level=INFO msg="ppp: IPCP addresses obtained, starting NCP FSM" subsystem=l2tp component=ppp tunnel-id=1702 session-id=1767 unit=0
+ze> time=2026-09-23T00:33:20.504Z level=INFO msg="ppp: IPCP FSM started, entering loop" subsystem=l2tp component=ppp tunnel-id=1702 session-id=1767 unit=0 state=req-sent
+ze> time=2026-09-23T00:33:20.504Z level=DEBUG msg="ppp: NCP loop got frame" subsystem=l2tp component=ppp tunnel-id=1702 session-id=1767 unit=0 len=12
+ze> time=2026-09-23T00:33:20.504Z level=DEBUG msg="ppp: IPCP rx" subsystem=l2tp component=ppp tunnel-id=1702 session-id=1767 unit=0 code=configure-request id=3 len=6
+ze> time=2026-09-23T00:33:20.505Z level=DEBUG msg="ppp: NCP loop got frame" subsystem=l2tp component=ppp tunnel-id=1702 session-id=1767 unit=0 len=12
+ze> time=2026-09-23T00:33:20.505Z level=DEBUG msg="ppp: IPCP rx" subsystem=l2tp component=ppp tunnel-id=1702 session-id=1767 unit=0 code=configure-ack id=2 len=6
+ze> time=2026-09-23T00:33:20.505Z level=INFO msg="l2tp: subscriber route inject" subsystem=l2tp component=l2tp-redistribute session-id=1767 username=alice address=10.100.0.2 family=ipv4
+ze> time=2026-09-23T00:33:20.506Z level=INFO msg="l2tp: session IP assigned" subsystem=l2tp tunnel-id=1702 session-id=1767 username=alice address=10.100.0.2
+ze> time=2026-09-23T00:33:20.506Z level=INFO msg="l2tp: PPP session up" subsystem=l2tp tunnel-id=1702 session-id=1767 interface=ppp0
+pppd after LCP restart boundary:
+rcvd [LCP ConfReq id=0x2 <mru 1500> <auth chap MD5> <magic 0x2e092341>]
+Connect time 0.1 minutes.
+Sent 168 bytes, received 168 bytes.
+Script /etc/ppp/ip-down started (pid 1476)
+PPPoL2TP options: debugmask 0
+sent [LCP ConfReq id=0x2 <asyncmap 0x0> <magic 0x4b9cc235>]
+sent [LCP ConfAck id=0x2 <mru 1500> <auth chap MD5> <magic 0x2e092341>]
+rcvd [LCP ConfAck id=0xa5]
+Script /etc/ppp/ip-down finished (pid 1476), status = 0x0
+rcvd [LCP ConfAck id=0x2 <asyncmap 0x0> <magic 0x4b9cc235>]
+PPPoL2TP options: debugmask 0
+rcvd [CHAP Challenge id=0x2 <6f7c9e3327536fa8578171bd6b48aa29>, name = "ze"]
+sent [CHAP Response id=0x2 <1f9f905eca3e7a9a08250349ff350af9>, name = "alice"]
+rcvd [CHAP Success id=0x2 ""]
+CHAP authentication succeeded
+CHAP authentication succeeded
+kernel does not support PPP filtering
+sent [IPCP ConfReq id=0x3 <addr 10.100.0.2>]
+rcvd [IPCP ConfReq id=0x2 <addr 10.100.0.1>]
+sent [IPCP ConfAck id=0x2 <addr 10.100.0.1>]
+rcvd [IPCP ConfAck id=0x3 <addr 10.100.0.2>]
+local  IP address 10.100.0.2
+remote IP address 10.100.0.1
+Script /etc/ppp/ip-up started (pid 1477)
+Script /etc/ppp/ip-up finished (pid 1477), status = 0x0
+ze-l2tp-ppp-lac-1398 resumed PPP traffic:
+PING 10.100.0.1 (10.100.0.1) from 10.100.0.2 ppp0: 56(84) bytes of data.
+64 bytes from 10.100.0.1: icmp_seq=1 ttl=64 time=0.024 ms
+64 bytes from 10.100.0.1: icmp_seq=2 ttl=64 time=0.115 ms
+64 bytes from 10.100.0.1: icmp_seq=3 ttl=64 time=0.102 ms
+
+--- 10.100.0.1 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2045ms
+rtt min/avg/max/mdev = 0.024/0.080/0.115/0.040 ms
+ze> time=2026-09-23T00:33:23.955Z level=DEBUG msg="l2tp: HELLO sent on silence timeout" subsystem=l2tp local-tid=1702 peer=172.30.0.2:1702
+xl2tpd> xl2tpd[1457]: message_type_avp: message type 6 (Hello)
+xl2tpd> xl2tpd[1457]: control_finish: message type is Hello(6).  Tunnel is 1702, call is 0.
+ze-l2tp-ppp-ze-1398 resumed PPP traffic:
+PING 10.100.0.2 (10.100.0.2) from 10.100.0.1 ppp0: 56(84) bytes of data.
+64 bytes from 10.100.0.2: icmp_seq=1 ttl=64 time=0.078 ms
+64 bytes from 10.100.0.2: icmp_seq=2 ttl=64 time=0.085 ms
+64 bytes from 10.100.0.2: icmp_seq=3 ttl=64 time=0.087 ms
+
+--- 10.100.0.2 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2043ms
+rtt min/avg/max/mdev = 0.078/0.083/0.087/0.003 ms
+ze-l2tp-ppp-ze-1398 after LCP restart:
+Tunnel 1702, encap UDP
+  From 172.30.0.1 to 172.30.0.2
+  Peer tunnel 41671
+  UDP source / dest ports: 1701/1702
+  UDP checksum: enabled
+
+Session 1767 in tunnel 1702
+  Peer session 39106, tunnel 41671
+  offset 0, peer offset 0
+
+ze-l2tp-ppp-lac-1398 after LCP restart:
+Tunnel 41671, encap UDP
+  From 172.30.0.2 to 172.30.0.1
+  Peer tunnel 1702
+  UDP source / dest ports: 1702/1701
+  UDP checksum: disabled
+
+Session 39106 in tunnel 41671
+  Peer session 1767, tunnel 1702
+  offset 0, peer offset 0
+
+xl2tpd> xl2tpd[1457]: death_handler: Fatal signal 15 received
+xl2tpd> xl2tpd[1457]: Connection 1702 closed to 172.30.0.1, port 1701 (Server closing)
+xl2tpd>  00 12 00 00 00 00 }
+xl2tpd> ASCII: {    0                                            }
+xl2tpd> packet dump: 
+xl2tpd> HEX: { 02 C8 0C 00 C7 A2 00 00 01 00 02 00 }
+ze> time=2026-09-23T00:33:25.898Z level=INFO msg="l2tp: StopCCN clearing sessions" subsystem=l2tp local-tid=1702 peer=172.30.0.2:1702 count=1
+ze> time=2026-09-23T00:33:25.898Z level=INFO msg="l2tp: peer StopCCN received; tunnel closed" subsystem=l2tp local-tid=1702 peer=172.30.0.2:1702 result=1 error-code=0 message="\"Server closing\""
+ze> time=2026-09-23T00:33:25.898Z level=INFO msg="l2tp: subscriber routes withdrawn" subsystem=l2tp component=l2tp-redistribute session-id=1767 username=alice withdrawn=1
+ze> time=2026-09-23T00:33:25.898Z level=INFO msg="l2tp-pool: released address on session-down" subsystem=l2tp.pool session=l2tp-1702-1767 address=10.100.0.2 pool=""
+ze> time=2026-09-23T00:33:25.899Z level=DEBUG msg="l2tp: tunnel socket read error" subsystem=l2tp tunnel-id=1702 error="read udp 172.30.0.1:1701->172.30.0.2:1702: read: connection refused"
+xl2tpd> ASCII: {             }
+xl2tpd> packet dump: 
+xl2tpd> HEX: { 02 C8 1C 00 C7 A2 C2 98 01 00 03 00 80 08 00 00 00 00 00 0B 80 08 00 00 00 0E 06 E7 }
+xl2tpd> ASCII: {                             }
+xl2tpd> packet dump: 
+xl2tpd> HEX: { C8 02 00 32 06 A6 06 E7 00 03 00 02 80 08 00 00 00 00 00 0C 80 0A 00 00 00 18 00 00 00 00 80 0A 00 00 00 13 00 00 00 01 00 0A 00 00 00 26 00 00 00 00 }
+ze> time=2026-09-23T00:33:25.900Z level=WARN msg="l2tp: kernel session delete failed" subsystem=l2tp tunnel-id=1702 session-id=1767 error="l2tp: genl session delete (tunnel=1702 session=1767): no such device"
+ze> time=2026-09-23T00:33:25.900Z level=INFO msg="l2tp: kernel tunnel deleted" subsystem=l2tp tunnel-id=1702
+xl2tpd> ASCII: {    2                                         &    }
+xl2tpd> packet dump: 
+xl2tpd> HEX: { 02 C8 0C 00 C7 A2 00 00 02 00 04 00 }
+xl2tpd> ASCII: {             }
+xl2tpd> packet dump: 
+xl2tpd> HEX: { 02 C8 14 00 C7 A2 00 00 02 00 04 00 80 08 00 00 00 00 00 06 }
+xl2tpd> ASCII: {                     }
+xl2tpd> packet dump: 
+xl2tpd> HEX: { C8 02 00 34 06 A6 00 00 00 04 00 03 80 08 00 00 00 00 00 04 80 08 00 00 00 09 A2 C7 80 18 00 00 00 01 00 01 00 00 53 65 72 76 65 72 20 63 6C 6F 73 69 6E 67 }
+xl2tpd> ASCII: {    4                                  Server closing}
+ze> Shutting down (Ctrl+C again to force)...
+ze> time=2026-09-23T00:33:25.932Z level=INFO msg="L2TP subsystem stopping" subsystem=l2tp
+ze> Ze stopped.

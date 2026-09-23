@@ -11,10 +11,10 @@ import (
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
 )
 
-// Event is the sealed sum type emitted on Manager.EventsOut. The
-// transport (l2tp today) reads this channel in its select loop and
-// reacts: EventLCPDown / EventSessionDown trigger a CDN; EventSessionUp
-// is informational; EventSessionIPAssigned carries NCP completion.
+// Event is the sealed sum type emitted on Manager.EventsOut. The transport
+// withdraws the network lifetime on EventLCPDown and ends the transport on
+// EventSessionDown. EventSessionIPAssigned carries each completed NCP;
+// EventSessionUp follows completion of every enabled NCP.
 //
 // Implementations are restricted to the types in this file via the
 // unexported isPPPEvent method.
@@ -33,23 +33,27 @@ type EventLCPUp struct {
 
 func (EventLCPUp) isPPPEvent() {}
 
-// EventLCPDown is emitted when LCP transitions out of the Opened state
-// for any reason (peer Terminate-Request, Echo timeout, fatal parse
-// error). Reason is human-readable for logs.
-//
-// INFORMATIONAL: EventLCPDown does NOT require the transport to tear
-// down the L2TP session. The per-session goroutine ALWAYS exits after
-// LCP closes, and that exit emits EventSessionDown, which is the
-// canonical teardown signal. Transports that react to both LCPDown
-// and SessionDown would double-teardown. Use LCPDown only for metrics
-// and logging.
+// EventLCPDown reports that LCP left Opened. NetworkPhase identifies a network
+// lifetime whose resources the transport must withdraw without ending the
+// transport. Its consumer calls Acknowledge after that withdrawal; PPP waits
+// before processing replacement authentication or NCP packets.
 type EventLCPDown struct {
-	TunnelID  uint16
-	SessionID uint16
-	Reason    string
+	TunnelID     uint16
+	SessionID    uint16
+	Reason       string
+	NetworkPhase bool
+	done         chan struct{}
 }
 
 func (EventLCPDown) isPPPEvent() {}
+
+// Acknowledge releases the PPP session after its network lifetime is withdrawn.
+// The single transport consumer owns this acknowledgment.
+func (e EventLCPDown) Acknowledge() {
+	if e.done != nil {
+		close(e.done)
+	}
+}
 
 // EventSessionUp is emitted when LCP, authentication, and every
 // enabled NCP have completed successfully and pppN is configured.
@@ -68,6 +72,8 @@ func (EventSessionUp) isPPPEvent() {}
 // the pppN interface (IPv4) or noted the negotiated identifier (IPv6).
 // The L2TP subsystem reacts by injecting the subscriber route into the
 // redistribute path (wired in spec-l2tp-7-subsystem).
+// Its single transport consumer calls Acknowledge after synchronous publication,
+// including the accounting baseline capture. PPP waits before enabling forwarding.
 //
 // For family=ipv4: Local and Peer are populated with the 32-bit
 // addresses, DNSPrimary / DNSSecondary are optional (may be the zero
@@ -81,17 +87,29 @@ func (EventSessionUp) isPPPEvent() {}
 // identifier was never negotiated (session.go:
 // peerInterfaceIDNegotiated): there is no identifier to carry.
 type EventSessionIPAssigned struct {
-	TunnelID     uint16
-	SessionID    uint16
+	TunnelID  uint16
+	SessionID uint16
+	// Username is the accepted authentication request's principal.
+	// Explicit no-auth admission leaves it empty.
+	Username     string
 	Family       AddressFamily
 	Local        netip.Addr
 	Peer         netip.Addr
 	DNSPrimary   netip.Addr
 	DNSSecondary netip.Addr
 	InterfaceID  [8]byte
+	done         chan struct{}
 }
 
 func (EventSessionIPAssigned) isPPPEvent() {}
+
+// Acknowledge releases PPP after the assignment's synchronous publication.
+// The single transport consumer owns this acknowledgment.
+func (e EventSessionIPAssigned) Acknowledge() {
+	if e.done != nil {
+		close(e.done)
+	}
+}
 
 // EventSessionDown is emitted when a per-session goroutine that WAS
 // running exits for any reason: peer-initiated teardown, local

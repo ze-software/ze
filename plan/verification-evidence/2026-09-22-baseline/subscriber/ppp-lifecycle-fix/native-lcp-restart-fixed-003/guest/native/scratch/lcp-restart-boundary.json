@@ -1,0 +1,46 @@
+{
+  "at": "2026-09-23T01:31:59.449815338Z",
+  "authentication": "chap-md5",
+  "l2tp_datagram_hex": "4002001006a69e35ff03c02101a50004",
+  "lac_kernel": "Tunnel 42852, encap UDP\n  From 172.30.0.2 to 172.30.0.1\n  Peer tunnel 1702\n  UDP source / dest ports: 1702/1701\n  UDP checksum: disabled\n\nSession 62883 in tunnel 42852\n  Peer session 40501, tunnel 1702\n  offset 0, peer offset 0\n\n",
+  "lac_transport": {
+    "tunnel": 42852,
+    "peer_tunnel": 1702,
+    "session": 62883,
+    "peer_session": 40501,
+    "local": "172.30.0.2",
+    "peer": "172.30.0.1",
+    "local_port": 1702,
+    "peer_port": 1701
+  },
+  "pppd_log_offset": 1255,
+  "udp_datagram_hex": "06a606a5001800004002001006a69e35ff03c02101a50004",
+  "ze_kernel": "Tunnel 1702, encap UDP\n  From 172.30.0.1 to 172.30.0.2\n  Peer tunnel 42852\n  UDP source / dest ports: 1701/1702\n  UDP checksum: enabled\n\nSession 40501 in tunnel 1702\n  Peer session 62883, tunnel 42852\n  offset 0, peer offset 0\n\n",
+  "ze_observation_counts": {
+    "L2TP listener bound": 1,
+    "PPP requested session teardown": 0,
+    "genl family resolve failed": 0,
+    "ip-response timeout": 0,
+    "ipcp: handler rejected": 0,
+    "kernel integration disabled": 0,
+    "kernel session ready but no PPP driver wired": 0,
+    "l2tp-pool: configured": 1,
+    "l2tp: PPP session up": 1,
+    "l2tp: session IP assigned": 1,
+    "l2tp: session established (incoming LNS)": 1,
+    "l2tp: subscriber route inject": 1,
+    "l2tp: subscriber routes withdrawn": 0,
+    "ncp: timeout": 0,
+    "skipping kernel module probe": 0
+  },
+  "ze_transport": {
+    "tunnel": 1702,
+    "peer_tunnel": 42852,
+    "session": 40501,
+    "peer_session": 62883,
+    "local": "172.30.0.1",
+    "peer": "172.30.0.2",
+    "local_port": 1701,
+    "peer_port": 1702
+  }
+}

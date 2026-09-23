@@ -1,0 +1,1 @@
+10.20.0.1 dev ppp0 proto kernel scope link src 10.20.0.2 

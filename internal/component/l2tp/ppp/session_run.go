@@ -8,6 +8,7 @@
 package ppp
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/binary"
@@ -52,27 +53,25 @@ const (
 	// default.
 	defaultMaxConfigure = 10
 
-	// minIPMTU is the IPv4 minimum MTU per RFC 1122 §3.3.2. PPP's
-	// MRU floor (RFC 1661 §6.1) is 64 -- which would yield a kernel
-	// MTU of 60 if naively used. We clamp to ensure the netlink
-	// SetMTU call never asks the kernel for a sub-IP-minimum MTU.
+	// minIPMTU keeps SetMTU above the IPv4 minimum of 68 octets.
+	// The LCP option parser permits MRUs down to MinFrameLen, but
+	// accepting a smaller Information field does not lower this IP floor.
 	//
 	// IPv6-on-PPP (spec-l2tp-6c-ncp's IPv6CP) requires MTU >= 1280
 	// per RFC 8200 §5. Spec 6c revisits this: when a session has
 	// IPv6 enabled, this floor must be raised to 1280.
 	minIPMTU = 68
-
-	// pppEncapOverhead is the bytes deducted from MRU to compute IP
-	// MTU: PPP protocol field 2 + framing 2.
-	pppEncapOverhead = 4
 )
 
-// frameBufPool supplies MaxFrameLen-byte buffers used for both reads
+// frameBufPool supplies MaxFrameBufLen-byte buffers used for both reads
 // from the chan fd and wire-format writes. Eliminates per-packet
-// allocation in the hot path.
+// allocation in the hot path. The read side needs the full size: /dev/ppp
+// fails a read whose buffer is shorter than the frame, and RFC 1661
+// Section 6.1 obliges ze to receive a 1500-octet Information field
+// behind its Protocol field whatever MRU it asked for.
 var frameBufPool = sync.Pool{
 	New: func() any {
-		b := make([]byte, MaxFrameLen)
+		b := make([]byte, MaxFrameBufLen)
 		return &b
 	},
 }
@@ -82,14 +81,14 @@ func getFrameBuf() []byte {
 	if !ok {
 		panic("BUG: frameBufPool produced non-*[]byte")
 	}
-	return (*p)[:MaxFrameLen]
+	return (*p)[:MaxFrameBufLen]
 }
 
 func putFrameBuf(b []byte) {
-	if cap(b) < MaxFrameLen {
+	if cap(b) < MaxFrameBufLen {
 		return
 	}
-	full := b[:MaxFrameLen]
+	full := b[:MaxFrameBufLen]
 	frameBufPool.Put(&full)
 }
 
@@ -126,10 +125,22 @@ func (s *pppSession) run(start *StartSession) {
 		readerWG sync.WaitGroup
 	)
 	defer func() {
-		s.teardownNCPResources()
-		if s.chanFile != nil {
-			_ = s.chanFile.Close() //nolint:errcheck // exit cleanup
+		if !s.sessionDownSent {
+			select {
+			case <-s.sessStop:
+				s.sendEvent(EventSessionDown{
+					TunnelID:  s.tunnelID,
+					SessionID: s.sessionID,
+					Reason:    "session stopped",
+					Cause:     l2tpevents.TerminateCauseNASRequest,
+				})
+			default:
+			}
 		}
+		if err := s.teardownNCPResources(); err != nil {
+			s.logger.Warn("ppp: final NCP cleanup failed; closing unit", "error", err)
+		}
+		s.closeFiles()
 		readerWG.Wait()
 		if framesCh != nil {
 			drainFramesToPool(framesCh)
@@ -197,21 +208,28 @@ func (s *pppSession) run(start *StartSession) {
 		s.mu.Lock()
 		s.negotiatedMRU = mru
 		s.negotiatedAuthMethod = negotiatedMethod
+		s.state = LCPStateOpened
 		s.mu.Unlock()
+		// The LAC negotiated the Magic-Numbers on ze's behalf: the peer
+		// acknowledged the LAC's, and the LAC acknowledged the peer's.
+		// Without a LAC value the option was not negotiated, and RFC 1661
+		// Section 5.8 then has ze transmit zero.
+		s.peerMagic = proxy.PeerMagic
+		if proxy.LocalMagic != 0 {
+			s.magic = proxy.LocalMagic
+			s.magicNegotiated = true
+		}
 		s.sendEvent(EventLCPUp{
 			TunnelID:      s.tunnelID,
 			SessionID:     s.sessionID,
 			NegotiatedMRU: mru,
 		})
 		if !s.afterLCPOpen() {
-			return
+			state := s.currentState()
+			if state == LCPStateOpened || state == LCPStateClosed || state == LCPStateStopped {
+				return
+			}
 		}
-		// Commit Opened state only after afterLCPOpen succeeds so
-		// SessionByID never reports "opened" on a session that is
-		// actually tearing down (NOTE 5 from /ze-review Phase 10).
-		s.mu.Lock()
-		s.state = LCPStateOpened
-		s.mu.Unlock()
 	} else {
 		// Synthetic Up: Initial -> Closed.
 		trUp := LCPDoTransition(LCPStateInitial, LCPEventUp)
@@ -227,6 +245,7 @@ func (s *pppSession) run(start *StartSession) {
 			return
 		}
 	}
+	opened := s.currentState() == LCPStateOpened
 
 	// Negotiation timeout timer. Active until Opened is reached
 	// (or skipped via proxy). After Opened the timer is stopped and
@@ -235,7 +254,7 @@ func (s *pppSession) run(start *StartSession) {
 		negoTimer  *time.Timer
 		negoTimerC <-chan time.Time
 	)
-	if !isProxy {
+	if !opened {
 		negoTimer = time.NewTimer(defaultNegoTimeout)
 		defer negoTimer.Stop()
 		negoTimerC = negoTimer.C
@@ -256,10 +275,11 @@ func (s *pppSession) run(start *StartSession) {
 	echoTicker := time.NewTicker(echoInterval)
 	defer echoTicker.Stop()
 	var echoTickerC <-chan time.Time
-	if isProxy {
+	if opened {
 		echoTickerC = echoTicker.C
+	} else {
+		echoTicker.Stop()
 	}
-	echoID := uint8(0)
 
 	// Periodic CHAP re-authentication (spec-l2tp-6b-auth AC-14, Phase 9).
 	// Enabled only when reauthInterval > 0 AND the negotiated method
@@ -278,7 +298,7 @@ func (s *pppSession) run(start *StartSession) {
 		reauthTickerC <-chan time.Time
 	)
 	startReauthTicker := func() {
-		if s.reauthInterval <= 0 || reauthTicker != nil {
+		if s.reauthInterval <= 0 {
 			return
 		}
 		s.mu.Lock()
@@ -287,7 +307,11 @@ func (s *pppSession) run(start *StartSession) {
 		if method != AuthMethodCHAPMD5 && method != AuthMethodMSCHAPv2 {
 			return
 		}
-		reauthTicker = time.NewTicker(s.reauthInterval)
+		if reauthTicker == nil {
+			reauthTicker = time.NewTicker(s.reauthInterval)
+		} else {
+			reauthTicker.Reset(s.reauthInterval)
+		}
 		reauthTickerC = reauthTicker.C
 	}
 	defer func() {
@@ -295,7 +319,7 @@ func (s *pppSession) run(start *StartSession) {
 			reauthTicker.Stop()
 		}
 	}()
-	if isProxy {
+	if opened {
 		startReauthTicker()
 	}
 
@@ -361,8 +385,7 @@ func (s *pppSession) run(start *StartSession) {
 				})
 				return
 			}
-			echoID++
-			if !s.sendEchoRequest(echoID) {
+			if !s.sendEchoRequest() {
 				return
 			}
 
@@ -376,7 +399,12 @@ func (s *pppSession) run(start *StartSession) {
 			// handling pauses; re-auth must complete within
 			// s.authTimeout or the session fails closed.
 			if !s.runAuthPhase() {
-				return
+				state := s.currentState()
+				// An LCP interruption resumes negotiation or its termination
+				// grace timer, just as it does during initial authentication.
+				if state == LCPStateOpened || state == LCPStateClosed || state == LCPStateStopped {
+					return
+				}
 			}
 
 		case frame, ok := <-frames:
@@ -393,30 +421,40 @@ func (s *pppSession) run(start *StartSession) {
 				})
 				return
 			}
-			wasOpened := s.currentState() == LCPStateOpened
 			term := s.handleFrame(frame)
 			putFrameBuf(frame)
 			if term {
 				return
 			}
-			if !wasOpened && s.currentState() == LCPStateOpened {
-				// Transitioned into Opened. Disable negotiation
-				// timeout and start echo ticker. negoTimer.Stop
-				// returns false if it already fired; the fired
-				// value on negoTimer.C is harmless because we null
-				// out negoTimerC and never select on it again.
-				if negoTimer != nil {
-					negoTimer.Stop()
-					negoTimerC = nil
-				}
-				echoTickerC = echoTicker.C
-				// Initial auth has completed (afterLCPOpen ran
-				// from handleLCPPacket's Opened branch). Enable
-				// periodic re-auth now that we know the negotiated
-				// method; no-op for PAP / None.
-				startReauthTicker()
-			}
 		}
+		nowOpened := s.currentState() == LCPStateOpened
+		if nowOpened == opened {
+			continue
+		}
+		opened = nowOpened
+		if !opened {
+			// A transition handled inside authentication also reaches this
+			// point. Neither ticker may run in the resumed LCP phase.
+			echoTicker.Stop()
+			echoTickerC = nil
+			if reauthTicker != nil {
+				reauthTicker.Stop()
+			}
+			reauthTickerC = nil
+			continue
+		}
+		// afterLCPOpen has completed authentication and NCP. Reset the
+		// tickers so a previous LCP lifetime cannot supply a pending tick.
+		if negoTimer != nil {
+			negoTimer.Stop()
+			negoTimerC = nil
+		}
+		s.mu.Lock()
+		s.echoOutstanding = 0
+		s.mu.Unlock()
+		echoTicker.Reset(echoInterval)
+		echoTickerC = echoTicker.C
+		startReauthTicker()
 	}
 }
 
@@ -469,7 +507,28 @@ func (s *pppSession) fail(reason string) {
 func (s *pppSession) sendEvent(ev Event) {
 	select {
 	case s.eventsOut <- ev:
+		if _, ok := ev.(EventSessionDown); ok {
+			s.sessionDownSent = true
+		}
 	case <-s.stopCh:
+	}
+}
+
+// closeFiles releases both descriptors once. mu also guards interface setup,
+// so a late ioctl cannot target a descriptor number reused after shutdown.
+func (s *pppSession) closeFiles() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.filesClosed {
+		return
+	}
+	s.filesClosed = true
+	s.channelConnected = false
+	if s.chanFile != nil {
+		_ = s.chanFile.Close() //nolint:errcheck // exit cleanup
+	}
+	if s.unitFile != nil {
+		_ = s.unitFile.Close() //nolint:errcheck // exit cleanup
 	}
 }
 
@@ -511,8 +570,8 @@ func (s *pppSession) afterLCPOpenIPv6Service(ifname string) {
 
 // afterLCPOpen performs the post-Opened side effects: set MRU on the
 // unit fd, set MTU on pppN via iface backend, bring pppN up, run the
-// auth hook. Returns false (and emits EventSessionDown) on a fatal
-// error.
+// auth hook. Returns false on failure or an LCP interruption. The caller
+// MUST resume the session loop when LCP has entered negotiation or termination.
 //
 // Order matters: set the fd-side MRU BEFORE asking the kernel to
 // bring the interface up, so the first frame is sized correctly.
@@ -535,26 +594,55 @@ func (s *pppSession) afterLCPOpen() bool {
 		return false
 	}
 
+	s.mu.Lock()
+	// Cancellation can arrive after the assignment acknowledgment, while
+	// this goroutine waits for the descriptor lock. Do not connect then.
+	select {
+	case <-s.stopCh:
+		s.mu.Unlock()
+		return false
+	case <-s.sessStop:
+		s.mu.Unlock()
+		return false
+	default:
+	}
+	if s.filesClosed {
+		s.mu.Unlock()
+		return false
+	}
+
 	// Post-NCP: connect channel to unit and bring interface up.
 	// PPPIOCCONNECT must happen after NCP because it changes frame
 	// routing from channel fd to unit fd (accel-ppp uses the same
 	// deferred-connect pattern). MRU/MTU/AdminUp follow.
 	var tb textbuf.Buffer
 	if err := s.ops.connect(s.chanFD, s.unitNum); err != nil {
+		s.mu.Unlock()
 		s.fail(tb.Str("PPPIOCCONNECT: ").Err(err).String())
 		return false
 	}
-	if err := s.ops.setMRU(s.unitFD, mru); err != nil {
+	s.channelConnected = true
+	// RFC 1661 Section 6.1: "If smaller packets are requested, an
+	// implementation MUST still be able to receive the full 1500 octet
+	// information field in case link synchronization is lost."
+	// The peer's MRU limits our sends, not the kernel's receive buffer.
+	if err := s.ops.setMRU(s.unitFD, MaxFrameLen); err != nil {
+		s.mu.Unlock()
 		s.fail(tb.Reset().Str("PPPIOCSMRU: ").Err(err).String())
 		return false
 	}
 	ifname := textbuf.StrInt("ppp", int64(s.unitNum))
-	mtu := max(int(mru)-pppEncapOverhead, minIPMTU)
+	// RFC 1332 Section 2.1: "The maximum length of an IP packet transmitted
+	// over a PPP link is the same as the maximum length of the Information
+	// field of a PPP data link layer frame." MRU already excludes framing.
+	mtu := max(int(mru), minIPMTU)
 	if err := s.backend.SetMTU(ifname, mtu); err != nil {
+		s.mu.Unlock()
 		s.fail(tb.Reset().Str("iface SetMTU: ").Err(err).String())
 		return false
 	}
 	if err := s.backend.SetAdminUp(ifname); err != nil {
+		s.mu.Unlock()
 		s.fail(tb.Reset().Str("iface SetAdminUp: ").Err(err).String())
 		return false
 	}
@@ -562,6 +650,7 @@ func (s *pppSession) afterLCPOpen() bool {
 	if s.ipv6cpState == LCPStateOpened {
 		s.afterLCPOpenIPv6Service(ifname)
 	}
+	s.mu.Unlock()
 
 	s.sendEvent(EventSessionUp{
 		TunnelID:  s.tunnelID,
@@ -581,8 +670,8 @@ func (s *pppSession) afterLCPOpen() bool {
 // AuthEventsOut. Within each channel order is preserved, but a
 // consumer that reads both channels sees them cross-channel.
 //
-// Returns false (and fails the session) on reject, timeout, driver
-// stop, or per-session stop.
+// Returns false on failure, stop, or an LCP interruption. The caller MUST
+// resume the session loop for a nonterminal LCP transition.
 func (s *pppSession) runAuthPhase() bool {
 	s.mu.Lock()
 	method := s.negotiatedAuthMethod
@@ -693,11 +782,32 @@ func (s *pppSession) readFrames(out chan<- []byte, done chan<- error) {
 // the appropriate FSM handler. LCP, IPCP, and IPv6CP all share the
 // same packet shape (RFC 1661 §5); only the Data semantics differ.
 // Returns true if the session should terminate.
+//
+// Wire format (RFC 1661 Sections 2 and 5), byte offsets in the PPP frame:
+//
+//	0             2       3            4           6
+//	+-------------+-------+------------+-----------+---------+
+//	| Protocol(2) | Code  | Identifier | Length(2) | Data... |
+//	+-------------+-------+------------+-----------+---------+
+//
+// Length counts the control packet from Code, excluding Protocol.
 func (s *pppSession) handleFrame(frame []byte) bool {
 	proto, payload, _, err := ParseFrame(frame)
 	if err != nil {
 		s.logger.Debug("ppp: malformed frame dropped", "error", err.Error())
 		return false
+	}
+
+	if proto == ProtoIPCP || proto == ProtoIPv6CP {
+		// RFC 1661 Section 3.4: "Any non-LCP packets received during this
+		// phase MUST be silently discarded." Section 3.5: "Advancement
+		// from the Authentication phase to the Network-Layer Protocol
+		// phase MUST NOT occur until authentication has completed."
+		// LCP Opened alone is insufficient: replacement authentication
+		// runs there too. Discard before buffering an old NCP reply.
+		if !s.ncpStarted {
+			return false
+		}
 	}
 
 	pkt, perr := ParseLCPPacket(payload)
@@ -709,6 +819,11 @@ func (s *pppSession) handleFrame(frame []byte) bool {
 			return false
 		}
 		return s.handleLCPPacket(pkt)
+	case ProtoPAP:
+		if s.papReplyCode != 0 {
+			return !s.reanswerPAP(payload)
+		}
+		return false
 	case ProtoIPCP:
 		if s.ipcpState == LCPStateInitial {
 			buf := make([]byte, len(frame))
@@ -855,7 +970,7 @@ func (s *pppSession) sendProtocolReject(proto uint16, info []byte) bool {
 		// (RFC 1661 Section 6.1).
 		mru = MaxFrameLen
 	}
-	limit := min(frameLen(int(mru)), MaxFrameLen)
+	limit := min(frameLen(int(mru)), MaxFrameBufLen)
 	room := max(limit-frameLen(lcpHeaderLen+2), 0)
 	if len(info) > room {
 		info = info[:room]
@@ -922,7 +1037,7 @@ const (
 // declaration serves both the verdict and the reply it leads to, so the two
 // can never disagree about what ze wants.
 func (s *pppSession) negPolicy() LCPNegPolicy {
-	return LCPNegPolicy{MaxMRU: s.maxMRU, LocalMagic: s.magic}
+	return LCPNegPolicy{MaxMRU: s.maxMRU, LocalMagic: s.magic, PPPoE: s.pppoe}
 }
 
 // evalLCPRequest judges the peer's LCP Configure-Request and returns the
@@ -960,6 +1075,29 @@ func (s *pppSession) evalLCPRequest(pkt LCPPacket) (lcpRequestVerdict, []LCPOpti
 func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 	cur := s.currentState()
 
+	// RFC 1661 Section 6.4: "All received Magic-Number fields MUST be
+	// equal to either zero or the peer's unique Magic-Number, depending on
+	// whether or not the peer negotiated a Magic-Number." peerMagic is
+	// exactly that value: the one ze acknowledged, or zero. Any other
+	// value comes from a looped-back link or a link joined to a different
+	// peer, so the packet is dropped before it can answer an Echo-Request
+	// or count as a reply to ze's own.
+	switch pkt.Code {
+	case LCPEchoRequest, LCPEchoReply, LCPDiscardRequest:
+		received, err := parseLCPEchoMagic(pkt.Data)
+		if err != nil {
+			s.logger.Debug("ppp: LCP echo packet dropped, no Magic-Number field",
+				"code", LCPCodeName(pkt.Code), "id", pkt.Identifier, "len", len(pkt.Data))
+			return false
+		}
+		if received != s.peerMagic {
+			s.logger.Warn("ppp: LCP echo packet dropped, Magic-Number is not the peer's",
+				"code", LCPCodeName(pkt.Code), "id", pkt.Identifier,
+				"received", received, "peer", s.peerMagic, "local", s.magic)
+			return false
+		}
+	}
+
 	if pkt.Code == LCPEchoReply {
 		s.mu.Lock()
 		s.echoOutstanding = 0
@@ -990,14 +1128,15 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 	// The three reply codes need no verdict, so they are held to it here.
 	switch pkt.Code {
 	case LCPConfigureAck, LCPConfigureNak, LCPConfigureReject:
-		if WalkLCPOptions(pkt.Data).Fault.Discards() {
-			s.logger.Debug("ppp: LCP reply silently discarded, options do not fit the packet",
+		if !s.lastLCPRequestSent || !ValidateLCPReply(pkt, s.lastLCPRequestID, s.lastLCPRequest[:s.lastLCPRequestLen]) {
+			s.logger.Debug("ppp: LCP reply silently discarded, no matching request",
 				"state", cur.String(),
 				"code", LCPCodeName(pkt.Code),
 				"id", pkt.Identifier,
 				"len", len(pkt.Data))
 			return false
 		}
+		s.lastLCPReplyReceived = true
 	}
 
 	// optsBad chooses between RCR+ and RCR- and carries nothing else. The
@@ -1042,6 +1181,27 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 		switch cur {
 		case LCPStateReqSent, LCPStateAckSent, LCPStateAckRcvd, LCPStateOpened:
 			s.adjustAuthOnNakOrReject(pkt)
+			opts, _ := ParseLCPOptions(pkt.Data)
+			for _, opt := range opts {
+				if pkt.Code == LCPConfigureReject {
+					switch opt.Type {
+					case LCPOptMRU:
+						s.lcpRejectedMRU = true
+					case LCPOptMagic:
+						s.lcpRejectedMagic = true
+					}
+				} else if opt.Type == LCPOptMRU && len(opt.Data) == 2 {
+					mru := binary.BigEndian.Uint16(opt.Data)
+					if mru >= MinFrameLen && mru <= s.maxMRU {
+						s.localMRU = mru
+					}
+				}
+			}
+			if pkt.Code == LCPConfigureNak {
+				if !s.redrawMagicOnNak(pkt) {
+					return true
+				}
+			}
 		case LCPStateInitial, LCPStateStarting, LCPStateClosed,
 			LCPStateStopped, LCPStateClosing, LCPStateStopping:
 			// Nak/Reject in these states never triggers SCR per RFC
@@ -1074,8 +1234,70 @@ func (s *pppSession) handleLCPPacket(pkt LCPPacket) bool {
 			s.mu.Unlock()
 		}
 	}
+	// The peer's Magic-Number is the one ze acknowledges here, and it is
+	// zero while the peer requests none: RFC 1661 Section 6.4 holds every
+	// Echo packet the peer sends to that value.
+	if ev == LCPEventRCRPlus {
+		s.peerMagic, _ = lookupOptionUint32(peerOpts, LCPOptMagic)
+	}
+	// RFC 1661 Section 5.8: the option is "successfully negotiated" when
+	// the peer acknowledges the Configure-Request that carried it. The
+	// Ack echoes ze's options, so option 5 in it is that acknowledgement.
+	if ev == LCPEventRCA {
+		s.magicNegotiated = !s.lcpRejectedMagic && s.magic != 0
+	}
 
 	return s.applyTransition(cur, tr, pkt)
+}
+
+// redrawMagicOnNak chooses a new Magic-Number when the peer Configure-Naks
+// the one ze requested.
+//
+// RFC 1661 Section 6.4: "If the Magic-Number is equal to the one sent in
+// the last Configure-Nak, the possibility of a looped-back link is
+// increased, and a new Magic-Number MUST be chosen. In either case, a new
+// Configure-Request SHOULD be sent with the new Magic-Number." Both arms
+// end in a new value, so every Nak of option 5 draws one; the resent
+// Configure-Request (scr on the RCN edge) then carries it.
+func (s *pppSession) redrawMagicOnNak(nak LCPPacket) bool {
+	opts, err := ParseLCPOptions(nak.Data)
+	if err != nil {
+		return true
+	}
+	if _, ok := lookupOptionUint32(opts, LCPOptMagic); !ok {
+		return true
+	}
+	// Bound repeated draws even if the entropy source keeps returning
+	// the previous value. A failure must end negotiation, since another
+	// Configure-Request with that value would not satisfy the Nak.
+	for range magicDrawMaxAttempts {
+		mag, err := generateMagic()
+		if err != nil {
+			var tb textbuf.Buffer
+			s.fail(tb.Str("magic-rand after Configure-Nak: ").Err(err).String())
+			return false
+		}
+		if mag == s.magic {
+			continue
+		}
+		s.logger.Debug("ppp: Magic-Number redrawn after Configure-Nak",
+			"old", s.magic, "new", mag)
+		s.magic = mag
+		return true
+	}
+	s.fail("magic-rand repeated the previous Magic-Number after Configure-Nak")
+	return false
+}
+
+// transmitMagic is the Magic-Number ze puts in an Echo-Request, Echo-Reply
+// or Discard-Request. RFC 1661 Section 5.8: "Until the Magic-Number
+// Configuration Option has been successfully negotiated, the Magic-Number
+// MUST be transmitted as zero."
+func (s *pppSession) transmitMagic() uint32 {
+	if !s.magicNegotiated {
+		return 0
+	}
+	return s.magic
 }
 
 // applyTransition runs one FSM transition's actions, commits the new state,
@@ -1144,22 +1366,24 @@ func (s *pppSession) applyTransition(cur LCPState, tr lCPTransition, pkt LCPPack
 		// accepted.
 		s.negotiatedAuthMethod = s.configuredAuthMethod
 		mru := s.negotiatedMRU
+		// LCP is Opened before authentication/NCP run. Those phases can
+		// process LCP packets themselves; they must see the actual FSM
+		// state and may interrupt this transition.
+		s.state = LCPStateOpened
 		s.mu.Unlock()
+		s.stopRestartTimer()
 		s.sendEvent(EventLCPUp{
 			TunnelID:      s.tunnelID,
 			SessionID:     s.sessionID,
 			NegotiatedMRU: mru,
 		})
 		if !s.afterLCPOpen() {
-			return true
+			state := s.currentState()
+			// A nested restart resumes in the main LCP loop. A nested
+			// termination keeps its grace timer; never overwrite either
+			// transition with the old Opened result.
+			return state == LCPStateOpened || state == LCPStateClosed || state == LCPStateStopped
 		}
-		// Commit state only after afterLCPOpen succeeds.
-		s.mu.Lock()
-		s.state = LCPStateOpened
-		s.mu.Unlock()
-		// Opened carries no TO event in the RFC 1661 Section 4.1 table, so
-		// the Restart timer stops here for the same reason it stops below.
-		s.stopRestartTimer()
 		return false
 	}
 
@@ -1245,7 +1469,36 @@ func (s *pppSession) performAction(act LCPAction, current LCPPacket) bool {
 		// companion action in the same transition and only the transition
 		// carries that.
 		return true
-	case LCPActTLU, LCPActTLD, LCPActTLS, LCPActTLF:
+	case LCPActTLD:
+		s.papReplyCode = 0
+		ev := EventLCPDown{
+			TunnelID:     s.tunnelID,
+			SessionID:    s.sessionID,
+			Reason:       "LCP left Opened",
+			NetworkPhase: s.ncpStarted,
+		}
+		if !s.resetNCP() {
+			return false
+		}
+		if ev.NetworkPhase {
+			ev.done = make(chan struct{})
+		}
+		s.sendEvent(ev)
+		if !ev.NetworkPhase {
+			return true
+		}
+		// The transport MUST finish the old network lifetime's cleanup and
+		// acknowledge it before PPP can authenticate the replacement. PPP
+		// MUST wait here so delayed cleanup cannot erase new session state.
+		select {
+		case <-ev.done:
+			return true
+		case <-s.stopCh:
+			return false
+		case <-s.sessStop:
+			return false
+		}
+	case LCPActTLU, LCPActTLS, LCPActTLF:
 		// "Notify upper layers" is handled inline in applyTransition via the
 		// state-transition check.
 		return true
@@ -1347,10 +1600,26 @@ func (s *pppSession) handleRestartTimeout() bool {
 
 func (s *pppSession) sendConfigureRequest() bool {
 	s.spendRestartCount()
+	// A Configure-Request opens a negotiation the peer has not yet
+	// acknowledged, so the Magic-Number is unnegotiated until its Ack
+	// arrives (RFC 1661 Section 5.8).
+	s.magicNegotiated = false
+	s.papReplyCode = 0
+	mru := s.localMRU
+	if mru == 0 {
+		mru = s.maxMRU
+	}
+	if s.lcpRejectedMRU {
+		mru = 0
+	}
+	magic := s.magic
+	if s.lcpRejectedMagic {
+		magic = 0
+	}
 	authProto, authData := authMethodToLCPOptions(s.configuredAuthMethod)
 	opts := BuildLocalConfigRequest(LCPOptions{
-		MRU:       s.maxMRU,
-		Magic:     s.magic,
+		MRU:       mru,
+		Magic:     magic,
 		AuthProto: authProto,
 		AuthData:  authData,
 	})
@@ -1365,11 +1634,26 @@ func (s *pppSession) sendConfigureRequest() bool {
 		// be too small for them. Saying so beats sending a Configure-Request
 		// that offers a prefix of what ze wants: the negotiation would then
 		// settle on terms ze never chose.
-		s.logger.Warn("ppp: LCP Configure-Request not sent, its options do not fit a frame",
-			"options", len(opts))
-		return true
+		s.fail("LCP Configure-Request options do not fit a frame")
+		return false
 	}
-	off += WriteLCPPacket(buf, off, LCPConfigureRequest, 1, buf[dataOff:dataOff+dataLen])
+	if dataLen > len(s.lastLCPRequest) {
+		s.fail("LCP Configure-Request exceeds the local option bound")
+		return false
+	}
+	data := buf[dataOff : dataOff+dataLen]
+	// RFC 1661 Section 5.1: "The Identifier field MUST be changed
+	// whenever the contents of the Options field changes, and whenever a
+	// valid reply has been received for a previous request." An unchanged
+	// timeout retransmission retains its Identifier.
+	if !s.lastLCPRequestSent || s.lastLCPReplyReceived ||
+		!bytes.Equal(data, s.lastLCPRequest[:s.lastLCPRequestLen]) {
+		s.lastLCPRequestID++
+	}
+	s.lastLCPRequestLen = copy(s.lastLCPRequest[:], data)
+	s.lastLCPRequestSent = true
+	s.lastLCPReplyReceived = false
+	off += WriteLCPPacket(buf, off, LCPConfigureRequest, s.lastLCPRequestID, buf[dataOff:dataOff+dataLen])
 	return s.writeFrame(buf[:off])
 }
 
@@ -1536,12 +1820,20 @@ func (s *pppSession) sendConfigureNakOrReject(req LCPPacket) bool {
 	return s.writeFrame(buf[:off])
 }
 
+// sendTerminateRequest emits a Terminate-Request with a fresh Identifier.
+//
+// RFC 1661 Section 5.5: "On transmission, the Identifier field MUST be
+// changed whenever the content of the Data field changes, and whenever a
+// valid reply has been received for a previous request." Every send draws
+// the next value, which covers both cases and the retransmission that
+// Section 5.5 allows to keep or change it.
 func (s *pppSession) sendTerminateRequest() bool {
 	s.spendRestartCount()
+	s.terminateID++
 	buf := getFrameBuf()
 	defer putFrameBuf(buf)
 	off := WriteFrame(buf, 0, ProtoLCP, nil)
-	off += WriteLCPPacket(buf, off, LCPTerminateRequest, 1, nil)
+	off += WriteLCPPacket(buf, off, LCPTerminateRequest, s.terminateID, nil)
 	return s.writeFrame(buf[:off])
 }
 
@@ -1581,21 +1873,31 @@ func (s *pppSession) sendEchoReply(req LCPPacket) bool {
 	buf := getFrameBuf()
 	defer putFrameBuf(buf)
 	off := WriteFrame(buf, 0, ProtoLCP, nil)
-	off += BuildLCPEchoReply(buf, off, req.Identifier, s.magic, req.Data)
+	off += BuildLCPEchoReply(buf, off, req.Identifier, s.transmitMagic(), req.Data)
 	return s.writeFrame(buf[:off])
 }
 
-func (s *pppSession) sendEchoRequest(id uint8) bool {
+// sendEchoRequest emits an Echo-Request with a fresh Identifier.
+//
+// RFC 1661 Section 5.8: "On transmission, the Identifier field MUST be
+// changed whenever the content of the Data field changes, and whenever a
+// valid reply has been received for a previous request." Every send draws
+// the next value, which covers both cases.
+func (s *pppSession) sendEchoRequest() bool {
+	s.echoID++
 	buf := getFrameBuf()
 	defer putFrameBuf(buf)
 	off := WriteFrame(buf, 0, ProtoLCP, nil)
-	off += WriteLCPEcho(buf, off, LCPEchoRequest, id, s.magic, nil)
+	off += WriteLCPEcho(buf, off, LCPEchoRequest, s.echoID, s.transmitMagic(), nil)
 	s.lastEchoSentAt = time.Now()
 	return s.writeFrame(buf[:off])
 }
 
 func (s *pppSession) writeFrame(frame []byte) bool {
-	_, err := s.chanFile.Write(frame)
+	n, err := s.chanFile.Write(frame)
+	if err == nil && n != len(frame) {
+		err = io.ErrShortWrite
+	}
 	if err != nil {
 		var tb textbuf.Buffer
 		s.fail(tb.Str("chan fd write: ").Err(err).String())

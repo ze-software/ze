@@ -237,7 +237,7 @@ func (l *L2TPPPP) Run() (L2TPPPPReport, error) {
 	if err := requireLinux(proofName); err != nil {
 		return report, err
 	}
-	if err := look("ip", "ping", PeerName, "pppd"); err != nil {
+	if err := look("ip", "ping", PeerName, "pppd", "python3"); err != nil {
 		return report, err
 	}
 	if err := ensureKernelSupport(proofName); err != nil {
@@ -413,15 +413,19 @@ func (l *L2TPPPP) observe(report L2TPPPPReport, binary, work string) (L2TPPPPRep
 	if !proven {
 		return report, nil
 	}
+	report, proven = l.assertLCPRestart(report, seen, ze, dialer, work, zeBase, lacBase)
+	if !proven {
+		return report, nil
+	}
 
 	// The peer leaves FIRST. The teardown assertion checks the effects of its
 	// departure. If the run stopped ze instead, the session would end from the
 	// wrong endpoint. A daemon that never withdraws a route would still pass.
+	withdrawMark := l2tpPPPObservation(seen)
 	dialer.stop()
 	said.wait()
-	if verdict, ok := l.step(seen, report, ze, []string{pppWithdrawLine}, nil,
-		l.WithdrawWait, "subscriber route withdraw was not observed during teardown"); !ok {
-		return verdict, nil
+	if err := awaitL2TPPPPWithdrawal(seen, withdrawMark, ze, l.WithdrawWait); err != nil {
+		return l.fail(report, seen, err.Error()), nil
 	}
 
 	zeBase.iface = report.ZeInterface

@@ -1,0 +1,5 @@
+{
+  "Replace": {
+    "/home/thomas/Code/github.com/ze-software/ze/main/internal/le/deployment/l2tpppprestart.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/before-auth-oracle-l2tpppprestart.go.txt"
+  }
+}

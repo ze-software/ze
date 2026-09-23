@@ -13,7 +13,6 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/ze-software/ze/internal/core/rtproto"
 	"github.com/ze-software/ze/internal/core/textbuf"
 
 	l2tpevents "github.com/ze-software/ze/internal/component/l2tp/events"
@@ -26,9 +25,8 @@ const defaultIPTimeout = 30 * time.Second
 
 // runNCPPhase drives every enabled NCP to Opened, programs the pppN
 // interface (for IPv4), and emits EventSessionIPAssigned per family.
-// Returns false when the session must tear down: handler rejection,
-// peer Configure-Reject of IP-Address, timeout, chan fd closed,
-// driver stop.
+// Returns false on failure, stop, or an LCP interruption. The caller MUST
+// resume the session loop for a nonterminal LCP transition.
 //
 // AC-15: when both NCPs are disabled the session reaches EventSessionUp
 // immediately after this helper returns true (logged as a config
@@ -41,6 +39,12 @@ const defaultIPTimeout = 30 * time.Second
 // the assigned local address. The Deviations section of the spec
 // records this choice.
 func (s *pppSession) runNCPPhase() bool {
+	lcpState := s.currentState()
+	// RFC 1661 Section 3.5: "Advancement from the Authentication phase to
+	// the Network-Layer Protocol phase MUST NOT occur until authentication
+	// has completed." The caller MUST finish authentication before entering
+	// here; resetNCP MUST clear this permission when LCP goes down.
+	s.ncpStarted = true
 	ipcpEnabled := !s.disableIPCP
 	ipv6cpEnabled := !s.disableIPv6CP
 
@@ -86,11 +90,17 @@ func (s *pppSession) runNCPPhase() bool {
 		s.logger.Info("ppp: draining early NCP frames", "count", len(s.earlyNCPFrames))
 	}
 	for _, early := range s.earlyNCPFrames {
-		s.handleFrame(early)
+		if s.handleFrame(early) || s.currentState() != lcpState {
+			s.earlyNCPFrames = nil
+			return false
+		}
 	}
 	s.earlyNCPFrames = nil
 
 	for {
+		if s.currentState() != lcpState {
+			return false
+		}
 		if s.ncpsComplete(ipcpEnabled, ipv6cpEnabled) {
 			return true
 		}
@@ -371,6 +381,42 @@ const (
 	ncpReplyFatal
 )
 
+// validNCPReply correlates replies before their options can change NCP state.
+// RFC 1661 Section 5.2: "On reception of a Configure-Ack, the Identifier
+// field MUST match that of the last transmitted Configure-Request.
+// Additionally, the Configuration Options in a Configure-Ack MUST exactly
+// match those of the last transmitted Configure-Request. Invalid packets
+// are silently discarded." Sections 5.3 and 5.4 require the same Identifier
+// match for Nak and Reject. ValidateLCPReply also checks Reject subsets;
+// its Nak option rules are LCP-specific, so NCP Naks use their family parser.
+func (s *pppSession) validNCPReply(family AddressFamily, pkt LCPPacket) bool {
+	var requestID uint8
+	var requestData []byte
+	switch family {
+	case AddressFamilyIPv4:
+		if !s.lastIPCPRequestSent {
+			return false
+		}
+		requestID = s.lastIPCPRequestID
+		requestData = s.lastIPCPRequest[:s.lastIPCPRequestLen]
+	case AddressFamilyIPv6:
+		if !s.lastIPv6CPRequestSent {
+			return false
+		}
+		requestID = s.lastIPv6CPRequestID
+		requestData = s.lastIPv6CPRequest[:s.lastIPv6CPRequestLen]
+	default:
+		return false
+	}
+	// RFC 1661 Section 5.3: "On reception of a Configure-Nak, the
+	// Identifier field MUST match that of the last transmitted
+	// Configure-Request. Invalid packets are silently discarded."
+	if pkt.Code == LCPConfigureNak {
+		return pkt.Identifier == requestID
+	}
+	return ValidateLCPReply(pkt, requestID, requestData)
+}
+
 // handleNCPPacket is the family-generic FSM driver. known and the three
 // callbacks encode the per-family option semantics (which option Types the
 // family recognizes, which Reqs are acceptable, which Nak suggestions to
@@ -402,6 +448,9 @@ func (s *pppSession) handleNCPPacket(
 	// The three reply codes need no verdict, so they are held to it here.
 	switch pkt.Code {
 	case LCPConfigureAck, LCPConfigureNak, LCPConfigureReject:
+		if !s.validNCPReply(family, pkt) {
+			return false
+		}
 		if scanNCPOptions(pkt.Data, known) == ncpOptionsTruncated {
 			s.logger.Debug("ppp: NCP reply silently discarded, options do not fit the packet",
 				"family", family.String(),
@@ -736,7 +785,24 @@ func (s *pppSession) sendNCPConfigureRequest(family AddressFamily) bool {
 	dataOff := off + lcpHeaderLen
 	dataLen := s.writeNCPOptions(family, buf, dataOff)
 	off += WriteLCPPacket(buf, off, LCPConfigureRequest, id, buf[dataOff:dataOff+dataLen])
-	return s.writeFrame(buf[:off])
+	if !s.writeFrame(buf[:off]) {
+		return false
+	}
+	// Cache the bytes actually sent; a Nak can change the address fields
+	// before a delayed Ack arrives. Fixed bounds match writeNCPOptions.
+	switch family {
+	case AddressFamilyIPv4:
+		copy(s.lastIPCPRequest[:dataLen], buf[dataOff:dataOff+dataLen])
+		s.lastIPCPRequestLen = dataLen
+		s.lastIPCPRequestID = id
+		s.lastIPCPRequestSent = true
+	case AddressFamilyIPv6:
+		copy(s.lastIPv6CPRequest[:dataLen], buf[dataOff:dataOff+dataLen])
+		s.lastIPv6CPRequestLen = dataLen
+		s.lastIPv6CPRequestID = id
+		s.lastIPv6CPRequestSent = true
+	}
+	return true
 }
 
 // writeNCPOptions serializes the family's outbound options into buf at
@@ -1071,7 +1137,7 @@ func ncpSetLength(body []byte, length uint16) {
 
 // onNCPOpened runs per-family post-Opened side effects. For IPv4 this
 // programs pppN with the assigned address and peer route. For IPv6 no
-// backend call is made (kernel auto-derives link-local). Both emit
+// backend call is made (kernel auto-derives link-local). Both publish and await
 // EventSessionIPAssigned, except IPv6 skips it when peerInterfaceID was
 // never negotiated (session.go: peerInterfaceIDNegotiated): the event
 // exists to carry the peer's identifier, and there is none to carry.
@@ -1086,9 +1152,10 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 			s.fail(tb.Reset().Str("iface AddAddressP2P: ").Err(err).String())
 			return false
 		}
-		s.sendEvent(EventSessionIPAssigned{
+		return s.sendIPAssigned(EventSessionIPAssigned{
 			TunnelID:     s.tunnelID,
 			SessionID:    s.sessionID,
+			Username:     s.authenticatedUsername,
 			Family:       AddressFamilyIPv4,
 			Local:        s.localIPv4,
 			Peer:         s.peerIPv4,
@@ -1105,9 +1172,10 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 			countIdentifierRefusal(reasonEventUnnegotiated)
 			return true
 		}
-		s.sendEvent(EventSessionIPAssigned{
+		return s.sendIPAssigned(EventSessionIPAssigned{
 			TunnelID:    s.tunnelID,
 			SessionID:   s.sessionID,
+			Username:    s.authenticatedUsername,
 			Family:      AddressFamilyIPv6,
 			InterfaceID: s.peerInterfaceID,
 		})
@@ -1115,26 +1183,101 @@ func (s *pppSession) onNCPOpened(family AddressFamily) bool {
 	return true
 }
 
-// teardownNCPResources removes the IPCP-programmed address and route
-// on session exit. Called from the run() defer chain when IPCP has
-// reached Opened (s.ipcpState == LCPStateOpened). Best-effort: errors
-// are logged but do not block teardown.
-func (s *pppSession) teardownNCPResources() {
+// sendIPAssigned waits for the transport to publish the assignment and capture
+// its accounting baseline before NCP completion can enable forwarding.
+func (s *pppSession) sendIPAssigned(ev EventSessionIPAssigned) bool {
+	select {
+	case <-s.stopCh:
+		return false
+	case <-s.sessStop:
+		return false
+	default:
+	}
+	ev.done = make(chan struct{})
+	select {
+	case s.eventsOut <- ev:
+	case <-s.stopCh:
+		return false
+	case <-s.sessStop:
+		return false
+	}
+	select {
+	case <-ev.done:
+	case <-s.stopCh:
+		return false
+	case <-s.sessStop:
+		return false
+	}
+	// A ready acknowledgment cannot override an already observed stop.
+	select {
+	case <-s.stopCh:
+		return false
+	case <-s.sessStop:
+		return false
+	default:
+		return true
+	}
+}
+
+// resetNCP ends the NCP lifetime when LCP leaves Opened. It MUST tear down
+// resources before clearing the addresses and FSM state teardown reads.
+// RFC 1661 Section 4.4, This-Layer-Down: "This action indicates to the upper
+// layers that the automaton is leaving the Opened state."
+func (s *pppSession) resetNCP() bool {
+	s.ncpStarted = false
+	s.authenticatedUsername = ""
+	s.mu.Lock()
+	if s.filesClosed {
+		s.mu.Unlock()
+		return false
+	}
+	if s.channelConnected {
+		// The descriptor lock MUST cover disconnect, just as it covers
+		// connect and close, so this ioctl cannot use a recycled fd.
+		if err := s.ops.disconnect(s.chanFD); err != nil {
+			s.mu.Unlock()
+			var tb textbuf.Buffer
+			s.fail(tb.Str("PPPIOCDISCONN: ").Err(err).String())
+			return false
+		}
+		s.channelConnected = false
+	}
+	s.mu.Unlock()
+	if err := s.teardownNCPResources(); err != nil {
+		var tb textbuf.Buffer
+		s.fail(tb.Str("NCP cleanup before LCP restart: ").Err(err).String())
+		return false
+	}
+	s.ipcpState = LCPStateInitial
+	s.ipv6cpState = LCPStateInitial
+	s.earlyNCPFrames = nil
+	s.lastIPCPRequestSent = false
+	s.lastIPv6CPRequestSent = false
+	s.localIPv4 = netip.Addr{}
+	s.peerIPv4 = netip.Addr{}
+	s.dnsPrimary = netip.Addr{}
+	s.dnsSecondary = netip.Addr{}
+	s.localInterfaceID = [8]byte{}
+	s.peerInterfaceID = [8]byte{}
+	s.peerInterfaceIDNegotiated = false
+	s.ipv6cpMissingIdentifierNaked = false
+	return true
+}
+
+// teardownNCPResources stops the IPv6 service and removes the IPCP-programmed
+// address on LCP down or session exit. Linux removes the address's connected
+// peer route with it. Callers MUST preserve the addresses and Opened state
+// until this returns. A removal error prohibits reuse of the PPP unit.
+func (s *pppSession) teardownNCPResources() error {
 	if s.ipv6Svc != nil {
 		s.ipv6Svc.Stop()
 		s.ipv6Svc = nil
 	}
 	if s.ipcpState != LCPStateOpened {
-		return
+		return nil
 	}
 	ifname := textbuf.StrInt("ppp", int64(s.unitNum))
 	var tb textbuf.Buffer
-	peerCIDR := tb.Addr(s.peerIPv4).Str("/32").String()
-	localCIDR := tb.Reset().Addr(s.localIPv4).Str("/32").String()
-	if err := s.backend.RemoveRoute(ifname, peerCIDR, "", 0, rtproto.Iface); err != nil {
-		s.logger.Debug("ppp: RemoveRoute on teardown", "error", err.Error())
-	}
-	if err := s.backend.RemoveAddress(ifname, localCIDR); err != nil {
-		s.logger.Debug("ppp: RemoveAddress on teardown", "error", err.Error())
-	}
+	localCIDR := tb.Addr(s.localIPv4).Str("/32").String()
+	return s.backend.RemoveAddress(ifname, localCIDR)
 }

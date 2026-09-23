@@ -19,6 +19,7 @@ type SessionState string
 
 const (
 	StateAuthenticating SessionState = "authenticating"
+	StateConfiguring    SessionState = "configuring"
 	StateActive         SessionState = "active"
 	StateTerminating    SessionState = "terminating"
 )

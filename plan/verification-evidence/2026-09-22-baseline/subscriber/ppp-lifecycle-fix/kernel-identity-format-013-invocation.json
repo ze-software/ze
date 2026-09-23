@@ -1,0 +1,34 @@
+{
+  "label": "kernel-identity-format-013",
+  "started": "2026-09-23T00:24:47.715Z",
+  "cwd": "/home/thomas/Code/github.com/ze-software/ze/main",
+  "argv": [
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le",
+    "le",
+    "job",
+    "run",
+    "label",
+    "kernel-identity-format-013",
+    "quiet",
+    "command",
+    "gofmt",
+    "-w",
+    "internal/component/l2tp/ppp/auth.go",
+    "internal/component/l2tp/ppp/session.go",
+    "internal/component/l2tp/ppp/events.go",
+    "internal/component/l2tp/ppp/auth_test.go",
+    "internal/component/l2tp/ppp/lcp_lifecycle_test.go",
+    "internal/component/l2tp/ppp/ncp.go",
+    "internal/component/l2tp/ppp/ncp_test.go",
+    "internal/component/l2tp/reactor_kernel.go",
+    "internal/component/l2tp/subscriber_lifetime_linux_test.go",
+    "internal/component/l2tp/pppoe/subsystem.go",
+    "internal/component/l2tp/pppoe/subscriber_lifetime_linux_test.go",
+    "internal/plugins/iface/netlink/addr_primary_linux.go",
+    "internal/plugins/iface/netlink/route_integration_linux_test.go"
+  ],
+  "env": {
+    "CGO_ENABLED": "1"
+  },
+  "inputs": []
+}

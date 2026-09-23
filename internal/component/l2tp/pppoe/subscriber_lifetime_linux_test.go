@@ -1,0 +1,262 @@
+//go:build linux
+
+// Design: docs/architecture/l2tp/subscriber-session-model.md
+// RFC 1661 Section 3.4 and RFC 2516 Section 5.5: an LCP restart retains
+// the PPPoE transport; only final teardown sends PADT.
+package pppoe
+
+import (
+	"context"
+	"net/netip"
+	"os"
+	"os/exec"
+	"testing"
+	"time"
+
+	dto "github.com/prometheus/client_model/go"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/sys/unix"
+
+	"github.com/ze-software/ze/internal/component/l2tp"
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
+	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
+	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
+	"github.com/ze-software/ze/internal/core/metrics"
+)
+
+var pppoeLifetimeMetrics = metrics.NewPrometheusRegistry()
+
+// Subscriber metrics are bound once per process without a reset API. Isolate
+// metric-reading scenarios from package test order and other registries.
+func isolatedPPPoELifetime(t *testing.T) bool {
+	t.Helper()
+	const key = "ZE_PPPOE_SUBSCRIBER_LIFETIME_TEST"
+	if os.Getenv(key) == t.Name() {
+		return true
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^"+t.Name()+"$", "-test.count=1", "-test.timeout=30s")
+	cmd.Env = append(os.Environ(), key+"="+t.Name())
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "isolated subscriber lifecycle:\n%s", output)
+	return false
+}
+
+func pppoeActiveSubscribers(t *testing.T) float64 {
+	t.Helper()
+	subscriber.BindMetrics(pppoeLifetimeMetrics)
+	gauge := pppoeLifetimeMetrics.GaugeVec("ze_subscriber_sessions", "Number of active subscriber sessions.", []string{"access_type"}).With(string(subscriber.AccessPPPoE))
+	var sample dto.Metric
+	require.NoError(t, gauge.(interface{ Write(*dto.Metric) error }).Write(&sample))
+	return sample.GetGauge().GetValue()
+}
+
+// PREVENTS: dropping assignments received before SessionUp, overwriting the
+// other family, treating LCPDown as informational, retaining authorization,
+// and decrementing active subscribers for a lifetime that never became active.
+func TestPPPoESubscriberNetworkLifetime(t *testing.T) {
+	if !isolatedPPPoELifetime(t) {
+		return
+	}
+	for _, activateFirst := range []bool{true, false} {
+		name := "active"
+		if !activateFirst {
+			name = "configuring"
+		}
+		t.Run(name, func(t *testing.T) {
+			const ifIndex = 431
+			bus := newRecordBus()
+			sub := newTestSubsystem(t, bus, ifIndex)
+			server := sub.servers[ifIndex]
+			peerMAC := [EthALen]byte{2, 0, 0, 0, 4, 31}
+			sid, transportFD := newPADTSession(t, server, peerMAC)
+			transport := server.sessions.Lookup(sid)
+			transport.IfName = "eth0"
+			transport.UnitNum = 43
+			id := pppoeSessionID(ifIndex, sid)
+			t.Cleanup(func() { subscriber.DefaultRegistry.Remove(id) })
+			t.Cleanup(func() { l2tp.ClearSessionMetadata(ifIndex, sid) })
+			var discovery [][]byte
+			server.sendFrameFn = func(frame []byte) { discovery = append(discovery, append([]byte(nil), frame...)) }
+			var up []subscriber.Session
+			var down []subscriber.Session
+			subevents.SessionUp.Subscribe(bus, func(p *subevents.SessionUpPayload) {
+				registered, ok := subscriber.DefaultRegistry.Get(id)
+				require.True(t, ok, "registry insertion must precede session-up publication")
+				require.Equal(t, p.Session, registered)
+				up = append(up, p.Session)
+			})
+			subevents.SessionDown.Subscribe(bus, func(p *subevents.SessionDownPayload) {
+				_, ok := subscriber.DefaultRegistry.Get(id)
+				require.False(t, ok, "registry removal must precede withdrawal publication")
+				down = append(down, p.Session)
+			})
+			baseline := pppoeActiveSubscribers(t)
+			key := pendingAuthKey{ifindex: ifIndex, sessionID: sid}
+			sub.pendingAuth.Store(key, pendingAuthInfo{username: "pending-user", authMethod: "chap-md5"})
+			l2tp.StoreSessionMetadata(ifIndex, sid, &l2tp.AuthMetadata{FilterID: "rate:20mbit/5mbit", FramedPool: "old-pool"})
+			first := ppp.EventSessionIPAssigned{
+				TunnelID: ifIndex, SessionID: sid, Family: ppp.AddressFamilyIPv4, Username: "old-user",
+				Peer:       netip.MustParseAddr("192.0.2.43"),
+				DNSPrimary: netip.MustParseAddr("192.0.2.53"), DNSSecondary: netip.MustParseAddr("192.0.2.54"),
+			}
+			firstV6 := ppp.EventSessionIPAssigned{TunnelID: ifIndex, SessionID: sid, Family: ppp.AddressFamilyIPv6, Username: "old-user", InterfaceID: [8]byte{2, 0, 0, 0, 0, 0, 0, 43}}
+			sub.handlePPPEvent(first)
+			configured, ok := subscriber.DefaultRegistry.Get(id)
+			require.True(t, ok, "IPCP assignment before SessionUp must be retained")
+			require.Equal(t, subscriber.StateConfiguring, configured.State)
+			require.Equal(t, first.Peer, configured.IPv4Addr)
+			require.Equal(t, first.DNSPrimary, configured.DNSPrimary)
+			require.Equal(t, first.DNSSecondary, configured.DNSSecondary)
+			require.Equal(t, "old-user", configured.Username)
+			require.Equal(t, baseline, pppoeActiveSubscribers(t))
+			if activateFirst {
+				sub.handlePPPEvent(firstV6)
+				sub.handlePPPEvent(ppp.EventSessionUp{TunnelID: ifIndex, SessionID: sid})
+				require.Len(t, up, 1)
+				assertPPPoELifetimeAddresses(t, up[0], first, firstV6)
+				require.Equal(t, uint64(20_000_000), up[0].DownloadRate)
+				require.Equal(t, uint64(5_000_000), up[0].UploadRate)
+				require.Equal(t, baseline+1, pppoeActiveSubscribers(t))
+			}
+
+			sub.handlePPPEvent(ppp.EventLCPDown{TunnelID: ifIndex, SessionID: sid, NetworkPhase: true, Reason: "peer restarted LCP"})
+			_, ok = subscriber.DefaultRegistry.Get(id)
+			require.False(t, ok, "LCPDown must withdraw the old subscriber")
+			require.Nil(t, l2tp.LoadSessionMetadata(ifIndex, sid), "old authorization must not survive replacement authentication")
+			_, pending := sub.pendingAuth.Load(key)
+			require.False(t, pending, "incomplete lifetime must release its pending authorization")
+			require.Len(t, down, 1)
+			tidDown, sidDown := down[0].PPPKey()
+			require.Equal(t, uint16(ifIndex), tidDown)
+			require.Equal(t, sid, sidDown)
+			require.Equal(t, first.Peer, down[0].IPv4Addr)
+			require.Equal(t, baseline, pppoeActiveSubscribers(t), "configuring withdrawal must not decrement active subscribers")
+			require.Same(t, transport, server.sessions.Lookup(sid), "LCP restart must retain the SID")
+			_, err := unix.Write(transportFD, []byte("LCP Configure-Request"))
+			require.NoError(t, err, "LCP restart must leave the transport writable")
+			require.Empty(t, discovery, "network withdrawal must not send PADT")
+
+			// Reuse the same SID and interface with fresh authorization and
+			// reversed NCP completion order.
+			sub.pendingAuth.Store(key, pendingAuthInfo{username: "pending-replacement", authMethod: "pap"})
+			l2tp.StoreSessionMetadata(ifIndex, sid, &l2tp.AuthMetadata{FilterID: "rate:30mbit/7mbit", FramedPool: "new-pool"})
+			second := first
+			second.Username = "new-user"
+			second.Peer = netip.MustParseAddr("192.0.2.44")
+			second.DNSPrimary = netip.MustParseAddr("198.51.100.53")
+			second.DNSSecondary = netip.MustParseAddr("198.51.100.54")
+			secondV6 := firstV6
+			secondV6.Username = "new-user"
+			secondV6.InterfaceID = [8]byte{2, 0, 0, 0, 0, 0, 0, 44}
+			sub.handlePPPEvent(secondV6)
+			configured, ok = subscriber.DefaultRegistry.Get(id)
+			require.True(t, ok)
+			require.Equal(t, subscriber.StateConfiguring, configured.State)
+			require.Equal(t, secondV6.InterfaceID, configured.IPv6InterfaceID)
+			sub.handlePPPEvent(second)
+			sub.handlePPPEvent(ppp.EventSessionUp{TunnelID: ifIndex, SessionID: sid})
+			latest := up[len(up)-1]
+			assertPPPoELifetimeAddresses(t, latest, second, secondV6)
+			require.Equal(t, "new-user", latest.Username)
+			require.Equal(t, "pap", latest.AuthMethod)
+			require.Equal(t, uint64(30_000_000), latest.DownloadRate)
+			require.Equal(t, uint64(7_000_000), latest.UploadRate)
+			require.Equal(t, baseline+1, pppoeActiveSubscribers(t))
+
+			sub.handlePPPEvent(ppp.EventSessionDown{TunnelID: ifIndex, SessionID: sid, Reason: "peer finished"})
+			require.Nil(t, server.sessions.Lookup(sid))
+			_, ok = subscriber.DefaultRegistry.Get(id)
+			require.False(t, ok)
+			require.Nil(t, l2tp.LoadSessionMetadata(ifIndex, sid))
+			require.Len(t, down, 2)
+			require.Equal(t, second.Peer, down[1].IPv4Addr)
+			require.Equal(t, baseline, pppoeActiveSubscribers(t))
+			_, err = unix.Write(transportFD, []byte("PPP after SessionDown"))
+			require.ErrorIs(t, err, unix.EBADF, "final teardown must close the transport")
+			require.Len(t, discovery, 1)
+			packet, err := ParseDiscovery(discovery[0])
+			require.NoError(t, err)
+			require.Equal(t, CodePADT, packet.Code)
+			require.Equal(t, sid, packet.SID)
+			require.Equal(t, peerMAC, packet.DstMAC)
+		})
+	}
+}
+
+func assertPPPoELifetimeAddresses(t *testing.T, sess subscriber.Session, v4, v6 ppp.EventSessionIPAssigned) {
+	t.Helper()
+	require.Equal(t, subscriber.StateActive, sess.State)
+	require.Equal(t, v4.Peer, sess.IPv4Addr)
+	require.Equal(t, v4.DNSPrimary, sess.DNSPrimary)
+	require.Equal(t, v4.DNSSecondary, sess.DNSSecondary)
+	require.Equal(t, v6.InterfaceID, sess.IPv6InterfaceID)
+}
+
+// PREVENTS: invalid or unowned assignments manufacturing subscriber state.
+func TestPPPoESubscriberRejectsUnusableAssignments(t *testing.T) {
+	const ifIndex = 441
+	bus := newRecordBus()
+	sub := newTestSubsystem(t, bus, ifIndex)
+	sid, _ := newPADTSession(t, sub.servers[ifIndex], [EthALen]byte{2, 0, 0, 0, 4, 41})
+	publications := 0
+	subevents.SessionIPAssigned.Subscribe(bus, func(*subevents.SessionIPAssignedPayload) { publications++ })
+	for _, event := range []ppp.EventSessionIPAssigned{
+		{TunnelID: ifIndex, SessionID: sid, Family: ppp.AddressFamilyIPv4},
+		{TunnelID: ifIndex, SessionID: sid, Family: ppp.AddressFamilyIPv6},
+		{TunnelID: ifIndex, SessionID: sid, Family: ppp.AddressFamilyIPv4, Peer: netip.MustParseAddr("2001:db8::99")},
+		{TunnelID: ifIndex, SessionID: sid + 1, Family: ppp.AddressFamilyIPv4, Peer: netip.MustParseAddr("192.0.2.99")},
+		{TunnelID: ifIndex + 1, SessionID: sid, Family: ppp.AddressFamilyIPv4, Peer: netip.MustParseAddr("192.0.2.99")},
+	} {
+		id := pppoeSessionID(int(event.TunnelID), event.SessionID)
+		t.Cleanup(func() { subscriber.DefaultRegistry.Remove(id) })
+		sub.handlePPPEvent(event)
+		_, ok := subscriber.DefaultRegistry.Get(id)
+		require.False(t, ok, "unusable assignment must not create a subscriber")
+	}
+	require.Equal(t, 0, publications)
+}
+
+// This mid-lifetime fixture separates LCPDown discrimination from the old
+// consumer's independent failure to retain assignments before SessionUp.
+func TestPPPoESubscriberLCPDownWithdrawsPublishedLifetime(t *testing.T) {
+	if !isolatedPPPoELifetime(t) {
+		return
+	}
+	const ifIndex = 461
+	bus := newRecordBus()
+	sub := newTestSubsystem(t, bus, ifIndex)
+	server := sub.servers[ifIndex]
+	sid, fd := newPADTSession(t, server, [EthALen]byte{2, 0, 0, 0, 4, 61})
+	id := pppoeSessionID(ifIndex, sid)
+	addr := netip.MustParseAddr("192.0.2.46")
+	subscriber.DefaultRegistry.Add(&subscriber.Session{
+		ID: id, AccessType: subscriber.AccessPPPoE, PPPoESID: sid,
+		AccessIfIndex: ifIndex, State: subscriber.StateConfiguring, IPv4Addr: addr,
+	})
+	t.Cleanup(func() { subscriber.DefaultRegistry.Remove(id) })
+	l2tp.StoreSessionMetadata(ifIndex, sid, &l2tp.AuthMetadata{FilterID: "rate:20mbit/5mbit"})
+	t.Cleanup(func() { l2tp.ClearSessionMetadata(ifIndex, sid) })
+	key := pendingAuthKey{ifindex: ifIndex, sessionID: sid}
+	sub.pendingAuth.Store(key, pendingAuthInfo{username: "old-user", authMethod: "pap"})
+	var down []subscriber.Session
+	subevents.SessionDown.Subscribe(bus, func(p *subevents.SessionDownPayload) { down = append(down, p.Session) })
+	var sent [][]byte
+	server.sendFrameFn = func(frame []byte) { sent = append(sent, append([]byte(nil), frame...)) }
+	baseline := pppoeActiveSubscribers(t)
+
+	sub.handlePPPEvent(ppp.EventLCPDown{TunnelID: ifIndex, SessionID: sid, NetworkPhase: true})
+	require.Len(t, down, 1, "LCPDown must publish the existing subscriber withdrawal")
+	require.Equal(t, addr, down[0].IPv4Addr)
+	_, ok := subscriber.DefaultRegistry.Get(id)
+	require.False(t, ok)
+	require.Nil(t, l2tp.LoadSessionMetadata(ifIndex, sid))
+	_, pending := sub.pendingAuth.Load(key)
+	require.False(t, pending)
+	require.Equal(t, baseline, pppoeActiveSubscribers(t), "configuring lifetime was never active")
+	require.NotNil(t, server.sessions.Lookup(sid))
+	_, err := unix.Write(fd, []byte("LCP Configure-Request"))
+	require.NoError(t, err)
+	require.Empty(t, sent, "LCPDown must leave PPPoE usable, without PADT")
+}

@@ -66,51 +66,52 @@ type pAPRequest struct {
 //	Code (1) | Identifier (1) | Length (2) | Peer-ID Length (1)
 //	| Peer-ID (variable) | Passwd-Length (1) | Password (variable)
 func parsePAPRequest(buf []byte) (pAPRequest, error) {
+	if err := validatePAPRequest(buf); err != nil {
+		return pAPRequest{}, err
+	}
+	peerEnd := 5 + int(buf[4])
+	passwordEnd := peerEnd + 1 + int(buf[peerEnd])
+	return pAPRequest{
+		Identifier: buf[1],
+		Username:   string(buf[5:peerEnd]),
+		Password:   string(buf[peerEnd+1 : passwordEnd]),
+	}, nil
+}
+
+// validatePAPRequest checks the wire bounds without copying credentials.
+// Reanswers need only the Identifier and MUST NOT retain the incoming frame.
+func validatePAPRequest(buf []byte) error {
 	if len(buf) < papHeaderLen {
-		return pAPRequest{}, errPAPTooShort
+		return errPAPTooShort
 	}
 	if buf[0] != PAPAuthenticateRequest {
-		return pAPRequest{}, errPAPWrongCode
+		return errPAPWrongCode
 	}
-	identifier := buf[1]
 	length := int(binary.BigEndian.Uint16(buf[2:4]))
 	if length < papHeaderLen {
-		return pAPRequest{}, errPAPLengthMismatch
+		return errPAPLengthMismatch
 	}
 	if length > len(buf) {
-		return pAPRequest{}, errPAPLengthMismatch
+		return errPAPLengthMismatch
 	}
-	if length > MaxFrameLen-2 {
-		return pAPRequest{}, errPAPLengthMismatch
+	if length > MaxFrameLen {
+		return errPAPLengthMismatch
 	}
 	body := buf[papHeaderLen:length]
-
-	// Peer-ID Length + Peer-ID.
-	if len(body) < 1 {
-		return pAPRequest{}, errPAPPeerIDOverflow
+	if len(body) == 0 {
+		return errPAPPeerIDOverflow
 	}
-	pidLen := int(body[0])
-	if 1+pidLen > len(body) {
-		return pAPRequest{}, errPAPPeerIDOverflow
+	peerEnd := 1 + int(body[0])
+	if peerEnd > len(body) {
+		return errPAPPeerIDOverflow
 	}
-	peerID := string(body[1 : 1+pidLen])
-	body = body[1+pidLen:]
-
-	// Passwd-Length + Password.
-	if len(body) < 1 {
-		return pAPRequest{}, errPAPPasswdOverflow
+	if peerEnd == len(body) {
+		return errPAPPasswdOverflow
 	}
-	pwLen := int(body[0])
-	if 1+pwLen > len(body) {
-		return pAPRequest{}, errPAPPasswdOverflow
+	if peerEnd+1+int(body[peerEnd]) > len(body) {
+		return errPAPPasswdOverflow
 	}
-	password := string(body[1 : 1+pwLen])
-
-	return pAPRequest{
-		Identifier: identifier,
-		Username:   peerID,
-		Password:   password,
-	}, nil
+	return nil
 }
 
 // WritePAPAck encodes a PAP Authenticate-Ack into buf at offset off
@@ -217,15 +218,20 @@ func (s *pppSession) runPAPAuthPhase() bool {
 	writeBuf := getFrameBuf()
 	defer putFrameBuf(writeBuf)
 	off := WriteFrame(writeBuf, 0, ProtoPAP, nil)
-	msg := []byte(resp.message)
+	code := PAPAuthenticateAck
 	if resp.accept {
-		off += WritePAPAck(writeBuf, off, req.Identifier, msg)
+		off += WritePAPAck(writeBuf, off, req.Identifier, []byte(resp.message))
 	} else {
-		off += WritePAPNak(writeBuf, off, req.Identifier, msg)
+		code = PAPAuthenticateNak
+		off += WritePAPNak(writeBuf, off, req.Identifier, []byte(resp.message))
 	}
 	if !s.writeFrame(writeBuf[:off]) {
 		return false
 	}
+	// RFC 1334 Section 2.2.1: "Because the Authenticate-Ack might be lost,
+	// the authenticator MUST allow repeated Authenticate-Request packets
+	// after completing the Authentication phase."
+	s.papReplyCode = code
 
 	if resp.accept {
 		s.sendAuthEvent(eventAuthSuccess{
@@ -242,4 +248,30 @@ func (s *pppSession) runPAPAuthPhase() bool {
 		Reason:    resp.message,
 	})
 	return false
+}
+
+// reanswerPAP preserves the authentication decision for later requests.
+// The session goroutine MUST call this only after PAP authentication completed.
+// It MUST discard PAP requests in other phases and clear the decision when LCP
+// leaves the network phase. This returns false on a failed reply write.
+// RFC 1334 Section 2.2.2 reply offsets:
+//
+//	0 Code | 1 Identifier | 2..3 Length | 4 Msg-Length | 5.. Message
+func (s *pppSession) reanswerPAP(payload []byte) bool {
+	if s.papReplyCode == 0 {
+		return true
+	}
+	if err := validatePAPRequest(payload); err != nil {
+		return true
+	}
+	buf := getFrameBuf()
+	defer putFrameBuf(buf)
+	off := WriteFrame(buf, 0, ProtoPAP, nil)
+	// RFC 1334 Section 2.2.1: "Protocol phase MUST return the same reply
+	// Code returned when the Authentication phase completed (the message
+	// portion MAY be different)."
+	// RFC 1334 Section 2.2.2: "The Identifier field MUST be copied from the
+	// Identifier field of the Authenticate-Request which caused this reply."
+	off += writePAPReply(buf, off, s.papReplyCode, payload[1], nil)
+	return s.writeFrame(buf[:off])
 }

@@ -62,7 +62,7 @@ func TestLCPPacketParseTooShort(t *testing.T) {
 
 // VALIDATES: ParseLCPPacket rejects Length field below 4, above buf
 //
-//	length, or above MaxFrameLen-2.
+//	length, or above MaxFrameLen.
 func TestLCPPacketParseInvalidLength(t *testing.T) {
 	cases := []struct {
 		name string
@@ -393,5 +393,205 @@ func TestRFC1661RepeatedOptionDrawsOneNakEntry(t *testing.T) {
 	}
 	if ack.Identifier != 0xD2 {
 		t.Errorf("Configure-Ack Identifier = 0x%02x, want 0xD2", ack.Identifier)
+	}
+}
+
+// RFC requirement: RFC1661-5.2-3 positive -- a matching Configure-Ack advances Req-Sent to Ack-Rcvd.
+// RFC requirement: RFC1661-5.2-3 negative -- an Ack for another Identifier leaves the FSM and wire unchanged.
+// RFC requirement: RFC1661-5.2-4 positive -- the Ack must echo the complete request options before negotiation advances.
+// RFC requirement: RFC1661-5.2-4 negative -- changed, missing, extra or reordered Ack options leave negotiation unchanged.
+// RFC requirement: RFC1661-5.3-7 positive -- a Nak for the outstanding Identifier produces the next Configure-Request.
+// RFC requirement: RFC1661-5.3-7 negative -- a Nak for another Identifier neither changes the request nor enters the FSM.
+// RFC requirement: RFC1661-5.4-3 positive -- a Reject for the outstanding Identifier produces a request without the rejected option.
+// RFC requirement: RFC1661-5.4-3 negative -- a Reject for another Identifier leaves the request and FSM unchanged.
+// RFC requirement: RFC1661-5.4-4 positive -- an ordered unchanged subset in a Reject is accepted.
+// RFC requirement: RFC1661-5.4-4 negative -- added, changed or reordered Reject options are silently discarded.
+func TestLCPRepliesMatchOutstandingRequest(t *testing.T) {
+	t.Parallel()
+	for _, tc := range []struct {
+		name string
+		code uint8
+		breakReply func(*LCPPacket)
+	}{
+		{"Ack wrong Identifier", LCPConfigureAck, func(p *LCPPacket) { p.Identifier++ }},
+		{"Ack changed value", LCPConfigureAck, func(p *LCPPacket) { p.Data[len(p.Data)-1] ^= 1 }},
+		{"Ack missing option", LCPConfigureAck, func(p *LCPPacket) { p.Data = p.Data[:4] }},
+		{"Ack extra option", LCPConfigureAck, func(p *LCPPacket) { p.Data = append(p.Data, LCPOptPFC, 2) }},
+		{"Ack reordered options", LCPConfigureAck, func(p *LCPPacket) {
+			p.Data = append(append([]byte(nil), p.Data[4:]...), p.Data[:4]...)
+		}},
+		{"Nak wrong Identifier", LCPConfigureNak, func(p *LCPPacket) { p.Identifier++ }},
+		{"Nak reordered options", LCPConfigureNak, func(p *LCPPacket) {
+			p.Data = optStream(magicOption(0x22223333), mruOption(1400))
+		}},
+		{"Nak duplicate option", LCPConfigureNak, func(p *LCPPacket) { p.Data = append(p.Data, p.Data...) }},
+		{"Nak truncated option", LCPConfigureNak, func(p *LCPPacket) { p.Data = p.Data[:3] }},
+		{"Reject wrong Identifier", LCPConfigureReject, func(p *LCPPacket) { p.Identifier++ }},
+		{"Nak invalid MRU length", LCPConfigureNak, func(p *LCPPacket) { p.Data = []byte{LCPOptMRU, 3, 5} }},
+		{"Reject changed value", LCPConfigureReject, func(p *LCPPacket) { p.Data[3] ^= 1 }},
+		{"Reject unrequested option", LCPConfigureReject, func(p *LCPPacket) { p.Data = []byte{222, 2} }},
+		{"Reject reordered options", LCPConfigureReject, func(p *LCPPacket) {
+			p.Data = optStream(magicOption(0x01020304), mruOption(MaxFrameLen))
+		}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			s, rec, _ := newRFC1661Session(LCPStateReqSent)
+			if !s.sendConfigureRequest() {
+				t.Fatal("initial request failed")
+			}
+			request := lastLCPConfigureRequest(t, rec)
+			data := request.Data
+			switch tc.code {
+			case LCPConfigureNak:
+				data = optStream(mruOption(1400))
+			case LCPConfigureReject:
+				data = request.Data[:4]
+			}
+			reply := LCPPacket{Code: tc.code, Identifier: request.Identifier, Data: bytes.Clone(data)}
+			tc.breakReply(&reply)
+			before := rec.count()
+			if s.handleLCPPacket(reply) {
+				t.Fatal("invalid reply terminated the session")
+			}
+			if s.currentState() != LCPStateReqSent || rec.count() != before {
+				t.Fatal("invalid reply changed the FSM or emitted a packet")
+			}
+			if s.magic != 0x01020304 {
+				t.Fatal("invalid reply changed the local Magic-Number")
+			}
+			reply = LCPPacket{Code: tc.code, Identifier: request.Identifier, Data: data}
+			if s.handleLCPPacket(reply) {
+				t.Fatal("matching reply terminated the session")
+			}
+			if tc.code == LCPConfigureAck {
+				if s.currentState() != LCPStateAckRcvd || !s.magicNegotiated {
+					t.Fatal("matching Ack did not advance negotiation")
+				}
+				return
+			}
+			next := lastLCPConfigureRequest(t, rec)
+			if rec.count() != before+1 || next.Identifier == request.Identifier {
+				t.Fatal("matching negative reply did not produce a fresh request")
+			}
+			opts, err := ParseLCPOptions(next.Data)
+			if err != nil {
+				t.Fatal(err)
+			}
+			mru, hasMRU := lookupMRUOption(opts)
+			if tc.code == LCPConfigureNak && (!hasMRU || mru != 1400) {
+				t.Fatal("next request did not carry the accepted MRU suggestion")
+			}
+			if tc.code == LCPConfigureReject && hasMRU {
+				t.Fatal("next request repeated the rejected MRU option")
+			}
+		})
+	}
+}
+
+// RFC requirement: RFC1661-5.1-3 positive -- changed request data and a valid reply both cause a fresh Configure-Request Identifier.
+// RFC requirement: RFC1661-5.1-3 negative -- a lost reply retransmits the outstanding request unchanged, while a mismatching Ack cannot advance it.
+func TestLCPConfigureRequestIdentifierLifecycle(t *testing.T) {
+	s, rec, _ := newRFC1661Session(LCPStateClosed)
+	if s.applyTransition(LCPStateClosed, LCPDoTransition(LCPStateClosed, LCPEventOpen), LCPPacket{}) {
+		t.Fatal("opening session failed")
+	}
+	first := lastLCPConfigureRequest(t, rec)
+	if s.handleRestartTimeout() {
+		t.Fatal("first retry exhausted the session")
+	}
+	retry := lastLCPConfigureRequest(t, rec)
+	if retry.Identifier != first.Identifier || !bytes.Equal(retry.Data, first.Data) {
+		t.Fatal("timeout retransmission did not preserve the outstanding request")
+	}
+	s.magic ^= 1
+	if !s.sendConfigureRequest() {
+		t.Fatal("changed request failed")
+	}
+	changed := lastLCPConfigureRequest(t, rec)
+	if changed.Identifier == retry.Identifier || bytes.Equal(changed.Data, retry.Data) {
+		t.Fatal("changed options did not receive a fresh Identifier")
+	}
+	before := rec.count()
+	s.handleLCPPacket(LCPPacket{Code: LCPConfigureAck, Identifier: retry.Identifier, Data: retry.Data})
+	if rec.count() != before || s.currentState() != LCPStateReqSent {
+		t.Fatal("stale Ack advanced the current request")
+	}
+	s.handleLCPPacket(LCPPacket{Code: LCPConfigureAck, Identifier: changed.Identifier, Data: changed.Data})
+	if s.currentState() != LCPStateAckRcvd {
+		t.Fatal("matching Ack did not enter Ack-Rcvd")
+	}
+	if s.handleRestartTimeout() {
+		t.Fatal("timeout after Ack terminated negotiation")
+	}
+	afterAck := lastLCPConfigureRequest(t, rec)
+	if afterAck.Identifier == changed.Identifier || !bytes.Equal(afterAck.Data, changed.Data) {
+		t.Fatal("new request after a valid reply did not change Identifier")
+	}
+}
+
+// RFC requirement: RFC1661-5.4-5 positive -- all rejected MRU, Authentication-Protocol and Magic-Number options disappear from the next request, including when every option was rejected.
+// RFC requirement: RFC1661-5.4-5 negative -- rejecting only MRU leaves the un-rejected Authentication-Protocol and Magic-Number unchanged.
+func TestLCPRejectedOptionsStayRemoved(t *testing.T) {
+	for _, all := range []bool{false, true} {
+		s, rec, _ := newRFC1661Session(LCPStateReqSent)
+		s.configuredAuthMethod = AuthMethodPAP
+		if !s.sendConfigureRequest() {
+			t.Fatal("initial request failed")
+		}
+		request := lastLCPConfigureRequest(t, rec)
+		rejected := request.Data[:4]
+		if all {
+			rejected = request.Data
+		}
+		if s.handleLCPPacket(LCPPacket{Code: LCPConfigureReject, Identifier: request.Identifier, Data: rejected}) {
+			t.Fatal("valid Reject terminated negotiation")
+		}
+		next := lastLCPConfigureRequest(t, rec)
+		if next.Identifier == request.Identifier {
+			t.Fatal("Reject did not trigger a new request")
+		}
+		if all {
+			if len(next.Data) != 0 {
+				t.Fatalf("rejected options remain: % x", next.Data)
+			}
+			if s.handleLCPPacket(LCPPacket{Code: LCPConfigureAck, Identifier: next.Identifier, Data: nil}) ||
+				s.currentState() != LCPStateAckRcvd {
+				t.Fatal("empty request could not be acknowledged")
+			}
+		} else if !bytes.Equal(next.Data, request.Data[4:]) {
+			t.Fatalf("un-rejected options changed: got % x, want % x", next.Data, request.Data[4:])
+		}
+	}
+}
+
+// TestPAPDecisionDoesNotSurviveLCPDown prevents a cached authentication
+// decision from authorizing replies after renegotiation or termination.
+func TestPAPDecisionDoesNotSurviveLCPDown(t *testing.T) {
+	for _, code := range []uint8{LCPConfigureRequest, LCPTerminateRequest} {
+		t.Run(LCPCodeName(code), func(t *testing.T) {
+			s, rec, _ := newRFC1661Session(LCPStateOpened)
+			s.papReplyCode = PAPAuthenticateAck
+			pap := lcpFrame(ProtoPAP, PAPAuthenticateRequest, 7, []byte{1, 'u', 1, 'p'})
+			if s.handleFrame(pap) {
+				t.Fatal("post-authentication PAP repeat terminated the session")
+			}
+			frames := decodeFrames(t, rec)
+			if len(frames) != 1 || frames[0].Proto != ProtoPAP ||
+				frames[0].Pkt.Code != PAPAuthenticateAck || frames[0].Pkt.Identifier != 7 {
+				t.Fatal("completed authentication did not reanswer its PAP request")
+			}
+			var data []byte
+			if code == LCPConfigureRequest {
+				data = optStream(mruOption(1400), magicOption(0xaabbccdd))
+			}
+			if s.handleFrame(lcpFrame(ProtoLCP, code, 8, data)) {
+				t.Fatal("LCP down transition prematurely terminated the session")
+			}
+			before := rec.count()
+			s.handleFrame(pap)
+			if rec.count() != before {
+				t.Fatal("cached PAP decision was reused after LCP went down")
+			}
+		})
 	}
 }

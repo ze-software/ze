@@ -30,8 +30,8 @@ func FuzzParseCHAPResponse(f *testing.F) {
 		{0x02, 0x00, 0x00, 0x05, 0x00},
 		// Value-Size overflows Length.
 		{0x02, 0x00, 0x00, 0x08, 0xFF, 'a', 'b', 'c'},
-		// max-frame-sized buffer of zeros (MaxFrameLen - 2).
-		make([]byte, MaxFrameLen-2),
+		// Maximum-sized Information field.
+		make([]byte, MaxFrameLen),
 	}
 	for _, s := range seeds {
 		f.Add(s)

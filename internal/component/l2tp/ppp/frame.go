@@ -25,20 +25,30 @@ const (
 	ProtoIPv6   uint16 = 0x0057 // kernel-handled
 )
 
-// MaxFrameLen caps the size of a single PPP frame ze will accept or
-// produce. Bound by negotiated MRU; 1500 is the LCP default per
-// RFC 1661 Section 6.1. 64-byte minimum from RFC 1661 Section 6.1.
+// MaxFrameLen is the largest Information field ze accepts or produces:
+// the LCP default MRU of 1500 octets, RFC 1661 Section 6.1. It bounds the
+// Length of every packet parser in this package.
+//
+// MaxFrameBufLen bounds a whole frame as it arrives from the chan fd: the
+// Protocol field plus a full MaxFrameLen Information field. RFC 1661
+// Section 6.1: "If smaller packets are requested, an implementation MUST
+// still be able to receive the full 1500 octet information field in case
+// link synchronization is lost." So the read buffer and ParseFrame are
+// sized to the full field whatever MRU was negotiated, and the two octets
+// of Protocol field are counted on top of it, never inside it.
 const (
-	MinFrameLen = 64 + 2 // MRU floor + protocol field
-	MaxFrameLen = 1500
+	ProtoFieldLen  = 2
+	MinFrameLen    = 64 + ProtoFieldLen // MRU floor + protocol field
+	MaxFrameLen    = 1500
+	MaxFrameBufLen = ProtoFieldLen + MaxFrameLen
 )
 
 // errFrameTooShort is returned when a buffer is smaller than the
 // two-byte protocol field minimum.
 var errFrameTooShort = errors.New("ppp: frame too short for two-byte protocol field")
 
-// errFrameTooLong is returned when a buffer exceeds MaxFrameLen.
-var errFrameTooLong = errors.New("ppp: frame exceeds MaxFrameLen")
+// errFrameTooLong is returned when a buffer exceeds MaxFrameBufLen.
+var errFrameTooLong = errors.New("ppp: information field exceeds 1500 octets")
 
 // ParseFrame extracts the protocol field and returns the payload slice
 // (a sub-slice of buf, no copy).
@@ -60,7 +70,10 @@ func ParseFrame(buf []byte) (proto uint16, payload []byte, headerLen int, err er
 	if len(buf) < 2 {
 		return 0, nil, 0, errFrameTooShort
 	}
-	if len(buf) > MaxFrameLen {
+	// RFC 1661 Section 6.1: "an implementation MUST still be able to
+	// receive the full 1500 octet information field", so the bound is the
+	// Protocol field plus that field, not the MRU alone.
+	if len(buf) > MaxFrameBufLen {
 		return 0, nil, 0, errFrameTooLong
 	}
 	return binary.BigEndian.Uint16(buf[:2]), buf[2:], 2, nil

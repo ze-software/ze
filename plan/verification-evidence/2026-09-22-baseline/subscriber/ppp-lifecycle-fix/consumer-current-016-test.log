@@ -1,0 +1,1791 @@
+=== RUN   TestChallengeResponseKnown
+=== RUN   TestChallengeResponseKnown/SCCRP_chapID=2
+=== RUN   TestChallengeResponseKnown/SCCCN_chapID=3
+--- PASS: TestChallengeResponseKnown (0.00s)
+    --- PASS: TestChallengeResponseKnown/SCCRP_chapID=2 (0.00s)
+    --- PASS: TestChallengeResponseKnown/SCCCN_chapID=3 (0.00s)
+=== RUN   TestChallengeResponseCrossDirection
+--- PASS: TestChallengeResponseCrossDirection (0.00s)
+=== RUN   TestVerifyChallengeResponseWrongLen
+--- PASS: TestVerifyChallengeResponseWrongLen (0.00s)
+=== RUN   TestChallengeResponseLongInput
+--- PASS: TestChallengeResponseLongInput (0.00s)
+=== RUN   TestAVPIteratorBasic
+--- PASS: TestAVPIteratorBasic (0.00s)
+=== RUN   TestAVPIteratorShortLength
+--- PASS: TestAVPIteratorShortLength (0.00s)
+=== RUN   TestAVPIteratorTruncatedValue
+--- PASS: TestAVPIteratorTruncatedValue (0.00s)
+=== RUN   TestAVPIteratorEmptyValueExhaustion
+--- PASS: TestAVPIteratorEmptyValueExhaustion (0.00s)
+=== RUN   TestAVPIteratorReservedBits
+--- PASS: TestAVPIteratorReservedBits (0.00s)
+=== RUN   TestWriteAVPUint16
+--- PASS: TestWriteAVPUint16 (0.00s)
+=== RUN   TestWriteAVPEmptyString
+--- PASS: TestWriteAVPEmptyString (0.00s)
+=== RUN   TestWriteAVPMaxBytes
+--- PASS: TestWriteAVPMaxBytes (0.00s)
+=== RUN   TestAVPCatalogRoundTrip
+=== RUN   TestAVPCatalogRoundTrip/MessageType_u16
+=== RUN   TestAVPCatalogRoundTrip/ProtocolVersion_bytes
+=== RUN   TestAVPCatalogRoundTrip/FramingCap_u32
+=== RUN   TestAVPCatalogRoundTrip/TieBreaker_u64
+=== RUN   TestAVPCatalogRoundTrip/HostName_string
+=== RUN   TestAVPCatalogRoundTrip/AssignedTID_u16
+=== RUN   TestAVPCatalogRoundTrip/SequencingRequired_empty
+=== RUN   TestAVPCatalogRoundTrip/ProxyAuthenID
+--- PASS: TestAVPCatalogRoundTrip (0.00s)
+    --- PASS: TestAVPCatalogRoundTrip/MessageType_u16 (0.00s)
+    --- PASS: TestAVPCatalogRoundTrip/ProtocolVersion_bytes (0.00s)
+    --- PASS: TestAVPCatalogRoundTrip/FramingCap_u32 (0.00s)
+    --- PASS: TestAVPCatalogRoundTrip/TieBreaker_u64 (0.00s)
+    --- PASS: TestAVPCatalogRoundTrip/HostName_string (0.00s)
+    --- PASS: TestAVPCatalogRoundTrip/AssignedTID_u16 (0.00s)
+    --- PASS: TestAVPCatalogRoundTrip/SequencingRequired_empty (0.00s)
+    --- PASS: TestAVPCatalogRoundTrip/ProxyAuthenID (0.00s)
+=== RUN   TestResultCodeRoundTrip
+--- PASS: TestResultCodeRoundTrip (0.00s)
+=== RUN   TestQ931CauseRoundTrip
+--- PASS: TestQ931CauseRoundTrip (0.00s)
+=== RUN   TestCallErrorsRoundTrip
+--- PASS: TestCallErrorsRoundTrip (0.00s)
+=== RUN   TestACCMRoundTrip
+--- PASS: TestACCMRoundTrip (0.00s)
+=== RUN   TestProtocolVersionValue
+--- PASS: TestProtocolVersionValue (0.00s)
+=== RUN   TestCaptureRingAppend
+--- PASS: TestCaptureRingAppend (0.00s)
+=== RUN   TestCaptureRingOverflow
+--- PASS: TestCaptureRingOverflow (0.00s)
+=== RUN   TestCaptureRingFilterTunnelID
+--- PASS: TestCaptureRingFilterTunnelID (0.00s)
+=== RUN   TestCaptureRingFilterPeer
+--- PASS: TestCaptureRingFilterPeer (0.00s)
+=== RUN   TestCaptureRingLimit
+--- PASS: TestCaptureRingLimit (0.00s)
+=== RUN   TestCaptureRingEmpty
+--- PASS: TestCaptureRingEmpty (0.00s)
+=== RUN   TestCaptureRingDirection
+--- PASS: TestCaptureRingDirection (0.00s)
+=== RUN   TestCaptureRingResultCode
+--- PASS: TestCaptureRingResultCode (0.00s)
+=== RUN   TestSampleRingAppendAndSnapshot
+--- PASS: TestSampleRingAppendAndSnapshot (0.00s)
+=== RUN   TestSampleRingWrap
+--- PASS: TestSampleRingWrap (0.00s)
+=== RUN   TestSampleRingReset
+--- PASS: TestSampleRingReset (0.00s)
+=== RUN   TestCQMBucketAddEcho
+--- PASS: TestCQMBucketAddEcho (0.00s)
+=== RUN   TestCQMBucketAddEchoNegativeRTTClamped
+--- PASS: TestCQMBucketAddEchoNegativeRTTClamped (0.00s)
+=== RUN   TestCQMBucketAvgRTTZeroEchoes
+--- PASS: TestCQMBucketAvgRTTZeroEchoes (0.00s)
+=== RUN   TestBucketStateString
+--- PASS: TestBucketStateString (0.00s)
+=== RUN   TestAuthDrainCallsHandler
+--- PASS: TestAuthDrainCallsHandler (0.00s)
+=== RUN   TestAuthDrainNilHandlerRejects
+--- PASS: TestAuthDrainNilHandlerRejects (0.00s)
+=== RUN   TestAuthDrainPanicRecovery
+2026/09/23 01:32:39 ERROR auth handler panic tunnel=1 session=1 panic=boom
+--- PASS: TestAuthDrainPanicRecovery (0.00s)
+=== RUN   TestAuthDrainHandledSentinel
+--- PASS: TestAuthDrainHandledSentinel (0.00s)
+=== RUN   TestPoolDrainCallsHandler
+--- PASS: TestPoolDrainCallsHandler (0.00s)
+=== RUN   TestPoolDrainDefaultReject
+--- PASS: TestPoolDrainDefaultReject (0.00s)
+=== RUN   TestPoolDrainPanicRecovery
+2026/09/23 01:32:39 ERROR pool handler panic tunnel=1 session=1 panic=boom
+--- PASS: TestPoolDrainPanicRecovery (0.00s)
+=== RUN   TestGenlTunnelCreateMsg
+--- PASS: TestGenlTunnelCreateMsg (0.00s)
+=== RUN   TestGenlSessionCreateMsg
+--- PASS: TestGenlSessionCreateMsg (0.00s)
+=== RUN   TestGenlSessionCreateLNS
+--- PASS: TestGenlSessionCreateLNS (0.00s)
+=== RUN   TestGenlSessionCreateSequencing
+--- PASS: TestGenlSessionCreateSequencing (0.00s)
+=== RUN   TestAppendNLAPadding
+--- PASS: TestAppendNLAPadding (0.00s)
+=== RUN   TestMarshalTunnelCreateBoundaryIDs
+=== RUN   TestMarshalTunnelCreateBoundaryIDs/min
+=== RUN   TestMarshalTunnelCreateBoundaryIDs/max
+--- PASS: TestMarshalTunnelCreateBoundaryIDs (0.00s)
+    --- PASS: TestMarshalTunnelCreateBoundaryIDs/min (0.00s)
+    --- PASS: TestMarshalTunnelCreateBoundaryIDs/max (0.00s)
+=== RUN   TestParseControlHeader
+--- PASS: TestParseControlHeader (0.00s)
+=== RUN   TestParseDataHeaderMinimal
+--- PASS: TestParseDataHeaderMinimal (0.00s)
+=== RUN   TestParseDataHeaderAllOptional
+--- PASS: TestParseDataHeaderAllOptional (0.00s)
+=== RUN   TestParseHeaderUnsupportedVersion
+--- PASS: TestParseHeaderUnsupportedVersion (0.00s)
+=== RUN   TestParseHeaderVersionBeforeLength
+=== RUN   TestParseHeaderVersionBeforeLength/L2TPv3_two_bytes_only
+=== RUN   TestParseHeaderVersionBeforeLength/L2F_control_two_bytes_only
+=== RUN   TestParseHeaderVersionBeforeLength/L2TPv3_five_bytes
+--- PASS: TestParseHeaderVersionBeforeLength (0.00s)
+    --- PASS: TestParseHeaderVersionBeforeLength/L2TPv3_two_bytes_only (0.00s)
+    --- PASS: TestParseHeaderVersionBeforeLength/L2F_control_two_bytes_only (0.00s)
+    --- PASS: TestParseHeaderVersionBeforeLength/L2TPv3_five_bytes (0.00s)
+=== RUN   TestParseHeaderEmptyPayload
+--- PASS: TestParseHeaderEmptyPayload (0.00s)
+=== RUN   TestParseHeaderInvariants
+--- PASS: TestParseHeaderInvariants (0.00s)
+=== RUN   TestParseHeaderMalformedControl
+--- PASS: TestParseHeaderMalformedControl (0.00s)
+=== RUN   TestParseHeaderShortBuffer
+=== RUN   TestParseHeaderShortBuffer/too_short_for_flags
+=== RUN   TestParseHeaderShortBuffer/length_exceeds_buffer
+=== RUN   TestParseHeaderShortBuffer/truncated_before_TID
+=== RUN   TestParseHeaderShortBuffer/truncated_offset_pad
+--- PASS: TestParseHeaderShortBuffer (0.00s)
+    --- PASS: TestParseHeaderShortBuffer/too_short_for_flags (0.00s)
+    --- PASS: TestParseHeaderShortBuffer/length_exceeds_buffer (0.00s)
+    --- PASS: TestParseHeaderShortBuffer/truncated_before_TID (0.00s)
+    --- PASS: TestParseHeaderShortBuffer/truncated_offset_pad (0.00s)
+=== RUN   TestWriteControlHeader
+--- PASS: TestWriteControlHeader (0.00s)
+=== RUN   TestWriteDataHeaderRoundTrip
+=== RUN   TestWriteDataHeaderRoundTrip/minimal
+=== RUN   TestWriteDataHeaderRoundTrip/with_length
+=== RUN   TestWriteDataHeaderRoundTrip/all_flags
+=== RUN   TestWriteDataHeaderRoundTrip/offset_size_zero
+--- PASS: TestWriteDataHeaderRoundTrip (0.00s)
+    --- PASS: TestWriteDataHeaderRoundTrip/minimal (0.00s)
+    --- PASS: TestWriteDataHeaderRoundTrip/with_length (0.00s)
+    --- PASS: TestWriteDataHeaderRoundTrip/all_flags (0.00s)
+    --- PASS: TestWriteDataHeaderRoundTrip/offset_size_zero (0.00s)
+=== RUN   TestHiddenRoundTripSingleBlock
+--- PASS: TestHiddenRoundTripSingleBlock (0.00s)
+=== RUN   TestHiddenRoundTripShort
+--- PASS: TestHiddenRoundTripShort (0.00s)
+=== RUN   TestHiddenRoundTripMultiBlock
+--- PASS: TestHiddenRoundTripMultiBlock (0.00s)
+=== RUN   TestHiddenDecryptWrongSecret
+--- PASS: TestHiddenDecryptWrongSecret (0.00s)
+=== RUN   TestHiddenRoundTripEmptyPlaintext
+--- PASS: TestHiddenRoundTripEmptyPlaintext (0.00s)
+=== RUN   TestHiddenRoundTripAttrTypeIndependence
+--- PASS: TestHiddenRoundTripAttrTypeIndependence (0.00s)
+=== RUN   TestKernelWorkerSetupSequence
+--- PASS: TestKernelWorkerSetupSequence (0.00s)
+=== RUN   TestKernelWorkerIdempotentTunnel
+--- PASS: TestKernelWorkerIdempotentTunnel (0.00s)
+=== RUN   TestKernelWorkerTeardownOrder
+--- PASS: TestKernelWorkerTeardownOrder (0.00s)
+=== RUN   TestKernelWorkerTeardownLastSession
+--- PASS: TestKernelWorkerTeardownLastSession (0.01s)
+=== RUN   TestKernelWorkerTeardownUnknownSession
+--- PASS: TestKernelWorkerTeardownUnknownSession (0.01s)
+=== RUN   TestKernelWorkerPartialFailureTunnel
+--- PASS: TestKernelWorkerPartialFailureTunnel (0.00s)
+=== RUN   TestKernelWorkerPartialFailureSession
+--- PASS: TestKernelWorkerPartialFailureSession (0.00s)
+=== RUN   TestKernelWorkerPartialFailurePPP
+--- PASS: TestKernelWorkerPartialFailurePPP (0.00s)
+=== RUN   TestKernelWorkerTeardownAll
+--- PASS: TestKernelWorkerTeardownAll (0.00s)
+=== RUN   TestKernelWorkerStopIdempotent
+--- PASS: TestKernelWorkerStopIdempotent (0.00s)
+=== RUN   TestKernelWorkerEmitsSucceeded
+--- PASS: TestKernelWorkerEmitsSucceeded (0.00s)
+=== RUN   TestKernelWorkerSucceededCoexistsWithNilChannel
+--- PASS: TestKernelWorkerSucceededCoexistsWithNilChannel (0.00s)
+=== RUN   TestKernelWorkerAdoptsAndReleasesTunnelSocket
+--- PASS: TestKernelWorkerAdoptsAndReleasesTunnelSocket (0.00s)
+=== RUN   TestKernelWorkerRollsBackWhenAdoptFails
+--- PASS: TestKernelWorkerRollsBackWhenAdoptFails (0.00s)
+=== RUN   TestListener_BindAndClose
+--- PASS: TestListener_BindAndClose (0.00s)
+=== RUN   TestListener_DoubleStart
+--- PASS: TestListener_DoubleStart (0.00s)
+=== RUN   TestListener_StopIdempotent
+--- PASS: TestListener_StopIdempotent (0.00s)
+=== RUN   TestListener_SendReceive
+--- PASS: TestListener_SendReceive (0.00s)
+=== RUN   TestListener_SendBeforeStart
+--- PASS: TestListener_SendBeforeStart (0.00s)
+=== RUN   TestListenerReadLoopPacesAFailingSocket
+--- PASS: TestListenerReadLoopPacesAFailingSocket (0.56s)
+=== RUN   TestListenerReadLoopStopsPromptlyWhilePacing
+--- PASS: TestListenerReadLoopStopsPromptlyWhilePacing (0.40s)
+=== RUN   TestReadLoopAllocationsPerPacketUnchanged
+--- PASS: TestReadLoopAllocationsPerPacketUnchanged (0.01s)
+=== RUN   TestReaderLoopsCountSwallowedErrors
+--- PASS: TestReaderLoopsCountSwallowedErrors (0.00s)
+=== RUN   TestListener_connectedTunnelSocketReceives
+--- PASS: TestListener_connectedTunnelSocketReceives (0.00s)
+=== RUN   TestListener_AdoptedTunnelSocketDeliversToRX
+--- PASS: TestListener_AdoptedTunnelSocketDeliversToRX (0.00s)
+=== RUN   TestListener_ReleaseTunnelSocketKeepsCallerFD
+--- PASS: TestListener_ReleaseTunnelSocketKeepsCallerFD (0.00s)
+=== RUN   TestListener_AdoptTunnelSocketGuards
+--- PASS: TestListener_AdoptTunnelSocketGuards (0.25s)
+=== RUN   TestKernelSessionRequestedOnlyOnceEstablished
+2026/09/23 01:32:41 INFO l2tp: ICRP sent; session wait-connect local-tid=100 peer=10.0.0.1:1701 local-sid=32016 remote-sid=9 call-serial=1
+2026/09/23 01:32:41 INFO l2tp: session established (incoming LNS) local-tid=100 peer=10.0.0.1:1701 local-sid=32016 remote-sid=9 tx-speed=64000 framing=0x00000001
+--- PASS: TestKernelSessionRequestedOnlyOnceEstablished (0.00s)
+=== RUN   TestSequencingRequiredReachesKernelSession
+=== RUN   TestSequencingRequiredReachesKernelSession/Sequencing_Required_present
+2026/09/23 01:32:41 INFO l2tp: ICRP sent; session wait-connect local-tid=100 peer=10.0.0.1:1701 local-sid=8773 remote-sid=9 call-serial=1
+2026/09/23 01:32:41 INFO l2tp: session established (incoming LNS) local-tid=100 peer=10.0.0.1:1701 local-sid=8773 remote-sid=9 tx-speed=64000 framing=0x00000001
+=== RUN   TestSequencingRequiredReachesKernelSession/Sequencing_Required_absent
+2026/09/23 01:32:41 INFO l2tp: ICRP sent; session wait-connect local-tid=100 peer=10.0.0.1:1701 local-sid=24657 remote-sid=9 call-serial=1
+2026/09/23 01:32:41 INFO l2tp: session established (incoming LNS) local-tid=100 peer=10.0.0.1:1701 local-sid=24657 remote-sid=9 tx-speed=64000 framing=0x00000001
+--- PASS: TestSequencingRequiredReachesKernelSession (0.00s)
+    --- PASS: TestSequencingRequiredReachesKernelSession/Sequencing_Required_present (0.00s)
+    --- PASS: TestSequencingRequiredReachesKernelSession/Sequencing_Required_absent (0.00s)
+=== RUN   TestLACKernelSessionFollowsPeerSequencing
+2026/09/23 01:32:41 INFO l2tp: ICRQ sent; session wait-reply (LAC incoming) local-sid=18705 call-serial=1
+2026/09/23 01:32:41 INFO l2tp: session established (incoming LAC) local-tid=100 peer=10.0.0.1:1701 local-sid=18705 remote-sid=55
+2026/09/23 01:32:41 INFO l2tp: ICRP sent; session wait-connect local-tid=100 peer=10.0.0.1:1701 local-sid=41303 remote-sid=9 call-serial=1
+2026/09/23 01:32:41 INFO l2tp: session established (incoming LNS) local-tid=100 peer=10.0.0.1:1701 local-sid=41303 remote-sid=9 tx-speed=64000 framing=0x00000001
+--- PASS: TestLACKernelSessionFollowsPeerSequencing (0.00s)
+=== RUN   TestControlSocketKeepsUDPChecksums
+--- PASS: TestControlSocketKeepsUDPChecksums (0.00s)
+=== RUN   TestRFC2661HeaderFlagWord
+--- PASS: TestRFC2661HeaderFlagWord (0.00s)
+=== RUN   TestRFC2661ControlHeaderWithoutSequenceRefused
+--- PASS: TestRFC2661ControlHeaderWithoutSequenceRefused (0.00s)
+=== RUN   TestRFC2661UnknownVersionRefused
+--- PASS: TestRFC2661UnknownVersionRefused (0.00s)
+=== RUN   TestRFC2661KnownVersionAccepted
+--- PASS: TestRFC2661KnownVersionAccepted (0.00s)
+=== RUN   TestRFC2661WrittenAVPFlags
+--- PASS: TestRFC2661WrittenAVPFlags (0.00s)
+=== RUN   TestRFC2661MandatoryAVPSetsEmitted
+--- PASS: TestRFC2661MandatoryAVPSetsEmitted (0.00s)
+=== RUN   TestRFC2661MandatoryAVPSetsParsed
+--- PASS: TestRFC2661MandatoryAVPSetsParsed (0.00s)
+=== RUN   TestRFC2661HostNameAtLeastOneOctet
+--- PASS: TestRFC2661HostNameAtLeastOneOctet (0.00s)
+=== RUN   TestRFC2661CallErrorsReservedZero
+--- PASS: TestRFC2661CallErrorsReservedZero (0.00s)
+=== RUN   TestRFC2661HelloShape
+--- PASS: TestRFC2661HelloShape (0.00s)
+=== RUN   TestUnknownMessageTypeClearsTunnelWhenMandatory
+=== RUN   TestUnknownMessageTypeClearsTunnelWhenMandatory/M-bit_set_clears_the_tunnel
+2026/09/23 01:32:41 INFO l2tp: SCCRQ sent; tunnel now wait-ctl-reply local-tid=100 peer=10.0.0.2:1701 challenge=false tie-breaker=false
+2026/09/23 01:32:41 WARN l2tp: unknown mandatory message type; clearing the control connection local-tid=100 peer=10.0.0.2:1701 type=32767 ns=0 session-id=0
+2026/09/23 01:32:41 INFO l2tp: StopCCN sent; tunnel closed local-tid=100 peer=10.0.0.2:1701 result-code=2
+=== RUN   TestUnknownMessageTypeClearsTunnelWhenMandatory/M-bit_clear_is_ignored
+2026/09/23 01:32:41 INFO l2tp: SCCRQ sent; tunnel now wait-ctl-reply local-tid=100 peer=10.0.0.2:1701 challenge=false tie-breaker=false
+--- PASS: TestUnknownMessageTypeClearsTunnelWhenMandatory (0.00s)
+    --- PASS: TestUnknownMessageTypeClearsTunnelWhenMandatory/M-bit_set_clears_the_tunnel (0.00s)
+    --- PASS: TestUnknownMessageTypeClearsTunnelWhenMandatory/M-bit_clear_is_ignored (0.00s)
+=== RUN   TestHiddenMessageTypeClearsTunnel
+2026/09/23 01:32:41 INFO l2tp: SCCRQ sent; tunnel now wait-ctl-reply local-tid=100 peer=10.0.0.2:1701 challenge=false tie-breaker=false
+2026/09/23 01:32:41 WARN l2tp: malformed control message; clearing the control connection local-tid=100 peer=10.0.0.2:1701 reason="control message does not begin with a well-formed Message Type AVP" ns=0 session-id=0
+2026/09/23 01:32:41 INFO l2tp: StopCCN sent; tunnel closed local-tid=100 peer=10.0.0.2:1701 result-code=2
+2026/09/23 01:32:41 INFO l2tp: SCCRQ sent; tunnel now wait-ctl-reply local-tid=100 peer=10.0.0.2:1701 challenge=false tie-breaker=false
+2026/09/23 01:32:41 WARN l2tp: malformed control message; clearing the control connection local-tid=100 peer=10.0.0.2:1701 reason="control message does not begin with a well-formed Message Type AVP" ns=0 session-id=0
+2026/09/23 01:32:41 INFO l2tp: StopCCN sent; tunnel closed local-tid=100 peer=10.0.0.2:1701 result-code=2
+--- PASS: TestHiddenMessageTypeClearsTunnel (0.00s)
+=== RUN   TestBindL2TPMetrics_Registration
+--- PASS: TestBindL2TPMetrics_Registration (0.00s)
+=== RUN   TestBindL2TPMetrics_NilRegistry
+--- PASS: TestBindL2TPMetrics_NilRegistry (0.00s)
+=== RUN   TestObserveCQMBucket
+--- PASS: TestObserveCQMBucket (0.00s)
+=== RUN   TestObserveCQMBucket_NilMetrics
+--- PASS: TestObserveCQMBucket_NilMetrics (0.00s)
+=== RUN   TestDeleteLoginMetrics
+--- PASS: TestDeleteLoginMetrics (0.00s)
+=== RUN   TestStatsPoller_CounterDeltas
+--- PASS: TestStatsPoller_CounterDeltas (0.00s)
+=== RUN   TestStatsPoller_SessionDisappears
+--- PASS: TestStatsPoller_SessionDisappears (0.00s)
+=== RUN   TestDeleteSessionSeries
+--- PASS: TestDeleteSessionSeries (0.00s)
+=== RUN   TestFormatSID
+--- PASS: TestFormatSID (0.00s)
+=== RUN   TestParsePollInterval_Default
+--- PASS: TestParsePollInterval_Default (0.00s)
+=== RUN   TestObservability_InitiatorTunnelState
+--- PASS: TestObservability_InitiatorTunnelState (0.00s)
+=== RUN   TestObservability_InitiatorSessionState
+--- PASS: TestObservability_InitiatorSessionState (0.01s)
+=== RUN   TestEventRingAppendAndWrap
+--- PASS: TestEventRingAppendAndWrap (0.00s)
+=== RUN   TestEventRingReset
+--- PASS: TestEventRingReset (0.00s)
+=== RUN   TestEventRingRoutesBySessionID
+--- PASS: TestEventRingRoutesBySessionID (0.00s)
+=== RUN   TestObserverPoolPreallocation
+--- PASS: TestObserverPoolPreallocation (0.00s)
+=== RUN   TestObserverPoolReturnAndReuse
+--- PASS: TestObserverPoolReturnAndReuse (0.00s)
+=== RUN   TestObserverLRUEviction
+--- PASS: TestObserverLRUEviction (0.00s)
+=== RUN   TestLoginContinuity
+--- PASS: TestLoginContinuity (0.00s)
+=== RUN   TestCQMBucketBoundary
+--- PASS: TestCQMBucketBoundary (0.00s)
+=== RUN   TestCQMBucketStateTag
+--- PASS: TestCQMBucketStateTag (0.00s)
+=== RUN   TestObserverEventTypeString
+--- PASS: TestObserverEventTypeString (0.00s)
+=== RUN   TestObserverEventSnapshot
+--- PASS: TestObserverEventSnapshot (0.00s)
+=== RUN   TestObserverSnapshotNonExistent
+--- PASS: TestObserverSnapshotNonExistent (0.00s)
+=== RUN   TestSessionSummaries
+--- PASS: TestSessionSummaries (0.00s)
+=== RUN   TestLoginSummaries
+--- PASS: TestLoginSummaries (0.00s)
+=== RUN   TestEchoState
+--- PASS: TestEchoState (0.00s)
+=== RUN   TestSubsystem_PlaceOutgoingCall_PreflightErrors
+--- PASS: TestSubsystem_PlaceOutgoingCall_PreflightErrors (0.00s)
+=== RUN   TestOutgoingCall_SignalsSuccessOnOCCN
+2026/09/23 01:32:41 INFO l2tp: OCRQ sent; session wait-reply (LNS outgoing) local-sid=48871 called=5559999
+2026/09/23 01:32:41 INFO l2tp: OCRP received; session wait-connect (LNS outgoing) local-sid=48871 remote-sid=808
+2026/09/23 01:32:41 INFO l2tp: session established (outgoing) local-sid=48871 remote-sid=808 tx-speed=64000
+--- PASS: TestOutgoingCall_SignalsSuccessOnOCCN (0.00s)
+=== RUN   TestIncomingCall_SignalsSuccessOnICRP
+2026/09/23 01:32:41 INFO l2tp: ICRQ sent; session wait-reply (LAC incoming) local-sid=23950 call-serial=42
+2026/09/23 01:32:41 INFO l2tp: session established (incoming LAC) local-sid=23950 remote-sid=707
+--- PASS: TestIncomingCall_SignalsSuccessOnICRP (0.00s)
+=== RUN   TestOutgoingCall_SignalsFailureOnTeardown
+2026/09/23 01:32:41 INFO l2tp: OCRQ sent; session wait-reply (LNS outgoing) local-sid=25727 called=""
+2026/09/23 01:32:41 INFO l2tp: CDN sent; session destroyed local-sid=25727 remote-sid=0 result-code=2
+--- PASS: TestOutgoingCall_SignalsFailureOnTeardown (0.00s)
+=== RUN   TestResolveCall_NilChannelIsNoOp
+--- PASS: TestResolveCall_NilChannelIsNoOp (0.00s)
+=== RUN   TestPeerCDNEmitsSessionDownWithCause
+=== RUN   TestPeerCDNEmitsSessionDownWithCause/loss-of-carrier
+2026/09/23 01:32:41 INFO l2tp: CDN received; session destroyed local-tid=11 peer=10.0.0.9:1701 local-sid=7 remote-sid=70 result=1 error-code=0
+2026/09/23 01:32:41 WARN l2tp: outbound send failed to=10.0.0.9:1701 len=12 error="l2tp: UDP listener not started"
+=== RUN   TestPeerCDNEmitsSessionDownWithCause/administrative
+2026/09/23 01:32:41 INFO l2tp: CDN received; session destroyed local-tid=11 peer=10.0.0.9:1701 local-sid=7 remote-sid=70 result=3 error-code=0
+2026/09/23 01:32:41 WARN l2tp: outbound send failed to=10.0.0.9:1701 len=12 error="l2tp: UDP listener not started"
+=== RUN   TestPeerCDNEmitsSessionDownWithCause/error-code
+2026/09/23 01:32:41 INFO l2tp: CDN received; session destroyed local-tid=11 peer=10.0.0.9:1701 local-sid=7 remote-sid=70 result=2 error-code=0
+2026/09/23 01:32:41 WARN l2tp: outbound send failed to=10.0.0.9:1701 len=12 error="l2tp: UDP listener not started"
+=== RUN   TestPeerCDNEmitsSessionDownWithCause/no-facilities
+2026/09/23 01:32:41 INFO l2tp: CDN received; session destroyed local-tid=11 peer=10.0.0.9:1701 local-sid=7 remote-sid=70 result=4 error-code=0
+2026/09/23 01:32:41 WARN l2tp: outbound send failed to=10.0.0.9:1701 len=12 error="l2tp: UDP listener not started"
+=== RUN   TestPeerCDNEmitsSessionDownWithCause/reserved
+2026/09/23 01:32:41 INFO l2tp: CDN received; session destroyed local-tid=11 peer=10.0.0.9:1701 local-sid=7 remote-sid=70 result=0 error-code=0
+2026/09/23 01:32:41 WARN l2tp: outbound send failed to=10.0.0.9:1701 len=12 error="l2tp: UDP listener not started"
+--- PASS: TestPeerCDNEmitsSessionDownWithCause (0.00s)
+    --- PASS: TestPeerCDNEmitsSessionDownWithCause/loss-of-carrier (0.00s)
+    --- PASS: TestPeerCDNEmitsSessionDownWithCause/administrative (0.00s)
+    --- PASS: TestPeerCDNEmitsSessionDownWithCause/error-code (0.00s)
+    --- PASS: TestPeerCDNEmitsSessionDownWithCause/no-facilities (0.00s)
+    --- PASS: TestPeerCDNEmitsSessionDownWithCause/reserved (0.00s)
+=== RUN   TestPeerCDNMalformedEmitsNASError
+2026/09/23 01:32:41 WARN l2tp: malformed CDN; destroying session anyway local-tid=11 peer=10.0.0.9:1701 local-sid=7 error="l2tp: invalid AVP length"
+2026/09/23 01:32:41 WARN l2tp: outbound send failed to=10.0.0.9:1701 len=12 error="l2tp: UDP listener not started"
+--- PASS: TestPeerCDNMalformedEmitsNASError (0.00s)
+=== RUN   TestPeerStopCCNEmitsSessionDownPerSession
+2026/09/23 01:32:41 INFO l2tp: StopCCN clearing sessions local-tid=11 peer=10.0.0.9:1701 count=2
+2026/09/23 01:32:41 INFO l2tp: peer StopCCN received; tunnel closed local-tid=11 peer=10.0.0.9:1701 result=1 error-code=0 message="\"\""
+2026/09/23 01:32:41 WARN l2tp: outbound send failed to=10.0.0.9:1701 len=12 error="l2tp: UDP listener not started"
+--- PASS: TestPeerStopCCNEmitsSessionDownPerSession (0.00s)
+=== RUN   TestDeadPeerKeepaliveEmitsSessionDown
+2026/09/23 01:32:41 INFO l2tp: dead peer; keepalive timeout teardown tunnel=11 hello-retries=3 hello-interval=1s since-liveness=1m0s
+2026/09/23 01:32:41 INFO l2tp: teardownStopCCN clearing sessions local-tid=11 peer=10.0.0.9:1701 count=1
+2026/09/23 01:32:41 INFO l2tp: StopCCN sent; tunnel closed local-tid=11 peer=10.0.0.9:1701 result-code=1
+2026/09/23 01:32:41 WARN l2tp: outbound send failed to=10.0.0.9:1701 len=36 error="l2tp: UDP listener not started"
+--- PASS: TestDeadPeerKeepaliveEmitsSessionDown (0.00s)
+=== RUN   TestSockaddrPPPoL2TP
+--- PASS: TestSockaddrPPPoL2TP (0.00s)
+=== RUN   TestSockaddrPPPoL2TPRejectsIPv6
+--- PASS: TestSockaddrPPPoL2TPRejectsIPv6 (0.00s)
+=== RUN   TestRawCaptureRingAppend
+--- PASS: TestRawCaptureRingAppend (0.00s)
+=== RUN   TestRawCaptureRingOverflow
+--- PASS: TestRawCaptureRingOverflow (0.00s)
+=== RUN   TestRawCaptureRingLimit
+--- PASS: TestRawCaptureRingLimit (0.00s)
+=== RUN   TestRawCaptureRingEmpty
+--- PASS: TestRawCaptureRingEmpty (0.00s)
+=== RUN   TestRawCaptureRingTruncation
+--- PASS: TestRawCaptureRingTruncation (0.00s)
+=== RUN   TestRawCaptureRingCopiesData
+--- PASS: TestRawCaptureRingCopiesData (0.00s)
+=== RUN   TestReactor_DialCreatesInitiatorTunnel
+--- PASS: TestReactor_DialCreatesInitiatorTunnel (0.00s)
+=== RUN   TestReactor_DialLoopbackHandshake
+--- PASS: TestReactor_DialLoopbackHandshake (0.00s)
+=== RUN   TestReactor_InitiatorTieBreaker
+--- PASS: TestReactor_InitiatorTieBreaker (0.00s)
+=== RUN   TestReactor_placeOutgoingCallSync_TieBreakerLoss
+--- PASS: TestReactor_placeOutgoingCallSync_TieBreakerLoss (0.00s)
+=== RUN   TestReactor_placeOutgoingCallSync_Timeout
+--- PASS: TestReactor_placeOutgoingCallSync_Timeout (0.15s)
+=== RUN   TestReactor_placeOutgoingCallSync_AuthReject
+--- PASS: TestReactor_placeOutgoingCallSync_AuthReject (0.00s)
+=== RUN   TestReactor_PlaceOutgoingCall_AutoOCRQ
+--- PASS: TestReactor_PlaceOutgoingCall_AutoOCRQ (0.00s)
+=== RUN   TestReactor_PlaceIncomingCall_AutoICRQ
+--- PASS: TestReactor_PlaceIncomingCall_AutoICRQ (0.00s)
+=== RUN   TestReactorCollectsKernelSetupEvent
+--- PASS: TestReactorCollectsKernelSetupEvent (0.00s)
+=== RUN   TestReactorCollectsTeardownEvent
+--- PASS: TestReactorCollectsTeardownEvent (0.00s)
+=== RUN   TestReactorKernelDisabledSkipsSetupsButStillDrainsTeardowns
+--- PASS: TestReactorKernelDisabledSkipsSetupsButStillDrainsTeardowns (0.00s)
+=== RUN   TestReactorHandleKernelErrorSendsCDN
+--- PASS: TestReactorHandleKernelErrorSendsCDN (0.00s)
+=== RUN   TestReactorDiscardTunnelReturnsKernelTeardowns
+--- PASS: TestReactorDiscardTunnelReturnsKernelTeardowns (0.00s)
+=== RUN   TestReactorHandleKernelErrorSessionGone
+--- PASS: TestReactorHandleKernelErrorSessionGone (0.00s)
+=== RUN   TestReactorReauthIntervalFromParams
+=== RUN   TestReactorReauthIntervalFromParams/disabled
+--- FAIL: TestReactorReauthIntervalFromParams (0.00s)
+    --- FAIL: TestReactorReauthIntervalFromParams/disabled (0.00s)
+panic: assignment to entry in nil map [recovered, repanicked]
+
+goroutine 440 [running]:
+testing.tRunner.func1.2({0x1bb7e78, 0x1ce3f10})
+	/usr/lib/go-1.27/src/testing/testing.go:2123 +0x419
+testing.tRunner.func1()
+	/usr/lib/go-1.27/src/testing/testing.go:2126 +0x65f
+panic({0x1bb7e78?, 0x1ce3f10?})
+	/usr/lib/go-1.27/src/runtime/panic.go:859 +0x125
+github.com/ze-software/ze/internal/component/l2tp.deliverOwnedKernelSuccess(0xc000402c88, {0x64, 0x3e9, 0x1, 0x0, {0x1e, 0x1f, 0x20, 0x7, 0x0}, ...})
+	/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/reactor_ppp_linux_test.go:110 +0x231
+github.com/ze-software/ze/internal/component/l2tp.TestReactorReauthIntervalFromParams.func1(0xc000203688)
+	/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/reactor_ppp_linux_test.go:60 +0xc85
+testing.tRunner(0xc000203688, 0xc0000fc360)
+	/usr/lib/go-1.27/src/testing/testing.go:2193 +0x21d
+created by testing.(*T).Run in goroutine 439
+	/usr/lib/go-1.27/src/testing/testing.go:2258 +0xb13
+FAIL	github.com/ze-software/ze/internal/component/l2tp	1.589s
+=== RUN   TestPPPoEAuthDrainFollowsProviderReplacement
+2026/09/23 01:32:39 INFO ppp: proxy LCP short-circuit tunnel-id=7 session-id=1 unit=0 mru=1500 auth-proto=0 auth-method=none
+2026/09/23 01:32:39 INFO ppp: proxy LCP short-circuit tunnel-id=7 session-id=2 unit=0 mru=1500 auth-proto=0 auth-method=none
+2026/09/23 01:32:39 WARN ppp: session failed tunnel-id=7 session-id=2 unit=0 reason="auth rejected: "
+2026/09/23 01:32:39 INFO ppp: proxy LCP short-circuit tunnel-id=7 session-id=3 unit=0 mru=1500 auth-proto=0 auth-method=none
+--- PASS: TestPPPoEAuthDrainFollowsProviderReplacement (0.01s)
+=== RUN   TestExtractParametersFindsInterfaceFromRealTree
+--- PASS: TestExtractParametersFindsInterfaceFromRealTree (0.13s)
+=== RUN   TestExtractParametersReadsScalarLeavesAndOverride
+--- PASS: TestExtractParametersReadsScalarLeavesAndOverride (0.00s)
+=== RUN   TestExtractParametersCarriesPerMACCap
+--- PASS: TestExtractParametersCarriesPerMACCap (0.00s)
+=== RUN   TestExtractParametersReadsServiceNameLeafList
+--- PASS: TestExtractParametersReadsServiceNameLeafList (0.00s)
+=== RUN   TestExtractParametersWithoutInterfaces
+--- PASS: TestExtractParametersWithoutInterfaces (0.00s)
+=== RUN   TestExtractParametersAuthMethod
+--- PASS: TestExtractParametersAuthMethod (0.00s)
+=== RUN   TestExtractParametersAuthMethodNoneNeedsAllowNoAuth
+--- PASS: TestExtractParametersAuthMethodNoneNeedsAllowNoAuth (0.00s)
+=== RUN   TestDiscoveryReaderPacesAFailingSocket
+--- PASS: TestDiscoveryReaderPacesAFailingSocket (0.20s)
+=== RUN   TestDiscoveryReaderStopsPromptlyWhilePacing
+--- PASS: TestDiscoveryReaderStopsPromptlyWhilePacing (0.40s)
+=== RUN   TestDiscoveryCounterBindsWhenTheRegistryArrivesLast
+--- PASS: TestDiscoveryCounterBindsWhenTheRegistryArrivesLast (0.00s)
+=== RUN   TestPADINeverExceeds1484Octets
+=== PAUSE TestPADINeverExceeds1484Octets
+=== RUN   TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport
+2026/09/23 01:32:40 WARN pppoe: PADT MAC mismatch sid=1 expected="\x02\x00\x00\x00\x00\x02" got="\x02\x00\x00\x00\x00\x03"
+2026/09/23 01:32:40 INFO pppoe: PADT received sid=1
+--- PASS: TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport (0.00s)
+=== RUN   TestRFC2516ACSentPADTClosesTransportBeforeSend
+2026/09/23 01:32:40 INFO pppoe: PADT received sid=1
+--- PASS: TestRFC2516ACSentPADTClosesTransportBeforeSend (0.00s)
+=== RUN   TestRelayToL2TP_ConsultsSink
+2026/09/23 01:32:40 WARN pppoe: L2TP relay failed; terminating locally sid=7 service=wholesale error="dial failed"
+--- PASS: TestRelayToL2TP_ConsultsSink (0.00s)
+=== RUN   TestHandlePADTVerifiesMACAndSID
+2026/09/23 01:32:40 INFO pppoe: PADT received sid=1
+2026/09/23 01:32:40 WARN pppoe: PADT MAC mismatch sid=1 expected="\xaa\xbb\xcc\xdd\xee\x01" got="\x00\x00\x00\x00\x00\x99"
+--- PASS: TestHandlePADTVerifiesMACAndSID (0.00s)
+=== RUN   TestPADTRemovesOnlyTheNamedSession
+2026/09/23 01:32:40 INFO pppoe: PADT received sid=1
+--- PASS: TestPADTRemovesOnlyTheNamedSession (0.00s)
+=== RUN   TestPADIWithoutServiceNameIsServedAsAnyService
+--- PASS: TestPADIWithoutServiceNameIsServedAsAnyService (0.00s)
+=== RUN   TestPADIWithoutServiceNameRefusedWhenNamesConfigured
+--- PASS: TestPADIWithoutServiceNameRefusedWhenNamesConfigured (0.00s)
+=== RUN   TestPADRWithoutServiceNameGetsServiceNameError
+--- PASS: TestPADRWithoutServiceNameGetsServiceNameError (0.00s)
+=== RUN   TestPADRAtPerMACCapAnswersError
+--- PASS: TestPADRAtPerMACCapAnswersError (0.00s)
+=== RUN   TestPADRReplayAfterPPPReturnsExistingSID
+--- PASS: TestPADRReplayAfterPPPReturnsExistingSID (0.00s)
+=== RUN   TestPADRReplayDuringTeardownIsNotDeduped
+2026/09/23 01:32:40 WARN pppoe: no PPP driver, session will not start sid=2
+--- PASS: TestPADRReplayDuringTeardownIsNotDeduped (0.00s)
+=== RUN   TestPADRRefusalIsCounted
+--- PASS: TestPADRRefusalIsCounted (0.00s)
+=== RUN   TestRFC2516AllocSIDReturnsUsableValue
+--- PASS: TestRFC2516AllocSIDReturnsUsableValue (0.00s)
+=== RUN   TestRFC2516SessionID0xffffIsNeverAllocated
+--- PASS: TestRFC2516SessionID0xffffIsNeverAllocated (0.05s)
+=== RUN   TestRFC2516PADISessionIDIsZero
+--- PASS: TestRFC2516PADISessionIDIsZero (0.00s)
+=== RUN   TestRFC2516PADIWithNonZeroSessionIDIsDropped
+--- PASS: TestRFC2516PADIWithNonZeroSessionIDIsDropped (0.00s)
+=== RUN   TestRFC2516PADOSessionIDIsZero
+--- PASS: TestRFC2516PADOSessionIDIsZero (0.00s)
+=== RUN   TestRFC2516PADRSessionIDIsZero
+--- PASS: TestRFC2516PADRSessionIDIsZero (0.00s)
+=== RUN   TestRFC2516PADRWithNonZeroSessionIDIsDropped
+--- PASS: TestRFC2516PADRWithNonZeroSessionIDIsDropped (0.00s)
+=== RUN   TestRFC2516PADSCarriesTheSessionsID
+--- PASS: TestRFC2516PADSCarriesTheSessionsID (0.00s)
+=== RUN   TestRFC2516SessionDownSendsPADTForThatSession
+--- PASS: TestRFC2516SessionDownSendsPADTForThatSession (0.00s)
+=== RUN   TestRFC2516UnknownSessionIDTerminatesNothing
+--- PASS: TestRFC2516UnknownSessionIDTerminatesNothing (0.00s)
+=== RUN   TestRFC2516ErrorTagsCarryNoData
+--- PASS: TestRFC2516ErrorTagsCarryNoData (0.00s)
+=== RUN   TestSessionIDAlloc
+--- PASS: TestSessionIDAlloc (0.00s)
+=== RUN   TestSessionIDAllocSequential
+--- PASS: TestSessionIDAllocSequential (0.00s)
+=== RUN   TestSessionIDExhausted
+--- PASS: TestSessionIDExhausted (0.22s)
+=== RUN   TestSessionIDFree
+--- PASS: TestSessionIDFree (0.00s)
+=== RUN   TestSessionTableAdd
+--- PASS: TestSessionTableAdd (0.00s)
+=== RUN   TestSessionTableRemove
+--- PASS: TestSessionTableRemove (0.00s)
+=== RUN   TestSessionTableMaxLimit
+--- PASS: TestSessionTableMaxLimit (0.00s)
+=== RUN   TestSessionTableSessionsByMAC
+--- PASS: TestSessionTableSessionsByMAC (0.00s)
+=== RUN   TestSessionTableIndexesEverySessionOfOneMAC
+--- PASS: TestSessionTableIndexesEverySessionOfOneMAC (0.00s)
+=== RUN   TestSessionTableRemoveKeepsSiblingSessions
+--- PASS: TestSessionTableRemoveKeepsSiblingSessions (0.00s)
+=== RUN   TestSessionTableChurnLeavesNoIndexEntries
+--- PASS: TestSessionTableChurnLeavesNoIndexEntries (0.01s)
+=== RUN   TestMarkSessionDoesNotResurrectATeardownSession
+--- PASS: TestMarkSessionDoesNotResurrectATeardownSession (0.00s)
+=== RUN   TestFreeSIDZeroIsNoop
+--- PASS: TestFreeSIDZeroIsNoop (0.00s)
+=== RUN   TestPPPoESubscriberNetworkLifetime
+--- PASS: TestPPPoESubscriberNetworkLifetime (1.09s)
+=== RUN   TestPPPoESubscriberRejectsUnusableAssignments
+2026/09/23 01:32:41 WARN pppoe: invalid IP-assigned event address="" session=1
+2026/09/23 01:32:41 WARN pppoe: invalid IP-assigned event address="" session=1
+2026/09/23 01:32:41 WARN pppoe: invalid IP-assigned event address=2001:db8::99 session=1
+--- PASS: TestPPPoESubscriberRejectsUnusableAssignments (0.00s)
+=== RUN   TestPPPoESubscriberLCPDownWithdrawsPublishedLifetime
+--- PASS: TestPPPoESubscriberLCPDownWithdrawsPublishedLifetime (1.05s)
+=== RUN   TestPPPoESessionDownPublishesPoolKey
+--- PASS: TestPPPoESessionDownPublishesPoolKey (0.00s)
+=== RUN   TestPPPoESessionDownPublishesWithoutSessionUp
+--- PASS: TestPPPoESessionDownPublishesWithoutSessionUp (0.00s)
+=== RUN   TestPPPoESessionUpCarriesRadiusRates
+--- PASS: TestPPPoESessionUpCarriesRadiusRates (0.00s)
+=== RUN   TestACCookieGenVerify
+--- PASS: TestACCookieGenVerify (0.00s)
+=== RUN   TestACCookieReplay
+--- PASS: TestACCookieReplay (0.00s)
+=== RUN   TestACCookieWrongMAC
+--- PASS: TestACCookieWrongMAC (0.00s)
+=== RUN   TestACCookieDifferentKey
+--- PASS: TestACCookieDifferentKey (0.00s)
+=== RUN   TestACCookieWithRelaySessionID
+--- PASS: TestACCookieWithRelaySessionID (0.00s)
+=== RUN   TestACCookieWithoutRelaySessionID
+--- PASS: TestACCookieWithoutRelaySessionID (0.00s)
+=== RUN   TestACCookieTruncated
+--- PASS: TestACCookieTruncated (0.00s)
+=== RUN   TestACCookieAtExactTimeout
+--- PASS: TestACCookieAtExactTimeout (0.00s)
+=== RUN   TestACCookieFutureClock
+--- PASS: TestACCookieFutureClock (0.00s)
+=== RUN   TestParsePADI
+--- PASS: TestParsePADI (0.00s)
+=== RUN   TestParsePADI_EmptyServiceName
+--- PASS: TestParsePADI_EmptyServiceName (0.00s)
+=== RUN   TestParsePADR
+--- PASS: TestParsePADR (0.00s)
+=== RUN   TestBuildPADO
+--- PASS: TestBuildPADO (0.00s)
+=== RUN   TestBuildPADS
+--- PASS: TestBuildPADS (0.00s)
+=== RUN   TestBuildPADT
+--- PASS: TestBuildPADT (0.00s)
+=== RUN   TestServiceNameFilter
+=== RUN   TestServiceNameFilter/empty_allows_accepts_any
+=== RUN   TestServiceNameFilter/empty_tag_matches_any_configured
+=== RUN   TestServiceNameFilter/exact_match
+=== RUN   TestServiceNameFilter/no_match
+=== RUN   TestServiceNameFilter/no_service-name_tag
+--- PASS: TestServiceNameFilter (0.00s)
+    --- PASS: TestServiceNameFilter/empty_allows_accepts_any (0.00s)
+    --- PASS: TestServiceNameFilter/empty_tag_matches_any_configured (0.00s)
+    --- PASS: TestServiceNameFilter/exact_match (0.00s)
+    --- PASS: TestServiceNameFilter/no_match (0.00s)
+    --- PASS: TestServiceNameFilter/no_service-name_tag (0.00s)
+=== RUN   TestServiceNameFilter_NoTag
+--- PASS: TestServiceNameFilter_NoTag (0.00s)
+=== RUN   TestParseShortPacket
+--- PASS: TestParseShortPacket (0.00s)
+=== RUN   TestParseBadVersion
+--- PASS: TestParseBadVersion (0.00s)
+=== RUN   TestParseInvalidTagLength
+--- PASS: TestParseInvalidTagLength (0.00s)
+=== RUN   TestParseBroadcastSource
+--- PASS: TestParseBroadcastSource (0.00s)
+=== RUN   TestParseMulticastSource
+--- PASS: TestParseMulticastSource (0.00s)
+=== RUN   TestParseNoTags
+--- PASS: TestParseNoTags (0.00s)
+=== RUN   TestParseEndOfListTag
+--- PASS: TestParseEndOfListTag (0.00s)
+=== RUN   TestBuildPADSError
+--- PASS: TestBuildPADSError (0.00s)
+=== RUN   TestFindAllTags
+--- PASS: TestFindAllTags (0.00s)
+=== RUN   TestPayloadLengthTruncated
+--- PASS: TestPayloadLengthTruncated (0.00s)
+=== RUN   TestConstants
+--- PASS: TestConstants (0.00s)
+=== RUN   TestBuildFrameVerType
+--- PASS: TestBuildFrameVerType (0.00s)
+=== RUN   TestParseBadType
+--- PASS: TestParseBadType (0.00s)
+=== RUN   TestBuildPADIDiscovery
+--- PASS: TestBuildPADIDiscovery (0.00s)
+=== RUN   TestBuildPADREchoesTags
+--- PASS: TestBuildPADREchoesTags (0.00s)
+=== RUN   TestBuildPADRNoOptionalTags
+--- PASS: TestBuildPADRNoOptionalTags (0.00s)
+=== RUN   TestBuildNoHostUniqEcho
+--- PASS: TestBuildNoHostUniqEcho (0.00s)
+=== RUN   TestRelaySessionIDEcho
+--- PASS: TestRelaySessionIDEcho (0.00s)
+=== RUN   TestRelaySessionIDNoEcho
+--- PASS: TestRelaySessionIDNoEcho (0.00s)
+=== RUN   TestUnknownTagIgnored
+--- PASS: TestUnknownTagIgnored (0.00s)
+=== RUN   TestDuplicateServiceNameTagTakesTheFirst
+--- PASS: TestDuplicateServiceNameTagTakesTheFirst (0.00s)
+=== RUN   TestPADOAlwaysCarriesServiceName
+=== RUN   TestPADOAlwaysCarriesServiceName/no_configured_names,_no_PADI_value_(AC-5)
+=== RUN   TestPADOAlwaysCarriesServiceName/configured_names,_PADI_names_one_(AC-7)
+--- PASS: TestPADOAlwaysCarriesServiceName (0.00s)
+    --- PASS: TestPADOAlwaysCarriesServiceName/no_configured_names,_no_PADI_value_(AC-5) (0.00s)
+    --- PASS: TestPADOAlwaysCarriesServiceName/configured_names,_PADI_names_one_(AC-7) (0.00s)
+=== RUN   TestPADSAlwaysCarriesServiceName
+--- PASS: TestPADSAlwaysCarriesServiceName (0.00s)
+=== RUN   TestClientPADICarriesEmptyServiceName
+--- PASS: TestClientPADICarriesEmptyServiceName (0.00s)
+=== RUN   TestPADILimiterAllows
+--- PASS: TestPADILimiterAllows (0.00s)
+=== RUN   TestPADILimiterDedups
+--- PASS: TestPADILimiterDedups (0.00s)
+=== RUN   TestPADILimiterRateLimit
+--- PASS: TestPADILimiterRateLimit (0.00s)
+=== RUN   TestPADILimiterDisabled
+--- PASS: TestPADILimiterDisabled (0.00s)
+=== RUN   TestPADILimiterRefusesPADRInSameWindow
+--- PASS: TestPADILimiterRefusesPADRInSameWindow (0.00s)
+=== CONT  TestPADINeverExceeds1484Octets
+--- PASS: TestPADINeverExceeds1484Octets (0.00s)
+PASS
+ok  	github.com/ze-software/ze/internal/component/l2tp/pppoe	4.260s
+=== RUN   TestAcctFramedIPAddressPresent
+--- PASS: TestAcctFramedIPAddressPresent (0.00s)
+=== RUN   TestAcctFramedIPAddressIsSubscriberNotNAS
+--- PASS: TestAcctFramedIPAddressIsSubscriberNotNAS (0.00s)
+=== RUN   TestAcctFramedIPAddressOmittedWhenNotIPv4
+=== RUN   TestAcctFramedIPAddressOmittedWhenNotIPv4/unset
+=== RUN   TestAcctFramedIPAddressOmittedWhenNotIPv4/ipv6_link-local
+=== RUN   TestAcctFramedIPAddressOmittedWhenNotIPv4/ipv6_global
+=== RUN   TestAcctFramedIPAddressOmittedWhenNotIPv4/not_an_address
+--- PASS: TestAcctFramedIPAddressOmittedWhenNotIPv4 (0.00s)
+    --- PASS: TestAcctFramedIPAddressOmittedWhenNotIPv4/unset (0.00s)
+    --- PASS: TestAcctFramedIPAddressOmittedWhenNotIPv4/ipv6_link-local (0.00s)
+    --- PASS: TestAcctFramedIPAddressOmittedWhenNotIPv4/ipv6_global (0.00s)
+    --- PASS: TestAcctFramedIPAddressOmittedWhenNotIPv4/not_an_address (0.00s)
+=== RUN   TestAcctFramedIPAddressIPv4Mapped
+--- PASS: TestAcctFramedIPAddressIPv4Mapped (0.00s)
+=== RUN   TestSessionEventDrivesAddressAndPortID
+--- PASS: TestSessionEventDrivesAddressAndPortID (0.00s)
+=== RUN   TestAccountingCountersRetainedPPPUnit
+--- PASS: TestAccountingCountersRetainedPPPUnit (1.06s)
+=== RUN   TestAccountingCountersIgnoreDisplayClear
+--- PASS: TestAccountingCountersIgnoreDisplayClear (1.30s)
+=== RUN   TestAccountingCountersUnavailableSnapshots
+--- PASS: TestAccountingCountersUnavailableSnapshots (1.26s)
+=== RUN   TestClampAcctIntervalWithinRange
+--- PASS: TestClampAcctIntervalWithinRange (0.00s)
+=== RUN   TestClampAcctIntervalBelowFloor
+--- PASS: TestClampAcctIntervalBelowFloor (0.00s)
+=== RUN   TestClampAcctIntervalAboveCeiling
+--- PASS: TestClampAcctIntervalAboveCeiling (0.00s)
+=== RUN   TestClampAcctIntervalBoundaries
+--- PASS: TestClampAcctIntervalBoundaries (0.00s)
+=== RUN   TestAccountingAddressFamiliesShareLifetime
+=== RUN   TestAccountingAddressFamiliesShareLifetime/IPv4-first
+=== RUN   TestAccountingAddressFamiliesShareLifetime/IPv6-first
+--- PASS: TestAccountingAddressFamiliesShareLifetime (0.00s)
+    --- PASS: TestAccountingAddressFamiliesShareLifetime/IPv4-first (0.00s)
+    --- PASS: TestAccountingAddressFamiliesShareLifetime/IPv6-first (0.00s)
+=== RUN   TestRADIUSAcctStart
+--- PASS: TestRADIUSAcctStart (0.00s)
+=== RUN   TestRADIUSAcctStop
+--- PASS: TestRADIUSAcctStop (0.00s)
+=== RUN   TestRADIUSAcctInterim
+--- PASS: TestRADIUSAcctInterim (0.20s)
+=== RUN   TestSplitGigawords
+=== RUN   TestSplitGigawords/zero
+=== RUN   TestSplitGigawords/small
+=== RUN   TestSplitGigawords/max_uint32
+=== RUN   TestSplitGigawords/one_wrap
+=== RUN   TestSplitGigawords/wrap_plus_remainder
+=== RUN   TestSplitGigawords/large
+--- PASS: TestSplitGigawords (0.00s)
+    --- PASS: TestSplitGigawords/zero (0.00s)
+    --- PASS: TestSplitGigawords/small (0.00s)
+    --- PASS: TestSplitGigawords/max_uint32 (0.00s)
+    --- PASS: TestSplitGigawords/one_wrap (0.00s)
+    --- PASS: TestSplitGigawords/wrap_plus_remainder (0.00s)
+    --- PASS: TestSplitGigawords/large (0.00s)
+=== RUN   TestBuildAcctPacketWithCounters
+--- PASS: TestBuildAcctPacketWithCounters (0.00s)
+=== RUN   TestBuildAcctPacketGigawords
+--- PASS: TestBuildAcctPacketGigawords (0.00s)
+=== RUN   TestBuildAcctPacketStartZeroCounters
+--- PASS: TestBuildAcctPacketStartZeroCounters (0.00s)
+=== RUN   TestBuildAcctPacketMissingIface
+--- PASS: TestBuildAcctPacketMissingIface (0.00s)
+=== RUN   TestBuildAcctPacketGetStatsError
+--- PASS: TestBuildAcctPacketGetStatsError (0.00s)
+=== RUN   TestAcctSessionPppInterface
+--- PASS: TestAcctSessionPppInterface (0.00s)
+=== RUN   TestAcctPacketCarriesEventTimestamp
+--- PASS: TestAcctPacketCarriesEventTimestamp (0.00s)
+=== RUN   TestAcctPacketCarriesCallingStationId
+--- PASS: TestAcctPacketCarriesCallingStationId (0.00s)
+=== RUN   TestAcctPacketOmitsEmptyCallingStationId
+--- PASS: TestAcctPacketOmitsEmptyCallingStationId (0.00s)
+=== RUN   TestTerminateCauseOnStopOnly
+--- PASS: TestTerminateCauseOnStopOnly (0.00s)
+=== RUN   TestTerminateCausePerTeardownPath
+=== RUN   TestTerminateCausePerTeardownPath/lcp-terminate
+=== RUN   TestTerminateCausePerTeardownPath/echo-timeout
+=== RUN   TestTerminateCausePerTeardownPath/idle-timeout
+=== RUN   TestTerminateCausePerTeardownPath/session-timeout
+=== RUN   TestTerminateCausePerTeardownPath/admin-clear-or-coa-disconnect
+=== RUN   TestTerminateCausePerTeardownPath/nas-shutdown
+=== RUN   TestTerminateCausePerTeardownPath/unattributable
+=== RUN   TestTerminateCausePerTeardownPath/local-stop
+=== RUN   TestTerminateCausePerTeardownPath/unspecified-reports-nas-error
+--- PASS: TestTerminateCausePerTeardownPath (0.00s)
+    --- PASS: TestTerminateCausePerTeardownPath/lcp-terminate (0.00s)
+    --- PASS: TestTerminateCausePerTeardownPath/echo-timeout (0.00s)
+    --- PASS: TestTerminateCausePerTeardownPath/idle-timeout (0.00s)
+    --- PASS: TestTerminateCausePerTeardownPath/session-timeout (0.00s)
+    --- PASS: TestTerminateCausePerTeardownPath/admin-clear-or-coa-disconnect (0.00s)
+    --- PASS: TestTerminateCausePerTeardownPath/nas-shutdown (0.00s)
+    --- PASS: TestTerminateCausePerTeardownPath/unattributable (0.00s)
+    --- PASS: TestTerminateCausePerTeardownPath/local-stop (0.00s)
+    --- PASS: TestTerminateCausePerTeardownPath/unspecified-reports-nas-error (0.00s)
+=== RUN   TestAcctStopCarriesEventCause
+--- PASS: TestAcctStopCarriesEventCause (0.00s)
+=== RUN   TestCoAListenerInvalidAuth
+--- PASS: TestCoAListenerInvalidAuth (0.20s)
+=== RUN   TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired
+--- PASS: TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired (0.20s)
+=== RUN   TestCoAListenerUnknownSession
+--- PASS: TestCoAListenerUnknownSession (0.00s)
+=== RUN   TestCoAListenerMissingEventTimestamp
+--- PASS: TestCoAListenerMissingEventTimestamp (0.00s)
+=== RUN   TestDisconnectReplayReturnsCachedResponse
+--- PASS: TestDisconnectReplayReturnsCachedResponse (0.00s)
+=== RUN   TestDisconnectListenerUnknownSession
+--- PASS: TestDisconnectListenerUnknownSession (0.00s)
+=== RUN   TestExtractRate
+--- PASS: TestExtractRate (0.00s)
+=== RUN   TestExtractRate_Invalid
+--- PASS: TestExtractRate_Invalid (0.00s)
+=== RUN   TestCoAExtractCiscoCoS
+--- PASS: TestCoAExtractCiscoCoS (0.00s)
+=== RUN   TestCoAExtractMikrotikRate
+--- PASS: TestCoAExtractMikrotikRate (0.00s)
+=== RUN   TestExtractRatesReadsAsymmetricFilterID
+--- PASS: TestExtractRatesReadsAsymmetricFilterID (0.00s)
+=== RUN   TestExtractRatesRejectsNonRate
+--- PASS: TestExtractRatesRejectsNonRate (0.00s)
+=== RUN   TestExtractRatesKeepsMikrotikUploadHalf
+--- PASS: TestExtractRatesKeepsMikrotikUploadHalf (0.00s)
+=== RUN   TestParseConfigProductionTreeShape
+--- PASS: TestParseConfigProductionTreeShape (0.16s)
+=== RUN   TestParseConfigCoAPortProductionPath
+--- PASS: TestParseConfigCoAPortProductionPath (0.15s)
+=== RUN   TestParseConfigCoAPortAbsentDisablesListener
+--- PASS: TestParseConfigCoAPortAbsentDisablesListener (0.15s)
+=== RUN   TestParseConfigAcctIntervalThroughTheRealPipeline
+=== RUN   TestParseConfigAcctIntervalThroughTheRealPipeline/set_by_the_operator
+=== RUN   TestParseConfigAcctIntervalThroughTheRealPipeline/absent
+--- PASS: TestParseConfigAcctIntervalThroughTheRealPipeline (0.30s)
+    --- PASS: TestParseConfigAcctIntervalThroughTheRealPipeline/set_by_the_operator (0.15s)
+    --- PASS: TestParseConfigAcctIntervalThroughTheRealPipeline/absent (0.15s)
+=== RUN   TestParseConfigCoAPortBounds
+=== RUN   TestParseConfigCoAPortBounds/last_valid
+=== RUN   TestParseConfigCoAPortBounds/first_valid
+=== RUN   TestParseConfigCoAPortBounds/invalid_below
+=== RUN   TestParseConfigCoAPortBounds/invalid_above
+--- PASS: TestParseConfigCoAPortBounds (0.60s)
+    --- PASS: TestParseConfigCoAPortBounds/last_valid (0.15s)
+    --- PASS: TestParseConfigCoAPortBounds/first_valid (0.15s)
+    --- PASS: TestParseConfigCoAPortBounds/invalid_below (0.15s)
+    --- PASS: TestParseConfigCoAPortBounds/invalid_above (0.15s)
+=== RUN   TestParseConfigKeyedServerMap
+--- PASS: TestParseConfigKeyedServerMap (0.00s)
+=== RUN   TestParseConfigProductionTwoServersKeepsTheOperatorOrder
+--- PASS: TestParseConfigProductionTwoServersKeepsTheOperatorOrder (0.15s)
+=== RUN   TestParseConfigValid
+--- PASS: TestParseConfigValid (0.00s)
+=== RUN   TestParseConfigDefaults
+--- PASS: TestParseConfigDefaults (0.00s)
+=== RUN   TestParseConfigNoAuthBlock
+--- PASS: TestParseConfigNoAuthBlock (0.00s)
+=== RUN   TestParseConfigNoRadiusBlock
+--- PASS: TestParseConfigNoRadiusBlock (0.00s)
+=== RUN   TestParseConfigMissingAddress
+--- PASS: TestParseConfigMissingAddress (0.00s)
+=== RUN   TestParseConfigMissingSharedKey
+--- PASS: TestParseConfigMissingSharedKey (0.00s)
+=== RUN   TestParseConfigBadTimeout
+--- PASS: TestParseConfigBadTimeout (0.00s)
+=== RUN   TestParseConfigBadRetries
+--- PASS: TestParseConfigBadRetries (0.00s)
+=== RUN   TestParseConfigBadPort
+--- PASS: TestParseConfigBadPort (0.00s)
+=== RUN   TestParseConfigBadAcctInterval
+--- PASS: TestParseConfigBadAcctInterval (0.00s)
+=== RUN   TestParseConfigSourceAddress
+--- PASS: TestParseConfigSourceAddress (0.00s)
+=== RUN   TestParseConfigBadSourceAddress
+--- PASS: TestParseConfigBadSourceAddress (0.00s)
+=== RUN   TestParseConfigIPv6SourceAddress
+--- PASS: TestParseConfigIPv6SourceAddress (0.00s)
+=== RUN   TestParseConfigNoSourceAddress
+--- PASS: TestParseConfigNoSourceAddress (0.00s)
+=== RUN   TestParseConfigMultipleServers
+--- PASS: TestParseConfigMultipleServers (0.00s)
+=== RUN   TestServerEntriesFollowTheOperatorNotTheAlphabet
+=== RUN   TestServerEntriesFollowTheOperatorNotTheAlphabet/as_the_operator_wrote_them
+=== RUN   TestServerEntriesFollowTheOperatorNotTheAlphabet/with_the_two_servers_swapped
+--- PASS: TestServerEntriesFollowTheOperatorNotTheAlphabet (0.00s)
+    --- PASS: TestServerEntriesFollowTheOperatorNotTheAlphabet/as_the_operator_wrote_them (0.00s)
+    --- PASS: TestServerEntriesFollowTheOperatorNotTheAlphabet/with_the_two_servers_swapped (0.00s)
+=== RUN   TestServerEntriesRefuseTwoServersWithNoOrder
+--- PASS: TestServerEntriesRefuseTwoServersWithNoOrder (0.00s)
+=== RUN   TestCheckRADIUSServers
+--- PASS: TestCheckRADIUSServers (0.00s)
+=== RUN   TestCheckRADIUSServersAbsentConfig
+--- PASS: TestCheckRADIUSServersAbsentConfig (0.00s)
+=== RUN   TestRADIUSDoctorCheckRegistered
+--- PASS: TestRADIUSDoctorCheckRegistered (0.00s)
+=== RUN   TestUDPServerReachableRequiresResponse
+--- PASS: TestUDPServerReachableRequiresResponse (0.01s)
+=== RUN   TestExcludedAttributeIsAbsentFromTheWire
+--- PASS: TestExcludedAttributeIsAbsentFromTheWire (0.14s)
+=== RUN   TestNoExclusionsLeavesThePacketUnchanged
+--- PASS: TestNoExclusionsLeavesThePacketUnchanged (0.15s)
+=== RUN   TestExcludeWithNoPacketTypeAppliesEverywhere
+--- PASS: TestExcludeWithNoPacketTypeAppliesEverywhere (0.15s)
+=== RUN   TestExcludePerPacketType
+--- PASS: TestExcludePerPacketType (0.15s)
+=== RUN   TestExcludeBeatsAKnownValue
+--- PASS: TestExcludeBeatsAKnownValue (0.16s)
+=== RUN   TestExcludeOnAccessRequestOnly
+--- PASS: TestExcludeOnAccessRequestOnly (0.15s)
+=== RUN   TestTwoExclusionsApplyIndependently
+--- PASS: TestTwoExclusionsApplyIndependently (0.15s)
+=== RUN   TestExcludePreservesTheRemainingOrder
+--- PASS: TestExcludePreservesTheRemainingOrder (0.15s)
+=== RUN   TestRequiredAttributesAreNotInTheEnum
+--- PASS: TestRequiredAttributesAreNotInTheEnum (0.59s)
+=== RUN   TestExcludeRefusesUnknownWords
+=== RUN   TestExcludeRefusesUnknownWords/unknown_attribute
+=== RUN   TestExcludeRefusesUnknownWords/unknown_packet_type
+=== RUN   TestExcludeRefusesUnknownWords/packet_type_the_attribute_cannot_reach
+=== RUN   TestExcludeRefusesUnknownWords/a_value_where_the_name_stands_alone
+--- PASS: TestExcludeRefusesUnknownWords (0.59s)
+    --- PASS: TestExcludeRefusesUnknownWords/unknown_attribute (0.15s)
+    --- PASS: TestExcludeRefusesUnknownWords/unknown_packet_type (0.14s)
+    --- PASS: TestExcludeRefusesUnknownWords/packet_type_the_attribute_cannot_reach (0.15s)
+    --- PASS: TestExcludeRefusesUnknownWords/a_value_where_the_name_stands_alone (0.15s)
+=== RUN   TestFullyExcludedRecordIsStillConformant
+--- PASS: TestFullyExcludedRecordIsStillConformant (0.15s)
+=== RUN   TestExcludeAcctDelayTimePerPacketType
+--- PASS: TestExcludeAcctDelayTimePerPacketType (0.15s)
+=== RUN   TestExtractFramedIP
+--- PASS: TestExtractFramedIP (0.00s)
+=== RUN   TestExtractFramedIPRejectsMulticast
+--- PASS: TestExtractFramedIPRejectsMulticast (0.00s)
+=== RUN   TestExtractFramedIPRejectsLoopback
+--- PASS: TestExtractFramedIPRejectsLoopback (0.00s)
+=== RUN   TestExtractFramedIPRejectsBroadcast
+--- PASS: TestExtractFramedIPRejectsBroadcast (0.00s)
+=== RUN   TestExtractFramedIPRejectsLinkLocal
+--- PASS: TestExtractFramedIPRejectsLinkLocal (0.00s)
+=== RUN   TestExtractFramedIPShortValue
+--- PASS: TestExtractFramedIPShortValue (0.00s)
+=== RUN   TestExtractFramedPool
+--- PASS: TestExtractFramedPool (0.00s)
+=== RUN   TestExtractSessionTimeout
+--- PASS: TestExtractSessionTimeout (0.00s)
+=== RUN   TestExtractIdleTimeout
+--- PASS: TestExtractIdleTimeout (0.00s)
+=== RUN   TestExtractFilterId
+--- PASS: TestExtractFilterId (0.00s)
+=== RUN   TestExtractAcctInterimInterval
+--- PASS: TestExtractAcctInterimInterval (0.00s)
+=== RUN   TestExtractFramedNetmask
+--- PASS: TestExtractFramedNetmask (0.00s)
+=== RUN   TestExtractNoProfileAttributes
+--- PASS: TestExtractNoProfileAttributes (0.00s)
+=== RUN   TestExtractMultipleAttributes
+--- PASS: TestExtractMultipleAttributes (0.00s)
+=== RUN   TestExtractFramedRoute
+--- PASS: TestExtractFramedRoute (0.00s)
+=== RUN   TestExtractFramedIPv6Route
+--- PASS: TestExtractFramedIPv6Route (0.00s)
+=== RUN   TestExtractMultipleFramedRoutes
+--- PASS: TestExtractMultipleFramedRoutes (0.00s)
+=== RUN   TestExtractFramedRouteNoMetric
+--- PASS: TestExtractFramedRouteNoMetric (0.00s)
+=== RUN   TestExtractFramedRouteMalformed
+--- PASS: TestExtractFramedRouteMalformed (0.00s)
+=== RUN   TestParseFramedRoute
+=== RUN   TestParseFramedRoute/basic
+=== RUN   TestParseFramedRoute/no_metric
+=== RUN   TestParseFramedRoute/ipv6
+=== RUN   TestParseFramedRoute/max_metric
+=== RUN   TestParseFramedRoute/host_masked
+=== RUN   TestParseFramedRoute/empty
+=== RUN   TestParseFramedRoute/one_field
+=== RUN   TestParseFramedRoute/bad_prefix
+=== RUN   TestParseFramedRoute/bad_metric
+=== RUN   TestParseFramedRoute/metric_overflow
+--- PASS: TestParseFramedRoute (0.00s)
+    --- PASS: TestParseFramedRoute/basic (0.00s)
+    --- PASS: TestParseFramedRoute/no_metric (0.00s)
+    --- PASS: TestParseFramedRoute/ipv6 (0.00s)
+    --- PASS: TestParseFramedRoute/max_metric (0.00s)
+    --- PASS: TestParseFramedRoute/host_masked (0.00s)
+    --- PASS: TestParseFramedRoute/empty (0.00s)
+    --- PASS: TestParseFramedRoute/one_field (0.00s)
+    --- PASS: TestParseFramedRoute/bad_prefix (0.00s)
+    --- PASS: TestParseFramedRoute/bad_metric (0.00s)
+    --- PASS: TestParseFramedRoute/metric_overflow (0.00s)
+=== RUN   TestIsValidSubscriberIP
+=== RUN   TestIsValidSubscriberIP/unicast
+=== RUN   TestIsValidSubscriberIP/public
+=== RUN   TestIsValidSubscriberIP/multicast
+=== RUN   TestIsValidSubscriberIP/loopback
+=== RUN   TestIsValidSubscriberIP/link-local
+=== RUN   TestIsValidSubscriberIP/broadcast
+=== RUN   TestIsValidSubscriberIP/unspecified
+=== RUN   TestIsValidSubscriberIP/ipv6
+=== RUN   TestIsValidSubscriberIP/zero
+--- PASS: TestIsValidSubscriberIP (0.00s)
+    --- PASS: TestIsValidSubscriberIP/unicast (0.00s)
+    --- PASS: TestIsValidSubscriberIP/public (0.00s)
+    --- PASS: TestIsValidSubscriberIP/multicast (0.00s)
+    --- PASS: TestIsValidSubscriberIP/loopback (0.00s)
+    --- PASS: TestIsValidSubscriberIP/link-local (0.00s)
+    --- PASS: TestIsValidSubscriberIP/broadcast (0.00s)
+    --- PASS: TestIsValidSubscriberIP/unspecified (0.00s)
+    --- PASS: TestIsValidSubscriberIP/ipv6 (0.00s)
+    --- PASS: TestIsValidSubscriberIP/zero (0.00s)
+=== RUN   TestExtractCiscoAVPairCoS
+=== RUN   TestExtractCiscoAVPairCoS/policy-in
+=== RUN   TestExtractCiscoAVPairCoS/policy-out
+--- PASS: TestExtractCiscoAVPairCoS (0.00s)
+    --- PASS: TestExtractCiscoAVPairCoS/policy-in (0.00s)
+    --- PASS: TestExtractCiscoAVPairCoS/policy-out (0.00s)
+=== RUN   TestExtractCiscoAVPairMalformed
+=== RUN   TestExtractCiscoAVPairMalformed/no-equals
+=== RUN   TestExtractCiscoAVPairMalformed/empty-value
+=== RUN   TestExtractCiscoAVPairMalformed/equals-in-value
+=== RUN   TestExtractCiscoAVPairMalformed/unrecognized-key
+=== RUN   TestExtractCiscoAVPairMalformed/random-string
+--- PASS: TestExtractCiscoAVPairMalformed (0.00s)
+    --- PASS: TestExtractCiscoAVPairMalformed/no-equals (0.00s)
+    --- PASS: TestExtractCiscoAVPairMalformed/empty-value (0.00s)
+    --- PASS: TestExtractCiscoAVPairMalformed/equals-in-value (0.00s)
+    --- PASS: TestExtractCiscoAVPairMalformed/unrecognized-key (0.00s)
+    --- PASS: TestExtractCiscoAVPairMalformed/random-string (0.00s)
+=== RUN   TestExtractJuniperCoS
+=== RUN   TestExtractJuniperCoS/ingress
+=== RUN   TestExtractJuniperCoS/egress
+--- PASS: TestExtractJuniperCoS (0.00s)
+    --- PASS: TestExtractJuniperCoS/ingress (0.00s)
+    --- PASS: TestExtractJuniperCoS/egress (0.00s)
+=== RUN   TestExtractNokiaCoS
+--- PASS: TestExtractNokiaCoS (0.00s)
+=== RUN   TestExtractHuaweiCoS
+--- PASS: TestExtractHuaweiCoS (0.00s)
+=== RUN   TestExtractMikrotikRate
+=== RUN   TestExtractMikrotikRate/rx-and-tx
+=== RUN   TestExtractMikrotikRate/rx-only
+=== RUN   TestExtractMikrotikRate/kilo
+=== RUN   TestExtractMikrotikRate/giga
+=== RUN   TestExtractMikrotikRate/plain-bps
+=== RUN   TestExtractMikrotikRate/with-burst
+=== RUN   TestExtractMikrotikRate/empty
+--- PASS: TestExtractMikrotikRate (0.00s)
+    --- PASS: TestExtractMikrotikRate/rx-and-tx (0.00s)
+    --- PASS: TestExtractMikrotikRate/rx-only (0.00s)
+    --- PASS: TestExtractMikrotikRate/kilo (0.00s)
+    --- PASS: TestExtractMikrotikRate/giga (0.00s)
+    --- PASS: TestExtractMikrotikRate/plain-bps (0.00s)
+    --- PASS: TestExtractMikrotikRate/with-burst (0.00s)
+    --- PASS: TestExtractMikrotikRate/empty (0.00s)
+=== RUN   TestZePrefixPriority
+--- PASS: TestZePrefixPriority (0.00s)
+=== RUN   TestNoVendorVSA
+--- PASS: TestNoVendorVSA (0.00s)
+=== RUN   TestUnknownVendorIgnored
+--- PASS: TestUnknownVendorIgnored (0.00s)
+=== RUN   TestEmptyVSAValue
+--- PASS: TestEmptyVSAValue (0.00s)
+=== RUN   TestExtractAuthMetadataVendorCoS
+=== RUN   TestExtractAuthMetadataVendorCoS/cisco
+=== RUN   TestExtractAuthMetadataVendorCoS/juniper
+=== RUN   TestExtractAuthMetadataVendorCoS/nokia
+=== RUN   TestExtractAuthMetadataVendorCoS/huawei
+--- PASS: TestExtractAuthMetadataVendorCoS (0.00s)
+    --- PASS: TestExtractAuthMetadataVendorCoS/cisco (0.00s)
+    --- PASS: TestExtractAuthMetadataVendorCoS/juniper (0.00s)
+    --- PASS: TestExtractAuthMetadataVendorCoS/nokia (0.00s)
+    --- PASS: TestExtractAuthMetadataVendorCoS/huawei (0.00s)
+=== RUN   TestExtractAuthMetadataMikrotikRate
+--- PASS: TestExtractAuthMetadataMikrotikRate (0.00s)
+=== RUN   TestParseMikrotikRate
+=== RUN   TestParseMikrotikRate/rx-tx
+=== RUN   TestParseMikrotikRate/rx-only
+=== RUN   TestParseMikrotikRate/kilo
+=== RUN   TestParseMikrotikRate/giga
+=== RUN   TestParseMikrotikRate/plain-bps
+=== RUN   TestParseMikrotikRate/with-burst-fields
+=== RUN   TestParseMikrotikRate/empty
+=== RUN   TestParseMikrotikRate/zero
+=== RUN   TestParseMikrotikRate/bad-format
+=== RUN   TestParseMikrotikRate/overflow-G
+=== RUN   TestParseMikrotikRate/overflow-M
+=== RUN   TestParseMikrotikRate/max-valid
+--- PASS: TestParseMikrotikRate (0.00s)
+    --- PASS: TestParseMikrotikRate/rx-tx (0.00s)
+    --- PASS: TestParseMikrotikRate/rx-only (0.00s)
+    --- PASS: TestParseMikrotikRate/kilo (0.00s)
+    --- PASS: TestParseMikrotikRate/giga (0.00s)
+    --- PASS: TestParseMikrotikRate/plain-bps (0.00s)
+    --- PASS: TestParseMikrotikRate/with-burst-fields (0.00s)
+    --- PASS: TestParseMikrotikRate/empty (0.00s)
+    --- PASS: TestParseMikrotikRate/zero (0.00s)
+    --- PASS: TestParseMikrotikRate/bad-format (0.00s)
+    --- PASS: TestParseMikrotikRate/overflow-G (0.00s)
+    --- PASS: TestParseMikrotikRate/overflow-M (0.00s)
+    --- PASS: TestParseMikrotikRate/max-valid (0.00s)
+=== RUN   TestParseCiscoAVPairCoS
+=== RUN   TestParseCiscoAVPairCoS/policy-in
+=== RUN   TestParseCiscoAVPairCoS/policy-out
+=== RUN   TestParseCiscoAVPairCoS/equals-in-value
+=== RUN   TestParseCiscoAVPairCoS/empty-value
+=== RUN   TestParseCiscoAVPairCoS/no-equals
+=== RUN   TestParseCiscoAVPairCoS/other-key
+=== RUN   TestParseCiscoAVPairCoS/no-key-value
+--- PASS: TestParseCiscoAVPairCoS (0.00s)
+    --- PASS: TestParseCiscoAVPairCoS/policy-in (0.00s)
+    --- PASS: TestParseCiscoAVPairCoS/policy-out (0.00s)
+    --- PASS: TestParseCiscoAVPairCoS/equals-in-value (0.00s)
+    --- PASS: TestParseCiscoAVPairCoS/empty-value (0.00s)
+    --- PASS: TestParseCiscoAVPairCoS/no-equals (0.00s)
+    --- PASS: TestParseCiscoAVPairCoS/other-key (0.00s)
+    --- PASS: TestParseCiscoAVPairCoS/no-key-value (0.00s)
+=== RUN   TestMikrotikRateToFilterID
+--- PASS: TestMikrotikRateToFilterID (0.00s)
+=== RUN   TestAccessAcceptKeepsMikrotikUploadHalf
+--- PASS: TestAccessAcceptKeepsMikrotikUploadHalf (0.00s)
+=== RUN   TestRADIUSAuthPAPAccept
+--- PASS: TestRADIUSAuthPAPAccept (0.00s)
+=== RUN   TestRADIUSAuthPAPReject
+--- PASS: TestRADIUSAuthPAPReject (0.00s)
+=== RUN   TestRADIUSAuthCHAPAccept
+--- PASS: TestRADIUSAuthCHAPAccept (0.00s)
+=== RUN   TestRADIUSAuthMSCHAPv2Accept
+--- PASS: TestRADIUSAuthMSCHAPv2Accept (0.00s)
+=== RUN   TestAccessAcceptProfileAttributesAccepted
+=== RUN   TestAccessAcceptProfileAttributesAccepted/framed_ip
+=== RUN   TestAccessAcceptProfileAttributesAccepted/framed_pool
+=== RUN   TestAccessAcceptProfileAttributesAccepted/filter_id
+=== RUN   TestAccessAcceptProfileAttributesAccepted/session_timeout
+=== RUN   TestAccessAcceptProfileAttributesAccepted/idle_timeout
+=== RUN   TestAccessAcceptProfileAttributesAccepted/acct_interim
+=== RUN   TestAccessAcceptProfileAttributesAccepted/framed_netmask
+--- PASS: TestAccessAcceptProfileAttributesAccepted (0.00s)
+    --- PASS: TestAccessAcceptProfileAttributesAccepted/framed_ip (0.00s)
+    --- PASS: TestAccessAcceptProfileAttributesAccepted/framed_pool (0.00s)
+    --- PASS: TestAccessAcceptProfileAttributesAccepted/filter_id (0.00s)
+    --- PASS: TestAccessAcceptProfileAttributesAccepted/session_timeout (0.00s)
+    --- PASS: TestAccessAcceptProfileAttributesAccepted/idle_timeout (0.00s)
+    --- PASS: TestAccessAcceptProfileAttributesAccepted/acct_interim (0.00s)
+    --- PASS: TestAccessAcceptProfileAttributesAccepted/framed_netmask (0.00s)
+=== RUN   TestRADIUSAuthAcceptsProfileAttributes
+--- PASS: TestRADIUSAuthAcceptsProfileAttributes (0.00s)
+=== RUN   TestRADIUSAuthAcceptNoProfileAttributes
+--- PASS: TestRADIUSAuthAcceptNoProfileAttributes (0.00s)
+=== RUN   TestRADIUSAuthTimeout
+2026/09/23 01:32:48 WARN radius: server unreachable server=127.0.0.1:41143 error="radius: all 1 retries exhausted for 127.0.0.1:41143"
+--- PASS: TestRADIUSAuthTimeout (0.10s)
+=== RUN   TestRADIUSHandledSentinel
+--- PASS: TestRADIUSHandledSentinel (0.00s)
+=== RUN   TestRADIUSAuthNASIPAddress
+2026/09/23 01:32:48 WARN radius: server unreachable server=127.0.0.1:53269 error="radius: client closed"
+--- PASS: TestRADIUSAuthNASIPAddress (0.00s)
+=== RUN   TestRADIUSNoClient
+--- PASS: TestRADIUSNoClient (0.00s)
+=== RUN   TestBindRADIUSMetrics_Registration
+--- PASS: TestBindRADIUSMetrics_Registration (0.00s)
+=== RUN   TestBindRADIUSMetrics_NilRegistry
+--- PASS: TestBindRADIUSMetrics_NilRegistry (0.00s)
+=== RUN   TestRADIUSMetrics_IncAuthSent
+--- PASS: TestRADIUSMetrics_IncAuthSent (0.00s)
+=== RUN   TestRADIUSMetrics_IncAcctSent
+--- PASS: TestRADIUSMetrics_IncAcctSent (0.00s)
+=== RUN   TestRADIUSMetrics_IncInterimSent
+--- PASS: TestRADIUSMetrics_IncInterimSent (0.00s)
+=== RUN   TestRADIUSMetrics_SetRadiusUp
+--- PASS: TestRADIUSMetrics_SetRadiusUp (0.00s)
+=== RUN   TestRADIUSMetrics_NilSafe
+--- PASS: TestRADIUSMetrics_NilSafe (0.00s)
+=== RUN   TestNASPortIDResolve
+=== RUN   TestNASPortIDResolve/empty
+=== RUN   TestNASPortIDResolve/literal_only
+=== RUN   TestNASPortIDResolve/nas-id
+=== RUN   TestNASPortIDResolve/tunnel_and_session
+=== RUN   TestNASPortIDResolve/all_three
+=== RUN   TestNASPortIDResolve/mixed_literal
+--- PASS: TestNASPortIDResolve (0.00s)
+    --- PASS: TestNASPortIDResolve/empty (0.00s)
+    --- PASS: TestNASPortIDResolve/literal_only (0.00s)
+    --- PASS: TestNASPortIDResolve/nas-id (0.00s)
+    --- PASS: TestNASPortIDResolve/tunnel_and_session (0.00s)
+    --- PASS: TestNASPortIDResolve/all_three (0.00s)
+    --- PASS: TestNASPortIDResolve/mixed_literal (0.00s)
+=== RUN   TestNASPortIDResolveEmptyNASID
+--- PASS: TestNASPortIDResolveEmptyNASID (0.00s)
+=== RUN   TestValidateNASPortIDFormatAccepts
+--- PASS: TestValidateNASPortIDFormatAccepts (0.00s)
+=== RUN   TestValidateNASPortIDFormatRejects
+=== RUN   TestValidateNASPortIDFormatRejects/unknown_placeholder
+=== RUN   TestValidateNASPortIDFormatRejects/unterminated_brace
+=== RUN   TestValidateNASPortIDFormatRejects/bare_open_brace
+=== RUN   TestValidateNASPortIDFormatRejects/empty_placeholder
+--- PASS: TestValidateNASPortIDFormatRejects (0.00s)
+    --- PASS: TestValidateNASPortIDFormatRejects/unknown_placeholder (0.00s)
+    --- PASS: TestValidateNASPortIDFormatRejects/unterminated_brace (0.00s)
+    --- PASS: TestValidateNASPortIDFormatRejects/bare_open_brace (0.00s)
+    --- PASS: TestValidateNASPortIDFormatRejects/empty_placeholder (0.00s)
+=== RUN   TestAccessRequestCarriesNASPortID
+--- PASS: TestAccessRequestCarriesNASPortID (0.00s)
+=== RUN   TestAccessRequestOmitsNASPortIDWhenUnset
+--- PASS: TestAccessRequestOmitsNASPortIDWhenUnset (0.00s)
+=== RUN   TestAcctRequestCarriesNASPortID
+--- PASS: TestAcctRequestCarriesNASPortID (0.00s)
+=== RUN   TestNASPortIDSameInAuthAndAcct
+--- PASS: TestNASPortIDSameInAuthAndAcct (0.00s)
+=== RUN   TestAcctRequestOmitsNASPortIDWhenUnset
+--- PASS: TestAcctRequestOmitsNASPortIDWhenUnset (0.00s)
+=== RUN   TestNASPortIDEmptyResolutionOmitted
+--- PASS: TestNASPortIDEmptyResolutionOmitted (0.00s)
+=== RUN   TestParseConfigNASPortIDFormat
+--- PASS: TestParseConfigNASPortIDFormat (0.00s)
+=== RUN   TestParseConfigNASPortIDFormatAbsent
+--- PASS: TestParseConfigNASPortIDFormatAbsent (0.00s)
+=== RUN   TestParseConfigRejectsUnknownPlaceholder
+--- PASS: TestParseConfigRejectsUnknownPlaceholder (0.00s)
+=== RUN   TestParseConfigRejectsNASIDPlaceholderWithoutNASIdentifier
+--- PASS: TestParseConfigRejectsNASIDPlaceholderWithoutNASIdentifier (0.00s)
+=== RUN   TestParseConfigNASPortIDFormatLengthBoundary
+--- PASS: TestParseConfigNASPortIDFormatLengthBoundary (0.00s)
+=== RUN   TestNASPortIDLengthBoundary
+=== RUN   TestNASPortIDLengthBoundary/zero_octets
+=== RUN   TestNASPortIDLengthBoundary/one_octet
+=== RUN   TestNASPortIDLengthBoundary/253_octets_(last_valid)
+=== RUN   TestNASPortIDLengthBoundary/254_octets_(first_invalid)
+--- PASS: TestNASPortIDLengthBoundary (0.00s)
+    --- PASS: TestNASPortIDLengthBoundary/zero_octets (0.00s)
+    --- PASS: TestNASPortIDLengthBoundary/one_octet (0.00s)
+    --- PASS: TestNASPortIDLengthBoundary/253_octets_(last_valid) (0.00s)
+    --- PASS: TestNASPortIDLengthBoundary/254_octets_(first_invalid) (0.00s)
+=== RUN   TestParseConfigRejectsResolutionPastAttributeLimit
+=== RUN   TestParseConfigRejectsResolutionPastAttributeLimit/widest_resolution_is_exactly_253_octets
+=== RUN   TestParseConfigRejectsResolutionPastAttributeLimit/widest_resolution_is_254_octets
+--- PASS: TestParseConfigRejectsResolutionPastAttributeLimit (0.00s)
+    --- PASS: TestParseConfigRejectsResolutionPastAttributeLimit/widest_resolution_is_exactly_253_octets (0.00s)
+    --- PASS: TestParseConfigRejectsResolutionPastAttributeLimit/widest_resolution_is_254_octets (0.00s)
+=== RUN   TestParseConfigAcceptsOrdinaryNASIDResolution
+--- PASS: TestParseConfigAcceptsOrdinaryNASIDResolution (0.00s)
+=== RUN   TestRegisteredRadiusRemovalRollbackPreservesAccounting
+--- PASS: TestRegisteredRadiusRemovalRollbackPreservesAccounting (0.01s)
+=== RUN   TestRegisteredRadiusRemovalApplyDoesNotWaitForAccounting
+--- PASS: TestRegisteredRadiusRemovalApplyDoesNotWaitForAccounting (0.01s)
+=== RUN   TestRegisteredRadiusCommittedRetirementKeepsNewProvider
+--- PASS: TestRegisteredRadiusCommittedRetirementKeepsNewProvider (0.02s)
+=== RUN   TestRegisteredRadiusRestartRemovalRestoresLocal
+=== RUN   TestRegisteredRadiusRestartRemovalRestoresLocal/first-engine
+--- PASS: TestRegisteredRadiusRestartRemovalRestoresLocal (0.01s)
+    --- PASS: TestRegisteredRadiusRestartRemovalRestoresLocal/first-engine (0.00s)
+=== RUN   TestRegisteredRadiusOlderAcceptanceKeepsNewerRemoval
+--- PASS: TestRegisteredRadiusOlderAcceptanceKeepsNewerRemoval (0.01s)
+=== RUN   TestRegisteredRadiusFailedCompensationKeepsAccounting
+--- PASS: TestRegisteredRadiusFailedCompensationKeepsAccounting (0.01s)
+=== RUN   TestRegisteredLocalCredentialReload
+--- PASS: TestRegisteredLocalCredentialReload (0.01s)
+=== RUN   TestRegisteredLocalFirstApplyRollback
+--- PASS: TestRegisteredLocalFirstApplyRollback (0.00s)
+=== RUN   TestRegisteredProviderReloadTransitions
+--- PASS: TestRegisteredProviderReloadTransitions (0.02s)
+=== RUN   TestServerIPsBoundedTimeout
+--- PASS: TestServerIPsBoundedTimeout (0.05s)
+=== RUN   TestServerIPsSharedDeadlineAcrossServers
+--- PASS: TestServerIPsSharedDeadlineAcrossServers (0.10s)
+=== RUN   TestServerIPsSkipsUnresolvedHostname
+--- PASS: TestServerIPsSkipsUnresolvedHostname (0.00s)
+=== RUN   TestServerIPsIPLiteralNoResolver
+--- PASS: TestServerIPsIPLiteralNoResolver (0.00s)
+=== RUN   TestMSCHAP2SuccessDecodesToTheRawAuthenticatorResponse
+--- PASS: TestMSCHAP2SuccessDecodesToTheRawAuthenticatorResponse (0.00s)
+=== RUN   TestMSCHAP2SuccessRefusesAValueItCannotRead
+=== RUN   TestMSCHAP2SuccessRefusesAValueItCannotRead/empty
+=== RUN   TestMSCHAP2SuccessRefusesAValueItCannotRead/ident_alone
+=== RUN   TestMSCHAP2SuccessRefusesAValueItCannotRead/no_S=_prefix
+=== RUN   TestMSCHAP2SuccessRefusesAValueItCannotRead/hex_too_short
+=== RUN   TestMSCHAP2SuccessRefusesAValueItCannotRead/not_hexadecimal
+=== RUN   TestMSCHAP2SuccessRefusesAValueItCannotRead/ident_octet_not_stripped
+--- PASS: TestMSCHAP2SuccessRefusesAValueItCannotRead (0.00s)
+    --- PASS: TestMSCHAP2SuccessRefusesAValueItCannotRead/empty (0.00s)
+    --- PASS: TestMSCHAP2SuccessRefusesAValueItCannotRead/ident_alone (0.00s)
+    --- PASS: TestMSCHAP2SuccessRefusesAValueItCannotRead/no_S=_prefix (0.00s)
+    --- PASS: TestMSCHAP2SuccessRefusesAValueItCannotRead/hex_too_short (0.00s)
+    --- PASS: TestMSCHAP2SuccessRefusesAValueItCannotRead/not_hexadecimal (0.00s)
+    --- PASS: TestMSCHAP2SuccessRefusesAValueItCannotRead/ident_octet_not_stripped (0.00s)
+=== RUN   TestNoAuthIsAdmittedWithARADIUSClientConfigured
+--- PASS: TestNoAuthIsAdmittedWithARADIUSClientConfigured (0.00s)
+=== RUN   TestCredentialBearingMethodStillReachesTheServer
+--- PASS: TestCredentialBearingMethodStillReachesTheServer (0.00s)
+=== RUN   TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured
+2026/09/23 01:32:48 WARN radius: server unreachable server=127.0.0.1:36924 error="radius: client closed"
+--- PASS: TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured (0.00s)
+=== RUN   TestRFC2865AccessRequestOmitsAnUnavailableUserName
+--- PASS: TestRFC2865AccessRequestOmitsAnUnavailableUserName (0.00s)
+=== RUN   TestRFC2865AccountingRequestDoesNotCarryTheAccessRequestCode
+--- PASS: TestRFC2865AccountingRequestDoesNotCarryTheAccessRequestCode (0.00s)
+=== RUN   TestRFC2865AccessAcceptExtractionIsOrderIndependent
+=== RUN   TestRFC2865AccessAcceptExtractionIsOrderIndependent/forward
+=== RUN   TestRFC2865AccessAcceptExtractionIsOrderIndependent/reversed
+--- PASS: TestRFC2865AccessAcceptExtractionIsOrderIndependent (0.00s)
+    --- PASS: TestRFC2865AccessAcceptExtractionIsOrderIndependent/forward (0.00s)
+    --- PASS: TestRFC2865AccessAcceptExtractionIsOrderIndependent/reversed (0.00s)
+=== RUN   TestRFC2865AttributeOrderIsObservableByPosition
+--- PASS: TestRFC2865AttributeOrderIsObservableByPosition (0.00s)
+=== RUN   TestRFC2865SubscriberAccessRequestCarriesCredential
+--- PASS: TestRFC2865SubscriberAccessRequestCarriesCredential (0.00s)
+=== RUN   TestRFC2865SubscriberZeroLengthUserNameOmitted
+--- PASS: TestRFC2865SubscriberZeroLengthUserNameOmitted (0.00s)
+=== RUN   TestRFC2865SubscriberServiceTypeAuthorization
+--- PASS: TestRFC2865SubscriberServiceTypeAuthorization (0.00s)
+=== RUN   TestRFC2865SubscriberAccessRequestUserName
+--- PASS: TestRFC2865SubscriberAccessRequestUserName (0.00s)
+=== RUN   TestRFC2866AcctStatusTypePresent
+=== RUN   TestRFC2866AcctStatusTypePresent/start
+=== RUN   TestRFC2866AcctStatusTypePresent/stop
+=== RUN   TestRFC2866AcctStatusTypePresent/interim
+--- PASS: TestRFC2866AcctStatusTypePresent (0.00s)
+    --- PASS: TestRFC2866AcctStatusTypePresent/start (0.00s)
+    --- PASS: TestRFC2866AcctStatusTypePresent/stop (0.00s)
+    --- PASS: TestRFC2866AcctStatusTypePresent/interim (0.00s)
+=== RUN   TestRFC2866AcctStatusTypeNeverOmitted
+--- PASS: TestRFC2866AcctStatusTypeNeverOmitted (0.00s)
+=== RUN   TestRFC2866AcctSessionIDUnique
+--- PASS: TestRFC2866AcctSessionIDUnique (0.01s)
+=== RUN   TestRFC2866AcctSessionIDNoCollisionOnReusedKey
+--- PASS: TestRFC2866AcctSessionIDNoCollisionOnReusedKey (0.00s)
+=== RUN   TestRFC2866AcctFailureKeepsSession
+2026/09/23 01:32:48 WARN radius: server unreachable server=127.0.0.1:56647 error="radius: all 1 retries exhausted for 127.0.0.1:56647"
+--- PASS: TestRFC2866AcctFailureKeepsSession (0.05s)
+=== RUN   TestRFC2866SessionTeardownIndependentOfAccounting
+2026/09/23 01:32:48 WARN radius: server unreachable server=127.0.0.1:36361 error="radius: all 1 retries exhausted for 127.0.0.1:36361"
+--- PASS: TestRFC2866SessionTeardownIndependentOfAccounting (0.05s)
+=== RUN   TestRFC2866AcctForbiddenAttributesAbsent
+--- PASS: TestRFC2866AcctForbiddenAttributesAbsent (0.00s)
+=== RUN   TestRFC2866AcctForbiddenAttributesDoNotEmptyTheRequest
+--- PASS: TestRFC2866AcctForbiddenAttributesDoNotEmptyTheRequest (0.00s)
+=== RUN   TestRFC2866AcctNASIdentityAlwaysPresent
+=== RUN   TestRFC2866AcctNASIdentityAlwaysPresent/neither_leaf_set
+=== RUN   TestRFC2866AcctNASIdentityAlwaysPresent/nas-identifier_only
+=== RUN   TestRFC2866AcctNASIdentityAlwaysPresent/source-address_only
+=== RUN   TestRFC2866AcctNASIdentityAlwaysPresent/both_leaves_set
+--- PASS: TestRFC2866AcctNASIdentityAlwaysPresent (0.00s)
+    --- PASS: TestRFC2866AcctNASIdentityAlwaysPresent/neither_leaf_set (0.00s)
+    --- PASS: TestRFC2866AcctNASIdentityAlwaysPresent/nas-identifier_only (0.00s)
+    --- PASS: TestRFC2866AcctNASIdentityAlwaysPresent/source-address_only (0.00s)
+    --- PASS: TestRFC2866AcctNASIdentityAlwaysPresent/both_leaves_set (0.00s)
+=== RUN   TestRFC2866AcctNASIdentityFallbackIsNarrow
+--- PASS: TestRFC2866AcctNASIdentityFallbackIsNarrow (0.00s)
+=== RUN   TestRFC2866AcctZeroLengthTextOmitted
+--- PASS: TestRFC2866AcctZeroLengthTextOmitted (0.00s)
+=== RUN   TestRFC2866AcctNonEmptyTextIsSent
+--- PASS: TestRFC2866AcctNonEmptyTextIsSent (0.00s)
+=== RUN   TestRFC2866AcctSessionIDSameAcrossRecords
+--- PASS: TestRFC2866AcctSessionIDSameAcrossRecords (0.00s)
+=== RUN   TestRFC2866AcctSessionIDDiffersBetweenSessions
+--- PASS: TestRFC2866AcctSessionIDDiffersBetweenSessions (0.00s)
+=== RUN   TestRFC2866AcctSessionIDPresentOnEveryRequest
+--- PASS: TestRFC2866AcctSessionIDPresentOnEveryRequest (0.00s)
+=== RUN   TestRFC2866AcctSessionIDNeverEmpty
+--- PASS: TestRFC2866AcctSessionIDNeverEmpty (0.00s)
+=== RUN   TestRFC2869AccessRequestNamesTheServiceZeOffers
+=== RUN   TestRFC2869AccessRequestNamesTheServiceZeOffers/none
+=== RUN   TestRFC2869AccessRequestNamesTheServiceZeOffers/pap
+=== RUN   TestRFC2869AccessRequestNamesTheServiceZeOffers/chap-md5
+=== RUN   TestRFC2869AccessRequestNamesTheServiceZeOffers/mschapv2
+--- PASS: TestRFC2869AccessRequestNamesTheServiceZeOffers (0.00s)
+    --- PASS: TestRFC2869AccessRequestNamesTheServiceZeOffers/none (0.00s)
+    --- PASS: TestRFC2869AccessRequestNamesTheServiceZeOffers/pap (0.00s)
+    --- PASS: TestRFC2869AccessRequestNamesTheServiceZeOffers/chap-md5 (0.00s)
+    --- PASS: TestRFC2869AccessRequestNamesTheServiceZeOffers/mschapv2 (0.00s)
+=== RUN   TestRFC2869AccessRequestNeverRequestsAnUnavailableService
+=== RUN   TestRFC2869AccessRequestNeverRequestsAnUnavailableService/none
+=== RUN   TestRFC2869AccessRequestNeverRequestsAnUnavailableService/pap
+=== RUN   TestRFC2869AccessRequestNeverRequestsAnUnavailableService/chap-md5
+=== RUN   TestRFC2869AccessRequestNeverRequestsAnUnavailableService/mschapv2
+--- PASS: TestRFC2869AccessRequestNeverRequestsAnUnavailableService (0.00s)
+    --- PASS: TestRFC2869AccessRequestNeverRequestsAnUnavailableService/none (0.00s)
+    --- PASS: TestRFC2869AccessRequestNeverRequestsAnUnavailableService/pap (0.00s)
+    --- PASS: TestRFC2869AccessRequestNeverRequestsAnUnavailableService/chap-md5 (0.00s)
+    --- PASS: TestRFC2869AccessRequestNeverRequestsAnUnavailableService/mschapv2 (0.00s)
+=== RUN   TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod
+--- PASS: TestRFC2869AccessRequestCarriesTheCredentialOfItsMethod (0.00s)
+=== RUN   TestRFC2869AccessRequestCarriesOneKindOfCredential
+=== RUN   TestRFC2869AccessRequestCarriesOneKindOfCredential/none
+=== RUN   TestRFC2869AccessRequestCarriesOneKindOfCredential/pap
+=== RUN   TestRFC2869AccessRequestCarriesOneKindOfCredential/chap-md5
+=== RUN   TestRFC2869AccessRequestCarriesOneKindOfCredential/mschapv2
+--- PASS: TestRFC2869AccessRequestCarriesOneKindOfCredential (0.00s)
+    --- PASS: TestRFC2869AccessRequestCarriesOneKindOfCredential/none (0.00s)
+    --- PASS: TestRFC2869AccessRequestCarriesOneKindOfCredential/pap (0.00s)
+    --- PASS: TestRFC2869AccessRequestCarriesOneKindOfCredential/chap-md5 (0.00s)
+    --- PASS: TestRFC2869AccessRequestCarriesOneKindOfCredential/mschapv2 (0.00s)
+=== RUN   TestRFC2869GigawordsAbsentOnStart
+--- PASS: TestRFC2869GigawordsAbsentOnStart (0.00s)
+=== RUN   TestRFC2869InterimLoopSendsOnItsInterval
+2026/09/23 01:32:48 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+2026/09/23 01:32:48 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+2026/09/23 01:32:48 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+2026/09/23 01:32:48 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+2026/09/23 01:32:48 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+2026/09/23 01:32:49 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+2026/09/23 01:32:49 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+2026/09/23 01:32:49 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+2026/09/23 01:32:49 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+2026/09/23 01:32:49 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+2026/09/23 01:32:49 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+2026/09/23 01:32:49 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+2026/09/23 01:32:49 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+2026/09/23 01:32:49 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+2026/09/23 01:32:49 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+2026/09/23 01:32:49 WARN radius: server unreachable server=127.0.0.1:39708 error="radius: all 1 retries exhausted for 127.0.0.1:39708"
+--- PASS: TestRFC2869InterimLoopSendsOnItsInterval (0.50s)
+=== RUN   TestRFC2869InterimLoopKeepsOneGenerationOutstanding
+2026/09/23 01:32:49 WARN radius: server unreachable server=127.0.0.1:58516 error="radius: all 2 retries exhausted for 127.0.0.1:58516"
+2026/09/23 01:32:49 WARN radius: server unreachable server=127.0.0.1:58516 error="radius: all 2 retries exhausted for 127.0.0.1:58516"
+2026/09/23 01:32:50 WARN radius: server unreachable server=127.0.0.1:58516 error="radius: all 2 retries exhausted for 127.0.0.1:58516"
+2026/09/23 01:32:50 WARN radius: server unreachable server=127.0.0.1:58516 error="radius: all 2 retries exhausted for 127.0.0.1:58516"
+--- PASS: TestRFC2869InterimLoopKeepsOneGenerationOutstanding (1.22s)
+=== RUN   TestRFC2869LocalAcctIntervalOverridesAccessAccept
+--- PASS: TestRFC2869LocalAcctIntervalOverridesAccessAccept (0.12s)
+=== RUN   TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge
+--- PASS: TestRFC2869AbsentAcctIntervalLeavesTheAccessAcceptInCharge (0.50s)
+=== RUN   TestAcctIntervalPrecedence
+=== RUN   TestAcctIntervalPrecedence/configured_alone
+=== RUN   TestAcctIntervalPrecedence/configured_beats_the_Access-Accept
+=== RUN   TestAcctIntervalPrecedence/the_Access-Accept_decides_when_nothing_is_configured
+=== RUN   TestAcctIntervalPrecedence/the_Access-Accept_is_clamped_up_to_the_floor
+=== RUN   TestAcctIntervalPrecedence/the_Access-Accept_is_clamped_down_to_the_ceiling
+=== RUN   TestAcctIntervalPrecedence/neither_side_states_one
+--- PASS: TestAcctIntervalPrecedence (0.00s)
+    --- PASS: TestAcctIntervalPrecedence/configured_alone (0.00s)
+    --- PASS: TestAcctIntervalPrecedence/configured_beats_the_Access-Accept (0.00s)
+    --- PASS: TestAcctIntervalPrecedence/the_Access-Accept_decides_when_nothing_is_configured (0.00s)
+    --- PASS: TestAcctIntervalPrecedence/the_Access-Accept_is_clamped_up_to_the_floor (0.00s)
+    --- PASS: TestAcctIntervalPrecedence/the_Access-Accept_is_clamped_down_to_the_ceiling (0.00s)
+    --- PASS: TestAcctIntervalPrecedence/neither_side_states_one (0.00s)
+=== RUN   TestAcctIntervalNeverAnswersZero
+--- PASS: TestAcctIntervalNeverAnswersZero (0.00s)
+=== RUN   TestRFC5176NoSessionIdNotActedOn
+--- PASS: TestRFC5176NoSessionIdNotActedOn (0.00s)
+=== RUN   TestRFC5176ResponseAuthenticator
+--- PASS: TestRFC5176ResponseAuthenticator (0.00s)
+=== RUN   TestCoASourceFilterDiscardsWhenNoServerResolved
+--- PASS: TestCoASourceFilterDiscardsWhenNoServerResolved (0.20s)
+=== RUN   TestCoASourceFilterAnswersAConfiguredClient
+--- PASS: TestCoASourceFilterAnswersAConfiguredClient (0.00s)
+=== RUN   TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault
+--- PASS: TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault (0.00s)
+=== RUN   TestRFC5176WrongMessageAuthenticatorDiscardedWhenNotRequired
+--- PASS: TestRFC5176WrongMessageAuthenticatorDiscardedWhenNotRequired (0.20s)
+=== RUN   TestRFC5176ListenerAcceptsConformantMessageAuthenticator
+--- PASS: TestRFC5176ListenerAcceptsConformantMessageAuthenticator (0.00s)
+=== RUN   TestRFC5176ListenerDiscardsWrongMessageAuthenticator
+--- PASS: TestRFC5176ListenerDiscardsWrongMessageAuthenticator (0.20s)
+=== RUN   TestRFC5176InvalidCodeDiscarded
+--- PASS: TestRFC5176InvalidCodeDiscarded (0.20s)
+=== RUN   TestRFC5176DuplicateRequestAnsweredFromCache
+--- PASS: TestRFC5176DuplicateRequestAnsweredFromCache (0.00s)
+=== RUN   TestRFC5176LengthFieldGovernsTheOctetsRead
+--- PASS: TestRFC5176LengthFieldGovernsTheOctetsRead (0.20s)
+=== RUN   TestRFC5176SharedSecretChosenBySourceAddress
+--- PASS: TestRFC5176SharedSecretChosenBySourceAddress (0.20s)
+=== RUN   TestRFC5176UnsupportedAttributeNAKed
+--- PASS: TestRFC5176UnsupportedAttributeNAKed (0.00s)
+=== RUN   TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed
+--- PASS: TestRFC5176ChangeThatCannotBeCarriedOutIsNAKed (0.00s)
+=== RUN   TestRFC5176MultipleMatchingSessionsNAKed
+--- PASS: TestRFC5176MultipleMatchingSessionsNAKed (0.00s)
+=== RUN   TestRFC5176ProxyStateReturnedUnmodified
+--- PASS: TestRFC5176ProxyStateReturnedUnmodified (0.00s)
+=== RUN   TestRFC5176ServiceTypeNAKed
+--- PASS: TestRFC5176ServiceTypeNAKed (0.00s)
+=== RUN   TestRFC5176StateReturnedUnmodified
+--- PASS: TestRFC5176StateReturnedUnmodified (0.00s)
+=== RUN   TestRFC5176MessageAuthenticatorZeroesBothFields
+--- PASS: TestRFC5176MessageAuthenticatorZeroesBothFields (0.20s)
+=== RUN   TestRFC5176ErrorCausePlacement
+=== RUN   TestRFC5176ErrorCausePlacement/coa_unknown_session
+=== RUN   TestRFC5176ErrorCausePlacement/coa_with_no_authorization_change
+=== RUN   TestRFC5176ErrorCausePlacement/coa_with_an_unsupported_service-type
+=== RUN   TestRFC5176ErrorCausePlacement/disconnect_with_an_unsupported_attribute
+=== RUN   TestRFC5176ErrorCausePlacement/coa_with_no_event-timestamp
+=== RUN   TestRFC5176ErrorCausePlacement/disconnect_that_succeeds
+--- PASS: TestRFC5176ErrorCausePlacement (0.00s)
+    --- PASS: TestRFC5176ErrorCausePlacement/coa_unknown_session (0.00s)
+    --- PASS: TestRFC5176ErrorCausePlacement/coa_with_no_authorization_change (0.00s)
+    --- PASS: TestRFC5176ErrorCausePlacement/coa_with_an_unsupported_service-type (0.00s)
+    --- PASS: TestRFC5176ErrorCausePlacement/disconnect_with_an_unsupported_attribute (0.00s)
+    --- PASS: TestRFC5176ErrorCausePlacement/coa_with_no_event-timestamp (0.00s)
+    --- PASS: TestRFC5176ErrorCausePlacement/disconnect_that_succeeds (0.00s)
+=== RUN   TestRFC5176IdentificationAttributesIdentifyOnly
+--- PASS: TestRFC5176IdentificationAttributesIdentifyOnly (0.00s)
+=== RUN   TestRFC5176UntrustedSourceDiscarded
+--- PASS: TestRFC5176UntrustedSourceDiscarded (0.40s)
+=== RUN   TestRFC5176StaleEventTimestampDiscarded
+--- PASS: TestRFC5176StaleEventTimestampDiscarded (0.20s)
+=== RUN   TestExcludeVocabularyMatchesModel
+--- PASS: TestExcludeVocabularyMatchesModel (0.14s)
+=== RUN   TestUnconfiguredRadiusLeavesTheAuthSlotToLocal
+--- PASS: TestUnconfiguredRadiusLeavesTheAuthSlotToLocal (0.00s)
+PASS
+ok  	github.com/ze-software/ze/internal/component/l2tp/plugins/authradius	14.543s
+=== RUN   TestAuthHandlerRegistration
+--- PASS: TestAuthHandlerRegistration (0.00s)
+=== RUN   TestAuthHandlerNilIgnored
+--- PASS: TestAuthHandlerNilIgnored (0.00s)
+=== RUN   TestPoolHandlerRegistration
+--- PASS: TestPoolHandlerRegistration (0.00s)
+=== RUN   TestShaperHandlerRegistration
+--- PASS: TestShaperHandlerRegistration (0.00s)
+=== RUN   TestRegistryAddRemoveCount
+--- PASS: TestRegistryAddRemoveCount (0.00s)
+=== RUN   TestRegistryAddReplacesExisting
+--- PASS: TestRegistryAddReplacesExisting (0.00s)
+=== RUN   TestRegistryLookupByAcctSessionID
+--- PASS: TestRegistryLookupByAcctSessionID (0.00s)
+=== RUN   TestRegistrySnapshotIsolation
+--- PASS: TestRegistrySnapshotIsolation (0.00s)
+=== RUN   TestRegistryConcurrent
+--- PASS: TestRegistryConcurrent (0.02s)
+PASS
+ok  	github.com/ze-software/ze/internal/component/l2tp/subscriber	1.067s
+=== RUN   TestSameSubnetRenumberKeepsNewAddress
+--- PASS: TestSameSubnetRenumberKeepsNewAddress (0.00s)
+=== RUN   TestSameSubnetRenumberWithUnflaggedSecondary
+--- PASS: TestSameSubnetRenumberWithUnflaggedSecondary (0.00s)
+=== RUN   TestSameSubnetRenumberSurvivesRepeatedReloads
+--- PASS: TestSameSubnetRenumberSurvivesRepeatedReloads (0.00s)
+=== RUN   TestSameSubnetRemovalKeepsEveryOtherAddress
+--- PASS: TestSameSubnetRemovalKeepsEveryOtherAddress (0.00s)
+=== RUN   TestPointToPointRenumberKeepsNewAddress
+--- PASS: TestPointToPointRenumberKeepsNewAddress (0.00s)
+=== RUN   TestCrossSubnetRenumberKeepsNewAddress
+--- PASS: TestCrossSubnetRenumberKeepsNewAddress (0.00s)
+=== RUN   TestHostAlreadyPromotingNeedsNoWrite
+--- PASS: TestHostAlreadyPromotingNeedsNoWrite (0.00s)
+=== RUN   TestRemoveAbsentAddressTouchesNoKernelState
+--- PASS: TestRemoveAbsentAddressTouchesNoKernelState (0.00s)
+=== RUN   TestToDeviceAddressCarriesSecondaryFlag
+--- PASS: TestToDeviceAddressCarriesSecondaryFlag (0.00s)
+=== RUN   TestToDeviceAddressRejectsUnusableAddress
+--- PASS: TestToDeviceAddressRejectsUnusableAddress (0.00s)
+=== RUN   TestToDeviceAddressNormalizes4In6
+--- PASS: TestToDeviceAddressNormalizes4In6 (0.00s)
+=== RUN   TestFlushedByDeletePrimaryTakesSameSubnetSecondary
+--- PASS: TestFlushedByDeletePrimaryTakesSameSubnetSecondary (0.00s)
+=== RUN   TestFlushedByDeleteSecondaryIsIsolated
+--- PASS: TestFlushedByDeleteSecondaryIsIsolated (0.00s)
+=== RUN   TestFlushedByDeleteOtherSubnetsSurvive
+--- PASS: TestFlushedByDeleteOtherSubnetsSurvive (0.00s)
+=== RUN   TestFlushedByDeleteIPv6HasNoPrimarySecondary
+--- PASS: TestFlushedByDeleteIPv6HasNoPrimarySecondary (0.00s)
+=== RUN   TestEnsureDeleteIsolatedEnablesPromoteSecondaries
+--- PASS: TestEnsureDeleteIsolatedEnablesPromoteSecondaries (0.00s)
+=== RUN   TestEnsureDeleteIsolatedSkipsWriteWhenAlreadyEnabled
+--- PASS: TestEnsureDeleteIsolatedSkipsWriteWhenAlreadyEnabled (0.00s)
+=== RUN   TestEnsureDeleteIsolatedNoOpWithoutHazard
+--- PASS: TestEnsureDeleteIsolatedNoOpWithoutHazard (0.00s)
+=== RUN   TestEnsureDeleteIsolatedRejectsWhenKnobUnwritable
+--- PASS: TestEnsureDeleteIsolatedRejectsWhenKnobUnwritable (0.00s)
+=== RUN   TestPromoteSecondariesKnobUsesLiteralDeviceName
+--- PASS: TestPromoteSecondariesKnobUsesLiteralDeviceName (0.00s)
+=== RUN   TestSelectDeleteTargetAdoptsKernelSecondaryFlag
+--- PASS: TestSelectDeleteTargetAdoptsKernelSecondaryFlag (0.00s)
+=== RUN   TestSelectDeleteTargetReportsAbsentAddress
+--- PASS: TestSelectDeleteTargetReportsAbsentAddress (0.00s)
+=== RUN   TestFlushedByDeleteHostRoutesAreTheirOwnSubnet
+--- PASS: TestFlushedByDeleteHostRoutesAreTheirOwnSubnet (0.00s)
+=== RUN   TestFlushedByDeleteReportsEveryEndangeredSecondary
+--- PASS: TestFlushedByDeleteReportsEveryEndangeredSecondary (0.00s)
+=== RUN   TestFlushedByDeleteSoleAddressEndangersNothing
+--- PASS: TestFlushedByDeleteSoleAddressEndangersNothing (0.00s)
+=== RUN   TestOsAddrSysctlReadTrimsProcfsNewline
+--- PASS: TestOsAddrSysctlReadTrimsProcfsNewline (0.00s)
+=== RUN   TestOsAddrSysctlWriteRoundTrips
+--- PASS: TestOsAddrSysctlWriteRoundTrips (0.00s)
+=== RUN   TestEnsureDeleteIsolatedWritesWhenKnobUnreadable
+--- PASS: TestEnsureDeleteIsolatedWritesWhenKnobUnreadable (0.00s)
+=== RUN   TestEnsureDeleteIsolatedErrorNamesEveryEndangeredAddress
+--- PASS: TestEnsureDeleteIsolatedErrorNamesEveryEndangeredAddress (0.00s)
+=== RUN   TestBridgeSetSTPSysfsWrite
+2026/09/23 01:32:39 WARN YANG command node missing ze:help summary path=delete
+2026/09/23 01:32:39 WARN YANG command node missing ze:help summary path=request
+2026/09/23 01:32:39 WARN YANG command node missing ze:help summary path=clear
+--- PASS: TestBridgeSetSTPSysfsWrite (0.11s)
+=== RUN   TestCounterGenerationReusedIndex
+--- PASS: TestCounterGenerationReusedIndex (0.00s)
+=== RUN   TestCounterGenerationPreservesContinuity
+--- PASS: TestCounterGenerationPreservesContinuity (0.00s)
+=== RUN   TestCounterGenerationLossStartsNewEpoch
+--- PASS: TestCounterGenerationLossStartsNewEpoch (0.00s)
+=== RUN   TestCounterDumpInterrupted
+--- PASS: TestCounterDumpInterrupted (0.00s)
+=== RUN   TestCounterDumpRejectsMalformedMessages
+--- PASS: TestCounterDumpRejectsMalformedMessages (0.00s)
+=== RUN   TestCounterGenerationRawDecrease
+--- PASS: TestCounterGenerationRawDecrease (0.00s)
+=== RUN   TestCounterDumpForeignSequence
+--- PASS: TestCounterDumpForeignSequence (0.00s)
+=== RUN   TestCounterGenerationInterleavedDump
+--- PASS: TestCounterGenerationInterleavedDump (0.00s)
+=== RUN   TestCounterSourceClose
+--- PASS: TestCounterSourceClose (0.00s)
+=== RUN   TestDoctorIfaceMacvlanProbe
+=== RUN   TestDoctorIfaceMacvlanProbe/capable-ok
+=== RUN   TestDoctorIfaceMacvlanProbe/incapable-error
+=== RUN   TestDoctorIfaceMacvlanProbe/no-privilege-warning
+=== RUN   TestDoctorIfaceMacvlanProbe/vpp-backend-skips
+=== RUN   TestDoctorIfaceMacvlanProbe/no-interface-skips
+--- PASS: TestDoctorIfaceMacvlanProbe (0.00s)
+    --- PASS: TestDoctorIfaceMacvlanProbe/capable-ok (0.00s)
+    --- PASS: TestDoctorIfaceMacvlanProbe/incapable-error (0.00s)
+    --- PASS: TestDoctorIfaceMacvlanProbe/no-privilege-warning (0.00s)
+    --- PASS: TestDoctorIfaceMacvlanProbe/vpp-backend-skips (0.00s)
+    --- PASS: TestDoctorIfaceMacvlanProbe/no-interface-skips (0.00s)
+=== RUN   TestDoctorIfaceMacvlanCheckRegistered
+--- PASS: TestDoctorIfaceMacvlanCheckRegistered (0.00s)
+=== RUN   TestDoctorIfaceMacvlanCodeRegistered
+--- PASS: TestDoctorIfaceMacvlanCodeRegistered (0.00s)
+=== RUN   TestBuildMacvlanLink
+--- PASS: TestBuildMacvlanLink (0.00s)
+=== RUN   TestBuildMacvlanLinkMode
+--- PASS: TestBuildMacvlanLinkMode (0.00s)
+=== RUN   TestBuildMacvlanLink_BadMAC
+--- PASS: TestBuildMacvlanLink_BadMAC (0.00s)
+=== RUN   TestAddRouteRejectsTheBlindProtocol
+--- PASS: TestAddRouteRejectsTheBlindProtocol (0.00s)
+=== RUN   TestRemoveRouteMissWarnsThroughTheProductionLogger
+time=2026-09-23T01:32:39.983+01:00 level=WARN msg="iface: route delete matched no route with this protocol; the kernel still holds this route under another one" subsystem=iface.netlink iface=zert-wiring0 dest=0.0.0.0/0 gw=192.0.2.2 metric=5 proto=253 held-by=boot
+--- PASS: TestRemoveRouteMissWarnsThroughTheProductionLogger (0.00s)
+=== RUN   TestRemoveRouteMissNamesTheProtocolThatHoldsTheRoute
+--- PASS: TestRemoveRouteMissNamesTheProtocolThatHoldsTheRoute (0.00s)
+=== RUN   TestRemoveRouteMissReportsWhatTheTableReadEstablished
+=== RUN   TestRemoveRouteMissReportsWhatTheTableReadEstablished/the_read_failed
+=== RUN   TestRemoveRouteMissReportsWhatTheTableReadEstablished/another_protocol_holds_the_route
+=== RUN   TestRemoveRouteMissReportsWhatTheTableReadEstablished/the_read_found_nothing
+--- PASS: TestRemoveRouteMissReportsWhatTheTableReadEstablished (0.00s)
+    --- PASS: TestRemoveRouteMissReportsWhatTheTableReadEstablished/the_read_failed (0.00s)
+    --- PASS: TestRemoveRouteMissReportsWhatTheTableReadEstablished/another_protocol_holds_the_route (0.00s)
+    --- PASS: TestRemoveRouteMissReportsWhatTheTableReadEstablished/the_read_found_nothing (0.00s)
+=== RUN   TestHandleLinkUpdate_Create
+--- PASS: TestHandleLinkUpdate_Create (0.00s)
+=== RUN   TestHandleLinkUpdate_StateChange
+--- PASS: TestHandleLinkUpdate_StateChange (0.00s)
+=== RUN   TestHandleLinkUpdate_Delete
+--- PASS: TestHandleLinkUpdate_Delete (0.00s)
+=== RUN   TestAddrUpdateToEventType
+=== RUN   TestAddrUpdateToEventType/addr_added
+=== RUN   TestAddrUpdateToEventType/addr_removed
+--- PASS: TestAddrUpdateToEventType (0.00s)
+    --- PASS: TestAddrUpdateToEventType/addr_added (0.00s)
+    --- PASS: TestAddrUpdateToEventType/addr_removed (0.00s)
+=== RUN   TestResolveVLANUnit
+=== RUN   TestResolveVLANUnit/plain_interface
+=== RUN   TestResolveVLANUnit/vlan_subinterface
+=== RUN   TestResolveVLANUnit/vlan_with_dots_in_parent
+=== RUN   TestResolveVLANUnit/no_dot_suffix
+=== RUN   TestResolveVLANUnit/dot_but_not_numeric
+=== RUN   TestResolveVLANUnit/leading_dot
+=== RUN   TestResolveVLANUnit/empty_string
+=== RUN   TestResolveVLANUnit/negative_vlan
+=== RUN   TestResolveVLANUnit/vlan_zero
+--- PASS: TestResolveVLANUnit (0.00s)
+    --- PASS: TestResolveVLANUnit/plain_interface (0.00s)
+    --- PASS: TestResolveVLANUnit/vlan_subinterface (0.00s)
+    --- PASS: TestResolveVLANUnit/vlan_with_dots_in_parent (0.00s)
+    --- PASS: TestResolveVLANUnit/no_dot_suffix (0.00s)
+    --- PASS: TestResolveVLANUnit/dot_but_not_numeric (0.00s)
+    --- PASS: TestResolveVLANUnit/leading_dot (0.00s)
+    --- PASS: TestResolveVLANUnit/empty_string (0.00s)
+    --- PASS: TestResolveVLANUnit/negative_vlan (0.00s)
+    --- PASS: TestResolveVLANUnit/vlan_zero (0.00s)
+=== RUN   TestIsLinkUp
+=== RUN   TestIsLinkUp/oper_up
+=== RUN   TestIsLinkUp/oper_down
+=== RUN   TestIsLinkUp/oper_unknown_with_IFF_UP
+=== RUN   TestIsLinkUp/oper_unknown_without_IFF_UP
+=== RUN   TestIsLinkUp/oper_dormant
+=== RUN   TestIsLinkUp/oper_testing
+=== RUN   TestIsLinkUp/oper_lower_layer_down
+--- PASS: TestIsLinkUp (0.00s)
+    --- PASS: TestIsLinkUp/oper_up (0.00s)
+    --- PASS: TestIsLinkUp/oper_down (0.00s)
+    --- PASS: TestIsLinkUp/oper_unknown_with_IFF_UP (0.00s)
+    --- PASS: TestIsLinkUp/oper_unknown_without_IFF_UP (0.00s)
+    --- PASS: TestIsLinkUp/oper_dormant (0.00s)
+    --- PASS: TestIsLinkUp/oper_testing (0.00s)
+    --- PASS: TestIsLinkUp/oper_lower_layer_down (0.00s)
+=== RUN   TestAddrFamily
+=== RUN   TestAddrFamily/ipv4
+=== RUN   TestAddrFamily/ipv6
+=== RUN   TestAddrFamily/ipv4_host
+=== RUN   TestAddrFamily/ipv6_loopback
+=== RUN   TestAddrFamily/invalid
+--- PASS: TestAddrFamily (0.00s)
+    --- PASS: TestAddrFamily/ipv4 (0.00s)
+    --- PASS: TestAddrFamily/ipv6 (0.00s)
+    --- PASS: TestAddrFamily/ipv4_host (0.00s)
+    --- PASS: TestAddrFamily/ipv6_loopback (0.00s)
+    --- PASS: TestAddrFamily/invalid (0.00s)
+=== RUN   TestHandleLinkUpdate_NilAttrs
+--- PASS: TestHandleLinkUpdate_NilAttrs (0.00s)
+=== RUN   TestEmitCreatedPayload
+--- PASS: TestEmitCreatedPayload (0.00s)
+=== RUN   TestEverySubscriptionAsksForAReceiveBuffer
+--- PASS: TestEverySubscriptionAsksForAReceiveBuffer (0.00s)
+=== RUN   TestTheReceiveBufferIsAskedForNotForced
+--- PASS: TestTheReceiveBufferIsAskedForNotForced (0.00s)
+=== RUN   TestProtocolNameNamesEveryProducer
+=== RUN   TestProtocolNameNamesEveryProducer/interface_layer
+=== RUN   TestProtocolNameNamesEveryProducer/static_plugin
+=== RUN   TestProtocolNameNamesEveryProducer/fib_kernel_plugin
+=== RUN   TestProtocolNameNamesEveryProducer/policy_routing_plugin
+=== RUN   TestProtocolNameNamesEveryProducer/kernel_boot
+=== RUN   TestProtocolNameNamesEveryProducer/kernel_connected
+=== RUN   TestProtocolNameNamesEveryProducer/iproute2_static
+=== RUN   TestProtocolNameNamesEveryProducer/router_advertisement
+=== RUN   TestProtocolNameNamesEveryProducer/legacy_quagga_zebra
+=== RUN   TestProtocolNameNamesEveryProducer/bird
+=== RUN   TestProtocolNameNamesEveryProducer/dhcp_client
+=== RUN   TestProtocolNameNamesEveryProducer/babel
+=== RUN   TestProtocolNameNamesEveryProducer/frr_bgp
+=== RUN   TestProtocolNameNamesEveryProducer/frr_eigrp
+=== RUN   TestProtocolNameNamesEveryProducer/unallocated_daemon_id
+=== RUN   TestProtocolNameNamesEveryProducer/unknown_producer
+--- PASS: TestProtocolNameNamesEveryProducer (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/interface_layer (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/static_plugin (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/fib_kernel_plugin (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/policy_routing_plugin (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/kernel_boot (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/kernel_connected (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/iproute2_static (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/router_advertisement (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/legacy_quagga_zebra (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/bird (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/dhcp_client (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/babel (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/frr_bgp (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/frr_eigrp (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/unallocated_daemon_id (0.00s)
+    --- PASS: TestProtocolNameNamesEveryProducer/unknown_producer (0.00s)
+=== RUN   TestListInterfaces
+--- PASS: TestListInterfaces (0.00s)
+=== RUN   TestGetInterface
+--- PASS: TestGetInterface (0.00s)
+=== RUN   TestGetInterfaceNotFound
+--- PASS: TestGetInterfaceNotFound (0.00s)
+=== RUN   TestGetInterfaceInvalidName
+--- PASS: TestGetInterfaceInvalidName (0.00s)
+=== RUN   TestLinkToInfoVLANQoSMaps
+--- PASS: TestLinkToInfoVLANQoSMaps (0.00s)
+=== RUN   TestLinkToInfoPermanentMAC
+--- PASS: TestLinkToInfoPermanentMAC (0.00s)
+=== RUN   TestLinkToInfoNoPermanentMAC
+--- PASS: TestLinkToInfoNoPermanentMAC (0.00s)
+=== RUN   TestParseLinkSpeedDuplex
+--- PASS: TestParseLinkSpeedDuplex (0.00s)
+=== RUN   TestLinkSpeedDuplexLoopback
+--- PASS: TestLinkSpeedDuplexLoopback (0.00s)
+=== RUN   TestAddrOrigin
+--- PASS: TestAddrOrigin (0.00s)
+=== RUN   TestNormalizeLifetime
+--- PASS: TestNormalizeLifetime (0.00s)
+=== RUN   TestHandleAddrUpdate_SlaacOrigin
+--- PASS: TestHandleAddrUpdate_SlaacOrigin (0.00s)
+=== RUN   TestHandleAddrUpdate_StaticOrigin
+--- PASS: TestHandleAddrUpdate_StaticOrigin (0.00s)
+=== RUN   TestBuildVxlanLink
+--- PASS: TestBuildVxlanLink (0.00s)
+=== RUN   TestBuildVxlanCustomPort
+--- PASS: TestBuildVxlanCustomPort (0.00s)
+=== RUN   TestBuildVxlanRejectsBadVNI
+=== RUN   TestBuildVxlanRejectsBadVNI/unset
+=== RUN   TestBuildVxlanRejectsBadVNI/zero
+=== RUN   TestBuildVxlanRejectsBadVNI/too-big
+--- PASS: TestBuildVxlanRejectsBadVNI (0.00s)
+    --- PASS: TestBuildVxlanRejectsBadVNI/unset (0.00s)
+    --- PASS: TestBuildVxlanRejectsBadVNI/zero (0.00s)
+    --- PASS: TestBuildVxlanRejectsBadVNI/too-big (0.00s)
+=== RUN   TestDecodeTCI
+=== RUN   TestDecodeTCI/PCP6_VID100
+=== RUN   TestDecodeTCI/PCP0_VID1
+=== RUN   TestDecodeTCI/PCP7_VID4094
+=== RUN   TestDecodeTCI/frame_too_short
+=== RUN   TestDecodeTCI/not_8021Q
+--- PASS: TestDecodeTCI (0.00s)
+    --- PASS: TestDecodeTCI/PCP6_VID100 (0.00s)
+    --- PASS: TestDecodeTCI/PCP0_VID1 (0.00s)
+    --- PASS: TestDecodeTCI/PCP7_VID4094 (0.00s)
+    --- PASS: TestDecodeTCI/frame_too_short (0.00s)
+    --- PASS: TestDecodeTCI/not_8021Q (0.00s)
+=== RUN   TestBuildTaggedFrame
+--- PASS: TestBuildTaggedFrame (0.00s)
+PASS
+ok  	github.com/ze-software/ze/internal/plugins/iface/netlink	1.202s
+FAIL

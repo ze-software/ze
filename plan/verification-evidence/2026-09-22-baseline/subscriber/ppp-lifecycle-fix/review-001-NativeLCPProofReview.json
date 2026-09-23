@@ -1,0 +1,16 @@
+{
+  "overall_correctness": "incorrect",
+  "explanation": "The native restart proof has one source-level false-positive path: its authentication-order check excludes only pppd-originated IPCP, not Ze-originated IPCP. Otherwise, the reviewed transport identity, injection framing, observation boundaries, latest request/Ack matching, interface-bound delivery and fresh teardown checks showed no additional actionable defect; old-daemon discrimination and rebuilt-daemon runtime confirmation remain Main's responsibility, and no validation was run.",
+  "confidence": 0.94,
+  "findings": [
+    {
+      "title": "Reject Ze-originated IPCP before fresh authentication completes",
+      "body": "In l2tpPPPRestartProgress, the authentication-order guard checks only `sent [IPCP ConfReq`, which is pppd's direction. A fresh log containing Ze's `rcvd [IPCP ConfReq ...]` before the CHAP Challenge/Response, followed by successful authentication and a retransmitted request/Ack exchange, passes: l2tpPPPExchange selects the latest request and this guard ignores the earlier received packet. The retained attempt-positive-002 pppd.log confirms these direction spellings. Consequently the native proof can report authentication-before-IPCP while Ze started IPCP before authentication. RFC 1661 §3.5 requires: “Advancement from the Authentication phase to the Network-Layer Protocol phase MUST NOT occur until authentication has completed.” Reject IPCP observations in either direction before the fresh CHAP Success boundary, while retaining the post-success exchange checks.",
+      "priority": 2,
+      "confidence": 0.96,
+      "file_path": "internal/le/deployment/l2tpppprestart.go",
+      "line_start": 157,
+      "line_end": 161
+    }
+  ]
+}

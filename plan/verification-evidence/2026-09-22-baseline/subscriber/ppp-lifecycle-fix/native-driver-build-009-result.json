@@ -1,0 +1,88 @@
+{
+  "label": "native-driver-build-009",
+  "started": "2026-09-23T00:08:11.409Z",
+  "cwd": "/home/thomas/Code/github.com/ze-software/ze/main",
+  "argv": [
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le",
+    "le",
+    "job",
+    "run",
+    "label",
+    "native-driver-build-009",
+    "quiet",
+    "command",
+    "go",
+    "build",
+    "-overlay",
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay.json",
+    "-o",
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver-001",
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver.go"
+  ],
+  "env": {
+    "CGO_ENABLED": "0",
+    "GOOS": "linux",
+    "GOARCH": "amd64",
+    "GOFLAGS": ""
+  },
+  "inputs": [
+    {
+      "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver.go",
+      "sha256": "088a693cf3afca8bc11e737e342aa1b55754ea905cafd4b711f59c746b533881"
+    },
+    {
+      "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay.json",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay.json",
+      "sha256": "cc4d243cedbab08a1ead30a897ce38b1e86efb36f5a3cd8371ea8f0b8b425ec6"
+    },
+    {
+      "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay/l2tpppp.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay/l2tpppp.go",
+      "sha256": "e4d8e7ca8b5c3e9a3d3c9461c2e476ff410b8e9f653ed4fcfab1fac711517634"
+    },
+    {
+      "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay/l2tppppinputs.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay/l2tppppinputs.go",
+      "sha256": "fa9a2989ab73c0e855660235b64e440c1cc8c1df6468da6108c8d3df78129ae3"
+    },
+    {
+      "path": "internal/le/deployment/l2tpppprestart.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/internal/le/deployment/l2tpppprestart.go",
+      "sha256": "23d7bfe1380b544c0536eccc78cc079d254b77b724282b8e436b505ae866abf9"
+    }
+  ],
+  "exit": 0,
+  "finished": "2026-09-23T00:09:06.943Z",
+  "stdout": "job native-driver-build-009: exit 0, log tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/job-native-driver-build-009-a2896dc4.log\n",
+  "stderr": "",
+  "inputs_after": [
+    {
+      "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver.go",
+      "sha256": "088a693cf3afca8bc11e737e342aa1b55754ea905cafd4b711f59c746b533881"
+    },
+    {
+      "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay.json",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay.json",
+      "sha256": "cc4d243cedbab08a1ead30a897ce38b1e86efb36f5a3cd8371ea8f0b8b425ec6"
+    },
+    {
+      "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay/l2tpppp.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay/l2tpppp.go",
+      "sha256": "e4d8e7ca8b5c3e9a3d3c9461c2e476ff410b8e9f653ed4fcfab1fac711517634"
+    },
+    {
+      "path": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay/l2tppppinputs.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/overlay/l2tppppinputs.go",
+      "sha256": "fa9a2989ab73c0e855660235b64e440c1cc8c1df6468da6108c8d3df78129ae3"
+    },
+    {
+      "path": "internal/le/deployment/l2tpppprestart.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/internal/le/deployment/l2tpppprestart.go",
+      "sha256": "23d7bfe1380b544c0536eccc78cc079d254b77b724282b8e436b505ae866abf9"
+    }
+  ],
+  "inputs_unchanged": true,
+  "log": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/job-native-driver-build-009-a2896dc4.log"
+}

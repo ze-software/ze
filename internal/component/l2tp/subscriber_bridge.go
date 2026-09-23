@@ -5,6 +5,7 @@ package l2tp
 
 import (
 	"log/slog"
+	"net/netip"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
@@ -54,22 +55,25 @@ func l2tpSessionID(tunnelID, sessionID uint16) string {
 }
 
 func (b *subscriberBridge) onSessionUp(p *l2tpevents.SessionUpPayload) {
-	sess := subscriber.Session{
-		ID:              l2tpSessionID(p.TunnelID, p.SessionID),
-		AccessType:      subscriber.AccessL2TP,
-		State:           subscriber.StateActive,
-		TunnelID:        p.TunnelID,
-		SessionID:       p.SessionID,
-		PppInterface:    p.Interface,
-		AccessInterface: p.AccessInterface,
-		ActivatedAt:     time.Now(),
-	}
+	id := l2tpSessionID(p.TunnelID, p.SessionID)
+	sess, _ := b.registry.Get(id)
+	wasActive := sess.State == subscriber.StateActive
+	sess.ID = id
+	sess.AccessType = subscriber.AccessL2TP
+	sess.State = subscriber.StateActive
+	sess.TunnelID = p.TunnelID
+	sess.SessionID = p.SessionID
+	sess.PppInterface = p.Interface
+	sess.AccessInterface = p.AccessInterface
+	sess.ActivatedAt = time.Now()
 	if meta := LoadSessionMetadata(p.TunnelID, p.SessionID); meta != nil {
 		sess.PoolName = meta.FramedPool
 	}
 	sess.AcctSessionID = sess.ID
 	b.registry.Add(&sess)
-	subscriber.RecordSessionUp(subscriber.AccessL2TP)
+	if !wasActive {
+		subscriber.RecordSessionUp(subscriber.AccessL2TP)
+	}
 
 	if _, err := subevents.SessionUp.Emit(b.bus, &subevents.SessionUpPayload{
 		Session: sess,
@@ -90,9 +94,10 @@ func (b *subscriberBridge) onSessionDown(p *l2tpevents.SessionDownPayload) {
 			Username:   p.Username,
 		}
 	}
+	wasActive := sess.State == subscriber.StateActive
 	sess.State = subscriber.StateTerminating
 	b.registry.Remove(id)
-	if ok {
+	if wasActive {
 		subscriber.RecordSessionDown(subscriber.AccessL2TP)
 	}
 
@@ -119,13 +124,39 @@ func (b *subscriberBridge) onAuthResult(p *subevents.SessionAuthResultPayload) {
 }
 
 func (b *subscriberBridge) onSessionIPAssigned(p *l2tpevents.SessionIPAssignedPayload) {
+	var addr netip.Addr
+	if p.PeerAddr != "" {
+		var err error
+		addr, err = netip.ParseAddr(p.PeerAddr)
+		if err != nil || !addr.Is4() {
+			b.logger.Warn("l2tp: invalid assigned subscriber IPv4 address", "address", p.PeerAddr, "error", err)
+			return
+		}
+	}
+	if !addr.IsValid() && p.InterfaceID == [8]byte{} {
+		b.logger.Warn("l2tp: IP-assigned event has no address or interface identifier")
+		return
+	}
 	id := l2tpSessionID(p.TunnelID, p.SessionID)
 	sess, ok := b.registry.Get(id)
 	if !ok {
-		return
+		sess = subscriber.Session{
+			ID: id, AccessType: subscriber.AccessL2TP,
+			State:    subscriber.StateConfiguring,
+			TunnelID: p.TunnelID, SessionID: p.SessionID,
+			AcctSessionID: id,
+		}
 	}
 	sess.Username = p.Username
 	sess.PppInterface = p.PppInterface
+	if addr.Is4() {
+		sess.IPv4Addr = addr
+		sess.DNSPrimary = p.DNSPrimary
+		sess.DNSSecondary = p.DNSSecondary
+	}
+	if p.InterfaceID != [8]byte{} {
+		sess.IPv6InterfaceID = p.InterfaceID
+	}
 	b.registry.Add(&sess)
 
 	if _, err := subevents.SessionIPAssigned.Emit(b.bus, &subevents.SessionIPAssignedPayload{

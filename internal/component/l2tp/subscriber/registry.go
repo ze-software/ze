@@ -4,9 +4,9 @@ package subscriber
 
 import "sync"
 
-// Registry is a thread-safe in-memory store of active subscriber sessions.
-// Transports call Add on session-up and Remove on session-down. Show
-// handlers and telemetry read from this registry.
+// Registry stores live subscriber sessions. Transports retain negotiated
+// addresses during configuration, mark completed sessions active, and remove
+// them when the network lifetime ends. Show handlers and telemetry read it.
 type Registry struct {
 	mu       sync.RWMutex
 	sessions map[string]*Session

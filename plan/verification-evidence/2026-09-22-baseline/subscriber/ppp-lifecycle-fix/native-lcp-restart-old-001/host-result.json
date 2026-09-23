@@ -1,0 +1,47 @@
+{
+  "started": "2026-09-23T00:09:56.849Z",
+  "argv": [
+    "env",
+    "CGO_ENABLED=0",
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le",
+    "le",
+    "qemu",
+    "run",
+    "kernel",
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/kernel/build/vmlinuz",
+    "packages",
+    "iproute2 iputils python3 xl2tpd ppp",
+    "timeout",
+    "8m",
+    "command",
+    "python3 /workspace/plan/verification-evidence/2026-09-22-baseline/subscriber/l2tp-credential-preparation/guest-exec.py /workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver-001 /workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/ze /workspace/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-old-001/guest"
+  ],
+  "cwd": "/home/thomas/Code/github.com/ze-software/ze/main",
+  "inputs": [
+    {
+      "path": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/native-lcp-restart-driver/driver-001",
+      "sha256": "5de717723953c4644b22096ca88f287c0a6d0db19cc3754d2e9fec6c2e3c8dd5"
+    },
+    {
+      "path": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/ze",
+      "sha256": "0b5c6e018de39e9305c9f57e0f832f16b50470e108411cee505dff52a003db89"
+    },
+    {
+      "path": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/ppp-lifecycle-fixed/bin/ze",
+      "sha256": "6a7d9d7d9184be9797641850f4953536e88ef69761ef812258813d66ec8eb973"
+    },
+    {
+      "path": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/kernel/build/vmlinuz",
+      "sha256": "48b3607b49b79e23e632f0d5a553ba9f7b87c4527ca3b40917eee11501758a83"
+    }
+  ],
+  "finished": "2026-09-23T00:12:31.989Z",
+  "exit": 1,
+  "observed_kernel": "7.2.0",
+  "native_result": "guest/native/result.json",
+  "failure": "same-transport LCP restart: transport ended or was replaced: ncp: timeout",
+  "initial_session_established": true,
+  "fresh_authentication_succeeded": true,
+  "replacement_ncp_completed": false,
+  "daemon_unchanged": true
+}

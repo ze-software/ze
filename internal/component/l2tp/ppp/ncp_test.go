@@ -104,7 +104,7 @@ func TestAuthSuccessStartsNCPs(t *testing.T) {
 
 // VALIDATES: AC-4..AC-8 -- after IPResponse, the IPCP exchange reaches
 //
-//	Opened; ze programs pppN (AddAddressP2P + AddRoute + SetAdminUp)
+//	Opened; ze programs pppN (AddAddressP2P + SetAdminUp)
 //	and emits EventSessionIPAssigned{ipv4}.
 //
 // RFC requirement: RFC1332-2.1-1 positive -- IP is communicated only once IPCP has
@@ -603,9 +603,7 @@ func TestIPTimeout(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-18 -- StopSession after IPCP-Opened triggers
-//
-//	RemoveAddress and RemoveRoute on the backend.
+// VALIDATES: AC-18 -- StopSession after IPCP-Opened removes the assigned address.
 func TestSessionTeardownRemovesAddress(t *testing.T) {
 	td := newNCPTestDriverCfg(t, &StartSession{DisableIPv6CP: true})
 	defer td.cleanup()
@@ -620,10 +618,6 @@ func TestSessionTeardownRemovesAddress(t *testing.T) {
 	removes := td.backend.AddrRemoveCalls()
 	if len(removes) != 1 || removes[0].cidr != "10.0.0.1/32" {
 		t.Errorf("addr removes = %+v, want one 10.0.0.1/32", removes)
-	}
-	routeRemoves := td.backend.RouteRemoveCalls()
-	if len(routeRemoves) != 1 || routeRemoves[0].dest != "10.0.0.2/32" {
-		t.Errorf("route removes = %+v, want one 10.0.0.2/32", routeRemoves)
 	}
 }
 
@@ -667,35 +661,18 @@ func TestParallelNCPsNetPipe(t *testing.T) {
 	}
 }
 
-// TestIPv6CPNoResponseBeforeNetworkPhase is the pre-network half of RFC 5072 §3:
-// "IPV6CP packets MUST NOT be exchanged until PPP has reached the network-layer protocol
-// phase; earlier packets should be silently discarded." Before the network phase the
-// per-session ipv6cpState is still LCPStateInitial (its zero value); handleFrame
-// (internal/component/l2tp/ppp/session_run.go, ProtoIPv6CP branch) buffers such a frame
-// into earlyNCPFrames and returns without writing anything to the chan fd -- ze never
-// exchanges an IPV6CP packet before the phase begins.
+// RFC 5072 Section 3: "IPV6CP packets may not be exchanged until PPP has
+// reached the network-layer protocol phase."
 //
-// VALIDATES: an IPV6CP Configure-Request delivered while ipv6cpState==LCPStateInitial
-// produces NO IPV6CP response on the wire (recordingChanFile stays empty) and is buffered
-// (earlyNCPFrames grows), not answered.
-// PREVENTS: a regression that answered (Ack/Nak/Reject) an IPV6CP packet arriving before
-// the network phase, exchanging IPV6CP too early.
-//
-// RFC requirement: RFC5072-3-1 negative -- an IPV6CP Configure-Request arriving before the
-// network-layer protocol phase (ipv6cpState==LCPStateInitial) draws no IPV6CP response;
-// handleFrame (internal/component/l2tp/ppp/session_run.go) buffers it into earlyNCPFrames
-// and writes nothing to the chan fd.
+// RFC requirement: RFC5072-3-1 negative -- an IPV6CP Configure-Request received
+// before the network-layer protocol phase draws no response and does not
+// terminate the session.
 func TestIPv6CPNoResponseBeforeNetworkPhase(t *testing.T) {
 	chanFile := &recordingChanFile{}
-	// A pristine pppSession: ipv6cpState defaults to LCPStateInitial (0) and
-	// disableIPv6CP defaults to false, i.e. IPv6CP is enabled but the network
-	// phase has not started.
+	// This session has not completed LCP or authentication.
 	s := &pppSession{
 		logger:   discardLogger(),
 		chanFile: chanFile,
-	}
-	if s.ipv6cpState != LCPStateInitial {
-		t.Fatalf("precondition: ipv6cpState = %s, want Initial", s.ipv6cpState)
 	}
 
 	frame := make([]byte, MaxFrameLen)
@@ -709,10 +686,6 @@ func TestIPv6CPNoResponseBeforeNetworkPhase(t *testing.T) {
 	if chanFile.Len() != 0 {
 		t.Fatalf("ze emitted %x in response to a pre-network IPV6CP Configure-Request; "+
 			"RFC 5072 §3 forbids exchanging IPV6CP before the network phase", chanFile.Bytes())
-	}
-	if len(s.earlyNCPFrames) != 1 {
-		t.Fatalf("pre-network IPV6CP frame not buffered: earlyNCPFrames = %d, want 1",
-			len(s.earlyNCPFrames))
 	}
 }
 

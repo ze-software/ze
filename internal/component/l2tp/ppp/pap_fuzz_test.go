@@ -33,8 +33,8 @@ func FuzzParsePAPRequest(f *testing.F) {
 			0x01, 'u',
 			0xFF, 'p', 'q',
 		},
-		// max-frame-sized buffer of zeros (MaxFrameLen - 2).
-		make([]byte, MaxFrameLen-2),
+		// Maximum-sized Information field.
+		make([]byte, MaxFrameLen),
 	}
 	for _, s := range seeds {
 		f.Add(s)

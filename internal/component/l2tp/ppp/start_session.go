@@ -8,12 +8,12 @@ import (
 	"time"
 )
 
-// StartSession is the payload sent on Manager.SessionsIn to launch a new
-// PPP session. It is the contract between the transport (L2TP today,
-// PPPoE later) and the PPP package.
+// StartSession is the payload sent on Driver.SessionsIn to launch a PPP
+// session. It is the ownership boundary between L2TP or PPPoE and PPP.
 //
-// All file descriptors MUST be valid and owned by the PPP manager once
-// StartSession is sent. The manager closes them on session teardown.
+// Channel delivery transfers exclusive ownership of both descriptors to the
+// PPP manager. It closes them on refusal, stopped-queue drain, or session
+// teardown. Producers MUST stop sending before stopping the manager.
 type StartSession struct {
 	// Identification. Opaque to ppp; used only as a key for routing
 	// events back to the caller and for log fields.
@@ -32,6 +32,9 @@ type StartSession struct {
 	// (false) for this session. Affects which side initiates LCP and
 	// which authenticator role is used.
 	LNSMode bool
+
+	// PPPoE applies RFC 2516's transport-specific LCP option restrictions.
+	PPPoE bool
 
 	// MaxMRU is the largest MRU ze will accept from the peer in LCP
 	// Configure-Request. Peer requests above this are NAKd with
@@ -128,4 +131,19 @@ type StartSession struct {
 	SubscriberMAC   net.HardwareAddr // Subscriber CPE MAC address
 	ServiceName     string           // PPPoE Service-Name from PADR
 	VendorTags      []byte           // Raw vendor-specific tags from PADI/PADR (TR-101 etc.)
+}
+
+// closeFiles releases an undelivered or refused ownership transfer.
+func (s *StartSession) closeFiles() {
+	if s.ChanFD > 0 {
+		if channel := newChanFileFn(s.ChanFD, "ppp.unstarted.chan"); channel != nil {
+			_ = channel.Close() //nolint:errcheck // rejected or cancelled setup
+		}
+	}
+	if s.UnitFD > 0 && s.UnitFD != s.ChanFD {
+		if unit := newUnitFileFn(s.UnitFD); unit != nil {
+			_ = unit.Close() //nolint:errcheck // rejected or cancelled setup
+		}
+	}
+	s.ChanFD, s.UnitFD = -1, -1
 }

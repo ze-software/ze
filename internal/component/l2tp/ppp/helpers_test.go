@@ -151,10 +151,11 @@ func (f *fakeBackend) RouteRemoveCalls() []routeCall {
 	return out
 }
 
-// fakeOpsCall records a setMRU invocation.
+// fakeOpsCall records a setMRU or disconnect invocation.
 type fakeOpsCall struct {
-	fd  int
-	mru uint16
+	fd         int
+	mru        uint16
+	disconnect bool
 }
 
 func newFakeOps() (pppOps, *[]fakeOpsCall, *sync.Mutex) {
@@ -164,10 +165,16 @@ func newFakeOps() (pppOps, *[]fakeOpsCall, *sync.Mutex) {
 		setMRU: func(fd int, mru uint16) error {
 			mu.Lock()
 			defer mu.Unlock()
-			calls = append(calls, fakeOpsCall{fd, mru})
+			calls = append(calls, fakeOpsCall{fd: fd, mru: mru})
 			return nil
 		},
 		connect: func(chanFD, unitNum int) error { return nil },
+		disconnect: func(fd int) error {
+			mu.Lock()
+			defer mu.Unlock()
+			calls = append(calls, fakeOpsCall{fd: fd, disconnect: true})
+			return nil
+		},
 	}
 	return ops, &calls, &mu
 }

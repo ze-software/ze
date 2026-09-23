@@ -6,6 +6,7 @@
 package ppp
 
 import (
+	"bytes"
 	"encoding/binary"
 	"errors"
 
@@ -40,7 +41,7 @@ var errLCPTooShort = errors.New("ppp: LCP packet shorter than 4-byte header")
 
 // errLCPLengthMismatch is returned when the Length field does not
 // match the buffer length, OR is below the header minimum, OR exceeds
-// MaxFrameLen-2 (PPP frame max minus protocol field).
+// MaxFrameLen (the maximum Information field length).
 var errLCPLengthMismatch = errors.New("ppp: LCP Length field does not match buffer")
 
 // LCPPacket is a parsed LCP packet. Data is a sub-slice of the input
@@ -72,7 +73,7 @@ func ParseLCPPacket(buf []byte) (LCPPacket, error) {
 	if length > len(buf) {
 		return LCPPacket{}, errLCPLengthMismatch
 	}
-	if length > MaxFrameLen-2 {
+	if length > MaxFrameLen {
 		return LCPPacket{}, errLCPLengthMismatch
 	}
 	return LCPPacket{
@@ -80,6 +81,93 @@ func ParseLCPPacket(buf []byte) (LCPPacket, error) {
 		Identifier: buf[1],
 		Data:       buf[lcpHeaderLen:length],
 	}, nil
+}
+
+// ValidateLCPReply checks a reply against the last transmitted Configure-Request.
+// RFC 1661 Section 5.2: "On reception of a Configure-Ack, the Identifier
+// field MUST match that of the last transmitted Configure-Request.
+// Additionally, the Configuration Options in a Configure-Ack MUST exactly
+// match those of the last transmitted Configure-Request. Invalid packets
+// are silently discarded." Sections 5.3 and 5.4 impose the same Identifier
+// check on Nak and Reject; Reject preserves an ordered, unmodified subset
+// of the request (including the entire set, per Errata 543).
+func ValidateLCPReply(reply LCPPacket, requestID uint8, requestData []byte) bool {
+	if reply.Identifier != requestID {
+		return false
+	}
+	if reply.Code == LCPConfigureAck {
+		return bytes.Equal(reply.Data, requestData)
+	}
+	if reply.Code != LCPConfigureNak && reply.Code != LCPConfigureReject {
+		return false
+	}
+	var seen [4]uint64
+	nextRequested := 0
+	appended := false
+	for data := reply.Data; len(data) != 0; {
+		if len(data) < 2 || int(data[1]) < 2 || int(data[1]) > len(data) {
+			return false
+		}
+		typ, length := data[0], int(data[1])
+		mask := uint64(1) << (typ % 64)
+		if seen[typ/64]&mask != 0 {
+			return false
+		}
+		seen[typ/64] |= mask
+		if reply.Code == LCPConfigureNak {
+			// A Nak may change a variable-length option (Section 5.3),
+			// but it must still carry that option's required value fields.
+			switch typ {
+			case LCPOptMRU:
+				if length != 4 {
+					return false
+				}
+			case LCPOptACCM, LCPOptMagic:
+				if length != 6 {
+					return false
+				}
+			case LCPOptAuthProto:
+				if length < 4 {
+					return false
+				}
+			case LCPOptPFC, LCPOptACFC:
+				return false
+			}
+		}
+		found := -1
+		var requested []byte
+		for off := 0; off < len(requestData); {
+			if len(requestData)-off < 2 {
+				return false
+			}
+			n := int(requestData[off+1])
+			if n < 2 || n > len(requestData)-off {
+				return false
+			}
+			if requestData[off] == typ {
+				found, requested = off, requestData[off:off+n]
+				break
+			}
+			off += n
+		}
+		if found < 0 {
+			if reply.Code == LCPConfigureReject {
+				return false
+			}
+			// Section 5.3 permits additional desired options only at the end.
+			appended = true
+		} else {
+			if appended || found < nextRequested {
+				return false
+			}
+			if reply.Code == LCPConfigureReject && !bytes.Equal(data[:length], requested) {
+				return false
+			}
+			nextRequested = found + len(requested)
+		}
+		data = data[length:]
+	}
+	return true
 }
 
 // WriteLCPPacket encodes an LCP packet into buf at offset off using

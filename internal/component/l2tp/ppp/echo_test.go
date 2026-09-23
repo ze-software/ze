@@ -231,6 +231,8 @@ func TestHandleLCPPacketOpenedRXRDoesNotReenterOpened(t *testing.T) {
 				negotiatedMRU:        1500,
 				configuredAuthMethod: AuthMethodNone,
 				magic:                0x01020304,
+				magicNegotiated:      true,
+				peerMagic:            0xAABBCCDD,
 				echoOutstanding:      2,
 				disableIPCP:          true,
 				disableIPv6CP:        true,

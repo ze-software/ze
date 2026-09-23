@@ -15,6 +15,11 @@ type kernelWorker struct{}
 // Enqueue is a no-op on non-Linux. Satisfies the reactor's call site.
 func (w *kernelWorker) Enqueue(_ any) {}
 
+// takePPPDescriptors cannot transfer a kernel session on non-Linux.
+func (w *kernelWorker) takePPPDescriptors(_ kernelSetupSucceeded) (int, int, bool) {
+	return -1, -1, false
+}
+
 // setSocketHooks is a no-op on non-Linux: there is no kernel tunnel, so no
 // connected socket ever displaces the listener for a peer's datagrams.
 func (w *kernelWorker) setSocketHooks(_ func(tid uint16, fd int) error, _ func(tid uint16)) {}

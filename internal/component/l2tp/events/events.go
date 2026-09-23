@@ -8,6 +8,7 @@
 package events
 
 import (
+	"net/netip"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/events"
@@ -163,6 +164,9 @@ type SessionIPAssignedPayload struct {
 	// Section 5.31). Empty when neither side named one.
 	CallingStationID string
 	PppInterface     string
+	InterfaceID      [8]byte
+	DNSPrimary       netip.Addr
+	DNSSecondary     netip.Addr
 }
 
 // SessionIPAssigned is the typed handle for (l2tp, session-ip-assigned).

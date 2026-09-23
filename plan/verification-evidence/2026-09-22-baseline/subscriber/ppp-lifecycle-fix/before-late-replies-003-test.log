@@ -1,0 +1,45 @@
+=== RUN   TestNCPRepliesCannotCompleteReplacementLifetime
+=== RUN   TestNCPRepliesCannotCompleteReplacementLifetime/ipv4/stale-ack
+    lcp_lifecycle_test.go:510: old NCP completion installed an address: [{name:ppp7 local:192.0.2.1/32 peer:192.0.2.2/32}]
+    lcp_lifecycle_test.go:510: old NCP completion brought the interface up: [ppp7]
+    lcp_lifecycle_test.go:510: old NCP completion published a network event: {TunnelID:1 SessionID:2 Family:ipv4 Local:192.0.2.1 Peer:192.0.2.2 DNSPrimary:invalid IP DNSSecondary:invalid IP InterfaceID:[0 0 0 0 0 0 0 0]}
+    lcp_lifecycle_test.go:510: old NCP completion published a network event: {TunnelID:1 SessionID:2}
+    lcp_lifecycle_test.go:522: valid NCP completion: address published=false, session up=false
+=== RUN   TestNCPRepliesCannotCompleteReplacementLifetime/ipv4/stale-nak
+    lcp_lifecycle_test.go:513: invalid NCP reply changed the wire exchange: frame=80210103000a0306c0000201 error=<nil>
+=== RUN   TestNCPRepliesCannotCompleteReplacementLifetime/ipv4/stale-reject
+    lcp_lifecycle_test.go:510: old NCP completion failed the resumed LCP lifetime: {TunnelID:1 SessionID:2 Reason:ipv4: peer Configure-Reject of mandatory option Cause:9}
+    lcp_lifecycle_test.go:513: invalid NCP reply changed the wire exchange: frame= error=EOF
+=== RUN   TestNCPRepliesCannotCompleteReplacementLifetime/ipv4/altered-ack
+    lcp_lifecycle_test.go:510: old NCP completion installed an address: [{name:ppp7 local:192.0.2.1/32 peer:192.0.2.2/32}]
+    lcp_lifecycle_test.go:510: old NCP completion brought the interface up: [ppp7]
+    lcp_lifecycle_test.go:510: old NCP completion published a network event: {TunnelID:1 SessionID:2 Family:ipv4 Local:192.0.2.1 Peer:192.0.2.2 DNSPrimary:invalid IP DNSSecondary:invalid IP InterfaceID:[0 0 0 0 0 0 0 0]}
+    lcp_lifecycle_test.go:510: old NCP completion published a network event: {TunnelID:1 SessionID:2}
+    lcp_lifecycle_test.go:522: valid NCP completion: address published=false, session up=false
+=== RUN   TestNCPRepliesCannotCompleteReplacementLifetime/ipv6/stale-ack
+    lcp_lifecycle_test.go:510: old NCP completion brought the interface up: [ppp7]
+    lcp_lifecycle_test.go:510: old NCP completion published a network event: {TunnelID:1 SessionID:2 Family:ipv6 Local:invalid IP Peer:invalid IP DNSPrimary:invalid IP DNSSecondary:invalid IP InterfaceID:[2 244 128 61 231 197 181 56]}
+    lcp_lifecycle_test.go:510: old NCP completion published a network event: {TunnelID:1 SessionID:2}
+    lcp_lifecycle_test.go:522: valid NCP completion: address published=false, session up=false
+=== RUN   TestNCPRepliesCannotCompleteReplacementLifetime/ipv6/stale-nak
+    lcp_lifecycle_test.go:513: invalid NCP reply changed the wire exchange: frame=80570103000e010a53a8ff9200fe2b9c error=<nil>
+=== RUN   TestNCPRepliesCannotCompleteReplacementLifetime/ipv6/stale-reject
+    lcp_lifecycle_test.go:510: old NCP completion failed the resumed LCP lifetime: {TunnelID:1 SessionID:2 Reason:ipv6: peer Configure-Reject of mandatory option Cause:9}
+    lcp_lifecycle_test.go:513: invalid NCP reply changed the wire exchange: frame= error=EOF
+=== RUN   TestNCPRepliesCannotCompleteReplacementLifetime/ipv6/altered-ack
+    lcp_lifecycle_test.go:510: old NCP completion brought the interface up: [ppp7]
+    lcp_lifecycle_test.go:510: old NCP completion published a network event: {TunnelID:1 SessionID:2 Family:ipv6 Local:invalid IP Peer:invalid IP DNSPrimary:invalid IP DNSSecondary:invalid IP InterfaceID:[2 207 174 95 89 35 45 102]}
+    lcp_lifecycle_test.go:510: old NCP completion published a network event: {TunnelID:1 SessionID:2}
+    lcp_lifecycle_test.go:522: valid NCP completion: address published=false, session up=false
+--- FAIL: TestNCPRepliesCannotCompleteReplacementLifetime (0.03s)
+    --- FAIL: TestNCPRepliesCannotCompleteReplacementLifetime/ipv4/stale-ack (0.00s)
+    --- FAIL: TestNCPRepliesCannotCompleteReplacementLifetime/ipv4/stale-nak (0.00s)
+    --- FAIL: TestNCPRepliesCannotCompleteReplacementLifetime/ipv4/stale-reject (0.00s)
+    --- FAIL: TestNCPRepliesCannotCompleteReplacementLifetime/ipv4/altered-ack (0.00s)
+    --- FAIL: TestNCPRepliesCannotCompleteReplacementLifetime/ipv6/stale-ack (0.00s)
+    --- FAIL: TestNCPRepliesCannotCompleteReplacementLifetime/ipv6/stale-nak (0.00s)
+    --- FAIL: TestNCPRepliesCannotCompleteReplacementLifetime/ipv6/stale-reject (0.01s)
+    --- FAIL: TestNCPRepliesCannotCompleteReplacementLifetime/ipv6/altered-ack (0.00s)
+FAIL
+FAIL	command-line-arguments	0.061s
+FAIL

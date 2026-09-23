@@ -1,0 +1,4 @@
+job ppp-lifecycle-before-002: exit 1, log tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/job-ppp-lifecycle-before-002-8d505399.log
+1:--- FAIL: TestPeriodicAuthenticationLCPInterruptions (0.01s)
+10:--- FAIL: TestPendingNCPCompletionFollowsLCPLifetime (0.02s)
+28:FAIL	command-line-arguments	0.063s

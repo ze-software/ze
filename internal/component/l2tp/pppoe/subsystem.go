@@ -360,6 +360,11 @@ func (s *Subsystem) eventConsumer() {
 // produces, one at a time.
 func (s *Subsystem) handlePPPEvent(ev ppp.Event) {
 	switch e := ev.(type) {
+	case ppp.EventLCPDown:
+		defer e.Acknowledge()
+		if e.NetworkPhase {
+			s.withdrawSubscriber(e.TunnelID, e.SessionID, e.Reason)
+		}
 	case ppp.EventSessionUp:
 		s.onSessionUp(e)
 	case ppp.EventSessionIPAssigned:
@@ -369,39 +374,60 @@ func (s *Subsystem) handlePPPEvent(ev ppp.Event) {
 	}
 }
 
-// onSessionUp records a session that has completed LCP, authentication and
-// every enabled NCP, then publishes it.
-func (s *Subsystem) onSessionUp(e ppp.EventSessionUp) {
-	ifindex := int(e.TunnelID)
+// subscriberSession preserves completed NCPs while the remaining NCPs run.
+func (s *Subsystem) subscriberSession(tid, sid uint16) (subscriber.Session, bool) {
+	ifindex := int(tid)
 	s.mu.Lock()
 	srv := s.servers[ifindex]
 	s.mu.Unlock()
 	if srv == nil {
-		return
+		s.logger.Debug("pppoe: ignoring an event for a removed access interface", "ifindex", ifindex)
+		return subscriber.Session{}, false
 	}
-
-	snap := srv.sessions.Lookup(e.SessionID)
-	sess := subscriber.Session{
-		ID:            pppoeSessionID(ifindex, e.SessionID),
-		AccessType:    subscriber.AccessPPPoE,
-		State:         subscriber.StateActive,
-		PPPoESID:      e.SessionID,
-		AccessIfIndex: ifindex,
-		ActivatedAt:   time.Now(),
+	snap := srv.sessions.Lookup(sid)
+	if snap == nil {
+		s.logger.Debug("pppoe: ignoring an event for a removed session", "ifindex", ifindex, "session", sid)
+		return subscriber.Session{}, false
 	}
-	if snap != nil {
-		sess.MAC = snap.MAC
-		sess.AccessInterface = snap.IfName
-		sess.ServiceName = snap.ServiceName
-		sess.PppInterface = "ppp" + textbuf.StringUint(uint64(snap.UnitNum))
-	}
-	authKey := pendingAuthKey{ifindex: ifindex, sessionID: e.SessionID}
-	if val, ok := s.pendingAuth.LoadAndDelete(authKey); ok {
-		if info, ok2 := val.(pendingAuthInfo); ok2 {
-			sess.Username = info.username
-			sess.AuthMethod = info.authMethod
+	id := pppoeSessionID(ifindex, sid)
+	sess, found := subscriber.DefaultRegistry.Get(id)
+	if !found {
+		sess = subscriber.Session{
+			ID: id, AccessType: subscriber.AccessPPPoE, State: subscriber.StateConfiguring,
+			PPPoESID: sid, AccessIfIndex: ifindex, AcctSessionID: id,
 		}
 	}
+	sess.MAC = snap.MAC
+	sess.AccessInterface = snap.IfName
+	sess.ServiceName = snap.ServiceName
+	sess.PppInterface = "ppp" + textbuf.StringUint(uint64(snap.UnitNum))
+	if val, ok := s.pendingAuth.Load(pendingAuthKey{ifindex: ifindex, sessionID: sid}); ok {
+		if info, valid := val.(pendingAuthInfo); valid {
+			if !found {
+				sess.Username = info.username
+			}
+			sess.AuthMethod = info.authMethod
+		} else {
+			s.logger.Error("pppoe: invalid pending authentication state", "ifindex", ifindex, "session", sid)
+			return subscriber.Session{}, false
+		}
+	}
+	return sess, true
+}
+
+// onSessionUp records a session that has completed LCP, authentication and
+// every enabled NCP, then publishes it.
+func (s *Subsystem) onSessionUp(e ppp.EventSessionUp) {
+	sess, found := s.subscriberSession(e.TunnelID, e.SessionID)
+	if !found {
+		return
+	}
+	wasActive := sess.State == subscriber.StateActive
+	sess.State = subscriber.StateActive
+	if !wasActive {
+		sess.ActivatedAt = time.Now()
+	}
+	s.pendingAuth.Delete(pendingAuthKey{ifindex: int(e.TunnelID), sessionID: e.SessionID})
 	// RFC 2865 Section 5.11: the Access-Accept Filter-Id carries the
 	// subscriber's rates. The RADIUS handler stores the profile under the same
 	// (ifindex, session-id) pair this event carries, so a PPPoE subscriber's
@@ -417,7 +443,9 @@ func (s *Subsystem) onSessionUp(e ppp.EventSessionUp) {
 
 	sess.AcctSessionID = sess.ID
 	subscriber.DefaultRegistry.Add(&sess)
-	subscriber.RecordSessionUp(subscriber.AccessPPPoE)
+	if !wasActive {
+		subscriber.RecordSessionUp(subscriber.AccessPPPoE)
+	}
 
 	if sh := subscriber.GetShaperHandler(); sh != nil && sess.PppInterface != "" {
 		sh(sess.PppInterface, sess.DownloadRate, sess.UploadRate)
@@ -435,19 +463,29 @@ func (s *Subsystem) onSessionUp(e ppp.EventSessionUp) {
 
 // onSessionIPAssigned adds the addresses one completed NCP negotiated to the
 // registered session, then publishes the updated snapshot.
+// The consumer MUST acknowledge after synchronous publication completes, before
+// PPP can enable forwarding.
 func (s *Subsystem) onSessionIPAssigned(e ppp.EventSessionIPAssigned) {
-	id := pppoeSessionID(int(e.TunnelID), e.SessionID)
-	sess, ok := subscriber.DefaultRegistry.Get(id)
+	defer e.Acknowledge()
+
+	if e.Peer.IsValid() && !e.Peer.Is4() || !e.Peer.IsValid() && e.InterfaceID == [8]byte{} {
+		s.logger.Warn("pppoe: invalid IP-assigned event", "address", e.Peer, "session", e.SessionID)
+		return
+	}
+	sess, ok := s.subscriberSession(e.TunnelID, e.SessionID)
 	if !ok {
 		return
 	}
+	sess.Username = e.Username
 
-	if e.Peer.IsValid() {
+	if e.Peer.Is4() {
 		sess.IPv4Addr = e.Peer
+		sess.DNSPrimary = e.DNSPrimary
+		sess.DNSSecondary = e.DNSSecondary
 	}
-	sess.DNSPrimary = e.DNSPrimary
-	sess.DNSSecondary = e.DNSSecondary
-	sess.IPv6InterfaceID = e.InterfaceID
+	if e.InterfaceID != [8]byte{} {
+		sess.IPv6InterfaceID = e.InterfaceID
+	}
 	subscriber.DefaultRegistry.Add(&sess)
 
 	if s.bus == nil {
@@ -463,44 +501,43 @@ func (s *Subsystem) onSessionIPAssigned(e ppp.EventSessionIPAssigned) {
 // onSessionDown publishes the teardown and sends the PADT that ends the
 // PPPoE session on the wire.
 //
-// The event is published whether or not the registry holds the session. A
-// session that fails an NCP, or whose peer disconnects between IPCP and
-// session-up, never reaches the registry and still holds the address IPCP
-// allocated for it, so a registry miss must not swallow the teardown.
-// subscriberBridge.onSessionDown falls back the same way for L2TP.
+// The event is published even when the registry holds no session: an address
+// can be allocated before its NCP completes.
 func (s *Subsystem) onSessionDown(e ppp.EventSessionDown) {
+	s.withdrawSubscriber(e.TunnelID, e.SessionID, e.Reason)
 	ifindex := int(e.TunnelID)
-	s.pendingAuth.Delete(pendingAuthKey{ifindex: ifindex, sessionID: e.SessionID})
-
-	id := pppoeSessionID(ifindex, e.SessionID)
-	sess, found := subscriber.DefaultRegistry.Get(id)
-	if !found {
-		sess = subscriber.Session{
-			ID:            id,
-			AccessType:    subscriber.AccessPPPoE,
-			PPPoESID:      e.SessionID,
-			AccessIfIndex: ifindex,
-		}
-	}
-	sess.State = subscriber.StateTerminating
-	subscriber.DefaultRegistry.Remove(id)
-	if found {
-		subscriber.RecordSessionDown(subscriber.AccessPPPoE)
-	}
-
-	if s.bus != nil {
-		if _, err := subevents.SessionDown.Emit(s.bus, &subevents.SessionDownPayload{
-			Session: sess,
-			Reason:  e.Reason,
-		}); err != nil {
-			s.logger.Warn("pppoe: subscriber session-down emit failed", "error", err)
-		}
-	}
-
 	s.mu.Lock()
 	srv := s.servers[ifindex]
 	s.mu.Unlock()
 	if srv != nil {
 		srv.handleSessionDown(e.SessionID)
 	}
+}
+
+// withdrawSubscriber releases a network lifetime without closing its transport.
+func (s *Subsystem) withdrawSubscriber(tid, sid uint16, reason string) {
+	ifindex := int(tid)
+	s.pendingAuth.Delete(pendingAuthKey{ifindex: ifindex, sessionID: sid})
+	id := pppoeSessionID(ifindex, sid)
+	sess, found := subscriber.DefaultRegistry.Get(id)
+	if !found {
+		sess = subscriber.Session{
+			ID: id, AccessType: subscriber.AccessPPPoE,
+			PPPoESID: sid, AccessIfIndex: ifindex,
+		}
+	}
+	wasActive := sess.State == subscriber.StateActive
+	sess.State = subscriber.StateTerminating
+	subscriber.DefaultRegistry.Remove(id)
+	if wasActive {
+		subscriber.RecordSessionDown(subscriber.AccessPPPoE)
+	}
+	if s.bus != nil {
+		if _, err := subevents.SessionDown.Emit(s.bus, &subevents.SessionDownPayload{
+			Session: sess, Reason: reason,
+		}); err != nil {
+			s.logger.Warn("pppoe: subscriber session-down emit failed", "error", err)
+		}
+	}
+	l2tp.ClearSessionMetadata(tid, sid)
 }

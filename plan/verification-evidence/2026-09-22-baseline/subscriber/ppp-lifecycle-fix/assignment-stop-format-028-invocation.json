@@ -1,0 +1,40 @@
+{
+  "label": "assignment-stop-format-028",
+  "started": "2026-09-23T01:27:33.140Z",
+  "cwd": "/home/thomas/Code/github.com/ze-software/ze/main",
+  "argv": [
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le",
+    "le",
+    "job",
+    "run",
+    "label",
+    "assignment-stop-format-028",
+    "quiet",
+    "command",
+    "gofmt",
+    "-w",
+    "internal/component/l2tp/ppp/session.go",
+    "internal/component/l2tp/ppp/session_run.go",
+    "internal/component/l2tp/ppp/assignment_barrier_test.go"
+  ],
+  "env": {
+    "CGO_ENABLED": "1"
+  },
+  "inputs": [
+    {
+      "path": "internal/component/l2tp/ppp/session.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/ppp/session.go",
+      "sha256": "0783f7d477aefa19f842593ec7870a0957e35035ce97c1f5060a33335cb45172"
+    },
+    {
+      "path": "internal/component/l2tp/ppp/session_run.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/ppp/session_run.go",
+      "sha256": "401432762e10fefcf88d451aa1f599cc0eca0c73c8348fd7cc9109420345dfb8"
+    },
+    {
+      "path": "internal/component/l2tp/ppp/assignment_barrier_test.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/ppp/assignment_barrier_test.go",
+      "sha256": "f84526dbbac851ffa4382fce6a2a5ddf7f7278f59e3249c03b5c2ff7fb6e006a"
+    }
+  ]
+}

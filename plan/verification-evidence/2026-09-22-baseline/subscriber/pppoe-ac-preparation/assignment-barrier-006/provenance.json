@@ -1,0 +1,30 @@
+{
+  "native": {
+    "path": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le",
+    "sha256": "f95c1c702156279e2258be8b222c0ca0821a2e4e4911004bf29487022a7b002a"
+  },
+  "daemon": {
+    "path": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/ppp-lifecycle-fixed/bin/ze-003",
+    "sha256": "80e3eeeb80b686014061b99e822bf73fbfe913df2788f5bf2f21dd6bd94fd948"
+  },
+  "kernel": {
+    "path": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/kernel/build/vmlinuz",
+    "sha256": "48b3607b49b79e23e632f0d5a553ba9f7b87c4527ca3b40917eee11501758a83"
+  },
+  "guest-driver": {
+    "path": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/pppoe-ac-preparation/guest.py",
+    "sha256": "7f36b7ec1d959b1f32c456ffdd94a5355f76cd18262d81a4a603ad671c217e5f"
+  },
+  "host-driver": {
+    "path": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/pppoe-ac-preparation/host.py",
+    "sha256": "89f2a238657c9363007c8a2c00c865576f8c83320365d699182534ea0d0c846e"
+  },
+  "scenario-config": {
+    "path": "/home/thomas/Code/github.com/ze-software/ze/main/test/interop-pppoe/scenarios/02-ze-ac-pppd-client/ze.conf",
+    "sha256": "86018076f6fa758abb91a5108f39fda38ca78ddd6d0c15325f77ca630daa89e5"
+  },
+  "native-checker": {
+    "path": "/home/thomas/Code/github.com/ze-software/ze/main/internal/le/interoplab/pppoe/check_ac.go",
+    "sha256": "10da9890eec713c9f99eeea124c6f2e8ef11b6e3511a7400c6b2eaa71e03dde8"
+  }
+}

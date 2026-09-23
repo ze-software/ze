@@ -147,10 +147,8 @@ type kernelWorker struct {
 	errCh     chan<- kernelSetupFailed
 	successCh chan<- kernelSetupSucceeded
 
-	// stopped is an atomic flag so signalStop can close w.stop without
-	// acquiring w.mu. Locking would deadlock when setupSession holds
-	// w.mu across a blocked successCh send after the reactor exited
-	// (reactor drained before the worker, no reader for successCh).
+	// signalStop must interrupt blocked reporting without waiting for setup
+	// or teardown to release the worker mutex.
 	stopped atomic.Bool
 
 	mu       sync.Mutex
@@ -269,7 +267,22 @@ func (w *kernelWorker) handleEvent(ev any) {
 // On failure, cleans up partial state and reports via errCh.
 func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 	w.mu.Lock()
-	defer w.mu.Unlock()
+	var ready *pppSessionFDs
+	var setupError error
+	defer func() {
+		var snapshot pppSessionFDs
+		if ready != nil {
+			snapshot = *ready
+		}
+		w.mu.Unlock()
+		// Claiming descriptors takes mu. Never hold it while reporting:
+		// neither a full success queue nor a full error queue may block it.
+		if ready != nil {
+			w.reportSuccess(ev, snapshot, ready)
+		} else if setupError != nil {
+			w.reportError(ev.localTID, ev.localSID, setupError)
+		}
+	}()
 
 	// Step 1: ensure kernel tunnel exists.
 	ts, tunnelExisted := w.tunnels[ev.localTID]
@@ -285,7 +298,7 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 			w.logger.Error("l2tp: kernel tunnel create failed",
 				"local-tid", ev.localTID, "remote-tid", ev.remoteTID,
 				"socket-fd", ev.socketFD, "error", err.Error())
-			w.reportError(ev.localTID, ev.localSID, err)
+			setupError = err
 			return
 		}
 		ts = &kernelTunnelState{localTID: ev.localTID, connFD: connFD}
@@ -305,7 +318,7 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 				w.logger.Error("l2tp: cannot read kernel tunnel socket; rolling back",
 					"local-tid", ev.localTID, "error", adoptErr.Error())
 				w.deleteTunnelLocked(ev.localTID)
-				w.reportError(ev.localTID, ev.localSID, adoptErr)
+				setupError = adoptErr
 				return
 			}
 		}
@@ -324,7 +337,7 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 		w.logger.Error("l2tp: kernel session create failed",
 			"tunnel-id", ev.localTID, "session-id", ev.localSID, "error", err.Error())
 		w.cleanupTunnelIfNew(ev.localTID, tunnelExisted)
-		w.reportError(ev.localTID, ev.localSID, err)
+		setupError = err
 		return
 	}
 	ts.sessionCount++
@@ -349,7 +362,7 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 			ts.sessionCount--
 			w.cleanupTunnelIfNew(ev.localTID, tunnelExisted)
 		}
-		w.reportError(ev.localTID, ev.localSID, err)
+		setupError = err
 		return
 	}
 
@@ -360,13 +373,13 @@ func (w *kernelWorker) setupSession(ev kernelSetupEvent) {
 		"tunnel-id", ev.localTID, "session-id", ev.localSID,
 		"ppp-unit", fds.unitNum)
 
-	w.reportSuccess(ev, fds)
+	ready = &fds
 }
 
 // reportSuccess sends a setup success to the reactor via successCh.
 // successCh may be nil in tests that exercise teardown / failure paths
 // only; in that case the success event is dropped silently.
-func (w *kernelWorker) reportSuccess(ev kernelSetupEvent, fds pppSessionFDs) {
+func (w *kernelWorker) reportSuccess(ev kernelSetupEvent, fds pppSessionFDs, owner *pppSessionFDs) {
 	if w.successCh == nil {
 		return
 	}
@@ -377,12 +390,28 @@ func (w *kernelWorker) reportSuccess(ev kernelSetupEvent, fds pppSessionFDs) {
 		lnsMode:                    ev.lnsMode,
 		sequencing:                 ev.sequencing,
 		fds:                        fds,
+		owner:                      owner,
+		session:                    ev.session,
 		proxyInitialRecvLCPConfReq: ev.proxyInitialRecvLCPConfReq,
 		proxyLastSentLCPConfReq:    ev.proxyLastSentLCPConfReq,
 		proxyLastRecvLCPConfReq:    ev.proxyLastRecvLCPConfReq,
 	}:
 	case <-w.stop:
 	}
+}
+
+// takePPPDescriptors transfers the channel and unit exactly once. The worker
+// retains the PPPoX transport, including responsibility for disconnecting it.
+func (w *kernelWorker) takePPPDescriptors(event kernelSetupSucceeded) (int, int, bool) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	fds := w.sessions[sessionKey{event.localTID, event.localSID}]
+	if fds == nil || fds != event.owner || fds.bridged || fds.chanFD < 0 || fds.unitFD < 0 {
+		return -1, -1, false
+	}
+	channel, unit := fds.chanFD, fds.unitFD
+	fds.chanFD, fds.unitFD = -1, -1
+	return channel, unit, true
 }
 
 // teardownSession destroys kernel resources for a session.
@@ -410,8 +439,8 @@ func (w *kernelWorker) teardownSession(ev kernelTeardownEvent) {
 	}
 }
 
-// teardownSessionFDsLocked closes all fds and deletes the kernel session.
-// RFC 2661 Section 24.25: strict reverse order.
+// teardownSessionFDsLocked releases the worker-owned descriptors and deletes
+// the kernel session. Transferred PPP descriptors are no longer worker-owned.
 // Caller MUST hold w.mu.
 func (w *kernelWorker) teardownSessionFDsLocked(key sessionKey, fds *pppSessionFDs) {
 	// A LAC-bridged session must tear the kernel channel bridge down before

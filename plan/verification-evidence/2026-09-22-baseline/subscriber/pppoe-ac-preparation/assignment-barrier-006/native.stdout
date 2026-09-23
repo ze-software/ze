@@ -1,0 +1,137 @@
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/main/x86_64/APKINDEX.tar.gz
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/community/x86_64/APKINDEX.tar.gz
+v3.21.8 [https://dl-cdn.alpinelinux.org/alpine/v3.21/main]
+v3.21.7-256-g56dd60806f0 [https://dl-cdn.alpinelinux.org/alpine/v3.21/community]
+OK: 25422 distinct packages available
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/main/x86_64/APKINDEX.tar.gz
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/community/x86_64/APKINDEX.tar.gz
+(1/15) Upgrading musl (1.2.5-r9 -> 1.2.5-r11)
+(2/15) Installing brotli-libs (1.1.0-r2)
+(3/15) Installing c-ares (1.34.8-r0)
+(4/15) Installing libunistring (1.2-r0)
+(5/15) Installing libidn2 (2.3.7-r0)
+(6/15) Installing nghttp2-libs (1.69.0-r0)
+(7/15) Installing libpsl (0.21.5-r3)
+(8/15) Installing zstd-libs (1.5.6-r2)
+(9/15) Installing libcurl (8.14.1-r2)
+(10/15) Installing curl (8.14.1-r2)
+(11/15) Installing libexpat (2.8.4-r0)
+(12/15) Installing pcre2 (10.43-r0)
+(13/15) Installing git (2.47.3-r0)
+(14/15) Installing git-init-template (2.47.3-r0)
+(15/15) Installing musl-dev (1.2.5-r11)
+Executing busybox-1.37.0-r12.trigger
+OK: 37 MiB in 50 packages
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/main/x86_64/APKINDEX.tar.gz
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/community/x86_64/APKINDEX.tar.gz
+(1/43) Installing libelf (0.191-r0)
+(2/43) Installing libmnl (1.0.5-r2)
+(3/43) Installing iproute2-minimal (6.11.0-r0)
+(4/43) Installing ifupdown-ng-iproute2 (0.12.1-r6)
+(5/43) Installing libxtables (1.8.11-r1)
+(6/43) Installing iproute2-tc (6.11.0-r0)
+(7/43) Installing iproute2-ss (6.11.0-r0)
+(8/43) Installing iproute2 (6.11.0-r0)
+Executing iproute2-6.11.0-r0.post-install
+(9/43) Installing iputils-arping (20240905-r0)
+(10/43) Installing iputils-clockdiff (20240905-r0)
+(11/43) Installing iputils-ping (20240905-r0)
+(12/43) Installing iputils-tracepath (20240905-r0)
+(13/43) Installing iputils (20240905-r0)
+(14/43) Installing xz-libs (5.8.4-r0)
+(15/43) Installing kmod (33-r2)
+(16/43) Installing ppp-chat (2.5.1-r0)
+(17/43) Installing libpcap (1.10.7-r0)
+(18/43) Installing ppp-daemon (2.5.1-r0)
+(19/43) Installing ifupdown-ng-ppp (0.12.1-r6)
+(20/43) Installing ppp-openrc (2.5.1-r0)
+(21/43) Installing ppp-radius (2.5.1-r0)
+(22/43) Installing ppp-atm (2.5.1-r0)
+(23/43) Installing ppp-pppoe (2.5.1-r0)
+(24/43) Installing ppp-l2tp (2.5.1-r0)
+(25/43) Installing ppp-winbind (2.5.1-r0)
+(26/43) Installing ppp-passprompt (2.5.1-r0)
+(27/43) Installing ppp-passwordfd (2.5.1-r0)
+(28/43) Installing ppp-minconn (2.5.1-r0)
+(29/43) Installing ppp (2.5.1-r0)
+(30/43) Installing libbz2 (1.0.8-r6)
+(31/43) Installing libffi (3.4.7-r0)
+(32/43) Installing gdbm (1.24-r0)
+(33/43) Installing libgcc (14.2.0-r4)
+(34/43) Installing libstdc++ (14.2.0-r4)
+(35/43) Installing mpdecimal (4.0.0-r0)
+(36/43) Installing libpanelw (6.5_p20241006-r3)
+(37/43) Installing readline (8.2.13-r0)
+(38/43) Installing sqlite-libs (3.48.0-r4)
+(39/43) Installing python3 (3.12.14-r0)
+(40/43) Installing python3-pycache-pyc0 (3.12.14-r0)
+(41/43) Installing pyc (3.12.14-r0)
+(42/43) Installing python3-pyc (3.12.14-r0)
+(43/43) Installing tcpdump (4.99.5-r0)
+Executing busybox-1.37.0-r12.trigger
+OK: 78 MiB in 93 packages
+CONNTRACK-SETUP: acct=1 rules=0
+0
+{
+  "guest-exit-code": 0,
+  "plan": {
+    "alpine-arch": "x86_64",
+    "alpine-minor": "3",
+    "alpine-version": "3.21",
+    "boot-timeout-seconds": 300,
+    "bootstrap-command": "setup-interfaces -a 2\u003e/dev/null; ifup eth0 2\u003e/dev/null; ifup lo 2\u003e/dev/null; echo nameserver 8.8.8.8 \u003e /etc/resolv.conf; apk add --no-cache openssh; echo PermitRootLogin yes \u003e\u003e /etc/ssh/sshd_config; echo PermitEmptyPasswords yes \u003e\u003e /etc/ssh/sshd_config; passwd -d root; ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N '' 2\u003e/dev/null; ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key -N '' 2\u003e/dev/null; /usr/sbin/sshd; echo SSHD_READY",
+    "command": "python3 /workspace/plan/verification-evidence/2026-09-22-baseline/subscriber/pppoe-ac-preparation/assignment-barrier-006/guest.py --ze /workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/ppp-lifecycle-fixed/bin/ze-003 --scenario /workspace/test/interop-pppoe/scenarios/02-ze-ac-pppd-client --out /workspace/plan/verification-evidence/2026-09-22-baseline/subscriber/pppoe-ac-preparation/assignment-barrier-006/guest",
+    "command-timeout-seconds": 1200,
+    "cpus": "8",
+    "go-version": "1.27.0",
+    "iso": "/home/thomas/.cache/ze/alpine-iso/alpine-virt-3.21.3-x86_64.iso",
+    "keep-alive": false,
+    "kernel": "/home/thomas/Code/github.com/ze-software/ze/main/tmp/kernel/build/vmlinuz",
+    "memory": "16384",
+    "packages": [
+      "python3",
+      "iproute2",
+      "iputils",
+      "ppp",
+      "ppp-pppoe",
+      "kmod",
+      "tcpdump",
+      "curl"
+    ],
+    "qemu-argv": [
+      "qemu-system-x86_64",
+      "-machine",
+      "accel=hvf:kvm:tcg",
+      "-smp",
+      "8",
+      "-m",
+      "16384",
+      "-cdrom",
+      "/home/thomas/.cache/ze/alpine-iso/alpine-virt-3.21.3-x86_64.iso",
+      "-boot",
+      "d",
+      "-nographic",
+      "-serial",
+      "mon:stdio",
+      "-netdev",
+      "user,id=net0,hostfwd=tcp::2222-:22",
+      "-device",
+      "virtio-net-pci,netdev=net0",
+      "-virtfs",
+      "local,path=/home/thomas/Code/github.com/ze-software/ze/main,mount_tag=workspace,security_model=none,id=ws0,readonly=off",
+      "-virtfs",
+      "local,path=/home/thomas/.cache/ze-tmp/main/qemu,mount_tag=zescratch-qemu,security_model=none,id=zescratch-qemu,readonly=off",
+      "-kernel",
+      "/home/thomas/Code/github.com/ze-software/ze/main/tmp/kernel/build/vmlinuz",
+      "-initrd",
+      "/home/thomas/.cache/ze/alpine-iso/alpine-virt-3.21.3-x86_64-extract/boot/initramfs-virt",
+      "-append",
+      "console=ttyAMA0 alpine_dev=cdrom modules=loop,squashfs quiet"
+    ],
+    "qemu-binary": "qemu-system-x86_64",
+    "setup-command": "set -e \u0026\u0026 printf 'https://dl-cdn.alpinelinux.org/alpine/v3.21/main\\nhttps://dl-cdn.alpinelinux.org/alpine/v3.21/community\\n' \u003e /etc/apk/repositories \u0026\u0026 apk update \u0026\u0026 apk add --no-cache git curl musl-dev \u0026\u0026 apk add --no-cache python3 iproute2 iputils ppp ppp-pppoe kmod tcpdump curl \u0026\u0026 modprobe ppp_generic 2\u003e/dev/null || true \u0026\u0026 modprobe l2tp_ppp 2\u003e/dev/null || true \u0026\u0026 modprobe l2tp_netlink 2\u003e/dev/null || true \u0026\u0026 modprobe nft_chain_nat 2\u003e/dev/null || true \u0026\u0026 modprobe nf_conntrack 2\u003e/dev/null || true \u0026\u0026 modprobe nf_conntrack_netlink 2\u003e/dev/null || true \u0026\u0026 [ -w /proc/sys/net/netfilter/nf_conntrack_acct ] \u0026\u0026 echo 1 \u003e /proc/sys/net/netfilter/nf_conntrack_acct || true \u0026\u0026 nft add table inet ztrack 2\u003e/dev/null || true \u0026\u0026 nft 'add chain inet ztrack out { type filter hook output priority -150 ; policy accept ; }' 2\u003e/dev/null || true \u0026\u0026 nft add rule inet ztrack out ct state new,established,related counter 2\u003e/dev/null || true \u0026\u0026 echo \"CONNTRACK-SETUP: acct=$(cat /proc/sys/net/netfilter/nf_conntrack_acct 2\u003e/dev/null || echo MISSING) rules=$(nft list ruleset 2\u003e/dev/null | grep -c 'ct state' || echo 0)\" \u0026\u0026 mkdir -p /workspace \u0026\u0026 mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 workspace /workspace \u0026\u0026 mkdir -p '/home/thomas/.cache/ze-tmp/main/qemu' \u0026\u0026 mount -t 9p -o trans=virtio,version=9p2000.L,msize=1048576 zescratch-qemu '/home/thomas/.cache/ze-tmp/main/qemu' \u0026\u0026 cd /workspace \u0026\u0026 mkdir -p /workspace/tmp/qemu/go-dl \u0026\u0026 GO_TAR=\"/workspace/tmp/qemu/go-dl/go1.27.0.linux-amd64.tar.gz\" \u0026\u0026 [ -f \"$GO_TAR\" ] || curl -fsSL -o \"$GO_TAR\" \"https://go.dev/dl/go1.27.0.linux-amd64.tar.gz\" \u0026\u0026 tar -C /usr/local -xzf \"$GO_TAR\" \u0026\u0026 export PATH=\"/usr/local/go/bin:$PATH\" \u0026\u0026 export GOROOT=\"/usr/local/go\" \u0026\u0026 export GOCACHE=\"/workspace/tmp/qemu/go-cache\" \u0026\u0026 export GOMODCACHE=\"/workspace/tmp/qemu/gomodcache\" \u0026\u0026 export GOFLAGS=\"-buildvcs=false\" \u0026\u0026 export CGO_ENABLED=\"0\" \u0026\u0026 export HOME=\"/root\" \u0026\u0026 export TMPDIR=\"/tmp\" \u0026\u0026 git config --global --add safe.directory '*' 2\u003e/dev/null || true \u0026\u0026 mkdir -p /workspace/tmp/evidence \u0026\u0026 mount -t tmpfs tmpfs /workspace/tmp/evidence",
+    "ssh-port": 2222,
+    "tree": "/home/thomas/Code/github.com/ze-software/ze/main"
+  },
+  "verdict": "pass"
+}

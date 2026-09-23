@@ -116,16 +116,10 @@ func TestAcctFramedIPAddressIPv4Mapped(t *testing.T) {
 	}
 }
 
-// The address reaches the packet from the session event, not from anywhere the
-// accounting code reaches into. This drives the real entry point,
-// onSessionIPAssigned, so a regression in the payload-to-session field mapping
-// fails here: asserting on a hand-built acctSession would pass with that
-// mapping deleted.
-//
-// The same test pins the NAS-Port-Id resolution, which happens once, here, so
-// that every record of the session repeats one text even across a config reload.
-// RFC requirement: RFC2866-4.1-1 positive -- the reported address is the one the session
-// event delivered, which is the address IPCP negotiated and the reactor put on pppN.
+// The event entry point supplies the address to real Accounting-Start and Stop
+// packets. A config reload must not change the session's NAS-Port-Id.
+// RFC requirement: RFC2866-4.1-1 positive -- Accounting-Start and Stop report
+// the IPv4 address supplied by the session IP-assigned event.
 func TestSessionEventDrivesAddressAndPortID(t *testing.T) {
 	sharedKey := []byte("addrtest")
 	capture := newAcctCapture()
@@ -152,30 +146,25 @@ func TestSessionEventDrivesAddressAndPortID(t *testing.T) {
 		Username:  "alice",
 		PeerAddr:  "198.51.100.23",
 	})
-	capture.waitN(t, 1)
-
-	acct.mu.Lock()
-	sess, ok := acct.sessions[sessionKey{1027, 42}]
-	acct.mu.Unlock()
-	if !ok {
-		t.Fatal("no accounting session was created for the event")
+	start := capture.waitN(t, 1)[0]
+	if start.peerAddr != "198.51.100.23" {
+		t.Fatalf("Accounting-Start address = %q, want 198.51.100.23", start.peerAddr)
 	}
-	if sess.peerAddr != "198.51.100.23" {
-		t.Fatalf("session peerAddr = %q, want the address the event carried", sess.peerAddr)
-	}
-	if sess.nasPortID != "lns1:1027.42" {
-		t.Fatalf("session nasPortID = %q, want %q", sess.nasPortID, "lns1:1027.42")
+	if start.nasPortID != "lns1:1027.42" {
+		t.Fatalf("Accounting-Start NAS-Port-Id = %q, want lns1:1027.42", start.nasPortID)
 	}
 
 	// A reload after the session started must not move its NAS-Port-Id: the
 	// billing system joins the records by that text.
 	acct.setClient(client, "lns1", 300*time.Second, addr, nil, "changed-{tunnel-id}")
 
-	pkt := acct.buildAcctPacket(sess, "lns1", nil, radius.AcctStatusInterimUpdate, 60)
-	if got := net.IP(pkt.FindAttr(radius.AttrFramedIPAddress)).String(); got != "198.51.100.23" {
-		t.Fatalf("Framed-IP-Address = %s, want 198.51.100.23", got)
+	acct.onSessionDown(&events.SessionDownPayload{TunnelID: 1027, SessionID: 42})
+	packets := capture.waitN(t, 1)
+	stop := packets[len(packets)-1]
+	if stop.statusType != radius.AcctStatusStop || stop.peerAddr != "198.51.100.23" {
+		t.Fatalf("Accounting-Stop = %+v, want Stop carrying 198.51.100.23", stop)
 	}
-	if got := string(pkt.FindAttr(radius.AttrNASPortID)); got != "lns1:1027.42" {
-		t.Fatalf("NAS-Port-Id = %q after a reload, want the text the session started with", got)
+	if stop.nasPortID != "lns1:1027.42" {
+		t.Fatalf("Accounting-Stop NAS-Port-Id = %q after reload, want lns1:1027.42", stop.nasPortID)
 	}
 }

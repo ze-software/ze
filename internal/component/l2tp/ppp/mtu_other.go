@@ -1,5 +1,5 @@
 // Design: docs/research/l2tpv2-implementation-guide.md -- non-Linux PPPIOCSMRU stub
-// Related: ops.go -- pppOps struct referencing realSetMRU, realConnect
+// Related: ops.go -- pppOps syscall injection
 
 //go:build !linux
 
@@ -12,5 +12,9 @@ func realSetMRU(unitFD int, mru uint16) error {
 }
 
 func realConnect(chanFD, unitNum int) error {
+	return errNotLinux
+}
+
+func realDisconnect(chanFD int) error {
 	return errNotLinux
 }

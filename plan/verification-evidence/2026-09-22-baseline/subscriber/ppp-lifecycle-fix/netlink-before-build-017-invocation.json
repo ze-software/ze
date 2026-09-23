@@ -1,0 +1,50 @@
+{
+  "label": "netlink-before-build-017",
+  "started": "2026-09-23T00:30:07.756Z",
+  "cwd": "/home/thomas/Code/github.com/ze-software/ze/main",
+  "argv": [
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le",
+    "le",
+    "job",
+    "run",
+    "label",
+    "netlink-before-build-017",
+    "quiet",
+    "command",
+    "go",
+    "test",
+    "-c",
+    "-tags=integration,ze_core,ze_lg,ze_ssh,ze_web,ze_gnmi,ze_mcp,ze_rest,ze_grpc,ze_telemetry,ze_isis,ze_ldp,ze_ospf,ze_rsvpte,ze_vrrp,ze_ntp,ze_flowexport,ze_ddos,ze_anomaly,ze_as112,ze_geodns,ze_dhcpserver,ze_pxe,ze_trafficusage,ze_policyroute,ze_cos,ze_copp,ze_mpls,ze_tacacs,ze_exabgp,ze_bfd,ze_vpp,ze_ike,ze_l2tp,ze_radius,ze_mrt,ze_bgp,ze_bmp",
+    "-overlay=plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/kernel-before-017-overlay.json",
+    "-o",
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/ppp-lifecycle-fixed/bin/netlink-before.test",
+    "./internal/plugins/iface/netlink"
+  ],
+  "env": {
+    "CGO_ENABLED": "0",
+    "GOOS": "linux",
+    "GOARCH": "amd64"
+  },
+  "inputs": [
+    {
+      "path": "internal/plugins/iface/netlink/addr_primary_linux.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/kernel-teardown-preimage/internal__plugins__iface__netlink__addr_primary_linux.go.txt",
+      "sha256": "518b27f097498456b9f9ccb791feb9d21036cbb1114ca4d6a71cd806085a278d"
+    },
+    {
+      "path": "internal/plugins/iface/netlink/addr_primary.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/iface/netlink/addr_primary.go",
+      "sha256": "83f7d9accf21c38f58c4158381f0fba45823dafb14b4fe9b5839170791d1d02c"
+    },
+    {
+      "path": "internal/plugins/iface/netlink/manage_linux.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/iface/netlink/manage_linux.go",
+      "sha256": "f22f8ba2ad4c5d5d85988dd5bea9d8bb63fb20397f7f07eef7816bf4a5da49f7"
+    },
+    {
+      "path": "internal/plugins/iface/netlink/route_integration_linux_test.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/iface/netlink/route_integration_linux_test.go",
+      "sha256": "ed7eea54d7fa3eea68d5e5438bb6a7b5da2eb8d4448444a716bf6fb5bc57e2ba"
+    }
+  ]
+}

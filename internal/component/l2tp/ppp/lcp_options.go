@@ -23,6 +23,11 @@ const (
 
 // LCP option header: Type + Length. Length is the TOTAL option length
 // including the two header bytes. RFC 1661 Section 6.
+//
+// Byte offset: 0       1          2
+//             +-------+----------+----------------------+
+//             | Type  | Length   | Data (Length - 2)    |
+//             +-------+----------+----------------------+
 const lcpOptHeaderLen = 2
 
 // errOptionTooShort means a buffer cannot fit even the option header, so
@@ -281,6 +286,10 @@ type LCPNegPolicy struct {
 	// MaxFrameLen (1500).
 	MaxMRU uint16
 
+	// PPPoE forbids ACCM, ACFC and FCS Alternatives (RFC 2516 Section 7).
+	// L2TP leaves this false and retains its existing option negotiation.
+	PPPoE bool
+
 	// AcceptAuthProto controls peer-proposed auth methods. 6a accepts
 	// any non-zero AuthProto by ACK (real handling is in 6b); when
 	// false (the 6a default), any peer-proposed auth is REJECTed.
@@ -374,6 +383,15 @@ func refusedOptionOutcome(optType uint8, received []byte, policy LCPNegPolicy) (
 // against the local policy. On NAK or REJECT, suggestData is the
 // option's data that should be echoed back in the Nak/Reject reply.
 func negotiatePeerOption(opt LCPOption, policy LCPNegPolicy) (out negOutcome, suggestData []byte) {
+	// RFC 2516 Section 7: "An implementation MUST NOT request any of the
+	// following options, and MUST reject a request for such an option:"
+	// FCS Alternatives (Type 9), ACFC (Type 8), ACCM (Type 2).
+	if policy.PPPoE {
+		switch opt.Type {
+		case LCPOptACCM, LCPOptACFC, 9:
+			return negReject, opt.Data
+		}
+	}
 	switch opt.Type {
 	case LCPOptMRU:
 		// RFC 1661 Section 6.1 fixes the option at "Length: 4", so any

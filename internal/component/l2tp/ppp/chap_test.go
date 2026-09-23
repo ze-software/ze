@@ -231,7 +231,7 @@ func TestCHAPWriteChallengeOffset(t *testing.T) {
 
 // VALIDATES: WriteCHAPChallenge clamps the Name field so the total
 //
-//	packet fits inside a single MaxFrameLen PPP frame. The
+//	packet fits inside a single MaxFrameBufLen PPP frame. The
 //	written Length field MUST equal the clamped total bytes.
 //
 // PREVENTS: regression where an over-long Name (e.g. from a
@@ -239,12 +239,12 @@ func TestCHAPWriteChallengeOffset(t *testing.T) {
 //	misconfigured hostname at Phase 7) silently corrupts the
 //	Length field or runs off the buffer.
 func TestCHAPWriteChallengeCapsNameByFrame(t *testing.T) {
-	buf := make([]byte, MaxFrameLen)
+	buf := make([]byte, MaxFrameBufLen)
 	value := bytes.Repeat([]byte{0xCD}, chapChallengeValueLen)
 	hugeName := bytes.Repeat([]byte{'n'}, MaxFrameLen) // way more than fits
-	// Layout space after WriteFrame (off=2) = MaxFrameLen - 2.
+	// Layout space after WriteFrame (off=2) = MaxFrameLen.
 	n := writeCHAPChallenge(buf, 2, 0x10, value, hugeName)
-	maxName := MaxFrameLen - 2 - chapHeaderLen - 1 - chapChallengeValueLen
+	maxName := MaxFrameLen - chapHeaderLen - 1 - chapChallengeValueLen
 	wantTotal := chapHeaderLen + 1 + chapChallengeValueLen + maxName
 	if n != wantTotal {
 		t.Fatalf("n = %d, want %d (clamped to frame)", n, wantTotal)
@@ -303,7 +303,7 @@ func TestCHAPWriteSuccess(t *testing.T) {
 
 // VALIDATES: WriteCHAPSuccess clamps the Message field so the packet
 //
-//	fits inside a single MaxFrameLen PPP frame. The Length
+//	fits inside a single MaxFrameBufLen PPP frame. The Length
 //	field MUST equal the clamped total bytes.
 //
 // PREVENTS: regression where an over-long Message runs off the buffer
@@ -312,11 +312,11 @@ func TestCHAPWriteSuccess(t *testing.T) {
 func TestCHAPWriteSuccessCapsMessageByFrame(t *testing.T) {
 	// Buffer one byte larger than the frame cap so we can assert that
 	// the byte immediately past the clamp was NOT written (stays 0).
-	buf := make([]byte, MaxFrameLen+1)
+	buf := make([]byte, MaxFrameBufLen+1)
 	hugeMessage := bytes.Repeat([]byte{'m'}, MaxFrameLen) // way more than fits
-	// Layout space after WriteFrame (off=2) = MaxFrameLen - 2.
+	// Layout space after WriteFrame (off=2) = MaxFrameLen.
 	n := writeCHAPSuccess(buf, 2, 0x20, hugeMessage)
-	maxMessage := MaxFrameLen - 2 - chapHeaderLen
+	maxMessage := MaxFrameLen - chapHeaderLen
 	wantTotal := chapHeaderLen + maxMessage
 	if n != wantTotal {
 		t.Fatalf("n = %d, want %d (clamped to frame)", n, wantTotal)
@@ -901,14 +901,14 @@ func TestCHAPIdentifierWraps(t *testing.T) {
 //
 //	(Value-Size=1 leaves the largest Name room: Length -
 //	chapHeaderLen - 1 - 1 bytes, where Length maxes out at
-//	MaxFrameLen - 2).
+//	MaxFrameLen).
 //
 // PREVENTS: regression where an off-by-one in the Name slice bound
 //
 //	drops the last byte or trips a range panic at the high end
 //	of the legal Length space.
 func TestCHAPParseResponseMaxName(t *testing.T) {
-	length := MaxFrameLen - 2
+	length := MaxFrameLen
 	nameLen := length - chapHeaderLen - 1 - 1 // Value-Size=1, Value=1 byte
 	buf := make([]byte, length)
 	buf[0] = CHAPCodeResponse
@@ -931,6 +931,11 @@ func TestCHAPParseResponseMaxName(t *testing.T) {
 	}
 	if resp.Name[0] != 'N' || resp.Name[nameLen-1] != 'N' {
 		t.Errorf("Name first/last = %q/%q", resp.Name[0], resp.Name[nameLen-1])
+	}
+	buf = append(buf, 'N')
+	binary.BigEndian.PutUint16(buf[2:4], uint16(len(buf)))
+	if _, err := parseCHAPResponse(buf); !errors.Is(err, errCHAPLengthMismatch) {
+		t.Fatalf("1501-octet Information field: got %v, want errCHAPLengthMismatch", err)
 	}
 }
 

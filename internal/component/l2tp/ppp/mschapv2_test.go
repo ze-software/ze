@@ -272,14 +272,14 @@ func TestMSCHAPv2ParseResponseBoundary49(t *testing.T) {
 
 // VALIDATES: ParseMSCHAPv2Response accepts the maximum legal Name
 //
-//	(Length = MaxFrameLen - 2; Name runs from byte 54 to Length).
+//	(Length = MaxFrameLen; Name runs from byte 54 to Length).
 //
 // PREVENTS: regression where an off-by-one in the Name slice bound
 //
 //	drops the last byte at the high end of the legal Length
 //	space.
 func TestMSCHAPv2ParseResponseMaxName(t *testing.T) {
-	length := MaxFrameLen - 2
+	length := MaxFrameLen
 	// Layout: header (4) + VS (1) + Value (49) + Name.
 	headerLen := mschapv2HeaderLen + 1 + mschapv2ResponseValueLen
 	nameLen := length - headerLen
@@ -309,6 +309,11 @@ func TestMSCHAPv2ParseResponseMaxName(t *testing.T) {
 	}
 	if resp.Name != "" && (resp.Name[0] != 'N' || resp.Name[nameLen-1] != 'N') {
 		t.Errorf("Name first/last = %q/%q", resp.Name[0], resp.Name[nameLen-1])
+	}
+	buf = append(buf, 'N')
+	binary.BigEndian.PutUint16(buf[2:4], uint16(len(buf)))
+	if _, err := parseMSCHAPv2Response(buf); !errors.Is(err, errMSCHAPv2LengthMismatch) {
+		t.Fatalf("1501-octet Information field: got %v, want errMSCHAPv2LengthMismatch", err)
 	}
 }
 
@@ -362,14 +367,14 @@ func TestMSCHAPv2WriteChallengeOffset(t *testing.T) {
 
 // VALIDATES: WriteMSCHAPv2Challenge clamps the Name field so the total
 //
-//	packet fits inside a single MaxFrameLen PPP frame. The
+//	packet fits inside a single MaxFrameBufLen PPP frame. The
 //	written Length field MUST equal the clamped total bytes.
 func TestMSCHAPv2WriteChallengeCapsNameByFrame(t *testing.T) {
-	buf := make([]byte, MaxFrameLen)
+	buf := make([]byte, MaxFrameBufLen)
 	value := bytes.Repeat([]byte{0xCD}, mschapv2ChallengeValueLen)
 	hugeName := bytes.Repeat([]byte{'n'}, MaxFrameLen)
 	n := writeMSCHAPv2Challenge(buf, 2, 0x10, value, hugeName)
-	maxName := MaxFrameLen - 2 - mschapv2HeaderLen - 1 - mschapv2ChallengeValueLen
+	maxName := MaxFrameLen - mschapv2HeaderLen - 1 - mschapv2ChallengeValueLen
 	wantTotal := mschapv2HeaderLen + 1 + mschapv2ChallengeValueLen + maxName
 	if n != wantTotal {
 		t.Fatalf("n = %d, want %d (clamped to frame)", n, wantTotal)
@@ -494,17 +499,17 @@ func TestMSCHAPv2WriteSuccessPanicsOnWrongBlobLen(t *testing.T) {
 
 // VALIDATES: WriteMSCHAPv2Success clamps the Message field so the
 //
-//	packet fits inside a single MaxFrameLen PPP frame.
+//	packet fits inside a single MaxFrameBufLen PPP frame.
 //
 // PREVENTS: regression where an over-long Message runs off the buffer
 //
 //	or records a bogus Length.
 func TestMSCHAPv2WriteSuccessCapsMessageByFrame(t *testing.T) {
-	buf := make([]byte, MaxFrameLen+1)
+	buf := make([]byte, MaxFrameBufLen+1)
 	blob := bytes.Repeat([]byte{0x55}, mschapv2AuthenticatorResponseLen)
 	hugeMessage := bytes.Repeat([]byte{'m'}, MaxFrameLen)
 	n := writeMSCHAPv2Success(buf, 2, 0x20, blob, hugeMessage)
-	maxMessage := MaxFrameLen - 2 - mschapv2HeaderLen
+	maxMessage := MaxFrameLen - mschapv2HeaderLen
 	wantTotal := mschapv2HeaderLen + maxMessage
 	if n != wantTotal {
 		t.Fatalf("n = %d, want %d (clamped to frame)", n, wantTotal)

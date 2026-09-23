@@ -172,6 +172,9 @@ func (td *ncpTestDriver) waitForEvent(t *testing.T, timeout time.Duration) Event
 	t.Helper()
 	select {
 	case ev := <-td.driver.EventsOut():
+		if assigned, ok := ev.(EventSessionIPAssigned); ok {
+			assigned.Acknowledge()
+		}
 		return ev
 	case <-time.After(timeout):
 		t.Fatalf("timed out waiting for event after %s", timeout)
@@ -414,7 +417,8 @@ func writePeerNCPFrame(t *testing.T, conn net.Conn, proto uint16, code, id uint8
 }
 
 // waitForEventOfType drains events until one of type T arrives or the
-// deadline fires. Returns the zero value + false on timeout.
+// deadline fires, acknowledging assignments as their transport consumer.
+// Returns the zero value + false on timeout.
 func waitForEventOfType[T Event](t *testing.T, ch <-chan Event, timeout time.Duration) (T, bool) {
 	t.Helper()
 	var zero T
@@ -422,6 +426,9 @@ func waitForEventOfType[T Event](t *testing.T, ch <-chan Event, timeout time.Dur
 	for {
 		select {
 		case ev := <-ch:
+			if assigned, ok := ev.(EventSessionIPAssigned); ok {
+				assigned.Acknowledge()
+			}
 			if got, ok := ev.(T); ok {
 				return got, true
 			}

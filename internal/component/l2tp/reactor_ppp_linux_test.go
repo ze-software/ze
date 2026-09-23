@@ -57,7 +57,7 @@ func TestReactorReauthIntervalFromParams(t *testing.T) {
 			r.setPPPDriver(fake)
 			mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
 
-			r.handleKernelSuccess(kernelSetupSucceeded{
+			deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
 				localTID: 100, localSID: 1001, lnsMode: true,
 				fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
 			})
@@ -103,6 +103,21 @@ func newFakePPPDriver() *fakePPPDriver {
 func (f *fakePPPDriver) SessionsIn() chan<- ppp.StartSession { return f.sessionsIn }
 func (f *fakePPPDriver) EventsOut() <-chan ppp.Event         { return f.eventsOut }
 
+// deliverOwnedKernelSuccess models the worker's registered descriptor lease.
+func deliverOwnedKernelSuccess(r *l2tpReactor, event kernelSetupSucceeded) {
+	tunnel := r.tunnelsByLocalID[event.localTID]
+	session := &L2TPSession{localSID: event.localSID}
+	tunnel.sessions[event.localSID] = session
+	event.session = session
+	event.owner = &event.fds
+	r.kernelWorker = &kernelWorker{
+		sessions: map[sessionKey]*pppSessionFDs{
+			{event.localTID, event.localSID}: event.owner,
+		},
+	}
+	r.handleKernelSuccess(event)
+}
+
 func TestL2TPReactorDispatchesToPPPDriver(t *testing.T) {
 	// VALIDATES: AC-2 -- reactor receives kernelSetupSucceeded and writes
 	// a ppp.StartSession onto the driver's SessionsIn channel, carrying
@@ -118,7 +133,7 @@ func TestL2TPReactorDispatchesToPPPDriver(t *testing.T) {
 	peer := netip.MustParseAddrPort("10.0.0.7:1701")
 	mkTunnel(r, 100, 200, peer)
 
-	r.handleKernelSuccess(kernelSetupSucceeded{
+	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
 		localTID:                   100,
 		localSID:                   1001,
 		lnsMode:                    true,
@@ -167,7 +182,7 @@ func TestL2TPReactorAuthTimeoutFromParams(t *testing.T) {
 
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
 
-	r.handleKernelSuccess(kernelSetupSucceeded{
+	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
 		localTID: 100, localSID: 1001, lnsMode: true,
 		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
 	})
@@ -199,7 +214,7 @@ func TestL2TPReactorNCPToggleFromParams(t *testing.T) {
 
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
 
-	r.handleKernelSuccess(kernelSetupSucceeded{
+	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
 		localTID: 100, localSID: 1001, lnsMode: true,
 		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
 	})
@@ -232,7 +247,7 @@ func TestL2TPReactorNCPTimeoutFromParams(t *testing.T) {
 
 	mkTunnel(r, 100, 200, netip.MustParseAddrPort("10.0.0.7:1701"))
 
-	r.handleKernelSuccess(kernelSetupSucceeded{
+	deliverOwnedKernelSuccess(r, kernelSetupSucceeded{
 		localTID: 100, localSID: 1001, lnsMode: true,
 		fds: pppSessionFDs{pppoxFD: 30, chanFD: 31, unitFD: 32, unitNum: 7},
 	})

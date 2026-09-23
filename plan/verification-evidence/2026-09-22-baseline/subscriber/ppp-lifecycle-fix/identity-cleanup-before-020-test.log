@@ -1,0 +1,38 @@
+=== RUN   TestLCPRestartEndsSessionWhenAddressRemovalFails
+    lcp_lifecycle_test.go:27: LCP restarted on a unit whose previous address could not be removed
+--- FAIL: TestLCPRestartEndsSessionWhenAddressRemovalFails (0.00s)
+=== RUN   TestAuthDecisionPrincipalForNCP
+=== RUN   TestAuthDecisionPrincipalForNCP/ipv4
+=== RUN   TestAuthDecisionPrincipalForNCP/ipv4/accepted
+    auth_test.go:387: NCP event = {TunnelID:1 SessionID:2 Username: Family:ipv4 Local:192.0.2.1 Peer:192.0.2.2 DNSPrimary:invalid IP DNSSecondary:invalid IP InterfaceID:[0 0 0 0 0 0 0 0]}, want principal "alice"
+=== RUN   TestAuthDecisionPrincipalForNCP/ipv4/rejected_replacement
+    auth_test.go:387: NCP event = {TunnelID:1 SessionID:2 Username: Family:ipv4 Local:192.0.2.1 Peer:192.0.2.2 DNSPrimary:invalid IP DNSSecondary:invalid IP InterfaceID:[0 0 0 0 0 0 0 0]}, want principal "alice"
+=== RUN   TestAuthDecisionPrincipalForNCP/ipv4/new_LCP_rejects_old_principal
+=== RUN   TestAuthDecisionPrincipalForNCP/ipv4/new_LCP_accepts_replacement
+    auth_test.go:387: NCP event = {TunnelID:1 SessionID:2 Username: Family:ipv4 Local:192.0.2.1 Peer:192.0.2.2 DNSPrimary:invalid IP DNSSecondary:invalid IP InterfaceID:[0 0 0 0 0 0 0 0]}, want principal "bob"
+=== RUN   TestAuthDecisionPrincipalForNCP/ipv4/explicit_no-auth
+=== RUN   TestAuthDecisionPrincipalForNCP/ipv6
+=== RUN   TestAuthDecisionPrincipalForNCP/ipv6/accepted
+    auth_test.go:387: NCP event = {TunnelID:1 SessionID:2 Username: Family:ipv6 Local:invalid IP Peer:invalid IP DNSPrimary:invalid IP DNSSecondary:invalid IP InterfaceID:[2 0 0 0 0 0 0 2]}, want principal "alice"
+=== RUN   TestAuthDecisionPrincipalForNCP/ipv6/rejected_replacement
+    auth_test.go:387: NCP event = {TunnelID:1 SessionID:2 Username: Family:ipv6 Local:invalid IP Peer:invalid IP DNSPrimary:invalid IP DNSSecondary:invalid IP InterfaceID:[2 0 0 0 0 0 0 2]}, want principal "alice"
+=== RUN   TestAuthDecisionPrincipalForNCP/ipv6/new_LCP_rejects_old_principal
+=== RUN   TestAuthDecisionPrincipalForNCP/ipv6/new_LCP_accepts_replacement
+    auth_test.go:387: NCP event = {TunnelID:1 SessionID:2 Username: Family:ipv6 Local:invalid IP Peer:invalid IP DNSPrimary:invalid IP DNSSecondary:invalid IP InterfaceID:[2 0 0 0 0 0 0 2]}, want principal "bob"
+=== RUN   TestAuthDecisionPrincipalForNCP/ipv6/explicit_no-auth
+--- FAIL: TestAuthDecisionPrincipalForNCP (0.00s)
+    --- FAIL: TestAuthDecisionPrincipalForNCP/ipv4 (0.00s)
+        --- FAIL: TestAuthDecisionPrincipalForNCP/ipv4/accepted (0.00s)
+        --- FAIL: TestAuthDecisionPrincipalForNCP/ipv4/rejected_replacement (0.00s)
+        --- PASS: TestAuthDecisionPrincipalForNCP/ipv4/new_LCP_rejects_old_principal (0.00s)
+        --- FAIL: TestAuthDecisionPrincipalForNCP/ipv4/new_LCP_accepts_replacement (0.00s)
+        --- PASS: TestAuthDecisionPrincipalForNCP/ipv4/explicit_no-auth (0.00s)
+    --- FAIL: TestAuthDecisionPrincipalForNCP/ipv6 (0.00s)
+        --- FAIL: TestAuthDecisionPrincipalForNCP/ipv6/accepted (0.00s)
+        --- FAIL: TestAuthDecisionPrincipalForNCP/ipv6/rejected_replacement (0.00s)
+        --- PASS: TestAuthDecisionPrincipalForNCP/ipv6/new_LCP_rejects_old_principal (0.00s)
+        --- FAIL: TestAuthDecisionPrincipalForNCP/ipv6/new_LCP_accepts_replacement (0.00s)
+        --- PASS: TestAuthDecisionPrincipalForNCP/ipv6/explicit_no-auth (0.00s)
+FAIL
+FAIL	command-line-arguments	0.038s
+FAIL

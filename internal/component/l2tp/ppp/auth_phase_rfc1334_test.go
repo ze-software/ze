@@ -1,6 +1,7 @@
 package ppp
 
 import (
+	"io"
 	"net"
 	"net/netip"
 	"testing"
@@ -115,6 +116,152 @@ func TestPAPRequestOutsideAuthPhaseIsSilentlyDiscarded(t *testing.T) {
 		if c := rec.count(); c != 0 {
 			t.Fatalf("state %s: wrote %d frames for a PAP request outside the auth phase, want 0: % x",
 				state, c, rec.all())
+		}
+	}
+}
+
+// authenticatedPAPSession completes the actual authentication handler against a
+// recording transport, so repeat tests depend on the decision being cached.
+func authenticatedPAPSession(t *testing.T, accept bool, state LCPState) (*pppSession, *frameRecorder) {
+	t.Helper()
+	s, rec, _ := newRFC1661Session(state)
+	s.authTimeout = 2 * time.Second
+	frames := make(chan []byte, 1)
+	frame := getFrameBuf()
+	n := copy(frame, papAuthRequestFrame())
+	frames <- frame[:n]
+	s.framesIn = frames
+	s.authRespCh <- authResponseMsg{accept: accept, message: "decision"}
+	if got := s.runPAPAuthPhase(); got != accept {
+		t.Fatalf("authentication = %v, want %v", got, accept)
+	}
+	return s, rec
+}
+
+// TestPAPReanswersAfterAuthentication drops the first reply and delivers another
+// request through the normal frame dispatcher during NCP negotiation and Opened.
+//
+// RFC requirement: RFC1334-2.2.1-4 positive -- a request repeated after PAP completes receives another reply through handleFrame.
+// RFC requirement: RFC1334-2.2.1-5 positive -- a post-authentication request receives the original Ack Code with the incoming Identifier.
+// RFC requirement: RFC1334-2.3-3 positive -- each emitted PAP reply copies the Identifier of the request that caused it.
+// RFC requirement: RFC1334-2.3-3 negative -- reanswers cannot reuse the initial Identifier 0x5a when the repeated requests carry 0x5b and 0x5c.
+// MUTATION: omit the decision cache or handleFrame PAP dispatch; the repeated request receives no reply.
+// MUTATION: use the initial request's Identifier for reanswers; the 0x5b and 0x5c wire assertions fail.
+func TestPAPReanswersAfterAuthentication(t *testing.T) {
+	for _, state := range []LCPState{LCPStateAckSent, LCPStateOpened} {
+		s, rec := authenticatedPAPSession(t, true, state)
+		for _, id := range []uint8{0x5b, 0x5c} {
+			frame := papAuthRequestFrame()
+			frame[3] = id
+			if term := s.handleFrame(frame); term {
+				t.Fatal("repeat terminated the session")
+			}
+		}
+		replies := decodeFrames(t, rec)
+		if len(replies) != 3 {
+			t.Fatalf("state %v: replies = %d, want 3", state, len(replies))
+		}
+		for i, id := range []uint8{0x5a, 0x5b, 0x5c} {
+			if replies[i].Proto != ProtoPAP {
+				t.Fatalf("reply protocol = %#x, want PAP", replies[i].Proto)
+			}
+			if replies[i].Pkt.Code != PAPAuthenticateAck || replies[i].Pkt.Identifier != id {
+				t.Fatalf("reply %d = %+v, want Ack with Identifier %d", i, replies[i].Pkt, id)
+			}
+		}
+	}
+}
+
+// TestPAPReanswerPreservesDecision changes credentials on a later request and
+// verifies the cached Ack or Nak still determines the answer.
+//
+// RFC requirement: RFC1334-2.2.1-5 negative -- a later request cannot replace the original decision; both Ack and Nak Codes remain unchanged.
+// MUTATION: hardcode Authenticate-Ack in reanswerPAP; the Nak case changes its decision.
+func TestPAPReanswerPreservesDecision(t *testing.T) {
+	for _, accept := range []bool{true, false} {
+		s, rec := authenticatedPAPSession(t, accept, LCPStateOpened)
+		frame := papAuthRequestFrame()
+		frame[3] = 0xe7
+		frame[7] = 'm'
+		_, payload, _, err := ParseFrame(frame)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !s.reanswerPAP(payload) {
+			t.Fatal("repeat write failed")
+		}
+		replies := decodeFrames(t, rec)
+		if len(replies) != 2 {
+			t.Fatalf("replies = %d, want 2", len(replies))
+		}
+		if replies[1].Pkt.Code != replies[0].Pkt.Code || replies[1].Pkt.Identifier != 0xe7 {
+			t.Fatalf("original %+v, repeated %+v", replies[0].Pkt, replies[1].Pkt)
+		}
+	}
+}
+
+// TestPAPReanswerDiscardsMalformedRequest confines reanswers to valid requests.
+//
+// RFC requirement: RFC1334-2.2.1-4 negative -- malformed PAP packets and Ack packets after authentication receive no reply.
+// MUTATION: bypass request validation in reanswerPAP; malformed requests receive replies.
+func TestPAPReanswerDiscardsMalformedRequest(t *testing.T) {
+	s, rec := authenticatedPAPSession(t, true, LCPStateOpened)
+	for _, payload := range [][]byte{
+		{PAPAuthenticateRequest},
+		{PAPAuthenticateRequest, 1, 0, 6, 255, 0},
+		{PAPAuthenticateRequest, 1, 0, 7, 0, 2, 'x'},
+		{PAPAuthenticateAck, 1, 0, 5, 0},
+	} {
+		if !s.reanswerPAP(payload) {
+			t.Fatal("malformed request terminated the session")
+		}
+	}
+	if got := rec.count(); got != 1 {
+		t.Fatalf("replies = %d, want the original reply only", got)
+	}
+}
+
+type failingPAPReplyWriter struct {
+	frameRecorder
+	err error
+}
+
+func (w *failingPAPReplyWriter) Write([]byte) (int, error) { return 0, w.err }
+
+// TestPAPReanswerWriteFailure makes failed and short reply writes terminate
+// frame dispatch instead of leaving an authenticated peer on a broken link.
+func TestPAPReanswerWriteFailure(t *testing.T) {
+	for _, writeErr := range []error{io.ErrClosedPipe, nil} {
+		s, _ := authenticatedPAPSession(t, true, LCPStateOpened)
+		s.chanFile = &failingPAPReplyWriter{err: writeErr}
+		if term := s.handleFrame(papAuthRequestFrame()); !term {
+			t.Fatalf("write error %v: session continued", writeErr)
+		}
+	}
+}
+
+// TestPAPInitialReplyWriteFailureDoesNotAuthenticate refuses the initial
+// decision when its reply write fails, including a short write with no error.
+func TestPAPInitialReplyWriteFailureDoesNotAuthenticate(t *testing.T) {
+	for _, writeErr := range []error{io.ErrClosedPipe, nil} {
+		s, rec, _ := newRFC1661Session(LCPStateOpened)
+		s.authTimeout = 2 * time.Second
+		s.chanFile = &failingPAPReplyWriter{err: writeErr}
+		frames := make(chan []byte, 1)
+		frame := getFrameBuf()
+		n := copy(frame, papAuthRequestFrame())
+		frames <- frame[:n]
+		s.framesIn = frames
+		s.authRespCh <- authResponseMsg{accept: true}
+		if s.runPAPAuthPhase() {
+			t.Fatalf("write error %v: authentication succeeded", writeErr)
+		}
+		s.chanFile = rec
+		if s.handleFrame(papAuthRequestFrame()) {
+			t.Fatal("unauthenticated repeat terminated the session")
+		}
+		if rec.count() != 0 {
+			t.Fatal("failed initial write left an authenticated decision to reanswer")
 		}
 	}
 }

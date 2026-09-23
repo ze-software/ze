@@ -1,0 +1,11 @@
+=== RUN   TestIPAssignmentAcknowledgmentBeforeConnect
+=== RUN   TestIPAssignmentAcknowledgmentBeforeConnect/ipv4
+    assignment_barrier_test.go:34: connected 1 times before assignment publication completed
+=== RUN   TestIPAssignmentAcknowledgmentBeforeConnect/ipv6
+    assignment_barrier_test.go:34: connected 1 times before assignment publication completed
+--- FAIL: TestIPAssignmentAcknowledgmentBeforeConnect (0.00s)
+    --- FAIL: TestIPAssignmentAcknowledgmentBeforeConnect/ipv4 (0.00s)
+    --- FAIL: TestIPAssignmentAcknowledgmentBeforeConnect/ipv6 (0.00s)
+FAIL
+FAIL	command-line-arguments	0.036s
+FAIL

@@ -22,6 +22,39 @@
       "producer": "internal/component/radius/client.go::setAcctDelayTime",
       "producer-sha": "c26bec897097516a",
       "break": "body of setAcctDelayTime replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2866-4.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/acct_address_test.go::TestSessionEventDrivesAddressAndPortID",
+      "unit-sha": "fd3a5b6ce4740560",
+      "claim-sha": "5a60e88ffd6334e0",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionIPAssigned",
+      "producer-sha": "253e901268d65011",
+      "break": "body of onSessionIPAssigned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2866-4.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/acct_lifetime_test.go::TestAccountingAddressFamiliesShareLifetime",
+      "unit-sha": "f3258b7f77d9ba1c",
+      "claim-sha": "9444d8e4a639c4c9",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionDown",
+      "producer-sha": "c2aae0ffb58cef8d",
+      "break": "body of onSessionDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC2866-5.5-2",
+      "polarity": "positive",
+      "unit": "internal/component/l2tp/plugins/authradius/acct_lifetime_test.go::TestAccountingAddressFamiliesShareLifetime",
+      "unit-sha": "f3258b7f77d9ba1c",
+      "claim-sha": "fb1982ee343d021e",
+      "route": "revert",
+      "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionIPAssigned",
+      "producer-sha": "253e901268d65011",
+      "break": "body of onSessionIPAssigned replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

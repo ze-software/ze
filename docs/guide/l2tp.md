@@ -207,6 +207,73 @@ PPP negotiation proceeds through these phases:
    IPv4-only static pool), IPv6CP is dropped and the session stays up
    with IPv4 alone rather than being torn down.
 
+The PPP MRU counts the Information field, not the two-octet Protocol field.
+Ze's userspace buffers hold 1502 octets, and the kernel receive MRU stays at
+1500 even when a smaller MRU was requested. The outgoing IP interface MTU
+comes from the peer's negotiated MRU without subtracting PPP framing.
+<!-- source: internal/component/l2tp/ppp/frame.go -- MaxFrameLen, MaxFrameBufLen -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpen -->
+
+PPP descriptors use blocking `os.File` I/O rather than the runtime epoll path.
+Closing a session prevents new operations while an in-flight blocking syscall
+retains its descriptor reference. This keeps a late read or repeated close
+from using a descriptor number the process has since recycled.
+<!-- source: internal/component/l2tp/ppp/frame_linux.go -- NewFDFile -->
+The PPP driver closes both the channel and unit on natural exit or explicit
+stop. Shutdown, channel attachment and detachment, and post-NCP interface
+setup share a lock so an ioctl cannot use a recycled descriptor.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- closeFiles, afterLCPOpen -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- resetNCP -->
+
+The L2TP kernel worker transfers the channel and unit to PPP only after the
+reactor confirms that the original session is still present. The transfer
+clears those descriptors from the worker; its teardown still closes the
+PPPoX transport. Bridged sessions and sessions without a PPP driver stay
+worker-owned. A cancelled delivery closes the claimed descriptors; an
+accepted queue item belongs to PPP even if rejected or drained during stop.
+<!-- source: internal/component/l2tp/kernel_linux.go -- takePPPDescriptors -->
+<!-- source: internal/component/l2tp/reactor_kernel.go -- handleKernelSuccess -->
+<!-- source: internal/component/l2tp/ppp/manager.go -- dispatch, spawnSession -->
+
+
+LCP accepts an Ack only when its Identifier and complete option bytes match
+the last request. Nak and Reject replies also need the matching Identifier;
+Reject options must be an unchanged, ordered subset of that request.
+Rejected options stay out of subsequent requests. Unanswered retransmissions
+retain their Identifier, while a changed request or valid reply advances it.
+Echo packets carry zero until Magic-Number negotiation succeeds, then the
+local Magic-Number; received Echo packets must carry the peer's value.
+<!-- source: internal/component/l2tp/ppp/lcp.go -- ValidateLCPReply -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- handleLCPPacket, sendConfigureRequest, transmitMagic -->
+LCP enters Opened before authentication and NCP execute. If those phases
+receive an LCP restart or termination, they unwind into the new LCP state
+instead of restoring Opened. Periodic CHAP and MS-CHAPv2 authentication
+follow the same rule: the session loop resumes LCP negotiation or waits
+for the termination grace timer before notifying the transport to close.
+Echo and periodic authentication timers stop while LCP is outside Opened.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- run, applyTransition -->
+
+Leaving LCP Opened ends the previous PAP decision and both NCP lifetimes.
+Ze disconnects an attached channel from its PPP unit before replacement
+authentication and NCP, so control frames return to the channel reader.
+A failed disconnect or interface-resource removal ends the session instead of
+reusing the unit. Ze removes IPCP interface resources and stops the IPv6 service
+before clearing their negotiation state and cached frames. An LCP-down event then
+notifies the transport that the previous network phase has ended. If NCP
+had started, PPP waits for the transport to acknowledge resource cleanup
+before continuing LCP. This prevents old cleanup from removing a replacement
+allocation or profile for the same session.
+
+NCP packets received before the new authentication completes are discarded,
+including while LCP is already Opened. Once NCP restarts, Configure replies
+must match the Identifier of its latest transmitted request. An Ack must
+also match all request options exactly; Reject options must remain an
+unchanged, ordered subset. These checks prevent an old reply from completing
+the replacement negotiation or changing its addresses.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- performAction, handleFrame -->
+<!-- source: internal/component/l2tp/ppp/ncp.go -- runNCPPhase, resetNCP, validNCPReply -->
+
+
 Ze answers each RFC 5072 Section 4.1 comparison outcome for the peer's
 Interface-Identifier option:
 
@@ -228,9 +295,9 @@ alone, and the refusal is logged and counted (see Prometheus metrics).
 <!-- source: internal/component/l2tp/ppp/ncp.go -- requestIPv6CPInterfaceID declined path, evalIPv6CPRequest, buildNakOrReject -->
 <!-- source: internal/component/l2tp/ppp/session_run.go -- afterLCPOpenIPv6Service -->
 
-Each phase has a configurable timeout. LCP proxy (RFC 2661 S18) is
-supported: when the LAC provides proxy LCP AVPs, ze validates them
-and optionally renegotiates rather than starting LCP from scratch.
+Authentication and NCP have configurable timeouts. LCP negotiation and restart
+timers are fixed. LCP proxy (RFC 2661 S18) is supported: when the LAC provides
+proxy LCP AVPs, Ze validates them and can renegotiate instead of accepting them.
 
 NCP enablement is controlled via the `ncp` container under `l2tp`:
 
@@ -262,8 +329,12 @@ that opt-in is present.
 
 Two auth handlers ship with ze. The slot holds one handler, and configuration
 decides its owner: `l2tp-auth-radius` claims it when a RADIUS server is
-configured, and `l2tp-auth-local` keeps it otherwise. Both transports read that
-one slot, so the same rule governs a PPPoE subscriber.
+configured, and `l2tp-auth-local` keeps it otherwise. Both transports resolve
+that slot for each authentication request. Applying a RADIUS configuration
+switches subsequent requests to RADIUS; removing the `auth radius` block
+returns them to the current local user table, including credentials changed
+while RADIUS owned the slot. An in-process RADIUS plugin restart preserves
+that local fallback.
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig claims the slot -->
 
 ### l2tp-auth-local
@@ -330,9 +401,18 @@ Event-Timestamp. User-Name and Calling-Station-Id are added when the session has
 one: a session the LNS never authenticated has no username, a call whose peer
 sent no Calling Number AVP has no station id, and RFC 2866 Section 5 forbids
 sending text of length zero. NAS-Port-Id is added when the operator configured a
-template. Stop and Interim-Update add Acct-Session-Time, the input and output
-octet and packet counters, and the RFC 2869 gigaword counters when a counter
-passes 2^32.
+template. Stop and Interim-Update add Acct-Session-Time. Their traffic counters
+measure the current network lifetime, excluding traffic from an earlier
+lifetime on the same PPP unit. Display-counter clears do not change them.
+RFC 2869 gigaword counters carry the upper 32 bits when nonzero. If the counter
+baseline or a later snapshot is unavailable, Ze logs the failure and omits the
+traffic counters instead of reporting zero.
+
+PPP waits for address publication and the L2TP accounting callback to capture the
+initial raw interface counters before it enables forwarding. This includes a
+replacement network lifetime on the same PPP unit. Accounting-Start runs
+asynchronously; forwarding does not wait for a RADIUS server response. PPPoE
+accounting remains unconnected to subscriber events.
 
 Event-Timestamp (type 55) is four octets of seconds since 1970-01-01 00:00 UTC,
 which RFC 2869 Section 5.3 defines. Calling-Station-Id (type 31) is the L2TP
@@ -850,6 +930,14 @@ kernel support.
 **Teardown:** reverse order. PPPoL2TP socket close triggers kernel
 session removal. Tunnel is removed after all sessions are gone.
 
+When LCP restarts on the same transport, the PPP unit remains present.
+Ze removes its IPCP address using the installed local/peer pair before replacement negotiation.
+Linux creates the peer's connected route when the address is added and removes that route
+when the address is deleted. PPP does not issue a separate route deletion for this
+kernel-owned route. The next IPCP negotiation can reuse the address on the retained unit.
+<!-- source: internal/component/l2tp/ppp/ncp.go -- onNCPOpened, teardownNCPResources -->
+<!-- source: internal/plugins/iface/netlink/addr_primary_linux.go -- netlinkAddrRemover.List -->
+
 <!-- source: internal/component/l2tp/kernel_linux.go -->
 
 ## Redistribute
@@ -896,6 +984,8 @@ each knob according to this policy:
 | `allow-no-auth` | Hot-apply to new PPP sessions. |
 | `authentication/timeout` | Hot-apply to new PPP sessions. |
 | `authentication/reauth-interval` | Hot-apply to new PPP sessions. |
+| `auth/local/user` | Apply replaces the local credential table, including removing users. Subsequent local authentication requests use it. |
+| `auth/radius` | Apply replaces the RADIUS client and claims the shared authentication slot; removing the block restores local authentication. |
 | `ncp/enable-ipcp` | Hot-apply to new PPP sessions. |
 | `ncp/enable-ipv6cp` | Hot-apply to new PPP sessions. |
 | `ncp/timeout` | Hot-apply to new PPP sessions. |
@@ -907,6 +997,34 @@ kernel fds, PPP sessions). Pushing a new `hello-interval` or new
 secret onto an existing tunnel would invalidate in-flight state.
 Listener changes require full driver teardown which is safer as an
 explicit restart.
+
+Authentication-provider verification stages the candidate without changing
+credential decisions. A rejected candidate leaves the active provider and
+credentials unchanged. If the transaction rolls back after apply, the plugins
+restore their previous configuration. Neither a credential change nor an
+authentication-provider switch disconnects an already authenticated subscriber.
+
+Removing RADIUS stops new accounting admissions during apply, while existing
+accounting sessions continue until the whole daemon reload is accepted. A web
+listener bind failure or candidate-publication failure after plugin commit
+therefore leaves those sessions available for their eventual teardown. The hub
+restores the previous configuration through a new transaction; accounting keeps
+the original session identifiers and interim loops through that compensation.
+
+After acceptance, Ze retires the remaining records asynchronously, with one
+ten-second network budget for Accounting-Stop attempts, then closes the retired
+client. Apply does not wait for those attempts. A later accepted reload also
+retires an unchanged pending removal, even when only another plugin's root
+changes. An older completion leaves a newer tentative apply intact; if that
+apply rolls back, Ze honours the acceptance of the restored state.
+Plugin shutdown still retires its own accounting and joins its retirement
+workers before restart.
+These rules concern removal of the RADIUS provider while L2TP remains running;
+teardown of the L2TP subsystem itself ends its subscriber sessions.
+<!-- source: internal/component/l2tp/plugins/authlocal/register.go -- runPlugin -->
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -- runPlugin -->
+<!-- source: cmd/ze/hub/main_reload.go -- runReloadContext, rollbackReload -->
+<!-- source: internal/component/plugin/server/reload_tx.go -- DeferReloadAcceptance -->
 
 <!-- source: internal/component/l2tp/subsystem_reload.go -->
 

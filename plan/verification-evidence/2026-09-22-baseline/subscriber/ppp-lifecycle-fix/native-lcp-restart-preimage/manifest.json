@@ -1,0 +1,12 @@
+[
+  {
+    "source": "internal/le/deployment/l2tpppp.go",
+    "snapshot": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-preimage/internal__le__deployment__l2tpppp.go.txt",
+    "sha256": "7683cb708cd60b4bfd8f8d9391d21099cea750db2ae7a7f2773541b088550f56"
+  },
+  {
+    "source": "docs/architecture/testing/interop.md",
+    "snapshot": "plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/native-lcp-restart-preimage/docs__architecture__testing__interop.md.txt",
+    "sha256": "a63c46329d9379419c32d145eee7d3133e242dbd655ff4bdea343d0b87c6432c"
+  }
+]

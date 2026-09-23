@@ -2,6 +2,7 @@ package ppp
 
 import (
 	"bytes"
+	"net/netip"
 	"testing"
 	"time"
 )
@@ -330,6 +331,67 @@ func TestAwaitAuthDecisionAccept(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("EventAuthRequest not emitted")
+	}
+}
+
+// Only accepted request principals can reach NCP publications. Rejection must
+// retain the live principal, while LCP reset must erase it before another
+// decision can arrive. Neither assertion reads the private identity field.
+func TestAuthDecisionPrincipalForNCP(t *testing.T) {
+	for _, family := range []AddressFamily{AddressFamilyIPv4, AddressFamilyIPv6} {
+		t.Run(family.String(), func(t *testing.T) {
+			s, _, events := newRFC1661Session(LCPStateOpened)
+			auth := make(chan AuthEvent, 1)
+			s.authEventsOut = auth
+			for _, step := range []struct {
+				name     string
+				username string
+				accept   bool
+				reset    bool
+				want     string
+			}{
+				{name: "accepted", username: "alice", accept: true, want: "alice"},
+				{name: "rejected replacement", username: "mallory", want: "alice"},
+				{name: "new LCP rejects old principal", username: "alice", reset: true},
+				{name: "new LCP accepts replacement", username: "bob", accept: true, want: "bob"},
+				{name: "explicit no-auth", accept: true},
+			} {
+				t.Run(step.name, func(t *testing.T) {
+					if step.reset && !s.resetNCP() {
+						t.Fatal("LCP reset failed")
+					}
+					method := AuthMethodCHAPMD5
+					if step.username == "" {
+						method = AuthMethodNone
+					}
+					s.authRespCh <- authResponseMsg{accept: step.accept}
+					decision, ok := s.awaitAuthDecision(EventAuthRequest{
+						TunnelID: s.tunnelID, SessionID: s.sessionID,
+						Method: method, Username: step.username,
+					}, "")
+					if !ok || decision.accept != step.accept {
+						t.Fatalf("authentication decision = %+v, completed=%v", decision, ok)
+					}
+					<-auth
+
+					s.localIPv4 = netip.MustParseAddr("192.0.2.1")
+					s.peerIPv4 = netip.MustParseAddr("192.0.2.2")
+					s.peerInterfaceID = [8]byte{2, 0, 0, 0, 0, 0, 0, 2}
+					s.peerInterfaceIDNegotiated = true
+					published := make(chan bool, 1)
+					go func() { published <- s.onNCPOpened(family) }()
+					event := <-events
+					assigned, ok := event.(EventSessionIPAssigned)
+					assigned.Acknowledge()
+					if !<-published {
+						t.Fatal("NCP publication failed")
+					}
+					if !ok || assigned.Username != step.want {
+						t.Fatalf("NCP event = %+v, want principal %q", event, step.want)
+					}
+				})
+			}
+		})
 	}
 }
 

@@ -105,10 +105,10 @@ func TestDriverProxyLCPSkipsNegotiation(t *testing.T) {
 		t.Errorf("event 1 = %T, want EventSessionUp", got[1])
 	}
 
-	// Backend should record SetMTU(ppp7, 1496) and SetAdminUp(ppp7).
+	// Backend records SetMTU(ppp7, 1500) and SetAdminUp(ppp7).
 	mtuCalls := backend.MTUCalls()
-	if len(mtuCalls) != 1 || mtuCalls[0].name != "ppp7" || mtuCalls[0].mtu != 1496 {
-		t.Errorf("MTU calls = %+v, want one ppp7=1496", mtuCalls)
+	if len(mtuCalls) != 1 || mtuCalls[0].name != "ppp7" || mtuCalls[0].mtu != 1500 {
+		t.Errorf("MTU calls = %+v, want one ppp7=1500", mtuCalls)
 	}
 	upCalls := backend.UpCalls()
 	if len(upCalls) != 1 || upCalls[0] != "ppp7" {
@@ -289,8 +289,8 @@ func TestDriverLCPNegotiationViaPipe(t *testing.T) {
 
 	// Backend calls.
 	mtuCalls := backend.MTUCalls()
-	if len(mtuCalls) != 1 || mtuCalls[0].name != "ppp2" || mtuCalls[0].mtu != 1496 {
-		t.Errorf("MTU calls = %+v, want one ppp2=1496", mtuCalls)
+	if len(mtuCalls) != 1 || mtuCalls[0].name != "ppp2" || mtuCalls[0].mtu != 1500 {
+		t.Errorf("MTU calls = %+v, want one ppp2=1500", mtuCalls)
 	}
 	if up := backend.UpCalls(); len(up) != 1 || up[0] != "ppp2" {
 		t.Errorf("Up calls = %v, want [ppp2]", up)
@@ -314,6 +314,10 @@ func TestDriverLCPNegotiationViaPipe(t *testing.T) {
 //
 //	leave its in-flight tracking stuck.
 func TestDriverRejectsInvalidFDs(t *testing.T) {
+	reg := newPipeRegistry()
+	installPipeRegistry(t, reg)
+	pair := newPipePair(reg, 10)
+	defer closeConn(pair.peerEnd)
 	backend := &fakeBackend{}
 	ops, _, _ := newFakeOps()
 	d := makeTestDriver(backend, ops)
@@ -405,12 +409,16 @@ func TestDriverRejectsDuplicate(t *testing.T) {
 	// Drain the first session's LCPUp + SessionUp.
 	drainTwoEvents(t, d.EventsOut(), time.Second)
 
-	// Duplicate -- same (tunnelID, sessionID), different fd values
-	// (the pipe registry is not consulted because the duplicate
-	// gets rejected before fd wrapping).
+	// A duplicate key still transfers its distinct descriptors to the driver,
+	// which must release them without touching the original session.
 	dup := first
-	dup.ChanFD = 9101 // would fail wrap if reached, but must not reach
+	duplicatePair := newPipePair(reg, 9101)
+	defer closeConn(duplicatePair.peerEnd)
+	dup.ChanFD = 9101
 	dup.UnitFD = 9102
+	if err := duplicatePair.peerEnd.SetReadDeadline(time.Now().Add(time.Second)); err != nil {
+		t.Fatal(err)
+	}
 	d.SessionsIn() <- dup
 
 	ev := waitForEvent(t, d.EventsOut(), time.Second)
@@ -420,6 +428,10 @@ func TestDriverRejectsDuplicate(t *testing.T) {
 	}
 	if rej.TunnelID != 7 || rej.SessionID != 8 {
 		t.Errorf("rejection ids = (%d,%d), want (7,8)", rej.TunnelID, rej.SessionID)
+	}
+	var payload [1]byte
+	if _, err := duplicatePair.peerEnd.Read(payload[:]); !errors.Is(err, io.EOF) {
+		t.Fatalf("rejected duplicate retained its channel: %v", err)
 	}
 
 	// Original session is still present.
@@ -470,7 +482,10 @@ func drainEventsBest(t *testing.T, ch <-chan Event, n int, timeout time.Duration
 	defer deadline.Stop()
 	for drained < n {
 		select {
-		case <-ch:
+		case ev := <-ch:
+			if assigned, ok := ev.(EventSessionIPAssigned); ok {
+				assigned.Acknowledge()
+			}
 			drained++
 		case <-deadline.C:
 			return

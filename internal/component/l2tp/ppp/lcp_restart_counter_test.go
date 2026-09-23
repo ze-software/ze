@@ -4,7 +4,11 @@
 
 package ppp
 
-import "testing"
+import (
+	"testing"
+	"testing/synctest"
+	"time"
+)
 
 // confRequestsIn counts the Configure-Requests among the recorded frames, which
 // is the number of transmissions the Restart counter is meant to bound.
@@ -125,5 +129,48 @@ func TestLCPPeerTerminateRequestZeroesRestartCounter(t *testing.T) {
 	}
 	if c := rec.count(); c != 1 {
 		t.Fatalf("wrote %d frames, want no Terminate-Request after a zeroed counter", c)
+	}
+}
+
+// RFC requirement: RFC1661-4.4-2 positive -- an Opened peer termination arms the real Restart timer; the session stays Stopping for the grace period, then its timer event reaches Stopped.
+// RFC requirement: RFC1661-4.4-2 negative -- a Terminate-Request in Closed sends its Ack without arming a grace timer, because that transition has no zrc action.
+func TestLCPPeerTerminateRestartTimer(t *testing.T) {
+	for _, initial := range []LCPState{LCPStateOpened, LCPStateClosed} {
+		t.Run(initial.String(), func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				s, rec, _ := newRFC1661Session(initial)
+				s.restartTimer = time.NewTimer(time.Hour)
+				s.restartTimer.Stop()
+				defer s.restartTimer.Stop()
+				s.handleFrame(lcpFrame(ProtoLCP, LCPTerminateRequest, 7, nil))
+				ack, ok := findCode(t, rec, LCPTerminateAck)
+				if !ok || ack.Identifier != 7 {
+					t.Fatal("peer termination did not receive its matching Ack")
+				}
+				time.Sleep(defaultRestartTimer-time.Nanosecond)
+				select {
+				case <-s.restartTimer.C:
+					t.Fatal("Restart timer expired before the termination grace period")
+				default:
+				}
+				if initial == LCPStateOpened && s.currentState() != LCPStateStopping {
+					t.Fatal("session did not remain Stopping during the grace period")
+				}
+				time.Sleep(time.Nanosecond)
+				select {
+				case <-s.restartTimer.C:
+					if initial != LCPStateOpened {
+						t.Fatal("transition without zrc armed the Restart timer")
+					}
+					if !s.handleRestartTimeout() || s.currentState() != LCPStateStopped {
+						t.Fatal("expired grace timer did not terminate the session")
+					}
+				default:
+					if initial == LCPStateOpened {
+						t.Fatal("zrc did not arm a Restart timer")
+					}
+				}
+			})
+		})
 	}
 }

@@ -101,7 +101,7 @@ func parseCHAPResponse(buf []byte) (cHAPResponse, error) {
 	if length > len(buf) {
 		return cHAPResponse{}, errCHAPLengthMismatch
 	}
-	if length > MaxFrameLen-2 {
+	if length > MaxFrameLen {
 		return cHAPResponse{}, errCHAPLengthMismatch
 	}
 	body := buf[chapHeaderLen:length]
@@ -126,9 +126,8 @@ func parseCHAPResponse(buf []byte) (cHAPResponse, error) {
 
 // writeCHAPChallenge encodes a CHAP Challenge (code 1) into buf at
 // offset off and returns the number of bytes written. The caller
-// SHOULD pass buf[off:] with cap >= MaxFrameLen - 2 (the PPP-payload
-// room after WriteFrame); smaller buffers clamp Name safely but the
-// emitted packet may not carry the caller's full Name.
+// MUST provide room for the header and Value. A MaxFrameLen-byte
+// Information field permits the largest Name; smaller buffers clamp it.
 //
 // Value is clamped to 255 octets (Value-Size is a single octet per
 // RFC 1994 Section 4.1); Name is clamped to the smaller of the
@@ -155,13 +154,13 @@ func writeCHAPValued(buf []byte, off int, code, identifier uint8, value, name []
 	copy(buf[off+5:], value[:valueSize])
 	nameOff := 5 + valueSize
 	// Clamp Name to the smaller of single-frame room and actual buffer
-	// room at off. Frame cap = MaxFrameLen - 2 (minus PPP protocol
-	// field). Buffer cap = len(buf) - off. The min() lets a
+	// room at off. MaxFrameLen bounds the Information field.
+	// Buffer cap = len(buf) - off. The min() lets a
 	// legitimately short buffer (misuse, or a non-standard caller that
 	// writes at off != 2) clamp safely without overrunning. The max(,0)
 	// guard handles buffers so small they cannot hold even the header +
 	// Value: we still need a non-negative slice bound for name[:nameLen].
-	frameRoom := MaxFrameLen - 2 - chapHeaderLen - 1 - valueSize
+	frameRoom := MaxFrameLen - chapHeaderLen - 1 - valueSize
 	bufRoom := len(buf) - off - chapHeaderLen - 1 - valueSize
 	maxName := max(min(frameRoom, bufRoom), 0)
 	nameLen := min(len(name), maxName)
@@ -181,7 +180,7 @@ func writeCHAPValued(buf []byte, off int, code, identifier uint8, value, name []
 //
 // Unlike PAP Ack/Nak, CHAP Success/Failure has NO Msg-Length octet:
 // the Message runs from byte 4 to Length. The encoder clamps Message
-// to MaxFrameLen - 2 (frame header) - 4 (CHAP header) so the declared
+// to MaxFrameLen - 4 (CHAP header) so the declared
 // Length always fits a single PPP frame.
 func writeCHAPSuccess(buf []byte, off int, identifier uint8, message []byte) int {
 	return writeCHAPReply(buf, off, CHAPCodeSuccess, identifier, message)
@@ -198,7 +197,7 @@ func writeCHAPReply(buf []byte, off int, code, identifier uint8, message []byte)
 	// buffer room at off; same reasoning as writeCHAPValued's Name
 	// clamp (see that function's comment), including the max(,0) guard
 	// against a buffer too small to hold even the CHAP header.
-	frameRoom := MaxFrameLen - 2 - chapHeaderLen
+	frameRoom := MaxFrameLen - chapHeaderLen
 	bufRoom := len(buf) - off - chapHeaderLen
 	maxMessage := max(min(frameRoom, bufRoom), 0)
 	msgLen := min(len(message), maxMessage)

@@ -1,0 +1,8 @@
+# command-line-arguments [command-line-arguments.test]
+internal/component/l2tp/ppp/auth_test.go:180:38: undefined: authProtoOpt
+internal/component/l2tp/ppp/auth_test.go:188:38: undefined: mruOpt
+internal/component/l2tp/ppp/auth_test.go:196:38: undefined: authProtoOpt
+internal/component/l2tp/ppp/auth_test.go:204:38: undefined: authProtoOpt
+internal/component/l2tp/ppp/auth_test.go:212:38: undefined: mruOpt
+FAIL	command-line-arguments [build failed]
+FAIL

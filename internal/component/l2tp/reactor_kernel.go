@@ -49,6 +49,7 @@ func (r *l2tpReactor) collectKernelEventsLocked(tunnel *L2TPTunnel) ([]kernelSet
 			peerAddr:                   tunnel.peerAddr,
 			localSID:                   sess.localSID,
 			remoteSID:                  sess.remoteSID,
+			session:                    sess,
 			socketFD:                   socketFD,
 			lnsMode:                    sess.lnsMode,
 			sequencing:                 sess.sequencingRequired,
@@ -103,21 +104,29 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 		return
 	}
 
-	// PeerAddr is informational for ppp logs only. Look it up under
-	// tunnelsMu so the read is consistent; if the tunnel was discarded
-	// in the meantime, fall back to a zero-value addr.
+	// A delayed setup may arrive after CDN or tunnel removal. Only the
+	// still-live session may claim the worker's descriptors.
 	var peerAddr netip.AddrPort
 	r.tunnelsMu.Lock()
-	if tunnel, ok := r.tunnelsByLocalID[ksucc.localTID]; ok {
+	tunnel := r.tunnelsByLocalID[ksucc.localTID]
+	live := tunnel != nil && ksucc.session != nil && tunnel.lookupSession(ksucc.localSID) == ksucc.session
+	if live {
 		peerAddr = tunnel.peerAddr
 	}
 	r.tunnelsMu.Unlock()
+	if !live || r.kernelWorker == nil {
+		return
+	}
+	chanFD, unitFD, claimed := r.kernelWorker.takePPPDescriptors(ksucc)
+	if !claimed {
+		return
+	}
 
 	start := ppp.StartSession{
 		TunnelID:            ksucc.localTID,
 		SessionID:           ksucc.localSID,
-		ChanFD:              ksucc.fds.chanFD,
-		UnitFD:              ksucc.fds.unitFD,
+		ChanFD:              chanFD,
+		UnitFD:              unitFD,
 		UnitNum:             ksucc.fds.unitNum,
 		LNSMode:             ksucc.lnsMode,
 		PeerAddr:            peerAddr,
@@ -146,6 +155,8 @@ func (r *l2tpReactor) handleKernelSuccess(ksucc kernelSetupSucceeded) {
 	select {
 	case r.pppDriver.SessionsIn() <- start:
 	case <-r.stop:
+		_ = ppp.NewFDFile(unitFD, "ppp.cancelled.unit").Close() //nolint:errcheck // cancelled ownership transfer
+		_ = ppp.NewFDFile(chanFD, "ppp.cancelled.chan").Close() //nolint:errcheck // cancelled ownership transfer
 	}
 }
 
@@ -188,7 +199,10 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 		// are invalid file descriptors and duplicate session keys, which are
 		// the NAS's own errors. RFC 2866 Section 5.10 value 9.
 		tid, sid, reason, cause = e.TunnelID, e.SessionID, e.Reason, l2tpevents.TerminateCauseNASError
-	case ppp.EventLCPUp, ppp.EventLCPDown:
+	case ppp.EventLCPDown:
+		r.handleLCPDown(e)
+		return
+	case ppp.EventLCPUp:
 		return
 	case ppp.EventSessionUp:
 		r.handleSessionUp(e)
@@ -238,6 +252,43 @@ func (r *l2tpReactor) handlePPPEvent(ev ppp.Event) {
 	r.enqueueKernelEvents(nil, teardowns)
 }
 
+// handleLCPDown withdraws the network lifetime while keeping the L2TP
+// transport available for the resumed LCP exchange.
+func (r *l2tpReactor) handleLCPDown(ev ppp.EventLCPDown) {
+	defer ev.Acknowledge()
+	if !ev.NetworkPhase {
+		return
+	}
+	r.tunnelsMu.Lock()
+	tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]
+	if !ok {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	sess := tunnel.lookupSession(ev.SessionID)
+	if sess == nil {
+		r.tunnelsMu.Unlock()
+		return
+	}
+	username := sess.username
+	sess.assignedAddr = netip.Addr{}
+	sess.username = ""
+	cancelSessionTimeouts(sess)
+	r.tunnelsMu.Unlock()
+	if r.routeObserver != nil {
+		r.routeObserver.OnSessionDown(ev.TunnelID, ev.SessionID)
+	}
+	if r.eventBus != nil {
+		if _, err := l2tpevents.SessionDown.Emit(r.eventBus, &l2tpevents.SessionDownPayload{
+			TunnelID: ev.TunnelID, SessionID: ev.SessionID, Username: username,
+			Cause: l2tpevents.TerminateCauseUserRequest,
+		}); err != nil {
+			r.logger.Warn("l2tp: network lifetime withdrawal failed", "error", err)
+		}
+	}
+	ClearSessionMetadata(ev.TunnelID, ev.SessionID)
+}
+
 // notifyRouteObserverDown withdraws subscriber routes for the sessions in
 // a batch of kernel-teardown events. clearSessions / removeSession queue
 // one event per established session torn down by a peer-initiated event
@@ -263,7 +314,15 @@ func (r *l2tpReactor) notifyRouteObserverDown(events []kernelTeardownEvent) {
 // session struct and calls RouteObserver.OnSessionIPUp. Called from
 // handlePPPEvent for every EventSessionIPAssigned (once per family
 // per session in dual-stack flows).
+// The consumer MUST acknowledge after synchronous publication completes, before
+// PPP can enable forwarding.
 func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
+	defer ev.Acknowledge()
+
+	if ev.Peer.IsValid() && !ev.Peer.Is4() || !ev.Peer.IsValid() && ev.InterfaceID == [8]byte{} {
+		r.logger.Warn("l2tp: invalid IP-assigned event", "address", ev.Peer, "session", ev.SessionID)
+		return
+	}
 	r.tunnelsMu.Lock()
 	tunnel, ok := r.tunnelsByLocalID[ev.TunnelID]
 	if !ok {
@@ -276,15 +335,12 @@ func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 		return
 	}
 	var addr netip.Addr
-	switch {
-	case ev.Peer.IsValid():
+	if ev.Peer.Is4() {
 		addr = ev.Peer
 		sess.assignedAddr = ev.Peer
-	case ev.Local.IsValid() && ev.InterfaceID != [8]byte{}:
-		// IPv6CP negotiates only an interface identifier; derive an
-		// fe80::/64 link-local for snapshot display.
-		addr = ev.Local
-		sess.assignedAddr = ev.Local
+	}
+	if ev.Username != "" {
+		sess.username = ev.Username
 	}
 	username := sess.username
 	pppIface := sess.pppInterface
@@ -303,14 +359,21 @@ func (r *l2tpReactor) handleSessionIPAssigned(ev ppp.EventSessionIPAssigned) {
 			"address", addr.String())
 	}
 
-	if r.eventBus != nil && addr.IsValid() {
+	peerAddr := ""
+	if addr.IsValid() {
+		peerAddr = addr.String()
+	}
+	if r.eventBus != nil && (addr.IsValid() || ev.InterfaceID != [8]byte{}) {
 		if _, err := l2tpevents.SessionIPAssigned.Emit(r.eventBus, &l2tpevents.SessionIPAssignedPayload{
 			TunnelID:         ev.TunnelID,
 			SessionID:        ev.SessionID,
 			Username:         username,
-			PeerAddr:         addr.String(),
+			PeerAddr:         peerAddr,
 			CallingStationID: callingNumber,
 			PppInterface:     pppIface,
+			InterfaceID:      ev.InterfaceID,
+			DNSPrimary:       ev.DNSPrimary,
+			DNSSecondary:     ev.DNSSecondary,
 		}); err != nil {
 			r.logger.Warn("l2tp: session-ip-assigned emit failed", "error", err)
 		}

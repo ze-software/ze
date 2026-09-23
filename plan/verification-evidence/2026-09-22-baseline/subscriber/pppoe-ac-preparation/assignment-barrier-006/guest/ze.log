@@ -1,0 +1,39 @@
+created live store: /tmp/ze-ac-proof-oque9i8k/database
+time=2026-09-23T01:34:40.798Z level=WARN msg="L2TP subsystem enabled but no listener configured, skipping start" subsystem=l2tp
+time=2026-09-23T01:34:40.975Z level=INFO msg="PPPoE interface configured" subsystem=pppoe interface=eth0 ifindex=12
+warning: running as root, set ze.user to drop privileges
+time=2026-09-23T01:34:40.988Z level=DEBUG msg="l2tp-auth-radius plugin starting (RPC)" subsystem=l2tp.auth.radius
+time=2026-09-23T01:34:40.987Z level=DEBUG msg="l2tp-auth-local plugin starting (RPC)" subsystem=l2tp.auth.local
+time=2026-09-23T01:34:40.989Z level=DEBUG msg="l2tp-shaper plugin starting (RPC)" subsystem=l2tp.shaper
+time=2026-09-23T01:34:40.997Z level=DEBUG msg="l2tp-pool plugin starting (RPC)" subsystem=l2tp.pool
+time=2026-09-23T01:34:41.022Z level=INFO msg="l2tp-auth-local: loaded users" subsystem=l2tp.auth.local count=1
+time=2026-09-23T01:34:41.023Z level=INFO msg="l2tp-pool: configured" subsystem=l2tp.pool total=9 named-pools=0
+API auth mode: single-token (shared bearer)
+REST API server starting on http://127.0.0.1:9099/
+Starting ze with config: /tmp/ze-ac-proof-oque9i8k/ze.conf
+Ze running. Press Ctrl+C to stop.
+time=2026-09-23T01:34:44.839Z level=DEBUG msg="ppp: LCP Restart timer expired" subsystem=pppoe component=ppp tunnel-id=12 session-id=1 unit=0 state=ack-sent restart-count=9
+time=2026-09-23T01:34:44.849Z level=INFO msg="l2tp-auth-local: CHAP-MD5 accepted" subsystem=l2tp.auth.local tunnel=12 session=1 username=alice
+time=2026-09-23T01:34:44.855Z level=INFO msg="l2tp-pool: allocated address" subsystem=l2tp.pool tunnel=12 session=1 address=10.20.0.2
+time=2026-09-23T01:34:44.856Z level=INFO msg="ppp: IPCP addresses obtained, starting NCP FSM" subsystem=pppoe component=ppp tunnel-id=12 session-id=1 unit=0
+time=2026-09-23T01:34:44.858Z level=INFO msg="ppp: IPCP FSM started, entering loop" subsystem=pppoe component=ppp tunnel-id=12 session-id=1 unit=0 state=req-sent
+time=2026-09-23T01:34:44.858Z level=INFO msg="ppp: IPv6CP declined by handler, continuing IPv4-only" subsystem=pppoe component=ppp tunnel-id=12 session-id=1 unit=0 reason="IPv6 not supported by static pool"
+time=2026-09-23T01:34:44.858Z level=DEBUG msg="ppp: NCP loop got frame" subsystem=pppoe component=ppp tunnel-id=12 session-id=1 unit=0 len=12
+time=2026-09-23T01:34:44.858Z level=DEBUG msg="ppp: IPCP rx" subsystem=pppoe component=ppp tunnel-id=12 session-id=1 unit=0 code=configure-request id=1 len=6
+time=2026-09-23T01:34:44.858Z level=DEBUG msg="ppp: NCP loop got frame" subsystem=pppoe component=ppp tunnel-id=12 session-id=1 unit=0 len=16
+time=2026-09-23T01:34:44.858Z level=INFO msg="ppp: unsupported protocol rejected" subsystem=pppoe component=ppp tunnel-id=12 session-id=1 unit=0 protocol=0x8057
+time=2026-09-23T01:34:44.858Z level=DEBUG msg="ppp: NCP loop got frame" subsystem=pppoe component=ppp tunnel-id=12 session-id=1 unit=0 len=12
+time=2026-09-23T01:34:44.859Z level=DEBUG msg="ppp: IPCP rx" subsystem=pppoe component=ppp tunnel-id=12 session-id=1 unit=0 code=configure-ack id=1 len=6
+time=2026-09-23T01:34:44.859Z level=DEBUG msg="ppp: NCP loop got frame" subsystem=pppoe component=ppp tunnel-id=12 session-id=1 unit=0 len=24
+time=2026-09-23T01:34:44.859Z level=DEBUG msg="ppp: IPCP rx" subsystem=pppoe component=ppp tunnel-id=12 session-id=1 unit=0 code=configure-request id=2 len=18
+time=2026-09-23T01:34:46.945Z level=INFO msg="l2tp-pool: released address on session-down" subsystem=l2tp.pool session=pppoe-12-1 address=10.20.0.2 pool=""
+time=2026-09-23T01:34:46.975Z level=INFO msg="pppoe: PADT received" subsystem=pppoe interface=eth0 sid=1
+time=2026-09-23T01:34:51.066Z level=DEBUG msg="ppp: LCP Restart timer expired" subsystem=pppoe component=ppp tunnel-id=12 session-id=1 unit=0 state=ack-sent restart-count=9
+time=2026-09-23T01:34:51.068Z level=INFO msg="l2tp-auth-local: CHAP-MD5 rejected" subsystem=l2tp.auth.local tunnel=12 session=1 username=alice
+time=2026-09-23T01:34:51.068Z level=WARN msg="ppp: session failed" subsystem=pppoe component=ppp tunnel-id=12 session-id=1 unit=0 reason="chap: auth rejected: bad CHAP response"
+
+Shutting down (Ctrl+C again to force)...
+time=2026-09-23T01:34:51.345Z level=DEBUG msg="pppoe: discovery read error" subsystem=pppoe error="interrupted system call"
+time=2026-09-23T01:34:51.347Z level=INFO msg="PPPoE subsystem stopping" subsystem=pppoe
+Ze stopped.
+time=2026-09-23T01:34:51.451Z level=INFO msg="L2TP subsystem stopping" subsystem=l2tp

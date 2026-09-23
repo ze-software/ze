@@ -1,0 +1,32 @@
+{
+  "label": "cleanup-guard-format",
+  "started": "2026-09-23T00:30:06.239Z",
+  "cwd": "/home/thomas/Code/github.com/ze-software/ze/main",
+  "argv": [
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le",
+    "le",
+    "job",
+    "run",
+    "label",
+    "cleanup-guard-format",
+    "quiet",
+    "command",
+    "gofmt",
+    "-w",
+    "internal/component/l2tp/ppp/ncp.go",
+    "internal/component/l2tp/ppp/session_run.go",
+    "internal/component/l2tp/ppp/lcp_lifecycle_test.go",
+    "internal/plugins/iface/netlink/route_integration_linux_test.go"
+  ],
+  "env": {
+    "CGO_ENABLED": "1"
+  },
+  "inputs": [],
+  "exit": 0,
+  "finished": "2026-09-23T00:30:07.727Z",
+  "stdout": "job cleanup-guard-format: exit 0, log tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/job-cleanup-guard-format-08e0f3e6.log\n",
+  "stderr": "",
+  "inputs_after": [],
+  "inputs_unchanged": true,
+  "log": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/job-cleanup-guard-format-08e0f3e6.log"
+}

@@ -30,11 +30,9 @@ type pppSession struct {
 	tunnelID  uint16
 	sessionID uint16
 
-	// Underlying I/O. chanFile is the wrapped chan fd for WRITING
-	// PPP frames to the wire. unitFile is the wrapped unit fd for
-	// READING PPP frames (the kernel delivers received frames to the
-	// unit after PPPIOCCONNECT). framesIn is fed by readFrames which
-	// reads from unitFile.
+	// The channel carries userspace PPP control frames. unitFile owns
+	// the kernel PPP unit attached by PPPIOCCONNECT; framesIn is fed
+	// by the lifetime reader on chanFile.
 	chanFile io.ReadWriteCloser
 	unitFile io.ReadCloser
 	framesIn <-chan []byte
@@ -42,6 +40,13 @@ type pppSession struct {
 	unitFD   int
 	unitNum  int
 	lnsMode  bool
+	pppoe    bool
+
+	// Protected by mu: descriptor shutdown cannot race post-NCP ioctls.
+	filesClosed bool
+	// afterLCPOpen MUST set this only after connect succeeds; resetNCP
+	// MUST disconnect it before another authentication/NCP lifetime.
+	channelConnected bool
 
 	// Configuration captured from StartSession (immutable after
 	// goroutine start).
@@ -65,8 +70,56 @@ type pppSession struct {
 	configuredAuthMethod AuthMethod
 
 	// Magic-Number for THIS session. Generated via crypto/rand by
-	// the goroutine on entry; non-zero per RFC 1661 §6.4.
+	// the goroutine on entry; non-zero per RFC 1661 §6.4. Redrawn when a
+	// Configure-Nak names it (RFC 1661 Section 6.4).
 	magic uint32
+
+	// magicNegotiated is set once the peer has Configure-Acked the
+	// Magic-Number option, or a proxied LCP carried one. RFC 1661 Section
+	// 5.8: "Until the Magic-Number Configuration Option has been
+	// successfully negotiated, the Magic-Number MUST be transmitted as
+	// zero." Every Echo packet ze sends reads it. A new Configure-Request
+	// clears it, because it opens a new negotiation. Goroutine-owned.
+	magicNegotiated bool
+
+	// lastLCPRequest holds the options emitted by sendConfigureRequest:
+	// MRU (4 octets), Magic-Number (6), and Authentication-Protocol (5).
+	// Replies are checked against these exact bytes before entering the FSM.
+	lastLCPRequest       [4 + 6 + 5]byte
+	lastLCPRequestLen    int
+	lastLCPRequestID     uint8
+	lastLCPRequestSent   bool
+	lastLCPReplyReceived bool
+	localMRU             uint16
+	lcpRejectedMRU       bool
+	lcpRejectedMagic     bool
+
+	// Cached authenticator decision, cleared when LCP restarts. Goroutine-owned.
+	papReplyCode uint8
+
+	// Accepted request principal for this LCP lifetime. Goroutine-owned.
+	authenticatedUsername string
+
+	// Tracks final teardown publication. Owned by the session goroutine.
+	sessionDownSent bool
+
+	// peerMagic is the Magic-Number ze Configure-Acked in the peer's
+	// Configure-Request, or the proxied one; zero when the peer did not
+	// negotiate the option. RFC 1661 Section 6.4: "All received
+	// Magic-Number fields MUST be equal to either zero or the peer's
+	// unique Magic-Number, depending on whether or not the peer negotiated
+	// a Magic-Number." Every received Echo packet is held to it.
+	// Goroutine-owned.
+	peerMagic uint32
+
+	// echoID and terminateID are the Identifier counters for the
+	// Echo-Request and Terminate-Request ze sends. RFC 1661 Sections 5.5
+	// and 5.8: the Identifier "MUST be changed whenever the content of the
+	// Data field changes, and whenever a valid reply has been received for
+	// a previous request", so each send draws the next value. Goroutine-
+	// owned.
+	echoID      uint8
+	terminateID uint8
 
 	// Per-session CHAP Identifier counter. Shared between CHAP-MD5
 	// (runCHAPAuthPhase) and MS-CHAPv2 (runMSCHAPv2AuthPhase) because
@@ -117,9 +170,12 @@ type pppSession struct {
 	disableIPv6CP bool
 	ipTimeout     time.Duration
 
-	// earlyNCPFrames buffers NCP frames that arrive on the chan fd
-	// before the NCP phase starts (race: peer sends IPCP before Ze
-	// processes the LCP ConfAck that triggers Opened).
+	// NCP dispatch starts only after authentication completes. runNCPPhase
+	// MUST set ncpStarted; LCP This-Layer-Down MUST clear it through resetNCP.
+	ncpStarted bool
+
+	// earlyNCPFrames holds frames received in the network phase before
+	// their family's FSM starts. resetNCP MUST discard them with that lifetime.
 	earlyNCPFrames [][]byte
 
 	// Driver's shutdown signal (the goroutine selects on this and
@@ -174,10 +230,24 @@ type pppSession struct {
 	ipv6cpState      LCPState
 	ipcpIdentifier   uint8
 	ipv6cpIdentifier uint8
-	localIPv4        netip.Addr
-	peerIPv4         netip.Addr
-	dnsPrimary       netip.Addr
-	dnsSecondary     netip.Addr
+
+	// Last successfully transmitted NCP Configure-Request, retained for
+	// reply correlation. writeNCPOptions emits one IP-Address (6 octets) or
+	// one Interface-Identifier (10 octets). resetNCP MUST clear Sent while
+	// preserving the identifier counters above for the next lifetime.
+	lastIPCPRequest       [ipcpIPv4OptLen]byte
+	lastIPCPRequestLen    int
+	lastIPCPRequestID     uint8
+	lastIPCPRequestSent   bool
+	lastIPv6CPRequest     [ipv6cpInterfaceIDOptLen]byte
+	lastIPv6CPRequestLen  int
+	lastIPv6CPRequestID   uint8
+	lastIPv6CPRequestSent bool
+
+	localIPv4    netip.Addr
+	peerIPv4     netip.Addr
+	dnsPrimary   netip.Addr
+	dnsSecondary netip.Addr
 	// localInterfaceID is Ze's own IPv6CP Interface-Identifier, seeded
 	// once by requestIPv6CPInterfaceID (ncp.go) from
 	// generateIPv6CPInterfaceID (ipv6cp.go), which retries until the
@@ -216,8 +286,7 @@ type pppSession struct {
 	// Interface-Identifier option (earning one Configure-Nak
 	// suggesting it), and Acks every later request that still omits
 	// it, so a peer that never sends the option converges instead of
-	// being Naked forever. Per session, and resets with it because a
-	// struct field carries no state across pppSession values.
+	// being Naked forever. resetNCP MUST clear it when LCP goes down.
 	ipv6cpMissingIdentifierNaked bool
 
 	ipv6Svc *IPv6Service
@@ -258,11 +327,10 @@ type IfaceBackend interface {
 	// AddAddressP2P installs a point-to-point address on pppN after
 	// IPCP negotiation completes (spec-l2tp-6c-ncp AC-5).
 	AddAddressP2P(name, localCIDR, peerCIDR string) error
-	// AddRoute programs the kernel to reach the peer via pppN
-	// (spec-l2tp-6c-ncp AC-6). gateway == "" means "onlink via dev".
+	// AddRoute installs IPv6 delegated-prefix routes through the peer.
 	AddRoute(name, destCIDR, gateway string, metric int, proto rtproto.Proto) error
-	// RemoveAddress / RemoveRoute undo the above on session teardown
-	// (spec-l2tp-6c-ncp AC-18).
+	// RemoveAddress removes the IPCP address and its kernel-created peer route.
 	RemoveAddress(name, cidr string) error
+	// RemoveRoute withdraws IPv6 delegated-prefix routes.
 	RemoveRoute(name, destCIDR, gateway string, metric int, proto rtproto.Proto) error
 }

@@ -224,25 +224,38 @@ func (st *SessionTable) Lookup(sid uint16) *Session {
 // markTeardown sets sid's state to StateTeardown and returns the session,
 // which stays in the table -- the caller removes it separately, once its own
 // teardown work (such as sending the PADT) is done. Returns nil when sid is
-// not in the table.
+// absent or another caller already owns its teardown.
 //
 // The write happens under st.mu, the same lock matchLiveCookie takes to read
 // State: handleSessionDown runs on the PPP driver's event-consumer
 // goroutine, while a replayed PADR's dedup match runs on the discovery-
 // reader goroutine, so without a shared lock the two would race on the field
-// (spec-pppoe-padr-replay-allocates-unbounded-sessions R-2). handlePADT
-// needs no such call: it runs on the discovery-reader goroutine itself, the
-// same one that runs every dedup match, so the two can never interleave.
+// (spec-pppoe-padr-replay-allocates-unbounded-sessions R-2). A received PADT
+// claims teardown through the same lock, so it cannot free a SID whose
+// outbound PADT is still being written.
 func (st *SessionTable) markTeardown(sid uint16) *Session {
 	st.mu.Lock()
 	defer st.mu.Unlock()
 
 	s, ok := st.sessions[sid]
-	if !ok {
+	if !ok || s.State == StateTeardown {
 		return nil
 	}
 	s.State = StateTeardown
 	return s
+}
+
+// detachTransport leaves the SID reserved while its owner finishes teardown.
+func (st *SessionTable) detachTransport(sid uint16) int {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	s := st.sessions[sid]
+	if s == nil {
+		return -1
+	}
+	fd := s.PppoxFD
+	s.PppoxFD = -1
+	return fd
 }
 
 // markSession moves sid from StateDiscovery to StateSession. It leaves every

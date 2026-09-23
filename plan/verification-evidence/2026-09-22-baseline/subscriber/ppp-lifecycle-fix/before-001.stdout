@@ -1,0 +1,2 @@
+job ppp-lifecycle-before-001: exit 1, log tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/job-ppp-lifecycle-before-001-ac3aedb6.log
+6:FAIL	command-line-arguments [build failed]

@@ -12,9 +12,11 @@ package l2tpauthradius
 
 import (
 	"context"
+	"errors"
 	"net"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/iface"
@@ -25,7 +27,17 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
-var acctGetStats = iface.GetStats
+// PPP interface names identify kernel devices. Accounting needs raw counters,
+// not iface.GetStats' operator-visible "since last clear" values.
+func acctRawStats(name string) (*iface.InterfaceStats, error) {
+	backend := iface.GetBackend()
+	if backend == nil {
+		return nil, errors.New("interface backend is unavailable")
+	}
+	return backend.GetStats(name)
+}
+
+var acctGetStats = acctRawStats
 
 // acctNow reads the clock that stamps Event-Timestamp. A test replaces it so
 // the encoded seconds are exact rather than a window around the real clock.
@@ -42,11 +54,11 @@ type acctSession struct {
 	tunnelID  uint16
 	sessionID uint16
 	username  string
-	peerAddr  string
-	// terminateCause is why this session ended, and it is the ONE field of
-	// this struct that is written after construction. The writer is whichever
-	// of onSessionDown and Stop claimed the session out of radiusAcct.sessions
-	// under radiusAcct.mu, and exactly one of them can, so no second goroutine
+	peerAddr  string // Updated and read under radiusAcct.mu.
+	// terminateCause is why this session ended. It is written after
+	// construction by the caller that claims the session for teardown.
+	// onSessionDown and Stop claim the session out of radiusAcct.sessions
+	// under radiusAcct.mu, and exactly one can, so no second goroutine
 	// writes it. The interim loop never reads it: buildAcctPacket reads it
 	// inside the Acct-Status-Type Stop branch alone.
 	terminateCause l2tpevents.TerminateCause
@@ -61,13 +73,66 @@ type acctSession struct {
 	pppInterface     string
 	startTime        time.Time
 	cancel           context.CancelFunc
+	counterBase      acctCounters
+	countersInvalid  atomic.Bool
+}
+
+type acctCounters struct {
+	rxBytes   uint64
+	txBytes   uint64
+	rxPackets uint64
+	txPackets uint64
+}
+
+func readAcctCounters(name string) (acctCounters, error) {
+	if name == "" {
+		return acctCounters{}, errors.New("PPP interface is unavailable")
+	}
+	stats, err := acctGetStats(name)
+	if err != nil {
+		return acctCounters{}, err
+	}
+	if stats == nil {
+		return acctCounters{}, errors.New("interface backend returned no counters")
+	}
+	return acctCounters{
+		rxBytes: stats.RxBytes, txBytes: stats.TxBytes,
+		rxPackets: stats.RxPackets, txPackets: stats.TxPackets,
+	}, nil
+}
+
+// counterDelta measures this service rather than the retained PPP unit.
+// RFC 2866 Section 5.3: "This attribute indicates how many octets have been
+// received from the port over the course of this service being provided,
+// and can only be present in Accounting-Request records where the
+// Acct-Status-Type is set to Stop." RFC 2869 Section 2.1 extends these
+// counters to Interim-Update records.
+func (s *acctSession) counterDelta() (acctCounters, bool) {
+	if s.countersInvalid.Load() {
+		return acctCounters{}, false
+	}
+	current, err := readAcctCounters(s.pppInterface)
+	if err != nil {
+		logger().Warn("l2tp-auth-radius: counter read failed", "interface", s.pppInterface, "error", err)
+		return acctCounters{}, false
+	}
+	base := s.counterBase
+	if current.rxBytes < base.rxBytes || current.txBytes < base.txBytes ||
+		current.rxPackets < base.rxPackets || current.txPackets < base.txPackets {
+		s.countersInvalid.Store(true)
+		logger().Warn("l2tp-auth-radius: counters fell below the session baseline", "interface", s.pppInterface)
+		return acctCounters{}, false
+	}
+	return acctCounters{
+		rxBytes: current.rxBytes - base.rxBytes, txBytes: current.txBytes - base.txBytes,
+		rxPackets: current.rxPackets - base.rxPackets, txPackets: current.txPackets - base.txPackets,
+	}, true
 }
 
 // subscriberIPv4 parses a session's assigned address and returns its four
 // octets. It reports false for an empty value, an unparseable value, and an
-// IPv6 address: the reactor records an IPv6CP link-local in the same field, and
-// RFC 2865 Section 5.8 gives Framed-IP-Address four octets, so those cases have
-// no attribute to send. An IPv4-mapped form is an IPv4 address and is unwrapped.
+// IPv6 address. RFC 2865 Section 5.8 gives Framed-IP-Address four octets, so
+// those cases have no attribute to send. An IPv4-mapped address is unwrapped.
 func subscriberIPv4(assigned string) ([]byte, bool) {
 	addr, err := netip.ParseAddr(assigned)
 	if err != nil {
@@ -100,7 +165,7 @@ type radiusAcct struct {
 	nasID           string
 	sourceAddress   net.IP
 	interval        time.Duration
-	nextSess        uint32
+	nextSess        atomic.Uint32
 	serverAddr      string
 	nasPortIDFormat string
 	exclusions      attributeExclusions
@@ -168,10 +233,7 @@ func (a *radiusAcct) exclusionsNow() attributeExclusions {
 }
 
 func (a *radiusAcct) genSessionID(tunnelID, sessionID uint16) string {
-	a.mu.Lock()
-	a.nextSess++
-	n := a.nextSess
-	a.mu.Unlock()
+	n := a.nextSess.Add(1)
 	var b textbuf.Buffer
 	return b.Reset().Int(int64(tunnelID)).Byte('-').Int(int64(sessionID)).Byte('-').Int(int64(n)).String()
 }
@@ -196,7 +258,6 @@ func (a *radiusAcct) subscribeEventBus(bus ze.EventBus) func() {
 
 func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPayload) {
 	key := sessionKey{payload.TunnelID, payload.SessionID}
-	acctSessID := a.genSessionID(payload.TunnelID, payload.SessionID)
 	a.mu.Lock()
 	client := a.client
 	nasID := a.nasID
@@ -207,6 +268,16 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 		a.mu.Unlock()
 		return
 	}
+	// RFC 2866 Section 5.5: "The start and stop records for a given session
+	// MUST have the same Acct-Session-Id."
+	if sess := a.sessions[key]; sess != nil {
+		if payload.PeerAddr != "" {
+			sess.peerAddr = payload.PeerAddr
+		}
+		a.mu.Unlock()
+		return
+	}
+	acctSessID := a.genSessionID(payload.TunnelID, payload.SessionID)
 
 	// An Access-Accept can carry Acct-Interim-Interval (type 85), which RFC 2869
 	// Section 5.16 defines. Section 2.1 decides which of the two values wins,
@@ -229,6 +300,15 @@ func (a *radiusAcct) onSessionIPAssigned(payload *l2tpevents.SessionIPAssignedPa
 		pppInterface:     payload.PppInterface,
 		startTime:        time.Now(),
 		cancel:           cancel,
+	}
+	// The channel is disconnected while NCP assigns addresses. A replacement
+	// lifetime therefore starts from the retained unit's last traffic totals.
+	base, err := readAcctCounters(sess.pppInterface)
+	if err != nil {
+		sess.countersInvalid.Store(true)
+		logger().Warn("l2tp-auth-radius: counter baseline unavailable", "interface", sess.pppInterface, "error", err)
+	} else {
+		sess.counterBase = base
 	}
 
 	a.sessions[key] = sess
@@ -352,46 +432,35 @@ func (a *radiusAcct) buildAcctPacket(sess *acctSession, nasID string, sourceAddr
 		attrs = append(attrs, attr)
 	}
 
+	a.mu.Lock()
+	peerAddr := sess.peerAddr
+	a.mu.Unlock()
 	// RFC 2865 Section 5.8: Framed-IP-Address is four octets, so only an IPv4
 	// assignment can be reported. A session with no address yet, or one whose
 	// only assignment is IPv6, sends no attribute rather than a wrong one.
-	if v4, ok := subscriberIPv4(sess.peerAddr); ok {
+	if v4, ok := subscriberIPv4(peerAddr); ok {
 		attrs = append(attrs, radius.Attr{Type: radius.AttrFramedIPAddress, Value: v4})
 	}
 
 	if statusType == radius.AcctStatusStop || statusType == radius.AcctStatusInterimUpdate {
-		var rxBytes, txBytes uint64
-		var rxPkts, txPkts uint64
-		if sess.pppInterface != "" {
-			if stats, err := acctGetStats(sess.pppInterface); err == nil {
-				rxBytes = stats.RxBytes
-				txBytes = stats.TxBytes
-				rxPkts = stats.RxPackets
-				txPkts = stats.TxPackets
-			} else {
-				logger().Warn("l2tp-auth-radius: counter read failed",
-					"interface", sess.pppInterface, "error", err)
+		attrs = append(attrs, radius.Attr{Type: radius.AttrAcctSessionTime, Value: radius.AttrUint32(sessionTime)})
+		if delta, ok := sess.counterDelta(); ok {
+			inOct, inGiga := splitGigawords(delta.rxBytes)
+			outOct, outGiga := splitGigawords(delta.txBytes)
+			attrs = append(attrs,
+				radius.Attr{Type: radius.AttrAcctInputOctets, Value: radius.AttrUint32(inOct)},
+				radius.Attr{Type: radius.AttrAcctOutputOctets, Value: radius.AttrUint32(outOct)},
+				radius.Attr{Type: radius.AttrAcctInputPackets, Value: radius.AttrUint32(uint32(delta.rxPackets))},
+				radius.Attr{Type: radius.AttrAcctOutputPackets, Value: radius.AttrUint32(uint32(delta.txPackets))},
+			)
+
+			// RFC 2869 Sections 5.1-5.2: include gigaword attrs only when nonzero.
+			if inGiga > 0 {
+				attrs = append(attrs, radius.Attr{Type: radius.AttrAcctInputGigawords, Value: radius.AttrUint32(inGiga)})
 			}
-		}
-
-		// RFC 2866 Section 5.7-5.10
-		inOct, inGiga := splitGigawords(rxBytes)
-		outOct, outGiga := splitGigawords(txBytes)
-
-		attrs = append(attrs,
-			radius.Attr{Type: radius.AttrAcctSessionTime, Value: radius.AttrUint32(sessionTime)},
-			radius.Attr{Type: radius.AttrAcctInputOctets, Value: radius.AttrUint32(inOct)},
-			radius.Attr{Type: radius.AttrAcctOutputOctets, Value: radius.AttrUint32(outOct)},
-			radius.Attr{Type: radius.AttrAcctInputPackets, Value: radius.AttrUint32(uint32(rxPkts))},
-			radius.Attr{Type: radius.AttrAcctOutputPackets, Value: radius.AttrUint32(uint32(txPkts))},
-		)
-
-		// RFC 2869 Section 5.1-5.2: include gigaword attrs only when non-zero.
-		if inGiga > 0 {
-			attrs = append(attrs, radius.Attr{Type: radius.AttrAcctInputGigawords, Value: radius.AttrUint32(inGiga)})
-		}
-		if outGiga > 0 {
-			attrs = append(attrs, radius.Attr{Type: radius.AttrAcctOutputGigawords, Value: radius.AttrUint32(outGiga)})
+			if outGiga > 0 {
+				attrs = append(attrs, radius.Attr{Type: radius.AttrAcctOutputGigawords, Value: radius.AttrUint32(outGiga)})
+			}
 		}
 	}
 
