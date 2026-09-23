@@ -33,21 +33,64 @@
         "Do not use that data or its external archives as proof for current work.",
         "Preserve historical records and archives. Use canonical source and fresh runs, without a replacement proof-record collection."
       ]
+    },
+    {
+      "date": "2026-09-23",
+      "text": "Keep implementation integration separate.",
+      "requirements": [
+        "Preserve dependent source and verification carriers uncommitted.",
+        "Finish independently safe verification and tooling commits without absorbing preserved implementation."
+      ]
     }
   ],
   "started_work_completion": "Implementation started before the baseline-first directive is authorized for full completion only after the testing gap is closed.",
   "baseline_complete": false,
   "full_rfc_support_claimed": false,
-  "source_state": "Uncommitted protocol changes are preserved. Feature expansion stopped at the owner's baseline-first directive.",
-  "next_verification_boundary": "Close the testing gap for implemented capabilities. Allow only defects and minimal build or fixture repairs needed for that proof. Complete pre-cutoff implementation afterward; do not start absent features.",
-  "current_sweep_status": "The old snapshot sweep is superseded. Part five was cancelled. Part six must not run against that snapshot.",
-  "classification_status": "Only the bounded results below are current directly observed verification. Earlier capability and gap classifications require current source or runtime verification.",
+  "source_state": "Independent verification and tooling changes are committed. Uncommitted protocol changes and dependent carriers remain preserved for separate implementation integration. Feature expansion remains stopped at the owner's baseline-first directive.",
+  "next_verification_boundary": "Dependent source, carriers and changed tagged-test discrimination records require separate implementation integration. Required multi-flavor lint is red. No whole-tree-green or implementation-completion claim is made.",
+  "current_sweep_status": "The named bounded capability runs passed, and independent verification and tooling changes are committed. Implementation integration and changed tagged-test discrimination records remain incomplete. Required final multi-flavor lint ran and failed.",
+  "integration_boundary": {
+    "rpki_held_paths": [
+      "internal/le/interoplab/bgp/check_rpki_reload.go",
+      "internal/le/interoplab/bgp/check_special.go",
+      "internal/le/interoplab/bgp/checkers.go",
+      "internal/le/interoplab/bgp/check_extras.go",
+      "internal/le/interoplab/bgp/check_engine.go",
+      "internal/le/interoplab/bgp/helper.go",
+      "internal/le/interoplab/bgp/bgp_test.go",
+      "test/interop/scenarios/rtr-stayrtr/ze.conf",
+      "test/interop/scenarios/rtr-stayrtr/ze-reload.conf",
+      "test/interop/scenarios/rtr-stayrtr/frr.conf",
+      "test/interop/scenarios/rtr-stayrtr/bird.conf",
+      "test/interop/scenarios/rpki-frr/ze.conf",
+      "test/interop/scenarios/rpki-frr/frr.conf"
+    ],
+    "rpki_boundary": "These carrier and support changes remain uncommitted with their preserved implementation prerequisites. internal/le/interoplab/bgp/bgp_test.go retains mixed hunks; FRR-only tests are committed separately in internal/le/interoplab/bgp/check_rfc_session_test.go.",
+    "shared_page_held": "docs/architecture/testing/interop.md",
+    "shared_page_boundary": "The interoperability page mixes independent verification and dependent implementation changes and remains held.",
+    "flowexport_held_paths": [
+      "internal/plugins/flowexport/interop_integration_linux_test.go",
+      "test/interop-flowexport/Dockerfile.collectors",
+      "docs/architecture/flowexport/flow-export-0-umbrella.md",
+      "docs/architecture/flowexport/flow-export-1-counter-export.md",
+      "docs/architecture/flowexport/flow-export-2-flow-records.md",
+      "docs/guide/flow-export.md"
+    ],
+    "shared_journal_files_held": [
+      "plan/journal/false-synchronization-claim.md",
+      "plan/journal/fixture-encodes-an-impossible-state.md"
+    ],
+    "shared_journal_boundary": "These files also describe preserved OSPF changes or held PPP, RPKI and export fixtures. They remain uncommitted with that work.",
+    "flowexport_boundary": "The export carrier and collector Dockerfile remain held together with the listed documentation because the carrier depends on preserved sender, encoder, and public-input source. Raw packet assignments in internal/plugins/flowexport/register.go must accompany the IPFIX raw-total migration. Linux generation production is a separate boundary that literal collector inputs do not prove."
+  },
+  "classification_status": "The implemented capabilities below have current source inspection and fresh execution. Remaining live verification is listed separately. Historical gap records remain unvalidated and authorize no feature expansion.",
   "implemented_and_tested": [
     {
-      "behavior": "RADIUS external-startup refusal and internal provider lifecycle",
+      "behavior": "RADIUS startup refusal, registered credential/provider transactions, and accounting lifecycle",
       "source": [
         "internal/component/l2tp/plugins/authradius/register.go:runPlugin",
-        "internal/component/l2tp/plugins/authradius/provider_reload_test.go:TestRegisteredRadiusExternalStartupRefused"
+        "internal/component/l2tp/plugins/authradius/provider_reload_test.go",
+        "internal/component/l2tp/plugins/authradius/provider_lifecycle_test.go"
       ],
       "verification": [
         {
@@ -115,48 +158,177 @@
         }
       ],
       "boundary": "Fixture-driven control-plane behavior only. This does not establish independent-peer interoperability, PPP dataplane behavior, or full RFC support."
+    },
+    {
+      "behavior": "PPP LCP restart, NCP lifetime reset, stale reply rejection, assignment publication, and descriptor ownership",
+      "source": [
+        "internal/component/l2tp/ppp/lcp_lifecycle_test.go",
+        "internal/component/l2tp/ppp/assignment_barrier_test.go",
+        "internal/component/l2tp/kernel_ownership_linux_test.go"
+      ],
+      "verification": [
+        {"result": "The fresh race-enabled PPP package run passed 374 top-level tests. Its final failing fixture was corrected and that case passed separately."},
+        {"result": "The fresh subscriber boundary run passed all 19 selected top-level cases without skips, including PPP descriptors, kernel ownership, provider replacement, subscriber lifetime, and whole-hub RADIUS rollback."}
+      ],
+      "boundary": "Production driver, socketpair, ownership, and registered-callback boundaries. Independent native PPP traffic is recorded separately."
+    },
+    {
+      "behavior": "Subscriber withdrawal and provider replacement across network lifetimes and committed reloads",
+      "source": [
+        "internal/component/l2tp/subscriber_lifetime_linux_test.go",
+        "internal/component/l2tp/auth_provider_reload_linux_test.go",
+        "internal/component/l2tp/pppoe/subscriber_lifetime_linux_test.go",
+        "internal/component/l2tp/pppoe/auth_provider_reload_linux_test.go",
+        "cmd/ze/hub/main_reload_radius_test.go"
+      ],
+      "verification": [
+        {"result": "The subscriber boundary run exercised both live authentication drains, assignment rejection, published-lifetime withdrawal, and late-bind reload compensation. Registered RADIUS package tests separately exercised credential rollback, accepted retirement, and overlapping transaction ownership."}
+      ],
+      "boundary": "The live drain cases stop before NCP. They prove provider selection, not independent-peer credential negotiation."
+    },
+    {
+      "behavior": "Native no-auth and credentialed L2TP establishment, same-transport restart, forwarding, and wrong-secret refusal",
+      "source": [
+        "internal/le/deployment/l2tpppp.go",
+        "internal/le/deployment/l2tpppprestart.go",
+        "internal/le/deployment/l2tppppauth.go"
+      ],
+      "verification": [
+        {"result": "Both no-auth and chap-md5 scenarios passed in the Linux 7.2 guest against xl2tpd 1.3.18 and pppd 2.5.1. Initial LAC-to-Ze reachability passed. After same-transport restart, both directions delivered all three interface-bound PPP pings. Wrong-secret CHAP reached matching Failure and teardown without IPCP or network admission."}
+      ],
+      "boundary": "Local credentials and IPv4 PPP. This does not establish independent RADIUS-server authentication or every L2TP role."
+    },
+    {
+      "behavior": "Kernel point-to-point address removal preserves peer metadata and permits reuse",
+      "source": ["internal/plugins/iface/netlink/route_integration_linux_test.go:TestRemovePointToPointAddressAllowsReuse"],
+      "verification": [{"result": "The current kernel integration case passed without skips in the Linux 7.2 guest."}],
+      "boundary": "Kernel address/route readback on a retained interface. Native L2TP separately exercises actual PPP restart."
+    },
+    {
+      "behavior": "NetFlow v9, IPFIX, and sFlow public encoders deliver independently decoded UDP records",
+      "source": [
+        "internal/plugins/flowexport/interop_integration_linux_test.go",
+        "test/interop-flowexport/Dockerfile.collectors"
+      ],
+      "verification": [
+        {"result": "Both nfdump 1.7.10 cases passed: exactly three decoded NetFlow v9 records and three IPFIX records, including IPv4, IPv6, ports, ASNs, and full-width counters."},
+        {"result": "The sflowtool 6.11 case passed expanded sample, full-width index/counter, unavailable-value, and decoded packet assertions."}
+      ],
+      "boundary": "Public encoder and Sender interoperability. These carriers do not prove whole-daemon sampling configuration or full protocol conformance."
+    },
+    {
+      "behavior": "IPFIX flow and counter Export Time ordering under clock rollback",
+      "source": ["internal/plugins/flowexport/ipfix/export_rfc7011_test.go"],
+      "verification": [{"result": "The fresh RSVP/IPFIX run passed all 318 top-level cases without skips, including the real-UDP clock-rollback cases."}],
+      "boundary": "Template/data timestamp ordering through public adapters; independent decoding is recorded separately."
+    },
+    {
+      "behavior": "Approved BGP receive/session/SRv6 regressions, retained RPKI revalidation, and compressed ASPA paths",
+      "source": [
+        "internal/component/bgp/message",
+        "internal/component/bgp/reactor/session_core4271_test.go",
+        "internal/component/bgp/plugins/rpki/rpki_reload_test.go",
+        "internal/component/bgp/plugins/rpki/compressed_aspa_test.go",
+        "internal/component/bgp/plugins/rib/rib_aspa_retention_test.go"
+      ],
+      "verification": [
+        {"result": "The fresh message package run passed 485 top-level cases. The separate reactor/FSM/RPKI/RIB selection passed all 143 top-level cases without skips, including disabled selection-first arrival and registered reload callbacks."}
+      ],
+      "boundary": "Current encoded-message, reactor, and callback boundaries. Live independent-peer RPKI reload remains listed separately."
+    },
+    {
+      "behavior": "ExaBGP default-route fixtures and IPv6 FlowSpec offset encoding",
+      "source": [
+        "internal/component/bgp/plugins/nlri/flowspec/prefix_rfc8956_test.go",
+        "internal/le/interoplab/bgp/exabgp_server.go",
+        "internal/test/fixture/misc_fixture_observers.go"
+      ],
+      "verification": [
+        {"result": "The fresh FlowSpec package run passed all 101 top-level cases without skips."},
+        {"result": "A fresh functional exabgp-test run passed 42 encoding and 40 API cases, including conf-flow, api-api, api-check, and api-health."}
+      ],
+      "boundary": "The exercised compatibility fixtures and encoding cases only; not complete BGP or FlowSpec conformance."
+    },
+    {
+      "behavior": "IS-IS circuit recovery, OSPF NSSA/origination/DD/SR lifecycle, and first-observed interface-down notification",
+      "source": [
+        "internal/plugins/isis/transport/transport_test.go",
+        "internal/plugins/ospf/nssa_import_lifecycle_test.go",
+        "internal/plugins/ospf/receive_origination_test.go",
+        "internal/plugins/ospf/origination_lifecycle_test.go",
+        "internal/plugins/ospf/sr_adjsid_test.go",
+        "internal/plugins/ospf/neighbor/nsm_test.go",
+        "internal/plugins/iface/netlink/monitor_linux_test.go"
+      ],
+      "verification": [
+        {"result": "All 53 selected IGP/interface top-level cases passed without skips. The separately selected TestOSPFNSSAPBitBoundaryPolicy also passed with the race detector."}
+      ],
+      "boundary": "Production timer, encoded receive, engine event, lifecycle, and netlink-notification boundaries. No independent IGP daemon interoperability is claimed."
+    },
+    {
+      "behavior": "PPPoE client and access-concentrator interoperability",
+      "source": [
+        "internal/le/interoplab/pppoe/check_client.go",
+        "internal/le/interoplab/pppoe/check_ac.go"
+      ],
+      "verification": [
+        {"result": "The current CHAP-MD5 IPv4 client scenario passed against accel-ppp. The current access-concentrator scenario passed against pppd, including traffic, wrong-secret refusal, and teardown."}
+      ],
+      "boundary": "Endpoint PPPoE/IPv4 traffic and cleanup. Transit forwarding and every PPP authentication method are not claimed."
+    },
+    {
+      "behavior": "Standalone SDK registration of the daemon-assigned plugin identity",
+      "source": ["pkg/plugin/sdk/sdk.go"],
+      "verification": [{"result": "A fresh standalone program importing only core/env and pkg/plugin/sdk resolved the assigned plugin identity."}],
+      "boundary": "Identity registration and lookup only; not a new end-to-end plugin transport claim."
+    },
+    {
+      "behavior": "RSVP packet entry, confirmation, forwarding acceptance, surviving-generation withdrawal, and native MPLS forwarding",
+      "source": [
+        "internal/plugins/rsvpte/confirmation_test.go",
+        "internal/plugins/rsvpte/fib_test.go",
+        "internal/plugins/rsvpte/register_test.go",
+        "internal/plugins/rsvpte/transport_integration_linux_test.go",
+        "internal/plugins/rsvpte/producer_integration_linux_test.go",
+        "internal/plugins/fib/kernel/mplsmtu_integration_linux_test.go"
+      ],
+      "verification": [
+        {"result": "The fresh RSVP/IPFIX unit run passed all 318 selected top-level cases without skips."},
+        {"result": "The strengthened native three-Ze case passed on Linux 7.2, including the same delivered UDP tuple on both labelled hops, replacement-generation delivery, and downstream label removal before expiry. Replacing transit swap with pop failed the Up-state FIB assertion; suppressing label removal failed the withdrawal assertion."},
+        {"result": "The Linux 7.2 kernel cases passed ordinary PATH avoidance of an endpoint data FEC, RSVP message carriage, MPLS path MTU, fragmentation progress, and IPv4 option preservation without skips."}
+      ],
+      "boundary": "The native producer uses Ze at each signaling hop. Independent RSVP peer execution remains listed separately."
+    },
+    {
+      "behavior": "Retained RPKI validation and live Invalid-policy reload without source reannouncement",
+      "source": [
+        "internal/component/bgp/plugins/rpki/rpki_reload.go",
+        "internal/component/bgp/plugins/adj_rib_in/rib_eligibility.go",
+        "internal/le/interoplab/bgp/check_rpki_reload.go",
+        "internal/le/interoplab/bgp/check_extras.go"
+      ],
+      "verification": [
+        {"result": "The named rpki-frr invocation passed with all three source routes present and retained Invalid state explicitly ineligible."},
+        {"result": "The named rtr-stayrtr invocation passed against StayRTR v0.6.4 at RTR v1, FRR and BIRD: reject, accept, then reject retained Invalid routes without new source UPDATEs or session replacement, while retaining the same four VRPs."},
+        {"result": "Suppressing retained-snapshot revalidation failed the accept-retained-Invalid phase. The subsequent normal native run passed."},
+        {"result": "The FRR generation regressions passed; the old derived-epoch implementation failed the unchanged-session case. The existing ADD-PATH reconnect scenario also passed."}
+      ],
+      "boundary": "Retention, policy revalidation, selection, export and observed BGP session continuity. No ASPA, RTR TLS, cache-expiry, validation-disable or rejected-transaction rollback interoperability is claimed."
+    },
+    {
+      "behavior": "Independent freeRouter ingress to Ze egress RSVP-TE forwarding and withdrawal",
+      "source": [
+        "internal/plugins/rsvpte/freertr_interop_integration_linux_test.go",
+        "test/interop-rsvpte/Dockerfile.freertr"
+      ],
+      "verification": [
+        {"result": "The native Linux carrier passed against pinned freeRouter commit 6c295d8ae79c834ef631d3d21d373c335fb05328. Labelled replies were captured but not delivered with MPLS input disabled; all three replies were delivered after enablement. Matching PathTear removed the pop label before expiry."},
+        {"result": "Ignoring PathTear in the rebuilt Ze daemon failed the withdrawn-egress-label assertion."}
+      ],
+      "boundary": "IPv4 point-to-point, freeRouter ingress and Ze egress. No independent transit, Ze-ingress, fast-reroute, make-before-break or complete RFC conformance claim."
     }
   ],
-  "capabilities_pending_current_verification": [
-    "PPP LCP interruption, NCP lifetime reset and stale Configure-reply rejection",
-    "Subscriber network-lifetime withdrawal and RADIUS per-lifetime accounting",
-    "Same-transport PPP LCP restart with independent xl2tpd/pppd",
-    "IP-assignment publication precedes PPP forwarding; cancellation retains final teardown",
-    "Point-to-point address removal preserves kernel peer metadata and permits reuse",
-    "NetFlow v9 and IPFIX public encoders sending UDP to nfcapd/nfdump 1.7.3",
-    "sFlow public encoders sending UDP to sflowtool 6.11",
-    "PPP kernel-worker descriptor ownership and cancellation",
-    "Approved existing BGP receive, OPEN, collision, KEEPALIVE and SRv6 encoder regression cases",
-    "RPKI route retention, revalidation and disable through registered plugin callbacks",
-    "IS-IS periodic recovery of a missed L2 update and OSPF per-source NSSA propagation",
-    "ExaBGP API default-route fixtures use a valid NEXT_HOP",
-    "ExaBGP IPv6 FlowSpec offset encoding",
-    "OSPF NSSA origination requires a usable forwarding address",
-    "RPKI callback transaction boundaries and selection-first arrival while disabled",
-    "Explicit local no-auth L2TP admission through the daemon and Linux PPPoL2TP",
-    "PPPoE client with CHAP-MD5, IPCP and kernel forwarding against accel-ppp",
-    "RSVP packet-entry baseline with corrected legal fixtures and fresh-response observation",
-    "Registered local credential reload and rollback of an initially absent credential table",
-    "RSVP confirmation relay, refresh and forwarding-acceptance retry",
-    "IPFIX flow and counter Export Time ordering under clock rollback",
-    "ASPA consecutive-prepend compression through structured UPDATE handling",
-    "RADIUS accounting retirement at whole-reload acceptance and across overlapping reload ownership",
-    "RADIUS authentication-provider package with UDP Accounting-Start coverage",
-    "OSPF queued Full/Down topology origination and synchronized SR label publication, withdrawal and readers",
-    "Standalone SDK registration of the assigned plugin identity",
-    "Live RPKI policy reload without route reannouncement",
-    "PPPoE access concentrator against independent pppd with kernel forwarding and clean shutdown",
-    "Live subscriber provider replacement and ownership across committed reloads",
-    "OSPF DD master-bit preservation and DD admission from Init",
-    "Native FRR RPKI route validation scenario",
-    "Independent StayRTR v0.6.4 synchronization at negotiated RTR v1",
-    "Ordinary RSVP PATH avoids an installed endpoint data FEC",
-    "First notification reports a preexisting interface going down",
-    "Configured RSVP tunnel withdrawal follows the surviving make-before-break generation",
-    "Credentialed L2TP/PPP establishment with an independent xl2tpd/pppd peer",
-    "Native MPLS path MTU, fragmentation progress and IPv4 RR/TS option preservation",
-    "Coupled native RSVP signaling, generation withdrawal and isolated bypass forwarding"
-  ],
+  "capabilities_pending_current_verification": [],
   "declared_gap_records_pending_source_validation": [
     {
       "kind": "requirement",

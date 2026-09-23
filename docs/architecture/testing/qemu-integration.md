@@ -8,13 +8,18 @@ with full kernel capabilities.
 ## Quick Start
 
 ```bash
-# Stage the kernel every QEMU target boots. A hit costs a copy.
-./le build-artifacts host
+# Build the host driver, then the amd64 runtime kernel with Docker.
+CGO_ENABLED=0 ./le --name qemu-setup build-artifacts host
+./ze-host appliance kernel --target runtime --arch amd64 --builder docker
 
 # all-tests runs INSIDE the guest. le qemu run boots the guest and carries it in.
-./le qemu run kernel tmp/kernel/build/vmlinuz packages "iproute2 libcap" \
+./le --name qemu-current qemu run kernel "<kernel-directory>/vmlinuz" packages "iproute2 libcap" \
   command "./le qemu all-tests"
 ```
+
+Replace `<kernel-directory>` with the directory the kernel builder prints.
+This example targets an amd64 guest. Use the matching architecture for other
+guests. `build-artifacts host` builds only `ze-host`; it does not stage a kernel.
 
 The Go release the guest unpacks is DERIVED from the `go` directive of `go.mod`
 (`goversion.DeclaredRelease`), so the guest and the host compile with one
