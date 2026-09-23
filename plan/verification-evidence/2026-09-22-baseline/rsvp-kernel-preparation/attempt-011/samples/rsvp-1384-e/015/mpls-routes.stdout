@@ -1,2 +1,0 @@
-unicast 1000 dev lo table main proto 250 scope global mtu 1500 
-unicast 1001 dev lo table main proto 250 scope global mtu 1500 

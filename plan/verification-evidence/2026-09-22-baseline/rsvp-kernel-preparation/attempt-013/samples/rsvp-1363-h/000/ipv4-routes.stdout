@@ -1,4 +1,0 @@
-local 127.0.0.0/8 dev lo table local proto kernel scope host src 127.0.0.1 
-local 127.0.0.1 dev lo table local proto kernel scope host src 127.0.0.1 
-broadcast 127.255.255.255 dev lo table local proto kernel scope link src 127.0.0.1 
-local 198.18.1.1 dev lo table local proto kernel scope host src 198.18.1.1 

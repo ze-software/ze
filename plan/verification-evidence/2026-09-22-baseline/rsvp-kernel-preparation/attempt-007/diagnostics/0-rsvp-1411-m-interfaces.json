@@ -1,7 +1,0 @@
-{
-  "namespace": "rsvp-1411-m",
-  "command": "show ospf interface",
-  "started_unix": 1790090381.459207,
-  "finished_unix": 1790090387.475188,
-  "exit_code": "timeout"
-}

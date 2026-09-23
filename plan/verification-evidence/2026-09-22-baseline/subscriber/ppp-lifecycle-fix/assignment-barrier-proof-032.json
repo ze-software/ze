@@ -1,4 +1,5 @@
 {
+  "artifact_retention": "plan/verification-evidence/2026-09-22-baseline/artifact-retention.json",
   "status": "bounded-pass",
   "recorded_at": "2026-09-23T01:39:59.619Z",
   "full_rfc_support_claimed": false,
@@ -30,7 +31,7 @@
     "No native IPv6, PAP or MS-CHAPv2 proof.",
     "No live FreeRADIUS retained-unit restart proof; real UDP accounting tests remain separate.",
     "PPPoE RADIUS accounting is not connected.",
-    "Full lint remains red as recorded in lint-current-033-full.log: canonical BGP/PPP test compilation and style findings, including three retained native-fixture findings. lint-current-033.log retains the earlier truncated tool rendering."
+    "Full lint remains red as recorded in lint-current-033-full.log: canonical BGP/PPP test compilation and style findings, including three retained native-fixture findings. The external archive retains the earlier truncated rendering as lint-current-033.log."
   ],
   "artifact_inputs_unchanged": true
 }

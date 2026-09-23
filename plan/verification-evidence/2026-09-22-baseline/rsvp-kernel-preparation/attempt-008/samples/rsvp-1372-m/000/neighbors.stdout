@@ -1,4 +1,0 @@
-10.11.0.1 dev primary lladdr 2e:8b:ad:d2:8b:fc  used 0/0/0probes 0 PERMANENT 
-10.13.0.1 dev bypass-b lladdr 3e:d6:00:f6:05:cc  used 0/0/0probes 0 PERMANENT 
-10.14.0.2 dev tail lladdr 16:f6:94:7b:46:ae  used 0/0/0probes 0 PERMANENT 
-10.12.0.1 dev bypass-a lladdr de:8a:ab:90:77:70  used 0/0/0probes 0 PERMANENT 

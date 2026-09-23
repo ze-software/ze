@@ -1,7 +1,0 @@
-{
-  "namespace": "rsvp-1404-m",
-  "command": "show ospf neighbor",
-  "started_unix": 1790085939.4133635,
-  "finished_unix": 1790085939.7530062,
-  "exit_code": 0
-}

@@ -1,4 +1,5 @@
 {
+  "artifact_retention": "plan/verification-evidence/2026-09-22-baseline/artifact-retention.json",
   "red_expected_failure_observed": true,
   "green_five_cases_passed": true,
   "inputs_unchanged": true,

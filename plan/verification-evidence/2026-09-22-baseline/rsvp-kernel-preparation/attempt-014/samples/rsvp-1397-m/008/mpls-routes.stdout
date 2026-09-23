@@ -1,1 +1,0 @@
-unicast 1002 as to 1000 via inet 10.14.0.2 dev tail table main proto 250 scope global mtu 1500 

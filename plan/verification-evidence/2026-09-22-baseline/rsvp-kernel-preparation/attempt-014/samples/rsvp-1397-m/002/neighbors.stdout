@@ -1,4 +1,0 @@
-10.14.0.2 dev tail lladdr 36:ab:1e:7e:0f:cd  used 4/4/4probes 0 PERMANENT 
-10.13.0.1 dev bypass-b lladdr 8a:94:0e:2a:b1:e9  used 4/4/4probes 0 PERMANENT 
-10.11.0.1 dev primary lladdr 42:3d:67:92:b2:94  used 4/4/4probes 0 PERMANENT 
-10.12.0.1 dev bypass-a lladdr b2:ac:63:4c:c0:a3  used 4/4/4probes 0 PERMANENT 

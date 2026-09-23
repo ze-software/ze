@@ -1,5 +1,6 @@
 {
   "scope": "Verify implemented capabilities, add missing tests, and fix exposed defects. Absent RFC features require separately agreed implementation scope.",
+  "evidence_retention": "plan/verification-evidence/2026-09-22-baseline/artifact-retention.json",
   "owner_directives": [
     {
       "date": "2026-09-22",

@@ -1,6 +1,0 @@
-0:	from all lookup local
-1:	from all fwmark 0x5a00f92c lookup 1510013228 proto 250
-1:	from all fwmark 0x5a00fde5 lookup 1510014437 proto 250
-2:	from all fwmark 0x5a000000/0xffff0000 unreachable proto 250
-32766:	from all lookup main
-32767:	from all lookup default
