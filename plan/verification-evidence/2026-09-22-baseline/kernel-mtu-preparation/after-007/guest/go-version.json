@@ -1,0 +1,9 @@
+{
+  "argv": [
+    "go",
+    "version"
+  ],
+  "exit": 0,
+  "stdout": "go version go1.27.0 linux/amd64\n",
+  "stderr": ""
+}

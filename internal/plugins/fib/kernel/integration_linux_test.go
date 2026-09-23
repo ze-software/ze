@@ -3,6 +3,7 @@
 package fibkernel
 
 import (
+	"errors"
 	"net"
 	"net/netip"
 	"runtime"
@@ -22,7 +23,7 @@ import (
 
 // withNetNS creates an ephemeral network namespace, switches into it,
 // runs fn, then restores the original namespace in t.Cleanup.
-// Skips the test if CAP_NET_ADMIN is unavailable.
+// Namespace creation requires CAP_SYS_ADMIN; route programming needs CAP_NET_ADMIN.
 func withNetNS(t *testing.T, fn func()) {
 	t.Helper()
 
@@ -30,15 +31,28 @@ func withNetNS(t *testing.T, fn func()) {
 
 	origNS, err := netns.Get()
 	if err != nil {
-		t.Skipf("requires CAP_NET_ADMIN: cannot get current namespace: %v", err)
+		runtime.UnlockOSThread()
+		t.Fatalf("cannot read current network namespace: %v", err)
 	}
 
 	nsName := sanitizeNSName(t.Name())
 
 	newNS, err := netns.NewNamed(nsName)
 	if err != nil {
-		origNS.Close() //nolint:errcheck // best-effort; test is skipping
-		t.Skipf("requires CAP_NET_ADMIN: cannot create namespace: %v", err)
+		current, currentErr := netns.Get()
+		require.NoError(t, currentErr, "read namespace after failed creation")
+		var restoreErr error
+		if !current.Equal(origNS) {
+			restoreErr = netns.Set(origNS)
+		}
+		current.Close() //nolint:errcheck // best-effort after namespace comparison
+		origNS.Close()  //nolint:errcheck // best-effort after namespace restoration
+		require.NoError(t, restoreErr, "restore namespace after failed creation")
+		runtime.UnlockOSThread()
+		if errors.Is(err, unix.EPERM) || errors.Is(err, unix.EACCES) {
+			t.Skipf("requires CAP_SYS_ADMIN to create and mount a network namespace; route programming also requires CAP_NET_ADMIN: %v", err)
+		}
+		t.Fatalf("cannot create test network namespace: %v", err)
 	}
 
 	t.Cleanup(func() {

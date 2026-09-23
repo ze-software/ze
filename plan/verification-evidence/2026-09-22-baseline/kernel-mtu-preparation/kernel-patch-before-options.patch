@@ -1,0 +1,459 @@
+From: Ze kernel maintainers
+Subject: [PATCH] mpls: enforce labeled IP path MTU with native fragments and ICMP
+
+RFC 3209 section 2.6 needs the complete outgoing stack budget, including
+retained labels. Carry the LSP frame MTU in RTAX_MTU and enforce it together
+with the output device MTU. Reuse the IPv4 fragment helpers and native ICMP
+senders rather than routing the original payload through a second datapath.
+
+IP ingress already fragments before LWT encapsulation. Preserve that path,
+honoring the explicit frame metric for forwarded IPv6 and subtracting label
+headroom exactly once. Do not advertise a clamped 1280 instead of the actual
+MPLS payload MTU. CONFIG_MPLS_IP_MTU identifies this capability to the runtime
+kernel manifest; it has no alternate datapath or disable switch.
+
+Based on Linux v7.2.
+
+--- a/net/mpls/af_mpls.c
++++ b/net/mpls/af_mpls.c
+@@ -7,6 +7,7 @@
+ #include <linux/module.h>
+ #include <linux/if_arp.h>
+ #include <linux/ipv6.h>
++#include <linux/icmpv6.h>
+ #include <linux/mpls.h>
+ #include <linux/netconf.h>
+ #include <linux/nospec.h>
+@@ -14,6 +15,7 @@
+ #include <linux/percpu.h>
+ #include <net/gso.h>
+ #include <net/ip.h>
++#include <net/icmp.h>
+ #include <net/dst.h>
+ #include <net/sock.h>
+ #include <net/arp.h>
+@@ -362,6 +364,164 @@
+ 	return success;
+ }
+ 
++/* The caller holds the route and its devices under RCU. */
++static int mpls_xmit_nh(struct net *net, struct sk_buff *skb,
++			const struct mpls_route *rt, const struct mpls_nh *nh)
++{
++	struct net_device *dev = nh->nh_dev;
++
++	skb->dev = dev;
++	mpls_stats_inc_outucastpkts(net, dev, skb);
++	if (nh->nh_via_table == MPLS_NEIGH_TABLE_UNSPEC)
++		return neigh_xmit(NEIGH_LINK_TABLE, dev, dev->dev_addr, skb);
++	return neigh_xmit(nh->nh_via_table, dev, mpls_nh_via(rt, nh), skb);
++}
++
++/* RFC 3209 2.6: the already constructed stack includes retained labels.
++ * Keep it in the original skb's headroom while the IP fragmentation helpers
++ * allocate fragments. No route lookup may change their label/next-hop choice.
++ */
++static int mpls_mtu_output(struct net *net, struct sk_buff *skb,
++			   const struct mpls_route *rt, const struct mpls_nh *nh,
++			   struct net_device *in_dev, unsigned int mtu)
++{
++	unsigned int labels = 0, hlen, len;
++	__be16 protocol = skb->protocol;
++	struct ip_frag_state state;
++	struct sk_buff *frag;
++	struct iphdr *iph;
++	int err = -EMSGSIZE;
++
++	if (!mpls_pkt_too_big(skb, mtu))
++		return mpls_xmit_nh(net, skb, rt, nh);
++
++	if (skb_is_gso(skb)) {
++		struct sk_buff *segs, *next;
++
++		segs = skb_gso_segment(skb, 0);
++		if (IS_ERR_OR_NULL(segs))
++			goto drop;
++		consume_skb(skb);
++		err = 0;
++		skb_list_walk_safe(segs, segs, next) {
++			int ret;
++
++			skb_mark_not_on_list(segs);
++			ret = mpls_mtu_output(net, segs, rt, nh, in_dev, mtu);
++			if (ret && !err)
++				err = ret;
++		}
++		return err;
++	}
++
++	if (protocol == htons(ETH_P_MPLS_UC)) {
++		struct mpls_entry_decoded dec;
++
++		do {
++			labels += sizeof(struct mpls_shim_hdr);
++			if (!pskb_may_pull(skb, labels))
++				goto drop;
++			dec = mpls_entry_decode((struct mpls_shim_hdr *)
++					       (skb->data + labels) - 1);
++		} while (!dec.bos);
++	}
++	if (mtu <= labels)
++		goto drop;
++	mtu -= labels;
++	skb_pull(skb, labels);
++	skb_reset_network_header(skb);
++	skb->dev = in_dev;
++	memset(skb->cb, 0, sizeof(skb->cb));
++	if (!pskb_may_pull(skb, sizeof(struct iphdr)))
++		goto drop;
++
++	iph = ip_hdr(skb);
++	if (iph->version == 6) {
++#if IS_ENABLED(CONFIG_IPV6)
++		if (!pskb_may_pull(skb, sizeof(struct ipv6hdr)))
++			goto drop;
++		len = sizeof(struct ipv6hdr) + ntohs(ipv6_hdr(skb)->payload_len);
++		if (len > skb->len || pskb_trim_rcsum(skb, len))
++			goto drop;
++		skb->protocol = htons(ETH_P_IPV6);
++		IP6CB(skb)->iif = in_dev->ifindex;
++		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
++#endif
++		goto drop;
++	}
++	if (iph->version != 4 || iph->ihl < 5)
++		goto drop;
++	hlen = iph->ihl * 4;
++	if (!pskb_may_pull(skb, hlen))
++		goto drop;
++	iph = ip_hdr(skb);
++	len = ntohs(iph->tot_len);
++	if (len < hlen || len > skb->len || ip_fast_csum(iph, iph->ihl) ||
++	    pskb_trim_rcsum(skb, len))
++		goto drop;
++	skb->protocol = htons(ETH_P_IP);
++	IPCB(skb)->iif = in_dev->ifindex;
++	IPCB(skb)->opt.optlen = hlen - sizeof(*iph);
++	if (IPCB(skb)->opt.optlen && ip_options_compile(net, &IPCB(skb)->opt, skb))
++		goto drop;
++	if (iph->frag_off & htons(IP_DF)) {
++		struct rtable *reply;
++
++		u16 type;
++
++		/* MPLS input has no IP route. Supply its input-device context;
++		 * icmp_route_lookup alone chooses the return route, including
++		 * reflected marks, protocol rules and the VRF. An output-route
++		 * prerequisite would bypass those rules and inbound-source policy.
++		 */
++		type = inet_addr_type_dev_table(net, in_dev, iph->daddr);
++		if (type != RTN_UNICAST && type != RTN_LOCAL)
++			goto drop;
++		if (ipv4_is_multicast(iph->saddr) || ipv4_is_lbcast(iph->saddr) ||
++		    ipv4_is_zeronet(iph->saddr) || ipv4_is_loopback(iph->saddr) ||
++		    inet_addr_type_dev_table(net, in_dev, iph->saddr) == RTN_BROADCAST)
++			goto drop;
++		reply = rt_dst_alloc(in_dev, type == RTN_LOCAL ? RTCF_LOCAL : 0,
++				     type, true);
++		if (reply) {
++			reply->rt_is_input = 1;
++			reply->rt_iif = in_dev->ifindex;
++			skb_dst_set(skb, &reply->dst);
++			icmp_send(skb, ICMP_DEST_UNREACH, ICMP_FRAG_NEEDED,
++				  htonl(mtu));
++		}
++		goto drop;
++	}
++	if (mtu < hlen + 8)
++		goto drop;
++	if (skb->ip_summed == CHECKSUM_PARTIAL && skb_checksum_help(skb))
++		goto drop;
++	ip_frag_init(skb, hlen, LL_RESERVED_SPACE(nh->nh_dev) + labels,
++		     mtu - hlen, false, &state);
++	while (state.left) {
++		bool first = state.offset == 0;
++
++		frag = ip_frag_next(skb, &state);
++		if (IS_ERR(frag)) {
++			err = PTR_ERR(frag);
++			goto drop;
++		}
++		if (first)
++			ip_options_fragment(skb);
++		memcpy(skb_push(frag, labels), skb_network_header(skb) - labels,
++		       labels);
++		skb_reset_network_header(frag);
++		frag->protocol = protocol;
++		err = mpls_xmit_nh(net, frag, rt, nh);
++		if (err)
++			goto drop;
++	}
++	err = 0;
++drop:
++	kfree_skb(skb);
++	return err;
++}
++
+ static int mpls_forward(struct sk_buff *skb, struct net_device *dev,
+ 			struct packet_type *pt, struct net_device *orig_dev)
+ {
+@@ -440,8 +600,8 @@
+ 	/* Verify the destination can hold the packet */
+ 	new_header_size = mpls_nh_header_size(nh);
+ 	mtu = mpls_dev_mtu(out_dev);
+-	if (mpls_pkt_too_big(skb, mtu - new_header_size))
+-		goto tx_err;
++	if (rt->rt_mtu)
++		mtu = min(mtu, rt->rt_mtu);
+ 
+ 	hh_len = LL_RESERVED_SPACE(out_dev);
+ 	if (!out_dev->header_ops)
+@@ -474,15 +634,7 @@
+ 		}
+ 	}
+ 
+-	mpls_stats_inc_outucastpkts(net, out_dev, skb);
+-
+-	/* If via wasn't specified then send out using device address */
+-	if (nh->nh_via_table == MPLS_NEIGH_TABLE_UNSPEC)
+-		err = neigh_xmit(NEIGH_LINK_TABLE, out_dev,
+-				 out_dev->dev_addr, skb);
+-	else
+-		err = neigh_xmit(nh->nh_via_table, out_dev,
+-				 mpls_nh_via(rt, nh), skb);
++	err = mpls_mtu_output(net, skb, rt, nh, dev, mtu);
+ 	if (err)
+ 		net_dbg_ratelimited("%s: packet transmission failed: %d\n",
+ 				    __func__, err);
+@@ -506,12 +658,14 @@
+ };
+ 
+ static const struct nla_policy rtm_mpls_policy[RTA_MAX+1] = {
++	[RTA_METRICS]		= { .type = NLA_NESTED },
+ 	[RTA_DST]		= { .type = NLA_U32 },
+ 	[RTA_OIF]		= { .type = NLA_U32 },
+ 	[RTA_TTL_PROPAGATE]	= { .type = NLA_U8 },
+ };
+ 
+ struct mpls_route_config {
++	u32			rc_mtu;
+ 	u32			rc_protocol;
+ 	u32			rc_ifindex;
+ 	u8			rc_via_table;
+@@ -1056,6 +1210,7 @@
+ 		goto errout;
+ 	}
+ 
++	rt->rt_mtu = cfg->rc_mtu;
+ 	rt->rt_protocol = cfg->rc_protocol;
+ 	rt->rt_payload_type = cfg->rc_payload_type;
+ 	rt->rt_ttl_propagate = cfg->rc_ttl_propagate;
+@@ -1845,6 +2000,46 @@
+ }
+ EXPORT_SYMBOL_GPL(nla_get_labels);
+ 
++/* RTAX_MTU is the LSP frame budget, not the inner IP MTU: retained labels
++ * are known only when a packet arrives. Reject metrics we cannot enforce.
++ */
++static int mpls_route_mtu(const struct nlattr *metrics, u32 *mtu,
++			  struct netlink_ext_ack *extack)
++{
++	struct nlattr *attr;
++	int remaining;
++
++	nla_for_each_nested(attr, metrics, remaining) {
++		if (nla_type(attr) != RTAX_MTU || nla_len(attr) != sizeof(u32)) {
++			NL_SET_ERR_MSG_ATTR(extack, attr, "MPLS only supports RTAX_MTU");
++			return -EINVAL;
++		}
++		*mtu = nla_get_u32(attr);
++		if (*mtu < IPV4_MIN_MTU) {
++			NL_SET_ERR_MSG_ATTR(extack, attr, "MPLS frame MTU is below 68");
++			return -EINVAL;
++		}
++	}
++	return remaining ? -EINVAL : 0;
++}
++
++static int mpls_put_mtu(struct sk_buff *skb, const struct mpls_route *rt)
++{
++	struct nlattr *metrics;
++
++	if (!rt->rt_mtu)
++		return 0;
++	metrics = nla_nest_start_noflag(skb, RTA_METRICS);
++	if (!metrics)
++		return -EMSGSIZE;
++	if (nla_put_u32(skb, RTAX_MTU, rt->rt_mtu)) {
++		nla_nest_cancel(skb, metrics);
++		return -EMSGSIZE;
++	}
++	nla_nest_end(skb, metrics);
++	return 0;
++}
++
+ static int rtm_to_route_config(struct sk_buff *skb,
+ 			       struct nlmsghdr *nlh,
+ 			       struct mpls_route_config *cfg,
+@@ -1920,6 +2115,10 @@
+ 			continue;
+ 
+ 		switch (index) {
++		case RTA_METRICS:
++			if (mpls_route_mtu(nla, &cfg->rc_mtu, extack))
++				goto errout;
++			break;
+ 		case RTA_OIF:
+ 			cfg->rc_ifindex = nla_get_u32(nla);
+ 			break;
+@@ -2054,6 +2253,8 @@
+ 	rtm->rtm_type = RTN_UNICAST;
+ 	rtm->rtm_flags = 0;
+ 
++	if (mpls_put_mtu(skb, rt))
++		goto nla_put_failure;
+ 	if (nla_put_labels(skb, RTA_DST, 1, &label))
+ 		goto nla_put_failure;
+ 
+@@ -2291,7 +2492,8 @@
+ 	size_t payload =
+ 		NLMSG_ALIGN(sizeof(struct rtmsg))
+ 		+ nla_total_size(4)			/* RTA_DST */
+-		+ nla_total_size(1);			/* RTA_TTL_PROPAGATE */
++		+ nla_total_size(1)			/* RTA_TTL_PROPAGATE */
++		+ nla_total_size(nla_total_size(4));	/* RTA_METRICS/MTU */
+ 
+ 	if (rt->rt_nhn == 1) {
+ 		struct mpls_nh *nh = rt->rt_nh;
+@@ -2545,6 +2747,8 @@
+ 	r->rtm_protocol = rt->rt_protocol;
+ 	r->rtm_flags	= 0;
+ 
++	if (mpls_put_mtu(skb, rt))
++		goto nla_put_failure;
+ 	if (nla_put_labels(skb, RTA_DST, 1, &in_label))
+ 		goto nla_put_failure;
+ 
+--- a/net/mpls/internal.h
++++ b/net/mpls/internal.h
+@@ -143,6 +143,7 @@
+  */
+ struct mpls_route { /* next hop label forwarding entry */
+ 	struct rcu_head		rt_rcu;
++	u32			rt_mtu; /* frame budget, including all labels */
+ 	u8			rt_protocol;
+ 	u8			rt_payload_type;
+ 	u8			rt_max_alen;
+--- a/net/mpls/Kconfig
++++ b/net/mpls/Kconfig
+@@ -25,10 +25,19 @@
+ 
+ config MPLS_ROUTING
+ 	tristate "MPLS: routing support"
++	depends on INET
++	depends on IPV6 || IPV6=n
+ 	depends on NET_IP_TUNNEL || NET_IP_TUNNEL=n
+ 	depends on PROC_SYSCTL
+ 	help
+ 	 Add support for forwarding of mpls packets.
++
++config MPLS_IP_MTU
++	def_bool y
++	depends on MPLS_ROUTING && INET && IPV6
++	help
++	 Native labeled-IP fragmentation and ICMP PMTU errors, with
++	 per-LSP frame MTU carried in RTA_METRICS/RTAX_MTU.
+ 
+ config MPLS_IPTUNNEL
+ 	tristate "MPLS: IP over MPLS tunnel support"
+--- a/include/net/ip.h
++++ b/include/net/ip.h
+@@ -497,6 +497,8 @@
+ 	}
+ 
+ out:
++	if (dst->lwtstate && dst->lwtstate->type == LWTUNNEL_ENCAP_MPLS)
++		mtu = min(mtu, READ_ONCE(dev->mtu));
+ 	mtu = min_t(unsigned int, mtu, IP_MAX_MTU);
+ 
+ 	res = mtu - lwtunnel_headroom(dst->lwtstate, mtu);
+@@ -519,6 +521,9 @@
+ 	}
+ 
+ 	mtu = min(READ_ONCE(dst_dev(dst)->mtu), IP_MAX_MTU);
++	if (dst->lwtstate && dst->lwtstate->type == LWTUNNEL_ENCAP_MPLS &&
++	    dst_metric_raw(dst, RTAX_MTU))
++		mtu = min(mtu, dst_metric_raw(dst, RTAX_MTU));
+ 	return mtu - lwtunnel_headroom(dst->lwtstate, mtu);
+ }
+ 
+--- a/include/net/ip6_route.h
++++ b/include/net/ip6_route.h
+@@ -314,6 +314,9 @@
+ 
+ 	if (np && READ_ONCE(np->pmtudisc) >= IPV6_PMTUDISC_PROBE) {
+ 		mtu = READ_ONCE(dst_dev(dst)->mtu);
++		if (dst->lwtstate && dst->lwtstate->type == LWTUNNEL_ENCAP_MPLS &&
++		    dst_metric_raw(dst, RTAX_MTU))
++			mtu = min(mtu, dst_metric_raw(dst, RTAX_MTU));
+ 		mtu -= lwtunnel_headroom(dst->lwtstate, mtu);
+ 	} else {
+ 		mtu = dst_mtu(dst);
+@@ -368,7 +371,8 @@
+ 	struct inet6_dev *idev;
+ 	unsigned int mtu;
+ 
+-	if (!forwarding || dst_metric_locked(dst, RTAX_MTU)) {
++	if (!forwarding || dst_metric_locked(dst, RTAX_MTU) ||
++	    (dst->lwtstate && dst->lwtstate->type == LWTUNNEL_ENCAP_MPLS)) {
+ 		mtu = dst_metric_raw(dst, RTAX_MTU);
+ 		if (mtu)
+ 			goto out;
+@@ -382,6 +386,8 @@
+ 	rcu_read_unlock();
+ 
+ out:
++	if (dst->lwtstate && dst->lwtstate->type == LWTUNNEL_ENCAP_MPLS)
++		mtu = min(mtu, READ_ONCE(dst_dev(dst)->mtu));
+ 	return mtu - lwtunnel_headroom(dst->lwtstate, mtu);
+ }
+ 
+--- a/net/ipv6/ip6_output.c
++++ b/net/ipv6/ip6_output.c
+@@ -661,7 +661,8 @@
+ 	__IP6_INC_STATS(net, ip6_dst_idev(dst), IPSTATS_MIB_OUTFORWDATAGRAMS);
+ 
+ 	mtu = ip6_dst_mtu_maybe_forward(dst, true);
+-	if (mtu < IPV6_MIN_MTU)
++	if (mtu < IPV6_MIN_MTU &&
++	    !(dst->lwtstate && dst->lwtstate->type == LWTUNNEL_ENCAP_MPLS))
+ 		mtu = IPV6_MIN_MTU;
+ 
+ 	if (unlikely(ip6_pkt_too_big(skb, mtu))) {
+--- a/net/ipv4/ip_options.c
++++ b/net/ipv4/ip_options.c
+@@ -222,6 +222,7 @@
+ 	opt->ts_needaddr = 0;
+ 	opt->ts_needtime = 0;
+ }
++EXPORT_SYMBOL(ip_options_fragment);
+ 
+ /* helper used by ip_options_compile() to call fib_compute_spec_dst()
+  * at most one time.
+--- a/net/ipv4/ip_output.c
++++ b/net/ipv4/ip_output.c
+@@ -790,6 +790,14 @@
+ 	 */
+ 
+ 	hlen = iph->ihl * 4;
++	/* Encapsulation can leave less than one fragment quantum, even when
++	 * the device MTU itself is valid. Never underflow or emit a fragment
++	 * whose rounded payload is zero: ip_frag_next must make progress.
++	 */
++	if (unlikely(mtu < hlen + 8)) {
++		err = -EMSGSIZE;
++		goto fail;
++	}
+ 	mtu = mtu - hlen;	/* Size of data space */
+ 	IPCB(skb)->flags |= IPSKB_FRAG_COMPLETE;
+ 	ll_rs = LL_RESERVED_SPACE(rt->dst.dev);

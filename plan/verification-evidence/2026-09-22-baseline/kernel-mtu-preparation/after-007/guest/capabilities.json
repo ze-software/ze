@@ -1,0 +1,9 @@
+{
+  "argv": [
+    "cat",
+    "/proc/self/status"
+  ],
+  "exit": 0,
+  "stdout": "Name:\tcat\nUmask:\t0022\nState:\tR (running)\nTgid:\t1392\nNgid:\t0\nPid:\t1392\nPPid:\t1347\nTracerPid:\t0\nUid:\t0\t0\t0\t0\nGid:\t0\t0\t0\t0\nFDSize:\t64\nGroups:\t0 0 1 2 3 4 6 10 11 20 26 27 \nNStgid:\t1392\nNSpid:\t1392\nNSpgid:\t1347\nNSsid:\t1347\nKthread:\t0\nVmPeak:\t    1696 kB\nVmSize:\t    1696 kB\nVmLck:\t       0 kB\nVmPin:\t       0 kB\nVmHWM:\t     920 kB\nVmRSS:\t     920 kB\nRssAnon:\t      52 kB\nRssFile:\t       4 kB\nRssShmem:\t     864 kB\nVmData:\t      88 kB\nVmStk:\t     132 kB\nVmExe:\t     616 kB\nVmLib:\t     356 kB\nVmPTE:\t      40 kB\nVmSwap:\t       0 kB\nHugetlbPages:\t       0 kB\nCoreDumping:\t0\nTHP_enabled:\t0\nuntag_mask:\t0xffffffffffffffff\nThreads:\t1\nSigQ:\t0/63899\nSigPnd:\t0000000000000000\nShdPnd:\t0000000000000000\nSigBlk:\t0000000000000000\nSigIgn:\t0000000000000004\nSigCgt:\t0000000000000000\nCapInh:\t0000000000000000\nCapPrm:\t000001ffffffffff\nCapEff:\t000001ffffffffff\nCapBnd:\t000001ffffffffff\nCapAmb:\t0000000000000000\nNoNewPrivs:\t0\nSeccomp:\t0\nSeccomp_filters:\t0\nSpeculation_Store_Bypass:\tnot vulnerable\nSpeculationIndirectBranch:\talways enabled\nCpus_allowed:\tff\nCpus_allowed_list:\t0-7\nMems_allowed:\t00000000,00000001\nMems_allowed_list:\t0\nvoluntary_ctxt_switches:\t0\nnonvoluntary_ctxt_switches:\t0\n",
+  "stderr": ""
+}

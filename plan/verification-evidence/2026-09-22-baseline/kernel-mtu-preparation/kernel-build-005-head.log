@@ -1,0 +1,1001 @@
+building runtime kernel via Go...
+>>> building runtime kernel: version=7.2 arch=amd64 profile=runtime builder=qemu
+>>> booting Alpine VM (x86_64, 9216MB RAM, ssh port 34555)...
+  bootstrapping VM, attempt 1...
+  waiting for SSH...
+  VM ready, installing build dependencies...
+  linux-7.2.tar.xz cached on host
+  building kernel (version=7.2, arch=amd64, profile=runtime)...
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/main/x86_64/APKINDEX.tar.gz
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/community/x86_64/APKINDEX.tar.gz
+v3.21.8 [https://dl-cdn.alpinelinux.org/alpine/v3.21/main]
+v3.21.7-256-g56dd60806f0 [https://dl-cdn.alpinelinux.org/alpine/v3.21/community]
+OK: 25422 distinct packages available
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/main/x86_64/APKINDEX.tar.gz
+fetch https://dl-cdn.alpinelinux.org/alpine/v3.21/community/x86_64/APKINDEX.tar.gz
+(1/58) Upgrading musl (1.2.5-r9 -> 1.2.5-r11)
+(2/58) Upgrading libcrypto3 (3.3.3-r0 -> 3.3.7-r1)
+(3/58) Upgrading libssl3 (3.3.3-r0 -> 3.3.7-r1)
+(4/58) Upgrading zlib (1.3.1-r2 -> 1.3.2-r0)
+(5/58) Installing readline (8.2.13-r0)
+(6/58) Installing bc (1.07.1-r5)
+(7/58) Installing m4 (1.4.19-r3)
+(8/58) Installing bison (3.8.2-r1)
+(9/58) Installing libgcc (14.2.0-r4)
+(10/58) Installing jansson (2.14-r4)
+(11/58) Installing libstdc++ (14.2.0-r4)
+(12/58) Installing zstd-libs (1.5.6-r2)
+(13/58) Installing binutils (2.43.1-r3)
+(14/58) Installing libmagic (5.46-r2)
+(15/58) Installing file (5.46-r2)
+(16/58) Installing libgomp (14.2.0-r4)
+(17/58) Installing libatomic (14.2.0-r4)
+(18/58) Installing gmp (6.3.0-r2)
+(19/58) Installing isl26 (0.26-r1)
+(20/58) Installing mpfr4 (4.2.1-r0)
+(21/58) Installing mpc1 (1.3.1-r1)
+(22/58) Installing gcc (14.2.0-r4)
+(23/58) Installing libstdc++-dev (14.2.0-r4)
+(24/58) Installing musl-dev (1.2.5-r11)
+(25/58) Installing g++ (14.2.0-r4)
+(26/58) Installing make (4.4.1-r2)
+(27/58) Installing fortify-headers (1.1-r5)
+(28/58) Installing patch (2.7.6-r10)
+(29/58) Installing build-base (0.5-r3)
+(30/58) Installing hiredis (1.2.0-r0)
+(31/58) Installing libxxhash (0.8.2-r2)
+(32/58) Installing ccache (4.10.2-r0)
+(33/58) Installing cpio (2.15-r0)
+(34/58) Installing diffutils (3.10-r0)
+(35/58) Installing libelf (0.191-r0)
+(36/58) Installing libbz2 (1.0.8-r6)
+(37/58) Installing musl-fts (1.2.7-r6)
+(38/58) Installing xz-libs (5.8.4-r0)
+(39/58) Installing libdw (0.191-r0)
+(40/58) Installing libasm (0.191-r0)
+(41/58) Installing xz (5.8.4-r0)
+(42/58) Installing pkgconf (2.3.0-r0)
+(43/58) Installing xz-dev (5.8.4-r0)
+(44/58) Installing zstd (1.5.6-r2)
+(45/58) Installing zstd-dev (1.5.6-r2)
+(46/58) Installing zlib-dev (1.3.2-r0)
+(47/58) Installing elfutils-dev (0.191-r0)
+(48/58) Installing findutils (4.10.0-r0)
+(49/58) Installing flex (2.6.4-r6)
+(50/58) Installing kmod (33-r2)
+(51/58) Installing linux-headers (6.6-r1)
+(52/58) Upgrading openssl (3.3.3-r0 -> 3.3.7-r1)
+(53/58) Installing openssl-dev (3.3.7-r1)
+(54/58) Installing perl (5.40.4-r0)
+(55/58) Installing libunistring (1.2-r0)
+(56/58) Installing libidn2 (2.3.7-r0)
+(57/58) Installing pcre2 (10.43-r0)
+(58/58) Installing wget (1.25.0-r0)
+Executing busybox-1.37.0-r12.trigger
+OK: 307 MiB in 89 packages
+>>> using pre-downloaded linux-7.2.tar.xz
+>>> extracting to /tmp/kbuild/linux-7.2-yes
+>>> applying patches from /workspace/gokrazy/kernel/patches
+patching file drivers/hwmon/nct6683.c
+Hunk #1 succeeded at 1205 (offset 3 lines).
+Hunk #2 succeeded at 1223 (offset 3 lines).
+Hunk #3 succeeded at 1255 with fuzz 1 (offset 23 lines).
+Hunk #4 succeeded at 1380 (offset 25 lines).
+patching file net/mpls/af_mpls.c
+Hunk #10 succeeded at 2268 (offset 1 line).
+Hunk #11 succeeded at 2507 (offset 1 line).
+Hunk #12 succeeded at 2762 (offset 1 line).
+patching file net/mpls/internal.h
+patching file net/mpls/Kconfig
+patching file include/net/ip.h
+patching file include/net/ip6_route.h
+patching file net/ipv6/ip6_output.c
+patching file net/ipv4/ip_options.c
+patching file net/ipv4/ip_output.c
+>>> configuring (defconfig + resolved runtime profile) for amd64
+  HOSTCC  scripts/basic/fixdep
+  HOSTCC  scripts/kconfig/conf.o
+  HOSTCC  scripts/kconfig/confdata.o
+  HOSTCC  scripts/kconfig/expr.o
+  LEX     scripts/kconfig/lexer.lex.c
+  YACC    scripts/kconfig/parser.tab.[ch]
+  HOSTCC  scripts/kconfig/lexer.lex.o
+  HOSTCC  scripts/kconfig/menu.o
+  HOSTCC  scripts/kconfig/parser.tab.o
+  HOSTCC  scripts/kconfig/preprocess.o
+  HOSTCC  scripts/kconfig/symbol.o
+  HOSTCC  scripts/kconfig/util.o
+  HOSTLD  scripts/kconfig/conf
+*** Default configuration is based on 'x86_64_defconfig'
+#
+# configuration written to .config
+#
+Using .config as base
+Merging /workspace/gokrazy/kernel/kernel.config
+Value of CONFIG_WERROR is redefined by fragment /workspace/gokrazy/kernel/kernel.config:
+Previous value: CONFIG_WERROR=y
+New value: CONFIG_WERROR=n
+
+Value of CONFIG_KERNEL_ZSTD is redefined by fragment /workspace/gokrazy/kernel/kernel.config:
+Previous value: # CONFIG_KERNEL_ZSTD is not set
+New value: CONFIG_KERNEL_ZSTD=y
+
+Value of CONFIG_IKCONFIG is redefined by fragment /workspace/gokrazy/kernel/kernel.config:
+Previous value: # CONFIG_IKCONFIG is not set
+New value: CONFIG_IKCONFIG=y
+
+Value of CONFIG_KEXEC_FILE is redefined by fragment /workspace/gokrazy/kernel/kernel.config:
+Previous value: # CONFIG_KEXEC_FILE is not set
+New value: CONFIG_KEXEC_FILE=y
+
+Value of CONFIG_NF_CONNTRACK_FTP is redefined by fragment /workspace/gokrazy/kernel/kernel.config:
+Previous value: CONFIG_NF_CONNTRACK_FTP=y
+New value: CONFIG_NF_CONNTRACK_FTP=n
+
+Value of CONFIG_NF_CONNTRACK_IRC is redefined by fragment /workspace/gokrazy/kernel/kernel.config:
+Previous value: CONFIG_NF_CONNTRACK_IRC=y
+New value: CONFIG_NF_CONNTRACK_IRC=n
+
+Value of CONFIG_NF_CONNTRACK_NETBIOS_NS is redefined by fragment /workspace/gokrazy/kernel/kernel.config:
+Previous value: # CONFIG_NF_CONNTRACK_NETBIOS_NS is not set
+New value: CONFIG_NF_CONNTRACK_NETBIOS_NS=n
+
+Value of CONFIG_NF_CONNTRACK_SIP is redefined by fragment /workspace/gokrazy/kernel/kernel.config:
+Previous value: CONFIG_NF_CONNTRACK_SIP=y
+New value: CONFIG_NF_CONNTRACK_SIP=n
+
+Value of CONFIG_NF_TABLES is redefined by fragment /workspace/gokrazy/kernel/kernel.config:
+Previous value: # CONFIG_NF_TABLES is not set
+New value: CONFIG_NF_TABLES=y
+
+Value of CONFIG_DRM_FBDEV_EMULATION is redefined by fragment /workspace/gokrazy/kernel/kernel.config:
+Previous value: # CONFIG_DRM_FBDEV_EMULATION is not set
+New value: CONFIG_DRM_FBDEV_EMULATION=y
+
+Value of CONFIG_FUSE_FS is redefined by fragment /workspace/gokrazy/kernel/kernel.config:
+Previous value: # CONFIG_FUSE_FS is not set
+New value: CONFIG_FUSE_FS=y
+
+Value of CONFIG_SQUASHFS is redefined by fragment /workspace/gokrazy/kernel/kernel.config:
+Previous value: # CONFIG_SQUASHFS is not set
+New value: CONFIG_SQUASHFS=y
+
+Value of CONFIG_SECURITY_LANDLOCK is redefined by fragment /workspace/gokrazy/kernel/kernel.config:
+Previous value: # CONFIG_SECURITY_LANDLOCK is not set
+New value: CONFIG_SECURITY_LANDLOCK=y
+
+Value of CONFIG_DYNAMIC_DEBUG is redefined by fragment /workspace/gokrazy/kernel/kernel.config:
+Previous value: # CONFIG_DYNAMIC_DEBUG is not set
+New value: CONFIG_DYNAMIC_DEBUG=y
+
+Merging /workspace/gokrazy/kernel/runtime.config
+Value of CONFIG_BPF_SYSCALL is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_BPF_SYSCALL is not set
+New value: CONFIG_BPF_SYSCALL=y
+
+Value of CONFIG_BPF_JIT is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_BPF_JIT is not set
+New value: CONFIG_BPF_JIT=y
+
+Value of CONFIG_IRQ_TIME_ACCOUNTING is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_IRQ_TIME_ACCOUNTING is not set
+New value: CONFIG_IRQ_TIME_ACCOUNTING=y
+
+Value of CONFIG_X86_AMD_PLATFORM_DEVICE is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_X86_AMD_PLATFORM_DEVICE is not set
+New value: CONFIG_X86_AMD_PLATFORM_DEVICE=y
+
+Value of CONFIG_CPU_FREQ_DEFAULT_GOV_POWERSAVE is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_CPU_FREQ_DEFAULT_GOV_POWERSAVE is not set
+New value: CONFIG_CPU_FREQ_DEFAULT_GOV_POWERSAVE=y
+
+Value of CONFIG_CPU_FREQ_GOV_POWERSAVE is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_CPU_FREQ_GOV_POWERSAVE is not set
+New value: CONFIG_CPU_FREQ_GOV_POWERSAVE=y
+
+Value of CONFIG_X86_POWERNOW_K8 is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_X86_POWERNOW_K8 is not set
+New value: CONFIG_X86_POWERNOW_K8=y
+
+Value of CONFIG_X86_AMD_FREQ_SENSITIVITY is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_X86_AMD_FREQ_SENSITIVITY is not set
+New value: CONFIG_X86_AMD_FREQ_SENSITIVITY=y
+
+Value of CONFIG_KVM is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_KVM is not set
+New value: CONFIG_KVM=y
+
+Value of CONFIG_XFRM_INTERFACE is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_XFRM_INTERFACE is not set
+New value: CONFIG_XFRM_INTERFACE=y
+
+Value of CONFIG_XFRM_MIGRATE is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_XFRM_MIGRATE is not set
+New value: CONFIG_XFRM_MIGRATE=y
+
+Value of CONFIG_XFRM_STATISTICS is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_XFRM_STATISTICS is not set
+New value: CONFIG_XFRM_STATISTICS=y
+
+Value of CONFIG_NET_IPIP is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NET_IPIP is not set
+New value: CONFIG_NET_IPIP=y
+
+Value of CONFIG_NET_IPGRE_DEMUX is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NET_IPGRE_DEMUX is not set
+New value: CONFIG_NET_IPGRE_DEMUX=y
+
+Value of CONFIG_INET_AH is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_INET_AH is not set
+New value: CONFIG_INET_AH=y
+
+Value of CONFIG_INET_ESP is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_INET_ESP is not set
+New value: CONFIG_INET_ESP=y
+
+Value of CONFIG_INET_DIAG is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_INET_DIAG is not set
+New value: CONFIG_INET_DIAG=y
+
+Value of CONFIG_TCP_CONG_BBR is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_TCP_CONG_BBR is not set
+New value: CONFIG_TCP_CONG_BBR=y
+
+Value of CONFIG_DEFAULT_TCP_CONG is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: CONFIG_DEFAULT_TCP_CONG="cubic"
+New value: CONFIG_DEFAULT_TCP_CONG="bbr"
+
+Value of CONFIG_IPV6_SIT is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: CONFIG_IPV6_SIT=m
+New value: CONFIG_IPV6_SIT=y
+
+Value of CONFIG_IPV6_TUNNEL is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_IPV6_TUNNEL is not set
+New value: CONFIG_IPV6_TUNNEL=y
+
+Value of CONFIG_IPV6_MULTIPLE_TABLES is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_IPV6_MULTIPLE_TABLES is not set
+New value: CONFIG_IPV6_MULTIPLE_TABLES=y
+
+Value of CONFIG_NETFILTER_ADVANCED is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NETFILTER_ADVANCED is not set
+New value: CONFIG_NETFILTER_ADVANCED=y
+
+Value of CONFIG_NETFILTER_XT_MARK is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: CONFIG_NETFILTER_XT_MARK=m
+New value: CONFIG_NETFILTER_XT_MARK=y
+
+Value of CONFIG_NETFILTER_XT_NAT is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NETFILTER_XT_NAT is not set
+New value: CONFIG_NETFILTER_XT_NAT=y
+
+Value of CONFIG_NETFILTER_XT_TARGET_MASQUERADE is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: CONFIG_NETFILTER_XT_TARGET_MASQUERADE=m
+New value: CONFIG_NETFILTER_XT_TARGET_MASQUERADE=y
+
+Value of CONFIG_L2TP is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_L2TP is not set
+New value: CONFIG_L2TP=y
+
+Value of CONFIG_BRIDGE is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_BRIDGE is not set
+New value: CONFIG_BRIDGE=y
+
+Value of CONFIG_VLAN_8021Q is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_VLAN_8021Q is not set
+New value: CONFIG_VLAN_8021Q=y
+
+Value of CONFIG_NET_SCH_HTB is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NET_SCH_HTB is not set
+New value: CONFIG_NET_SCH_HTB=y
+
+Value of CONFIG_NET_SCH_HFSC is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NET_SCH_HFSC is not set
+New value: CONFIG_NET_SCH_HFSC=y
+
+Value of CONFIG_NET_SCH_PRIO is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NET_SCH_PRIO is not set
+New value: CONFIG_NET_SCH_PRIO=y
+
+Value of CONFIG_NET_SCH_SFQ is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NET_SCH_SFQ is not set
+New value: CONFIG_NET_SCH_SFQ=y
+
+Value of CONFIG_NET_SCH_TBF is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NET_SCH_TBF is not set
+New value: CONFIG_NET_SCH_TBF=y
+
+Value of CONFIG_NET_SCH_NETEM is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NET_SCH_NETEM is not set
+New value: CONFIG_NET_SCH_NETEM=y
+
+Value of CONFIG_NET_SCH_FQ_CODEL is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NET_SCH_FQ_CODEL is not set
+New value: CONFIG_NET_SCH_FQ_CODEL=y
+
+Value of CONFIG_NET_SCH_FQ is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NET_SCH_FQ is not set
+New value: CONFIG_NET_SCH_FQ=y
+
+Value of CONFIG_NET_SCH_INGRESS is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NET_SCH_INGRESS is not set
+New value: CONFIG_NET_SCH_INGRESS=y
+
+Value of CONFIG_NET_CLS_FW is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NET_CLS_FW is not set
+New value: CONFIG_NET_CLS_FW=y
+
+Value of CONFIG_NET_CLS_U32 is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NET_CLS_U32 is not set
+New value: CONFIG_NET_CLS_U32=y
+
+Value of CONFIG_NET_CLS_MATCHALL is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NET_CLS_MATCHALL is not set
+New value: CONFIG_NET_CLS_MATCHALL=y
+
+Value of CONFIG_NET_ACT_MIRRED is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_NET_ACT_MIRRED is not set
+New value: CONFIG_NET_ACT_MIRRED=y
+
+Value of CONFIG_MPLS is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_MPLS is not set
+New value: CONFIG_MPLS=y
+
+Value of CONFIG_LWTUNNEL is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_LWTUNNEL is not set
+New value: CONFIG_LWTUNNEL=y
+
+Value of CONFIG_BLK_DEV_NVME is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_BLK_DEV_NVME is not set
+New value: CONFIG_BLK_DEV_NVME=y
+
+Value of CONFIG_DUMMY is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_DUMMY is not set
+New value: CONFIG_DUMMY=y
+
+Value of CONFIG_WIREGUARD is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_WIREGUARD is not set
+New value: CONFIG_WIREGUARD=y
+
+Value of CONFIG_MACVLAN is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_MACVLAN is not set
+New value: CONFIG_MACVLAN=y
+
+Value of CONFIG_VXLAN is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_VXLAN is not set
+New value: CONFIG_VXLAN=y
+
+Value of CONFIG_TUN is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_TUN is not set
+New value: CONFIG_TUN=y
+
+Value of CONFIG_VETH is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_VETH is not set
+New value: CONFIG_VETH=y
+
+Value of CONFIG_BNXT is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_BNXT is not set
+New value: CONFIG_BNXT=y
+
+Value of CONFIG_IGB is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_IGB is not set
+New value: CONFIG_IGB=y
+
+Value of CONFIG_I40E is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_I40E is not set
+New value: CONFIG_I40E=y
+
+Value of CONFIG_ICE is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_ICE is not set
+New value: CONFIG_ICE=y
+
+Value of CONFIG_IGC is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_IGC is not set
+New value: CONFIG_IGC=y
+
+Value of CONFIG_MLX5_CORE is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_MLX5_CORE is not set
+New value: CONFIG_MLX5_CORE=y
+
+Value of CONFIG_PPP is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_PPP is not set
+New value: CONFIG_PPP=y
+
+Value of CONFIG_SENSORS_K10TEMP is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_SENSORS_K10TEMP is not set
+New value: CONFIG_SENSORS_K10TEMP=y
+
+Value of CONFIG_SENSORS_CORSAIR_CPRO is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_SENSORS_CORSAIR_CPRO is not set
+New value: CONFIG_SENSORS_CORSAIR_CPRO=y
+
+Value of CONFIG_SENSORS_NCT6683 is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_SENSORS_NCT6683 is not set
+New value: CONFIG_SENSORS_NCT6683=y
+
+Value of CONFIG_SP5100_TCO is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_SP5100_TCO is not set
+New value: CONFIG_SP5100_TCO=y
+
+Value of CONFIG_I6300ESB_WDT is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_I6300ESB_WDT is not set
+New value: CONFIG_I6300ESB_WDT=y
+
+Value of CONFIG_VIRTIO_BALLOON is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_VIRTIO_BALLOON is not set
+New value: CONFIG_VIRTIO_BALLOON=y
+
+Value of CONFIG_OVERLAY_FS is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_OVERLAY_FS is not set
+New value: CONFIG_OVERLAY_FS=y
+
+Value of CONFIG_EFIVAR_FS is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: CONFIG_EFIVAR_FS=m
+New value: CONFIG_EFIVAR_FS=y
+
+Value of CONFIG_PSTORE is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_PSTORE is not set
+New value: CONFIG_PSTORE=y
+
+Value of CONFIG_9P_FS_POSIX_ACL is redefined by fragment /workspace/gokrazy/kernel/runtime.config:
+Previous value: # CONFIG_9P_FS_POSIX_ACL is not set
+New value: CONFIG_9P_FS_POSIX_ACL=y
+
+Merging /workspace/tools/kernel-builder/common/efi-console.config
+Value of CONFIG_SERIAL_8250_FINTEK is redefined by fragment /workspace/tools/kernel-builder/common/efi-console.config:
+Previous value: # CONFIG_SERIAL_8250_FINTEK is not set
+New value: CONFIG_SERIAL_8250_FINTEK=y
+
+Value of CONFIG_DRM_SIMPLEDRM is redefined by fragment /workspace/tools/kernel-builder/common/efi-console.config:
+Previous value: # CONFIG_DRM_SIMPLEDRM is not set
+New value: CONFIG_DRM_SIMPLEDRM=y
+
+Value of CONFIG_FB is redefined by fragment /workspace/tools/kernel-builder/common/efi-console.config:
+Previous value: # CONFIG_FB is not set
+New value: CONFIG_FB=y
+
+#
+# merged configuration written to .config (needs make)
+#
+.config:5638:warning: override: reassigning to symbol NET_SCH_TBF
+.config:5726:warning: override: reassigning to symbol OVERLAY_FS
+#
+# configuration written to .config
+#
+>>> building bzImage with -j32 (modules=yes)
+  SYNC    include/config/auto.conf
+  GEN     arch/x86/include/generated/asm/orc_hash.h
+awk: bad regex '^struct orc_entry {$': Invalid contents of {}
+  UPD     include/generated/uapi/linux/version.h
+  WRAP    arch/x86/include/generated/uapi/asm/bpf_perf_event.h
+  WRAP    arch/x86/include/generated/uapi/asm/errno.h
+  WRAP    arch/x86/include/generated/uapi/asm/fcntl.h
+  SYSHDR  arch/x86/include/generated/uapi/asm/unistd_32.h
+  WRAP    arch/x86/include/generated/uapi/asm/ioctl.h
+  SYSHDR  arch/x86/include/generated/uapi/asm/unistd_64.h
+  WRAP    arch/x86/include/generated/uapi/asm/ioctls.h
+  WRAP    arch/x86/include/generated/uapi/asm/ipcbuf.h
+  SYSHDR  arch/x86/include/generated/uapi/asm/unistd_x32.h
+  WRAP    arch/x86/include/generated/uapi/asm/param.h
+  SYSTBL  arch/x86/include/generated/asm/syscalls_32.h
+  WRAP    arch/x86/include/generated/uapi/asm/poll.h
+  SYSHDR  arch/x86/include/generated/asm/unistd_32_ia32.h
+  WRAP    arch/x86/include/generated/uapi/asm/resource.h
+  SYSHDR  arch/x86/include/generated/asm/unistd_64_x32.h
+  WRAP    arch/x86/include/generated/uapi/asm/socket.h
+  SYSTBL  arch/x86/include/generated/asm/syscalls_64.h
+  UPD     include/generated/compile.h
+  WRAP    arch/x86/include/generated/uapi/asm/sockios.h
+  WRAP    arch/x86/include/generated/uapi/asm/termbits.h
+  WRAP    arch/x86/include/generated/uapi/asm/termios.h
+  WRAP    arch/x86/include/generated/uapi/asm/types.h
+  HOSTCC  arch/x86/tools/relocs_32.o
+  UPD     include/config/kernel.release
+  HOSTCC  arch/x86/tools/relocs_64.o
+  HOSTCC  arch/x86/tools/relocs_common.o
+  HOSTCC  arch/x86/tools/vdso2c
+  WRAP    arch/x86/include/generated/asm/early_ioremap.h
+  WRAP    arch/x86/include/generated/asm/fprobe.h
+  UPD     include/generated/utsrelease.h
+  WRAP    arch/x86/include/generated/asm/mcs_spinlock.h
+  WRAP    arch/x86/include/generated/asm/mmzone.h
+  WRAP    arch/x86/include/generated/asm/ring_buffer.h
+  WRAP    arch/x86/include/generated/asm/device.h
+  HOSTCC  scripts/kallsyms
+  WRAP    arch/x86/include/generated/asm/irq_regs.h
+  HOSTCC  scripts/sorttable.o
+  WRAP    arch/x86/include/generated/asm/kmap_size.h
+  WRAP    arch/x86/include/generated/asm/local64.h
+  HOSTCC  scripts/elf-parse.o
+  WRAP    arch/x86/include/generated/asm/mmiowb.h
+  HOSTCC  scripts/asn1_compiler
+  WRAP    arch/x86/include/generated/asm/module.lds.h
+  WRAP    arch/x86/include/generated/asm/rwonce.h
+  HOSTCC  scripts/tracepoint-update.o
+  TOUCH   include/generated/gcc-plugins.h
+  HOSTCC  scripts/selinux/mdp/mdp
+  UPD     arch/x86/include/generated/asm/cpufeaturemasks.h
+  DESCEND objtool
+  HOSTLD  arch/x86/tools/relocs
+  HOSTLD  scripts/sorttable
+  HOSTLD  scripts/tracepoint-update
+  CC      scripts/mod/empty.o
+  HOSTCC  scripts/mod/mk_elfconfig
+  CC      scripts/mod/devicetable-offsets.s
+  UPD     scripts/mod/devicetable-offsets.h
+  MKELF   scripts/mod/elfconfig.h
+  HOSTCC  scripts/mod/modpost.o
+  HOSTCC  scripts/mod/file2alias.o
+  HOSTCC  scripts/mod/sumversion.o
+  HOSTCC  scripts/mod/symsearch.o
+  HOSTLD  scripts/mod/modpost
+  CC      kernel/bounds.s
+  UPD     include/generated/timeconst.h
+  CHKSHA1 include/linux/atomic/atomic-arch-fallback.h
+  CHKSHA1 include/linux/atomic/atomic-instrumented.h
+  CHKSHA1 include/linux/atomic/atomic-long.h
+  UPD     include/generated/bounds.h
+  CC      arch/x86/kernel/asm-offsets.s
+  UPD     include/generated/asm-offsets.h
+  CC      kernel/sched/rq-offsets.s
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/libsubcmd/exec-cmd.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/libsubcmd/help.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/libsubcmd/pager.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/libsubcmd/parse-options.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/libsubcmd/run-command.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/libsubcmd/sigchain.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/libsubcmd/subcmd-config.o
+  UPD     include/generated/rq-offsets.h
+  CALL    scripts/checksyscalls.sh 
+  LD      /tmp/kbuild/linux-7.2-yes/tools/objtool/libsubcmd/libsubcmd-in.o
+  AR      /tmp/kbuild/linux-7.2-yes/tools/objtool/libsubcmd/libsubcmd.a
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/weak.o
+  MKDIR   /tmp/kbuild/linux-7.2-yes/tools/objtool/arch/x86/lib/
+  MKDIR   /tmp/kbuild/linux-7.2-yes/tools/objtool/arch/x86/lib/
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/check.o
+  GEN     /tmp/kbuild/linux-7.2-yes/tools/objtool/arch/x86/lib/inat-tables.c
+  GEN     /tmp/kbuild/linux-7.2-yes/tools/objtool/arch/x86/lib/cpu-feature-names.c
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/special.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/arch/x86/orc.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/builtin-check.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/elf.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/objtool.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/orc_gen.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/orc_dump.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/libstring.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/libctype.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/str_error_r.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/librbtree.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/signal.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/arch/x86/special.o
+  CC      /tmp/kbuild/linux-7.2-yes/tools/objtool/arch/x86/decode.o
+  LD      /tmp/kbuild/linux-7.2-yes/tools/objtool/arch/x86/objtool-in.o
+  LD      /tmp/kbuild/linux-7.2-yes/tools/objtool/objtool-in.o
+  LINK    /tmp/kbuild/linux-7.2-yes/tools/objtool/objtool
+  LDS     scripts/module.lds
+  HOSTCC  usr/gen_init_cpio
+  CC      init/main.o
+  CC      certs/system_keyring.o
+  UPD     init/utsversion-tmp.h
+  CC      init/do_mounts.o
+  CC      security/commoncap.o
+  AS      arch/x86/boot/startup/efi-mixed.o
+  AS      arch/x86/lib/bhi.o
+  CC      arch/x86/events/core.o
+  CC      io_uring/io_uring.o
+  CC      fs/open.o
+  AS      arch/x86/entry/entry.o
+  CC      arch/x86/realmode/init.o
+  CC      block/bdev.o
+  CC      arch/x86/pci/i386.o
+  CC      sound/sound_core.o
+  CC      net/devres.o
+  CC      arch/x86/power/cpu.o
+  CC      lib/argv_split.o
+  CC      ipc/compat.o
+  CC      arch/x86/pci/init.o
+  AR      arch/x86/crypto/built-in.a
+  CC      security/keys/gc.o
+  AS      arch/x86/kernel/head_64.o
+grep: unrecognized option: include=*.[ch]
+  CC      arch/x86/mm/init.o
+  AR      drivers/cache/built-in.a
+  CC      virt/lib/irqbypass.o
+BusyBox v1.37.0 (2025-01-17 18:12:01 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+   -H   Add 'filename:' prefix
+   -h   Do not add 'filename:' prefix
+   -n   Add 'line_no:' prefix
+   -l   Show only names of files that match
+   -L   Show only names of files that don't match
+   -c   Show only count of matching lines
+   -o   Show only the matching part of line
+   -q   Quiet. Return 0 if PATTERN is found, 1 otherwise
+   -v   Select non-matching lines
+   -s   Suppress open and read errors
+   -r   Recurse
+   -R   Recurse and dereference symlinks
+   -i   Ignore case
+   -w   Match whole words only
+   -x   Match whole lines only
+   -F   PATTERN is a literal (not regexp)
+   -E   PATTERN is an extended regexp
+   -m N   Match up to N times per file
+   -A N   Print N lines of trailing context
+   -B N   Print N lines of leading context
+   -C N   Same as '-A N -B N'
+   -e PTRN   Pattern to match
+   -f FILE   Read pattern from file
+  AS      arch/x86/entry/entry_64.o
+  CC      arch/x86/video/video-common.o
+grep: unrecognized option: include=*.[ch]
+grep: unrecognized option: group-separator=!SEP!
+BusyBox v1.37.0 (2025-01-17 18:12:01 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+   -H   Add 'filename:' prefix
+   -h   Do not add 'filename:' prefix
+   -n   Add 'line_no:' prefix
+   -l   Show only names of files that match
+   -L   Show only names of files that don't match
+   -c   Show only count of matching lines
+   -o   Show only the matching part of line
+   -q   Quiet. Return 0 if PATTERN is found, 1 otherwise
+   -v   Select non-matching lines
+   -s   Suppress open and read errors
+   -r   Recurse
+   -R   Recurse and dereference symlinks
+   -i   Ignore case
+   -w   Match whole words only
+   -x   Match whole lines only
+   -F   PATTERN is a literal (not regexp)
+   -E   PATTERN is an extended regexp
+   -m N   Match up to N times per file
+   -A N   Print N lines of trailing context
+   -B N   Print N lines of leading context
+   -C N   Same as '-A N -B N'
+   -e PTRN   Pattern to match
+   -f FILE   Read pattern from file
+BusyBox v1.37.0 (2025-01-17 18:12:01 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+   -H   Add 'filename:' prefix
+   -h   Do not add 'filename:' prefix
+   -n   Add 'line_no:' prefix
+   -l   Show only names of files that match
+   -L   Show only names of files that don't match
+   -c   Show only count of matching lines
+   -o   Show only the matching part of line
+   -q   Quiet. Return 0 if PATTERN is found, 1 otherwise
+   -v   Select non-matching lines
+   -s   Suppress open and read errors
+   -r   Recurse
+   -R   Recurse and dereference symlinks
+   -i   Ignore case
+   -w   Match whole words only
+   -x   Match whole lines only
+   -F   PATTERN is a literal (not regexp)
+   -E   PATTERN is an extended regexp
+   -m N   Match up to N times per file
+   -A N   Print N lines of trailing context
+   -B N   Print N lines of leading context
+   -C N   Same as '-A N -B N'
+   -e PTRN   Pattern to match
+   -f FILE   Read pattern from file
+grep: unrecognized option: include=*.[ch]
+  CC      drivers/irqchip/irq-msi-lib.o
+BusyBox v1.37.0 (2025-01-17 18:12:01 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+   -H   Add 'filename:' prefix
+   -h   Do not add 'filename:' prefix
+   -n   Add 'line_no:' prefix
+   -l   Show only names of files that match
+   -L   Show only names of files that don't match
+   -c   Show only count of matching lines
+   -o   Show only the matching part of line
+   -q   Quiet. Return 0 if PATTERN is found, 1 otherwise
+   -v   Select non-matching lines
+   -s   Suppress open and read errors
+   -r   Recurse
+   -R   Recurse and dereference symlinks
+   -i   Ignore case
+   -w   Match whole words only
+   -x   Match whole lines only
+   -F   PATTERN is a literal (not regexp)
+   -E   PATTERN is an extended regexp
+   -m N   Match up to N times per file
+   -A N   Print N lines of trailing context
+   -B N   Print N lines of leading context
+   -C N   Same as '-A N -B N'
+   -e PTRN   Pattern to match
+   -f FILE   Read pattern from file
+grep: unrecognized option: include=*.[ch]
+grep: unrecognized option: group-separator=!SEP!
+  CC      mm/filemap.o
+BusyBox v1.37.0 (2025-01-17 18:12:01 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+   -H   Add 'filename:' prefix
+   -h   Do not add 'filename:' prefix
+   -n   Add 'line_no:' prefix
+   -l   Show only names of files that match
+   -L   Show only names of files that don't match
+   -c   Show only count of matching lines
+   -o   Show only the matching part of line
+   -q   Quiet. Return 0 if PATTERN is found, 1 otherwise
+   -v   Select non-matching lines
+   -s   Suppress open and read errors
+   -r   Recurse
+   -R   Recurse and dereference symlinks
+   -i   Ignore case
+   -w   Match whole words only
+   -x   Match whole lines only
+   -F   PATTERN is a literal (not regexp)
+   -E   PATTERN is an extended regexp
+   -m N   Match up to N times per file
+   -A N   Print N lines of trailing context
+   -B N   Print N lines of leading context
+   -C N   Same as '-A N -B N'
+   -e PTRN   Pattern to match
+   -f FILE   Read pattern from file
+BusyBox v1.37.0 (2025-01-17 18:12:01 UTC) multi-call binary.
+
+Usage: grep [-HhnlLoqvsrRiwFE] [-m N] [-A|B|C N] { PATTERN | -e PATTERN... | -f FILE... } [FILE]...
+
+Search for PATTERN in FILEs (or stdin)
+
+   -H   Add 'filename:' prefix
+   -h   Do not add 'filename:' prefix
+   -n   Add 'line_no:' prefix
+   -l   Show only names of files that match
+   -L   Show only names of files that don't match
+   -c   Show only count of matching lines
+   -o   Show only the matching part of line
+   -q   Quiet. Return 0 if PATTERN is found, 1 otherwise
+   -v   Select non-matching lines
+   -s   Suppress open and read errors
+   -r   Recurse
+   -R   Recurse and dereference symlinks
+   -i   Ignore case
+   -w   Match whole words only
+   -x   Match whole lines only
+   -F   PATTERN is a literal (not regexp)
+   -E   PATTERN is an extended regexp
+   -m N   Match up to N times per file
+   -A N   Print N lines of trailing context
+   -B N   Print N lines of leading context
+   -C N   Same as '-A N -B N'
+   -e PTRN   Pattern to match
+   -f FILE   Read pattern from file
+  CC      arch/x86/kvm/../../../virt/kvm/kvm_main.o
+  CC      arch/x86/pci/mmconfig_64.o
+  AS      arch/x86/lib/clear_page_64.o
+  CC      arch/x86/kernel/head64.o
+  CC      arch/x86/entry/syscall_64.o
+  AR      virt/lib/built-in.a
+  AR      drivers/irqchip/built-in.a
+  CC      arch/x86/power/hibernate_64.o
+  AR      virt/built-in.a
+  AS      arch/x86/realmode/rm/header.o
+  AS      arch/x86/realmode/rm/trampoline_64.o
+  CC      kernel/fork.o
+  CC      arch/x86/events/probe.o
+  AR      drivers/bus/mhi/built-in.a
+  CC      arch/x86/ia32/audit.o
+  AR      drivers/bus/built-in.a
+  HOSTCC  certs/extract-cert
+  CC      arch/x86/mm/init_64.o
+  CC      sound/core/sound.o
+  CC      mm/mempool.o
+  AR      arch/x86/video/built-in.a
+  AR      drivers/phy/built-in.a
+  CC      security/keys/key.o
+  CC      security/keys/keyring.o
+  CC      security/keys/keyctl.o
+  CC      fs/read_write.o
+  CC      ipc/util.o
+  CC      drivers/pinctrl/core.o
+  AS      arch/x86/boot/startup/la57toggle.o
+  CC      fs/file_table.o
+  CC      io_uring/opdef.o
+  CC      arch/x86/kernel/ebda.o
+  CC      init/do_mounts_initrd.o
+  CC      net/socket.o
+  CC      crypto/api.o
+  CC      block/fops.o
+  CC      arch/x86/kvm/../../../virt/kvm/eventfd.o
+  CC      arch/x86/lib/cmdline.o
+  AS      arch/x86/power/hibernate_asm_64.o
+  CC      mm/oom_kill.o
+  CC      arch/x86/pci/direct.o
+  CC      arch/x86/mm/fault.o
+  GEN     usr/initramfs_data.cpio
+  CC      arch/x86/power/hibernate.o
+  CC      lib/bug.o
+  COPY    usr/initramfs_inc_data
+  AS      arch/x86/realmode/rm/stack.o
+  AS      usr/initramfs_data.o
+  CC      arch/x86/events/utils.o
+  CC      sound/core/init.o
+  CC      drivers/pinctrl/pinctrl-utils.o
+  CC      sound/core/memory.o
+  CC      arch/x86/boot/startup/gdt_idt.o
+  CC      arch/x86/kernel/platform-quirks.o
+  CC      arch/x86/entry/common.o
+  AR      arch/x86/ia32/built-in.a
+  CC      arch/x86/mm/ioremap.o
+  CC      fs/super.o
+  CC      arch/x86/kernel/process_64.o
+  CC      arch/x86/boot/startup/map_kernel.o
+  CC      arch/x86/mm/extable.o
+  CC      crypto/cipher.o
+  AR      sound/i2c/other/built-in.a
+  AR      sound/i2c/built-in.a
+  CC      init/initramfs.o
+  AR      arch/x86/platform/atom/built-in.a
+  CC      ipc/msgutil.o
+  AR      arch/x86/platform/ce4100/built-in.a
+  AS      arch/x86/lib/cmpxchg16b_emu.o
+  CC      io_uring/kbuf.o
+  CC      block/bio.o
+  CC      arch/x86/kvm/../../../virt/kvm/binary_stats.o
+  CC      security/keys/permission.o
+  CC      kernel/exec_domain.o
+  CC      arch/x86/platform/efi/memmap.o
+  CC      arch/x86/platform/efi/quirks.o
+  CC      arch/x86/pci/mmconfig-shared.o
+  AS      arch/x86/realmode/rm/reboot.o
+  CC      lib/buildid.o
+  AR      arch/x86/power/built-in.a
+  CC      mm/fadvise.o
+  AS      arch/x86/realmode/rm/wakeup_asm.o
+  CC      io_uring/rsrc.o
+  CC      arch/x86/events/rapl.o
+  CC      init/calibrate.o
+  CC      net/core/sock.o
+  CC      sound/core/control.o
+  AR      drivers/pinctrl/actions/built-in.a
+  AR      drivers/pinctrl/airoha/built-in.a
+  AR      drivers/pinctrl/bcm/built-in.a
+  CERT    certs/x509_certificate_list
+  AR      drivers/pinctrl/cirrus/built-in.a
+  CERT    certs/signing_key.x509
+  AR      usr/built-in.a
+  AS      certs/system_certificates.o
+  AR      drivers/pinctrl/cix/built-in.a
+  AR      arch/x86/platform/geode/built-in.a
+  AR      drivers/pinctrl/freescale/built-in.a
+  CC      lib/clz_tab.o
+  AR      drivers/pinctrl/intel/built-in.a
+  CC      fs/char_dev.o
+  CC      arch/x86/entry/vdso/vma.o
+  AR      drivers/pinctrl/mediatek/built-in.a
+  CC      fs/stat.o
+  CC      fs/exec.o
+  CC      crypto/algapi.o
+  AR      drivers/pinctrl/microchip/built-in.a
+  CC      security/keys/process_keys.o
+  CC      mm/maccess.o
+  CC      arch/x86/kernel/signal.o
+  AR      arch/x86/boot/startup/lib.a
+  CC      arch/x86/mm/mmap.o
+  OBJCOPY arch/x86/boot/startup/gdt_idt.pi.o
+  CC      arch/x86/kvm/../../../virt/kvm/vfio.o
+  AR      drivers/pinctrl/mvebu/built-in.a
+  OBJCOPY arch/x86/boot/startup/map_kernel.pi.o
+  AR      drivers/pinctrl/nomadik/built-in.a
+  AR      arch/x86/boot/startup/built-in.a
+  CC      arch/x86/net/bpf_jit_comp.o
+  CC      arch/x86/kvm/../../../virt/kvm/coalesced_mmio.o
+  CC      init/init_task.o
+  AR      drivers/pinctrl/nuvoton/built-in.a
+  CC      kernel/exec_state.o
+  CC      arch/x86/realmode/rm/wakemain.o
+  CC      arch/x86/pci/fixup.o
+  AR      drivers/pinctrl/nxp/built-in.a
+  AR      drivers/pinctrl/qcom/built-in.a
+  CC      arch/x86/purgatory/purgatory.o
+  AR      drivers/pinctrl/sophgo/built-in.a
+  CC      arch/x86/lib/copy_mc.o
+  AR      drivers/pinctrl/spacemit/built-in.a
+  AR      certs/built-in.a
+  CC      fs/pipe.o
+  CC      arch/x86/pci/acpi.o
+  AR      drivers/pinctrl/sprd/built-in.a
+  AR      sound/drivers/opl3/built-in.a
+  CC      arch/x86/events/amd/core.o
+  CC      ipc/msg.o
+  AR      drivers/pinctrl/starfive/built-in.a
+  AR      sound/drivers/opl4/built-in.a
+  AR      drivers/pinctrl/sunplus/built-in.a
+  CC      crypto/scatterwalk.o
+  CC      arch/x86/entry/vdso/extable.o
+  AR      sound/drivers/mpu401/built-in.a
+  AR      drivers/pinctrl/tegra/built-in.a
+  CC      net/core/skbuff.o
+  CC      arch/x86/mm/pgtable.o
+  AR      sound/drivers/vx/built-in.a
+  AR      drivers/pinctrl/ti/built-in.a
+  AR      drivers/pinctrl/built-in.a
+  AR      sound/drivers/pcsp/built-in.a
+  AR      sound/drivers/built-in.a
+  CC      block/elevator.o
+  CC      io_uring/notif.o
+  CC      arch/x86/platform/efi/efi.o
+  CC      arch/x86/realmode/rm/video-mode.o
+  AR      drivers/pwm/built-in.a
+  CC      drivers/leds/led-core.o
+  CC      lib/cmdline.o
+  CC      arch/x86/virt/svm/cmdline.o
+  AR      arch/x86/platform/iris/built-in.a
+  CC      arch/x86/platform/intel/iosf_mbi.o
+  CC      kernel/panic.o
+  CC      drivers/pci/access.o
+  AS      arch/x86/lib/copy_mc_64.o
+  CC      drivers/leds/led-class.o
+  CC      security/keys/request_key.o
+  CC      ipc/sem.o
+  CC      arch/x86/mm/physaddr.o
+  CC      arch/x86/kernel/signal_64.o
+  CC      arch/x86/pci/legacy.o
+  CC      arch/x86/entry/vsyscall/vsyscall_64.o
+  CC      sound/core/misc.o
+  CC      mm/page-writeback.o
+  AS      arch/x86/realmode/rm/copy.o
+  CC      crypto/proc.o
+  CC      security/keys/request_key_auth.o
+  CC      arch/x86/kvm/../../../virt/kvm/async_pf.o
+  CC      arch/x86/entry/vdso/vdso32-setup.o
+  CC      init/version.o
+  AS      arch/x86/lib/copy_page_64.o
+  CC      net/core/datagram.o
+  CC      drivers/video/aperture.o
+  AS      arch/x86/entry/vsyscall/vsyscall_emu_64.o
+  CC      fs/namei.o
+  CC      kernel/cpu.o
+  CC      io_uring/tctx.o
+  CC      arch/x86/events/amd/lbr.o
+  CC      arch/x86/mm/tlb.o
+  AS      arch/x86/realmode/rm/bioscall.o
+  AR      drivers/idle/built-in.a
+  AR      arch/x86/virt/svm/built-in.a
+  AR      arch/x86/virt/vmx/built-in.a
+  AS      arch/x86/lib/copy_user_64.o
+  CC      fs/fcntl.o
+  CC      arch/x86/virt/hw.o
+  CC      lib/cpumask.o
+  AS      arch/x86/net/bpf_timed_may_goto.o
+  CC      block/blk-core.o
+  CC      drivers/leds/led-triggers.o
+  CC      net/core/stream.o
+  AS      arch/x86/lib/copy_user_uncached_64.o
+  CC      arch/x86/pci/irq.o
+  CC      sound/core/device.o
+  CC      sound/core/info.o
+  CC      mm/folio-compat.o
+  AR      init/built-in.a
+  CC      lib/ctype.o
+  CC      arch/x86/realmode/rm/regs.o
+  CC      arch/x86/lib/cpu.o
+  AS      arch/x86/lib/csum-copy_64.o
+  AR      arch/x86/entry/vsyscall/built-in.a
+  CC      arch/x86/events/msr.o
+  AR      arch/x86/platform/intel/built-in.a
+[baseline-mpls-kernel-build-005: exited; cursor=211370]

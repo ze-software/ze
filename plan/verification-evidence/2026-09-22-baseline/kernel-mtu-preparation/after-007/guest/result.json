@@ -1,0 +1,68 @@
+{
+  "proven": true,
+  "invocation": {
+    "argv": [
+      "go",
+      "tool",
+      "test2json",
+      "-t",
+      "-p",
+      "github.com/ze-software/ze/internal/plugins/fib/kernel",
+      "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/kernel-mtu-baseline/mpls-mtu-001.test",
+      "-test.v=test2json",
+      "-test.count=1",
+      "-test.timeout=120s",
+      "-test.run=^TestMPLSIntegration_(PathMTU|FragmentProgress|TransitIPv4Options)$"
+    ],
+    "mode": "full",
+    "started": 1790146304.519072,
+    "cwd": "/workspace",
+    "kernel": [
+      "Linux",
+      "localhost",
+      "7.2.0",
+      "#1 SMP PREEMPT_DYNAMIC Wed Sep 23 06:47:12 UTC 2026",
+      "x86_64"
+    ],
+    "uid": 0,
+    "binary_sha256_before": "1bd7b0cd4c39883df8281c34a95349b0008157cea4591d35abf54548033bc22f",
+    "expected_tests": [
+      "TestMPLSIntegration_FragmentProgress",
+      "TestMPLSIntegration_FragmentProgress/IPv4-options",
+      "TestMPLSIntegration_FragmentProgress/physical-link-underflow",
+      "TestMPLSIntegration_FragmentProgress/rounded-zero-payload",
+      "TestMPLSIntegration_PathMTU",
+      "TestMPLSIntegration_PathMTU/push/downstream-path",
+      "TestMPLSIntegration_PathMTU/push/local-link",
+      "TestMPLSIntegration_PathMTU/transit/downstream-path",
+      "TestMPLSIntegration_PathMTU/transit/local-link",
+      "TestMPLSIntegration_TransitIPv4Options",
+      "TestMPLSIntegration_TransitIPv4Options/df-clear",
+      "TestMPLSIntegration_TransitIPv4Options/df-set"
+    ],
+    "finished": 1790146313.1134896,
+    "exit": 0,
+    "error": null,
+    "binary_sha256_after": "1bd7b0cd4c39883df8281c34a95349b0008157cea4591d35abf54548033bc22f",
+    "binary_unchanged": true
+  },
+  "passed": [
+    "TestMPLSIntegration_FragmentProgress",
+    "TestMPLSIntegration_FragmentProgress/IPv4-options",
+    "TestMPLSIntegration_FragmentProgress/physical-link-underflow",
+    "TestMPLSIntegration_FragmentProgress/rounded-zero-payload",
+    "TestMPLSIntegration_PathMTU",
+    "TestMPLSIntegration_PathMTU/push/downstream-path",
+    "TestMPLSIntegration_PathMTU/push/local-link",
+    "TestMPLSIntegration_PathMTU/transit/downstream-path",
+    "TestMPLSIntegration_PathMTU/transit/local-link",
+    "TestMPLSIntegration_TransitIPv4Options",
+    "TestMPLSIntegration_TransitIPv4Options/df-clear",
+    "TestMPLSIntegration_TransitIPv4Options/df-set"
+  ],
+  "skipped": [],
+  "failed": [],
+  "missing_passes": [],
+  "parse_errors": [],
+  "limit": "Exact named native packet assertions only; not complete RFC conformance or independent RSVP-peer interoperability."
+}

@@ -1,0 +1,14 @@
+{
+  "started": "2026-09-23T06:50:20.528Z",
+  "cwd": "/home/thomas/Code/github.com/ze-software/ze/main",
+  "argv": [
+    "./le",
+    "verify",
+    "lint",
+    "run"
+  ],
+  "changed_go": "internal/plugins/fib/kernel/mplsmtu_integration_linux_test.go",
+  "limit": "One final lint after the integration-carrier edit. Existing canonical PPP duplicates and other known failures are not repaired.",
+  "finished": "2026-09-23T06:56:56.893Z",
+  "exit": 1
+}

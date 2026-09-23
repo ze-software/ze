@@ -18,6 +18,7 @@ CONFIG_INET_AH
 CONFIG_INET6_AH
 CONFIG_XFRM_STATISTICS
 CONFIG_XFRM_INTERFACE
+CONFIG_XFRM_MIGRATE
 
 # The interface kinds, policy routing and traffic control ze programs. Each has
 # a producer named in runtime.config beside its request. A `=y` line in a
@@ -88,6 +89,7 @@ CONFIG_LWTUNNEL
 CONFIG_MPLS_ROUTING
 CONFIG_MPLS_IPTUNNEL
 CONFIG_NET_MPLS_GSO
+CONFIG_MPLS_IP_MTU
 CONFIG_NF_CONNTRACK
 CONFIG_NF_CT_NETLINK
 

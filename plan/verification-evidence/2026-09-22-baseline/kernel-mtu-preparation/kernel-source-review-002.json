@@ -1,0 +1,6 @@
+{
+  "overall_correctness": "correct",
+  "explanation": "Bounded source-correct verdict for the current options delta: mpls_mtu_output now uses the current ip_hdr(skb) for both option copies, eliminating the checksum-helper relocation hazard; DF-clear fragments preserve original option bytes before ip_frag_next, while later fragments retain ip_options_fragment processing. DF-set option compilation occurs after skb_dst_set supplies the input rtable required by fib_compute_spec_dst, and allocation/error paths preserve skb/dst ownership with no additional actionable defect found. No builds, tests, or runtime validation were run by this reviewer; shared-fragment execution remains unexercised, and this verdict establishes neither build-005 artifact provenance nor full MTU/RFC conformance.",
+  "confidence": 0.95,
+  "findings": []
+}

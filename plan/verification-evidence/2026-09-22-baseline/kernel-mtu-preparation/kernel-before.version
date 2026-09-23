@@ -1,0 +1,6 @@
+version=7.2
+target=runtime
+profile=runtime
+arch=amd64
+modules=yes
+builder=qemu

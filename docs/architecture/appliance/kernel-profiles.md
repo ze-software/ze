@@ -30,6 +30,12 @@ command.
 result against the registry, and uses the shared builder in
 `internal/appliance/kernelbuilder`.
 
+The runtime profile requires `CONFIG_XFRM_MIGRATE` for atomic MOBIKE state
+migration and `CONFIG_MPLS_IP_MTU` for native labeled-IP fragmentation and ICMP.
+Both requirements are in the compiled runtime floor, so an edited manifest
+cannot silently remove them. The MPLS capability comes from the registered
+kernel patch series.
+
 ## Decisions
 
 - The registry is open. Adding a profile is adding two files, not editing a

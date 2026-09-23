@@ -1,0 +1,42 @@
+{
+  "label": "carrier-format-001",
+  "started": "2026-09-23T02:43:53.040Z",
+  "cwd": "/home/thomas/Code/github.com/ze-software/ze/main",
+  "output_root": "plan/verification-evidence/2026-09-22-baseline/kernel-mtu-preparation",
+  "argv": [
+    "/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le",
+    "le",
+    "job",
+    "run",
+    "label",
+    "carrier-format-001",
+    "quiet",
+    "command",
+    "gofmt",
+    "-w",
+    "internal/plugins/fib/kernel/mplsmtu_integration_linux_test.go"
+  ],
+  "env": {
+    "CGO_ENABLED": "1"
+  },
+  "inputs": [
+    {
+      "path": "internal/plugins/fib/kernel/mplsmtu_integration_linux_test.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/fib/kernel/mplsmtu_integration_linux_test.go",
+      "sha256": "a36833a06c4c2f622a3e90aa97f914a7816c227c140ba278a093441a0c82e734"
+    }
+  ],
+  "exit": 0,
+  "finished": "2026-09-23T02:44:29.146Z",
+  "stdout": "job carrier-format-001: exit 0, log tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/job-carrier-format-001-dbc3f72f.log\n",
+  "stderr": "",
+  "inputs_after": [
+    {
+      "path": "internal/plugins/fib/kernel/mplsmtu_integration_linux_test.go",
+      "effective": "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/fib/kernel/mplsmtu_integration_linux_test.go",
+      "sha256": "1faea6cc05e5965c37a645de74d6ea674ca9522c3edeaced76044536e8b5ce4d"
+    }
+  ],
+  "inputs_unchanged": false,
+  "log": "tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/job-carrier-format-001-dbc3f72f.log"
+}
