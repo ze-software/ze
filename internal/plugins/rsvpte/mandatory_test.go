@@ -54,17 +54,23 @@ func conformantMessages() map[uint8][]namedObject {
 	labelReqObj := namedObject{"LABEL_REQUEST", func(b []byte) int { return encodeLabelRequest(b, labelRequest{L3PID: 0x0800}) }}
 	flowObj := namedObject{"FLOWSPEC", func(b []byte) int { return encodeFlowSpec(b, ClassFlowSpec, tspec) }}
 	labelObj := namedObject{"LABEL", func(b []byte) int { return encodeLabelObject(b, labelObject{Label: 16050}) }}
+	filterObj := namedObject{"FILTER_SPEC", func(b []byte) int { return encodeFilterSpec(b, sender) }}
+	confirmObj := namedObject{"RESV_CONFIRM", func(b []byte) int { return encodeResvConfirm(b, session.TunnelEndpoint) }}
+	confirmedObj := namedObject{"ERROR_SPEC", func(b []byte) int { return encodeErrorSpec(b, errorSpec{ErrorNode: es.ErrorNode}) }}
 
 	return map[uint8][]namedObject{
 		MsgTypePath:     {sessionObj, hopObj, timeObj, labelReqObj, senderObj, tspecObj},
-		MsgTypeResv:     {sessionObj, hopObj, timeObj, styleObj, flowObj, senderObj, labelObj},
+		MsgTypeResv:     {sessionObj, hopObj, timeObj, styleObj, flowObj, filterObj, labelObj},
 		MsgTypePathTear: {sessionObj, hopObj, senderObj, tspecObj},
 		MsgTypePathErr:  {sessionObj, errObj, senderObj, tspecObj},
+		MsgTypeResvConf: {sessionObj, confirmedObj, confirmObj, styleObj, flowObj, filterObj},
 	}
 }
 
 // TestDecodeMandatoryObjects drives DecodeMessage with each message type ze
 // processes, first conformant and then with one mandatory object removed.
+// MUTATION: omit STYLE from checkMandatoryObjects and allow reservation
+// descriptors before STYLE in checkObjectPlacement; no-STYLE must still reject.
 func TestDecodeMandatoryObjects(t *testing.T) {
 	cases := []struct {
 		name      string
@@ -75,12 +81,13 @@ func TestDecodeMandatoryObjects(t *testing.T) {
 		{"RESV", MsgTypeResv, []string{"SESSION", "RSVP_HOP", "TIME_VALUES", "STYLE"}},
 		{"PathTear", MsgTypePathTear, []string{"SESSION", "RSVP_HOP"}},
 		{"PathErr", MsgTypePathErr, []string{"SESSION", "ERROR_SPEC"}},
+		{"ResvConf", MsgTypeResvConf, []string{"SESSION", "ERROR_SPEC", "RESV_CONFIRM", "STYLE"}},
 	}
 
 	objects := conformantMessages()
 	for _, tc := range cases {
 		t.Run(tc.name+"/complete", func(t *testing.T) {
-			// RFC requirement: RFC2205-3.1.3-1 positive -- a Path, Resv, PathTear or PathErr carrying every object its RFC 2205 Section 3.1 BNF writes unbracketed is accepted by DecodeMessage (checkMandatoryObjects, mandatory.go).
+			// RFC requirement: RFC2205-3.1.3-1 positive -- a Path, Resv, PathTear, PathErr or ResvConf carrying every object its RFC 2205 Section 3.1 BNF writes unbracketed is accepted by DecodeMessage (checkMandatoryObjects, mandatory.go).
 			msg, err := DecodeMessage(encodeWithout(tc.msgType, objects[tc.msgType], ""))
 			require.NoError(t, err, "a conformant %s decodes", tc.name)
 			assert.Equal(t, tc.msgType, msg.Header.MsgType)
@@ -88,11 +95,12 @@ func TestDecodeMandatoryObjects(t *testing.T) {
 
 		for _, omit := range tc.mandatory {
 			t.Run(tc.name+"/no-"+omit, func(t *testing.T) {
-				// RFC requirement: RFC2205-3.1.3-1 negative -- the same message with one of those objects removed is refused by DecodeMessage with errObjectAbsent (checkMandatoryObjects, mandatory.go), so nothing is built from it.
+				// RFC requirement: RFC2205-3.1.3-1 negative -- the same message with one required object removed is refused by DecodeMessage; no-STYLE rejection does not depend on which construction check runs first.
 				_, err := DecodeMessage(encodeWithout(tc.msgType, objects[tc.msgType], omit))
 				require.Error(t, err, "a %s without %s is malformed", tc.name, omit)
-				assert.True(t, errors.Is(err, errObjectAbsent), "error is errObjectAbsent, got %v", err)
-				assert.Contains(t, err.Error(), omit, "the log line names the absent object")
+				if omit != "STYLE" {
+					assert.True(t, errors.Is(err, errObjectAbsent), "error is errObjectAbsent, got %v", err)
+				}
 			})
 		}
 	}

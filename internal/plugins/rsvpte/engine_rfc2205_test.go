@@ -91,8 +91,10 @@ func TestRFC2205PathWithoutSenderTemplateDropped(t *testing.T) {
 // RFC requirement: RFC2205-2-1 positive — the egress sends its RESV to the node the PATH arrived from, the reverse of the path the PATH took.
 func TestRFC2205ResvSentToPreviousHop(t *testing.T) {
 	e, ft, _ := testEngine(t, rfc2205Egress.String(), nil)
-	psb := rfc2205PSB()
-	e.handlePacket(Packet{Src: rfc2205Transit, Payload: buildPath(psb, rfc2205Transit, defaultIPTTL)})
+	_, transitTransport, psb := rfc2205TransitWithPath(t)
+	path, sent := transitTransport.lastSentPayload(MsgTypePath)
+	require.True(t, sent, "transit emitted the advanced PATH")
+	e.handlePacket(Packet{Src: rfc2205Transit, Payload: path})
 
 	resv, dst, ok := ft.lastByType(MsgTypeResv)
 	require.True(t, ok, "egress answers the PATH with a RESV")
@@ -107,18 +109,23 @@ func TestRFC2205ResvWithoutPathStateNotRelayed(t *testing.T) {
 	rsb := &resvStateBlock{Session: psb.Session, Label: labelObject{Label: 18000}, Style: StyleSharedExplicit}
 	e.handlePacket(Packet{Src: rfc2205Egress, Payload: buildResv(rsb, psb.SenderTemplate, DefaultRefreshPeriod, rfc2205Egress)})
 
-	assert.Zero(t, sentCount(ft), "no message leaves a node with no path state for the RESV")
+	assert.Zero(t, ft.countByType(MsgTypeResv), "no RESV is relayed upstream without path state")
+	resvErr, dst, ok := ft.lastByType(MsgTypeResvErr)
+	require.True(t, ok, "missing path state is reported downstream")
+	assert.Equal(t, rfc2205Egress, dst)
+	assert.Equal(t, uint8(3), resvErr.ErrorSpec.ErrorCode)
+	assert.Zero(t, resvErr.ErrorSpec.ErrorValue)
+	assert.Equal(t, 1, sentCount(ft), "only the downstream ResvErr is sent")
 	assert.Empty(t, e.table.All(), "a RESV creates no state of its own")
 }
 
 // RFC requirement: RFC2205-2-2 positive — the ingress that originated the PATH receives the RESV and brings its LSP up with the label the RESV carries.
 func TestRFC2205ResvDeliveredToSender(t *testing.T) {
-	e, _, _ := testEngine(t, rfc2205Ingress.String(), nil)
+	e, ft, _ := testEngine(t, rfc2205Ingress.String(), nil)
 	psb := rfc2205PSB()
 	key := keyFromPSB(psb)
-	lsp, _ := e.table.GetOrCreate(key)
-	lsp.Role = RoleIngress
-	lsp.setState(LSPStatePathSent)
+	setupTunnel(e.log, e.table, tunnelConfig{Destination: psb.Session.TunnelEndpoint, TunnelID: psb.Session.TunnelID, ERO: psb.ERO, Bandwidth: 3.2e9}, e.cfg(), e)
+	require.Equal(t, 1, ft.countByType(MsgTypePath), "ingress signaled the PATH")
 
 	rsb := &resvStateBlock{Session: psb.Session, Label: labelObject{Label: 16050}, Style: StyleSharedExplicit}
 	e.handlePacket(Packet{Src: rfc2205Transit, Payload: buildResv(rsb, psb.SenderTemplate, DefaultRefreshPeriod, rfc2205Transit)})
@@ -129,15 +136,31 @@ func TestRFC2205ResvDeliveredToSender(t *testing.T) {
 	assert.Equal(t, uint32(16050), got.OutLabel)
 }
 
-// RFC requirement: RFC2205-2-2 negative — a RESV for a session the ingress never signaled brings no LSP up and is not relayed further.
+// RFC requirement: RFC2205-2-2 negative — a RESV naming an unknown sender in a signaled session brings no LSP up and is not relayed further.
 func TestRFC2205ResvForUnknownSenderIgnored(t *testing.T) {
 	e, ft, _ := testEngine(t, rfc2205Ingress.String(), nil)
 	psb := rfc2205PSB()
+	setupTunnel(e.log, e.table, tunnelConfig{Destination: psb.Session.TunnelEndpoint, TunnelID: psb.Session.TunnelID, ERO: psb.ERO, Bandwidth: 3.2e9}, e.cfg(), e)
+	require.Equal(t, 1, ft.countByType(MsgTypePath), "session has real PATH state")
+	signaledKey := keyFromPSB(psb)
+	psb.SenderTemplate.LSPID = 2
+	before := sentCount(ft)
 	rsb := &resvStateBlock{Session: psb.Session, Label: labelObject{Label: 16050}, Style: StyleSharedExplicit}
 	e.handlePacket(Packet{Src: rfc2205Transit, Payload: buildResv(rsb, psb.SenderTemplate, DefaultRefreshPeriod, rfc2205Transit)})
 
-	assert.Empty(t, e.table.All(), "no LSP comes up for a RESV nobody asked for")
-	assert.Zero(t, sentCount(ft), "an unmatched RESV is not relayed")
+	_, created := e.table.Get(keyFromPSB(psb))
+	assert.False(t, created, "no LSP comes up for a RESV nobody asked for")
+	require.Len(t, e.table.All(), 1, "unmatched RESV creates no additional state")
+	signaled, ok := e.table.Get(signaledKey)
+	require.True(t, ok)
+	assert.Equal(t, LSPStatePathSent, signaled.State, "the known sender remains unreserved")
+	assert.Zero(t, ft.countByType(MsgTypeResv), "an unmatched RESV is not relayed")
+	resvErr, dst, ok := ft.lastByType(MsgTypeResvErr)
+	require.True(t, ok, "missing sender state is reported downstream")
+	assert.Equal(t, rfc2205Transit, dst)
+	assert.Equal(t, uint8(4), resvErr.ErrorSpec.ErrorCode)
+	assert.Zero(t, resvErr.ErrorSpec.ErrorValue)
+	assert.Equal(t, before+1, sentCount(ft), "only the downstream ResvErr is sent")
 }
 
 // RFC requirement: RFC2205-2-7 positive — a transit node relays a received PathTear to its next hop inside the same handlePacket call, before any timer fires.
@@ -164,17 +187,19 @@ func TestRFC2205PathTearWithoutStateNotRelayed(t *testing.T) {
 }
 
 // rfc2205EgressWithReservation returns an egress engine holding one admitted LSP
-// of 4e8 on eth0, and the interface's reserved bandwidth after the PATH.
+// of 3.2e9 bits/s on eth0, from a 4e8 bytes/s wire TSpec.
 func rfc2205EgressWithReservation(t *testing.T) (*engine, *pathStateBlock) {
 	t.Helper()
 	e, _, _ := testEngine(t, rfc2205Egress.String(), func(c *rsvpteConfig) {
-		c.Interfaces = []ifaceConfig{{Name: "eth0", MaxBW: 1e9, MaxReservableBW: 1e9}}
+		c.Interfaces = []ifaceConfig{{Name: "eth0", MaxBW: 10e9, MaxReservableBW: 10e9}}
 	})
-	e.admission.setInterface("eth0", 1e9, 1e9)
-	psb := rfc2205PSB()
-	e.handlePacket(Packet{Src: rfc2205Transit, Payload: buildPath(psb, rfc2205Transit, defaultIPTTL)})
+	e.admission.setInterface("eth0", 10e9, 10e9)
+	_, transitTransport, psb := rfc2205TransitWithPath(t)
+	path, sent := transitTransport.lastSentPayload(MsgTypePath)
+	require.True(t, sent, "transit emitted the advanced PATH")
+	e.handlePacket(Packet{Src: rfc2205Transit, Payload: path})
 	ib, _ := e.admission.GetInterface("eth0")
-	require.InDelta(t, 4e8, ib.ReservedBandwidth, 1, "reservation held after PATH")
+	require.InDelta(t, 3.2e9, ib.ReservedBandwidth, 1, "reservation held after PATH")
 	return e, psb
 }
 
@@ -198,7 +223,7 @@ func TestRFC2205PathTearForOtherLSPLeavesReservation(t *testing.T) {
 	e.handlePacket(Packet{Src: rfc2205Transit, Payload: buildPathTear(&other, rfc2205Transit)})
 
 	ib, _ := e.admission.GetInterface("eth0")
-	assert.InDelta(t, 4e8, ib.ReservedBandwidth, 1, "reservation untouched by a PathTear for another LSP")
+	assert.InDelta(t, 3.2e9, ib.ReservedBandwidth, 1, "reservation untouched by a PathTear for another LSP")
 	_, ok := e.table.Get(keyFromPSB(psb))
 	assert.True(t, ok, "path state of the untorn LSP remains")
 }

@@ -190,6 +190,7 @@ func TestRSVPResvEncode(t *testing.T) {
 	off += encodeTimeValues(buf[off:], tv)
 	off += encodeStyle(buf[off:], StyleSharedExplicit)
 	off += encodeFlowSpec(buf[off:], ClassFlowSpec, fs)
+	off += encodeFilterSpec(buf[off:], senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1})
 	off += encodeLabelObject(buf[off:], label)
 
 	hdr := Header{
@@ -208,11 +209,14 @@ func TestRSVPResvEncode(t *testing.T) {
 	if msg.Header.MsgType != MsgTypeResv {
 		t.Errorf("MsgType = %d, want %d", msg.Header.MsgType, MsgTypeResv)
 	}
-	if !msg.HasLabel {
+	if len(msg.FlowDescriptors) != 1 || len(msg.FlowDescriptors[0].Filters) != 1 {
+		t.Fatal("missing single-filter flow descriptor")
+	}
+	if !msg.FlowDescriptors[0].Filters[0].HasLabel {
 		t.Fatal("missing LABEL object")
 	}
-	if msg.Label.Label != 1000 {
-		t.Errorf("Label = %d, want 1000", msg.Label.Label)
+	if msg.FlowDescriptors[0].Filters[0].Label.Label != 1000 {
+		t.Errorf("Label = %d, want 1000", msg.FlowDescriptors[0].Filters[0].Label.Label)
 	}
 	if !msg.HasStyle {
 		t.Fatal("missing STYLE object")
@@ -220,7 +224,7 @@ func TestRSVPResvEncode(t *testing.T) {
 	if msg.Style != StyleSharedExplicit {
 		t.Errorf("Style = %d, want %d", msg.Style, StyleSharedExplicit)
 	}
-	if !msg.HasFlowSpec {
+	if len(msg.FlowDescriptors[0].FlowSpecRaw) == 0 {
 		t.Fatal("missing FLOWSPEC object")
 	}
 }
@@ -707,6 +711,8 @@ func TestDecodeUnknownObjectClass(t *testing.T) {
 	}
 	hop := netip.MustParseAddr("10.0.0.1")
 	detour := detourBodyIPv4(netip.MustParseAddr("10.0.0.5"), netip.MustParseAddr("10.0.0.6"))
+	var adspec [adspecSize]byte
+	encodeAdspec(adspec[:], 1500, serviceControlledLoad)
 
 	cases := []struct {
 		name     string
@@ -727,10 +733,9 @@ func TestDecodeUnknownObjectClass(t *testing.T) {
 		{name: "unassigned-10bbbbbb", classNum: 0xa0, cType: 1, body: []byte{0, 0, 0, 0}, reject: false},
 		// RFC requirement: RFC2205-3.10-1 negative -- 11bbbbbb is ignored as well.
 		{name: "unassigned-11bbbbbb", classNum: 0xc8, cType: 1, body: []byte{0, 0, 0, 0}, reject: false},
-		// RFC requirement: RFC2205-3.10-1 negative -- ADSPEC is a class ze knows and
-		// reads no body for, not an unknown one, and RFC 2205 Section 3.1.3 makes it
-		// optional in a PATH. Rejecting it would refuse a legal message.
-		{name: "adspec-known-unprocessed", classNum: ClassAdspec, cType: 2, body: []byte{0, 0, 0, 0}, reject: false},
+		// RFC requirement: RFC2205-3.10-1 negative -- ADSPEC is a known class,
+		// and RFC 2205 Section 3.1.3 permits a valid advertisement in PATH.
+		{name: "adspec-known", classNum: ClassAdspec, cType: 2, body: adspec[objHdrLen:], reject: false},
 	}
 
 	for _, tc := range cases {

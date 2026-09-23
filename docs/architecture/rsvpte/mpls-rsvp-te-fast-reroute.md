@@ -1,20 +1,21 @@
 # RSVP-TE Fast Reroute
 
-Ze implements RFC 4090 **facility backup** (section 3.2): one bypass LSP protects
-many protected LSPs by label stacking, and a link or node failure is repaired
-locally instead of by head-end re-signaling. One-to-one detour backup (section
-3.1) is not implemented.
+Ze uses configured RFC 4090 facility-backup LSPs: one bypass protects several
+LSPs by label stacking, with local repair at the detecting node. One-to-one
+detour backup is not implemented. This describes the implemented path, not a
+conformance verdict for every RFC 4090 requirement.
 
-The codecs and the point-of-local-repair logic live in one file on top of the
-base engine documented in [`mpls-rsvp-te.md`](mpls-rsvp-te.md).
+The FRR codecs and repair selection live in `frr.go`, alongside the signaling
+engine documented in [`mpls-rsvp-te.md`](mpls-rsvp-te.md).
 
 <!-- source: internal/plugins/rsvpte/frr.go -- encodeFastReroute, encodeSessionAttr, protectionRequest, selectBypass, tryLocalRepair -->
 
 ## Decision: bypass paths are configured, not computed
 
-Ze has no IGP and no CSPF, so a `bypass` config list defines each facility-backup
-LSP as an explicit route from the point of local repair to a merge point that
-avoids the protected resource.
+Ze has native OSPF and IS-IS, but RSVP-TE does not consume a traffic-engineering
+database or run CSPF. A `bypass` configuration therefore supplies the explicit
+route from the point of local repair to a merge point, avoiding the protected
+resource.
 
 The point of local repair associates a configured bypass to a protection-desired
 transit LSP by matching the bypass merge point to the LSP's next hop (link
@@ -31,29 +32,115 @@ section 4.4: "If the requested bandwidth is not guaranteed, the PLR MUST NOT set
 this flag"). The "node protection" bit (0x08) is set only when the armed bypass
 merges at the next-next hop.
 
+All four bits stay clear until the native FIB owner has accepted the bypass's
+forwarding context and the protected LSP has a resolved merge-point label.
+Arming a bypass at PATH time records a configuration match. RFC 4090 section 6
+says: "Until a PLR has a backup path available, the PLR MUST clear the relevant
+four flags in the corresponding RRO IPv4 or IPv6 sub-object."
+
+<!-- source: internal/plugins/rsvpte/frr.go -- bypassEstablished, rroProtectionFlags -->
+
+Both a relayed RESV and a periodic RESV refresh read the current bypass state.
+They clear stale cached flags when that bypass goes down. The read occurs outside
+the protected LSP's lock because the two LSPs have no lock order.
+
+<!-- source: internal/plugins/rsvpte/reservation.go -- acceptReservation, receivedReservation -->
+<!-- source: internal/plugins/rsvpte/engine.go -- sendResv -->
+
 ## Decision: a transit relays FAST_REROUTE byte for byte
 
 RFC 4090 section 4.1 reserves the FAST_REROUTE object to the head-end. A transit
 keeps the object it received (`protectionRequest.Received`) and relays that one,
 affinity fields and flags included, and relays none when the head-end signaled
-protection through the SESSION_ATTRIBUTE flag alone.
+protection through the SESSION_ATTRIBUTE flag alone. The SESSION_ATTRIBUTE is
+relayed the same way, as the received bytes, whether or not it requests
+protection (`docs/architecture/rsvpte/mpls-rsvp-te.md`, "a transit relays
+SESSION_ATTRIBUTE byte for byte").
 
 <!-- source: internal/plugins/rsvpte/frr.go -- protectionFromPath, fastRerouteObject -->
 
-## Decision: local repair is one FIB reprogram in the existing worker
+## Decision: local repair moves data and control traffic
 
 `tryLocalRepair` is slotted into `handleLinkDown` exactly where the base engine
-tore the LSP down. When the matched transit LSP has a ready bypass, the repair
-programs a two-label swap, skips the teardown, and sends a Notify PathErr (code
-25, value 3). The head-end re-optimizes make-before-break on the Notify, reusing
-the base reroute path. There is no parallel signaling path: the bypass is an
+tore the LSP down. With a ready bypass, a transit repair programs a two-label
+swap and skips teardown; the PLR sends a Notify PathErr (code
+25, value 3). The head-end re-optimizes make-before-break on the Notify and
+retains the protection request on its replacement LSP. The bypass itself is an
 ordinary ingress LSP.
 
-The dataplane needed no new primitive. The MPLS FIB entry already carried a label
-**slice**, so a swap with two out-labels flows through the existing bus and
-programs an MPLS destination with a stack.
+<!-- source: internal/plugins/rsvpte/engine.go -- handleLinkDown -->
+<!-- source: internal/plugins/rsvpte/frr.go -- tryLocalRepair, reoptimizeOnNotify -->
+
+The PLR immediately sends the protected PATH through the bypass and refreshes it
+on subsequent ticks. The backup keeps SESSION and LSP_ID, uses the PLR's address
+for SENDER_TEMPLATE and RSVP_HOP, and starts its ERO at the merge point. This
+removes the failed node from a node-protection ERO. The backup clears the three
+protection-desired SESSION_ATTRIBUTE bits and does not request another repair.
+The original PSB is retained for upstream signaling.
+
+The bypass's own PATH continues to refresh along its configured explicit route.
+Only the repaired sender uses the bypass's private forwarding context. Holding
+all outgoing PATH messages during repair would also stop the refreshes that keep
+the bypass established.
+
+A head-end can also be the PLR. It then needs a second IPv4 address assigned in
+its network namespace: Section 6.1.1 requires a different SENDER_TEMPLATE
+address for the backup. A configured link prefix is not address ownership.
+Without an assigned alternate it does not arm a bypass. With one, repair
+installs a two-label ingress push, uses that alternate sender, sets RSVP_HOP
+to the outgoing interface, and starts make-before-break re-optimization.
+Retiring the old LSP tears the backup sender through the bypass without removing
+the replacement's ingress FEC.
+
+The bypass RESV installs its merge-point host route in a private forwarding
+table, selected by that bypass's packet mark. Two bypasses to the same merge
+point therefore keep separate stacks and output links. PATH, PathTear and
+ResvConf select the protected LSP's exact bypass context. Their IP destination
+remains the session endpoint or confirmation receiver; the routing lookup uses
+the merge point. An absent or unlabeled context is refused, and a terminal
+reserved-mark rule prevents fallback to the ordinary routing table.
+
+Native forwarding acceptance precedes an Up state or an advertised label.
+Kernel refusal, including a conflicting route, prevents a new reservation from
+coming up. If replacing an accepted reservation fails, the previous reservation
+remains in place.
+Returning backup RESVs update the inner merge label without restoring the
+failed swap. A PathErr is translated to the original sender before going
+upstream. An alternate merge-point source address is accepted only when the
+live native OSPF or IS-IS database attributes it to the same node. A reachable
+host prefix alone is not proof of address ownership.
+
+Withdrawing a bypass retires dependent backup senders and their repair stacks
+before removing its private route and selector. Shutdown stops the signaling
+workers, retires protected LSPs, then removes their bypasses. Other bypasses,
+including those with the same merge point, retain their contexts.
+
+At the merge point, a backup sender joins the protected PATH when SESSION,
+LSP_ID, the remaining ERO and the sender traffic specification match. The MP
+preserves the protected sender downstream, refreshes that PATH periodically,
+and sends RESVs to each incoming branch with that branch's FILTER_SPEC.
+Branches expire independently. The final branch's teardown releases the shared
+label and downstream state.
+
+<!-- source: internal/plugins/rsvpte/register.go -- refreshPaths -->
+<!-- source: internal/plugins/rsvpte/transport_linux.go -- rawTransport.SendPath -->
+<!-- source: internal/plugins/rsvpte/frr.go -- backupPath, repairedLSP, mergeBackupPath, refreshBackupForwarding -->
+<!-- source: internal/plugins/rsvpte/engine.go -- sendPath, sendResv, handlePathErr, handlePathTear -->
+<!-- source: internal/plugins/rsvpte/fsm.go -- mergedPath, expiredPSBs -->
+<!-- source: internal/plugins/rsvpte/frr.go -- repairSender -->
+<!-- source: internal/plugins/rsvpte/reroute.go -- teardownLSP -->
+<!-- source: internal/plugins/rsvpte/confirmation.go -- sendResvConf, handleResvConf -->
+<!-- source: internal/plugins/rsvpte/peer_identity.go -- samePeer, updatePeerIdentity -->
+<!-- source: internal/plugins/rsvpte/reroute.go -- shutdown -->
+<!-- source: internal/plugins/fib/kernel/mplscontext_linux.go -- scoped forwarding contexts -->
+
+The MPLS FIB entry carries the full outgoing label stack. Its native owner
+acknowledges installation synchronously; a published event alone is not
+forwarding evidence. Kernel MTU handling must be checked separately from
+small-packet push, swap and pop behavior.
 
 <!-- source: internal/plugins/rsvpte/fib.go -- busFIB programBackup -->
+<!-- source: internal/plugins/rsvpte/reservation.go -- acceptReservation, installReservation -->
 
 ## Decision: node protection requires label recording
 

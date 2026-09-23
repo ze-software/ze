@@ -28,6 +28,8 @@ func egressTestPSB() *pathStateBlock {
 	return &pathStateBlock{
 		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1, ExtTunnelID: 0x0a000001},
 		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
+		RRO:            []rroEntry{{Type: RROSubIPv4, Address: netip.MustParseAddr("10.0.0.1")}},
+		RecordRoute:    true,
 		SenderTSpec:    FlowSpec{TokenRate: 1e8, TokenBucket: 1e8, PeakRate: 1e8},
 		LabelRequest:   labelRequest{L3PID: 0x0800},
 		RefreshPeriod:  DefaultRefreshPeriod,
@@ -43,22 +45,26 @@ func TestEgressRecordsRRO(t *testing.T) {
 
 	resv, _, ok := ft.lastByType(MsgTypeResv)
 	require.True(t, ok)
-	require.True(t, resv.HasRRO, "egress RESV carries an RRO")
-	require.NotEmpty(t, resv.RRO)
-	assert.Equal(t, netip.MustParseAddr("10.0.0.9"), resv.RRO[0].Address, "egress records itself")
+	require.Len(t, resv.FlowDescriptors, 1)
+	require.Len(t, resv.FlowDescriptors[0].Filters, 1)
+	filter := resv.FlowDescriptors[0].Filters[0]
+	require.True(t, filter.HasRRO, "egress RESV carries a filter-owned RRO")
+	require.NotEmpty(t, filter.RRO)
+	assert.Equal(t, netip.MustParseAddr("10.0.0.9"), filter.RRO[0].Address, "egress records itself")
 }
 
 // VALIDATES: AC-9 -- the ingress head-end records the full path from the RESV's
 // RRO, prepending itself, so `show rsvp-te session` can display it.
 func TestIngressRecordsFullRRO(t *testing.T) {
-	e, _, _ := testEngine(t, "10.0.0.1", nil)
+	e, ft, _ := testEngine(t, "10.0.0.1", nil)
 	key := lspKey{
 		TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1,
 		ExtTunnelID: 0x0a000001, SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1,
 	}
-	lsp, _ := e.table.GetOrCreate(key)
-	lsp.Role = RoleIngress
-	lsp.setState(LSPStatePathSent)
+	setupTunnel(e.log, e.table, tunnelConfig{Destination: key.TunnelEndpoint, TunnelID: key.TunnelID}, e.cfg(), e)
+	path, _, sent := ft.lastByType(MsgTypePath)
+	require.True(t, sent, "ingress signaled the PATH")
+	require.True(t, path.HasRRO, "ingress requested route recording")
 
 	rsb := &resvStateBlock{
 		Session: sessionIPv4{TunnelEndpoint: key.TunnelEndpoint, TunnelID: key.TunnelID, ExtTunnelID: key.ExtTunnelID},

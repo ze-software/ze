@@ -96,5 +96,7 @@ func TestRefreshResendsPathAndResv(t *testing.T) {
 	resv, resvDst, gotResv := ft.lastByType(MsgTypeResv)
 	require.True(t, gotResv, "refresh re-sends a RESV for the egress LSP")
 	assert.Equal(t, eg.PrevHop, resvDst, "the refreshed RESV goes upstream to the PHOP")
-	assert.Equal(t, uint32(1000), resv.Label.Label, "the refreshed RESV carries the egress label")
+	require.Len(t, resv.FlowDescriptors, 1)
+	require.Len(t, resv.FlowDescriptors[0].Filters, 1)
+	assert.Equal(t, uint32(1000), resv.FlowDescriptors[0].Filters[0].Label.Label, "the refreshed RESV carries the egress label")
 }

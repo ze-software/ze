@@ -36,23 +36,24 @@ func TestRFC3209EgressResvCarriesLabel(t *testing.T) {
 	resv, dst, ok := ft.lastByType(MsgTypeResv)
 	require.True(t, ok, "the accepted LABEL_REQUEST is answered with a RESV")
 	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), dst)
-	require.True(t, resv.HasLabel, "the RESV carries a LABEL object")
-	lsp, ok := e.table.Get(keyFromMessage(resv))
+	require.Len(t, resv.FlowDescriptors, 1)
+	require.Len(t, resv.FlowDescriptors[0].Filters, 1)
+	require.True(t, resv.FlowDescriptors[0].Filters[0].HasLabel, "the RESV carries a LABEL object")
+	lsp, ok := e.table.Get(keyFromFilter(resv.Session, resv.FlowDescriptors[0].Filters[0].Filter))
 	require.True(t, ok)
-	assert.Equal(t, lsp.InLabel, resv.Label.Label, "the LABEL is the label the egress allocated")
-	assert.NotZero(t, resv.Label.Label)
+	assert.Equal(t, lsp.InLabel, resv.FlowDescriptors[0].Filters[0].Label.Label, "the LABEL is the label the egress allocated")
+	assert.NotZero(t, resv.FlowDescriptors[0].Filters[0].Label.Label)
 }
 
 // RFC requirement: RFC3209-4.2.4-3 positive — the ingress that sent a LABEL_REQUEST processes the LABEL of the answering RESV: it records the label as the LSP's out-label, programs the push and brings the LSP up.
 func TestRFC3209IngressProcessesResvLabel(t *testing.T) {
-	e, _, fib := testEngine(t, "10.0.0.1", nil)
+	e, ft, fib := testEngine(t, "10.0.0.1", nil)
 	key := lspKey{
 		TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 3,
 		ExtTunnelID: 0x0a000001, SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1,
 	}
-	lsp, _ := e.table.GetOrCreate(key)
-	lsp.Role = RoleIngress
-	lsp.setState(LSPStatePathSent)
+	setupTunnel(e.log, e.table, tunnelConfig{Destination: key.TunnelEndpoint, TunnelID: key.TunnelID}, e.cfg(), e)
+	require.Equal(t, 1, ft.countByType(MsgTypePath), "ingress signaled the PATH")
 
 	rsb := &resvStateBlock{
 		Session: sessionIPv4{TunnelEndpoint: key.TunnelEndpoint, TunnelID: key.TunnelID, ExtTunnelID: key.ExtTunnelID},
@@ -72,14 +73,13 @@ func TestRFC3209IngressProcessesResvLabel(t *testing.T) {
 
 // RFC requirement: RFC3209-4.2.4-3 negative — a RESV that answers the LABEL_REQUEST without a LABEL object is refused: the out-label stays zero, the LSP stays path-sent and no push is programmed.
 func TestRFC3209IngressRefusesResvWithoutLabel(t *testing.T) {
-	e, _, fib := testEngine(t, "10.0.0.1", nil)
+	e, ft, fib := testEngine(t, "10.0.0.1", nil)
 	key := lspKey{
 		TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 3,
 		ExtTunnelID: 0x0a000001, SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1,
 	}
-	lsp, _ := e.table.GetOrCreate(key)
-	lsp.Role = RoleIngress
-	lsp.setState(LSPStatePathSent)
+	setupTunnel(e.log, e.table, tunnelConfig{Destination: key.TunnelEndpoint, TunnelID: key.TunnelID, Bandwidth: 8e6}, e.cfg(), e)
+	require.Equal(t, 1, ft.countByType(MsgTypePath), "ingress signaled the PATH")
 
 	session := sessionIPv4{TunnelEndpoint: key.TunnelEndpoint, TunnelID: key.TunnelID, ExtTunnelID: key.ExtTunnelID}
 	filter := senderTemplateIPv4{SenderAddr: key.SenderAddr, LSPID: key.LSPID}
@@ -91,8 +91,10 @@ func TestRFC3209IngressRefusesResvWithoutLabel(t *testing.T) {
 		func(b []byte) int {
 			return encodeFlowSpec(b, ClassFlowSpec, FlowSpec{TokenRate: 1e6, TokenBucket: 1e6, PeakRate: 1e6})
 		},
-		func(b []byte) int { return encodeSenderTemplate(b, filter) },
+		func(b []byte) int { return encodeFilterSpec(b, filter) },
 	})
+	_, err := DecodeMessage(raw)
+	require.Error(t, err, "only the mandatory LABEL is omitted")
 	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.9"), Payload: raw})
 
 	got, _ := e.table.Get(key)
@@ -143,7 +145,11 @@ func TestRFC3209TransitEvaluatesFirstEROSubobject(t *testing.T) {
 // RFC requirement: RFC3209-4.3.4.1-1 negative — a transit PATH with no first ERO subobject to evaluate is not relayed: the node answers a PathErr with Routing Problem / Bad EXPLICIT_ROUTE object and installs no LSP.
 func TestRFC3209TransitNoFirstEROSubobject(t *testing.T) {
 	e, ft, _ := testEngine(t, "10.0.0.5", nil)
-	path := buildPath(rfc3209PathPSB(nil), netip.MustParseAddr("10.0.0.1"), 64)
+	path := pathWithObject(rfc3209PathPSB(nil), netip.MustParseAddr("10.0.0.1"), ClassExplicitRoute, CTypeGeneric, nil)
+	decoded, err := DecodeMessage(path)
+	require.NoError(t, err)
+	require.True(t, decoded.HasERO, "the ERO is present, not omitted")
+	require.Empty(t, decoded.ERO, "the present ERO has no first subobject")
 	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.1"), Payload: path})
 
 	perr, dst, ok := ft.lastByType(MsgTypePathErr)

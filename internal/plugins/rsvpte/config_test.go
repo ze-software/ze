@@ -51,7 +51,7 @@ func TestParseRSVPTEConfigRealShape(t *testing.T) {
 	assert.Equal(t, "to-egress", tun.Name, "tunnel list key becomes the name")
 	assert.Equal(t, "10.0.0.9", tun.Destination.String())
 	assert.Equal(t, uint16(1), tun.TunnelID)
-	assert.Equal(t, float32(1e9), tun.Bandwidth)
+	assert.InDelta(t, 1e9, tun.Bandwidth, 0)
 
 	// explicit-route is keyed by index in the tree (unordered); the parser must
 	// restore hop order by numeric index, so hop 1 precedes hop 2.

@@ -49,6 +49,9 @@ func pathWithProtectionObjects(psb *pathStateBlock, hop netip.Addr, sa *sessionA
 		func(b []byte) int { return encodeSenderTemplate(b, psb.SenderTemplate) },
 		func(b []byte) int { return encodeFlowSpec(b, ClassSenderTSpec, psb.SenderTSpec) },
 	)
+	if psb.RecordRoute {
+		encoders = append(encoders, func(b []byte) int { return encodeRRO(b, psb.RRO) })
+	}
 	return encodeMessage(MsgTypePath, 64, encoders)
 }
 
@@ -60,10 +63,13 @@ func relayedRROFlags(t *testing.T, e *engine, ft *fakeTransport, psb *pathStateB
 	e.handlePacket(Packet{Src: mp, Payload: buildResv(rsb, psb.SenderTemplate, DefaultRefreshPeriod, mp)})
 	relayed, _, ok := ft.lastByType(MsgTypeResv)
 	require.True(t, ok, "PLR relays a RESV upstream")
-	require.True(t, relayed.HasRRO)
-	require.NotEmpty(t, relayed.RRO)
-	require.Equal(t, e.cfg().RouterID, relayed.RRO[0].Address, "PLR's own RRO subobject is first")
-	return relayed.RRO[0].Flags
+	require.Len(t, relayed.FlowDescriptors, 1)
+	require.Len(t, relayed.FlowDescriptors[0].Filters, 1)
+	filter := relayed.FlowDescriptors[0].Filters[0]
+	require.True(t, filter.HasRRO)
+	require.NotEmpty(t, filter.RRO)
+	require.Equal(t, e.cfg().RouterID, filter.RRO[0].Address, "PLR's own RRO subobject is first")
+	return filter.RRO[0].Flags
 }
 
 // TestRFC4090TransitRelaysFastRerouteUnchanged: a transit relays the FAST_REROUTE
@@ -190,9 +196,12 @@ func TestRFC4090EgressDoesNotActAsPLR(t *testing.T) {
 	assert.Nil(t, bypass, "egress arms no bypass")
 	resv, _, ok := ft.lastByType(MsgTypeResv)
 	require.True(t, ok, "egress answers with a RESV")
-	require.True(t, resv.HasRRO)
-	require.NotEmpty(t, resv.RRO)
-	assert.Zero(t, resv.RRO[0].Flags, "egress RRO subobject carries no protection flag")
+	require.Len(t, resv.FlowDescriptors, 1)
+	require.Len(t, resv.FlowDescriptors[0].Filters, 1)
+	filter := resv.FlowDescriptors[0].Filters[0]
+	require.True(t, filter.HasRRO)
+	require.NotEmpty(t, filter.RRO)
+	assert.Zero(t, filter.RRO[0].Flags, "egress RRO subobject carries no protection flag")
 }
 
 // TestRFC4090BandwidthBitNeverClaimed: a bypass reserves no bandwidth, so the PLR
@@ -360,7 +369,10 @@ func TestRFC4090BypassDestinationIsMergePoint(t *testing.T) {
 	path, dst, ok := ft.lastByType(MsgTypePath)
 	require.True(t, ok, "bypass PATH sent")
 	assert.Equal(t, cfg.Bypasses[0].MergePoint, path.Session.TunnelEndpoint, "bypass destination is the merge point")
-	assert.Equal(t, cfg.Bypasses[0].MergePoint, dst)
+	assert.Equal(t, cfg.Bypasses[0].ERO[0].Address.Addr(), dst, "transport dst is the configured first hop")
+	sent := lastPathCarriage(t, ft, MsgTypePath, path.Session.TunnelID)
+	assert.Equal(t, cfg.Bypasses[0].MergePoint, sent.route.Destination, "IP destination is the merge point")
+	assert.Equal(t, cfg.Bypasses[0].ERO[0].Address.Addr(), sent.route.NextHop, "next hop is independent of the tunnel destination")
 
 	pr := &protectionRequest{Facility: true, Transit: true}
 	other := []eroHop{{Address: netip.MustParsePrefix("10.0.0.7/32")}, {Address: netip.MustParsePrefix("10.0.0.9/32")}}
@@ -430,13 +442,22 @@ func TestRFC4090UnprotectedPathRequestsNoLabelRecording(t *testing.T) {
 // returns the RRO the head-end stored for it.
 func headEndResvRRO(t *testing.T, rro []rroEntry) []rroEntry {
 	t.Helper()
-	e, _, key := headEndEngine(t)
+	e, ft, _ := testEngine(t, "10.0.0.1", nil)
+	tc := tunnelConfig{Destination: netip.MustParseAddr("10.0.0.9"), TunnelID: 1, Bandwidth: 8e8,
+		ERO: []eroHop{{Address: netip.MustParsePrefix("10.0.0.2/32")}, {Address: netip.MustParsePrefix("10.0.0.9/32")}}}
+	setupTunnel(e.log, e.table, tc, e.cfg(), e)
+	key := tunnelKey(tc, e.cfg().RouterID)
 	lsp, ok := e.table.Get(key)
 	require.True(t, ok)
+	require.Equal(t, LSPStatePathSent, lsp.State)
 	lsp.mu.Lock()
 	lsp.PSB.Protection = &protectionRequest{Facility: true, HopLimit: 16, Bandwidth: 1e8, SetupPrio: 7, HoldPrio: 7}
 	psb := lsp.PSB
 	lsp.mu.Unlock()
+	require.NoError(t, e.sendPath(lsp), "head-end requests route recording before the RESV")
+	path, _, sent := ft.lastByType(MsgTypePath)
+	require.True(t, sent)
+	require.True(t, path.HasRRO, "head-end requested route recording")
 	nhop := netip.MustParseAddr("10.0.0.2")
 	rsb := &resvStateBlock{Session: psb.Session, Label: labelObject{Label: 17000}, Style: StyleSharedExplicit, RRO: rro}
 	e.handlePacket(Packet{Src: nhop, Payload: buildResv(rsb, psb.SenderTemplate, DefaultRefreshPeriod, nhop)})

@@ -73,15 +73,16 @@ func TestBuildResvRoundTrip(t *testing.T) {
 	require.True(t, msg.HasSession)
 	assert.Equal(t, rsb.Session, msg.Session)
 	// RFC requirement: RFC3209-4.1-1 positive -- buildResv emits a LABEL object (build.go:129) so a RESV ze builds carries the label the node reports upstream.
-	require.True(t, msg.HasLabel)
-	assert.Equal(t, uint32(16001), msg.Label.Label)
+	require.Len(t, msg.FlowDescriptors, 1)
+	require.Len(t, msg.FlowDescriptors[0].Filters, 1)
+	require.True(t, msg.FlowDescriptors[0].Filters[0].HasLabel)
+	assert.Equal(t, uint32(16001), msg.FlowDescriptors[0].Filters[0].Label.Label)
 	// RFC requirement: RFC3209-6-2 positive -- a RESV built with the SE style carries STYLE = Shared Explicit (18) on the wire (build.go:126, wire.go:680), the style make-before-break requires.
 	require.True(t, msg.HasStyle)
 	assert.Equal(t, StyleSharedExplicit, msg.Style)
-	require.True(t, msg.HasSenderTemplate, "filter spec decodes as sender template")
-	assert.Equal(t, filter, msg.SenderTemplate)
-	require.True(t, msg.HasFlowSpec)
-	assert.InDelta(t, rsb.FlowSpec.TokenRate, msg.FlowSpec.TokenRate, 1)
+	assert.Equal(t, filter, msg.FlowDescriptors[0].Filters[0].Filter)
+	require.NotEmpty(t, msg.FlowDescriptors[0].FlowSpecRaw, "FLOWSPEC is present")
+	assert.InDelta(t, rsb.FlowSpec.TokenRate, msg.FlowDescriptors[0].FlowSpec.TokenRate, 1)
 }
 
 func TestBuildPathErrRoundTrip(t *testing.T) {

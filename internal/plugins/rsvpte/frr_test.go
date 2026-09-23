@@ -139,6 +139,8 @@ func protectedPSB() *pathStateBlock {
 	return &pathStateBlock{
 		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1, ExtTunnelID: 0x0a000001},
 		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
+		RRO:            []rroEntry{{Type: RROSubIPv4, Address: netip.MustParseAddr("10.0.0.1")}},
+		RecordRoute:    true,
 		SenderTSpec:    FlowSpec{TokenRate: 1e8, TokenBucket: 1e8, PeakRate: 1e8},
 		LabelRequest:   labelRequest{L3PID: 0x0800},
 		RefreshPeriod:  DefaultRefreshPeriod,
@@ -276,6 +278,8 @@ func protectedTransitPSB(pr *protectionRequest) *pathStateBlock {
 	return &pathStateBlock{
 		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1, ExtTunnelID: 0x0a000001},
 		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
+		RRO:            []rroEntry{{Type: RROSubIPv4, Address: netip.MustParseAddr("10.0.0.1")}},
+		RecordRoute:    true,
 		ERO: []eroHop{
 			{Address: netip.MustParsePrefix("10.0.0.2/32")},
 			{Address: netip.MustParsePrefix("10.0.0.3/32")},
@@ -289,7 +293,8 @@ func protectedTransitPSB(pr *protectionRequest) *pathStateBlock {
 
 // TestPLRArmsBypass: a transit node receiving a protection-desired PATH arms the
 // configured bypass whose merge point is the NHOP, relays the protection request
-// downstream, and reports "local protection available" in the RESV RRO (AC-2).
+// downstream, and, once the bypass LSP is up, reports "local protection
+// available" in the RESV RRO (AC-2).
 func TestPLRArmsBypass(t *testing.T) {
 	e, ft, _ := plrEngine(t)
 	ingress := netip.MustParseAddr("10.0.0.1")
@@ -308,8 +313,10 @@ func TestPLRArmsBypass(t *testing.T) {
 	assert.Equal(t, netip.MustParseAddr("10.0.0.3"), lsp.Bypass.TunnelEndpoint, "bypass merges at the NHOP")
 	assert.True(t, lsp.Bypass.TunnelID >= bypassTunnelIDBase, "bypass uses the reserved tunnel-id range")
 
-	// The egress RESV comes back; the PLR's relayed RESV records protection
-	// available in its own RRO subobject (RFC 4090 Section 4.4).
+	// The bypass LSP is established (RFC 4090 Section 6 clears the flags until
+	// it is), then the egress RESV comes back; the PLR's relayed RESV records
+	// protection available in its own RRO subobject (RFC 4090 Section 4.4).
+	bringBypassUp(t, e, 5000, netip.MustParseAddr("10.0.1.3"))
 	mp := netip.MustParseAddr("10.0.0.3")
 	rsb := &resvStateBlock{Session: psb.Session, Label: labelObject{Label: 18000}, Style: StyleSharedExplicit}
 	e.handlePacket(Packet{Src: mp, Payload: buildResv(rsb, psb.SenderTemplate, DefaultRefreshPeriod, mp)})
@@ -317,11 +324,14 @@ func TestPLRArmsBypass(t *testing.T) {
 	relayed, rdst, ok := ft.lastByType(MsgTypeResv)
 	require.True(t, ok, "PLR relays a RESV upstream")
 	assert.Equal(t, ingress, rdst, "RESV relayed toward the head-end")
-	require.True(t, relayed.HasRRO)
-	require.NotEmpty(t, relayed.RRO)
-	assert.Equal(t, netip.MustParseAddr("10.0.0.2"), relayed.RRO[0].Address, "PLR's own RRO subobject is first")
-	// RFC requirement: RFC4090-4.4-1 positive -- once a bypass is armed the PLR's RRO subobject reports "local protection available" (0x01).
-	assert.NotZero(t, relayed.RRO[0].Flags&RROFlagProtectionAvailable, "RRO reports local protection available")
+	require.Len(t, relayed.FlowDescriptors, 1)
+	require.Len(t, relayed.FlowDescriptors[0].Filters, 1)
+	filter := relayed.FlowDescriptors[0].Filters[0]
+	require.True(t, filter.HasRRO)
+	require.NotEmpty(t, filter.RRO)
+	assert.Equal(t, netip.MustParseAddr("10.0.0.2"), filter.RRO[0].Address, "PLR's own RRO subobject is first")
+	// RFC requirement: RFC4090-4.4-1 positive -- once a bypass is armed and its LSP is up the PLR's RRO subobject reports "local protection available" (0x01).
+	assert.NotZero(t, filter.RRO[0].Flags&RROFlagProtectionAvailable, "RRO reports local protection available")
 }
 
 // TestPLRNoBypassWithoutProtection: a PATH that requests no protection arms no
@@ -673,15 +683,22 @@ func notifyFor(key lspKey) []byte {
 // make-before-break reroute (a new PATH with the next LSP_ID) (AC-5).
 func TestHeadEndReoptimizesOnNotify(t *testing.T) {
 	e, ft, key := headEndEngine(t)
+	original, ok := e.table.Get(key)
+	require.True(t, ok)
+	original.mu.Lock()
+	original.PSB.Protection = &protectionRequest{Facility: true, NodeProtection: true}
+	original.mu.Unlock()
 	e.handlePacket(Packet{Src: netip.MustParseAddr("10.0.0.2"), Payload: notifyFor(key)})
 
 	newKey := key
 	newKey.LSPID = 2
-	_, ok := e.table.Get(newKey)
+	_, ok = e.table.Get(newKey)
 	require.True(t, ok, "head-end signaled a make-before-break replacement LSP")
 	path, _, ok := ft.lastByType(MsgTypePath)
 	require.True(t, ok, "a fresh PATH is sent")
 	assert.Equal(t, uint16(2), path.SenderTemplate.LSPID, "replacement uses the next LSP_ID")
+	assert.True(t, path.HasFastReroute, "the replacement keeps requesting protection")
+	assert.NotZero(t, path.SessionAttr.Flags&SessAttrNodeProtection)
 }
 
 // TestHeadEndReoptimizeIdempotent: repeated Notifies do not spawn a storm of
@@ -703,6 +720,8 @@ func nodeProtectionPSB() *pathStateBlock {
 	return &pathStateBlock{
 		Session:        sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 1, ExtTunnelID: 0x0a000001},
 		SenderTemplate: senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 1},
+		RRO:            []rroEntry{{Type: RROSubIPv4, Address: netip.MustParseAddr("10.0.0.1")}},
+		RecordRoute:    true,
 		ERO: []eroHop{
 			{Address: netip.MustParsePrefix("10.0.0.2/32")}, // PLR
 			{Address: netip.MustParsePrefix("10.0.0.3/32")}, // NHOP
@@ -843,7 +862,7 @@ func TestRROProtectionFlagsReflectState(t *testing.T) {
 	bp := lspKey{TunnelEndpoint: netip.MustParseAddr("10.0.0.3"), TunnelID: bypassTunnelIDBase, LSPID: 1}
 
 	// A link-protected LSP: bypass armed, no local repair yet, node protection not requested.
-	linkOnly := &LSP{Bypass: &bp, PSB: &pathStateBlock{Protection: &protectionRequest{Facility: true}}}
+	linkOnly := &LSP{Bypass: &bp, InLabel: 1001, BackupLabel: 18000, PSB: &pathStateBlock{Protection: &protectionRequest{Facility: true}}}
 	linkFlags := rroProtectionFlags(linkOnly)
 	require.NotZero(t, linkFlags&RROFlagProtectionAvailable, "available once a bypass is armed")
 	// RFC requirement: RFC4090-4.4-2 negative -- "local protection in use" (0x02) stays clear while a bypass is armed but no local repair has redirected traffic.
@@ -858,7 +877,7 @@ func TestRROProtectionFlagsReflectState(t *testing.T) {
 	assert.NotZero(t, rroProtectionFlags(linkOnly)&RROFlagProtectionInUse, "in-use set once on the backup")
 
 	// A node-protection request sets the node-protection bit.
-	nodeProt := &LSP{Bypass: &bp, PSB: &pathStateBlock{Protection: &protectionRequest{Facility: true, NodeProtection: true}}}
+	nodeProt := &LSP{Bypass: &bp, InLabel: 1001, BackupLabel: 7777, PSB: &pathStateBlock{Protection: &protectionRequest{Facility: true, NodeProtection: true}}}
 	// RFC requirement: RFC4090-4.4-3 positive -- "node protection" (0x08) is set when the head-end requested node protection.
 	assert.NotZero(t, rroProtectionFlags(nodeProt)&RROFlagNodeProtection, "node bit set when node protection requested")
 }
@@ -943,6 +962,8 @@ func TestEnginePathWithIgnorableObjectAccepted(t *testing.T) {
 	}
 	resv, _, ok := ft.lastByType(MsgTypeResv)
 	require.True(t, ok, "the PATH is signaled normally around the ignored object")
-	require.True(t, resv.HasLabel, "the RESV carries the allocated label")
+	require.Len(t, resv.FlowDescriptors, 1)
+	require.Len(t, resv.FlowDescriptors[0].Filters, 1)
+	require.True(t, resv.FlowDescriptors[0].Filters[0].HasLabel, "the RESV carries the allocated label")
 	assert.Len(t, e.table.All(), 1, "the PATH installs LSP state")
 }

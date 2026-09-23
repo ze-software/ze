@@ -8,8 +8,8 @@ package rsvpte
 
 import (
 	"encoding/binary"
+	"fmt"
 	"net/netip"
-	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -146,7 +146,9 @@ func TestRFC3209SessionAttributeLengthShortRefused(t *testing.T) {
 	require.ErrorIs(t, err, errShortObject, "C-Type 1 adds 12 octets of affinities before the same four")
 }
 
-// RFC requirement: RFC3209-3-2 positive — a RESV whose objects are reversed on the wire decodes through DecodeMessage to the same SESSION, STYLE, FLOWSPEC, sender and LABEL as the canonical order.
+// TestRFC3209ObjectsAcceptedInAnyOrder distinguishes the three freely ordered
+// PATH objects (RFC 3209 Section 3) from the ordered RESV descriptor suffix
+// (RFC 2205 Section 3.1.4 and RFC 3209 Section 3.2).
 func TestRFC3209ObjectsAcceptedInAnyOrder(t *testing.T) {
 	rsb := &resvStateBlock{
 		Session:  sessionIPv4{TunnelEndpoint: netip.MustParseAddr("10.0.0.9"), TunnelID: 42, ExtTunnelID: 0x0a000001},
@@ -156,32 +158,132 @@ func TestRFC3209ObjectsAcceptedInAnyOrder(t *testing.T) {
 		RRO:      []rroEntry{{Type: RROSubIPv4, Address: netip.MustParseAddr("10.0.0.9")}},
 	}
 	filter := senderTemplateIPv4{SenderAddr: netip.MustParseAddr("10.0.0.1"), LSPID: 7}
-	canonical := buildResv(rsb, filter, DefaultRefreshPeriod, netip.MustParseAddr("10.0.0.5"))
-
-	// Reverse the object order behind the common header. The header carries no
-	// object offsets and DecodeMessage reads no checksum, so nothing else moves.
-	objs := objectBodies(t, canonical)
-	require.Len(t, objs, 8, "SESSION, HOP, TIME_VALUES, STYLE, FLOWSPEC, sender, LABEL, RRO")
-	reversed := make([]byte, 0, len(canonical))
-	reversed = append(reversed, canonical[:rsvpHdrLen]...)
-	end := len(canonical)
-	for _, obj := range slices.Backward(objs) {
-		start := end - int(obj.Length)
-		reversed = append(reversed, canonical[start:end]...)
-		end = start
+	hop := rsvpHop{NextHop: netip.MustParseAddr("10.0.0.5")}
+	tv := timeValues{RefreshPeriod: refreshMillis(DefaultRefreshPeriod)}
+	ero := []eroHop{
+		{Address: netip.MustParsePrefix("10.0.0.5/32")},
+		{Loose: true, Address: netip.MustParsePrefix("10.0.0.9/32")},
 	}
-	require.Equal(t, rsvpHdrLen, end)
-	require.NotEqual(t, canonical, reversed)
+	request := labelRequest{L3PID: 0x0800}
+	attr := sessionAttribute{SetupPrio: 3, HoldPrio: 5, Flags: 0x02, Name: "permuted"}
+	tspec := rsb.FlowSpec
+	tspec.Service = serviceGeneral
+	pathPrefix := []objEncoder{
+		func(b []byte) int { return encodeSessionIPv4(b, rsb.Session) },
+		func(b []byte) int { return encodeRSVPHop(b, hop) },
+		func(b []byte) int { return encodeTimeValues(b, tv) },
+	}
+	pathObjects := []objEncoder{
+		func(b []byte) int { return encodeERO(b, ero) },
+		func(b []byte) int { return encodeLabelRequest(b, request) },
+		func(b []byte) int { return encodeSessionAttr(b, attr) },
+	}
+	permutations := [][3]int{
+		{0, 1, 2}, {0, 2, 1}, {1, 0, 2},
+		{1, 2, 0}, {2, 0, 1}, {2, 1, 0},
+	}
+	for _, order := range permutations {
+		t.Run(fmt.Sprintf("PATH/%d%d%d", order[0], order[1], order[2]), func(t *testing.T) {
+			// RFC requirement: RFC3209-3-2 positive — all six relative permutations of EXPLICIT_ROUTE, LABEL_REQUEST and SESSION_ATTRIBUTE decode in a valid PATH with their values and sender descriptor intact.
+			// MUTATION: reject LABEL_REQUEST after SESSION_ATTRIBUTE, or
+			// discard EXPLICIT_ROUTE when LABEL_REQUEST has been decoded.
+			encoders := append([]objEncoder(nil), pathPrefix...)
+			for _, index := range order {
+				encoders = append(encoders, pathObjects[index])
+			}
+			encoders = append(encoders,
+				func(b []byte) int { return encodeSenderTemplate(b, filter) },
+				func(b []byte) int { return encodeFlowSpec(b, ClassSenderTSpec, tspec) },
+			)
+			msg, err := DecodeMessage(encodeMessage(MsgTypePath, defaultIPTTL, encoders))
+			require.NoError(t, err)
+			assert.False(t, msg.HasUnknownObject)
+			assert.True(t, msg.HasSession)
+			assert.True(t, msg.HasHop)
+			assert.True(t, msg.HasTimeValues)
+			assert.True(t, msg.HasERO)
+			assert.True(t, msg.HasLabelRequest)
+			assert.True(t, msg.HasSessionAttr)
+			assert.True(t, msg.HasSenderTemplate)
+			assert.True(t, msg.HasSenderTSpec)
+			assert.Equal(t, rsb.Session, msg.Session)
+			assert.Equal(t, hop, msg.Hop)
+			assert.Equal(t, tv, msg.TimeValues)
+			assert.Equal(t, ero, msg.ERO)
+			assert.Equal(t, request, msg.LabelRequest)
+			assert.Equal(t, attr, msg.SessionAttr)
+			assert.Equal(t, filter, msg.SenderTemplate)
+			assert.Equal(t, tspec, msg.SenderTSpec)
+		})
+	}
 
+	canonical := buildResv(rsb, filter, DefaultRefreshPeriod, hop.NextHop)
+	objs := objectBodies(t, canonical)
+	classes := []uint8{ClassSession, ClassRSVPHop, ClassTimeValues, ClassStyle, ClassFlowSpec, ClassFilterSpec, ClassLabel, ClassRecordRoute}
+	require.Len(t, objs, len(classes))
+	chunks := make([][]byte, len(objs))
+	off := rsvpHdrLen
+	for i, obj := range objs {
+		require.Equal(t, classes[i], obj.ClassNum)
+		end := off + int(obj.Length)
+		chunks[i] = canonical[off:end]
+		off = end
+	}
+	require.Equal(t, len(canonical), off)
+	// Complete four-byte-aligned objects can be permuted without changing
+	// their one's-complement checksum. Every case retains every object.
+	reorder := func(order [8]int) []byte {
+		raw := make([]byte, 0, len(canonical))
+		raw = append(raw, canonical[:rsvpHdrLen]...)
+		for _, index := range order {
+			raw = append(raw, chunks[index]...)
+		}
+		return raw
+	}
 	want, err := DecodeMessage(canonical)
 	require.NoError(t, err)
-	got, err := DecodeMessage(reversed)
-	require.NoError(t, err, "object order is not a reason to refuse")
-	assert.Equal(t, want.Session, got.Session)
-	assert.Equal(t, want.Style, got.Style)
-	assert.Equal(t, want.FlowSpec, got.FlowSpec)
-	assert.Equal(t, want.SenderTemplate, got.SenderTemplate)
-	assert.Equal(t, want.Label, got.Label)
-	assert.Equal(t, want.RRO, got.RRO)
-	assert.Equal(t, uint32(16050), got.Label.Label)
+	require.Len(t, want.FlowDescriptors, 1)
+	require.Len(t, want.FlowDescriptors[0].Filters, 1)
+	for _, order := range permutations {
+		t.Run(fmt.Sprintf("RESV-prefix/%d%d%d", order[0], order[1], order[2]), func(t *testing.T) {
+			// RFC requirement: RFC2205-4-4 positive — all six SESSION/HOP/TIME_VALUES prefix orders are accepted with STYLE and the ordered descriptor suffix last; SESSION, STYLE, FLOWSPEC, filter, LABEL and RRO remain unchanged.
+			// MUTATION: require SESSION before RSVP_HOP in
+			// checkObjectPlacement, or drop the decoded filter's RRO.
+			raw := reorder([8]int{order[0], order[1], order[2], 3, 4, 5, 6, 7})
+			got, err := DecodeMessage(raw)
+			require.NoError(t, err, "the RESV prefix order is unrestricted")
+			require.Len(t, got.FlowDescriptors, 1)
+			require.Len(t, got.FlowDescriptors[0].Filters, 1)
+			assert.Equal(t, want.Session, got.Session)
+			assert.Equal(t, want.Style, got.Style)
+			assert.Equal(t, want.FlowDescriptors[0].FlowSpec, got.FlowDescriptors[0].FlowSpec)
+			assert.Equal(t, want.FlowDescriptors[0].Filters[0].Filter, got.FlowDescriptors[0].Filters[0].Filter)
+			assert.Equal(t, want.FlowDescriptors[0].Filters[0].Label, got.FlowDescriptors[0].Filters[0].Label)
+			assert.Equal(t, want.FlowDescriptors[0].Filters[0].RRO, got.FlowDescriptors[0].Filters[0].RRO)
+			assert.Equal(t, rsb.RRO, got.FlowDescriptors[0].Filters[0].RRO)
+			assert.Equal(t, uint32(16050), got.FlowDescriptors[0].Filters[0].Label.Label)
+		})
+	}
+	for _, tc := range []struct {
+		name  string
+		order [8]int
+	}{
+		{"flow-before-STYLE", [8]int{0, 1, 2, 4, 3, 5, 6, 7}},
+		{"prefix-after-STYLE", [8]int{0, 1, 3, 2, 4, 5, 6, 7}},
+		{"filter-before-FLOWSPEC", [8]int{0, 1, 2, 3, 5, 4, 6, 7}},
+		{"LABEL-before-filter", [8]int{0, 1, 2, 3, 4, 6, 5, 7}},
+		{"RRO-before-filter", [8]int{0, 1, 2, 3, 4, 7, 5, 6}},
+		{"RRO-before-LABEL", [8]int{0, 1, 2, 3, 4, 5, 7, 6}},
+		{"reversed", [8]int{7, 6, 5, 4, 3, 2, 1, 0}},
+	} {
+		t.Run("RESV-illegal/"+tc.name, func(t *testing.T) {
+			// RFC requirement: RFC2205-4-4 negative — a RESV retaining every object but violating the STYLE/flow-descriptor suffix or FILTER_SPEC/LABEL/RRO order is rejected.
+			// MUTATION: accept non-descriptor objects after STYLE in
+			// checkObjectPlacement; prefix-after-STYLE must then fail.
+			raw := reorder(tc.order)
+			require.NotEqual(t, canonical, raw)
+			_, err := DecodeMessage(raw)
+			require.Error(t, err, "RESV descriptors are not freely reorderable")
+		})
+	}
 }
