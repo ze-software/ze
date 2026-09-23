@@ -119,7 +119,7 @@ func Answer(args []string) (any, int) {
 
 	// RunEveryAction returns the complete list instead of one problem per invocation.
 	// The caller still receives the first failed gate's exit code (internal/le/leaction, Sweep).
-	return table(tc).Sweep(args, leaction.RunEveryAction)
+	return table(tc).AnswerOrSweep(args, leaction.RunEveryAction)
 }
 
 // refuseAggregateRun answers the listing and the code that says nothing ran.
