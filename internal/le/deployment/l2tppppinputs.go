@@ -20,9 +20,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
-// The two permissions the run writes with. The secrets file is narrowed because
-// xl2tpd refuses one anybody can read, and it is the only file here that
-// carries a credential.
+// Credential-bearing files are owner-only, including pppd's options and Ze's
+// local user configuration. xl2tpd also requires a private tunnel secrets file.
 const (
 	inputMode   os.FileMode = 0o644
 	secretsMode os.FileMode = 0o600
@@ -56,8 +55,8 @@ func (l *L2TPPPP) writeInputs(work string) error {
 	}{
 		{PeerConfigFile, l.peerConfig(work), inputMode},
 		{PeerSecretsFile, L2TPPPPSecrets, secretsMode},
-		{PeerOptionsFile, l.pppOptions(work), inputMode},
-		{filepath.Join("ze", "ze.conf"), l.daemonConfig(), inputMode},
+		{PeerOptionsFile, l.pppOptions(work, "s3cr3t"), secretsMode},
+		{filepath.Join("ze", "ze.conf"), l.daemonConfig(), secretsMode},
 	}
 	for _, file := range files {
 		if err := os.WriteFile(filepath.Join(work, file.name), []byte(file.body), file.mode); err != nil {
@@ -70,15 +69,19 @@ func (l *L2TPPPP) writeInputs(work string) error {
 // peerConfig answers the xl2tpd configuration.
 //
 // Every debug switch is on because the peer's account of the tunnel is the
-// evidence used to analyze a failed run. Autodial and a short redial make the
-// peer dial as soon as it starts rather than wait to be told.
+// evidence used to analyze a failed run. Autodial starts the peer immediately.
+// Credentialed attempts do not redial: rejection must end that one session.
 func (l *L2TPPPP) peerConfig(work string) string {
+	redial := "yes"
+	if l.Scenario == "chap-md5" {
+		redial = "no"
+	}
 	var tb textbuf.Buffer
 	return tb.Str("[global]\nport = ").Str(l.PeerPort).
 		Str("\nauth file = ").Str(filepath.Join(work, PeerSecretsFile)).
 		Str("\ndebug tunnel = yes\ndebug state = yes\ndebug packet = yes\ndebug avp = yes\n\n").
 		Str("[lac ze]\nlns = ").Str(l.ListenIP).
-		Str("\nautodial = yes\nredial = yes\nredial timeout = 1\nmax redials = 5\n").
+		Str("\nautodial = yes\nredial = ").Str(redial).Str("\nredial timeout = 1\nmax redials = 5\n").
 		Str("require authentication = no\nppp debug = yes\npppoptfile = ").
 		Str(filepath.Join(work, PeerOptionsFile)).
 		Str("\nlength bit = yes\n").String()
@@ -86,24 +89,32 @@ func (l *L2TPPPP) peerConfig(work string) string {
 
 // pppOptions answers what xl2tpd hands pppd.
 //
-// pppd refuses EAP and accepts both IPCP addresses from the far end. Thus, the
-// PPP layer cannot be the thing that fails. The proof verifies that ze drives
-// IPCP to completion, not that pppd can negotiate against a policy. IPv6 is off
-// because the pool this proof configures hands out v4 only. nodetach keeps
-// pppd's output on the peer's own stream.
-func (l *L2TPPPP) pppOptions(work string) string {
+// noauth means pppd does not authenticate the LNS; it still answers the LNS's
+// CHAP challenge. Refusing the other methods makes the credentialed carrier
+// specifically CHAP-MD5. IPv6 is off because this proof has an IPv4-only pool.
+func (l *L2TPPPP) pppOptions(work, password string) string {
 	var tb textbuf.Buffer
-	return tb.Str("noauth\nname alice\npassword s3cr3t\nrefuse-eap\nnodefaultroute\n").
+	tb.Str("noauth\nname alice\npassword ").Str(password).Byte('\n')
+	if l.Scenario == "chap-md5" {
+		tb.Str("refuse-pap\nrefuse-mschap\nrefuse-mschap-v2\n")
+	}
+	return tb.Str("refuse-eap\nnodefaultroute\n").
 		Str("ipcp-accept-local\nipcp-accept-remote\nnoipv6\ndebug\nnodetach\nlogfile ").
 		Str(filepath.Join(work, "pppd.log")).Byte('\n').String()
 }
 
-// daemonConfig answers ze's configuration: an L2TP server on the underlay, an
-// address pool with a gateway and a range, and no authentication.
+// daemonConfig uses the existing local CHAP-MD5 handler only in the credentialed
+// carrier. The no-auth carrier keeps its explicit unauthenticated policy.
 func (l *L2TPPPP) daemonConfig() string {
 	var tb textbuf.Buffer
-	return tb.Str("l2tp {\n    enabled true;\n    auth-method none;\n    allow-no-auth true;\n").
-		Str("    hello-interval 5;\n    max-tunnels 4;\n    max-sessions 4;\n").
+	tb.Str("l2tp {\n    enabled true;\n")
+	if l.Scenario == "chap-md5" {
+		tb.Str("    auth-method chap-md5;\n    allow-no-auth false;\n").
+			Str("    auth {\n        local {\n            user alice {\n                password s3cr3t;\n            }\n        }\n    }\n")
+	} else {
+		tb.Str("    auth-method none;\n    allow-no-auth true;\n")
+	}
+	return tb.Str("    hello-interval 5;\n    max-tunnels 4;\n    max-sessions 4;\n").
 		Str("    pool {\n        ipv4 {\n            gateway ").Str(L2TPPPPLocalAddr).
 		Str(";\n            start ").Str(L2TPPPPPeerAddr).
 		Str(";\n            end ").Str(L2TPPPPPoolEnd).

@@ -50,6 +50,7 @@ const (
 	L2TPPPPListenIPKey   = "ze.l2tp.ppp.listen.ip"
 	L2TPPPPListenPortKey = "ze.l2tp.ppp.listen.port"
 	L2TPPPPPeerPortKey   = "ze.l2tp.ppp.xl2tpd.port"
+	L2TPPPPScenarioKey   = "ze.l2tp.ppp.scenario"
 )
 
 // What the run uses when the operator names nothing.
@@ -88,6 +89,8 @@ var (
 		"the port ze binds its L2TP listener to in the on-host L2TP PPP proof")
 	l2tpPPPPeerPortEntry = stringSetting(L2TPPPPPeerPortKey, L2TPPPPPeerPort,
 		"the port the xl2tpd peer binds in the on-host L2TP PPP proof")
+	l2tpPPPScenarioEntry = stringSetting(L2TPPPPScenarioKey, "no-auth",
+		"native L2TP PPP scenario: no-auth or chap-md5 (valid secret, restart, wrong secret)")
 )
 
 // proofName is what this proof is called in the sentences it refuses with. It
@@ -157,6 +160,8 @@ const daemonBinaryName = "ze-l2tp-ppp"
 type L2TPPPP struct {
 	// Tree is the checkout the daemon is built from.
 	Tree string
+	// Scenario selects the native no-auth or local CHAP-MD5 carrier.
+	Scenario string
 	// The underlay the two namespaces are joined by, and the two L2TP ports.
 	Prefix     string
 	ZeIP       string
@@ -193,6 +198,7 @@ func NewL2TPPPP(tree string) *L2TPPPP {
 	var tb textbuf.Buffer
 	run := &L2TPPPP{
 		Tree:       tree,
+		Scenario:   setting(l2tpPPPScenarioEntry.Key, "no-auth"),
 		Prefix:     setting(l2tpPPPPrefixEntry.Key, L2TPPPPPrefix),
 		ZeIP:       zeIP,
 		LACIP:      setting(l2tpPPPLACIPEntry.Key, L2TPPPPLACIP),
@@ -225,10 +231,16 @@ func NewL2TPPPP(tree string) *L2TPPPP {
 func (l *L2TPPPP) Run() (L2TPPPPReport, error) {
 	report := L2TPPPPReport{
 		Peer:         PeerName,
+		Scenario:     l.Scenario,
 		ZeNamespace:  l.ZeNamespace,
 		LACNamespace: l.LACNamespace,
 		LocalAddress: L2TPPPPLocalAddr,
 		PeerAddress:  L2TPPPPPeerAddr,
+	}
+	switch l.Scenario {
+	case "no-auth", "chap-md5":
+	default:
+		return report, errors.New("unknown native L2TP PPP scenario: " + l.Scenario)
 	}
 
 	if err := refuseSkipKernelProbe(); err != nil {
@@ -363,6 +375,7 @@ func (l *L2TPPPP) observe(report L2TPPPPReport, binary, work string) (L2TPPPPRep
 	seen := newCollector(append([]string{
 		pppListenerLine, pppPoolLine, pppSessionLine, pppIPLine,
 		pppRouteLine, pppUpLine, pppWithdrawLine, pppTeardownLine,
+		pppCHAPAcceptedLine, pppCHAPRejectedLine,
 	}, pppFatalLines...)...)
 
 	daemon := nsCommand(l.ZeNamespace, binary, "start", filepath.Join(work, "ze", "ze.conf"))
@@ -413,6 +426,12 @@ func (l *L2TPPPP) observe(report L2TPPPPReport, binary, work string) (L2TPPPPRep
 	if !proven {
 		return report, nil
 	}
+	if l.Scenario == "chap-md5" {
+		if verdict, ok := l.step(seen, report, ze, []string{pppCHAPAcceptedLine}, preSession,
+			l.NCPWait, "local CHAP-MD5 acceptance was not observed"); !ok {
+			return verdict, nil
+		}
+	}
 	report, proven = l.assertLCPRestart(report, seen, ze, dialer, work, zeBase, lacBase)
 	if !proven {
 		return report, nil
@@ -432,6 +451,11 @@ func (l *L2TPPPP) observe(report L2TPPPPReport, binary, work string) (L2TPPPPRep
 	lacBase.iface = report.LACInterface
 	if err := awaitTeardown([]pppBaseline{zeBase, lacBase}, l.CleanupWait); err != nil {
 		return l.fail(report, seen, err.Error()), nil
+	}
+	if l.Scenario == "chap-md5" {
+		if err := l.assertWrongSecret(seen, ze, work, baselines); err != nil {
+			return l.fail(report, seen, "wrong-secret CHAP-MD5: "+err.Error()), nil
+		}
 	}
 
 	report.Proven = true

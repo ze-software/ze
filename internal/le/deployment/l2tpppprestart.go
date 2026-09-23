@@ -211,11 +211,10 @@ func (l *L2TPPPP) assertLCPRestart(report L2TPPPPReport, seen *collector, ze, di
 		return fail(errors.New("pppd log has no complete initial observation boundary"))
 	}
 	authentication := "none"
-	switch {
-	case strings.Contains(string(initial), "<auth chap MD5>"):
+	if l.Scenario == "chap-md5" {
 		authentication = "chap-md5"
-	case strings.Contains(string(initial), "<auth "):
-		return fail(errors.New("unsupported authentication in the selected native peer input"))
+	} else if strings.Contains(string(initial), "<auth ") {
+		return fail(errors.New("unexpected authentication in the no-auth native peer input"))
 	}
 	if missing := l2tpPPPRestartProgress(string(initial), authentication); missing != "" {
 		return fail(errors.New("initial peer exchange is incomplete: " + missing))
@@ -274,6 +273,9 @@ func (l *L2TPPPP) assertLCPRestart(report L2TPPPPReport, seen *collector, ze, di
 		}
 		missing := l2tpPPPRestartProgress(freshLog, authentication)
 		wanted := []string{pppWithdrawLine, pppIPLine, pppRouteLine, pppUpLine}
+		if l.Scenario == "chap-md5" {
+			wanted = append(wanted, pppCHAPAcceptedLine)
+		}
 		if missing == "" && fresh.sawAll(wanted) {
 			break
 		}

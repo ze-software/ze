@@ -24,6 +24,7 @@ import (
 // It is the evidence for a failure. A run that passed has nothing to explain.
 type L2TPPPPReport struct {
 	Peer         string   `json:"peer"`
+	Scenario     string   `json:"scenario"`
 	ZeNamespace  string   `json:"ze-namespace"`
 	LACNamespace string   `json:"lac-namespace"`
 	ZeInterface  string   `json:"ze-interface"`
@@ -45,6 +46,9 @@ func (r L2TPPPPReport) Text() string {
 		tb.Str("OK: real ").Str(r.Peer).Str(" peer completed PPP LCP, IPCP, Ze ").Str(r.ZeInterface).
 			Str(" and LAC ").Str(r.LACInterface).
 			Str(" address assignment, dataplane ping, route inject, and clean teardown\n")
+		if r.Scenario == "chap-md5" {
+			tb.Str("Local CHAP-MD5 accepted the valid secret before and after same-transport LCP restart; rejected the wrong secret without a network session.\n")
+		}
 		return tb.String()
 	}
 
