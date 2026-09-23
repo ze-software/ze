@@ -36,6 +36,21 @@ Both requirements are in the compiled runtime floor, so an edited manifest
 cannot silently remove them. The MPLS capability comes from the registered
 kernel patch series.
 
+Flow export requires `CONFIG_NET_ACT_SAMPLE` for the ingress sampling action and
+`CONFIG_PSAMPLE` for delivery to the userspace exporter over generic netlink.
+Both are built-in requirements in the runtime fragment, manifest and compiled
+floor. A kernel with only `CONFIG_NET_CLS_MATCHALL` can classify packets but
+rejects installation of the missing sample action; adding a module loader cannot
+repair a kernel built without the action or psample.
+<!-- source: internal/plugins/flowexport/sampling/tc_linux.go -- SetupSampling, buildSampleFilter -->
+<!-- source: internal/plugins/flowexport/sampling/psample_linux.go -- NewPsampleReader -->
+
+Default nftables logging requires built-in `CONFIG_NF_LOG_SYSLOG` as well as
+`CONFIG_NFT_LOG`. A modular logger leaves log-rule installation failing with
+`ENOENT` in the runtime guest, where Alpine cannot load Ze's kernel modules.
+The runtime manifest and compiled floor require both symbols.
+<!-- source: internal/appliance/kernelreq.go -- runtimeKernelRequirements -->
+
 ## Decisions
 
 - The registry is open. Adding a profile is adding two files, not editing a

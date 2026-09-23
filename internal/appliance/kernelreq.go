@@ -33,6 +33,10 @@ var universalKernelRequirements = []string{
 // heartbeat, so there is no iproute2 and no busybox to diagnose that with: the
 // build is the only place to catch it. CONFIG_XFRM_STATISTICS sources the SAD byte
 // counters `show vpn ipsec sa` reports.
+//
+// Flow export installs act_sample and receives its packets through psample.
+// Keep both built in: enabling the matchall classifier alone still leaves
+// sampling filter installation failing with ENOENT.
 var runtimeKernelRequirements = []string{
 	"CONFIG_MODULES",
 	"CONFIG_PPP",
@@ -40,6 +44,10 @@ var runtimeKernelRequirements = []string{
 	"CONFIG_L2TP",
 	"CONFIG_PPPOL2TP",
 	"CONFIG_L2TP_V3",
+	"CONFIG_PSAMPLE",
+	"CONFIG_NET_ACT_SAMPLE",
+	"CONFIG_NFT_LOG",
+	"CONFIG_NF_LOG_SYSLOG",
 	"CONFIG_INET_ESP",
 	"CONFIG_INET6_ESP",
 	"CONFIG_XFRM_STATISTICS",

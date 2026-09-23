@@ -158,22 +158,28 @@ func TestRuntimeFloorRequiresESP(t *testing.T) {
 	}
 }
 
-// TestRuntimeFragmentSetsFloorSymbols reads the shipped fragment, not a fixture.
-//
-// VALIDATES: R-6. Every symbol runtimeKernelRequirements names resolves to =y in
-// gokrazy/kernel/runtime.config, so raising the floor cannot break the appliance
-// build.
-// PREVENTS: the exact failure R-6 predicts. The floor and the fragment are two
-// files, and a floor entry with no fragment line fails `./ze appliance kernel --target runtime` long after
-// the commit that added it.
-func TestRuntimeFragmentSetsFloorSymbols(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "gokrazy", "kernel", "runtime.config"))
+// VALIDATES: R-6. The registered runtime profile requests each compiled floor
+// symbol as built in. The emitted kernel config is checked after Kconfig resolves it.
+// PREVENTS: A new floor requirement without a matching request in any fragment.
+func TestRuntimeProfileRequestsFloorSymbols(t *testing.T) {
+	t.Chdir(filepath.Join("..", ".."))
+	profile, err := resolveKernelProfile(filepath.Join("gokrazy", "kernel"), "runtime")
 	if err != nil {
 		t.Fatal(err)
 	}
+	requested := make(map[string]bool)
+	for _, fragment := range profile.Fragments {
+		enabled, _, err := readKernelConfig(fragment)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for symbol := range enabled {
+			requested[symbol] = true
+		}
+	}
 	for _, symbol := range runtimeKernelRequirements {
-		if !strings.Contains(string(data), symbol+"=y") {
-			t.Errorf("gokrazy/kernel/runtime.config does not set %s=y, so the runtime floor fails the build", symbol)
+		if !requested[symbol] {
+			t.Errorf("runtime profile does not request %s=y", symbol)
 		}
 	}
 }
