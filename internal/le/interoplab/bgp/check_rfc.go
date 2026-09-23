@@ -64,18 +64,16 @@ func checkAddPathReadvertiseCollision(ctx context.Context, check *interoplab.Che
 	}
 
 	// Assertions 6 to 9. The identifier belongs to the path, not to the delivery, so
-	// the replay after a reset must repeat it. The reset is watched by the epoch FRR
-	// reports rather than by the prefix going away: ze reconnects in about a second,
-	// so polling for the absence loses the race and reports a reset that plainly
-	// happened as one that never did.
-	before, err := queryFRREstablishedEpoch(ctx, check.Lab, zeAddress)
+	// the replay after a reset must repeat it. FRR's lifetime established count
+	// detects the new session even when ze reconnects before the next poll.
+	before, err := queryFRRSessionGeneration(ctx, check.Lab, zeAddress)
 	if err != nil {
 		return fail(6, err)
 	}
 	if _, err := check.Lab.Exec(ctx, peerFRR, []string{cmdVtysh, "-c", "clear bgp " + zeAddress}, nil); err != nil {
 		return fail(7, err)
 	}
-	if err := waitFRRNewEpoch(ctx, check.Lab, zeAddress, before); err != nil {
+	if err := waitFRRNewSession(ctx, check.Lab, zeAddress, before); err != nil {
 		return fail(8, err)
 	}
 	replayed, err := waitAddPathState(ctx, check.Lab)
@@ -1326,27 +1324,34 @@ func waitAddPathState(ctx context.Context, lab interoplab.CheckerLab) (map[strin
 	return state, err
 }
 
-func queryFRREstablishedEpoch(ctx context.Context, lab interoplab.CheckerLab, neighbor string) (uint64, error) {
+// queryFRRSessionGeneration identifies an established session within the lifetime
+// of FRR's configured peer. FRR 10.3.1 bgp_establish() increments peer->established
+// on each establishment, and bgp_show_peer() exports it as connectionsEstablished.
+// Its bgpTimerUpEstablishedEpoch instead mixes wall and monotonic clock seconds
+// on each query, so that derived timestamp can change without a new session.
+func queryFRRSessionGeneration(ctx context.Context, lab interoplab.CheckerLab, neighbor string) (uint64, error) {
 	output, err := lab.Query(ctx, peerFRR, []string{cmdVtysh, "-c", "show bgp neighbor " + neighbor + " json"}, nil)
 	if err != nil {
 		return 0, err
 	}
 	var peers map[string]struct {
-		Epoch uint64 `json:"bgpTimerUpEstablishedEpoch"`
+		State                  string `json:"bgpState"`
+		ConnectionsEstablished uint64 `json:"connectionsEstablished"`
 	}
 	if err := json.Unmarshal([]byte(output), &peers); err != nil {
 		return 0, fmt.Errorf("decode FRR neighbor JSON: %w", err)
 	}
-	if peers[neighbor].Epoch == 0 {
-		return 0, errors.New("FRR neighbor has no established epoch")
+	peer := peers[neighbor]
+	if peer.State != stateEstablished || peer.ConnectionsEstablished == 0 {
+		return 0, fmt.Errorf("FRR neighbor %s has no established session generation: %+v", neighbor, peer)
 	}
-	return peers[neighbor].Epoch, nil
+	return peer.ConnectionsEstablished, nil
 }
 
-func waitFRRNewEpoch(ctx context.Context, lab interoplab.CheckerLab, neighbor string, previous uint64) error {
+func waitFRRNewSession(ctx context.Context, lab interoplab.CheckerLab, neighbor string, previous uint64) error {
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 90 * time.Second, Interval: 2 * time.Second, Description: "FRR session re-establishment"}, func(probeCtx context.Context) (uint64, error) {
-		return queryFRREstablishedEpoch(probeCtx, lab, neighbor)
-	}, func(epoch uint64) bool { return epoch != 0 && epoch != previous })
+		return queryFRRSessionGeneration(probeCtx, lab, neighbor)
+	}, func(generation uint64) bool { return generation > previous })
 	return err
 }
 
