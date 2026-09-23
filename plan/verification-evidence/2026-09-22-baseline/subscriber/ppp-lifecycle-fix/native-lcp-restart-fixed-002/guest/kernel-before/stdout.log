@@ -1,0 +1,4 @@
+=== RUN   TestRemovePointToPointAddressAllowsReuse
+    route_integration_linux_test.go:459: cycle 0: remove point-to-point address by local CIDR: iface: remove address "192.0.2.1/32" on "zeptp0": cannot assign requested address
+--- FAIL: TestRemovePointToPointAddressAllowsReuse (0.11s)
+FAIL

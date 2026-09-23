@@ -401,3 +401,79 @@ func TestRouteIntegration_LinkBounceKeepsStaticRoute(t *testing.T) {
 		}
 	})
 }
+
+// TestRemovePointToPointAddressAllowsReuse exercises the local-CIDR removal API
+// against an address whose kernel IFA_ADDRESS differs from IFA_LOCAL.
+// VALIDATES: address removal also removes the kernel peer route, and the same
+// address pair can be installed again on the retained interface.
+// PREVENTS: a local-only AddrDel leaving the old address behind, so the next
+// AddAddressP2P fails with EEXIST after an LCP restart.
+func TestRemovePointToPointAddressAllowsReuse(t *testing.T) {
+	withRouteNetNS(t, func() {
+		const (
+			ifname    = "zeptp0"
+			localCIDR = "192.0.2.1/32"
+			peerCIDR  = "198.51.100.2/32"
+		)
+		if err := netlink.LinkAdd(&netlink.Dummy{LinkAttrs: netlink.LinkAttrs{Name: ifname}}); err != nil {
+			t.Fatalf("add retained interface: %v", err)
+		}
+		link, err := netlink.LinkByName(ifname)
+		if err != nil {
+			t.Fatalf("find retained interface: %v", err)
+		}
+		if err := netlink.LinkSetUp(link); err != nil {
+			t.Fatalf("set retained interface up: %v", err)
+		}
+		backend := &netlinkBackend{}
+		for cycle := range 2 {
+			if err := backend.AddAddressP2P(ifname, localCIDR, peerCIDR); err != nil {
+				t.Fatalf("cycle %d: add point-to-point address: %v", cycle, err)
+			}
+			addresses, err := netlink.AddrList(link, netlink.FAMILY_V4)
+			if err != nil {
+				t.Fatalf("cycle %d: read installed address: %v", cycle, err)
+			}
+			if len(addresses) != 1 || addresses[0].IPNet.String() != localCIDR ||
+				addresses[0].Peer == nil || addresses[0].Peer.String() != peerCIDR {
+				t.Fatalf("cycle %d: installed addresses = %+v, want %s peer %s", cycle, addresses, localCIDR, peerCIDR)
+			}
+			routes, err := netlink.RouteList(link, netlink.FAMILY_V4)
+			if err != nil {
+				t.Fatalf("cycle %d: read installed routes: %v", cycle, err)
+			}
+			foundPeerRoute := false
+			for _, route := range routes {
+				if route.Dst != nil && route.Dst.String() == peerCIDR {
+					foundPeerRoute = true
+					if route.Protocol != unix.RTPROT_KERNEL || route.Scope != netlink.SCOPE_LINK ||
+						!route.Src.Equal(addresses[0].IP) || len(route.Gw) != 0 {
+						t.Fatalf("cycle %d: peer route = %+v, want kernel connected route", cycle, route)
+					}
+				}
+			}
+			if !foundPeerRoute {
+				t.Fatalf("cycle %d: kernel peer route %s missing from %+v", cycle, peerCIDR, routes)
+			}
+			if err := backend.RemoveAddress(ifname, localCIDR); err != nil {
+				t.Fatalf("cycle %d: remove point-to-point address by local CIDR: %v", cycle, err)
+			}
+			addresses, err = netlink.AddrList(link, netlink.FAMILY_V4)
+			if err != nil {
+				t.Fatalf("cycle %d: read addresses after removal: %v", cycle, err)
+			}
+			if len(addresses) != 0 {
+				t.Fatalf("cycle %d: addresses remain after removal: %+v", cycle, addresses)
+			}
+			routes, err = netlink.RouteList(link, netlink.FAMILY_V4)
+			if err != nil {
+				t.Fatalf("cycle %d: read routes after removal: %v", cycle, err)
+			}
+			for _, route := range routes {
+				if route.Dst != nil && route.Dst.String() == peerCIDR {
+					t.Fatalf("cycle %d: peer route remains after address removal: %+v", cycle, route)
+				}
+			}
+		}
+	})
+}

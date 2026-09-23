@@ -1,0 +1,23 @@
+{
+  "argv": [
+    "/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/ppp-lifecycle-fixed/bin/netlink-before.test",
+    "-test.run=^TestRemovePointToPointAddressAllowsReuse$",
+    "-test.v",
+    "-test.count=1",
+    "-test.timeout=30s"
+  ],
+  "kernel": [
+    "Linux",
+    "localhost",
+    "7.2.0",
+    "#1 SMP PREEMPT_DYNAMIC Tue Sep 22 02:19:30 UTC 2026",
+    "x86_64"
+  ],
+  "binary_sha256": "d18c334e9e78b608e693693bc804191f9404a0b43d5da190b488ffa17179750c",
+  "started_unix": 1790123577.7402737,
+  "expected_exit": 1,
+  "exit_code": 1,
+  "accepted": true,
+  "finished_unix": 1790123578.1143374,
+  "binary_sha256_after": "d18c334e9e78b608e693693bc804191f9404a0b43d5da190b488ffa17179750c"
+}

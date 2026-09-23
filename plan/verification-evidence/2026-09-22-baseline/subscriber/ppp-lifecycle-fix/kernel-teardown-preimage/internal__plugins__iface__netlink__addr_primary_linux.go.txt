@@ -14,9 +14,9 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-// netlinkAddrRemover is the kernel-backed addrRemover. List resolves the
-// caller's local CIDR to its installed address, including the peer metadata
-// needed by AddrDel to match a point-to-point address.
+// netlinkAddrRemover is the kernel-backed addrRemover. It carries the already
+// parsed *netlink.Addr so the delete uses exactly the address the caller
+// validated, rather than re-parsing a rendered prefix.
 type netlinkAddrRemover struct {
 	link netlink.Link
 	addr *netlink.Addr
@@ -30,19 +30,12 @@ func (r *netlinkAddrRemover) List(dev string) ([]deviceAddress, error) {
 		return nil, fmt.Errorf("iface: remove address on %q: list addresses: %w", dev, err)
 	}
 	existing := make([]deviceAddress, 0, len(list))
-	resolved := false
 	for i := range list {
 		current, ok := toDeviceAddress(&list[i])
 		if !ok {
 			continue
 		}
 		existing = append(existing, current)
-		if !resolved && r.addr.Equal(list[i]) && (r.addr.Label == "" || r.addr.Label == list[i].Label) {
-			// AddrDel encodes IFA_ADDRESS from Peer. Without it, netlink
-			// substitutes the local IP, which cannot match a distinct peer.
-			r.addr = &list[i]
-			resolved = true
-		}
 	}
 	return existing, nil
 }
