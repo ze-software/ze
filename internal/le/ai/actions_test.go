@@ -53,8 +53,8 @@ func TestTheSyncVerbWritesTheCheckoutTheEnvironmentNames(t *testing.T) {
 	if report.Mode != modeSync {
 		t.Errorf("the report's mode is %q, want %q", report.Mode, modeSync)
 	}
-	if paths := generatedPaths(t, root); len(paths) != 9 {
-		t.Errorf("%d files written, want exactly 9: %v", len(paths), paths)
+	if paths := generatedPaths(t, root); len(paths) != 8 {
+		t.Errorf("%d files written, want exactly 8: %v", len(paths), paths)
 	}
 }
 
@@ -174,21 +174,21 @@ func TestOnlyMarkdownFilesOfTheSourceDirectoryAreSources(t *testing.T) {
 	}
 }
 
-// The check must detect drift in both instruction files. These generated files
-// are the largest, and an agent reads them first.
+// The check must detect drift in the instruction file. It is the largest
+// generated file, and an agent reads it first.
 func TestTheCheckSeesDriftInTheInstructionFiles(t *testing.T) {
 	root := fixture(t)
 	if _, err := (Mirror{Root: root}).Sync(); err != nil {
 		t.Fatalf("Sync: %v", err)
 	}
-	write(t, root, claudeInstructions, "edited by hand\n")
+	write(t, root, agentsInstructions, "edited by hand\n")
 
 	report, err := Mirror{Root: root}.Check()
 	if err != nil {
 		t.Fatalf("Check: %v", err)
 	}
-	if len(report.Stale) != 1 || report.Stale[0] != claudeInstructions {
-		t.Errorf("stale is %v, want exactly [%s]", report.Stale, claudeInstructions)
+	if len(report.Stale) != 1 || report.Stale[0] != agentsInstructions {
+		t.Errorf("stale is %v, want exactly [%s]", report.Stale, agentsInstructions)
 	}
 }
 
@@ -208,7 +208,7 @@ func TestACheckoutWithNoAgentDefinitionStillSyncs(t *testing.T) {
 	if len(report.Agents) != 0 {
 		t.Errorf("%d agents reported, want 0", len(report.Agents))
 	}
-	if paths := generatedPaths(t, root); len(paths) != 8 {
-		t.Errorf("%d files written, want exactly 8: %v", len(paths), paths)
+	if paths := generatedPaths(t, root); len(paths) != 7 {
+		t.Errorf("%d files written, want exactly 7: %v", len(paths), paths)
 	}
 }

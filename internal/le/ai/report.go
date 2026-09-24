@@ -56,6 +56,6 @@ func (r Report) Text() string {
 		return tb.String()
 	default:
 		return tb.Str("synced ").Int(int64(len(r.Skills))).Str(" skill(s) + ").
-			Int(int64(len(r.Agents))).Str(" agent(s) + CLAUDE.md + AGENTS.md\n").String()
+			Int(int64(len(r.Agents))).Str(" agent(s) + AGENTS.md\n").String()
 	}
 }

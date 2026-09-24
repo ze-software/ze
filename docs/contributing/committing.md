@@ -66,7 +66,7 @@ path before the script is written:
 
 - A path outside the repository, or a `..` component.
 - Anything under `.git/`.
-- A generated agent file: `AGENTS.md` and `CLAUDE.md`.
+- A root agent instruction file: the generated `AGENTS.md`, and `CLAUDE.md`, which must not exist.
 - A path `git check-ignore` matches. The index is consulted, so a TRACKED file
   that matches an ignore pattern is committable: git already carries it, and the
   pattern governs what is added under that path next.

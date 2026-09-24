@@ -49,7 +49,11 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// wording is the summary and the description the explanation). One field
 	// name, no decision moved. The value is the one this test computed over the
 	// package's sources with no local edit in internal/le/rules.
-	const want = "6b9501517ca2902e21237b11a7fe6c950cc609ebbe6983e2fbf3b9a30feee983"
+	//
+	// Re-sealed 2026-09-24: the rule-coverage report names AGENTS.md instead of
+	// CLAUDE.md as the file that imports CORE.md, because the root CLAUDE.md is
+	// no longer generated. One word of output text, no decision moved.
+	const want = "659676b68ed0bc7ea8590d30db89ecc486c7de59c7829ca4a6bf248b4f1b481d"
 	paths, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatalf("list rules sources: %v", err)

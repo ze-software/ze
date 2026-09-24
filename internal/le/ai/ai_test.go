@@ -13,8 +13,8 @@ import (
 // target is written. A missing source set produces an ERROR instead of a
 // successful empty run.
 // PREVENTS: Two regressions measured in internal/le/ai/actions.go on 2026-08-26.
-// An empty ai/skills answers "synced 0 skill(s) + 0 agent(s) + CLAUDE.md +
-// AGENTS.md" and exits 0. That answer names two files the script did not write.
+// An empty ai/skills answers "synced 0 skill(s) + 0 agent(s) + AGENTS.md"
+// and exits 0. That answer names a file the script did not write.
 // Also, any unrecognized argument enters the script's SYNC branch. Thus, a
 // mistyped --check writes the tree instead of reading it. This occurs in a hook
 // whose sole task is to read the tree (.claude/hooks/session-start.sh:135).
@@ -27,7 +27,7 @@ func fixture(t *testing.T) string {
 	write(t, root, "ai/skills/ze-close.md", "---\nname: ze-close\n---\nsee .claude/rules/x.md\n")
 	write(t, root, "ai/skills/ze-spec.md", "---\nname: ze-spec\n---\nbody\n")
 	write(t, root, "ai/agents/ze-work.md", "---\nname: ze-work\n---\nagent\n")
-	write(t, root, "ai/INSTRUCTIONS.md", "instructions for {{TOOL}}\n")
+	write(t, root, "ai/INSTRUCTIONS.md", "instructions for every agent\n")
 	return root
 }
 
@@ -74,7 +74,7 @@ func generatedPaths(t *testing.T, root string) []string {
 			t.Fatalf("walk %s: %v", tree, err)
 		}
 	}
-	for _, name := range []string{claudeInstructions, codexInstructions} {
+	for _, name := range []string{agentsInstructions, shadowInstructions} {
 		if _, err := os.Stat(filepath.Join(root, name)); err == nil {
 			out = append(out, name)
 		}
@@ -103,7 +103,6 @@ func TestASyncWritesEveryMirrorOfEverySource(t *testing.T) {
 		".codex/skills/ze-close/SKILL.md",
 		".codex/skills/ze-spec/SKILL.md",
 		"AGENTS.md",
-		"CLAUDE.md",
 	}
 	got := generatedPaths(t, root)
 	if len(got) != len(want) {
@@ -133,17 +132,41 @@ func TestTheAgentsMirrorRepointsClaudePathsAndTheOthersDoNot(t *testing.T) {
 	}
 }
 
-func TestTheTwoInstructionFilesNameTheirOwnTool(t *testing.T) {
+func TestAgentsMDIsAVerbatimCopyOfTheInstructions(t *testing.T) {
 	root := fixture(t)
 	if _, err := (Mirror{Root: root}).Sync(); err != nil {
 		t.Fatalf("Sync: %v", err)
 	}
 
-	if body := read(t, root, claudeInstructions); body != "instructions for Claude\n" {
-		t.Errorf("CLAUDE.md is %q", body)
-	}
-	if body := read(t, root, codexInstructions); body != "instructions for Codex\n" {
+	if body := read(t, root, agentsInstructions); body != "instructions for every agent\n" {
 		t.Errorf("AGENTS.md is %q", body)
+	}
+}
+
+// VALIDATES: A root CLAUDE.md is removed by a sync and named by a check.
+// PREVENTS: Claude Code reads AGENTS.md only when no CLAUDE.md exists, so a
+// leftover CLAUDE.md from the earlier two-file layout silently replaces the
+// current rules with a stale copy.
+func TestALeftoverClaudeMDIsRemovedBySyncAndNamedByCheck(t *testing.T) {
+	root := fixture(t)
+	if _, err := (Mirror{Root: root}).Sync(); err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	write(t, root, shadowInstructions, "old rules\n")
+
+	report, err := Mirror{Root: root}.Check()
+	if err != nil {
+		t.Fatalf("Check: %v", err)
+	}
+	if !slices.Equal(report.Stale, []string{shadowInstructions}) {
+		t.Errorf("stale paths are %v, want only %s", report.Stale, shadowInstructions)
+	}
+
+	if _, err := (Mirror{Root: root}).Sync(); err != nil {
+		t.Fatalf("Sync: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(root, shadowInstructions)); !os.IsNotExist(err) {
+		t.Errorf("CLAUDE.md survived a sync: %v", err)
 	}
 }
 
@@ -152,15 +175,15 @@ func TestTheTwoInstructionFilesNameTheirOwnTool(t *testing.T) {
 // wrote.
 func TestASyncWithNoSkillAtAllIsAnErrorRatherThanASuccessfulRunOverNothing(t *testing.T) {
 	root := t.TempDir()
-	write(t, root, "ai/INSTRUCTIONS.md", "x {{TOOL}}\n")
+	write(t, root, "ai/INSTRUCTIONS.md", "x\n")
 
 	if _, err := (Mirror{Root: root}).Sync(); err == nil {
 		t.Fatal("a checkout holding no skill synced successfully")
 	}
 }
 
-// The message the shell prints always ends "+ CLAUDE.md + AGENTS.md", whether
-// or not ai/INSTRUCTIONS.md was there to generate them from.
+// The message the shell prints always ends "+ AGENTS.md", whether or not
+// ai/INSTRUCTIONS.md was there to generate it from.
 func TestASyncWithoutTheInstructionsSourceIsAnError(t *testing.T) {
 	root := t.TempDir()
 	write(t, root, "ai/skills/x.md", "body\n")

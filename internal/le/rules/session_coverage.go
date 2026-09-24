@@ -299,7 +299,7 @@ func (r sessionCoverageReport) Text() string {
 		Str("so this count UNDER-reports; silence is not proof of coverage\n")
 	tb.Str("rule-coverage: ").Int(int64(r.AlwaysOnExcluded)).
 		Str(" always-on rule(s) sit outside that total; ai/rules/CORE.md carries their directives and ").
-		Str("CLAUDE.md imports it, so no session Reads them and none is ever counted missed\n")
+		Str("AGENTS.md imports it, so no session Reads them and none is ever counted missed\n")
 	return tb.Str("rule-coverage: report ").Str(r.reportPath).String()
 }
 

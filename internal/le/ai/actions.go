@@ -22,7 +22,7 @@ import (
 )
 
 var actions = leaction.New(area,
-	leaction.Action{Verb: "skills-sync", Why: "write every tool's copy of the skills, the subagents, CLAUDE.md and AGENTS.md from ai/",
+	leaction.Action{Verb: "skills-sync", Why: "write every tool's copy of the skills, the subagents and AGENTS.md from ai/, and remove a stale CLAUDE.md",
 		Writes: true,
 		Answer: syncHere},
 	leaction.Action{Verb: "sync-check", Why: "name every generated agent file that no longer matches its source." +

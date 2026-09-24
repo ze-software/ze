@@ -251,8 +251,8 @@ func hookSessionStart(ctx context, out io.Writer) int {
 		fmt.Fprintf(out, "Built %s (derived, not tracked)\n", artifact.Path) //nolint:errcheck // hook protocol
 	}
 	if report, err := (ai.Mirror{Root: ctx.root}).Check(); err != nil || len(report.Stale) != 0 {
-		fmt.Fprintln(out, "Warning: generated agent files are stale (CLAUDE.md / AGENTS.md / skills mirrors)") //nolint:errcheck // hook protocol
-		fmt.Fprintln(out, "   -> run: ./le ai skills-sync")                                                    //nolint:errcheck // hook protocol
+		fmt.Fprintln(out, "Warning: generated agent files are stale (AGENTS.md / a leftover CLAUDE.md / skills mirrors)") //nolint:errcheck // hook protocol
+		fmt.Fprintln(out, "   -> run: ./le ai skills-sync")                                                               //nolint:errcheck // hook protocol
 	}
 	fmt.Fprintln(out, "Warning: BLOCKING (no task-type exception): ToolSearch query=\"select:LSP\" MUST be your FIRST tool call.")                                 //nolint:errcheck // hook protocol
 	fmt.Fprintln(out, "Warning:   Do NOT skip because the task looks shell-only, docs-only, or trivial.")                                                          //nolint:errcheck // hook protocol

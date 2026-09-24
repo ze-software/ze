@@ -128,7 +128,7 @@
 
 ---
 
-# Ze - {{TOOL}} Instructions
+# Ze - Agent Instructions
 
 ## Ze publishes in Simplified Technical English
 
@@ -346,8 +346,8 @@ means "no rule applies".
 | Find out how ANY surface works, before a search, a grep, or an agent | `ai/rules/documentation.md` -- read the page FIRST: `ai/CODE-TO-DOCS.md` (file to pages), `ai/DOCS-TO-CODE.md` (page to files), `ai/INDEX.md` (keyword to page). You investigate only what the page leaves SILENT or gets WRONG, and you name which |
 | Change any behavior a page describes | `ai/rules/documentation.md` -- the page edit lands in the SAME work as the code, before the next code edit. Never at review, never at closure, never in a follow-up commit. `ai/rules/repo-maintenance.md` says which page |
 | Write repository prose: docs, comments, error messages, CLI output, specs, commit messages | `ai/rules/writing.md` -- apply US English and the six habits. Read the full style guide only for documentation work, a deep prose review, or resolving an STE finding |
-| Start a session | **Read `docs/contributing/ze-go-style.md` in full, EVERY session, before any code (owner directive, 2026-08-18).** Then `.claude/rules/session-start.md` for the {{TOOL}}-specific checklist |
-| Edit CLAUDE.md, AGENTS.md, any synced file, or add an agent behavior rule | `ai/rules/repo-maintenance.md` -- never edit generated files; shared rules go in `ai/rules/` |
+| Start a session | **Read `docs/contributing/ze-go-style.md` in full, EVERY session, before any code (owner directive, 2026-08-18).** Then `.claude/rules/session-start.md` for the Claude-specific checklist |
+| Edit AGENTS.md, any synced file, or add an agent behavior rule | `ai/rules/repo-maintenance.md` -- never edit generated files; shared rules go in `ai/rules/` |
 | Design or implement anything | `ai/rules/architecture.md` -- grep ze before proposing, never default to trained instincts |
 | Choose the shape of a fix, or add an abstraction, option, layer, or parameter | `ai/rules/simplicity.md` -- the fix MUST be the simplest FULLY CORRECT answer. Simplicity cuts machinery, never correctness: quality is 0% compromise. The simplest design is usually the hardest to find, so budget the thinking. Another problem you see gets its own spec, never an extra branch here |
 | Start a planning, implementation, or review phase | `ai/rules/planning.md` -- review is INDEPENDENT of the author; no phase requires a specific model |

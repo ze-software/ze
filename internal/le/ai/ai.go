@@ -8,17 +8,20 @@
 // Three things are mirrored. A skill is ai/skills/<name>.md, copied verbatim
 // for Claude and Codex and with .claude/ repointed at .agents/ for the Codex
 // CLI. A subagent definition is ai/agents/<name>.md, copied flat, and Claude
-// Code is the only tool that reads one. CLAUDE.md and AGENTS.md come from
-// ai/INSTRUCTIONS.md with {{TOOL}} substituted.
+// Code is the only tool that reads one. AGENTS.md is a copy of
+// ai/INSTRUCTIONS.md, and every agent reads it, Claude Code included.
+//
+// A root CLAUDE.md MUST NOT exist. Claude Code reads AGENTS.md only when no
+// CLAUDE.md is present, so a leftover CLAUDE.md silently replaces the rules
+// with a stale copy. A sync removes it, and a check reports it as stale.
 //
 // EVERY TARGET IS GITIGNORED, so `git diff` cannot show drift in those targets.
 // The check generates a fresh copy in a scratch tree and compares the content.
 // Only that comparison makes the drift visible.
 //
 // A missing SOURCE is an error, never an empty run. The shell half answers
-// "synced 0 skill(s) + 0 agent(s) + CLAUDE.md + AGENTS.md" and exits 0 for a
-// tree holding no skill and no instructions file, naming two files it did not
-// write (plan/journal/zero-value-as-valid-answer.md, 2026-08-26).
+// "synced 0 skill(s) + 0 agent(s) + AGENTS.md" and exits 0 for a tree
+// holding no skill and no instructions file, naming a file it did not write (plan/journal/zero-value-as-valid-answer.md, 2026-08-26).
 package ai
 
 import (
@@ -50,9 +53,12 @@ const (
 	codexSkills        = ".codex/skills"
 	agentsSkills       = ".agents/skills"
 	claudeAgents       = ".claude/agents"
-	claudeInstructions = "CLAUDE.md"
-	codexInstructions  = "AGENTS.md"
+	agentsInstructions = "AGENTS.md"
 )
+
+// shadowInstructions is the file whose presence makes Claude Code ignore
+// agentsInstructions. No generation writes it.
+const shadowInstructions = "CLAUDE.md"
 
 // skillFile is the name a skill takes inside its own directory, which is the
 // layout each harness reads.
@@ -60,15 +66,6 @@ const skillFile = "SKILL.md"
 
 // markdown is the extension every source carries.
 const markdown = ".md"
-
-// toolToken is what an instructions file spells where the tool's name goes.
-const toolToken = "{{TOOL}}"
-
-// The two tool names substituted for toolToken.
-const (
-	claudeTool = "Claude"
-	codexTool  = "Codex"
-)
 
 // The path prefix a skill names, and what the Codex CLI's own mirror needs it
 // to say instead.
@@ -187,12 +184,7 @@ func (m Mirror) generateInto(dest string, skills, agents []string) error {
 	if err != nil {
 		return err
 	}
-	if err := writeUnder(dest, claudeInstructions,
-		bytes.ReplaceAll(body, []byte(toolToken), []byte(claudeTool))); err != nil {
-		return err
-	}
-	return writeUnder(dest, codexInstructions,
-		bytes.ReplaceAll(body, []byte(toolToken), []byte(codexTool)))
+	return writeUnder(dest, agentsInstructions, body)
 }
 
 // source reads one canonical file by its directory and base name.
@@ -216,6 +208,10 @@ func (m Mirror) Sync() (Report, error) {
 		return Report{}, err
 	}
 	if err := m.generateInto(m.Root, skills, agents); err != nil {
+		return Report{}, err
+	}
+	shadow := filepath.Join(m.Root, shadowInstructions)
+	if err := os.Remove(shadow); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return Report{}, err
 	}
 	return Report{Mode: modeSync, Skills: skills, Agents: agents}, nil
@@ -260,7 +256,9 @@ func (m Mirror) Check() (Report, error) {
 		}
 		report.Stale = append(report.Stale, stale...)
 	}
-	for _, name := range []string{claudeInstructions, codexInstructions} {
+	// shadowInstructions is never generated, so a live copy reads as an
+	// orphan: the fresh side is absent and the live side is not.
+	for _, name := range []string{agentsInstructions, shadowInstructions} {
 		same, err := sameFile(filepath.Join(scratch, name), filepath.Join(m.Root, name))
 		if err != nil {
 			return Report{}, err
@@ -339,7 +337,7 @@ func filesUnder(dir string) (map[string]bool, error) {
 
 // sameFile reports whether two paths hold the same bytes.
 //
-// A missing path differs from an existing path. This rule makes both a missing
+// A missing path differs from an existing path, and two missing paths agree. This rule makes both a missing
 // mirror and an orphan mirror visible. An unreadable path is an ERROR rather
 // than a difference. A check that cannot read the tree has not judged it.
 func sameFile(left, right string) (bool, error) {
@@ -350,6 +348,11 @@ func sameFile(left, right string) (bool, error) {
 	rightBody, rightErr := os.ReadFile(right) //nolint:gosec // a path this run composed from its own tables
 	if rightErr != nil && !errors.Is(rightErr, os.ErrNotExist) {
 		return false, rightErr
+	}
+	if leftErr != nil && rightErr != nil {
+		// Absent on both sides is the answer for shadowInstructions, which
+		// no generation writes.
+		return true, nil
 	}
 	if leftErr != nil || rightErr != nil {
 		// One side is absent and the other is not. That is a DIFFERENCE, not

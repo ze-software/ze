@@ -99,14 +99,16 @@ func writeGenerated(ctx context) *verdict {
 		return nil
 	}
 	relative := relativePath(ctx)
-	if relative == "CLAUDE.md" || relative == "AGENTS.md" {
-		base := filepath.Base(relative)
-		return &verdict{2, "BLOCKED: " + base + " is generated\n  " + base + " is auto-generated. Edit the canonical source instead:\n    ai/INSTRUCTIONS.md  (then run the native sync action)\n  See ai/rules/repo-maintenance.md"}
+	if relative == "AGENTS.md" {
+		return &verdict{2, "BLOCKED: AGENTS.md is generated\n  AGENTS.md is auto-generated. Edit the canonical source instead:\n    ai/INSTRUCTIONS.md  (then run the native sync action)\n  See ai/rules/repo-maintenance.md"}
+	}
+	if relative == "CLAUDE.md" {
+		return &verdict{2, "BLOCKED: a root CLAUDE.md must not exist\n  Claude Code reads AGENTS.md only when no CLAUDE.md is present, so this file would replace every rule.\n  Edit the canonical source instead:\n    ai/INSTRUCTIONS.md  (then run the native sync action)\n  See ai/rules/repo-maintenance.md"}
 	}
 	parts := strings.Split(relative, "/")
 	if len(parts) >= 3 && parts[0] == ".claude" {
 		if info, err := os.Stat(filepath.Join(ctx.root, "ai", parts[1])); err == nil && info.IsDir() {
-			return &verdict{1, yellow + bold + "WARN: " + relative + " is read by this tool alone; ai/" + parts[1] + "/ is the shared home" + reset + "\n  ai/INSTRUCTIONS.md generates BOTH CLAUDE.md and AGENTS.md, so an instruction that binds every agent belongs in the shared tree."}
+			return &verdict{1, yellow + bold + "WARN: " + relative + " is read by this tool alone; ai/" + parts[1] + "/ is the shared home" + reset + "\n  ai/INSTRUCTIONS.md generates AGENTS.md, which every agent reads, so an instruction that binds every agent belongs in the shared tree."}
 		}
 	}
 	return nil

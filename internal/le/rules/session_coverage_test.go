@@ -271,7 +271,7 @@ func TestSessionCoverageTextPreservesTheHumanReportContract(t *testing.T) {
 		"rule-coverage: 1 of 2 blocking rules have action-shaped triggers that no file type can match, " +
 		"so this count UNDER-reports; silence is not proof of coverage\n" +
 		"rule-coverage: 1 always-on rule(s) sit outside that total; ai/rules/CORE.md carries their directives and " +
-		"CLAUDE.md imports it, so no session Reads them and none is ever counted missed\n" +
+		"AGENTS.md imports it, so no session Reads them and none is ever counted missed\n" +
 		"rule-coverage: report tmp/x.ndjson"
 	if got := report.Text(); got != want {
 		t.Errorf("missed report =\n%q\nwant\n%q", got, want)
