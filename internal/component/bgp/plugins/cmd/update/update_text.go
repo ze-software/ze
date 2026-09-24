@@ -730,7 +730,12 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 				return nil, err
 			}
 			if result.Family == (family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}) {
-				_, _, extCommunities, _ := attribute.AttrFind(wire.Packed(), attribute.AttrExtCommunity)
+				// snapshot returns a nil wire when no attribute was given, so a
+				// section without attributes carries no extended community.
+				var extCommunities []byte
+				if wire != nil {
+					_, _, extCommunities, _ = attribute.AttrFind(wire.Packed(), attribute.AttrExtCommunity)
+				}
 				for _, announced := range result.Announce {
 					if err := message.ValidateEVPNOrigination(announced.Bytes(), extCommunities, false); err != nil {
 						return nil, err

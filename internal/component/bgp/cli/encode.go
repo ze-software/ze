@@ -81,7 +81,7 @@ func cmdEncode(args []string) int {
 				"# EVPN",
 				`ze bgp encode -f "l2vpn/evpn" "mac-ip rd 100:1 esi 0 etag 0 mac 00:11:22:33:44:55 label 100 next-hop 1.2.3.4"`,
 				`ze bgp encode -f "l2vpn/evpn" "ip-prefix rd 100:1 esi 0 etag 0 prefix 10.0.0.0/24 gateway 0.0.0.0 label 100 next-hop 1.2.3.4"`,
-				`ze bgp encode -f "l2vpn/evpn" "multicast rd 100:1 etag 0 next-hop 1.2.3.4"`,
+				`ze bgp encode -f "l2vpn/evpn" "multicast rd 100:1 etag 0 next-hop 1.2.3.4 extended-community target:100:1"`,
 				"",
 				"# Output options",
 				`ze bgp encode -n "route 10.0.0.0/24 next-hop 1.2.3.4"                NLRI only`,

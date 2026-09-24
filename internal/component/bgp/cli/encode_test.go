@@ -567,6 +567,8 @@ func TestCmdEncode_EVPN_Type1(t *testing.T) {
 //
 // VALIDATES: EVPN Type 3 routes are correctly encoded.
 // PREVENTS: EVPN Type 3 encoding regression.
+// The route carries a route target because RFC 7432 Section 11.1 requires
+// one on every IMET advertisement, and the encoder refuses a route without it.
 func TestCmdEncode_EVPN_Type3(t *testing.T) {
 	var stdout bytes.Buffer
 	oldStdout := encodeStdout
@@ -575,7 +577,7 @@ func TestCmdEncode_EVPN_Type3(t *testing.T) {
 
 	args := []string{
 		"-f", "l2vpn/evpn",
-		"multicast rd 100:1 etag 0 next-hop 192.168.1.1",
+		"multicast rd 100:1 etag 0 next-hop 192.168.1.1 extended-community target:100:1",
 	}
 	exitCode := cmdEncode(args)
 
@@ -596,6 +598,8 @@ func TestCmdEncode_EVPN_Type3(t *testing.T) {
 //
 // VALIDATES: EVPN Type 4 routes are correctly encoded.
 // PREVENTS: EVPN Type 4 encoding regression.
+// RFC 7432 Section 8.1.1 requires a type 1 route distinguisher and the
+// Section 7.6 ES-Import route target, so the route carries both.
 func TestCmdEncode_EVPN_Type4(t *testing.T) {
 	var stdout bytes.Buffer
 	oldStdout := encodeStdout
@@ -604,7 +608,7 @@ func TestCmdEncode_EVPN_Type4(t *testing.T) {
 
 	args := []string{
 		"-f", "l2vpn/evpn",
-		"ethernet-segment rd 100:1 esi 0 next-hop 192.168.1.1",
+		"ethernet-segment rd 192.168.1.1:1 esi 0 next-hop 192.168.1.1 extended-community 0x0602001122334455",
 	}
 	exitCode := cmdEncode(args)
 

@@ -1593,11 +1593,37 @@ set bgp peer beta session family ipv4/unicast prefix maximum 10000
 	assert.Equal(t, netip.MustParseAddr("192.0.2.2"), peers[0].Address)
 }
 
+// reloadOptionalYANG is the schema of a plugin that registers no module in the
+// global YANG registry, so only a --plugin selection can make it available.
+const reloadOptionalYANG = `module ze-reload-optional-conf {
+    namespace "urn:ze:reload-optional:conf";
+    prefix reload-optional;
+
+    container reload-optional {
+        presence "Enable the test-only optional plugin.";
+        description "Configuration root of a test-only optional plugin.";
+    }
+}`
+
 // Optional schemas selected at boot must remain available to the file-backed
 // verifier, without admitting unknown fields or enabling unselected plugins.
+// Every production plugin now registers its schema in the global YANG
+// registry (bgp-ls-export since 2b5e29db47), so the test registers its own
+// plugin whose schema is reachable only through the --plugin selection.
 func TestReloadVerifierRetainsSelectedPluginSchema(t *testing.T) {
+	snap := registry.Snapshot()
+	t.Cleanup(func() { registry.Restore(snap) })
+	require.NoError(t, registry.Register(registry.Registration{
+		Name:        "reload-optional",
+		Description: "test-only optional plugin",
+		YANG:        reloadOptionalYANG,
+		ConfigRoots: []string{"reload-optional"},
+		RunEngine:   func(_ net.Conn) int { return 0 },
+		CLIHandler:  func(_ []string) int { return 0 },
+	}))
+
 	configPath := filepath.Join(t.TempDir(), "ze.conf")
-	input := `bgp-ls-export { }
+	input := `reload-optional { }
 bgp {
 	router-id 1.2.3.4
 	session { asn { local 65000; } }
@@ -1608,7 +1634,7 @@ bgp {
 }`
 	_, err := config.LoadConfig(input, configPath, nil)
 	require.Error(t, err, "an unselected optional schema must remain unavailable")
-	selected := []string{"ze.bgp-ls-export"}
+	selected := []string{"ze.reload-optional"}
 	loaded, err := config.LoadConfig(input, configPath, selected)
 	require.NoError(t, err)
 	// The load result owns its retained startup context, not this scratch slice.
@@ -1630,7 +1656,7 @@ bgp {
 	// before starting the independent invalid-candidate transaction.
 	require.NoError(t, storage.ClearCandidate(store, configPath))
 
-	invalid := strings.Replace(candidate, "bgp-ls-export { }", "bgp-ls-export { invalid-leaf true; }", 1)
+	invalid := strings.Replace(candidate, "reload-optional { }", "reload-optional { invalid-leaf true; }", 1)
 	_, err = storage.WriteCandidateVersion(store, configPath, []byte(invalid), time.Now())
 	require.NoError(t, err)
 	require.ErrorContains(t, verifier.VerifyConfig(map[string]any{}), "invalid-leaf")
