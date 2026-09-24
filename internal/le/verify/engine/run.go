@@ -34,8 +34,8 @@ const (
 	Unjudged = 3
 	// stageUnjudged is the status an ACTION answers when it could not judge its
 	// own subject. It is the convention across le actions, and
-	// `le staticcheck-feature-matrix check` is the stage that answers it for the
-	// full population (internal/le/staticcheckfeaturematrix, runCheck).
+	// `le go staticcheck check` is the stage that answers it for the
+	// full population (internal/le/go/staticcheck, runCheck).
 	stageUnjudged = 2
 )
 
@@ -170,7 +170,7 @@ type Slot struct {
 // nameJobParent names this run's registry entry to every stage it starts, and
 // answers the restore that puts the previous value back.
 //
-// `verify lint/run` admits a job of its own (internal/le/verify/lint, runHere),
+// `go lint/run` admits a job of its own (internal/le/go/lint, runHere),
 // and the stages run inside THIS process: a lint that queued for a slot would
 // wait for the one its own parent holds, and neither would ever finish.
 // job.insideParent answers KindInside once it can read the entry named here.
@@ -517,9 +517,8 @@ func stageLogPath(logDir string, number int, stage string) string {
 	}
 	// Both separators flatten to a hyphen, so an artifact path never moves and
 	// never holds a space. A stage names a command and its verb, and a command
-	// is now an object and a member: `verify lint/run` is three words and one
-	// file, 01-verify-lint-run.log, which is the name it had when the command
-	// was spelled verify-lint. The failure index, every rerun line and the
+	// is now an object and a member: `go lint/run` is three words and one
+	// file, 01-go-lint-run.log. The failure index, every rerun line and the
 	// functional fixtures all read these paths.
 	stage = strings.ReplaceAll(stage, "/", "-")
 	stage = strings.ReplaceAll(stage, " ", "-")

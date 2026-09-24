@@ -13,7 +13,7 @@
 #   - internal/test/runner.TestBuildTags adds the functional-test personality
 #   - internal/le/plugin/imports gates each package and its YANG package
 #   - internal/le/arch/tier proves no always-on package imports a gated package
-#   - internal/le/repo/changed and internal/le/staticcheckfeaturematrix scope the gates
+#   - internal/le/repo/changed and internal/le/go/staticcheck scope the gates
 # feature-tags is the shell one, for the bootstrap that has no le binary yet:
 # the root ze and le launchers and the two Docker images source it.
 #

@@ -13,7 +13,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/journal"
+	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
 	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
@@ -44,7 +44,7 @@ func closureInventory(root string) (ClosureReport, []string, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	journalEvidence, malformed, err := journal.HeadSpecEvidence(root)
+	journalEvidence, malformed, err := specjournal.HeadSpecEvidence(root)
 	if err != nil {
 		return nil, nil, err
 	}

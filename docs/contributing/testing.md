@@ -246,7 +246,7 @@ Common case (one group changed): ~2 min total instead of 6+.
 
 ### The builds the linter reads
 
-<!-- source: internal/le/verify/lint/actions.go -- Answer -->
+<!-- source: internal/le/go/lint/actions.go -- Answer -->
 
 golangci-lint analyzes ONE build for each run: one GOOS, one GOARCH, one tag
 set. `./le verify lint run` therefore runs more than one.
@@ -255,11 +255,11 @@ set. `./le verify lint run` therefore runs more than one.
 |------|-------|--------------------|
 | 1 | the host GOOS, `.golangci.yml` tags | the shipped daemon |
 | 2 | `GOOS=linux`, plus `integration` | every kernel-facing `//go:build integration` test |
-| 3..N | one for each row of `FLAVORS` (`internal/le/verify/lint.Answer`) | `ze_installer`, `ze_distro`, `ze_appliance`, `ze_setup`, `tinygo`, and the capability tags (`debug`, `race`, `live`, ...). Also the GOOS and GOARCH targets no other pass compiles: `darwin`, `freebsd`, `openbsd`, `dragonfly`, `wasip1`, `linux/arm64` and `linux/riscv64`. Also the `compile-out` build, which drops every feature gate and keeps `ze_core` alone |
+| 3..N | one for each row of `FLAVORS` (`internal/le/go/lint.Answer`) | `ze_installer`, `ze_distro`, `ze_appliance`, `ze_setup`, `tinygo`, and the capability tags (`debug`, `race`, `live`, ...). Also the GOOS and GOARCH targets no other pass compiles: `darwin`, `freebsd`, `openbsd`, `dragonfly`, `wasip1`, `linux/arm64` and `linux/riscv64`. Also the `compile-out` build, which drops every feature gate and keeps `ze_core` alone |
 
 ### Waiting for the linter's own lock
 
-<!-- source: internal/le/verify/lint/verifylint.go -- passPlan, allowSerial -->
+<!-- source: internal/le/go/lint/verifylint.go -- passPlan, allowSerial -->
 
 golangci-lint takes one lock for the whole machine, at
 `$TMPDIR/golangci-lint.lock`. Several sessions share this checkout, so a second
@@ -274,7 +274,7 @@ silent for that long. That is the linter in a queue, not a hang.
 
 ### The slot a lint holds
 
-<!-- source: internal/le/verify/lint/actions.go -- runHere, jobArgv -->
+<!-- source: internal/le/go/lint/actions.go -- runHere, jobArgv -->
 <!-- source: internal/le/job/registry.go -- shares, reportBusy -->
 <!-- source: internal/le/job/treehash.go -- InputHash, lintIgnores -->
 
@@ -383,7 +383,7 @@ written empty, in source a reader can see.
 
 ### Feature-tag structural type check
 
-<!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->
+<!-- source: internal/le/go/staticcheck/actions.go -- Answer -->
 
 `./le staticcheck-feature-matrix check` type-checks the working tree in N+2
 configurations derived from the N unique features in `feature-gates.txt`: one

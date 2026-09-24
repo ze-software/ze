@@ -93,7 +93,7 @@ whose exception is a co-equal branch of a decision table. An invented link is
 worse than an absent one: coverage is a measurement and never a red.
 
 The manifest frontmatter carries `title`, `when`, `severity` and an optional
-`related`. `internal/le/rules.Answer` validates what those produce in the
+`related`. `internal/le/ai/rules.Answer` validates what those produce in the
 rendered file, so the metadata contract did not change when the format did.
 
 The manifest BODY is the rule's structural spine, and it has exactly two line
@@ -162,7 +162,7 @@ these elements, in this order:
 | `**Related:** slug, slug` | Optional. Comma-separated rule slugs (the filename without `.md`), never paths |
 
 A line that legitimately describes ANOTHER artifact's severity is marked
-`<!-- severity-note: whose severity this is -->`. `internal/le/rules/lint.go`
+`<!-- severity-note: whose severity this is -->`. `internal/le/ai/rules/lint.go`
 reads the RENDERED rule, so an unmarked line reads as this rule's own severity.
 The marker is line-scoped on purpose. A file-scoped opt-out would silently cover
 every later addition to that file.
@@ -185,7 +185,7 @@ trigger too, phrased as the moment you would reach for it: "looking up which
 check enforces a rule", "reasoning about where a component sits".
 
 Score a candidate trigger before you split a section into a rule of its own.
-`distinctiveTerms` (`internal/le/rules/digest.go`) drops every trigger term
+`distinctiveTerms` (`internal/le/ai/rules/digest.go`) drops every trigger term
 that too many other triggers share, and `unreachableBlocking` names each
 blocking rule no past task would surface. `coreMembers` then makes exactly that
 set always-on, so a split whose trigger scores nothing returns the new rule to
@@ -231,7 +231,7 @@ Write directives as bullets, table rows, or `**bold**` lines. Those reach the
 digest verbatim, and prose does not. The condenser keeps only the FIRST prose
 paragraph of each section, truncated to its first sentence or 220 characters,
 and it drops every later prose paragraph in that section outright
-(`condense_body` and `flush_prose`, `internal/le/rules/artifacts.go`).
+(`condense_body` and `flush_prose`, `internal/le/ai/rules/artifacts.go`).
 
 Keep each bullet on ONE physical line when its full text has to reach the
 digest. A wrapped bullet's continuation lines do not match the list-item
@@ -240,7 +240,7 @@ rule above. A long single line is correct here. Do not wrap it for looks.
 
 ## What the renderer refuses
 
-`internal/le/rules.Answer` fails closed rather than rendering a partial rule.
+`internal/le/ai/rules.Answer` fails closed rather than rendering a partial rule.
 
 | Refused | Why |
 |---------|-----|
@@ -277,7 +277,7 @@ Two files load into every session, and one generator emits both from one parse.
 | `ai/rules/TRIGGERS.md` | One routing line per rule: its path, its severity, and its `**When:**` trigger. Every rule appears, so none is ever invisible |
 | `ai/rules/CORE.md` | The condensed directives of the always-on rules only |
 
-<!-- source: internal/le/rules/digest.go -- coreMembers -->
+<!-- source: internal/le/ai/rules/digest.go -- coreMembers -->
 Core membership is derived, never listed. A rule is always-on when the ladder in
 `ai/rules/rule-precedence.md` names it on rung 1 or 2, when it IS that ladder,
 when it has no routable trigger, or when no past task description in `plan/`
@@ -299,7 +299,7 @@ A check that enforces nothing written in `ai/rules/` says so, with a reason:
     // ze point: none -- build hygiene; no rule states where a Go binary must be written
     func bashRootBuild(ctx context) *verdict {
 
-<!-- source: internal/le/rules/coverage.go -- bindingLine, noPointLine -->
+<!-- source: internal/le/ai/rules/coverage.go -- bindingLine, noPointLine -->
 `./le rules gate-map-report` joins those comments against the points on disk, and
 joins the two optional link fields the same way. It reports the gated points,
 the dangling bindings, the points that regressed, the checks that declare
@@ -356,7 +356,7 @@ Several sessions share this checkout, so your working tree can hold another
 author's unlanded rule text. When it does, generate the artifacts from HEAD plus
 your own points rather than from the shared tree:
 
-    git archive HEAD ai/rules internal/le/rules.Answer internal/le/rules.Answer \
+    git archive HEAD ai/rules internal/le/ai/rules \
         | tar -x -C <scratch>
     # copy your edited point files into <scratch>/ai/rules/points/
     # run the generators there, and commit what they produce
@@ -386,7 +386,7 @@ what a refusal had prevented. Nothing said whether a reworded instruction still
 had a gate behind it.
 
 The path is now the id, and a machine answers the first two. `gate_map` in
-`internal/le/rules.Answer` names the point each check enforces, and a refusal
+`internal/le/ai/rules.Answer` names the point each check enforces, and a refusal
 cites that point rather than a 900-line file.
 
 The third is answered in REVIEW, not by a machine. `Binding` carries the point's

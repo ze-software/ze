@@ -42,7 +42,7 @@ The verify runner resolves the selection once and publishes its package and feat
 
 <!-- source: internal/le/verify/engine/scope.go -- publishChangeScope -->
 
-`internal/le/staticcheckfeaturematrix.Answer` retains the all-features and core-only rows, plus the feature-omission rows the selected tags can affect. A negated build constraint counts as a use of the tag because that file compiles in the omission row.
+`internal/le/go/staticcheck.Answer` retains the all-features and core-only rows, plus the feature-omission rows the selected tags can affect. A negated build constraint counts as a use of the tag because that file compiles in the omission row.
 
 The retained rows are then cut across six stages, `check part 1 of 6` through `check part 6 of 6`. The scope decides WHICH rows a run judges; the cut decides WHICH STAGE judges each of them. `Matrix.Part` deals the rows round robin, so a scoped run of three rows puts one row in each of three pieces and the other three pieces report that they were dealt none.
 
@@ -57,16 +57,16 @@ One producer answers the change set: `Scope.resolveSelector` (`internal/le/repo/
 | a `.go` file | its package, plus every importer within two levels, with the feature tags on |
 | `go.mod`, `go.sum`, or a `vendor/` path | `./...`, and the widening names the path: a dependency moved, so every package that compiles against it is reachable |
 | Markdown under `ai/`, `plan/`, or `docs/`, the RFC corpus, `.github/*.yml`, or `.claude/settings*.json` | the native Go packages whose tests read that kind, never the whole tree |
-| a `.ci`, `.et`, or `.wb` body under `test/` | the Go packages that walk that corpus. `.ci` selects `internal/test/runner`, `internal/le/docvalid` and `internal/le`; `.et` selects `internal/component/cli/testing`; `.wb` selects `internal/component/web/testing` |
+| a `.ci`, `.et`, or `.wb` body under `test/` | the Go packages that walk that corpus. `.ci` selects `internal/test/runner`, `internal/le/doc/yangcontract` and `internal/le`; `.et` selects `internal/component/cli/testing`; `.wb` selects `internal/component/web/testing` |
 | a path under `examples/plugin/go`, matched BEFORE the `.go` rule | no package. It is a separate module, so `go list ./...` never reports it. Ordering is load-bearing: the `.go` rule would seed a directory no package owns and widen the whole run |
 | a path under `gokrazy/modcache/` | no package. A third-party module cache every tree walker names in a skip list |
 | a `.go` file the unit tag set never compiles, in the module root | `internal/le`, whose tree-walking tests read it (`treeWalkingPackages`). `./...` does not compile it either, so widening would buy nothing |
-| a `.go` file under `cmd/ze-installer` | `./...`. `internal/le/verify/lint/matrix.go` lints that package under a `ze_installer` flavor only when the lint runs over `./...`, so the wide answer is the only one that reports on an edit to the initrd's PID 1 |
+| a `.go` file under `cmd/ze-installer` | `./...`. `internal/le/go/lint/matrix.go` lints that package under a `ze_installer` flavor only when the lint runs over `./...`, so the wide answer is the only one that reports on an edit to the initrd's PID 1 |
 | a kind no rule names | the package it sits in when that directory holds Go source, the tooling packages otherwise. The path is NAMED on stderr, which is the evidence for writing it a rule |
 | nothing, and `tmp/ze-verify.status` holds no green commit | `./...`, and the widening names the condition. Without a proven commit, every commit in history is unverified, so a clean tree must not select nothing |
 
 <!-- source: internal/le/repo/changed/actions.go -- Answer -->
-<!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->
+<!-- source: internal/le/go/staticcheck/actions.go -- Answer -->
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
 ## The suite map

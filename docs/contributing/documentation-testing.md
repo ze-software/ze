@@ -39,13 +39,13 @@ checks needed for the current diff and is included in `./le verify current mode 
 command help gates, and source-anchor validation. `./le doc wiring` is the changed-file-aware
 pre-commit gate.
 
-<!-- source: internal/le/docvalid/actions.go -- Answer -->
-<!-- source: internal/le/docvalid/actions.go -- Answer -->
-<!-- source: internal/le/docstocode/actions.go -- Answer -->
+<!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
+<!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
+<!-- source: internal/le/doc/index/actions.go -- Answer -->
 <!-- source: internal/le/doc/check/actions.go -- Answer -->
-<!-- source: internal/le/consistency/consistency.go -- Answer -->
+<!-- source: internal/le/doc/consistency/consistency.go -- Answer -->
 <!-- source: internal/le/doc/wiring/docwiring.go -- Answer -->
-<!-- source: internal/le/ste/actions.go -- Answer -->
+<!-- source: internal/le/doc/ste/actions.go -- Answer -->
 
 ## When to run
 
@@ -163,7 +163,7 @@ summary of a config node is written over as many lines as its author needed,
 and `entryShortHelp` collapses the whitespace before it renders, so a newline
 in one is the normal spelling rather than a defect.
 
-<!-- source: internal/le/docvalid/helpshape_schema.go -- collectSchema -->
+<!-- source: internal/le/doc/yangcontract/helpshape_schema.go -- collectSchema -->
 
 #### What the config corpus IS
 
@@ -207,7 +207,7 @@ written, so the rule holds over the whole tree and the `HEAD` baseline that
 scoped it is gone. There is no file to append a path to, and no scope line in
 the report: a summary with no long text beside it is refused wherever it sits.
 
-<!-- source: internal/le/docvalid/helpshape.go -- judgePair -->
+<!-- source: internal/le/doc/yangcontract/helpshape.go -- judgePair -->
 
 The third corpus is read two ways, because Go forbids importing a main package.
 The registrations this binary links are read from the registry. The four
@@ -304,14 +304,14 @@ that stopped early must not read as a file that broke no rule.
 | Handler with no YANG `ze:command` | Add a YANG declaration in the appropriate `*-cmd.yang` schema |
 ## How the tools find drift
 
-`internal/le/docvalid.Answer` imports `internal/component/plugin/all` so all
+`internal/le/doc/yangcontract.Answer` imports `internal/component/plugin/all` so all
 plugins register themselves, then queries `registry.All()` and
 `registry.FamilyMap()`. It walks the `.ci` files and reads the native functional
 suite catalog from `internal/le/functional`. It compares those facts with
 claims in `docs/DESIGN.md`, `docs/comparison.md`, `README.md`,
 `docs/features.md`, and `docs/functional-tests.md`.
 
-`internal/le/docvalid.Answer` imports the same set plus the BGP cmd plugin
+`internal/le/doc/yangcontract.Answer` imports the same set plus the BGP cmd plugin
 schema/handler packages, loads the YANG modules, and walks the schema tree
 looking for `ze:command` extensions. For each extension it checks
 `registry.CollectRPCHandlers()` for a matching method name.
@@ -321,12 +321,12 @@ refuses a missing source path or symbol. `./le docs-to-code update` regenerates
 the two documentation indexes.
 
 One walk of `docs/` feeds the path and symbol checks. An anchor is
-`<!-- source: <path> -- Sym1, Sym2 -->`. `internal/le/docstocode.CheckCodeIndex`
+`<!-- source: <path> -- Sym1, Sym2 -->`. `internal/le/doc/index.CheckCodeIndex`
 keeps an identifier or dotted method chain from the claim and compares it with
 the declarations in the anchored Go file. The scan is independent of build
 tags, so a Linux declaration remains visible on a macOS host.
 
-The same walk answers the opposite question. `internal/le/docstocode.ClaimsByPath`
+The same walk answers the opposite question. `internal/le/doc/index.ClaimsByPath`
 maps a code path to the claims written about it, each with the symbols its
 anchor names, and the `doc-drift` check in `internal/le/doc/wiring` refuses a
 commit that changed one of those symbols and left its page alone.
@@ -366,7 +366,7 @@ The three roots outside the tracked citation scan are `vendor/`,
 `third_party/`, and `plan/handover/`: the first two hold another repository's
 files, while the last records an earlier tree.
 
-`internal/le/consistency` parses `// Design:`, `// Detail:`, `// Overview:`, and
+`internal/le/doc/consistency` parses `// Design:`, `// Detail:`, `// Overview:`, and
 `// Related:` comments, checks their symmetry, and reports references to
 packages that no longer exist.
 

@@ -25,7 +25,7 @@ const (
 )
 
 var (
-	handoffCommand = regexp.MustCompile(`session-state-|spec session state`)
+	handoffCommand = regexp.MustCompile(`session-state-|spec (session )?state`)
 	safeAgentID    = regexp.MustCompile(`^[A-Za-z0-9_-]+$`)
 )
 

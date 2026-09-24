@@ -70,7 +70,7 @@ A scoped run also judges fewer Staticcheck matrix rows.
 `./le staticcheck-feature-matrix check` derives one row per feature tag in
 `feature-gates.txt` plus `all_features` and `core_only`, 38 rows today, and each
 row is a full-module analysis. `scopeFeatureMatrix`
-(`internal/le/staticcheckfeaturematrix.Answer`) keeps a row when it omits no tag
+(`internal/le/go/staticcheck.Answer`) keeps a row when it omits no tag
 or omits a tag the change reached, so a change local to `ze_ssh` judges 3 rows
 rather than 38. `all_features` and `core_only` judge the combinations Ze ships
 and are never subtracted. Running the target on its own, with
@@ -133,7 +133,7 @@ before presenting work as complete.
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 <!-- source: internal/le/job/answer.go -- Answer -->
 <!-- source: internal/le/verify/status/answer.go -- Answer -->
-<!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->
+<!-- source: internal/le/go/staticcheck/actions.go -- Answer -->
 <!-- source: internal/le/functional/actions.go -- Answer -->
 
 The following shipped test suites are **not in the default release gate** and
@@ -227,7 +227,7 @@ its workflow job added by hand. The full workflow map is
 
 <!-- source: internal/test/cli/register.go -- subcommand registry -->
 <!-- source: internal/test/cli/cmd_bgp.go -- chaos-web suite -->
-<!-- source: internal/le/evidence/actions.go -- Actions -->
+<!-- source: internal/le/verify/evidence/actions.go -- Actions -->
 <!-- source: internal/le/qemu/actions.go -- Actions -->
 <!-- source: internal/le/qemu/alltests.go -- allTestsRun -->
 

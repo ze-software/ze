@@ -87,6 +87,7 @@ const (
 	fieldChecks             = "checks"
 	fieldCommand            = "command" // The field in a payload or a query.
 	fieldCommands           = "commands"
+	fieldEvidence           = "evidence" // The RFC check report field.
 	fieldCommunity          = "community"
 	fieldContainer          = "container"
 	fieldContent            = "content"
@@ -272,7 +273,7 @@ const (
 	areaDeployment                = "deployment"
 	areaDigest                    = "ai digest"
 	areaAIRules                   = "ai rules"
-	areaEvidence                  = "evidence"
+	areaEvidence                  = "verify evidence"
 	areaQEMU                      = "qemu" // The le area.
 	areaRepository                = "repo"
 	areaRules                     = "rules"
@@ -285,16 +286,16 @@ const (
 	checkDashStdio                = "cli stdio"
 	checkDocWiring                = "doc wiring"
 	checkFSPersistence            = "arch fs-persistence"
-	checkGoVersion                = "go-version"
+	checkGoVersion                = "go version-pin"
 	checkIfaceResolution          = "arch iface-resolution"
 	checkPluginBoundary           = "plugin boundary"
 	checkPortDefaults             = "config ports"
 	checkRepositoryTrackedBuild   = "repo tracked-build"
-	checkStaticcheckFeatureMatrix = "staticcheck-feature-matrix"
+	checkStaticcheckFeatureMatrix = "go staticcheck"
 	checkTestSensitivity          = "test-sensitivity"
 	checkYANGLeafMentions         = "config unread-leaves"
 	gateGokrazyGosum              = "gokrazy-gosum"
-	gateProtocolSkeleton          = "protocol-skeleton"
+	gateProtocolSkeleton          = "rfc skeletons"
 )
 
 // Files, paths and expected text.

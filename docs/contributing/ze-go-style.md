@@ -516,7 +516,7 @@ writes the copy. Left relative, the rules file is not found, gocritic fails to
 initialize, and `failOn: all` takes the whole `goanalysis_metalinter` pass down
 with it: those flavors then lint with no gocritic at all, while the run's other
 findings still print.
-<!-- source: internal/le/verify/lint/verifylint.go -- deriveTaglessConfig -->
+<!-- source: internal/le/go/lint/verifylint.go -- deriveTaglessConfig -->
 
 The leading dot on the directory keeps the Go toolchain out of it, so a rules
 file is never compiled, vendored, or linted. Give each rule a `Report` line

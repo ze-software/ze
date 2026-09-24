@@ -73,7 +73,7 @@ func TreeHash(root string) string {
 }
 
 // LintLabel is the name every lint on this machine claims in the registry.
-// internal/le/verify/lint/actions.go spells its job label from this constant,
+// internal/le/go/lint/actions.go spells its job label from this constant,
 // because the label and the trees declared below are one fact: a label whose
 // inputs were declared elsewhere would drift from the work it names.
 const LintLabel = "lint"

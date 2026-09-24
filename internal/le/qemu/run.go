@@ -27,7 +27,7 @@ import (
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/core/tmplink"
-	"github.com/ze-software/ze/internal/le/goversion"
+	goversionpin "github.com/ze-software/ze/internal/le/go/versionpin"
 	"github.com/ze-software/ze/internal/le/leaction"
 )
 
@@ -374,7 +374,7 @@ func (r *Run) Plan(ctx context.Context) (RunPlan, error) {
 	if err != nil {
 		return plan, err
 	}
-	goRelease, err := goversion.DeclaredRelease(r.Tree)
+	goRelease, err := goversionpin.DeclaredRelease(r.Tree)
 	if err != nil {
 		return plan, fmt.Errorf("read the Go release the guest must install: %w", err)
 	}
@@ -539,7 +539,7 @@ func shellQuote(value string) string {
 // directive of go.mod by the caller. It is a parameter rather than a constant
 // here because a copy of that declaration drifted once already, and a guest a
 // minor behind downloads a second toolchain on its first `go` command
-// (internal/le/goversion, DeclaredRelease).
+// (internal/le/go/versionpin, DeclaredRelease).
 func (r *Run) setupCommand(goRelease string) (string, error) {
 	arch := ArchAMD64
 	if runAlpineArch(r.ops.GOARCH) == "aarch64" {

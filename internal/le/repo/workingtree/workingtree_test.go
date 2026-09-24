@@ -24,7 +24,7 @@ func TestTheFirstMatchingPrefixWins(t *testing.T) {
 		{"plan/spec-x.md", "specs"},
 		{"docs/x.md", "docs"},
 		{"test/ui/x.ci", "tests"},
-		{"internal/le/evidence/docker_run.go", "evidence-tools"},
+		{"internal/le/verify/evidence/docker_run.go", "evidence-tools"},
 		{"internal/le/commit/actions.go", "tooling"},
 		{".golangci.yml", "build"},
 		{"pkg/plugin/x.go", "plugin-sdk"},

@@ -95,7 +95,7 @@ the site with `./le site build`.
 ## Command surfaces
 
 Every published command page is generated from one file. `publishCommandCatalog`
-asks `internal/le/docvalid.LiveCommandCatalog` for the answer `ze help command
+asks `internal/le/doc/yangcontract.LiveCommandCatalog` for the answer `ze help command
 --json` gives, and writes it to `../gh-pages/data/cli-commands.json`. The
 producers below read that file and nothing else.
 <!-- source: internal/le/site/build.go -- publishCommandCatalog, liveCommandCatalog -->
@@ -115,7 +115,7 @@ it, as the detail page body. No producer derives one text from the other, and
 none cuts either one. `docs/architecture/api/commands.md` holds the same table
 for every other surface.
 
-`internal/le/docvalid` publishes no page. Its unexported `renderCommandSurfaces`
+`internal/le/doc/yangcontract` publishes no page. Its unexported `renderCommandSurfaces`
 writes a contract fixture into a temporary tree, and the documentation drift
 gate reads that fixture and each published page with one reader, so a fixture
 the reader rejects is a reader defect and a page it rejects is a page defect.
@@ -128,8 +128,8 @@ reader reads the mirrors' stated absences (`not declared`, `none`, the bare
 full catalog heading, though the index lists a mapped command twice. The symbol
 was exported until 2026-08-29, and a build that called it overwrote 396 pages
 with the fixture.
-<!-- source: internal/le/docvalid/command_render.go -- renderCommandSurfaces -->
-<!-- source: internal/le/docvalid/command_surfaces.go -- validateGeneratedCommandSurfaces, htmlDescriptionAndUsage, equivalentMarkdownCommandIdentities -->
+<!-- source: internal/le/doc/yangcontract/command_render.go -- renderCommandSurfaces -->
+<!-- source: internal/le/doc/yangcontract/command_surfaces.go -- validateGeneratedCommandSurfaces, htmlDescriptionAndUsage, equivalentMarkdownCommandIdentities -->
 
 ## Quality pages
 

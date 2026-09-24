@@ -5,8 +5,8 @@
 <!-- source: cmd/ze/help_ai.go -- ze help ai output -->
 <!-- source: internal/le/repo/inventory/inventory.go -- Answer -->
 <!-- source: internal/le/cli/list/commandlist.go -- Answer -->
-<!-- source: internal/le/docvalid/actions.go -- Answer -->
-<!-- source: internal/le/docvalid/actions.go -- Answer -->
+<!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
+<!-- source: internal/le/doc/yangcontract/actions.go -- Answer -->
 
 Ze is self-documenting: every plugin, environment variable, RPC, event type, and CLI command
 is registered at startup and discoverable at runtime. Nothing exists unregistered -- the

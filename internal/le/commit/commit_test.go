@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/lepath"
-	specsession "github.com/ze-software/ze/internal/le/spec/session"
+	"github.com/ze-software/ze/internal/le/spec"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 
@@ -110,7 +110,7 @@ func TestStructuralRedsAttributeOnlyPathBearingGroups(t *testing.T) {
 	writeCommitFixture(t, root, "mine/a.go", "package mine\n")
 	writeCommitFixture(t, root, "theirs/b.go", "package theirs\n")
 	writeCommitFixture(t, root, "tmp/ze-verify-failures.json", `{"stages":[
-		{"stage":"verify lint/run","exit-code":1,"groups":[
+		{"stage":"go lint/run","exit-code":1,"groups":[
 			{"group-id":"lint:theirs","kind":"lint","related":["theirs/b.go"]}]},
 		{"stage":"arch tier/check","exit-code":1,"groups":[
 			{"group-id":"tier:unknown","kind":"subcheck","related":["theirs/b.go"]}]},
@@ -119,7 +119,7 @@ func TestStructuralRedsAttributeOnlyPathBearingGroups(t *testing.T) {
 	]}`)
 	reds := structuralGateReds(root, []string{"mine/a.go"})
 	if !slices.Equal(reds.Charged, []string{"arch tier/check", "doc wiring"}) ||
-		!slices.Equal(reds.Foreign, []string{"verify lint/run"}) ||
+		!slices.Equal(reds.Foreign, []string{"go lint/run"}) ||
 		!slices.Equal(reds.Unattributed, []string{"arch tier/check (tier:unknown)"}) {
 		t.Fatalf("structuralGateReds = %#v", reds)
 	}
@@ -142,12 +142,12 @@ func TestStructuralRedsAttributeOnlyPathBearingGroups(t *testing.T) {
 func TestStructuralRedsSeeNothingUntilARunPublishesItsIndex(t *testing.T) {
 	root := t.TempDir()
 	writeCommitFixture(t, root, "mine/a.go", "package mine\n")
-	writeCommitFixture(t, root, "tmp/verify/full-fixture/01-verify-lint-run.log",
-		"### Stage: verify lint/run\n"+
+	writeCommitFixture(t, root, "tmp/verify/full-fixture/01-go-lint-run.log",
+		"### Stage: go lint/run\n"+
 			`VERIFY FAILURE GROUP: {"group-id":"lint:mine","kind":"lint","related":["mine/a.go"],`+
-			`"summary":"findings","rerun":"le verify lint run"}`+"\n"+
+			`"summary":"findings","rerun":"le go lint run"}`+"\n"+
 			"VERIFY FAILURE GROUPS COMPLETE: 1\n"+
-			"### Stage result: verify lint/run exit=1\n")
+			"### Stage result: go lint/run exit=1\n")
 	writeCommitFixture(t, root, "tmp/verify/full-fixture/02-tier-check.log",
 		"### Stage result: tier/check exit=0\n")
 	writeCommitFixture(t, root, "tmp/verify/full-fixture/03-rfc-check.log",
@@ -343,7 +343,7 @@ func TestReviewArtifactIsHashPinnedToEveryCodeFile(t *testing.T) {
 // TestTheReviewGateReadsTheArtifactTheRecorderWrites pins the ONE name a review
 // artifact has.
 //
-// VALIDATES: CheckReview looks the artifact up where internal/le/spec/session
+// VALIDATES: CheckReview looks the artifact up where internal/le/spec
 // writes it, which is under the HARNESS session id.
 // PREVENTS: the regression the native port shipped. This gate built the name
 // itself from the eight-hex commit namespace that SessionID mints, so
@@ -403,7 +403,7 @@ func TestTheGeneratedReviewRecheckNamesTheLauncherOnDisk(t *testing.T) {
 // owns, so a fixture cannot invent a name of its own.
 func writeReviewArtifact(t *testing.T, root, stem string, files ...string) {
 	t.Helper()
-	relative, err := specsession.ReviewArtifactPath(root, stem)
+	relative, err := spec.ReviewArtifactPath(root, stem)
 	if err != nil {
 		t.Fatal(err)
 	}

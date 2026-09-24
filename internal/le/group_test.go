@@ -101,7 +101,7 @@ func TestReportAreasWriteNothing(t *testing.T) {
 
 // directoryFor answers the path a command name predicts, relative to
 // internal/le. A space is a level, and a hyphen inside a level joins words
-// naming one thing: `verify lint` predicts verify/lint, and
+// naming one thing: `go lint` predicts go/lint, and
 // `repo tracked-build` predicts repo/trackedbuild.
 //
 // This is the whole naming rule, and it is one function so the test and the
@@ -121,7 +121,7 @@ func directoryFor(name string) string {
 func TestDirectoryForReadsBothHalvesOfTheNamingRule(t *testing.T) {
 	for _, row := range []struct{ name, want string }{
 		{"verify", "verify"},
-		{"verify lint", "verify/lint"},
+		{"go lint", "go/lint"},
 		{"cli stdio", "cli/stdio"},
 		{"repo tracked-build", "repo/trackedbuild"},
 		{"config unread-leaves", "config/unreadleaves"},
@@ -133,8 +133,8 @@ func TestDirectoryForReadsBothHalvesOfTheNamingRule(t *testing.T) {
 }
 
 // TestEveryCommandIsFoundAtThePathItsNamePredicts is the structural rule. It
-// holds in both directions. `le spec session` lives at
-// internal/le/spec/session, and every directory that registers a command is
+// holds in both directions. `le spec journal` lives at
+// internal/le/spec/journal, and every directory that registers a command is
 // reached by some command name.
 //
 // The rule is mechanical on purpose. A reader who knows the command knows the

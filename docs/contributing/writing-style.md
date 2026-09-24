@@ -17,8 +17,8 @@ translator, a machine translation engine, and the agents that read this
 repository.
 
 The rule that makes this blocking is `ai/rules/writing.md`.
-The checker is `internal/le/ste.Answer`.
-<!-- source: internal/le/ste/actions.go -- Answer -->
+The checker is `internal/le/doc/ste.Answer`.
+<!-- source: internal/le/doc/ste/actions.go -- Answer -->
 
 ## What this covers
 
@@ -627,14 +627,14 @@ smallest complete config that carries it. Build the binary and run
 | `./le ste check` | The gate. It fails when a habit grew in a file you changed |
 | `./le ste review` | The whole tree, for a rewriting session |
 | `./le ste check file <path>...` | Named files |
-| `./le ste check file <scratch>/msg.txt` | A commit message or a PR body, written to a file first. `check` declares `file <path>` as its one keyword (`internal/le/ste/actions.go`), which repeats and takes paths only. The package reads no stdin |
+| `./le ste check file <scratch>/msg.txt` | A commit message or a PR body, written to a file first. `check` declares `file <path>` as its one keyword (`internal/le/doc/ste/actions.go`), which repeats and takes paths only. The package reads no stdin |
 
 The gate compares each file against its own version at HEAD. Legacy prose in a
 file you touch costs nothing, and the sentence you add is what goes red. No
 baseline file exists, so the one way to green is to rewrite the prose.
 
 When the checker is wrong, correct the checker and add the case to
-`internal/le/ste.Answer`. A checker that flags a code span, an RFC 2119
+`internal/le/doc/ste.Answer`. A checker that flags a code span, an RFC 2119
 MUST, or the noun `setup` teaches its readers to ignore it.
 
 When a document must quote non-conforming text at length, exempt it with
@@ -642,10 +642,10 @@ When a document must quote non-conforming text at length, exempt it with
 
 A document that is DELETED when its work closes is out of scope, and rewriting
 its prose is wasted work. `plan/spec-*.md` and `plan/known-failures/` are
-excluded in `internal/le/ste/ste.go`.
+excluded in `internal/le/doc/ste/ste.go`.
 `plan/journal/`, `plan/learned/` and `plan/TEMPLATE.md` stay in scope: they
 outlive every spec and are read by sessions that were not there.
-<!-- source: internal/le/ste/ste.go -- excluded plan trees -->
+<!-- source: internal/le/doc/ste/ste.go -- excluded plan trees -->
 
 ## Lineage
 

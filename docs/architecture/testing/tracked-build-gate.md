@@ -13,7 +13,7 @@ committed population and catches that class.
 
 ## Structural type checking and final linking
 
-<!-- source: internal/le/staticcheckfeaturematrix/actions.go -- Answer -->
+<!-- source: internal/le/go/staticcheck/actions.go -- Answer -->
 
 `./le staticcheck-feature-matrix check` type-checks working-tree production
 and `_test.go` sources. It derives N+2 rows from the N unique manifest features:
@@ -40,7 +40,7 @@ is the only log a reader of one shard has. Typing
 `./le staticcheck-feature-matrix check` with no part judges every row, as before.
 
 One Staticcheck run is bounded at 90 seconds for each row it judges
-(`deadlinePerRow`, `internal/le/staticcheckfeaturematrix/judge.go`), so a 7-row
+(`deadlinePerRow`, `internal/le/go/staticcheck/judge.go`), so a 7-row
 piece gets 10m30s and an undivided 38-row run gets 57m. The flat 25 minutes this
 replaces bounded the whole matrix: CI run 33450825487 measured 23m36s inside it
 and most other runs exceeded it, which reported a slow gate as an unjudgeable
@@ -55,7 +55,7 @@ in hand and every later run started the same trim again. The gate therefore runs
 Staticcheck with `STATICCHECK_CACHE` set to `cache/staticcheck-matrix` in the
 checkout (`CacheDir`), whatever the caller's environment names. Only the matrix
 fills that cache, so its trim walks a bounded population.
-<!-- source: internal/le/staticcheckfeaturematrix/judge.go -- CacheDir -->
+<!-- source: internal/le/go/staticcheck/judge.go -- CacheDir -->
 
 Staticcheck stops after package and test-variant type checking.
 `./le repo tracked-build check` supplies committed-tree final-link proof for

@@ -120,7 +120,7 @@ from an ordinary `in-progress` commit. There is no closed status in the
 vocabulary above, since closure IS the removal. Commit B carries that removal,
 so no spec closes without a clean independent review.
 
-<!-- source: internal/le/spec/session/review.go -- recordReview, CheckReview -->
+<!-- source: internal/le/spec/review.go -- recordReview, CheckReview -->
 Review has no required model. The artifact records the model when available;
 review independence comes from a fresh reviewer context.
 

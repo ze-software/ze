@@ -20,7 +20,7 @@ import (
 	airules "github.com/ze-software/ze/internal/le/ai/rules"
 	docindex "github.com/ze-software/ze/internal/le/doc/index"
 	docyangcontract "github.com/ze-software/ze/internal/le/doc/yangcontract"
-	"github.com/ze-software/ze/internal/le/journal"
+	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
 )
 
 type docVerifyPage struct {
@@ -285,7 +285,7 @@ func discoveryIndexesStage(root string) (any, int) {
 
 func journalStage(root string) (any, int) {
 	var stderr bytes.Buffer
-	report, code := journal.Run(root, &stderr)
+	report, code := specjournal.Run(root, &stderr)
 	var tb textbuf.Buffer
 	return docVerifyPage{text: tb.Str(prose(report)).Str(stderr.String()).String()}, code
 }

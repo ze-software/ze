@@ -20,8 +20,8 @@ import (
 	"github.com/ze-software/ze/internal/le/derived"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/session"
+	"github.com/ze-software/ze/internal/le/spec"
 	speccitation "github.com/ze-software/ze/internal/le/spec/citation"
-	specsession "github.com/ze-software/ze/internal/le/spec/session"
 	"github.com/ze-software/ze/internal/le/spec/specpath"
 	specstatus "github.com/ze-software/ze/internal/le/spec/status"
 )
@@ -177,7 +177,7 @@ func hookSessionStart(ctx context, out io.Writer) int {
 		found := stateFile(ctx)
 		if _, err := os.Stat(found); err != nil {
 			stem := strings.TrimSuffix(strings.TrimPrefix(claim, "spec-"), ".md")
-			found, _ = specsession.LatestStateForSpec(ctx.root, stem)
+			found, _ = spec.LatestStateForSpec(ctx.root, stem)
 			if found != "" && !filepath.IsAbs(found) {
 				found = filepath.Join(ctx.root, found)
 			}

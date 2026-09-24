@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/goversion"
+	goversionpin "github.com/ze-software/ze/internal/le/go/versionpin"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	"github.com/ze-software/ze/internal/le/interoplab/bgp"
 	"github.com/ze-software/ze/internal/le/interoplab/ipsec"
@@ -70,7 +70,7 @@ func TestZeDockerfilesCarryNoCompiler(t *testing.T) {
 			// literal here, which keeps one declaration of the image name and
 			// keeps this line off that gate's carrier walk.
 			if strings.HasPrefix(strings.ToUpper(trimmed), "FROM ") {
-				if strings.Contains(trimmed, goversion.ImagePrefix) {
+				if strings.Contains(trimmed, goversionpin.ImagePrefix) {
 					t.Errorf("%s:%d names a golang base image: %s", match, number, trimmed)
 				}
 			}

@@ -242,7 +242,7 @@ hung the suite rather than failing one test.
 | `element` | `id` / `not-id` | element with that id is present / absent in the DOM |
 | `element` | `text` / `not-text` | text is present / absent in the accessibility snapshot (case-insensitive) |
 | `html` | `contains` / `not-contains` | the page BODY contains / does not contain the substring |
-| `head` | `contains` / `not-contains` | the page HEAD contains / does not contain the substring. `html` cannot answer for it: `get html <selector>` returns one element's inner HTML, and it reads the body. The head is where a page states which assets it loads, and each page loads what its own markup needs (`internal/le/webassets.Write`), so what a head does NOT carry is a property of the page |
+| `head` | `contains` / `not-contains` | the page HEAD contains / does not contain the substring. `html` cannot answer for it: `get html <selector>` returns one element's inner HTML, and it reads the body. The head is where a page states which assets it loads, and each page loads what its own markup needs (`internal/le/web/assets.Write`), so what a head does NOT carry is a property of the page |
 | `breadcrumb` | `contains` / `not-contains` (CSV) | each segment is present / absent |
 | `url` | `contains` / `not-contains` | the ADDRESS BAR contains / does not contain the substring. It read the accessibility snapshot until 2026-08-15, which never carries the address, so the assertion could only ever fail |
 | `title` | `contains` | the page text contains the substring (case-insensitive) |

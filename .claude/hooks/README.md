@@ -7,7 +7,7 @@ configuration is `.claude/settings.json`; each entry invokes:
 $CLAUDE_PROJECT_DIR/le hook-check <hook-name>
 ```
 
-The runtime lives in `internal/le/hookruntime`. `internal/le/hookcheck` owns the
+The runtime lives in `internal/le/hookruntime`. `internal/le/ai/hooks` owns the
 registered command surface, the 208 typed dispatcher fixtures, and the 607 typed
 behavior fixtures. Hook payloads are read from standard input as JSON. Hook
 protocol output is written directly by the Go runtime, and exit codes retain the
@@ -31,8 +31,8 @@ this page names but that registry does not hold is a defect in this page.
 
 Session identity resolution and dated session paths are canonical in
 `internal/le/lepath/session.go`. Test weakening is judged by
-`internal/le/testweakened`, journal rows by `internal/le/journal`, and spec session
-state by `internal/le/spec/session`. The hook runtime calls those packages
+`internal/le/testweakened`, journal rows by `internal/le/spec/journal`, and spec session
+state by `internal/le/spec`. The hook runtime calls those packages
 in-process rather than launching a second implementation.
 
 ## Event wiring
@@ -60,7 +60,7 @@ writes the parent session prefix when nothing blocked.
 
 Each section below carries one table under a heading naming its Go source. The
 `Enforces` column names the rule stems that check's `// ze point:` bindings
-name. `hookTableProblems` (`internal/le/rules/hooktable.go`) compares the two
+name. `hookTableProblems` (`internal/le/ai/rules/hooktable.go`) compares the two
 columns against the Go registry, so a new check owes a row here and a deleted
 check's row cannot survive it.
 
@@ -200,7 +200,7 @@ overridden gate under `plan/verification-debt/`, and `openDebt` refuses a push
 while any row is open. `debtGates` names the six keys above, plus `stale-index-ok`, whose gate was deleted on 2026-09-11 and whose declaration survives so the ledger rows already naming it stay clearable.
 
 The review gate runs only for a closure commit, which `closureStem` identifies.
-`ROUND_CAP` and `cmd_record` in `internal/le/spec/session/review.go` price the
+`ROUND_CAP` and `cmd_record` in `internal/le/spec/review.go` price the
 review round count at `./le spec session review record`, not here.
 
 ## Changed-file gates (`./le doc wiring`)
@@ -242,7 +242,7 @@ middle of an edit cannot show. They stay out of the gate.
 
 ## Prose gate (ASD-STE100)
 
-<!-- source: internal/le/ste/actions.go -- Actions -->
+<!-- source: internal/le/doc/ste/actions.go -- Actions -->
 `./le ste check` compares each changed file with its own text at HEAD and prints
 only the habits that grew, so a document nobody touched can never fail.
 `./le ste review` reports the whole tree and `./le ste review-changed` reports
@@ -254,7 +254,7 @@ STE is a guideline, so no gate refuses on it.
 
 | Runner | Covers |
 |---|---|
-| `internal/le/hookcheck/parity.go` | Golden exit-code regression over the 208 dispatcher fixtures, in four tables, one per registered check group. |
+| `internal/le/ai/hooks/parity.go` | Golden exit-code regression over the 208 dispatcher fixtures, in four tables, one per registered check group. |
 | `./le hook-check unit` | The 607 typed behavior fixtures: spec validation, source-read evidence, commit-time gates, delegation, and the registered write and Bash checks. |
 
 Run the focused hook proof with:

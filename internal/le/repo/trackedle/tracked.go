@@ -161,7 +161,7 @@ func registeringPackages(root string) ([]string, error) {
 			names = append(names, entry.Name())
 		}
 		// A namespace member sits one level below its object, so
-		// internal/le/verify/lint registers `le verify lint`. An object that is
+		// internal/le/go/lint registers `le go lint`. An object that is
 		// also a command of its own registers at both levels and is named at
 		// each. The walk stops here: two words is the whole grammar.
 		members, readErr := os.ReadDir(filepath.Join(base, entry.Name()))

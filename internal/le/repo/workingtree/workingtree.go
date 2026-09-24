@@ -58,7 +58,7 @@ var areas = []struct {
 	{"docs/", "docs"},
 	{"test/", "tests"},
 	{"internal/le/deployment/", areaEvidenceTools},
-	{"internal/le/evidence/", areaEvidenceTools},
+	{"internal/le/verify/evidence/", areaEvidenceTools},
 	{"internal/le/qemu/", areaEvidenceTools},
 	{"internal/le/", "tooling"},
 	{".golangci.yml", buildArea},

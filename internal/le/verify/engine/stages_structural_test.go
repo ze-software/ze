@@ -15,7 +15,7 @@ func TestTheStaticcheckMatrixRunsOnePiecePerStage(t *testing.T) {
 	for _, mode := range []string{Mode, ChangedMode} {
 		var positions []int
 		for index, one := range StagesForMode(mode) {
-			if one.Identity.Command != "staticcheck-feature-matrix" {
+			if one.Identity.Command != "go staticcheck" {
 				continue
 			}
 			positions = append(positions, index)

@@ -14,8 +14,8 @@ import (
 	"regexp"
 	"slices"
 
+	golint "github.com/ze-software/ze/internal/le/go/lint"
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
-	verifylint "github.com/ze-software/ze/internal/le/verify/lint"
 )
 
 // projectTag matches the build tags this repository owns. Non-project tags
@@ -37,7 +37,7 @@ func tagUniverse(root string) (map[string]bool, error) {
 		return nil, err
 	}
 	universe := make(map[string]bool)
-	for _, tag := range verifylint.ReachableProjectTags(features) {
+	for _, tag := range golint.ReachableProjectTags(features) {
 		if projectTag.MatchString(tag) {
 			universe[tag] = true
 		}

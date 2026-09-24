@@ -1,7 +1,7 @@
 # Vendored Web Assets
 
 Third-party web assets used by Ze's web interfaces.
-Source of truth: files in this directory. Consumer copies are synced by `internal/le/vendorweb`.
+Source of truth: files in this directory. Consumer copies are synced by `internal/le/web/vendor`.
 
 ## Assets
 
@@ -25,7 +25,7 @@ htmx 2 is gone from this tree. Its core and its `sse.js` were deleted in the
 same change that served htmx 4 (`ai/rules/no-layering.md`): two versions in the
 tree is the state where a page silently loads the wrong one. A page loads the
 extension only when it streams, and the per-page sets are derived
-(`internal/le/webassets`).
+(`internal/le/web/assets`).
 
 ## Vendor directories
 
@@ -38,7 +38,7 @@ told to copy it.
 
 ## Upgrade scanner provenance
 
-Ze's native Go upgrade scanner in `internal/le/htmxupgrade/` transcribes the
+Ze's native Go upgrade scanner in `internal/le/web/htmx/` transcribes the
 rules and behavior of htmx's 4.0.0 upgrade checker:
 
 - Upstream source: https://unpkg.com/htmx.org@4.0.0/dist/scripts/upgrade-check.py
@@ -47,7 +47,7 @@ rules and behavior of htmx's 4.0.0 upgrade checker:
 
 The upstream source is provenance only. Ze neither vendors nor executes it.
 The compiled tables, DOM inheritance fixtures, parser boundaries, issue order,
-and exact report rows are checked by `internal/le/htmxupgrade/htmxupgrade_test.go`,
+and exact report rows are checked by `internal/le/web/htmx/htmxupgrade_test.go`,
 so both upgrade actions remain offline and deterministic.
 
 ## Consumers

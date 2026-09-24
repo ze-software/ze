@@ -69,7 +69,7 @@ func verifyRedsInFlightDriver(ctx context.Context, args []string) error {
 	if err != nil || code == 0 || !strings.Contains(out, "verdict: named") {
 		return fmt.Errorf("reddened path exit=%d: %w %s", code, err, out)
 	}
-	if !strings.Contains(out, "verify lint/run") {
+	if !strings.Contains(out, "go lint/run") {
 		return fmt.Errorf("the answer does not name the stage that reddened the file: %s", out)
 	}
 	fmt.Fprintln(os.Stdout, "reds-names-the-reddened-file") //nolint:errcheck // progress output
@@ -106,7 +106,7 @@ func redsScratchRun(repo string) error {
 		fileFeatureGates:       contentFeatureGate,
 		"internal/mine/a.go":   "package mine\n",
 		"internal/theirs/b.go": "package theirs\n",
-		"tmp/verify/full-inflight/01-verify-lint-run.log": redsStageLog("verify lint/run", 1,
+		"tmp/verify/full-inflight/01-go-lint-run.log": redsStageLog("go lint/run", 1,
 			`VERIFY FAILURE GROUP: {"group-id":"lint:theirs","kind":"lint",`+
 				`"related":["internal/theirs/b.go"],"summary":"golangci-lint reported findings",`+
 				`"rerun":"./le verify lint run"}`,

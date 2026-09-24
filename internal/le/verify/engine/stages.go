@@ -63,7 +63,7 @@ func Structural(mode string) map[string]bool {
 func staticcheckStages() []Stage {
 	stages := make([]Stage, 0, staticcheckParts)
 	for part := 1; part <= staticcheckParts; part++ {
-		stages = append(stages, structural("staticcheck-feature-matrix", "check",
+		stages = append(stages, structural("go staticcheck", "check",
 			"part", strconv.Itoa(part), "of", strconv.Itoa(staticcheckParts)))
 	}
 	return stages
@@ -72,7 +72,7 @@ func staticcheckStages() []Stage {
 // fullStages returns the native verification actions in execution order.
 func fullStages() []Stage {
 	stages := []Stage{
-		structural("verify lint", "run"),
+		structural("go lint", "run"),
 		structural("arch tier", "check"),
 		stage("rfc", "check"),
 		structural("arch iface-resolution"),
@@ -81,14 +81,14 @@ func fullStages() []Stage {
 		stage("arch fs-persistence", "check"),
 		stage("cli stdio", "check"),
 		stage("config ports", "check"),
-		stage("go-version", "check"),
+		stage("go version-pin", "check"),
 		stage("config claims"),
 		stage("test-sensitivity", "check"),
 		stage("test-weakened", "check"),
 	}
 	stages = slices.Concat(stages, staticcheckStages(), []Stage{
 		structural("repo tracked-build", "check"),
-		stage("platform-vet", "darwin", "freebsd"),
+		stage("go vet-platforms", "darwin", "freebsd"),
 		structural("doc wiring"),
 		stage("doc check", "verify"),
 		stage("doc check", "links"),
@@ -135,7 +135,7 @@ func fullStages() []Stage {
 // Every other stage keeps the identity it holds in full mode, and that is not
 // a naming detail. A stage narrows itself or it does not: the Staticcheck
 // matrix reads the run's feature-tag answer and judges fewer rows for it
-// (staticcheckfeaturematrix.DeriveScoped), while `verify lint/run` reads no
+// (gostaticcheck.DeriveScoped), while `go lint/run` reads no
 // scope at all and loads the whole module whichever mode called it. Lint is a
 // large part of a run's wall clock, so this list makes the population smaller
 // without making the run proportionally faster. A stage that learns to narrow

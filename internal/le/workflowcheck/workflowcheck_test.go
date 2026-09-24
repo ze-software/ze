@@ -376,12 +376,12 @@ func TestVerifyShardsCoverEveryNativeStage(t *testing.T) {
 // undivided stage took 23m36s of a job. Two pieces on one shard put most of that
 // back on one clock, which is the pressure the cut exists to remove. Coverage is
 // not what this guards: the test above already proves every piece runs, and
-// internal/le/staticcheckfeaturematrix proves the pieces hold every row.
+// internal/le/go/staticcheck proves the pieces hold every row.
 func TestEachShardRunsOnePieceOfTheStaticcheckMatrix(t *testing.T) {
 	indices := shardIndices(t, workflowSource(t, "verify.yml"))
 	pieces := map[int]int{}
 	for number, stage := range verifyengine.StagesForMode(verifyengine.Mode) {
-		if stage.Identity.Command != "staticcheck-feature-matrix" {
+		if stage.Identity.Command != "go staticcheck" {
 			continue
 		}
 		pieces[(number+1)%len(indices)]++

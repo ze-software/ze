@@ -465,7 +465,7 @@ func planFor(ctx context.Context, root, verb string, deps dependencies) (Plan, [
 }
 
 func planEvidence(root string, chain gotoolchain.Toolchain, plan Plan) (Plan, []ChildReport, int, error) {
-	directories := []string{"internal/le/evidence", "internal/le/deployment", "internal/le/qemu"}
+	directories := []string{"internal/le/verify/evidence", "internal/le/deployment", "internal/le/qemu"}
 	packages := make([]string, 0, len(directories))
 	for _, directory := range directories {
 		if err := requireDirectory(root, directory); err != nil {

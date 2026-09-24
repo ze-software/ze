@@ -44,14 +44,14 @@ func TestTheActionTableIsComplete(t *testing.T) {
 // PREVENTS: deleting one migrated evidence area from the vet population.
 func TestEvidenceVetPlanPreservesItsExactPopulation(t *testing.T) {
 	root := t.TempDir()
-	for _, directory := range []string{"internal/le/evidence", "internal/le/deployment", "internal/le/qemu"} {
+	for _, directory := range []string{"internal/le/verify/evidence", "internal/le/deployment", "internal/le/qemu"} {
 		mkdir(t, root, directory)
 	}
 	plan, _, code, err := planFor(context.Background(), root, VerbEvidenceVet, fakeDependencies(root))
 	if err != nil || code != 0 {
 		t.Fatalf("plan failed with code %d: %v", code, err)
 	}
-	want := []string{"go", "vet", "./internal/le/evidence/...", "./internal/le/deployment/...", "./internal/le/qemu/..."}
+	want := []string{"go", "vet", "./internal/le/verify/evidence/...", "./internal/le/deployment/...", "./internal/le/qemu/..."}
 	if !slices.Equal(plan.Commands[0].Command, want) {
 		t.Fatalf("command is %v, want %v", plan.Commands[0].Command, want)
 	}

@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/le/derived"
-	"github.com/ze-software/ze/internal/le/journal"
+	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
 )
 
 func existingGo(ctx context, skipTest bool) bool {
@@ -143,7 +143,7 @@ func postJournal(ctx context) *verdict {
 	if !regexp.MustCompile(`(^|/)plan/journal/.+\.md$`).MatchString(path) || strings.HasSuffix(path, "/README.md") {
 		return nil
 	}
-	report, err := journal.ValidateFile(ctx.root, ctx.path)
+	report, err := specjournal.ValidateFile(ctx.root, ctx.path)
 	if err != nil {
 		return &verdict{1, yellow + bold + "⚠ journal: native validation could not run, so " + filepath.Base(path) + " was NOT checked" + reset + "\n  " + yellow + err.Error() + reset}
 	}

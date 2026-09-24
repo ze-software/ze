@@ -123,7 +123,7 @@ func blankImports(t *testing.T, path string) []string {
 // registeringPackages answers every package under dir that registers a command.
 //
 // It walks two levels, because a namespace member sits one below its object:
-// `le verify lint` registers from internal/le/verify/lint. An object that is
+// `le go lint` registers from internal/le/go/lint. An object that is
 // also a command of its own, as verify, site and repository are, registers from
 // both levels and is counted at each.
 func registeringPackages(t *testing.T, dir string) []string {

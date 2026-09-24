@@ -2248,7 +2248,7 @@ one's catalog entries with it while the daemon still serves them.
 The wiki catalog is NOT built from `ze help command --json`. Both join the
 registries in their own process, because an `internal` package cannot import
 `cmd/ze`'s main package. `compareWikiCatalogProducer`
-(`internal/le/docvalid/command_surfaces.go`) holds what is left of that split to
+(`internal/le/doc/yangcontract/command_surfaces.go`) holds what is left of that split to
 one answer: the four main-package commands `clicatalog.Collect` carries as
 literal entries, and the `le ` paths it drops.
 

@@ -91,7 +91,7 @@ it was meant to save.
 | What does this package do? | `grep` the package path in `ai/PACKAGE-MAP.md` | one line, taken from the package doc comment |
 | How does this subsystem flow, entry to exit? | `ai/digests/<subsystem>.md` | the flow with `file:line`, the load-bearing files, and the invariants |
 
-<!-- source: internal/le/docstocode/codetodocs_report.go -- renderCodeIndex -->
+<!-- source: internal/le/doc/index/codetodocs_report.go -- renderCodeIndex -->
 
 The three indexes are DERIVED, and git tracks none of them. A `Write` or an
 `Edit` to a file that feeds one REMOVES it. A Bash command that names its path
@@ -137,7 +137,7 @@ two.
 <!-- source: internal/le/hookruntime/lifecycle.go -- hookSessionStart -->
 
 Every non-test `.go` file carries its own answer in a `// Design: <doc> -- topic`
-header. The scan stops after 25 lines (`HeaderLines`, `internal/le/docstocode/docstocode.go`),
+header. The scan stops after 25 lines (`HeaderLines`, `internal/le/doc/index/docstocode.go`),
 so the header block is always in the first 25 lines, and `designLine` in the
 same file is what parses it.
 
@@ -155,4 +155,4 @@ per-agent-type table for one session, which is the only comparison that holds:
 across sessions the always-on preamble changes size and swamps the difference.
 
 Token counts there are characters divided by 3.6, the approximation
-`internal/le/tokeneconomy/tokeneconomy.go` uses.
+`internal/le/ai/tokens/tokeneconomy.go` uses.

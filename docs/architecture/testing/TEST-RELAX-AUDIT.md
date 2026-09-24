@@ -31,7 +31,7 @@ What landed in sessions 1 and 2:
 | The stock was counted and held down | The retired `make ze-relax-census` census and its ceiling file were replaced on 2026-08-16 by the per-commit `./le test-weakened check` ledger |
 | The three refuted l2tp justifications removed | `test/plugin/redistribute-l2tp-{announce,withdraw,multi-peer-nexthop}.ci` |
 
-Tests: 28 relax fixtures in `internal/le/hookcheck/hookcheck.go` (394/394 pass),
+Tests: 28 relax fixtures in `internal/le/ai/hooks/hookcheck.go` (394/394 pass),
 26 cases in the census script's own test file, 19 in `audit_relaxation_test.py`.
 Four rounds of independent review, seven lenses in all, found 6 BLOCKERs and 26
 ISSUEs in successive cuts of these fixes; all are closed, and what they found is

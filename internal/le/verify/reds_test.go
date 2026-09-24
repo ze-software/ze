@@ -86,7 +86,7 @@ func redsUnfinishedRun(t *testing.T) string {
 	redsFixtureWrite(t, root, "internal/mine/a.go", "package mine\n")
 	redsFixtureWrite(t, root, "internal/theirs/b.go", "package theirs\n")
 	run := "tmp/verify/full-fixture"
-	redsFixtureWrite(t, root, run+"/01-verify-lint-run.log", redsStageLog("verify lint/run", 1,
+	redsFixtureWrite(t, root, run+"/01-go-lint-run.log", redsStageLog("go lint/run", 1,
 		redsGroupLines("lint:theirs", "lint", "golangci-lint reported findings",
 			"internal/theirs/b.go")...))
 	redsFixtureWrite(t, root, run+"/02-tier-check.log", redsStageLog("tier/check", 0, "OK"))
@@ -151,8 +151,8 @@ func TestRedsAnswersFromAnUnfinishedRun(t *testing.T) {
 		t.Fatalf("verdict for the reddened path is %q at exit %d, want %q non-zero",
 			theirs.Verdict, namedCode, VerdictNamed)
 	}
-	if len(theirs.Naming) != 1 || theirs.Naming[0].Stage != "verify lint/run" {
-		t.Errorf("reds naming internal/theirs/b.go = %#v, want verify lint/run alone", theirs.Naming)
+	if len(theirs.Naming) != 1 || theirs.Naming[0].Stage != "go lint/run" {
+		t.Errorf("reds naming internal/theirs/b.go = %#v, want go lint/run alone", theirs.Naming)
 	}
 }
 

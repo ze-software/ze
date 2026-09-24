@@ -32,7 +32,7 @@ The module names come from the package-naming glossary in
 
 ## The five classes
 
-`Classify` in `internal/le/protocolskeleton/protocolskeleton.go` puts every
+`Classify` in `internal/le/rfc/skeletons/protocolskeleton.go` puts every
 subpackage of every listed protocol into one of five classes, in this order:
 
 | Class | Membership |
@@ -61,7 +61,7 @@ BFD is the reference layout: `packet`, `engine`, `session`, `transport`, `auth`,
 | LDP, RSVP-TE | `internal/plugins/ldp`, `internal/plugins/rsvpte` | `yang` alone. Below the subpackage threshold, so the skeleton does not apply until they grow |
 
 The protocol list is hand-maintained: whether a directory is a protocol needs
-judgement, so `manifest` in `internal/le/protocolskeleton/protocolskeleton.go`
+judgement, so `manifest` in `internal/le/rfc/skeletons/protocolskeleton.go`
 declares it and gains a row when a protocol lands.
 
 ## The advisory report

@@ -168,7 +168,7 @@ files, parses each one, sorts, collapses adjacent ranges of one registry, and
 writes the whole table in one call. It is the one generator whose input is the
 network rather than the tree, so it has no check twin: a checkout cannot be
 compared against it without asking five registries what they publish today.
-<!-- source: internal/le/ianaasn/ianaasn.go -- Write -->
+<!-- source: internal/le/data/asndelegation/ianaasn.go -- Write -->
 
 ### The stored copy
 

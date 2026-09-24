@@ -457,7 +457,7 @@ All files are vendored into `internal/chaos/web/` and embedded via `go:embed` di
 
 Served at `/assets/htmx.min.js`, `/assets/hx-sse.min.js`, `/assets/style.css` with appropriate `Content-Type` headers and `Cache-Control: immutable` (assets are versioned with the binary).
 
-The head block does not name those two script files. It renders `pageAssets(pgWriteLayout)`, a set `internal/le/webassets.Write` derives from the attributes this package renders and writes into `page_assets.go`. `./le web-assets check` refuses a set that disagrees with the markup. The dashboard streams, so its set names both files.
+The head block does not name those two script files. It renders `pageAssets(pgWriteLayout)`, a set `internal/le/web/assets.Write` derives from the attributes this package renders and writes into `page_assets.go`. `./le web-assets check` refuses a set that disagrees with the markup. The dashboard streams, so its set names both files.
 <!-- source: internal/chaos/web/render.go -- writeLayout, the head block -->
 <!-- source: internal/chaos/web/page_assets.go -- pageAssets, generated -->
 

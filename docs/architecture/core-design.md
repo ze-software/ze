@@ -59,7 +59,7 @@ shared renderer rather than add a private JSON mode.
 
 **The package sits at the path its command name predicts.** A space in the name
 is a directory level, and a hyphen inside a level joins words naming one thing:
-`le spec session` lives at `internal/le/spec/session`, and
+`le spec journal` lives at `internal/le/spec/journal`, and
 `le repo tracked-build` at `internal/le/repo/trackedbuild`. The rule
 holds in both directions, and
 `TestEveryCommandIsFoundAtThePathItsNamePredicts` refuses an exception. A
@@ -204,7 +204,7 @@ artifact at all.
 Nothing compares a re-render against a committed copy, because there is no
 committed copy. Which files are registered is the registry's
 own answer rather than a list here: `derived.All` enumerates them, and
-`internal/le/repo/packagemap`, `internal/le/docstocode` and `internal/le/rfc` are
+`internal/le/repo/packagemap`, `internal/le/doc/index` and `internal/le/rfc` are
 the packages that register today.
 `docs/contributing/navigating-the-code.md` is the consumer contract for the
 index artifacts, and `docs/contributing/rfc-conformance-gates.md` for the five
@@ -233,7 +233,7 @@ of a run. So after a power loss a file can be empty or short, and nothing
 notices it: run `./le rfc index-update` again. `WriteAtomic` still syncs before
 its rename.
 
-<!-- source: internal/le/digest/digest.go -- Check -->
+<!-- source: internal/le/ai/digest/digest.go -- Check -->
 <!-- source: internal/le/derived/derived.go -- WriteAtomicAll -->
 <!-- source: internal/le/derived/derived.go -- Artifact.Complete -->
 <!-- source: internal/le/derived/derived.go -- Artifact.Whole -->

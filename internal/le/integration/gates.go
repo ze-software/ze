@@ -21,7 +21,7 @@
 // `./le integration interop-radius` select one exact scenario without a helper argv.
 //
 // Nine neighboring actions are not in this table. internal/le/deployment owns
-// seven deployment actions, while internal/le/evidence and internal/le/qemu own
+// seven deployment actions, while internal/le/verify/evidence and internal/le/qemu own
 // one each.
 // The L2TP peer proof already uses this gate-family ownership.
 // A duplicate row would make the parity census report drift.

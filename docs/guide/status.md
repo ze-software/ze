@@ -96,7 +96,7 @@ Unit tests run with the race detector enabled (`-race`). Functional, browser, an
 <!-- source: internal/le/testunit/actions.go -- Actions -->
 <!-- source: internal/le/functional/actions.go -- Actions -->
 <!-- source: internal/le/fuzz/actions.go -- Actions -->
-<!-- source: internal/le/verify/lint/actions.go -- Actions -->
+<!-- source: internal/le/go/lint/actions.go -- Actions -->
 
 ## What Does NOT Work Yet
 

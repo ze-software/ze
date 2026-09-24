@@ -550,7 +550,7 @@ func leRFCAnswersRunCheck(
 				"%s: a clean check still carried a violation list: %s", name, structured.stdout)
 		}
 		for _, field := range []string{
-			"gated", "enrolled", "tags", areaEvidence, "signed",
+			"gated", "enrolled", "tags", fieldEvidence, "signed",
 			"signed-by-register", "audit-verdicts", "audit-done", "audit-total",
 		} {
 			if _, present := report[field]; !present {

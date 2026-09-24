@@ -53,24 +53,24 @@ func leNamespaceDispatch(ctx context.Context) error {
 	if member.code != 0 {
 		return fmt.Errorf("le-namespace-dispatch: `le verify list mode full` exited %d: %s", member.code, member.stderr)
 	}
-	if !strings.Contains(member.stdout, "verify lint/run") {
+	if !strings.Contains(member.stdout, "go lint/run") {
 		return fmt.Errorf("le-namespace-dispatch: `le verify list mode full` answered %q, want the stage population", member.stdout)
 	}
 
 	// A bare namespace token that is NOT a command of its own. It asks what
 	// the namespace holds, so it is answered with the members and exit 0
 	// (AC-31 of spec-le-subject-first-command-tree, owner decision 2026-09-24).
-	bare, err := leNamespaceRun(ctx, root, binary, "spec")
+	bare, err := leNamespaceRun(ctx, root, binary, "go")
 	if err != nil {
 		return err
 	}
 	if bare.code != 0 {
-		return fmt.Errorf("le-namespace-dispatch: bare `le spec` exited %d, want 0: %q", bare.code, bare.stderr)
+		return fmt.Errorf("le-namespace-dispatch: bare `le go` exited %d, want 0: %q", bare.code, bare.stderr)
 	}
 	listing := bare.stdout + bare.stderr
-	for _, held := range []string{"citation", "session", "status"} {
+	for _, held := range []string{"extract", "lint", "staticcheck"} {
 		if !strings.Contains(listing, held) {
-			return fmt.Errorf("le-namespace-dispatch: bare `le spec` did not name %q: %q", held, listing)
+			return fmt.Errorf("le-namespace-dispatch: bare `le go` did not name %q: %q", held, listing)
 		}
 	}
 

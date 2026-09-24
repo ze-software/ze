@@ -15,12 +15,12 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/staticcheckfeaturematrix"
+	gostaticcheck "github.com/ze-software/ze/internal/le/go/staticcheck"
 )
 
 // matrixArea is the le command whose stages judge the matrix. staticcheckStages
 // spells it, and this test reads the population rather than a second list.
-const matrixArea = "staticcheck-feature-matrix"
+const matrixArea = "go staticcheck"
 
 func TestTheAnswerARunPublishesScopesTheMatrixAndIsDealtWhole(t *testing.T) {
 	root := writeVerifyScopeFixture(t)
@@ -34,7 +34,7 @@ func TestTheAnswerARunPublishesScopesTheMatrixAndIsDealtWhole(t *testing.T) {
 
 	// The fixture manifest declares two features, so the whole matrix is four
 	// rows: all_features, core_only, and one omission row per tag.
-	whole, _, err := staticcheckfeaturematrix.DeriveScoped(root, "")
+	whole, _, err := gostaticcheck.DeriveScoped(root, "")
 	if err != nil {
 		t.Fatalf("derive the whole matrix: %v", err)
 	}
@@ -42,7 +42,7 @@ func TestTheAnswerARunPublishesScopesTheMatrixAndIsDealtWhole(t *testing.T) {
 		t.Fatalf("the fixture's whole matrix is %d rows, want 4", len(whole))
 	}
 
-	scoped, _, err := staticcheckfeaturematrix.DeriveScoped(root, seen[0].tagsPath)
+	scoped, _, err := gostaticcheck.DeriveScoped(root, seen[0].tagsPath)
 	if err != nil {
 		t.Fatalf("derive the matrix the run's answer scopes: %v", err)
 	}

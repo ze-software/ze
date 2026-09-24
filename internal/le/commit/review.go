@@ -13,8 +13,8 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/journal"
-	specsession "github.com/ze-software/ze/internal/le/spec/session"
+	"github.com/ze-software/ze/internal/le/spec"
+	specjournal "github.com/ze-software/ze/internal/le/spec/journal"
 	"github.com/ze-software/ze/internal/le/spec/specpath"
 )
 
@@ -121,7 +121,7 @@ func closureStem(root string, paths, removed []string) (string, error) {
 		}
 	}
 	if len(journalPaths) != 0 {
-		_, malformed, err := journal.AddedSpecEvidence(root, journalPaths)
+		_, malformed, err := specjournal.AddedSpecEvidence(root, journalPaths)
 		if err != nil {
 			return "", fmt.Errorf("read added journal evidence: %w", err)
 		}
@@ -183,9 +183,9 @@ func oneStem(stems map[string]bool) (string, error) {
 // gave this gate a second opinion about which session id names the file, and it
 // was the wrong one: `le spec session review record` writes under the harness
 // session, this read asked for the eight-hex commit namespace, and no closure
-// could satisfy the gate (specsession.ReviewArtifactPath).
+// could satisfy the gate (spec.ReviewArtifactPath).
 func CheckReview(root, stem string, paths []string) ReviewResult {
-	artifact, err := specsession.ReviewArtifactPath(root, stem)
+	artifact, err := spec.ReviewArtifactPath(root, stem)
 	if err != nil {
 		return ReviewResult{Spec: stem, Problems: []string{"resolve review artifact path: " + err.Error()}}
 	}

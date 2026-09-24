@@ -140,7 +140,7 @@ for each BUILD rather than once. golangci-lint analyzes one GOOS, one GOARCH and
 one tag set for each run, so a file outside that build is not merely unchecked:
 the pass exits 0 and reads as clean over it. The flavor matrix that closes that
 hole is `testing.md`, "The builds the linter reads"; the rows themselves are
-`flavorMatrix` in `internal/le/verify/lint/matrix.go`.
+`flavorMatrix` in `internal/le/go/lint/matrix.go`.
 
 Cost: 3 to 10 seconds once the caches are warm, plus about 2 seconds for each
 flavor whose packages the change reaches. The first run after a checkout pays a
@@ -174,7 +174,7 @@ the unit tag set reports no package there, and `seedPackages`
 is what makes the `ze_installer` lint flavor run at all.
 
 A scoped run also judges fewer Staticcheck feature-matrix rows. `scopeMatrix`
-(`internal/le/staticcheckfeaturematrix/staticcheckfeaturematrix.go`) keeps the two
+(`internal/le/go/staticcheck/staticcheckfeaturematrix.go`) keeps the two
 rows that omit no feature tag, plus one row per tag the change reached: 3 of 38
 for a `ze_ssh`-local change, with 36 feature tags declared in `feature-gates.txt`.
 Those two rows are `all_features` and `core_only`, and `validateScoped` refuses
@@ -596,7 +596,7 @@ recipe needs.
 
 `./le doc check verify` and `./le repository generated-check` are separate actions.
 `internal/le/doc/wiring.Verify` owns the ordered documentation gate, including the
-`internal/le/docvalid` command and drift checks, the `internal/le/doc/check` links,
+`internal/le/doc/yangcontract` command and drift checks, the `internal/le/doc/check` links,
 and RFC freshness. `internal/le/repo` owns the generated repository artifacts.
 
 ## Waiting for another session's job
