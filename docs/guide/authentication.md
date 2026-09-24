@@ -384,6 +384,12 @@ A reload that asks either of them for a different mode fails the whole commit:
 The reload is refused before anything is applied. No listener moves and no
 credential changes. Restart ze to apply that edit.
 
+The MCP `enabled` leaf is fixed in the same way when the config block started
+MCP: a reload that flips it fails with `mcp enabled cannot change while running`.
+When `--mcp`, `ze.mcp.listen`, or `ze.mcp.enabled` started MCP, the leaf did not
+decide whether MCP runs, and a reload does not compare it. A reload that then
+adds a block with a non-loopback address is judged by the listener guard below.
+
 A transport the config does not enable is never built, and a server that does
 not run cannot refuse a reload. An `api-server` block that enables REST alone
 reloads on the REST server, and says nothing about gRPC.

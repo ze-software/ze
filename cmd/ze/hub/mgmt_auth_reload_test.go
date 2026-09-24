@@ -170,7 +170,11 @@ func TestMCPAuthReloadRejectsFixedSettingsChanges(t *testing.T) {
 			migrator := newListenerMigrator()
 			migrator.mcp = live
 			migrator.markAuthenticated(svcMCP)
-			registerMgmtAuthReloaders(migrator, mgmtAuthInputs{mcpConfigBase: boot, mcpEnabledAtBoot: true})
+			registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
+				mcpConfigBase:    boot,
+				mcpEnabledAtBoot: true,
+				mcpFollowsConfig: true,
+			})
 			_, err := migrator.reloadListeners(t.Context(), tree)
 			require.ErrorContains(t, err, "restart ze")
 			assert.NotContains(t, err.Error(), "secret")
@@ -178,6 +182,44 @@ func TestMCPAuthReloadRejectsFixedSettingsChanges(t *testing.T) {
 			assert.Equal(t, []string{"127.0.0.1:18080"}, live.addrs)
 		})
 	}
+}
+
+// VALIDATES: MCP started by ze.mcp.listen with no config block is judged on its
+// exposure when a reload adds a block that enables it on a routable address.
+// PREVENTS: the reload being refused as "mcp enabled cannot change" because the
+// boot answer counted only the config block, which hides the real refusal: an
+// unauthenticated listener must not move off loopback.
+func TestMCPAuthReloadEnvStartedIgnoresEnabledLeaf(t *testing.T) {
+	tree := mcpSettingsTree("")
+	mcp := tree.GetContainer("environment").GetContainer("mcp")
+	mcp.Set("enabled", "true")
+	mcp.Set("bind-remote", "true")
+	server := zeconfig.NewTree()
+	server.Set("ip", "0.0.0.0")
+	server.Set("port", "18088")
+	mcp.AddListEntry("server", "main", server)
+	live := &recordingReconfigurable{addrs: []string{"127.0.0.1:18088"}}
+	migrator := newListenerMigrator()
+	migrator.mcp = live
+	migrator.markUnauthenticated(svcMCP)
+	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{
+		mcpEnabledAtBoot: false,
+		mcpFollowsConfig: false,
+	})
+
+	_, err := migrator.reloadListeners(t.Context(), tree)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "enabled cannot change")
+	assert.Contains(t, err.Error(), "cannot serve a non-loopback address without authentication")
+	assert.Empty(t, live.calls, "a refused exposure must not migrate the listener")
+
+	// The same leaf still decides when the config block started MCP.
+	migrator = newListenerMigrator()
+	migrator.mcp = live
+	migrator.markUnauthenticated(svcMCP)
+	registerMgmtAuthReloaders(migrator, mgmtAuthInputs{mcpFollowsConfig: true})
+	_, err = migrator.reloadListeners(t.Context(), tree)
+	require.ErrorContains(t, err, "mcp enabled cannot change while running")
 }
 
 // Flag precedence and absent blocks retain credentials, while an address-only

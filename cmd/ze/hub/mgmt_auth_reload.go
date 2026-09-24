@@ -37,8 +37,16 @@ type mgmtAuthInputs struct {
 	mcpTokenBase string
 	// mcpConfigBase is the MCP settings snapshot used to construct the listener.
 	// Its authentication and TLS material remain fixed until restart.
-	mcpConfigBase    zeconfig.MCPListenConfig
+	mcpConfigBase zeconfig.MCPListenConfig
+	// mcpEnabledAtBoot is the config block's `enabled` answer at boot. It is
+	// compared on reload only when mcpFollowsConfig is true.
 	mcpEnabledAtBoot bool
+	// mcpFollowsConfig is true when the config block decided whether MCP runs.
+	// It is false when a flag or an environment variable (--mcp, ze.mcp.listen,
+	// ze.mcp.enabled) supplied the address: the boot path then starts MCP
+	// whatever the `enabled` leaf says, so a reload must not read that leaf as
+	// a request to start or stop the listener.
+	mcpFollowsConfig bool
 
 	// apiTokenEnv is ze.api-server.token. It fills a blank config token, exactly
 	// as it does at boot.
@@ -121,7 +129,8 @@ func webAuthReloader(in mgmtAuthInputs) authReloader {
 
 // mcpAuthReloader rejects settings that the running MCP handler cannot apply.
 // Address migration remains live; authentication and TLS require restart.
-// Removing the block retains the running listener and its credentials.
+// Removing the block retains the running listener and its credentials. The
+// `enabled` leaf is compared only when it decided at boot whether MCP runs.
 func mcpAuthReloader(in mgmtAuthInputs) authReloader {
 	boot := mcpFixedSettings(in.mcpConfigBase, in.mcpTokenBase)
 	return func(tree *zeconfig.Tree) (authIntent, bool, error) {
@@ -130,7 +139,7 @@ func mcpAuthReloader(in mgmtAuthInputs) authReloader {
 			return authIntent{}, false, nil
 		}
 		_, enabled := zeconfig.ExtractMCPConfig(tree)
-		if enabled != in.mcpEnabledAtBoot {
+		if in.mcpFollowsConfig && enabled != in.mcpEnabledAtBoot {
 			return authIntent{}, false, fmt.Errorf("mcp enabled cannot change while running; restart ze to apply it")
 		}
 		candidate := mcpFixedSettings(cfg, in.mcpTokenBase)

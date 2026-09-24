@@ -858,6 +858,9 @@ func zeCLICommandValue(args []string) (string, bool) {
 // Cmd as started even on failure (https://go.dev/issue/77075), so a fresh Cmd is
 // created for each retry; the (possibly recreated) proc is returned along with
 // the final start error.
+//
+// Every attempt is bounded by boundProcessDeadline, so the test's deadline ends
+// the whole process tree and Wait returns when it does.
 func startWithETXTBSYRetry(ctx context.Context, binPath string, args []string, proc *exec.Cmd) (*exec.Cmd, error) {
 	var startErr error
 	for attempt := range 3 {
@@ -874,12 +877,42 @@ func startWithETXTBSYRetry(ctx context.Context, binPath string, args []string, p
 			// would silently re-run ze as root and break the readiness handshake.
 			proc.SysProcAttr = old.SysProcAttr
 		}
+		boundProcessDeadline(proc)
 		startErr = proc.Start()
 		if startErr == nil || !errors.Is(startErr, syscall.ETXTBSY) {
 			break
 		}
 	}
 	return proc, startErr
+}
+
+// processWaitDelay bounds how long Wait keeps reading a process's output pipes
+// after the test deadline kills it, or after it exits. A descendant that
+// inherited the pipes holds them open with no end, and Wait then blocks until
+// that descendant exits: display-fill-completion.ci, declared at 90s, was
+// reported at 588s because its fixture's children outlived the fixture. The
+// delay is the teardown grace, so output a clean exit still flushes arrives.
+const processWaitDelay = teardownGraceTimeout
+
+// boundProcessDeadline makes the context deadline end the process TREE, not
+// only the process the runner started. The process leads a process group of
+// its own, and the context's cancel kills that whole group, so a fixture's
+// daemon or a daemon's helper dies with it rather than surviving as an orphan
+// that holds ports and the runner's pipes. WaitDelay then bounds Wait against a
+// descendant that escaped the group with its own setpgid or setsid.
+//
+// Normal teardown (terminateGracefully) still signals the process alone, so a
+// daemon keeps its chance to stop its children itself.
+func boundProcessDeadline(proc *exec.Cmd) {
+	if proc.SysProcAttr == nil {
+		proc.SysProcAttr = &syscall.SysProcAttr{}
+	}
+	proc.SysProcAttr.Setpgid = true
+	proc.Cancel = func() error {
+		// A negative pid names the process group the child leads.
+		return syscall.Kill(-proc.Process.Pid, syscall.SIGKILL)
+	}
+	proc.WaitDelay = processWaitDelay
 }
 
 // awaitQuickZe waits for a foreground quick-exit ze command to finish, then

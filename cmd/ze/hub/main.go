@@ -582,6 +582,9 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	//
 	// ADDRESSES come only from a config block that asks for a listener, so
 	// `enabled false` still means "config does not start MCP".
+	// A flag or an environment variable that supplied an address owns MCP
+	// enablement for the life of the process (see mgmtAuthInputs).
+	mcpFollowsConfig := len(mcpAddrs) == 0
 	mcpListenCfg, mcpListenOK := zeconfig.ExtractMCPConfig(loadResult.Tree)
 	if mcpListenOK {
 		if len(mcpAddrs) == 0 {
@@ -1227,6 +1230,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		mcpTokenBase:      mcpTokenBase,
 		mcpConfigBase:     mcpCfg,
 		mcpEnabledAtBoot:  mcpListenOK,
+		mcpFollowsConfig:  mcpFollowsConfig,
 		apiTokenEnv:       apiTokenEnv,
 		apiCandidateUsers: resolveCandidateUsers,
 	})
