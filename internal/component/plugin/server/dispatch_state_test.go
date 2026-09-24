@@ -32,8 +32,8 @@ func stateRPCClient(t *testing.T, direct bool) *sdk.Plugin {
 	if direct {
 		bridge := rpc.NewDirectBridge()
 		bridge.SetDeliverEvents(func([]string) error { return nil })
-		bridge.SetDispatchRPC(func(method string, params json.RawMessage) (json.RawMessage, error) {
-			return s.dispatchPluginRPCDirect(proc, method, params)
+		bridge.SetDispatchRPC(func(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
+			return s.dispatchPluginRPCDirect(ctx, proc, method, params)
 		})
 		bridge.SetReady()
 		conn = rpc.NewBridgedConn(client, bridge)

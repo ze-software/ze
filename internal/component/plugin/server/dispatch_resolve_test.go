@@ -35,7 +35,7 @@ func TestPluginResolveRPCReachesHubResolver(t *testing.T) {
 	params, err := json.Marshal(&rpc.ResolveDNSInput{Name: "a.invalid", Type: 1})
 	require.NoError(t, err)
 
-	result, err := s.opResolveDNS(nil, params)
+	result, err := s.opResolveDNS(t.Context(), nil, params)
 	require.NoError(t, err)
 
 	assert.Equal(t, "a.invalid", gotName, "the name reaches the registered resolver")
@@ -63,7 +63,7 @@ func TestResolveRPCRefusesWithNoResolverRegistered(t *testing.T) {
 	params, err := json.Marshal(&rpc.ResolveDNSInput{Name: "a.invalid", Type: 1})
 	require.NoError(t, err)
 
-	result, err := s.opResolveDNS(nil, params)
+	result, err := s.opResolveDNS(t.Context(), nil, params)
 	require.Error(t, err, "no resolver is refused, never answered with an empty list")
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "no DNS resolver registered")
@@ -82,7 +82,7 @@ func TestResolveRPCRefusesAnEmptyName(t *testing.T) {
 	params, err := json.Marshal(&rpc.ResolveDNSInput{Type: 1})
 	require.NoError(t, err)
 
-	_, err = s.opResolveDNS(nil, params)
+	_, err = s.opResolveDNS(t.Context(), nil, params)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no name given")
 }
@@ -100,7 +100,7 @@ func TestResolveRPCRelaysAResolverError(t *testing.T) {
 	params, err := json.Marshal(&rpc.ResolveDNSInput{Name: "a.invalid", Type: 1})
 	require.NoError(t, err)
 
-	_, err = s.opResolveDNS(nil, params)
+	_, err = s.opResolveDNS(t.Context(), nil, params)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "server unreachable")
 }
@@ -109,7 +109,7 @@ func TestResolveRPCRelaysAResolverError(t *testing.T) {
 // than read as an empty request.
 func TestResolveRPCRefusesMalformedParams(t *testing.T) {
 	s := &Server{}
-	_, err := s.opResolveDNS(nil, json.RawMessage(`{"name":`))
+	_, err := s.opResolveDNS(t.Context(), nil, json.RawMessage(`{"name":`))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid resolve-dns params")
 }

@@ -9,6 +9,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net/netip"
@@ -21,7 +22,7 @@ import (
 
 // opForwardCached is the shared handler for forward-cached (JSON + Direct),
 // registered as the engineOp for rpc.MethodForwardCached. rs-fastpath-3.
-func (s *Server) opForwardCached(proc *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opForwardCached(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.ForwardCachedInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		var tb textbuf.Buffer
@@ -35,7 +36,7 @@ func (s *Server) opForwardCached(proc *process.Process, params json.RawMessage) 
 
 // opReleaseCached is the shared handler for release-cached (JSON + Direct),
 // registered as the engineOp for rpc.MethodReleaseCached. rs-fastpath-3.
-func (s *Server) opReleaseCached(proc *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opReleaseCached(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.ReleaseCachedInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		var tb textbuf.Buffer
@@ -54,7 +55,7 @@ func (s *Server) opReleaseCached(proc *process.Process, params json.RawMessage) 
 // proc is what names the SENDER. It used to be discarded, so the relay reached
 // the reactor with no authority and any connected process could replay routes it
 // supplied into any peer it named.
-func (s *Server) opRelayStoredRoute(proc *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opRelayStoredRoute(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.RelayStoredRouteInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		var tb textbuf.Buffer

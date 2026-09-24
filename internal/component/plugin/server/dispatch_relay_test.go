@@ -101,7 +101,7 @@ func TestRelayStoredRouteJSONTransport(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	result, opErr := s.opRelayStoredRoute(nil, params)
+	result, opErr := s.opRelayStoredRoute(t.Context(), nil, params)
 	require.NoError(t, opErr)
 	assert.Nil(t, result, "relay-stored-route carries no result payload")
 
@@ -116,7 +116,7 @@ func TestRelayStoredRouteRejectsBadParams(t *testing.T) {
 
 	s := &Server{reactor: &mockReactor{}}
 
-	_, err := s.opRelayStoredRoute(nil, json.RawMessage(`{"destination":`))
+	_, err := s.opRelayStoredRoute(t.Context(), nil, json.RawMessage(`{"destination":`))
 
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "relay-stored-route")

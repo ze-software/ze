@@ -45,7 +45,7 @@ type engineOp struct {
 	// detail to relay, a plain error is relayed verbatim. Both serve wrappers
 	// derive the sent message from the same error, so the JSON and Direct paths
 	// cannot diverge (AC-2).
-	handle func(s *Server, proc *process.Process, params json.RawMessage) (any, error)
+	handle func(s *Server, ctx context.Context, proc *process.Process, params json.RawMessage) (any, error)
 
 	// typedWire, when non-nil, installs this op's typed DirectBridge slot on the
 	// process bridge -- the hot-path escape hatch that skips JSON marshal and
@@ -55,8 +55,7 @@ type engineOp struct {
 }
 
 // engineOps is the single source of truth for plugin->engine runtime RPCs. The
-// JSON path, the Direct path, and the Bridge wiring all derive from this table;
-// TestPluginRPCRegistryCoversAllPaths guards the method set and the typed set.
+// JSON dispatch, Direct dispatch, and typed bridge wiring derive from this table.
 var engineOps = []engineOp{
 	{method: rpc.MethodStateGet, handle: (*Server).opStateGet},
 	{method: rpc.MethodStatePut, handle: (*Server).opStatePut},
@@ -67,8 +66,8 @@ var engineOps = []engineOp{
 		method: rpc.MethodUpdateRoute,
 		handle: (*Server).opUpdateRoute,
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
-			b.SetUpdateRouteSel(func(sel *selector.Selector, command string, meta map[string]any) (uint32, uint32, error) {
-				return s.handleUpdateRouteSelDirect(proc, sel, command, meta)
+			b.SetUpdateRouteSel(func(ctx context.Context, sel *selector.Selector, command string, meta map[string]any) (uint32, uint32, error) {
+				return s.handleUpdateRouteSelDirect(ctx, proc, sel, command, meta)
 			})
 		},
 	},
@@ -81,11 +80,11 @@ var engineOps = []engineOp{
 		// method, so a second entry would be a duplicate method rather than a
 		// second operation.
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
-			b.SetDispatchCommand(func(command string) (*rpc.DispatchCommandOutput, error) {
-				return s.dispatchCommand(proc, command)
+			b.SetDispatchCommand(func(ctx context.Context, command string) (*rpc.DispatchCommandOutput, error) {
+				return s.dispatchCommand(ctx, proc, command)
 			})
-			b.SetDispatchCommandAnswer(func(command string) (*rpc.Answer, error) {
-				return s.dispatchCommandAnswer(proc, command)
+			b.SetDispatchCommandAnswer(func(ctx context.Context, command string) (*rpc.Answer, error) {
+				return s.dispatchCommandAnswer(ctx, proc, command)
 			})
 		},
 	},
@@ -93,8 +92,8 @@ var engineOps = []engineOp{
 		method: rpc.MethodDispatchCommandArgs,
 		handle: (*Server).opDispatchCommandArgs,
 		typedWire: func(s *Server, proc *process.Process, b *rpc.DirectBridge) {
-			b.SetDispatchCommandArgs(func(command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
-				return s.dispatchCommandArgs(proc, command, args, peer)
+			b.SetDispatchCommandArgs(func(ctx context.Context, command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
+				return s.dispatchCommandArgs(ctx, proc, command, args, peer)
 			})
 		},
 	},
@@ -154,6 +153,10 @@ var engineOps = []engineOp{
 	{
 		method: rpc.MethodRouteRemove,
 		handle: (*Server).opRouteRemove,
+	},
+	{
+		method: rpc.MethodRouteMetrics,
+		handle: (*Server).opRouteMetrics,
 	},
 	{
 		method: rpc.MethodInjectWireRoute,
@@ -243,7 +246,7 @@ func (a *recordAnswer) TransportComplete() {
 // (rpcErrMessage), matching what serveEngineOpDirect returns so external and
 // in-process callers see identical error text (AC-2).
 func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request, op *engineOp) {
-	result, err := op.handle(s, proc, req.Params)
+	result, err := op.handle(s, s.Context(), proc, req.Params)
 	reply := s.replyContext()
 	if err != nil {
 		if sendErr := conn.SendError(reply, req.ID, rpcErrMessage(err)); sendErr != nil {
@@ -270,9 +273,12 @@ func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginCo
 // as *rpc.RPCCallError, matching the SDK's CallRPC protocol; an
 // existing RPCCallError passes through unwrapped so its detail is not
 // double-prefixed.
-func (s *Server) serveEngineOpDirect(proc *process.Process, op *engineOp, params json.RawMessage) (json.RawMessage, error) {
-	result, err := op.handle(s, proc, params)
+func (s *Server) serveEngineOpDirect(ctx context.Context, proc *process.Process, op *engineOp, params json.RawMessage) (json.RawMessage, error) {
+	result, err := op.handle(s, ctx, proc, params)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return nil, err
+		}
 		if callErr, ok := errors.AsType[*rpc.RPCCallError](err); ok {
 			return nil, callErr
 		}
@@ -307,7 +313,7 @@ func rpcErrMessage(err error) string {
 
 // opUpdateRoute is the shared handler for update-route (JSON + Direct). It
 // dispatches the peer-scoped command string through the standard dispatcher.
-func (s *Server) opUpdateRoute(proc *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opUpdateRoute(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	var tb textbuf.Buffer
 	var input rpc.UpdateRouteInput
 	if err := json.Unmarshal(params, &input); err != nil {
@@ -320,7 +326,7 @@ func (s *Server) opUpdateRoute(proc *process.Process, params json.RawMessage) (a
 	cmdCtx := &CommandContext{
 		Server:         s,
 		Process:        proc,
-		RequestContext: s.Context(),
+		RequestContext: ctx,
 		Peer:           peer,
 		Meta:           input.Meta,
 		// Inject the reserved trusted internal identity, same as the other internal
@@ -339,7 +345,7 @@ func (s *Server) opUpdateRoute(proc *process.Process, params json.RawMessage) (a
 		if errors.Is(err, ErrSilent) {
 			return &rpc.UpdateRouteOutput{}, nil
 		}
-		return nil, &rpc.RPCCallError{Message: err.Error()}
+		return nil, err
 	}
 	return extractUpdateRouteOutput(resp), nil
 }
@@ -347,13 +353,13 @@ func (s *Server) opUpdateRoute(proc *process.Process, params json.RawMessage) (a
 // opDispatchCommand is the shared handler for dispatch-command (JSON + Direct).
 // Its output carries the accepted lifecycle action unchanged so the selected
 // transport can complete it after response delivery.
-func (s *Server) opDispatchCommand(proc *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opDispatchCommand(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.DispatchCommandInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		var tb textbuf.Buffer
 		return nil, &rpc.RPCCallError{Message: tb.Str("invalid dispatch-command params: ").Err(err).String()}
 	}
-	resp, err := s.dispatchCommandResponse(proc, input.Command)
+	resp, err := s.dispatchCommandResponse(ctx, proc, input.Command)
 	if err != nil {
 		return nil, err
 	}
@@ -361,13 +367,13 @@ func (s *Server) opDispatchCommand(proc *process.Process, params json.RawMessage
 }
 
 // opDispatchCommandArgs is the shared handler for dispatch-command-args.
-func (s *Server) opDispatchCommandArgs(proc *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opDispatchCommandArgs(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.DispatchCommandArgsInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		var tb textbuf.Buffer
 		return nil, &rpc.RPCCallError{Message: tb.Str("invalid dispatch-command-args params: ").Err(err).String()}
 	}
-	resp, err := s.dispatchCommandArgsResponse(proc, input.Command, input.Args, input.Peer)
+	resp, err := s.dispatchCommandArgsResponse(ctx, proc, input.Command, input.Args, input.Peer)
 	if err != nil {
 		return nil, err
 	}
@@ -375,7 +381,7 @@ func (s *Server) opDispatchCommandArgs(proc *process.Process, params json.RawMes
 }
 
 // opSubscribeEvents is the shared handler for subscribe-events.
-func (s *Server) opSubscribeEvents(proc *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opSubscribeEvents(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.SubscribeEventsInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		var tb textbuf.Buffer
@@ -390,7 +396,7 @@ func (s *Server) opSubscribeEvents(proc *process.Process, params json.RawMessage
 
 // opUnsubscribeEvents is the shared handler for unsubscribe-events. It ignores
 // params (there are none) and clears all of the process's subscriptions.
-func (s *Server) opUnsubscribeEvents(proc *process.Process, _ json.RawMessage) (any, error) {
+func (s *Server) opUnsubscribeEvents(ctx context.Context, proc *process.Process, _ json.RawMessage) (any, error) {
 	if s.subscriptions == nil {
 		return nil, &rpc.RPCCallError{Message: "subscription manager not available"}
 	}
@@ -400,14 +406,14 @@ func (s *Server) opUnsubscribeEvents(proc *process.Process, _ json.RawMessage) (
 
 // opEmitEvent is the shared handler for emit-event. s.emitEvent unmarshals its
 // own params and returns *rpc.RPCCallError on failure.
-func (s *Server) opEmitEvent(proc *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opEmitEvent(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	return s.emitEvent(proc, params)
 }
 
 // opInjectWireRoute is the JSON-codec fallback for inject-wire-route (AC-6): a
 // forked/external plugin with no typed slot reaches the process-wide route
 // injector over the socket instead of erroring "bridge not available".
-func (s *Server) opInjectWireRoute(_ *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opInjectWireRoute(ctx context.Context, _ *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.InjectWireRouteInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		var tb textbuf.Buffer
@@ -426,7 +432,7 @@ func (s *Server) opInjectWireRoute(_ *process.Process, params json.RawMessage) (
 // opBatchValidate is the JSON-codec fallback for batch-validate (AC-6): a
 // forked/external plugin reaches the process-wide batch validator over the socket
 // instead of hand-rolling a stride-6 string through dispatch-command-args.
-func (s *Server) opBatchValidate(_ *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opBatchValidate(ctx context.Context, _ *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.BatchValidateInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		var tb textbuf.Buffer

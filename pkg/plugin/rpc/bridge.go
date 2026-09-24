@@ -52,7 +52,7 @@ type DirectBridge struct {
 	deliverEvents         func(events []string) error
 	deliverStructured     func(events []any) error
 	hasStructured         atomic.Bool // set atomically when deliverStructured is written
-	dispatchRPC           func(method string, params json.RawMessage) (json.RawMessage, error)
+	dispatchRPC           func(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error)
 	dispatchCommand       DispatchCommandHandler       // Typed fast path (no JSON)
 	hasDispatchCmd        atomic.Bool                  // set atomically when dispatchCommand is written
 	dispatchCommandArgs   DispatchCommandArgsHandler   // Typed fast path with pre-tokenized args (no JSON)
@@ -256,7 +256,7 @@ func (b *DirectBridge) SetDeliverEvents(fn func(events []string) error) {
 
 // SetDispatchRPC registers the engine-side RPC handler (plugin→engine direction).
 // Called by the engine after startup to register the dispatch function.
-func (b *DirectBridge) SetDispatchRPC(fn func(method string, params json.RawMessage) (json.RawMessage, error)) {
+func (b *DirectBridge) SetDispatchRPC(fn func(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error)) {
 	b.dispatchRPC = fn
 }
 
@@ -317,7 +317,7 @@ func (b *DirectBridge) DeliverEvents(events []string) error {
 // DispatchCommandHandler is the typed handler for dispatch-command via DirectBridge.
 // Returns the full DispatchCommandOutput struct to preserve raw JSON data and
 // the separate error field without re-encoding.
-type DispatchCommandHandler func(command string) (*DispatchCommandOutput, error)
+type DispatchCommandHandler func(ctx context.Context, command string) (*DispatchCommandOutput, error)
 
 // SetDispatchCommand registers the engine-side typed dispatch-command handler.
 // Called by the engine after startup alongside SetDispatchRPC.
@@ -331,15 +331,18 @@ func (b *DirectBridge) SetDispatchCommand(fn DispatchCommandHandler) {
 // DispatchCommand calls the engine's typed dispatch-command handler directly.
 // Returns error if the handler is not set. The caller owns any transport
 // completion action attached to the returned output.
-func (b *DirectBridge) DispatchCommand(command string) (*DispatchCommandOutput, error) {
+func (b *DirectBridge) DispatchCommand(ctx context.Context, command string) (*DispatchCommandOutput, error) {
 	if !b.beginDispatch() {
 		return nil, ErrBridgeClosed
 	}
 	defer b.endDispatch()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if !b.hasDispatchCmd.Load() {
 		return nil, errors.New("dispatch-command handler not set")
 	}
-	return b.dispatchCommand(command)
+	return b.dispatchCommand(ctx, command)
 }
 
 // HasDispatchCommand reports whether the typed dispatch-command handler is set.
@@ -349,7 +352,7 @@ func (b *DirectBridge) HasDispatchCommand() bool {
 
 // DispatchCommandArgsHandler is the typed handler for dispatch-command-args via DirectBridge.
 // It carries the exact registered command name, pre-tokenized args, and peer selector.
-type DispatchCommandArgsHandler func(command string, args []string, peer string) (*DispatchCommandOutput, error)
+type DispatchCommandArgsHandler func(ctx context.Context, command string, args []string, peer string) (*DispatchCommandOutput, error)
 
 // SetDispatchCommandArgs registers the engine-side typed dispatch-command-args handler.
 // Called by the engine after startup alongside SetDispatchRPC.
@@ -364,15 +367,18 @@ func (b *DirectBridge) SetDispatchCommandArgs(fn DispatchCommandArgsHandler) {
 // directly. Returns error if the handler is not set. The hasDispatchCmdArgs
 // atomic load creates a happens-before from SetDispatchCommandArgs' write. The
 // caller owns any transport completion action attached to the returned output.
-func (b *DirectBridge) DispatchCommandArgs(command string, args []string, peer string) (*DispatchCommandOutput, error) {
+func (b *DirectBridge) DispatchCommandArgs(ctx context.Context, command string, args []string, peer string) (*DispatchCommandOutput, error) {
 	if !b.beginDispatch() {
 		return nil, ErrBridgeClosed
 	}
 	defer b.endDispatch()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if !b.hasDispatchCmdArgs.Load() {
 		return nil, errors.New("dispatch-command-args handler not set")
 	}
-	return b.dispatchCommandArgs(command, args, peer)
+	return b.dispatchCommandArgs(ctx, command, args, peer)
 }
 
 // HasDispatchCommandArgs reports whether the typed dispatch-command-args handler is set.
@@ -389,7 +395,7 @@ func (b *DirectBridge) HasDispatchCommandArgs() bool {
 //
 // The handler MUST NOT start a goroutine for the answer or for a row: the
 // records are pulled by the caller's own range (ai/rules/goroutine-lifecycle.md).
-type DispatchCommandAnswerHandler func(command string) (*Answer, error)
+type DispatchCommandAnswerHandler func(ctx context.Context, command string) (*Answer, error)
 
 // SetDispatchCommandAnswer registers the engine-side answer-returning
 // dispatch-command handler. The hasDispatchCmdAnswer atomic creates a
@@ -414,15 +420,19 @@ func (b *DirectBridge) SetDispatchCommandAnswer(fn DispatchCommandAnswerHandler)
 // that range, exactly as it must for an answer that arrived over the socket
 // (Answer, types.go). An answer whose records are never ranged holds the
 // admission, and WaitDispatch waits for it.
-func (b *DirectBridge) DispatchCommandAnswer(command string) (*Answer, error) {
+func (b *DirectBridge) DispatchCommandAnswer(ctx context.Context, command string) (*Answer, error) {
 	if !b.beginDispatch() {
 		return nil, ErrBridgeClosed
+	}
+	if err := ctx.Err(); err != nil {
+		b.endDispatch()
+		return nil, err
 	}
 	if !b.hasDispatchCmdAnswer.Load() {
 		b.endDispatch()
 		return nil, errors.New("dispatch-command-answer handler not set")
 	}
-	answer, err := b.dispatchCommandAnswer(command)
+	answer, err := b.dispatchCommandAnswer(ctx, command)
 	if err != nil {
 		b.endDispatch()
 		return nil, err
@@ -464,7 +474,7 @@ func (b *DirectBridge) releaseOnWalkEnd(records iter.Seq[Record]) iter.Seq[Recor
 
 // UpdateRouteSelHandler is the typed handler for update-route that carries
 // a *selector.Selector instead of a peer selector string.
-type UpdateRouteSelHandler func(sel *selector.Selector, command string, meta map[string]any) (announced, withdrawn uint32, err error)
+type UpdateRouteSelHandler func(ctx context.Context, sel *selector.Selector, command string, meta map[string]any) (announced, withdrawn uint32, err error)
 
 // SetUpdateRouteSel registers the engine-side typed selector update-route handler.
 func (b *DirectBridge) SetUpdateRouteSel(fn UpdateRouteSelHandler) {
@@ -473,15 +483,18 @@ func (b *DirectBridge) SetUpdateRouteSel(fn UpdateRouteSelHandler) {
 }
 
 // UpdateRouteSel calls the typed selector update-route handler directly.
-func (b *DirectBridge) UpdateRouteSel(sel *selector.Selector, command string, meta map[string]any) (announced, withdrawn uint32, err error) {
+func (b *DirectBridge) UpdateRouteSel(ctx context.Context, sel *selector.Selector, command string, meta map[string]any) (announced, withdrawn uint32, err error) {
 	if !b.beginDispatch() {
 		return 0, 0, ErrBridgeClosed
 	}
 	defer b.endDispatch()
+	if err := ctx.Err(); err != nil {
+		return 0, 0, err
+	}
 	if !b.hasUpdateRouteSel.Load() {
 		return 0, 0, errors.New("update-route-sel handler not set")
 	}
-	return b.updateRouteSel(sel, command, meta)
+	return b.updateRouteSel(ctx, sel, command, meta)
 }
 
 // HasUpdateRouteSel reports whether the typed selector update-route handler is set.
@@ -779,15 +792,19 @@ func (b *DirectBridge) HasInjectWireRoute() bool {
 	return b.ready.Load() && b.hasInjectWireRoute.Load()
 }
 
-// ValidationDecision carries a single RPKI validation accept/reject decision
-// without string serialization. Used by the typed BatchValidate bridge path.
+// ValidationDecision carries a route-validation decision through typed or JSON RPC.
+// Ineligible retains a rejected route for re-evaluation; it MUST NOT accompany Accept.
+// MsgID scopes the decision to one received UPDATE. Zero explicitly means an
+// unversioned decision for the current route, or the next route if none is stored.
 type ValidationDecision struct {
-	Accept   bool // true=accept, false=reject
-	PeerAddr string
-	Family   string
-	Prefix   string
-	PathID   uint32
-	ValState uint8 // validation state for accepts (1=Valid, 2=NotFound); ignored for rejects
+	Accept     bool
+	Ineligible bool
+	PeerAddr   string
+	Family     string
+	Prefix     string
+	PathID     uint32
+	ValState   uint8 // Origin state for accepted or retained routes: 1=Valid, 2=NotFound, 3=Invalid.
+	MsgID      uint64
 }
 
 // BatchValidateResult carries the outcome counters from a batch validation.
@@ -884,18 +901,21 @@ func (b *DirectBridge) HasBatchValidate() bool {
 
 // DispatchRPC calls the engine's RPC handler directly. Returns error if
 // the bridge is not ready or the handler is not set.
-func (b *DirectBridge) DispatchRPC(method string, params json.RawMessage) (json.RawMessage, error) {
+func (b *DirectBridge) DispatchRPC(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
 	if !b.beginDispatch() {
 		return nil, ErrBridgeClosed
 	}
 	defer b.endDispatch()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 	if !b.ready.Load() {
 		return nil, errors.New("bridge not ready")
 	}
 	if b.dispatchRPC == nil {
 		return nil, errors.New("dispatch handler not set")
 	}
-	return b.dispatchRPC(method, params)
+	return b.dispatchRPC(ctx, method, params)
 }
 
 // StructuredEvent carries peer context and event data through DirectBridge.
@@ -927,15 +947,19 @@ type StructuredEvent struct {
 	// RemoteRouterID is the peer's BGP Identifier, as its OPEN carried it.
 	// Zero before the OPEN is read and after teardown.
 	RemoteRouterID uint32
-	LocalAddress   string           // Local address string
-	EventType      EventKind        // EventKindUpdate, EventKindOpen, etc.
-	Direction      MessageDirection // DirectionSent / DirectionReceived
-	MessageID      uint64           // Unique message ID (0 for non-message events)
-	State          SessionState     // For state events: SessionStateUp, SessionStateDown
-	Reason         string           // For state events: close reason
-	RawMessage     any              // *types.RawMessage for wire messages, nil for synthetic events
-	Meta           map[string]any   // Route metadata (sent events only)
-	SourcePeerStr  string           // Source peer address for ribOut stale-scoping (sent events only)
+	LocalAddress   string // Local address string
+	// LocalPort and RemotePort are the established TCP socket endpoints.
+	// Zero means no established transport; callers MUST NOT infer a port.
+	LocalPort     uint16
+	RemotePort    uint16
+	EventType     EventKind        // EventKindUpdate, EventKindOpen, etc.
+	Direction     MessageDirection // DirectionSent / DirectionReceived
+	MessageID     uint64           // Unique message ID (0 for non-message events)
+	State         SessionState     // For state events: SessionStateUp, SessionStateDown
+	Reason        string           // For state events: close reason
+	RawMessage    any              // *types.RawMessage for wire messages, nil for synthetic events
+	Meta          map[string]any   // Route metadata (sent events only)
+	SourcePeerStr string           // Source peer address for ribOut stale-scoping (sent events only)
 	// UnheldRoles names the exclusive roles this plugin was told are claimed
 	// (ConfigureInput.Claims) that NO other process taking delivery of this
 	// event holds. A plugin that stood its own default behavior down for one of
@@ -965,6 +989,8 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.RouterID = 0
 	se.RemoteRouterID = 0
 	se.LocalAddress = ""
+	se.LocalPort = 0
+	se.RemotePort = 0
 	se.EventType = EventKindUnspecified
 	se.Direction = DirectionUnspecified
 	se.MessageID = 0

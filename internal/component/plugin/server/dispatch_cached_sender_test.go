@@ -52,7 +52,7 @@ func TestCachedRailsNameTheProcessAsTheSender(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = s.opRelayStoredRoute(proc, params)
+	_, err = s.opRelayStoredRoute(t.Context(), proc, params)
 	require.NoError(t, err)
 	require.Len(t, reactor.relayCalls, 1)
 	relaySender := reactor.relayCalls[0].sender
@@ -87,7 +87,7 @@ func TestRelayStoredRouteFromAnUnnamedCallerStaysUnnamed(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	_, err = s.opRelayStoredRoute(nil, params)
+	_, err = s.opRelayStoredRoute(t.Context(), nil, params)
 	require.NoError(t, err)
 
 	require.Len(t, reactor.relayCalls, 1)

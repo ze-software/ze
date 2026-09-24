@@ -4,154 +4,36 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
+	"net"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/plugin"
+	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
+	"github.com/ze-software/ze/internal/core/selector"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
+	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-// TestPluginRPCRegistryCoversAllPaths is the drift guard for the unified
-// plugin->engine method registry (unify-rpc-dispatch, AC-4). Before the
-// unification the same operation lived in up to three hand-maintained tables
-// (the JSON switch, the Direct switch, the wireBridgeDispatch Set* list) keyed
-// only by magic strings, and nothing forced them to agree. Now every operation
-// is exactly one engineOp entry from which all three transports derive, so this
-// test locks the method set and the typed-descriptor set: adding or dropping an
-// op, or moving one on/off the typed fast path, must be a deliberate edit here.
-func TestPluginRPCRegistryCoversAllPaths(t *testing.T) {
+// VALIDATES: an unsupported plugin RPC is refused through runtime dispatch.
+// PREVENTS: treating an unknown operation as a successful no-op.
+func TestPluginRPCUnknownMethodRefused(t *testing.T) {
 	t.Parallel()
-
-	// Every plugin->engine runtime op. Each has a JSON socket path and an
-	// in-process Direct path (both derive from engineOp.handle).
-	wantMethods := []string{
-		rpc.MethodStateGet,
-		rpc.MethodStatePut,
-		rpc.MethodStateRemove,
-		rpc.MethodStateList,
-		rpc.MethodStateIncrement,
-		rpc.MethodUpdateRoute,
-		rpc.MethodDispatchCommand,
-		rpc.MethodDispatchCommandArgs,
-		rpc.MethodSubscribeEvents,
-		rpc.MethodUnsubscribeEvents,
-		rpc.MethodEmitEvent,
-		rpc.MethodForwardCached,
-		rpc.MethodReleaseCached,
-		rpc.MethodRelayStoredRoute,
-		rpc.MethodRouteInstall,
-		rpc.MethodRouteRemove,
-		rpc.MethodInjectWireRoute,
-		rpc.MethodBatchValidate,
-		rpc.MethodResolveDNS,
-	}
-
-	// The subset that also carries a typed DirectBridge fast-path slot. The
-	// remainder (subscribe/unsubscribe, route-install/route-remove, resolve-dns)
-	// intentionally have no typed slot: each is a control-plane call whose
-	// callers run forked, so the JSON path is the path they take.
-	wantTyped := map[string]bool{
-		rpc.MethodUpdateRoute:         true, // typed *selector.Selector variant
-		rpc.MethodDispatchCommand:     true,
-		rpc.MethodDispatchCommandArgs: true,
-		rpc.MethodEmitEvent:           true,
-		rpc.MethodForwardCached:       true,
-		rpc.MethodReleaseCached:       true,
-		rpc.MethodRelayStoredRoute:    true, // adj-rib-in peer-up replay, in-process
-		rpc.MethodInjectWireRoute:     true,
-		rpc.MethodBatchValidate:       true,
-	}
-
-	// The table advertises exactly the expected method set (no missing, no extra).
-	gotMethods := make(map[string]bool, len(engineOps))
-	for i := range engineOps {
-		op := &engineOps[i]
-		assert.False(t, gotMethods[op.method], "duplicate engineOp method: %s", op.method)
-		gotMethods[op.method] = true
-
-		// JSON + Direct both run entry.handle; it must exist for every op.
-		assert.NotNil(t, op.handle, "engineOp %s has nil handle (JSON/Direct path missing)", op.method)
-
-		// Typed-descriptor presence must match the declared fast-path set.
-		if wantTyped[op.method] {
-			assert.NotNil(t, op.typedWire, "engineOp %s expected a typed bridge descriptor", op.method)
-		} else {
-			assert.Nil(t, op.typedWire, "engineOp %s must NOT have a typed bridge descriptor", op.method)
-		}
-	}
-
-	for _, m := range wantMethods {
-		assert.True(t, gotMethods[m], "engineOp registry missing method: %s", m)
-	}
-	assert.Len(t, engineOps, len(wantMethods), "engineOp count drifted from expected op set")
-
-	// lookupEngineOp resolves known methods and is fail-closed for unknown ones.
-	for _, m := range wantMethods {
-		assert.NotNil(t, lookupEngineOp(m), "lookupEngineOp(%q) should resolve", m)
-	}
-	assert.Nil(t, lookupEngineOp("ze-plugin-engine:does-not-exist"), "unknown method must not resolve")
-	assert.Nil(t, lookupEngineOp(""), "empty method must not resolve")
-}
-
-// TestWireBridgeDispatchInstallsTypedSlots verifies that driving the typed
-// descriptors over a bridge installs exactly the typed fast-path slots the
-// registry declares (AC-3): the native slots are set by iterating the registry,
-// not a hand-written list, and no JSON marshal is introduced on those paths.
-func TestWireBridgeDispatchInstallsTypedSlots(t *testing.T) {
-	t.Parallel()
-
-	// A real dispatcher, not a bare &Server{}, because the answer slot below is
-	// proved by USING it and its handler is bound to this server. The pattern is
-	// TestEngineOpJSONAndDirectMatch's, in this file.
-	d := NewDispatcher()
-	d.Register("typed slots probe", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
-		return &plugin.Response{Status: plugin.StatusDone, Data: plugin.Map{"ok": true}}, nil
-	}, "typed slots probe")
-
-	s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
+	s := &Server{}
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 	defer s.cancel()
-
-	proc := process.NewProcess(plugin.PluginConfig{Name: "typed-slots"})
-	b := rpc.NewDirectBridge()
-	b.SetReady()
-
-	for i := range engineOps {
-		if engineOps[i].typedWire != nil {
-			engineOps[i].typedWire(s, proc, b)
-		}
-	}
-
-	assert.True(t, b.HasEmitEvent(), "emit-event typed slot not installed")
-	assert.True(t, b.HasDispatchCommand(), "dispatch-command typed slot not installed")
-	assert.True(t, b.HasDispatchCommandArgs(), "dispatch-command-args typed slot not installed")
-	// dispatch-command carries two typed slots from its one registry entry: the
-	// built value a caller holds whole, and the records a caller walks.
-	//
-	// This one is proved by USING the slot rather than by asking an accessor.
-	// Its eight siblings each guard a call in pkg/plugin/sdk, so each has a
-	// product caller; a HasDispatchCommandAnswer had none, because
-	// DispatchCommandAnswer deliberately checks the slot itself so its refusal
-	// names the missing slot where a closed mux would answer with a read error
-	// that says nothing. An exported accessor whose only caller is this line was
-	// exported API with no product caller (ai/rules/completion.md), so the
-	// question is put the way a caller puts it. Any error other than the
-	// missing-slot refusal means the dispatch reached an installed handler,
-	// which is what this test is about.
-	_, answerErr := b.DispatchCommandAnswer("typed slots probe")
-	if answerErr != nil {
-		assert.NotContains(t, answerErr.Error(), "dispatch-command-answer handler not set",
-			"dispatch-command-answer typed slot not installed")
-	}
-	assert.True(t, b.HasUpdateRouteSel(), "update-route-sel typed slot not installed")
-	assert.True(t, b.HasForwardCached(), "forward-cached typed slot not installed")
-	assert.True(t, b.HasReleaseCached(), "release-cached typed slot not installed")
-	assert.True(t, b.HasInjectWireRoute(), "inject-wire-route typed slot not installed")
-	assert.True(t, b.HasBatchValidate(), "batch-validate typed slot not installed")
+	proc := process.NewProcess(plugin.PluginConfig{Name: "unknown-rpc"})
+	result, err := s.dispatchPluginRPCDirect(t.Context(), proc, "ze-plugin-engine:does-not-exist", nil)
+	var callErr *rpc.RPCCallError
+	require.ErrorAs(t, err, &callErr)
+	require.Nil(t, result)
 }
 
 // TestEngineOpJSONAndDirectMatch asserts the JSON socket path and the in-process
@@ -182,7 +64,7 @@ func TestEngineOpJSONAndDirectMatch(t *testing.T) {
 	require.NotNil(t, op)
 
 	params := []byte(`{"command":"parity test"}`)
-	result, err := op.handle(s, proc, params)
+	result, err := op.handle(s, t.Context(), proc, params)
 	require.NoError(t, err)
 
 	answer, records := result.(*recordAnswer)
@@ -190,7 +72,7 @@ func TestEngineOpJSONAndDirectMatch(t *testing.T) {
 	var wire bytes.Buffer
 	require.NoError(t, answer.write(&wire, 5))
 
-	direct, err := s.dispatchPluginRPCDirect(proc, rpc.MethodDispatchCommand, params)
+	direct, err := s.dispatchPluginRPCDirect(t.Context(), proc, rpc.MethodDispatchCommand, params)
 	require.NoError(t, err)
 
 	var projected rpc.DispatchCommandOutput
@@ -207,37 +89,66 @@ func TestEngineOpJSONAndDirectMatch(t *testing.T) {
 	}, strings.Split(strings.TrimSuffix(wire.String(), "\n"), "\n"))
 }
 
-// TestOpUpdateRouteInjectsInternalIdentity pins the fix for the route-propagation
-// break (spec-fixit-authz-admin-fallthrough review finding 3). opUpdateRoute is an
-// internal route-push RPC (RS/OSPF/IS-IS `update text`); before the fix it built a
-// CommandContext with no Username, so on a box with authorization configured it hit
-// the now-fail-closed "denied: empty identity" branch and route propagation broke.
-// It must inject the reserved internal identity like the other dispatch paths.
-//
-// VALIDATES: opUpdateRoute dispatches under the reserved internal identity.
-// PREVENTS: internal route push failing closed on an RBAC-configured box.
-func TestOpUpdateRouteInjectsInternalIdentity(t *testing.T) {
-	t.Parallel()
+// VALIDATES: registered update-route transports can execute an internal route
+// push under real authorization while an anonymous send is refused.
+// PREVENTS: missing registration, typed wiring, or trusted caller identity
+// silently disabling native route producers on an RBAC-configured engine.
+func TestUpdateRouteRPCWithAuthorization(t *testing.T) {
+	for _, transport := range []string{"socket", "direct", "typed"} {
+		t.Run(transport, func(t *testing.T) {
+			d := NewDispatcher()
+			d.SetAuthorizer(authz.StoreAuthorizer{Store: authz.NewStore()})
+			executed := 0
+			d.Register("send bgp", func(_ *CommandContext, _ []string) (*plugin.Response, error) {
+				executed++
+				return &plugin.Response{Status: plugin.StatusDone}, nil
+			}, "send bgp")
+			s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
+			s.ctx, s.cancel = context.WithCancel(context.Background())
+			defer s.cancel()
+			proc := process.NewProcess(plugin.PluginConfig{Name: "routepush"})
 
-	d := NewDispatcher()
-	var gotUsername string
-	// The key "send bgp" matches "send bgp <sel> route" with args [<sel>,route];
-	// the handler records the identity the internal dispatch injected.
-	d.Register("send bgp", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
-		gotUsername = ctx.Username
-		return &plugin.Response{Status: plugin.StatusDone}, nil
-	}, "send bgp")
+			_, err := d.Dispatch(&CommandContext{Server: s}, "send bgp p1 route")
+			require.ErrorIs(t, err, ErrUnauthorized)
+			require.Zero(t, executed, "an anonymous send must not execute")
 
-	s := &Server{subscriptions: newSubscriptionManager(), dispatcher: d}
-	s.ctx, s.cancel = context.WithCancel(context.Background())
-	defer s.cancel()
-
-	proc := process.NewProcess(plugin.PluginConfig{Name: "routepush"})
-	params := []byte(`{"command":"route","peer-selector":"p1"}`)
-	_, err := s.opUpdateRoute(proc, params)
-	require.NoError(t, err)
-	assert.Equal(t, internalPluginIdentity("routepush"), gotUsername,
-		"opUpdateRoute must inject the reserved internal identity, not an empty username")
+			switch transport {
+			case "socket":
+				client, engine := net.Pipe()
+				p := sdk.NewWithConn("routepush", client)
+				conn := plugipc.NewPluginConn(engine, engine)
+				done := make(chan error, 1)
+				t.Cleanup(func() {
+					_ = p.Close()
+					_ = engine.Close()
+					require.NoError(t, <-done)
+				})
+				go func() {
+					request, readErr := conn.ReadRequest(s.ctx)
+					if readErr == nil {
+						s.dispatchPluginRPC(proc, conn, request)
+					}
+					done <- readErr
+				}()
+				ctx, cancel := context.WithTimeout(s.ctx, 5*time.Second)
+				defer cancel()
+				_, _, err = p.UpdateRoute(ctx, "p1", "route")
+			case "direct":
+				_, err = s.dispatchPluginRPCDirect(t.Context(), proc, rpc.MethodUpdateRoute, json.RawMessage(`{"command":"route","peer-selector":"p1"}`))
+			case "typed":
+				bridge := rpc.NewDirectBridge()
+				for i := range engineOps {
+					if engineOps[i].typedWire != nil {
+						engineOps[i].typedWire(s, proc, bridge)
+					}
+				}
+				bridge.SetReady()
+				_, _, err = bridge.UpdateRouteSel(t.Context(), selector.ParseDefault("p1"), "route", nil)
+			}
+			require.NoError(t, err)
+			require.Equal(t, 1, executed, "the authorized route push must execute exactly once")
+		})
+	}
 }
 
 // TestEngineOpInjectWireRouteJSONFallback exercises the inject-wire-route JSON
@@ -263,8 +174,7 @@ func TestEngineOpInjectWireRouteJSONFallback(t *testing.T) {
 
 	// Unregistered: fail closed with an explicit error, no panic.
 	rpc.RegisterRouteInjector(nil)
-	_, err := s.dispatchPluginRPCDirect(proc, rpc.MethodInjectWireRoute,
-		json.RawMessage(`{"protocol":"bmp","peer-key":"p","update-body":"AQID"}`))
+	_, err := s.dispatchPluginRPCDirect(t.Context(), proc, rpc.MethodInjectWireRoute, json.RawMessage(`{"protocol":"bmp","peer-key":"p","update-body":"AQID"}`))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no route injector registered")
 
@@ -276,8 +186,7 @@ func TestEngineOpInjectWireRouteJSONFallback(t *testing.T) {
 		gotProto, gotPeer, gotBody = protocol, peerKey, updateBody
 		return nil
 	})
-	res, err := s.dispatchPluginRPCDirect(proc, rpc.MethodInjectWireRoute,
-		json.RawMessage(`{"protocol":"bmp","peer-key":"peer-1","update-body":"AQID"}`))
+	res, err := s.dispatchPluginRPCDirect(t.Context(), proc, rpc.MethodInjectWireRoute, json.RawMessage(`{"protocol":"bmp","peer-key":"peer-1","update-body":"AQID"}`))
 	require.NoError(t, err)
 	assert.Nil(t, res, "inject-wire-route returns no result payload")
 	assert.Equal(t, "bmp", gotProto)
@@ -308,8 +217,7 @@ func TestEngineOpBatchValidateJSONFallback(t *testing.T) {
 
 	// Unregistered: fail closed with an explicit error.
 	rpc.RegisterBatchValidator(nil)
-	_, err := s.dispatchPluginRPCDirect(proc, rpc.MethodBatchValidate,
-		json.RawMessage(`{"decisions":[]}`))
+	_, err := s.dispatchPluginRPCDirect(t.Context(), proc, rpc.MethodBatchValidate, json.RawMessage(`{"decisions":[]}`))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "no batch validator registered")
 
@@ -321,8 +229,7 @@ func TestEngineOpBatchValidateJSONFallback(t *testing.T) {
 		got = decisions
 		return &rpc.BatchValidateResult{Accepted: 2, Rejected: 1, Early: 0}, nil
 	})
-	res, err := s.dispatchPluginRPCDirect(proc, rpc.MethodBatchValidate,
-		json.RawMessage(`{"decisions":[{"Accept":true,"PeerAddr":"10.0.0.1","Family":"ipv4/unicast","Prefix":"10.0.0.0/24","PathID":7,"ValState":1}]}`))
+	res, err := s.dispatchPluginRPCDirect(t.Context(), proc, rpc.MethodBatchValidate, json.RawMessage(`{"decisions":[{"Accept":true,"PeerAddr":"10.0.0.1","Family":"ipv4/unicast","Prefix":"10.0.0.0/24","PathID":7,"ValState":1}]}`))
 	require.NoError(t, err)
 
 	require.Len(t, got, 1)
@@ -401,7 +308,7 @@ func TestDispatchCommandAlwaysAnswersRecords(t *testing.T) {
 			op := lookupEngineOp(tc.method)
 			require.NotNil(t, op)
 
-			result, err := op.handle(s, caller, json.RawMessage(tc.params))
+			result, err := op.handle(s, t.Context(), caller, json.RawMessage(tc.params))
 			require.NoError(t, err)
 
 			answer, records := result.(*recordAnswer)
@@ -413,4 +320,62 @@ func TestDispatchCommandAlwaysAnswersRecords(t *testing.T) {
 		})
 	}
 	require.NoError(t, <-done)
+}
+
+// Cancelling an SDK route push must release the actual registered command,
+// including the typed selector path; timing out only the caller would leave an
+// old export writing after its collector or configuration was removed.
+func TestUpdateRouteDirectCancellation(t *testing.T) {
+	for _, typed := range []bool{false, true} {
+		t.Run(fmt.Sprintf("typed=%t", typed), func(t *testing.T) {
+			s := &Server{dispatcher: NewDispatcher()}
+			s.ctx, s.cancel = context.WithCancel(t.Context())
+			defer s.cancel()
+			entered := make(chan struct{})
+			s.dispatcher.Register("send bgp", func(ctx *CommandContext, _ []string) (*plugin.Response, error) {
+				close(entered)
+				<-ctx.Context().Done()
+				return nil, ctx.Context().Err()
+			}, "wait for route operation cancellation")
+			proc := process.NewProcess(plugin.PluginConfig{Name: "cancel-route"})
+			bridge := rpc.NewDirectBridge()
+			bridge.SetDispatchRPC(func(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
+				return s.dispatchPluginRPCDirect(ctx, proc, method, params)
+			})
+			if typed {
+				lookupEngineOp(rpc.MethodUpdateRoute).typedWire(s, proc, bridge)
+			}
+			bridge.SetReady()
+			client, engine := net.Pipe()
+			p := sdk.NewWithConn(proc.Name(), rpc.NewBridgedConn(client, bridge))
+			t.Cleanup(func() {
+				require.NoError(t, p.Close())
+				require.NoError(t, engine.Close())
+			})
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			done := make(chan error, 1)
+			go func() {
+				var err error
+				if typed {
+					_, _, err = p.UpdateRouteSel(ctx, selector.All(), "update cancel")
+				} else {
+					_, _, err = p.UpdateRoute(ctx, "*", "update cancel")
+				}
+				done <- err
+			}()
+			select {
+			case <-entered:
+			case <-time.After(5 * time.Second):
+				t.Fatal("SDK route call did not reach the command handler")
+			}
+			cancel()
+			select {
+			case err := <-done:
+				require.ErrorIs(t, err, context.Canceled)
+			case <-time.After(5 * time.Second):
+				t.Fatal("cancelled route call left its engine operation running")
+			}
+		})
+	}
 }

@@ -5,6 +5,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"reflect"
@@ -12,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/config"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	plugipc "github.com/ze-software/ze/internal/component/plugin/ipc"
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -506,9 +508,9 @@ func (s *Server) handleCodecRPC(proc *process.Process, conn *plugipc.PluginConn,
 // Used by DirectBridge for internal plugins. Returns the marshaled result JSON
 // directly (not wrapped in a {"result":...} envelope). Errors are returned as
 // *rpc.RPCCallError, matching the SDK's CallRPC protocol.
-func (s *Server) dispatchPluginRPCDirect(proc *process.Process, method string, params json.RawMessage) (json.RawMessage, error) {
+func (s *Server) dispatchPluginRPCDirect(ctx context.Context, proc *process.Process, method string, params json.RawMessage) (json.RawMessage, error) {
 	if op := lookupEngineOp(method); op != nil {
-		return s.serveEngineOpDirect(proc, op, params)
+		return s.serveEngineOpDirect(ctx, proc, op, params)
 	}
 
 	// Try registered RPC handlers (codec RPCs, etc.)
@@ -523,12 +525,12 @@ func (s *Server) dispatchPluginRPCDirect(proc *process.Process, method string, p
 
 // handleUpdateRouteSelDirect handles update-route with a typed *selector.Selector.
 // Reuses the existing Dispatch path by stringifying the selector for the peer field.
-func (s *Server) handleUpdateRouteSelDirect(proc *process.Process, sel *selector.Selector, command string, meta map[string]any) (uint32, uint32, error) {
+func (s *Server) handleUpdateRouteSelDirect(ctx context.Context, proc *process.Process, sel *selector.Selector, command string, meta map[string]any) (uint32, uint32, error) {
 	peer := sel.String()
 	cmdCtx := &CommandContext{
 		Server:         s,
 		Process:        proc,
-		RequestContext: s.Context(),
+		RequestContext: ctx,
 		Peer:           peer,
 		Meta:           meta,
 		// Reserved trusted internal identity (spec-fixit-authz-admin-fallthrough
@@ -590,8 +592,8 @@ func internalPluginIdentity(pluginName string) string {
 // dispatchCommandArgs is the core dispatch-command-args logic shared by JSON and typed paths.
 // It routes an exact registered plugin command with pre-tokenized args, avoiding
 // command-string tokenization for runtime data while preserving dispatch-command output.
-func (s *Server) dispatchCommandArgs(proc *process.Process, command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
-	resp, err := s.dispatchCommandArgsResponse(proc, command, args, peer)
+func (s *Server) dispatchCommandArgs(ctx context.Context, proc *process.Process, command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
+	resp, err := s.dispatchCommandArgsResponse(ctx, proc, command, args, peer)
 	if err != nil && resp == nil {
 		return nil, err
 	}
@@ -603,17 +605,22 @@ func (s *Server) dispatchCommandArgs(proc *process.Process, command string, args
 // projection. The record path needs it unprojected: a generator payload is
 // walked once, so projecting it consumes the rows the records would carry
 // (Records, internal/component/plugin/types.go).
-func (s *Server) dispatchCommandArgsResponse(proc *process.Process, command string, args []string, peer string) (*plugin.Response, error) {
+func (s *Server) dispatchCommandArgsResponse(ctx context.Context, proc *process.Process, command string, args []string, peer string) (*plugin.Response, error) {
 	if peer == "" {
 		peer = "*"
 	}
 	cmdCtx := &CommandContext{
 		Server:         s,
 		Process:        proc,
-		RequestContext: s.Context(),
+		RequestContext: ctx,
 		Peer:           peer,
 		Username:       internalPluginIdentity(proc.Name()),
 		Sender:         plugin.ProcessSender(proc.Name()),
+	}
+	// The typed path bypasses Dispatch. Only the accounting copy is rendered;
+	// policy and forwarding continue to receive the original argument slice.
+	if s.dispatcher != nil {
+		defer s.dispatcher.BeginAccountingArgs(cmdCtx, command, args, peer)()
 	}
 
 	if s.dispatcher != nil && !s.dispatcher.isAuthorizedCommandArgs(cmdCtx, command, args, peer, false) {
@@ -628,7 +635,7 @@ func (s *Server) dispatchCommandArgsResponse(proc *process.Process, command stri
 		if errors.Is(dispatchErr, ErrSilent) {
 			return &plugin.Response{Status: plugin.StatusDone}, nil
 		}
-		authInput := aaa.CanonicalCommand(command, args, peer)
+		authInput := config.DisplayCommand(aaa.CanonicalCommand(command, args, peer))
 		if s.ctx.Err() != nil {
 			logger().Debug("dispatch-command-args failed (shutting down)", "plugin", proc.Name(), "command", authInput, "error", dispatchErr)
 		} else {
@@ -643,8 +650,8 @@ func (s *Server) dispatchCommandArgsResponse(proc *process.Process, command stri
 // dispatchCommand is the shared dispatch-command producer for socket and
 // DirectBridge transports. The returned output retains any accepted lifecycle
 // action until the consuming transport completes delivery.
-func (s *Server) dispatchCommand(proc *process.Process, command string) (*rpc.DispatchCommandOutput, error) {
-	resp, err := s.dispatchCommandResponse(proc, command)
+func (s *Server) dispatchCommand(ctx context.Context, proc *process.Process, command string) (*rpc.DispatchCommandOutput, error) {
+	resp, err := s.dispatchCommandResponse(ctx, proc, command)
 	if err != nil && resp == nil {
 		return nil, err
 	}
@@ -662,8 +669,8 @@ func (s *Server) dispatchCommand(proc *process.Process, command string) (*rpc.Di
 // already the caller's and nothing the action tears down can change them. That
 // is the same boundary the socket keeps, where the action runs after the whole
 // sequence is written (serveEngineOpJSON, dispatch_registry.go).
-func (s *Server) dispatchCommandAnswer(proc *process.Process, command string) (*rpc.Answer, error) {
-	resp, err := s.dispatchCommandResponse(proc, command)
+func (s *Server) dispatchCommandAnswer(ctx context.Context, proc *process.Process, command string) (*rpc.Answer, error) {
+	resp, err := s.dispatchCommandResponse(ctx, proc, command)
 	if err != nil {
 		return nil, err
 	}
@@ -678,11 +685,11 @@ func (s *Server) dispatchCommandAnswer(proc *process.Process, command string) (*
 // dispatchCommandResponse is the core dispatch-command logic, and it answers
 // with the response the dispatcher produced rather than its wire projection.
 // See dispatchCommandArgsResponse for why the record path needs it unprojected.
-func (s *Server) dispatchCommandResponse(proc *process.Process, command string) (*plugin.Response, error) {
+func (s *Server) dispatchCommandResponse(ctx context.Context, proc *process.Process, command string) (*plugin.Response, error) {
 	cmdCtx := &CommandContext{
 		Server:         s,
 		Process:        proc,
-		RequestContext: s.Context(),
+		RequestContext: ctx,
 		Username:       internalPluginIdentity(proc.Name()),
 		Sender:         plugin.ProcessSender(proc.Name()),
 	}
@@ -692,6 +699,7 @@ func (s *Server) dispatchCommandResponse(proc *process.Process, command string) 
 		if errors.Is(dispatchErr, ErrSilent) {
 			return &plugin.Response{Status: plugin.StatusDone}, nil
 		}
+		command = config.DisplayCommand(command)
 		if s.ctx.Err() != nil {
 			logger().Debug("dispatch-command failed (shutting down)", "plugin", proc.Name(), "command", command, "error", dispatchErr)
 		} else {
@@ -742,8 +750,8 @@ func (s *Server) wireBridgeDispatch(proc *process.Process) {
 	if b == nil {
 		return
 	}
-	b.SetDispatchRPC(func(method string, params json.RawMessage) (json.RawMessage, error) {
-		return s.dispatchPluginRPCDirect(proc, method, params)
+	b.SetDispatchRPC(func(ctx context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
+		return s.dispatchPluginRPCDirect(ctx, proc, method, params)
 	})
 
 	// Typed fast paths: skip JSON marshal/unmarshal, delegate to shared core

@@ -12,6 +12,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/ze-software/ze/internal/component/plugin/process"
@@ -27,7 +28,7 @@ import (
 // apart: a firewall plugin reading an empty answer as "this name holds no
 // address" would empty a live set because the hub was started without a
 // resolver (ai/rules/principles.md).
-func (s *Server) opResolveDNS(_ *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opResolveDNS(ctx context.Context, _ *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.ResolveDNSInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		var tb textbuf.Buffer

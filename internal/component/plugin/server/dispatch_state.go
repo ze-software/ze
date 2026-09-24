@@ -2,6 +2,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -51,7 +52,7 @@ func stateFailure(err error, failure rpc.StateStatus) rpc.StateOutput {
 	return rpc.StateOutput{Status: failure, Message: message}
 }
 
-func (s *Server) opStateGet(proc *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opStateGet(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	in, err := stateInput(proc, params, false)
 	if err != nil {
 		return nil, err
@@ -69,7 +70,7 @@ func (s *Server) opStateGet(proc *process.Process, params json.RawMessage) (any,
 	return rpc.StateOutput{Status: rpc.StateOK, Data: data}, nil
 }
 
-func (s *Server) opStatePut(proc *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opStatePut(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	in, err := stateInput(proc, params, false)
 	if err != nil {
 		return nil, err
@@ -80,7 +81,7 @@ func (s *Server) opStatePut(proc *process.Process, params json.RawMessage) (any,
 	return rpc.StateOutput{Status: rpc.StateOK}, nil
 }
 
-func (s *Server) opStateRemove(proc *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opStateRemove(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	in, err := stateInput(proc, params, false)
 	if err != nil {
 		return nil, err
@@ -91,7 +92,7 @@ func (s *Server) opStateRemove(proc *process.Process, params json.RawMessage) (a
 	return rpc.StateOutput{Status: rpc.StateOK}, nil
 }
 
-func (s *Server) opStateIncrement(proc *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opStateIncrement(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	in, err := stateInput(proc, params, false)
 	if err != nil {
 		return nil, err
@@ -103,7 +104,7 @@ func (s *Server) opStateIncrement(proc *process.Process, params json.RawMessage)
 	return rpc.StateOutput{Status: rpc.StateOK, Value: value}, nil
 }
 
-func (s *Server) opStateList(proc *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opStateList(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	in, err := stateInput(proc, params, true)
 	if err != nil {
 		return nil, err

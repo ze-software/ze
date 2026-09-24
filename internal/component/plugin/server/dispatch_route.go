@@ -17,6 +17,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/netip"
@@ -56,7 +57,7 @@ type routeKey struct {
 // the input/apply/output types differ and merging them via generics hurts clarity.
 //
 //nolint:dupl // route-install and route-remove are deliberately parallel handlers;
-func (s *Server) opRouteInstall(proc *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opRouteInstall(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.RouteInstallInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		s.routeCounter().With(proc.Name(), "install", "error").Inc()
@@ -78,7 +79,7 @@ func (s *Server) opRouteInstall(proc *process.Process, params json.RawMessage) (
 // Loc-RIB and drops the routes from the plugin's tracking.
 //
 //nolint:dupl // parallel with opRouteInstall by design; see the note there.
-func (s *Server) opRouteRemove(proc *process.Process, params json.RawMessage) (any, error) {
+func (s *Server) opRouteRemove(ctx context.Context, proc *process.Process, params json.RawMessage) (any, error) {
 	var input rpc.RouteRemoveInput
 	if err := json.Unmarshal(params, &input); err != nil {
 		s.routeCounter().With(proc.Name(), "remove", "error").Inc()
@@ -123,9 +124,9 @@ type installOp struct {
 // applyRouteInstall validates and applies a route-install batch to rib. It builds
 // every op FIRST (so a malformed entry fails the whole batch before any partial
 // apply), then inserts. The protocol NAME is re-resolved to THIS process's
-// ProtocolID via redistevents.RegisterProtocol -- register-on-demand, because the
-// forked plugin's own init (which registered "ospf"/"isis") ran in the subprocess,
-// so the engine may not have seen the name yet. Returns the keys applied.
+// ProtocolID via the engine's registered protocol lookup. The source remains
+// canonical "bgp"; its eBGP/iBGP flags select the administrative-distance class.
+// Returns the keys applied.
 func applyRouteInstall(rib *locrib.RIB, input rpc.RouteInstallInput) ([]routeKey, error) {
 	if rib == nil {
 		return nil, fmt.Errorf("route-install: engine has no Loc-RIB")
@@ -156,9 +157,29 @@ func applyRouteInstall(rib *locrib.RIB, input rpc.RouteInstallInput) ([]routeKey
 				return nil, fmt.Errorf("route-install: bad backup-next-hop %q: %w", e.BackupNextHop, err)
 			}
 		}
+		var srv6SID netip.Addr
+		if e.SRv6SID != "" {
+			srv6SID, err = netip.ParseAddr(e.SRv6SID)
+			if err != nil {
+				return nil, fmt.Errorf("route-install: bad SRv6 SID %q: %w", e.SRv6SID, err)
+			}
+			if !srv6SID.Is6() {
+				return nil, fmt.Errorf("route-install: SRv6 SID %q is not IPv6", e.SRv6SID)
+			}
+			if srv6SID.Is4In6() {
+				return nil, fmt.Errorf("route-install: SRv6 SID %q is IPv4-mapped", e.SRv6SID)
+			}
+		}
 		ecmp, err := parseWireNextHops(e.ECMP)
 		if err != nil {
 			return nil, err
+		}
+		distanceProtocol := e.Protocol
+		if e.IsBGP || e.IsEBGP {
+			distanceProtocol = "ibgp"
+			if e.IsEBGP {
+				distanceProtocol = "ebgp"
+			}
 		}
 		ops = append(ops, installOp{
 			fam:    family.Family{AFI: family.AFI(e.AFI), SAFI: family.SAFI(e.SAFI)},
@@ -168,6 +189,7 @@ func applyRouteInstall(rib *locrib.RIB, input rpc.RouteInstallInput) ([]routeKey
 				Instance:  e.Instance,
 				NextHop:   nextHop,
 				Interface: e.Interface,
+				OnLink:    e.OnLink,
 				Weight:    e.Weight,
 				RouteType: routetype.Type(e.RouteType),
 				// The distance the operator declared is resolved HERE, not in the
@@ -177,10 +199,15 @@ func applyRouteInstall(rib *locrib.RIB, input rpc.RouteInstallInput) ([]routeKey
 				// forked OSPF at the point arbitration happens. The wire value is
 				// the fallback, so a protocol the declaration does not name keeps
 				// what its producer chose.
-				AdminDistance:      ribdistance.OrDefault(e.Protocol, e.AdminDistance),
+				AdminDistance:      ribdistance.OrDefault(distanceProtocol, e.AdminDistance),
 				Metric:             e.Metric,
 				Labels:             e.Labels,
+				SRv6SID:            srv6SID,
 				IsEBGP:             e.IsEBGP,
+				IsBGP:              e.IsBGP,
+				AIGP:               e.AIGP,
+				AIGPPresent:        e.AIGPPresent,
+				MetricRecursive:    e.MetricRecursive,
 				ECMP:               ecmp,
 				BackupNextHop:      backup,
 				BackupRepairLabels: e.BackupRepairLabels,
@@ -205,7 +232,7 @@ func parseWireNextHops(set []rpc.RouteNextHop) ([]nexthop.NextHop, error) {
 	out := make([]nexthop.NextHop, 0, len(set))
 	for i := range set {
 		m := &set[i]
-		nh := nexthop.NextHop{Interface: m.Interface, Weight: m.Weight}
+		nh := nexthop.NextHop{Interface: m.Interface, OnLink: m.OnLink, Weight: m.Weight}
 		if m.NextHop != "" {
 			addr, err := netip.ParseAddr(m.NextHop)
 			if err != nil {

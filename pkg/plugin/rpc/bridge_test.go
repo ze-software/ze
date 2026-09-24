@@ -50,7 +50,7 @@ func TestDirectBridgeDispatchRPC(t *testing.T) {
 	bridge := NewDirectBridge()
 
 	// Register engine-side RPC handler
-	bridge.SetDispatchRPC(func(method string, params json.RawMessage) (json.RawMessage, error) {
+	bridge.SetDispatchRPC(func(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
 		if method == "ze-plugin-engine:update-route" {
 			return json.RawMessage(`{"announced":2,"withdrawn":4}`), nil
 		}
@@ -58,7 +58,7 @@ func TestDirectBridgeDispatchRPC(t *testing.T) {
 	})
 	bridge.SetReady()
 
-	result, err := bridge.DispatchRPC("ze-plugin-engine:update-route", json.RawMessage(`{"peer-selector":"*","command":"update text origin set igp"}`))
+	result, err := bridge.DispatchRPC(t.Context(), "ze-plugin-engine:update-route", json.RawMessage(`{"peer-selector":"*","command":"update text origin set igp"}`))
 	require.NoError(t, err)
 	assert.JSONEq(t, `{"announced":2,"withdrawn":4}`, string(result))
 }
@@ -77,7 +77,7 @@ func TestDirectBridgeDispatchCommandArgs(t *testing.T) {
 	var gotCommand string
 	var gotArgs []string
 	var gotPeer string
-	bridge.SetDispatchCommandArgs(func(command string, args []string, peer string) (*DispatchCommandOutput, error) {
+	bridge.SetDispatchCommandArgs(func(_ context.Context, command string, args []string, peer string) (*DispatchCommandOutput, error) {
 		gotCommand = command
 		gotArgs = append(gotArgs, args...)
 		gotPeer = peer
@@ -91,7 +91,7 @@ func TestDirectBridgeDispatchCommandArgs(t *testing.T) {
 	bridge.SetReady()
 	assert.True(t, bridge.HasDispatchCommandArgs(), "handler should be available after bridge readiness")
 
-	out, err := bridge.DispatchCommandArgs("bgp rib accept-routes", args, "peer selector")
+	out, err := bridge.DispatchCommandArgs(t.Context(), "bgp rib accept-routes", args, "peer selector")
 	require.NoError(t, err)
 	require.NotNil(t, out)
 	assert.Equal(t, StatusDone, out.Status)
@@ -223,12 +223,12 @@ func TestDirectBridgeDispatchRPCError(t *testing.T) {
 
 	bridge := NewDirectBridge()
 
-	bridge.SetDispatchRPC(func(method string, params json.RawMessage) (json.RawMessage, error) {
+	bridge.SetDispatchRPC(func(_ context.Context, method string, params json.RawMessage) (json.RawMessage, error) {
 		return nil, errors.New("dispatch failed")
 	})
 	bridge.SetReady()
 
-	_, err := bridge.DispatchRPC("ze-plugin-engine:update-route", nil)
+	_, err := bridge.DispatchRPC(t.Context(), "ze-plugin-engine:update-route", nil)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "dispatch failed")
 }
@@ -381,7 +381,7 @@ func TestDirectBridgeDispatchCommandTransfersCompletionOwnership(t *testing.T) {
 	b := NewDirectBridge()
 	handlerReturned := false
 	completed := false
-	b.SetDispatchCommand(func(string) (output *DispatchCommandOutput, err error) {
+	b.SetDispatchCommand(func(context.Context, string) (output *DispatchCommandOutput, err error) {
 		defer func() { handlerReturned = true }()
 		output = &DispatchCommandOutput{Status: "done"}
 		output.OnTransportComplete(func() {
@@ -392,7 +392,7 @@ func TestDirectBridgeDispatchCommandTransfersCompletionOwnership(t *testing.T) {
 	})
 	b.SetReady()
 
-	output, err := b.DispatchCommand("request shutdown")
+	output, err := b.DispatchCommand(t.Context(), "request shutdown")
 
 	require.NoError(t, err)
 	require.Equal(t, "done", output.Status)
@@ -408,11 +408,11 @@ func TestDirectBridgeDispatchCommandTransfersCompletionOwnership(t *testing.T) {
 // PREVENTS: A stopped plugin publishing engine state after runtime cleanup starts.
 func TestDirectBridgeStopDispatchRejectsPluginCalls(t *testing.T) {
 	b := NewDirectBridge()
-	b.SetDispatchRPC(func(string, json.RawMessage) (json.RawMessage, error) {
+	b.SetDispatchRPC(func(context.Context, string, json.RawMessage) (json.RawMessage, error) {
 		t.Fatal("generic handler ran after dispatch shutdown")
 		return nil, assert.AnError
 	})
-	b.SetDispatchCommand(func(string) (*DispatchCommandOutput, error) {
+	b.SetDispatchCommand(func(context.Context, string) (*DispatchCommandOutput, error) {
 		t.Fatal("typed handler ran after dispatch shutdown")
 		return nil, assert.AnError
 	})
@@ -420,9 +420,9 @@ func TestDirectBridgeStopDispatchRejectsPluginCalls(t *testing.T) {
 
 	b.StopDispatch()
 
-	_, err := b.DispatchRPC("test", nil)
+	_, err := b.DispatchRPC(t.Context(), "test", nil)
 	require.ErrorIs(t, err, ErrBridgeClosed)
-	_, err = b.DispatchCommand("show test")
+	_, err = b.DispatchCommand(t.Context(), "show test")
 	require.ErrorIs(t, err, ErrBridgeClosed)
 	assert.False(t, b.Ready())
 }
@@ -436,7 +436,7 @@ func TestDirectBridgeWaitDispatchDrainsInflightCall(t *testing.T) {
 	b := NewDirectBridge()
 	entered := make(chan struct{})
 	release := make(chan struct{})
-	b.SetDispatchRPC(func(string, json.RawMessage) (json.RawMessage, error) {
+	b.SetDispatchRPC(func(context.Context, string, json.RawMessage) (json.RawMessage, error) {
 		close(entered)
 		<-release
 		return json.RawMessage(`{"status":"done"}`), nil
@@ -445,13 +445,13 @@ func TestDirectBridgeWaitDispatchDrainsInflightCall(t *testing.T) {
 
 	callDone := make(chan error, 1)
 	go func() {
-		_, err := b.DispatchRPC("test", nil)
+		_, err := b.DispatchRPC(t.Context(), "test", nil)
 		callDone <- err
 	}()
 	<-entered
 
 	b.StopDispatch()
-	_, err := b.DispatchRPC("rejected", nil)
+	_, err := b.DispatchRPC(t.Context(), "rejected", nil)
 	require.ErrorIs(t, err, ErrBridgeClosed)
 
 	waitDone := make(chan struct{})
@@ -575,7 +575,7 @@ func TestDirectBridgeDispatchCommandAnswer(t *testing.T) {
 
 	// Bridge transport: the engine hands back the same walk in process.
 	bridge := NewDirectBridge()
-	bridge.SetDispatchCommandAnswer(func(dispatched string) (*Answer, error) {
+	bridge.SetDispatchCommandAnswer(func(_ context.Context, dispatched string) (*Answer, error) {
 		assert.Equal(t, command, dispatched)
 		head := AnswerTail{Type: AnswerTypeMap, Key: "peers"}
 		terminator := AnswerTail{Count: uint64(len(items)), Faults: uint64(len(faults))}
@@ -583,7 +583,7 @@ func TestDirectBridgeDispatchCommandAnswer(t *testing.T) {
 	})
 	bridge.SetReady()
 
-	overBridge, err := bridge.DispatchCommandAnswer(command)
+	overBridge, err := bridge.DispatchCommandAnswer(t.Context(), command)
 	require.NoError(t, err)
 	bridgeRows := collectAnswer(overBridge)
 
@@ -618,14 +618,14 @@ func TestDirectBridgeWaitDispatchSpansAnswerWalk(t *testing.T) {
 		t.Helper()
 
 		b := NewDirectBridge()
-		b.SetDispatchCommandAnswer(func(string) (*Answer, error) {
+		b.SetDispatchCommandAnswer(func(context.Context, string) (*Answer, error) {
 			head := AnswerTail{Type: AnswerTypeMap, Key: "peers"}
 			terminator := AnswerTail{Count: uint64(len(rows))}
 			return NewAnswer(head, terminator, answerRowSeq(rows, nil)), nil
 		})
 		b.SetReady()
 
-		answer, err := b.DispatchCommandAnswer("show bgp neighbor summary")
+		answer, err := b.DispatchCommandAnswer(t.Context(), "show bgp neighbor summary")
 		require.NoError(t, err)
 
 		b.StopDispatch()

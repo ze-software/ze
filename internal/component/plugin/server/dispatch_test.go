@@ -512,7 +512,7 @@ func TestDispatchCommandDirectBridge(t *testing.T) {
 	params, err := json.Marshal(input)
 	require.NoError(t, err)
 
-	raw, err := s.dispatchPluginRPCDirect(proc, "ze-plugin-engine:dispatch-command", params)
+	raw, err := s.dispatchPluginRPCDirect(t.Context(), proc, "ze-plugin-engine:dispatch-command", params)
 	require.NoError(t, err)
 
 	// DirectBridge returns marshaled result directly (no envelope).
@@ -555,10 +555,10 @@ func TestDispatchCommandArgsRoutesSameHandlerAsDispatchCommand(t *testing.T) {
 	defer s.cancel()
 
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
-	stringOut, err := s.dispatchCommand(caller, "request target echo alpha beta")
+	stringOut, err := s.dispatchCommand(t.Context(), caller, "request target echo alpha beta")
 	require.NoError(t, err)
 
-	argsOut, err := s.dispatchCommandArgs(caller, "request target echo", []string{"alpha", "beta"}, "")
+	argsOut, err := s.dispatchCommandArgs(t.Context(), caller, "request target echo", []string{"alpha", "beta"}, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, stringOut.Status, argsOut.Status)
@@ -595,7 +595,7 @@ func TestDispatchCommandArgsPreservesOddArguments(t *testing.T) {
 	defer s.cancel()
 
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
-	out, err := s.dispatchCommandArgs(caller, "request target odd", wantArgs, wantPeer)
+	out, err := s.dispatchCommandArgs(t.Context(), caller, "request target odd", wantArgs, wantPeer)
 	require.NoError(t, err)
 	require.NotNil(t, out)
 	assert.Equal(t, plugin.StatusDone, out.Status)
@@ -626,8 +626,8 @@ func TestDispatchCommandArgsErrorsMatchDispatchCommand(t *testing.T) {
 	defer s.cancel()
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
 
-	stringUnknownOut, stringUnknownErr := s.dispatchCommand(caller, "missing command")
-	argsUnknownOut, argsUnknownErr := s.dispatchCommandArgs(caller, "missing command", nil, "")
+	stringUnknownOut, stringUnknownErr := s.dispatchCommand(t.Context(), caller, "missing command")
+	argsUnknownOut, argsUnknownErr := s.dispatchCommandArgs(t.Context(), caller, "missing command", nil, "")
 	require.Error(t, stringUnknownErr)
 	require.Error(t, argsUnknownErr)
 	assert.True(t, errors.Is(stringUnknownErr, ErrUnknownCommand))
@@ -635,9 +635,9 @@ func TestDispatchCommandArgsErrorsMatchDispatchCommand(t *testing.T) {
 	assert.Nil(t, stringUnknownOut)
 	assert.Nil(t, argsUnknownOut)
 
-	stringOut, err := s.dispatchCommand(caller, "request target fails")
+	stringOut, err := s.dispatchCommand(t.Context(), caller, "request target fails")
 	require.NoError(t, err)
-	argsOut, err := s.dispatchCommandArgs(caller, "request target fails", nil, "")
+	argsOut, err := s.dispatchCommandArgs(t.Context(), caller, "request target fails", nil, "")
 	require.NoError(t, err)
 
 	assert.Equal(t, stringOut.Status, argsOut.Status)
@@ -666,7 +666,7 @@ func TestDispatchCommandArgsPreservesPluginIdentity(t *testing.T) {
 
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
 	wantArgs := []string{"peer key with spaces", `quote"inside`, `slash\inside`}
-	out, err := s.dispatchCommandArgs(caller, "request target echo", wantArgs, "10.0.0.1")
+	out, err := s.dispatchCommandArgs(t.Context(), caller, "request target echo", wantArgs, "10.0.0.1")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrUnauthorized))
 	assert.NotNil(t, out)
@@ -699,7 +699,7 @@ func TestDispatchCommandArgsLegacyAuthorizationCanonicalizesPeerScope(t *testing
 
 	caller := process.NewProcess(plugin.PluginConfig{Name: "caller-plugin"})
 	wantArgs := []string{"peer key with spaces", `quote"inside`, `slash\inside`}
-	out, err := s.dispatchCommandArgs(caller, "request target echo", wantArgs, "10.0.0.1")
+	out, err := s.dispatchCommandArgs(t.Context(), caller, "request target echo", wantArgs, "10.0.0.1")
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, ErrUnauthorized))
 	assert.NotNil(t, out)
