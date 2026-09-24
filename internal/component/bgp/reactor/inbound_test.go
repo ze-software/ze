@@ -14,7 +14,7 @@ import (
 )
 
 // TestInboundConnectionRoundTrip verifies that a connection stored via
-// SetInboundConnection can be retrieved via takeInboundConnection.
+// setInboundConnection can be retrieved via takeInboundConnection.
 //
 // VALIDATES: Store-and-retrieve cycle works correctly.
 // PREVENTS: Stored connection lost or returned to wrong caller.
@@ -31,7 +31,7 @@ func TestInboundConnectionRoundTrip(t *testing.T) {
 	defer func() { _ = client.Close() }()
 	defer func() { _ = server.Close() }()
 
-	peer.SetInboundConnection(server)
+	peer.setInboundConnection(server)
 	got := peer.takeInboundConnection()
 	assert.Equal(t, server, got)
 
@@ -52,13 +52,13 @@ func TestInboundConnectionReplacesOld(t *testing.T) {
 	// Store first connection
 	client1, server1 := net.Pipe()
 	defer func() { _ = client1.Close() }()
-	peer.SetInboundConnection(server1)
+	peer.setInboundConnection(server1)
 
 	// Store second — should close first
 	client2, server2 := net.Pipe()
 	defer func() { _ = client2.Close() }()
 	defer func() { _ = server2.Close() }()
-	peer.SetInboundConnection(server2)
+	peer.setInboundConnection(server2)
 
 	// First connection should be closed (write returns error)
 	_ = server1.SetWriteDeadline(time.Now().Add(10 * time.Millisecond))
@@ -70,7 +70,7 @@ func TestInboundConnectionReplacesOld(t *testing.T) {
 	assert.Equal(t, server2, got)
 }
 
-// TestInboundNotifyWakesBackoff verifies that SetInboundConnection sends a
+// TestInboundNotifyWakesBackoff verifies that setInboundConnection sends a
 // signal on the inboundNotify channel, allowing run() to skip backoff.
 //
 // VALIDATES: Channel is signaled on store.
@@ -84,7 +84,7 @@ func TestInboundNotifyWakesBackoff(t *testing.T) {
 	defer func() { _ = client.Close() }()
 	defer func() { _ = server.Close() }()
 
-	peer.SetInboundConnection(server)
+	peer.setInboundConnection(server)
 
 	// Channel should have a signal
 	select {
@@ -95,7 +95,7 @@ func TestInboundNotifyWakesBackoff(t *testing.T) {
 	}
 }
 
-// TestInboundNotifyIdempotent verifies that multiple SetInboundConnection calls
+// TestInboundNotifyIdempotent verifies that multiple setInboundConnection calls
 // do not block when the channel already has a pending signal.
 //
 // VALIDATES: Non-blocking signal — second store doesn't deadlock.
@@ -115,8 +115,8 @@ func TestInboundNotifyIdempotent(t *testing.T) {
 	// Two rapid stores — must not block
 	done := make(chan struct{})
 	go func() {
-		peer.SetInboundConnection(s1)
-		peer.SetInboundConnection(s2)
+		peer.setInboundConnection(s1)
+		peer.setInboundConnection(s2)
 		close(done)
 	}()
 
@@ -124,7 +124,7 @@ func TestInboundNotifyIdempotent(t *testing.T) {
 	case <-done:
 		// expected — neither call blocked
 	case <-time.After(time.Second):
-		t.Fatal("SetInboundConnection blocked — channel send deadlock")
+		t.Fatal("setInboundConnection blocked — channel send deadlock")
 	}
 }
 
@@ -141,7 +141,7 @@ func TestInboundConnectionCleanup(t *testing.T) {
 	client, server := net.Pipe()
 	defer func() { _ = client.Close() }()
 
-	peer.SetInboundConnection(server)
+	peer.setInboundConnection(server)
 
 	// cleanup() should close the stored connection
 	peer.cleanup()
@@ -192,7 +192,7 @@ func TestInboundConnectionSkipsBackoff(t *testing.T) {
 	client, server := net.Pipe()
 	defer func() { _ = client.Close() }()
 	defer func() { _ = server.Close() }()
-	peer.SetInboundConnection(server)
+	peer.setInboundConnection(server)
 
 	// Wait for the goroutine to complete
 	require.Eventually(t, func() bool { return wokenBy.Load() != 0 }, time.Second, time.Millisecond)

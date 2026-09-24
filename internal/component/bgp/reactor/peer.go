@@ -165,7 +165,7 @@ type peerOp struct {
 // if/else at every drain point (peer_initial_sync.go has two).
 func sessionTeardown(session *Session, subcode uint8, shutdownMsg string, automatic bool) error {
 	if automatic {
-		return session.TeardownAutomatic(subcode, shutdownMsg)
+		return session.teardownAutomatic(subcode, shutdownMsg)
 	}
 	return session.Teardown(subcode, shutdownMsg)
 }
@@ -285,7 +285,8 @@ type Peer struct {
 	operatorStarted atomic.Bool
 
 	// stopping is set by Reactor.stop (reactor.go) on every peer BEFORE it
-	// notifies them, and it closes the only window in which p.ctx says "keep
+	// notifies them, and by stopWithCease on one removed peer before its Cease
+	// (the same window, for one peer). It closes the only window in which p.ctx says "keep
 	// going" while the engine is already leaving. Stop has to notify first --
 	// the cancel closes the sockets the NOTIFICATION needs -- so for the whole
 	// shutdown budget every peer context is still live, and a session torn down
@@ -1605,7 +1606,7 @@ func (p *Peer) shutdownNotify() {
 // Marking p.stopping stops a NEW session being published (runOnce reads it inside
 // the p.mu hold that publishes p.session), which leaves exactly one session per
 // peer -- the one already published when the stop landed. That one is reached by
-// the accept rail through AcceptConnection, so the seal has to land ON it, and
+// the accept rail through acceptConnection, so the seal has to land ON it, and
 // Session.connectionEstablished is where it is read (session_connection.go).
 //
 // It reads p.session under the same lock shutdownNotify does, and after the same
@@ -1655,7 +1656,18 @@ func (p *Peer) Stop() {
 //
 // The caller picks the subcode, because only the caller knows which of the two
 // decisions it made.
+//
+// The peer is marked stopping BEFORE the Cease, for the reason Reactor.stop
+// marks every peer (peer.stopping): the teardown ends the session with
+// ErrTeardown, which run() answers by dialing again with no wait, and the
+// cancel in Stop comes after. Without the mark, the removed peer redials in
+// that window and reaches Established. The cancel then closes that session
+// with an Administrative Shutdown, and the remote reads it as the session the
+// re-added peer should own. The peer is never started again: a restart or a
+// rollback adds a new Peer.
 func (p *Peer) stopWithCease(subcode uint8) {
+	p.stopping.Store(true)
+
 	p.mu.Lock()
 	session := p.session
 	p.mu.Unlock()

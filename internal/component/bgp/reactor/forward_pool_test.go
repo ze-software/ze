@@ -1454,7 +1454,7 @@ func TestFwdPool_PoolUsedRatioMixedBufMux(t *testing.T) {
 	}, fwdPoolConfig{chanSize: 8, idleTimeout: time.Second})
 	defer pool.Stop()
 
-	// Budget = 32 blocks. First Get4K grows a chunk of 16 blocks -> ratio = 16/32 = 0.5.
+	// Budget = 32 blocks. First get4K grows a chunk of 16 blocks -> ratio = 16/32 = 0.5.
 	mux := newMixedBufMux()
 	mux.setByteBudget(32 * overflowBlockSize)
 	pool.setOverflowMux(mux)
@@ -1462,8 +1462,8 @@ func TestFwdPool_PoolUsedRatioMixedBufMux(t *testing.T) {
 	// No allocations: ratio should be 0.
 	assert.Equal(t, 0.0, pool.poolUsedRatio())
 
-	// Get4K grows one chunk (16 blocks) -> totalBlocks=16, maxBlocks=32 -> ratio=0.5.
-	h := mux.Get4K()
+	// get4K grows one chunk (16 blocks) -> totalBlocks=16, maxBlocks=32 -> ratio=0.5.
+	h := mux.get4K()
 	ratio := pool.poolUsedRatio()
 	assert.InDelta(t, 0.5, ratio, 0.01, "one chunk of two allocated")
 
@@ -1568,7 +1568,7 @@ func TestFwdPool_TryDispatchChannelFull(t *testing.T) {
 }
 
 func TestFwdPool_DispatchOverflowGet64K(t *testing.T) {
-	// Finding #10: dispatchOverflow uses Get64K() for ExtMsg peers.
+	// Finding #10: dispatchOverflow uses get64K() for ExtMsg peers.
 	blocker := make(chan struct{})
 	handlerStarted := make(chan struct{}, 1)
 

@@ -11,9 +11,9 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
-// AcceptConnection accepts an incoming TCP connection for this peer.
+// acceptConnection accepts an incoming TCP connection for this peer.
 // Used by the reactor to hand incoming connections to passive peers.
-func (p *Peer) AcceptConnection(conn net.Conn) error {
+func (p *Peer) acceptConnection(conn net.Conn) error {
 	p.mu.RLock()
 	session := p.session
 	p.mu.RUnlock()
@@ -50,10 +50,10 @@ func (p *Peer) SessionState() fsm.State {
 	return session.State()
 }
 
-// SetPendingConnection queues an incoming connection for collision resolution.
+// setPendingConnection queues an incoming connection for collision resolution.
 // RFC 4271 Sections 6.8 and 8.2.2: retain the second connection until OPEN.
 // Returns error if there's already a pending connection.
-func (p *Peer) SetPendingConnection(conn net.Conn) error {
+func (p *Peer) setPendingConnection(conn net.Conn) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -65,18 +65,18 @@ func (p *Peer) SetPendingConnection(conn net.Conn) error {
 	return nil
 }
 
-// ClearPendingConnection clears any pending connection.
-func (p *Peer) ClearPendingConnection() {
+// clearPendingConnection clears any pending connection.
+func (p *Peer) clearPendingConnection() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.pendingConn = nil
 	p.pendingOpen = nil
 }
 
-// SetInboundConnection stores a connection that arrived while the session was nil.
+// setInboundConnection stores a connection that arrived while the session was nil.
 // Used for passive peers where the remote reconnects before our backoff expires.
 // If a previous inbound connection exists, it is closed and replaced.
-func (p *Peer) SetInboundConnection(conn net.Conn) {
+func (p *Peer) setInboundConnection(conn net.Conn) {
 	p.mu.Lock()
 	old := p.inboundConn
 	p.inboundConn = conn
@@ -101,14 +101,14 @@ func (p *Peer) takeInboundConnection() net.Conn {
 	return conn
 }
 
-// HasPendingConnection returns true if there's a pending incoming connection.
-func (p *Peer) HasPendingConnection() bool {
+// hasPendingConnection returns true if there's a pending incoming connection.
+func (p *Peer) hasPendingConnection() bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 	return p.pendingConn != nil
 }
 
-// ResolvePendingCollision resolves a collision after receiving OPEN on pending connection.
+// resolvePendingCollision resolves a collision after receiving OPEN on pending connection.
 // RFC 4271 §6.8: Compare BGP IDs and close the loser.
 //
 // Returns:
@@ -116,7 +116,7 @@ func (p *Peer) HasPendingConnection() bool {
 //   - the pending connection (caller must handle it)
 //   - the pending OPEN message (if acceptPending is true)
 //   - wait: channel to wait for existing session teardown (if acceptPending is true)
-func (p *Peer) ResolvePendingCollision(pendingOpen *message.Open) (acceptPending bool, conn net.Conn, open *message.Open, wait <-chan struct{}) {
+func (p *Peer) resolvePendingCollision(pendingOpen *message.Open) (acceptPending bool, conn net.Conn, open *message.Open, wait <-chan struct{}) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -158,9 +158,9 @@ func (p *Peer) ResolvePendingCollision(pendingOpen *message.Open) (acceptPending
 	return false, conn, nil, nil
 }
 
-// AcceptConnectionWithOpen accepts an incoming connection with a pre-received OPEN.
+// acceptConnectionWithOpen accepts an incoming connection with a pre-received OPEN.
 // RFC 4271 §6.8: Used after collision resolution when the pending connection wins.
-func (p *Peer) AcceptConnectionWithOpen(conn net.Conn, peerOpen *message.Open) error {
+func (p *Peer) acceptConnectionWithOpen(conn net.Conn, peerOpen *message.Open) error {
 	p.mu.RLock()
 	session := p.session
 	p.mu.RUnlock()
@@ -169,5 +169,5 @@ func (p *Peer) AcceptConnectionWithOpen(conn net.Conn, peerOpen *message.Open) e
 		return ErrNotConnected
 	}
 
-	return session.AcceptWithOpen(conn, peerOpen)
+	return session.acceptWithOpen(conn, peerOpen)
 }

@@ -261,7 +261,7 @@ func TestSessionRFC4271EstablishedCollisionWaitsForOpen(t *testing.T) {
 	_, err := client.Write(packet[:len(packet)-1])
 	require.NoError(t, err, "the pending connection must read until OPEN is complete")
 	<-accepted
-	require.True(t, peer.HasPendingConnection())
+	require.True(t, peer.hasPendingConnection())
 	prefix := []byte{24, 203, 0, 113}
 	wu := firstASReceive(t, s, existing, makeUpdateBody(nil, firstASAttrs(2, 65002), prefix))
 	nlri, err := wu.NLRI()
@@ -273,6 +273,6 @@ func TestSessionRFC4271EstablishedCollisionWaitsForOpen(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, byte(msgtype.TypeNOTIFICATION), reply[18])
 	require.Equal(t, []byte{6, 7}, reply[message.HeaderLen:])
-	require.False(t, peer.HasPendingConnection())
+	require.False(t, peer.hasPendingConnection())
 	require.Equal(t, fsm.StateEstablished, s.State())
 }

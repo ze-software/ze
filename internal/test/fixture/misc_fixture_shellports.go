@@ -40,7 +40,7 @@ func init() {
 		"reload/tx-iface-wireguard-modify-trigger":            {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/tx-iface-wireguard-remove-trigger":            {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/tx-protocol-exclusion-trigger":                {source: fileConfig2Conf, destination: fileBGPConf, hups: 2, requireReady: true},
-		"reload/tx-protocol-external-plugin-trigger":          {source: "updated.conf", destination: fileBGPConf, before: 2 * time.Second, after: 2 * time.Second, hups: 1, terminate: true, requireReady: true},
+		"reload/tx-protocol-external-plugin-trigger":          {source: "updated.conf", destination: fileBGPConf, before: 2 * time.Second, hups: 1, requireReady: true},
 		"reload/tx-protocol-rollback-trigger":                 {source: "bad-config.conf", destination: fileBGPConf, before: 2 * time.Second, after: 2 * time.Second, hups: 1, terminate: true, requireReady: true},
 		"reload/tx-protocol-sighup-trigger":                   {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/pki-reference-reload-trigger":                 {source: "addref.conf", destination: "hub.conf", after: 3 * time.Second, hups: 1, terminate: true},

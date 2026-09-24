@@ -32,7 +32,7 @@ session layer:
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleOpen sendKeepalive + ResetHoldTimer -->
 <!-- source: internal/component/bgp/fsm/timer.go — ResetHoldTimer -->
 
-The alternate path via `AcceptWithOpen` + `processOpen` performs the
+The alternate path via `acceptWithOpen` + `processOpen` performs the
 same sequence without going through the outer message read loop. It is
 used when inbound collision resolution has already parsed the peer's
 OPEN from a competing socket.
@@ -44,7 +44,7 @@ OPEN from a competing socket.
 | Event | Produced by | FSM reaction | Wire side effect | Next state |
 |-------|-------------|--------------|------------------|------------|
 | `EventManualStop` | `Session.Stop` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION from `Session.Teardown` when a conn exists; `Session.Stop` sends nothing | `Idle` |
-| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.TeardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
+| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
 | `EventKeepaliveMsg` | `handleKeepalive` on received KEEPALIVE | log transition | nothing additional from the FSM | `Established` |
 | `EventHoldTimerExpires` | hold-timer callback in `Session.newSession` | cleanup in caller; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
 | `EventNotifMsg` | `handleNotification` | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
@@ -136,7 +136,7 @@ transition.
 |---------|------|--------|
 | State transitions | `internal/component/bgp/fsm/fsm.go` | `handleOpenConfirm` |
 | Entry wiring (KEEPALIVE + hold reset) | `internal/component/bgp/reactor/session_bfd_strict.go` | `advanceAfterOpen`, reached from the `handleOpen` tail |
-| Alternate entry (`AcceptWithOpen`) | `internal/component/bgp/reactor/session_connection.go` | `processOpen` |
+| Alternate entry (`acceptWithOpen`) | `internal/component/bgp/reactor/session_connection.go` | `processOpen` |
 | KEEPALIVE reception + timer start + exit | `internal/component/bgp/reactor/session_handlers.go` | `handleKeepalive` |
 | NOTIFICATION handling | `internal/component/bgp/reactor/session_handlers.go` | `handleNotification` |
 | Hold/keepalive timer callbacks | `internal/component/bgp/reactor/session.go` | `newSession` |

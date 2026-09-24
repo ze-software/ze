@@ -58,13 +58,13 @@ The peer state transitions are driven from `peer_run.go`:
 | `Peer.StartWithContext(ctx)` | Begin the peer goroutine with a caller-supplied context. Once-only; calling again while running is a no-op. |
 | `Peer.Stop()` | Cancel the peer context. The run loop notices at the next select and unwinds cleanly via `cleanup()`. |
 | `Peer.Teardown(subcode, msg)` | Send Cease NOTIFICATION to the current session. If `sendInitialRoutes` is in flight, queues the teardown via `opQueue` so routes and EoR are flushed first. Returns `ErrOpQueueFull` if the queue is saturated. |
-| `Peer.AcceptConnection(conn)` | Hand an incoming TCP connection to the current session via `session.Accept`. Used by the reactor's inbound dispatch for passive peers that already have a live session. |
-| `Peer.SetInboundConnection(conn)` | Store an inbound connection while the peer has no session. Wakes the run loop via a buffered `inboundNotify` channel so backoff can be cut short. |
-| `Peer.AcceptConnectionWithOpen(conn, open)` | Accept with a pre-parsed OPEN (used after collision resolution). |
-| `Peer.SetPendingConnection(conn)` / `ResolvePendingCollision(open)` / `ClearPendingConnection()` | Collision resolution per RFC 4271 §6.8. See section below. |
+| `Peer.acceptConnection(conn)` | Hand an incoming TCP connection to the current session via `session.Accept`. Used by the reactor's inbound dispatch for passive peers that already have a live session. |
+| `Peer.setInboundConnection(conn)` | Store an inbound connection while the peer has no session. Wakes the run loop via a buffered `inboundNotify` channel so backoff can be cut short. |
+| `Peer.acceptConnectionWithOpen(conn, open)` | Accept with a pre-parsed OPEN (used after collision resolution). |
+| `Peer.setPendingConnection(conn)` / `resolvePendingCollision(open)` / `clearPendingConnection()` | Collision resolution per RFC 4271 §6.8. See section below. |
 
 <!-- source: internal/component/bgp/reactor/peer.go — Start, StartWithContext, Stop, Teardown -->
-<!-- source: internal/component/bgp/reactor/peer_connection.go — AcceptConnection, SetInboundConnection, takeInboundConnection, AcceptConnectionWithOpen, SetPendingConnection, ResolvePendingCollision, ClearPendingConnection, HasPendingConnection -->
+<!-- source: internal/component/bgp/reactor/peer_connection.go — acceptConnection, setInboundConnection, takeInboundConnection, acceptConnectionWithOpen, setPendingConnection, resolvePendingCollision, clearPendingConnection, hasPendingConnection -->
 
 ## The run loop
 
@@ -155,7 +155,7 @@ down. Step-by-step:
    `onNotifRecv`, `SetSourceID`, `setPluginCapabilityGetter`,
    `setPluginFamiliesGetter`, `setOpenValidator`.
 3. **Publish the session on `p.session` under lock** so other API
-   callers (`Teardown`, `AcceptConnection`, metrics) can see it.
+   callers (`Teardown`, `acceptConnection`, metrics) can see it.
 4. **Deferred cleanup:** clear negotiated capabilities, clear encoding
    contexts, clear prefix-threshold warnings, reset
    `sendingInitialRoutes` flag, and null out `p.session`.
@@ -298,10 +298,10 @@ sequence exactly as it reads above.
 | Prefix teardown, family mode `never` (the default) | No delay, because there is no next attempt. The peer enters `PeerStateIdleHold`, raises a `prefix-hold` warning, refuses inbound connections and waits for the peer context to end. Only an operator recreating the peer brings it back. |
 | Prefix teardown, family mode `timer` (`idle-timeout > 0`) | Separate backoff: `PrefixIdleTimeout * 2^(teardownCount-1)`, capped at 1 hour. `prefixTeardownCount` capped at 60 to prevent `time.Duration` overflow. Per RFC 4486. |
 | Prefix teardown, family mode `backoff` | The normal exponential backoff of the first row. This is the explicit opt-in, and it was the accidental behavior of every zero `idle-timeout` until 2026-08-03. |
-| Inbound connection arrives during backoff | Reset `delay` to `reconnectMin` and continue immediately. `inboundNotify` is a buffered channel (size 1) signaled by `SetInboundConnection`. |
+| Inbound connection arrives during backoff | Reset `delay` to `reconnectMin` and continue immediately. `inboundNotify` is a buffered channel (size 1) signaled by `setInboundConnection`. |
 
 <!-- source: internal/component/bgp/reactor/peer_run.go — run backoff arms -->
-<!-- source: internal/component/bgp/reactor/peer_connection.go — SetInboundConnection signals inboundNotify -->
+<!-- source: internal/component/bgp/reactor/peer_connection.go — setInboundConnection signals inboundNotify -->
 
 ## Inbound connection handling for passive peers
 
@@ -310,7 +310,7 @@ by the reactor's accept loop. Two race conditions need handling:
 
 1. **Remote reconnects faster than our backoff.** The peer is in the
    `delay` select after a session failure. The reactor's accept loop
-   calls `SetInboundConnection(conn)`, which stores the connection and
+   calls `setInboundConnection(conn)`, which stores the connection and
    signals `inboundNotify`. The run loop's select wakes early, resets
    `delay`, and starts a fresh attempt. The new `runOnce` calls
    `takeInboundConnection()` at step 8 (after `Start` and optional
@@ -320,7 +320,7 @@ by the reactor's accept loop. Two race conditions need handling:
    the buffer), `runOnce` closes the stale connection quietly and
    returns an error. The normal backoff path applies.
 
-<!-- source: internal/component/bgp/reactor/peer_connection.go — SetInboundConnection, takeInboundConnection -->
+<!-- source: internal/component/bgp/reactor/peer_connection.go — setInboundConnection, takeInboundConnection -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — runOnce takeInboundConnection path -->
 
 ## Collision resolution (RFC 4271 §6.8)
@@ -328,8 +328,8 @@ by the reactor's accept loop. Two race conditions need handling:
 When both peers initiate simultaneously, the system may have a live
 session and a second incoming connection for the same peer. The
 reactor stashes the second connection as a "pending" connection on the
-peer via `SetPendingConnection(conn)`. After the pending side sends its
-OPEN, the reactor calls `ResolvePendingCollision(pendingOpen)`.
+peer via `setPendingConnection(conn)`. After the pending side sends its
+OPEN, the reactor calls `resolvePendingCollision(pendingOpen)`.
 
 This also applies in Established: the new connection is retained until the
 complete OPEN arrives, then receives Cease / Connection Collision. The existing
@@ -338,7 +338,7 @@ which waits for OPEN before comparing identifiers.
 
 <!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject, handlePendingCollision -->
 
-`ResolvePendingCollision`:
+`resolvePendingCollision`:
 
 1. Reads `session.detectCollision(pendingOpen.BGPIdentifier)` to decide
    who wins. Higher BGP router-id wins per RFC 4271 §6.8.
@@ -353,13 +353,13 @@ which waits for OPEN before comparing identifiers.
    - Rejects the pending connection.
    - Keeps the existing session running.
 
-The caller (reactor) then calls `AcceptConnectionWithOpen(conn, open)`
-which drives the new session through the `AcceptWithOpen` path
+The caller (reactor) then calls `acceptConnectionWithOpen(conn, open)`
+which drives the new session through the `acceptWithOpen` path
 (`connectionEstablished` + `processOpen` in one synchronous sequence,
 as documented in the Active and OpenConfirm FSM runbooks).
 
-<!-- source: internal/component/bgp/reactor/peer_connection.go — SetPendingConnection, ResolvePendingCollision, ClearPendingConnection, HasPendingConnection -->
-<!-- source: internal/component/bgp/reactor/peer_connection.go — AcceptConnectionWithOpen -->
+<!-- source: internal/component/bgp/reactor/peer_connection.go — setPendingConnection, resolvePendingCollision, clearPendingConnection, hasPendingConnection -->
+<!-- source: internal/component/bgp/reactor/peer_connection.go — acceptConnectionWithOpen -->
 
 ## Delivery channel (per-peer async message delivery)
 
@@ -453,12 +453,12 @@ always either reconnects or is stopped via context cancellation.
 | Per-attempt session lifecycle | `internal/component/bgp/reactor/peer_run.go` | `runOnce` |
 | FSM state-change callback | `internal/component/bgp/reactor/peer_run.go` | `SetCallback` closure inside `runOnce` |
 | Cleanup on peer stop | `internal/component/bgp/reactor/peer_run.go` | `cleanup` |
-| Inbound connection buffering | `internal/component/bgp/reactor/peer_connection.go` | `SetInboundConnection`, `takeInboundConnection` |
-| RFC 6.8 collision resolution | `internal/component/bgp/reactor/peer_connection.go` | `SetPendingConnection`, `ResolvePendingCollision`, `AcceptConnectionWithOpen` |
+| Inbound connection buffering | `internal/component/bgp/reactor/peer_connection.go` | `setInboundConnection`, `takeInboundConnection` |
+| RFC 6.8 collision resolution | `internal/component/bgp/reactor/peer_connection.go` | `setPendingConnection`, `resolvePendingCollision`, `acceptConnectionWithOpen` |
 
 <!-- source: internal/component/bgp/reactor/peer.go — Peer, NewPeer, PeerState, Start, Stop, Teardown, setReconnectDelay, DefaultReconnectMin, DefaultReconnectMax -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — run, safeRunOnce, runOnce, cleanup -->
-<!-- source: internal/component/bgp/reactor/peer_connection.go — SetInboundConnection, takeInboundConnection, SetPendingConnection, ResolvePendingCollision, AcceptConnectionWithOpen -->
+<!-- source: internal/component/bgp/reactor/peer_connection.go — setInboundConnection, takeInboundConnection, setPendingConnection, resolvePendingCollision, acceptConnectionWithOpen -->
 
 ## Tests exercising this layer
 

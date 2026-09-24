@@ -14,7 +14,7 @@ replaced and the ordering constraint that keeps them correct.
 |----------|-------------|
 | Forward context stored in a `sync.Map` that every structured and text dispatch path loaded from, one map hop per UPDATE | a value-carrying `workItem` passed through dispatch, holding the source peer, the message and the text payload |
 | Peer-down withdrawal inventory built inline in the forward path, allocating strings and writing maps before any byte left the box | NLRI records extracted as `netip.Prefix` before forwarding, applied to the withdrawal map after forwarding |
-| One `Retain(id)` per destination peer, so N destinations meant N entry points | one `RetainN(id, peerCount)` per update id, fed by a pending dispatch buffer |
+| One `Retain(id)` per destination peer, so N destinations meant N entry points | one `retainN(id, peerCount)` per update id, fed by a pending dispatch buffer |
 | Identical path attributes written as separate TCP writes | `fwdBucketMerge` at the batch-handler level merges NLRIs into fewer outbound bodies, inside the negotiated message size limit |
 
 The critical path now touches no `sync.Map`, allocates no string for an NLRI

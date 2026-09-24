@@ -199,7 +199,7 @@ func TestHoldDownRefusesInboundAndEndsOnStop(t *testing.T) {
 
 	client, server := net.Pipe()
 	defer client.Close() //nolint:errcheck // test cleanup
-	peer.SetInboundConnection(server)
+	peer.setInboundConnection(server)
 
 	// A refused connection is a CLOSED connection: the read below returns an
 	// error once the hold loop has dropped it.

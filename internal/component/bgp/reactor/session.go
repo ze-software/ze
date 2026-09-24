@@ -216,7 +216,7 @@ type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawB
 // s.writeMu, or s.sendHoldMu.
 //
 // One lock OUTSIDE this Session is ordered against it: Peer.mu comes BEFORE s.mu.
-// Peer.ResolvePendingCollision (peer_connection.go) holds p.mu.Lock() across
+// Peer.resolvePendingCollision (peer_connection.go) holds p.mu.Lock() across
 // detectCollision, which reads peerOpen under s.mu (see collisionPeerAS). The
 // reverse must never appear: no Session code may acquire p.mu, and no callback a
 // Peer installs on a Session may be invoked with s.mu held.
@@ -876,7 +876,7 @@ func (s *Session) detectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 			// version of this comment claimed §2.2 (validateOpenIdentifier) had
 			// already rejected one, and that equal AS numbers were therefore
 			// impossible here. The ORDER is the other way round: detectCollision
-			// is called from ResolvePendingCollision (peer_connection.go) on the
+			// is called from resolvePendingCollision (peer_connection.go) on the
 			// pending OPEN, and §2.2 runs later, only on the connection that WINS
 			// (session_connection.go). An internal peer's colliding connection
 			// does arrive here with PeerAS == LocalAS.
@@ -928,7 +928,7 @@ func (s *Session) detectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 // (RFC 6793). peerOpen is guarded by s.mu (see the lock hierarchy above).
 //
 // LOCK ORDER: this takes s.mu while the caller holds p.mu -- the sole production
-// caller is Peer.ResolvePendingCollision (peer_connection.go), which holds
+// caller is Peer.resolvePendingCollision (peer_connection.go), which holds
 // p.mu.Lock() across detectCollision. That p.mu -> s.mu edge is outside the
 // hierarchy documented above, which orders only the Session's own three locks, so
 // it is recorded here (and in that block) rather than left to be re-derived.

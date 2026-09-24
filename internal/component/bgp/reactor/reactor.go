@@ -1651,8 +1651,8 @@ func (r *Reactor) StopForRestart() {
 //
 // Every route a stopping daemon still has to the wire ends at one of those two:
 // an outbound dial (Session.Connect), an inbound conn for a CONFIGURED peer
-// (acceptOrReject -> Peer.AcceptConnection -> Session.Accept), a conn a Listener
-// had already accepted, and a collision accept (Session.AcceptWithOpen). None of
+// (acceptOrReject -> Peer.acceptConnection -> Session.Accept), a conn a Listener
+// had already accepted, and a collision accept (Session.acceptWithOpen). None of
 // them needs its own gate.
 //
 // The listener shutdown and the r.stopping reads below are not part of that

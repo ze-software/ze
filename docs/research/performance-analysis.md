@@ -170,7 +170,7 @@ for _, peer := range matchingPeers {
 For 100 peers: 200 write lock acquisitions per UPDATE on the same mutex.
 Under parallel contention (~190 ns each), this becomes 38 us of lock operations.
 
-**Fix:** Batch Retain: add `RetainN(id, count)` that increments retainCount by N
+**Fix:** Batch Retain: add `retainN(id, count)` that increments retainCount by N
 in a single lock acquisition. Similarly batch Release using an atomic counter.
 
 ```go
@@ -178,7 +178,7 @@ in a single lock acquisition. Similarly batch Release using an atomic counter.
 for _, peer := range matchingPeers { cache.Retain(id) }
 
 // After: 1 lock operation
-cache.RetainN(id, len(matchingPeers))
+cache.retainN(id, len(matchingPeers))
 ```
 
 **Estimated gain:** (N-1) * 64-190 ns per UPDATE. For 10 peers: 576-1,710 ns saved.
@@ -368,7 +368,7 @@ and allow larger TCP windows.
 | 1 | Timer.Reset() instead of Stop+AfterFunc | 3-4.6 us/write | Low | 20 lines |
 | 2 | Cache env.GetDuration at startup | 0.6-4.7 us/batch | Low | 10 lines |
 | 3 | Cache peerAddr.String() on Peer | ~400 ns/UPDATE | Low | 5 lines |
-| 4 | Batch cache Retain (RetainN) | (N-1)*64ns/UPDATE | Low | 30 lines |
+| 4 | Batch cache Retain (retainN) | (N-1)*64ns/UPDATE | Low | 30 lines |
 | 5 | Increase fwd channel default to 256 | Reduced overflow | Low | 1 line |
 
 ### Phase 2: Medium Effort (estimated +10-15% additional)

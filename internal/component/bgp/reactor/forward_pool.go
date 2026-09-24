@@ -759,9 +759,9 @@ func (fp *fwdPool) dispatchOverflow(key fwdKey, item fwdItem) bool {
 
 		var h BufHandle
 		if bufSize >= message.ExtMsgLen {
-			h = fp.overflowMux.Get64K()
+			h = fp.overflowMux.get64K()
 		} else {
-			h = fp.overflowMux.Get4K()
+			h = fp.overflowMux.get4K()
 		}
 		if h.Buf != nil {
 			item.overflowBuf = h

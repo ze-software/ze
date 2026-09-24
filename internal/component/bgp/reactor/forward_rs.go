@@ -139,7 +139,7 @@ func sourceUsesCachedForward(peer *Peer, update *wireu.WireUpdate) bool {
 // either -- a silent drop. See the caller in reactor_notify.go.
 //
 // Buffer lifetime: callers must ensure the cache entry for updateID exists.
-// This function calls RetainN before dispatch; each fwdItem.done() calls Release.
+// This function calls retainN before dispatch; each fwdItem.done() calls Release.
 func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourcePeerAddr netip.Addr, sourcePeer *Peer) ([]netip.AddrPort, int) {
 	// notifyMessageReceiver already classified live entries at receipt.
 	var cached bool
@@ -701,7 +701,7 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 	// when the source bufReader has no more data (natural batch boundary).
 	// Falls back to TryDispatch/dispatchOverflow when TryLock fails.
 	if len(pending) > 0 {
-		r.recentUpdates.RetainN(updateID, len(pending))
+		r.recentUpdates.retainN(updateID, len(pending))
 		for i := range pending {
 			pending[i].item.done = func() { r.recentUpdates.Release(updateID) }
 			// Ordering gate, ahead of the direct write for the same reason the

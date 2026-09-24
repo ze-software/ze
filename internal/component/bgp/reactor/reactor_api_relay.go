@@ -596,13 +596,13 @@ func (a *reactorAPIAdapter) buildRelayUpdate(routes []rpc.StoredRoute, src relay
 	ru.wireUpdateInline.SetSourceID(src.srcID)
 	ru.WireUpdate = &ru.wireUpdateInline
 
-	// Add -> RetainN -> Activate mirrors the received-UPDATE lifecycle with no
+	// Add -> retainN -> Activate mirrors the received-UPDATE lifecycle with no
 	// plugin consumers: Activate(id, 0) clears the pending flag while the
 	// build-time retain keeps the entry alive, so a cache-consumer's cumulative
 	// ack can pass over this entry without evicting a buffer still in flight
 	// (ackEntryLocked only evicts at zero TOTAL consumers).
 	a.r.recentUpdates.Add(ru)
-	a.r.recentUpdates.RetainN(updateID, 1)
+	a.r.recentUpdates.retainN(updateID, 1)
 	a.r.recentUpdates.Activate(updateID, 0)
 
 	return ru, updateID, consumed, nil
@@ -662,7 +662,7 @@ func (a *reactorAPIAdapter) buildRelayWithdrawal(route *rpc.StoredRoute, src rel
 	update.wireUpdateInline.SetSourceID(src.srcID)
 	update.WireUpdate = &update.wireUpdateInline
 	a.r.recentUpdates.Add(update)
-	a.r.recentUpdates.RetainN(updateID, 1)
+	a.r.recentUpdates.retainN(updateID, 1)
 	a.r.recentUpdates.Activate(updateID, 0)
 	return update, updateID, 1, nil
 }

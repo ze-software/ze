@@ -175,11 +175,11 @@ event it would otherwise be folded into.
 | Event | Ze producer | Why it is not the mandatory event beside it |
 |-------|-------------|---------------------------------------------|
 | Event 6, `AutomaticStart_with_DampPeerOscillations` | `Session.startDamped`, from every reconnect cycle after the first | Event 1 (ManualStart) sets the ConnectRetryCounter to zero. Ze fires a start event per cycle because each cycle builds a new FSM, so Event 1 there would zero the counter on every retry |
-| Event 8, `AutomaticStop` | `Session.TeardownAutomatic`, from a BFD session going down and from a forward-pool out-of-resources drop | Event 2 (ManualStop) zeroes the counter; Event 8 increments it. The operator did not ask for this stop |
+| Event 8, `AutomaticStop` | `Session.teardownAutomatic`, from a BFD session going down and from a forward-pool out-of-resources drop | Event 2 (ManualStop) zeroes the counter; Event 8 increments it. The operator did not ask for this stop |
 | Event 23, `OpenCollisionDump` | `Session.CloseWithNotification`, whose only caller is RFC 4271 Section 6.8 collision resolution | Same difference as Event 8: a connection lost to a collision is an attempt that failed |
 
 <!-- source: internal/component/bgp/fsm/state.go -- EventAutomaticStartWithDampPeerOscillations, EventAutomaticStop, EventOpenCollisionDump -->
-<!-- source: internal/component/bgp/reactor/session_connection.go -- TeardownAutomatic, CloseWithNotification -->
+<!-- source: internal/component/bgp/reactor/session_connection.go -- teardownAutomatic, CloseWithNotification -->
 
 ### The six BFD strict-mode events
 

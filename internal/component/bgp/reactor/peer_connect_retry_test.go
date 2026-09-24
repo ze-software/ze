@@ -283,7 +283,7 @@ func crcSession(t *testing.T, start uint32) (*Session, *fsm.ConnectRetryCounter)
 // session-teardown entry points raises the RFC 4271 event its origin calls for.
 //
 // VALIDATES: Session.Teardown zeroes the ConnectRetryCounter (Event 2,
-// ManualStop), Session.TeardownAutomatic increments it (Event 8,
+// ManualStop), Session.teardownAutomatic increments it (Event 8,
 // AutomaticStop), and Session.CloseWithNotification increments it (Event 23,
 // OpenCollisionDump).
 //
@@ -305,7 +305,7 @@ func TestTeardownKindDecidesConnectRetryCounter(t *testing.T) {
 		},
 		{
 			name: "automatic teardown increments (RFC 4271 Event 8)",
-			tear: func(s *Session) error { return s.TeardownAutomatic(message.NotifyCeaseBFDDown, "") },
+			tear: func(s *Session) error { return s.teardownAutomatic(message.NotifyCeaseBFDDown, "") },
 			want: 4,
 		},
 		{

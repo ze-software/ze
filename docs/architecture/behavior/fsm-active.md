@@ -35,7 +35,7 @@ be called from the reactor's inbound connection plumbing. Accept runs
 |-------|-------------|--------------|------------------|------------|
 | `EventManualStart` / `EventAutomaticStartWithDampPeerOscillations` | duplicate `Session.Start()` / `startDamped()` call | ignored (RFC 4271) | none | `Active` |
 | `EventManualStop` | `Session.Stop` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION from `Session.Teardown` when a conn exists; `Session.Stop` sends nothing | `Idle` |
-| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.TeardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
+| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
 | `EventTCPConnectionConfirmed` | `Session.connectionEstablished` after `Accept` | log transition | OPEN sent immediately after transition | `OpenSent` |
 | `EventTCPConnectionFails` | inbound connection setup error | cleanup in caller; **increments ConnectRetryCounter** | none | `Idle` |
 | `EventConnectRetryTimerExpires` | not generated in production | passive check: if not passive, go to Connect | none | `Connect` or `Active` |
@@ -43,7 +43,7 @@ be called from the reactor's inbound connection plumbing. Accept runs
 | any other event | unexpected | log transition | none | `Idle` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleActive -->
-<!-- source: internal/component/bgp/reactor/session_connection.go — Accept, AcceptWithOpen -->
+<!-- source: internal/component/bgp/reactor/session_connection.go — Accept, acceptWithOpen -->
 
 ## Timers running in this state
 
@@ -68,10 +68,10 @@ be called from the reactor's inbound connection plumbing. Accept runs
   <!-- source: internal/component/bgp/reactor/session_connection.go — Teardown -->
   <!-- source: internal/component/bgp/reactor/session.go — Stop -->
 
-## `AcceptWithOpen` variant
+## `acceptWithOpen` variant
 
 When inbound collision resolution has already read the peer's OPEN from
-a competing socket, the reactor calls `AcceptWithOpen(conn, peerOpen)`.
+a competing socket, the reactor calls `acceptWithOpen(conn, peerOpen)`.
 This path:
 
 1. Calls `connectionEstablished` which fires
@@ -92,7 +92,7 @@ collision winner gets the same wait as any other connection, because the
 draft draws no distinction between them. The OpenSent runbook has the
 whole fork.
 
-<!-- source: internal/component/bgp/reactor/session_connection.go — AcceptWithOpen -->
+<!-- source: internal/component/bgp/reactor/session_connection.go — acceptWithOpen -->
 <!-- source: internal/component/bgp/reactor/session_connection.go — processOpen -->
 
 ## Code map
@@ -100,12 +100,12 @@ whole fork.
 | Concern | File | Symbol |
 |---------|------|--------|
 | State transitions | `internal/component/bgp/fsm/fsm.go` | `handleActive` |
-| Accept and socket setup | `internal/component/bgp/reactor/session_connection.go` | `Accept`, `AcceptWithOpen`, `connectionEstablished` |
+| Accept and socket setup | `internal/component/bgp/reactor/session_connection.go` | `Accept`, `acceptWithOpen`, `connectionEstablished` |
 | Pre-buffered OPEN path for collision resolution | `internal/component/bgp/reactor/session_connection.go` | `processOpen` |
 | Peer-level inbound connection dispatch | `internal/component/bgp/reactor/peer_run.go` | `takeInboundConnection`, run loop |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleActive -->
-<!-- source: internal/component/bgp/reactor/session_connection.go — Accept, AcceptWithOpen, connectionEstablished, processOpen -->
+<!-- source: internal/component/bgp/reactor/session_connection.go — Accept, acceptWithOpen, connectionEstablished, processOpen -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — inbound connection takeover around session.Accept -->
 
 ## RFC deviations

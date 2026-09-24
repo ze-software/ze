@@ -123,9 +123,9 @@ drainLoop2:
 	return nil
 }
 
-// AcceptWithOpen accepts a connection and processes a pre-received OPEN.
+// acceptWithOpen accepts a connection and processes a pre-received OPEN.
 // RFC 4271 §6.8: Used for collision resolution when we've already read the peer's OPEN.
-func (s *Session) AcceptWithOpen(conn net.Conn, peerOpen *message.Open) error {
+func (s *Session) acceptWithOpen(conn net.Conn, peerOpen *message.Open) error {
 	s.mu.Lock()
 	if s.conn != nil {
 		s.mu.Unlock()
@@ -143,7 +143,7 @@ func (s *Session) AcceptWithOpen(conn net.Conn, peerOpen *message.Open) error {
 }
 
 // processOpen handles a pre-parsed OPEN message.
-// Used by AcceptWithOpen for collision resolution.
+// Used by acceptWithOpen for collision resolution.
 func (s *Session) processOpen(open *message.Open) error {
 	if s.onOpenRecv != nil {
 		s.onOpenRecv()
@@ -376,17 +376,17 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 	// this gate read a flag the accept rail had just erased.
 	//
 	// What that closes is every route a stopping daemon has to a live session:
-	// an inbound conn for a CONFIGURED peer (acceptOrReject -> AcceptConnection
+	// an inbound conn for a CONFIGURED peer (acceptOrReject -> acceptConnection
 	// -> Accept), a conn a Listener had already accepted when Reactor.stop took
 	// r.mu, and a dial that was in flight when the seal landed. Each would send
 	// an OPEN the cancel then closes in silence (RFC 4271 Section 8.2.2,
-	// ManualStop). Connect, Accept and AcceptWithOpen reach the wire only
+	// ManualStop). Connect, Accept and acceptWithOpen reach the wire only
 	// through here, so one gate covers all three.
 	//
 	// The refusal does NOT close conn, because this function does not own it on
 	// two of those three rails. Accept's caller is acceptOrReject, which buffers
 	// the connection on ErrSessionTearingDown for a passive peer and offers it to
-	// the next cycle (reactor_connection.go); AcceptWithOpen's caller is
+	// the next cycle (reactor_connection.go); acceptWithOpen's caller is
 	// acceptPendingConnection, which closes it itself. Closing here left both
 	// holding a dead socket -- the buffered one costs the peer a whole backoff
 	// when the next cycle accepts it. Connect is the one rail that owns what it
@@ -465,7 +465,7 @@ func (s *Session) Teardown(subcode uint8, shutdownMsg string) error {
 	return s.teardown(subcode, shutdownMsg, fsm.EventManualStop)
 }
 
-// TeardownAutomatic is Teardown for a stop the LOCAL SYSTEM chose rather than
+// teardownAutomatic is Teardown for a stop the LOCAL SYSTEM chose rather than
 // the operator: a BFD session going down (peer_bfd.go), a forward-pool
 // out-of-resources drop (forward_pool_congestion.go).
 //
@@ -476,7 +476,7 @@ func (s *Session) Teardown(subcode uint8, shutdownMsg string) error {
 // a prefix maximum as its example. Everything else about the teardown -- the
 // Cease NOTIFICATION, the RFC 8203 shutdown communication, the close reason,
 // the errChan signal -- is identical.
-func (s *Session) TeardownAutomatic(subcode uint8, shutdownMsg string) error {
+func (s *Session) teardownAutomatic(subcode uint8, shutdownMsg string) error {
 	return s.teardown(subcode, shutdownMsg, fsm.EventAutomaticStop)
 }
 

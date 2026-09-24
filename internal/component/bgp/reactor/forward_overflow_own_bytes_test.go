@@ -119,7 +119,7 @@ func TestOverflowItemSurvivesSafetyValveEviction(t *testing.T) {
 	upd, ok := cache.Get(100)
 	require.True(t, ok)
 	upd.poolBuf = h
-	require.True(t, cache.RetainN(100, 1))
+	require.True(t, cache.retainN(100, 1))
 	cache.Activate(100, 0)
 
 	cache.RegisterConsumer("healthy")

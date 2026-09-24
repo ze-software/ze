@@ -176,8 +176,11 @@ bgp {
 }
 EOF_UPDATED
 
-# Trigger: wait for peer + daemon readiness, rewrite config, SIGHUP, then
-# TERM so the daemon exits cleanly.
+# Trigger: wait for peer + daemon readiness, rewrite config, SIGHUP. The
+# runner ends the daemon once the reload reports "sighup reload complete"
+# (await, below). A fixed wait before TERM raced the reload: under load the
+# reload was still verifying when TERM stopped the plugins, and shutdown
+# canceled it ("config apply partial failure: context canceled").
 
 # The commit line below is written at Info by the bgp plugin, and a test daemon
 # logs at WARN unless the subsystem is named.
@@ -186,7 +189,9 @@ option=env:var=ze.log.bgp.plugin:value=info
 cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
 cmd=background:seq=2:exec=ze-test fixture reload/tx-protocol-external-plugin-trigger
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=30s
+await=stderr:contains=sighup reload complete
 expect=exit:code=0
+expect=stderr:contains=sighup reload complete
 expect=stderr:contains=OK: external plugin applied through config-apply root=bgp
 expect=stderr:contains=bgp config operation journal committed
 reject=stderr:contains=unknown method

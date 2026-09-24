@@ -1115,7 +1115,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 	}
 
 	if len(pending) > 0 {
-		a.r.recentUpdates.RetainN(updateID, len(pending))
+		a.r.recentUpdates.retainN(updateID, len(pending))
 		for i := range pending {
 			pending[i].item.done = func() { a.r.recentUpdates.Release(updateID) }
 			// Ordering gate: a destination inside its initial sync still has

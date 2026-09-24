@@ -35,7 +35,7 @@ func (a *reactorAPIAdapter) forwardUpdateSelected(update *ReceivedUpdate, update
 	}
 	// The first section's worker can finish before the remaining sections have
 	// borrowed their buffers. This retain MUST survive the whole split fan-out.
-	a.r.recentUpdates.RetainN(updateID, 1)
+	a.r.recentUpdates.retainN(updateID, 1)
 	defer a.r.recentUpdates.Release(updateID)
 	sections, err := wireu.SplitWireUpdate(sourceWire, len(sourceWire.Payload()), bgpctx.Registry.Get(sourceWire.SourceCtxID()))
 	if err != nil {

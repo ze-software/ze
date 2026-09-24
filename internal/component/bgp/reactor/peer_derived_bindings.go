@@ -257,7 +257,7 @@ func (p *Peer) requestRouteRefreshAll(gained []string) {
 	for _, fam := range neg.Families() {
 		rr := &message.RouteRefresh{
 			AFI:     fam.AFI,
-			SAFI:    message.SAFI(fam.SAFI),
+			SAFI:    fam.SAFI,
 			Subtype: message.RouteRefreshNormal,
 		}
 		if err := p.SendRawMessage(0, message.PackTo(rr, nil)); err != nil {

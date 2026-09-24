@@ -56,6 +56,14 @@ func (a *reactorAPIAdapter) applyConfigOperation(op *rpc.ConfigOperation, j conf
 	if j == nil {
 		return nil, errors.New("bgp operation apply requires a journal")
 	}
+	// A config operation is a config APPLY, so it discards the operator's live
+	// `subscribe` overrides, as the section apply does at the end of
+	// reconcilePeersJournaled (R-10). It runs BEFORE the peer changes: a session
+	// this operation restarts reaches Established inside the apply, and its
+	// first events MUST already be delivered under the document's grant.
+	if a.r.api != nil {
+		a.r.api.DiscardRuntimeSubscriptions()
+	}
 	switch op.Type {
 	case configop.AddPeer:
 		settings, err := a.candidatePeerSettingsFromOperationConfig(op)

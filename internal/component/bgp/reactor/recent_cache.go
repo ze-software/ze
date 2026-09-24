@@ -679,13 +679,13 @@ func (c *RecentUpdateCache) Delete(id uint64) bool {
 // Used by the `bgp cache N retain` API command.
 // Returns true if entry found, false if not found.
 func (c *RecentUpdateCache) Retain(id uint64) bool {
-	return c.RetainN(id, 1)
+	return c.retainN(id, 1)
 }
 
-// RetainN increments the retain count by n in a single lock acquisition.
+// retainN increments the retain count by n in a single lock acquisition.
 // Returns true if entry found, false if not found.
 // n must be positive; values <= 0 are no-ops.
-func (c *RecentUpdateCache) RetainN(id uint64, n int) bool {
+func (c *RecentUpdateCache) retainN(id uint64, n int) bool {
 	if n <= 0 {
 		return c.Contains(id)
 	}

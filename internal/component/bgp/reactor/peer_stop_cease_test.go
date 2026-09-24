@@ -155,3 +155,48 @@ func TestConfigOperationCeaseNamesWhyTheSessionEnds(t *testing.T) {
 		})
 	}
 }
+
+// TestStopWithCeaseMarksThePeerBeforeTheTeardown proves a removed peer cannot
+// redial between its Cease and the cancel that follows.
+//
+// Method: the Cease write blocks, because nothing reads the far end of the
+// pipe. While it is blocked, the peer MUST already read as stopping. The
+// teardown ends the session with ErrTeardown, and run() answers that error by
+// dialing again with no wait (peer_run.go). p.stopping is the only thing that
+// ends the loop before Stop cancels p.ctx.
+//
+// PREVENTS: a config reload restart where the OLD peer redials, reaches
+// Established, and is then closed by the cancel with an Administrative
+// Shutdown, so the remote reads a session end the re-added peer never sent
+// (test/plugin/attach-process-runtime-subscribe.ci).
+func TestStopWithCeaseMarksThePeerBeforeTheTeardown(t *testing.T) {
+	session, client := shutdownTestSession(t, fsm.StateEstablished)
+	peer := NewPeer(session.settings)
+	peer.mu.Lock()
+	peer.session = session
+	peer.mu.Unlock()
+
+	done := make(chan struct{})
+	go func() {
+		peer.stopWithCease(message.NotifyCeaseOtherConfigChange)
+		close(done)
+	}()
+
+	// net.Pipe has no buffer, so the NOTIFICATION write is still blocked here.
+	require.Eventually(t, peer.stopping.Load, 3*time.Second, time.Millisecond,
+		"the peer was not marked stopping while its Cease was on the wire, so "+
+			"run() redials once the teardown returns ErrTeardown")
+	select {
+	case <-done:
+		t.Fatal("stopWithCease returned before the peer read its NOTIFICATION, so this test proves nothing")
+	default:
+	}
+
+	select {
+	case _, ok := <-readOne(client):
+		require.True(t, ok, "socket closed with no NOTIFICATION on it")
+	case <-time.After(5 * time.Second):
+		t.Fatal("the peer was never told why")
+	}
+	<-done
+}

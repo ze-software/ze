@@ -852,7 +852,7 @@ Both paths share the same egress filter chain, AS-PATH prepend, next-hop policy,
 and replay-on-new-peer invariants.
 
 **Batched cache retains (rs-gap-0):** `ForwardUpdate` accumulates per-peer
-dispatch items during the egress loop and calls `RetainN(id, peerCount)` once
+dispatch items during the egress loop and calls `retainN(id, peerCount)` once
 per id instead of per-peer `Retain` calls, reducing cache-lock acquisitions.
 
 **Outbound attribute buckets (rs-gap-0):** The forward-pool batch handler

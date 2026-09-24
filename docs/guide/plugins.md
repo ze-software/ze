@@ -347,7 +347,7 @@ registry name of a plugin loaded with `--plugin`.
 
 <!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, Inspect, PeerScopedProcs -->
 <!-- source: internal/component/cmd/show/show.go -- handleShowEventDelivery -->
-<!-- source: internal/component/bgp/reactor/delivery_graph.go -- DeliveryPeersFromSettings -->
+<!-- source: internal/component/bgp/reactor/delivery_graph.go -- deliveryPeersFromSettings -->
 
 
 ## Invocation Modes

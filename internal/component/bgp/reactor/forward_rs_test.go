@@ -527,7 +527,7 @@ func TestReactorForwardRSTransparent(t *testing.T) {
 // therefore characterized {single-polarity: positive} in rfc/short/rfc7947.md.
 
 // TestReactorForwardRSBufferLifetime verifies Retain/Release lifecycle:
-// RetainN before dispatch, Release in done() callback after worker completes.
+// retainN before dispatch, Release in done() callback after worker completes.
 func TestReactorForwardRSBufferLifetime(t *testing.T) {
 	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID, _ := bgpctx.Registry.Register(ctx)

@@ -160,7 +160,7 @@ func TestHandleOpenRejectsBadBGPIdentifier(t *testing.T) {
 // TestProcessOpenRejectsBadBGPIdentifier verifies the SECOND OPEN rail -- the one a
 // connection takes after winning collision resolution -- enforces Section 2.2 too.
 //
-// RFC requirement: RFC6286-2.2-1 positive -- processOpen (AcceptWithOpen, the
+// RFC requirement: RFC6286-2.2-1 positive -- processOpen (acceptWithOpen, the
 // collision-winner replay) rejects a zero BGP Identifier with OPEN Message Error / Bad BGP
 // Identifier, so the rail cannot be used to bypass the check.
 //

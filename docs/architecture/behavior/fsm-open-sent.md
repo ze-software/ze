@@ -34,20 +34,20 @@ On entry, three things happen in fixed order inside
 <!-- source: internal/component/bgp/reactor/session_connection.go — connectionEstablished FSM event + sendOpen + StartHoldTimer -->
 <!-- source: internal/component/bgp/fsm/timer.go — StartHoldTimer -->
 
-A variant path exists: `AcceptWithOpen` goes through
+A variant path exists: `acceptWithOpen` goes through
 `connectionEstablished` (Active -> OpenSent) and then immediately calls
 `processOpen`, which fires `EventBGPOpen` (OpenSent -> OpenConfirm) in
 the same synchronous call. In that case OpenSent is observed for only
 as long as it takes the process to cross the two function boundaries.
 
-<!-- source: internal/component/bgp/reactor/session_connection.go — AcceptWithOpen, processOpen -->
+<!-- source: internal/component/bgp/reactor/session_connection.go — acceptWithOpen, processOpen -->
 
 ## Events handled in OpenSent
 
 | Event | Produced by | FSM reaction | Wire side effect | Next state |
 |-------|-------------|--------------|------------------|------------|
 | `EventManualStop` | `Session.Stop` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION from `Session.Teardown` when a conn exists; `Session.Stop` sends nothing | `Idle` |
-| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.TeardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
+| `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / `Session.CloseWithNotification` | cleanup in caller; **increments ConnectRetryCounter** | Cease NOTIFICATION in caller | `Idle` |
 | `EventBGPOpen` | `handleOpen` after version + hold-time validation + capability negotiation, through `advanceAfterOpen` | log transition | KEEPALIVE sent immediately after transition, hold timer reset to negotiated value. Not fired at all while BFD strict mode holds the session (see below) | `OpenConfirm` |
 | `EventHoldTimerExpires` | hold-timer callback in `Session.newSession` | log transition; **increments ConnectRetryCounter** | NOTIFICATION (HoldTimerExpired) in caller | `Idle` |
 | `EventBGPHeaderErr` | `session_read.readAndProcessMessage` on header parse / length error | log transition; **increments ConnectRetryCounter** | NOTIFICATION in caller | `Idle` |
@@ -173,13 +173,13 @@ Section 8.2.2, Event 10.
 | Entry wiring + OPEN send + hold start | `internal/component/bgp/reactor/session_connection.go` | `connectionEstablished`, `sendOpen` |
 | OPEN validation + capability negotiation + exit to OpenConfirm | `internal/component/bgp/reactor/session_handlers.go` | `handleOpen` |
 | The BFD strict-mode fork on that exit | `internal/component/bgp/reactor/session_bfd_strict.go` | `advanceAfterOpen` |
-| Alternate path with pre-buffered OPEN | `internal/component/bgp/reactor/session_connection.go` | `AcceptWithOpen`, `processOpen` |
+| Alternate path with pre-buffered OPEN | `internal/component/bgp/reactor/session_connection.go` | `acceptWithOpen`, `processOpen` |
 | TCP read loop producing message events | `internal/component/bgp/reactor/session_read.go` | `readAndProcessMessage`, `processMessage` |
 | Hold timer callback -> `EventHoldTimerExpires` | `internal/component/bgp/reactor/session.go` | `newSession` (wires `OnHoldTimerExpires`) |
 | Timer implementation | `internal/component/bgp/fsm/timer.go` | `StartHoldTimer`, `ResetHoldTimer` |
 
 <!-- source: internal/component/bgp/fsm/fsm.go — handleOpenSent -->
-<!-- source: internal/component/bgp/reactor/session_connection.go — connectionEstablished, sendOpen, AcceptWithOpen, processOpen -->
+<!-- source: internal/component/bgp/reactor/session_connection.go — connectionEstablished, sendOpen, acceptWithOpen, processOpen -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleOpen -->
 <!-- source: internal/component/bgp/reactor/session_read.go — readAndProcessMessage, processMessage -->
 <!-- source: internal/component/bgp/reactor/session.go — newSession OnHoldTimerExpires wiring -->

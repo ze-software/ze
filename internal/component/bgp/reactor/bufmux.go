@@ -610,10 +610,10 @@ func (m *MixedBufMux) byteBudget() int64 {
 	return int64(n) * overflowBlockSize
 }
 
-// Get4K returns a 4096-byte buffer from a subdivided 64K block.
+// get4K returns a 4096-byte buffer from a subdivided 64K block.
 // Fast path: reuses the current subdivided block. Slow path: finds another
 // or acquires a new block. Returns zero BufHandle when at capacity.
-func (m *MixedBufMux) Get4K() BufHandle {
+func (m *MixedBufMux) get4K() BufHandle {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -651,9 +651,9 @@ func (m *MixedBufMux) Get4K() BufHandle {
 	return BufHandle{ID: b.id, idx: idx, Buf: buf}
 }
 
-// Get64K returns a 65535-byte buffer (one whole 64K block).
+// get64K returns a 65535-byte buffer (one whole 64K block).
 // Takes a free block or grows the pool. Returns zero BufHandle when at capacity.
-func (m *MixedBufMux) Get64K() BufHandle {
+func (m *MixedBufMux) get64K() BufHandle {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 

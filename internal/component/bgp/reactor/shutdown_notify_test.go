@@ -1007,7 +1007,7 @@ func TestSessionConnectSendsNoOpenOnceTeardownHasRun(t *testing.T) {
 // listener, and TestTryCreateDynamicPeerRefusesAfterTheStopHasSealed drives the
 // dynamic-peer seam. Both end at tryCreateDynamicPeer, and neither runs when
 // findPeerByAddr succeeds: acceptOrReject then goes straight to
-// Peer.AcceptConnection (reactor_connection.go) and reads no seal of any kind.
+// Peer.acceptConnection (reactor_connection.go) and reads no seal of any kind.
 // The connection this models is the one a Listener had ALREADY accepted when
 // Reactor.stop took r.mu, so closing the listeners does not reach it either.
 //
@@ -1073,7 +1073,7 @@ func TestSealedStopAcceptsNoInboundSessionOnAConfiguredPeer(t *testing.T) {
 			require.NotEqual(t, fsm.StateOpenConfirm, peer.SessionState(),
 				"an OpenConfirm session takes the pending-collision path instead")
 			require.NotNil(t, peer.currentSession(),
-				"no session is published, so AcceptConnection refuses on ErrNotConnected "+
+				"no session is published, so acceptConnection refuses on ErrNotConnected "+
 					"and the publish site is never reached")
 			require.Nil(t, session.Conn(),
 				"the session already holds a conn, so Accept refuses on ErrAlreadyConnected "+
@@ -1169,7 +1169,7 @@ func sealedSessionOnPort(t *testing.T, port int) *Session {
 // close in place that cycle accepted a dead socket and paid a backoff.
 // acceptPendingConnection closed it a second time.
 //
-// AcceptWithOpen is the row that drives the changed branch, and it does so
+// acceptWithOpen is the row that drives the changed branch, and it does so
 // deterministically: it has no entry check of its own, so a sealed session
 // reaches connectionEstablished on every call and ErrSessionTearingDown can come
 // from nowhere else. Accept refuses one step earlier, at its own check, which
@@ -1184,7 +1184,7 @@ func TestSealedSessionRefusesAnAcceptWithoutClosingTheCallersConn(t *testing.T) 
 			return s.Accept(conn)
 		}},
 		{"accept with open", func(s *Session, conn net.Conn) error {
-			return s.AcceptWithOpen(conn, &message.Open{})
+			return s.acceptWithOpen(conn, &message.Open{})
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

@@ -42,8 +42,10 @@ action=sighup:conn=3:seq=2
 # RFC 4486 Section 4: the restart is a configuration change, so each restarted
 # session first reads NOTIFICATION Cease (6), subcode 6 "Other Configuration
 # Change": 21 bytes, no data.
-expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030606
-expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030606
+# Only conn 3 can assert it. ze-peer reads a conn_map batch one connection at a
+# time (processConnBatch), and the SIGHUP fires on conn 3, so a seq=2
+# expectation on conn 1 or 2 waits for a reload that has not happened yet.
+# After conn 3, waitBatchClosed drains conns 1 and 2 without matching them.
 expect=bgp:conn=3:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0015030606
 
 # Connection 4: peer3 now rid=1.2.3.4 (lowest), resends 172.16.0.0/16

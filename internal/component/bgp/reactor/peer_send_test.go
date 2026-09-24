@@ -77,10 +77,10 @@ func TestPeerSendWithdraw_IPv6NoSession(t *testing.T) {
 	require.ErrorIs(t, err, ErrNotConnected)
 }
 
-// TestPeerAcceptConnection_NoSession verifies AcceptConnection returns ErrNotConnected.
+// TestPeerAcceptConnection_NoSession verifies acceptConnection returns ErrNotConnected.
 func TestPeerAcceptConnection_NoSession(t *testing.T) {
 	peer := newTestPeer()
-	err := peer.AcceptConnection(nil)
+	err := peer.acceptConnection(nil)
 	require.ErrorIs(t, err, ErrNotConnected)
 }
 

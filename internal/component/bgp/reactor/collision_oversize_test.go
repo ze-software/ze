@@ -76,7 +76,7 @@ func TestHandlePendingCollisionOversizedLength(t *testing.T) {
 	// Before the guard was added this panicked inside handlePendingCollision.
 	r.handlePendingCollision(peer, server)
 
-	assert.False(t, peer.HasPendingConnection(),
+	assert.False(t, peer.hasPendingConnection(),
 		"an over-long OPEN header must clear the pending connection, not panic")
 
 	wg.Wait()

@@ -24,12 +24,12 @@ import (
 //
 //	handleConnection()
 //	├── ESTABLISHED → rejectConnectionCollision() [NOTIFICATION 6/7]
-//	├── OpenConfirm → SetPendingConnection() + go handlePendingCollision()
-//	│                  └── Read OPEN → ResolvePendingCollision()
+//	├── OpenConfirm → setPendingConnection() + go handlePendingCollision()
+//	│                  └── Read OPEN → resolvePendingCollision()
 //	│                       ├── Local wins → rejectConnectionCollision()
 //	│                       └── Remote wins → CloseWithNotification() existing
 //	│                                        + acceptPendingConnection()
-//	└── Other states → normal AcceptConnection()
+//	└── Other states → normal acceptConnection()
 func (r *Reactor) handleConnection(conn net.Conn) {
 	remoteAddr, ok := conn.RemoteAddr().(*net.TCPAddr)
 	if !ok {
@@ -237,7 +237,7 @@ func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb connectionCallbac
 	// Section 6.8 chooses the loser only after that OPEN arrives.
 	state := peer.SessionState()
 	if state == fsm.StateOpenSent || state == fsm.StateOpenConfirm || state == fsm.StateEstablished {
-		if err := peer.SetPendingConnection(conn); err != nil {
+		if err := peer.setPendingConnection(conn); err != nil {
 			r.rejectConnectionCollisionWithSettings(conn, settings)
 			return
 		}
@@ -246,7 +246,7 @@ func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb connectionCallbac
 	}
 
 	// Accept connection on peer's session.
-	if err := peer.AcceptConnection(conn); err != nil {
+	if err := peer.acceptConnection(conn); err != nil {
 		// If the session can't accept right now and the peer is passive, buffer the
 		// connection for the next runOnce() cycle instead of closing it. This handles
 		// the race where the remote reconnects faster than our session teardown:
@@ -254,7 +254,7 @@ func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb connectionCallbac
 		// - ErrSessionTearingDown: session is shutting down
 		// - ErrAlreadyConnected: session still has stale conn ref from previous connection
 		if (errors.Is(err, ErrNotConnected) || errors.Is(err, ErrSessionTearingDown) || errors.Is(err, ErrAlreadyConnected)) && peer.Settings().Connection.IsPassive() {
-			peer.SetInboundConnection(conn)
+			peer.setInboundConnection(conn)
 			return
 		}
 		closeConnQuietly(conn)
@@ -295,7 +295,7 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	buf := make([]byte, message.MaxMsgLen)
 	if tcp, ok := conn.(*net.TCPConn); ok {
 		if err := tuneTCPConnectionForSettings(tcp, peer.Settings()); err != nil {
-			peer.ClearPendingConnection()
+			peer.clearPendingConnection()
 			_ = conn.Close()
 			return
 		}
@@ -311,21 +311,21 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	// Read BGP header
 	_, err := io.ReadFull(conn, buf[:message.HeaderLen])
 	if err != nil {
-		peer.ClearPendingConnection()
+		peer.clearPendingConnection()
 		_ = conn.Close()
 		return
 	}
 
 	hdr, err := message.ParseHeader(buf[:message.HeaderLen])
 	if err != nil {
-		peer.ClearPendingConnection()
+		peer.clearPendingConnection()
 		r.rejectConnectionCollision(conn)
 		return
 	}
 
 	// Must be OPEN message
 	if hdr.Type != msgtype.TypeOPEN {
-		peer.ClearPendingConnection()
+		peer.clearPendingConnection()
 		r.rejectConnectionCollision(conn)
 		return
 	}
@@ -340,7 +340,7 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	// before any capability negotiation. The two sibling read paths already guard
 	// exactly this way (session_read.go, session_coalesce.go); this one did not.
 	if err := hdr.ValidateLengthWithMax(false); err != nil {
-		peer.ClearPendingConnection()
+		peer.clearPendingConnection()
 		r.rejectConnectionCollision(conn)
 		return
 	}
@@ -348,7 +348,7 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	// Read OPEN body
 	_, err = io.ReadFull(conn, buf[message.HeaderLen:hdr.Length])
 	if err != nil {
-		peer.ClearPendingConnection()
+		peer.clearPendingConnection()
 		_ = conn.Close()
 		return
 	}
@@ -356,13 +356,13 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	// Parse OPEN
 	open, err := message.UnpackOpen(buf[message.HeaderLen:hdr.Length])
 	if err != nil {
-		peer.ClearPendingConnection()
+		peer.clearPendingConnection()
 		r.rejectConnectionCollision(conn)
 		return
 	}
 
 	// Resolve collision using BGP ID from OPEN
-	acceptPending, pendingConn, pendingOpen, waitSession := peer.ResolvePendingCollision(open)
+	acceptPending, pendingConn, pendingOpen, waitSession := peer.resolvePendingCollision(open)
 
 	if !acceptPending {
 		// Local wins: close pending with NOTIFICATION
@@ -380,7 +380,7 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 // The existing session has been closed, so we accept the pending connection with its pre-received OPEN.
 func (r *Reactor) acceptPendingConnection(peer *Peer, conn net.Conn, open *message.Open, waitSession <-chan struct{}) {
 	// Wait for existing session to fully close
-	// The CloseWithNotification was called in ResolvePendingCollision
+	// The CloseWithNotification was called in resolvePendingCollision
 	if waitSession != nil {
 		timer := r.clock.NewTimer(collisionResolutionTimeout)
 		defer timer.Stop()
@@ -393,7 +393,7 @@ func (r *Reactor) acceptPendingConnection(peer *Peer, conn net.Conn, open *messa
 	}
 
 	// Accept connection with the pre-received OPEN
-	if err := peer.AcceptConnectionWithOpen(conn, open); err != nil {
+	if err := peer.acceptConnectionWithOpen(conn, open); err != nil {
 		// Failed to accept - peer may have been stopped or old session not yet closed
 		_ = conn.Close()
 	}

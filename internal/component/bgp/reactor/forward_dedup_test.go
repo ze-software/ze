@@ -245,7 +245,7 @@ func newFanoutHarnessWith(t testing.TB, n, g int, opts fanoutOpts) *fanoutHarnes
 	cache := newRecentUpdateCache(16)
 	t.Cleanup(cache.Stop)
 	cache.Add(update)
-	// One consumer that never acks, so the entry outlives every RetainN/Release
+	// One consumer that never acks, so the entry outlives every retainN/Release
 	// pair the fan-out performs and the fixture measures forwarding rather than
 	// cache eviction.
 	cache.Activate(1, 1)

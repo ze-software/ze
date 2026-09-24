@@ -220,7 +220,7 @@ the config document
         ▼ ResolveBGPTree: the group's block merged into each member
 PeerSettings.ProcessBindings
         │
-        ▼ DeliveryPeersFromSettings
+        ▼ deliveryPeersFromSettings
 Server.UpdateDeliveryGraph -> DeliveryGraph, swapped under one atomic pointer
         │
         ▼ Server.PeerScopedProcs
@@ -236,7 +236,7 @@ and no surviving edge misses an event across a reload.
 The lookup is one index read and it allocates nothing per event. It replaced a
 scan of every process and every subscription on every delivered message.
 <!-- source: internal/component/plugin/server/delivery_graph.go -- DeliveryGraph, PeerScopedProcs -->
-<!-- source: internal/component/bgp/reactor/delivery_graph.go -- DeliveryPeersFromSettings, publishDeliveryGraphLocked -->
+<!-- source: internal/component/bgp/reactor/delivery_graph.go -- deliveryPeersFromSettings, publishDeliveryGraphLocked -->
 
 The outbound half is enforced at the command rather than in the index: each peer
 a command reached is asked whether it grants this process the message type that

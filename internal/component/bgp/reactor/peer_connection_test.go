@@ -11,18 +11,18 @@ import (
 // VALIDATES: Peer connection management (pending, inbound, collision detection).
 // PREVENTS: Connection leaks, double-accept, nil panics on connection operations.
 
-// TestPeerPendingConnection_SetAndHas verifies SetPendingConnection stores connection.
+// TestPeerPendingConnection_SetAndHas verifies setPendingConnection stores connection.
 func TestPeerPendingConnection_SetAndHas(t *testing.T) {
 	peer := newTestPeer()
 	client, server := net.Pipe()
 	defer client.Close() //nolint:errcheck // test cleanup
 	defer server.Close() //nolint:errcheck // test cleanup
 
-	require.False(t, peer.HasPendingConnection())
+	require.False(t, peer.hasPendingConnection())
 
-	err := peer.SetPendingConnection(client)
+	err := peer.setPendingConnection(client)
 	require.NoError(t, err)
-	assert.True(t, peer.HasPendingConnection())
+	assert.True(t, peer.hasPendingConnection())
 }
 
 // TestPeerPendingConnection_AlreadyExists verifies error on double-set.
@@ -35,24 +35,24 @@ func TestPeerPendingConnection_AlreadyExists(t *testing.T) {
 	defer c2.Close() //nolint:errcheck // test cleanup
 	defer s2.Close() //nolint:errcheck // test cleanup
 
-	require.NoError(t, peer.SetPendingConnection(c1))
-	err := peer.SetPendingConnection(c2)
+	require.NoError(t, peer.setPendingConnection(c1))
+	err := peer.setPendingConnection(c2)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "already exists")
 }
 
-// TestPeerPendingConnection_Clear verifies ClearPendingConnection resets state.
+// TestPeerPendingConnection_Clear verifies clearPendingConnection resets state.
 func TestPeerPendingConnection_Clear(t *testing.T) {
 	peer := newTestPeer()
 	client, server := net.Pipe()
 	defer client.Close() //nolint:errcheck // test cleanup
 	defer server.Close() //nolint:errcheck // test cleanup
 
-	require.NoError(t, peer.SetPendingConnection(client))
-	assert.True(t, peer.HasPendingConnection())
+	require.NoError(t, peer.setPendingConnection(client))
+	assert.True(t, peer.hasPendingConnection())
 
-	peer.ClearPendingConnection()
-	assert.False(t, peer.HasPendingConnection())
+	peer.clearPendingConnection()
+	assert.False(t, peer.hasPendingConnection())
 }
 
 // TestPeerInboundConnection_SetAndTake verifies inbound connection round-trip.
@@ -62,7 +62,7 @@ func TestPeerInboundConnection_SetAndTake(t *testing.T) {
 	defer client.Close() //nolint:errcheck // test cleanup
 	defer server.Close() //nolint:errcheck // test cleanup
 
-	peer.SetInboundConnection(client)
+	peer.setInboundConnection(client)
 
 	taken := peer.takeInboundConnection()
 	assert.Equal(t, client, taken)
@@ -82,8 +82,8 @@ func TestPeerInboundConnection_ReplaceClosesOld(t *testing.T) {
 	defer newConn.Close()   //nolint:errcheck // test cleanup
 	defer newServer.Close() //nolint:errcheck // test cleanup
 
-	peer.SetInboundConnection(old)
-	peer.SetInboundConnection(newConn)
+	peer.setInboundConnection(old)
+	peer.setInboundConnection(newConn)
 
 	// Old connection should be closed — writing to old server side should fail.
 	buf := make([]byte, 1)
@@ -99,7 +99,7 @@ func TestPeerInboundConnection_ReplaceClosesOld(t *testing.T) {
 func TestPeerResolvePendingCollision_NoPending(t *testing.T) {
 	peer := newTestPeer()
 
-	accept, conn, open, wait := peer.ResolvePendingCollision(nil)
+	accept, conn, open, wait := peer.resolvePendingCollision(nil)
 	assert.False(t, accept)
 	assert.Nil(t, conn)
 	assert.Nil(t, open)
@@ -118,15 +118,15 @@ func TestPeerResolvePendingCollision_NoSession(t *testing.T) {
 	peer.pendingConn = client
 	peer.mu.Unlock()
 
-	accept, conn, _, _ := peer.ResolvePendingCollision(nil)
+	accept, conn, _, _ := peer.resolvePendingCollision(nil)
 	assert.False(t, accept)
 	assert.Equal(t, client, conn, "should return the pending connection for caller to handle")
-	assert.False(t, peer.HasPendingConnection(), "pending should be cleared")
+	assert.False(t, peer.hasPendingConnection(), "pending should be cleared")
 }
 
 // TestPeerAcceptConnectionWithOpen_NoSession verifies error when no session.
 func TestPeerAcceptConnectionWithOpen_NoSession(t *testing.T) {
 	peer := newTestPeer()
-	err := peer.AcceptConnectionWithOpen(nil, nil)
+	err := peer.acceptConnectionWithOpen(nil, nil)
 	require.ErrorIs(t, err, ErrNotConnected)
 }

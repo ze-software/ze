@@ -519,7 +519,7 @@ ownership for queued work; it does not copy the route payload.
 |------|--------|
 | Forward dispatch finds destination channel full | -- |
 | Dispatch checks congestion controller | `shouldDeny()` denies overflow-pool handles to the worst destination peer above 80% pool usage |
-| Dispatch requests an overflow handle when not denied | `MixedBufMux.Get4K()` or `Get64K()` returns `{ID, Buf}` if budget permits |
+| Dispatch requests an overflow handle when not denied | `MixedBufMux.get4K()` or `get64K()` returns `{ID, Buf}` if budget permits |
 | Item queued in overflow backlog | Handle is stored on the `fwdItem` when one was acquired; routes still queue if no handle is available |
 | Destination worker drains item, forwards to peer | Handle passed through |
 | Processing complete | `Return(handle)` routes to `blocks[ID]` free list |

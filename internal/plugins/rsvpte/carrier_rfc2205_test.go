@@ -68,7 +68,8 @@ func sentRoutes(t *testing.T, ft *fakeTransport, msgType uint8) []PathRoute {
 	ft.mu.Lock()
 	defer ft.mu.Unlock()
 	var routes []PathRoute
-	for _, m := range ft.sent {
+	for i := range ft.sent {
+		m := &ft.sent[i]
 		hdr, err := DecodeHeader(m.payload)
 		require.NoError(t, err)
 		if hdr.MsgType == msgType {

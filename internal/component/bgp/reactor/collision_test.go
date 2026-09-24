@@ -371,28 +371,28 @@ func TestPeerSetPendingConnection(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Initially no pending connection
-	assert.False(t, peer.HasPendingConnection())
+	assert.False(t, peer.hasPendingConnection())
 
 	// Set pending connection
 	client, server := net.Pipe()
 	defer func() { _ = client.Close() }()
 	defer func() { _ = server.Close() }()
 
-	err := peer.SetPendingConnection(server)
+	err := peer.setPendingConnection(server)
 	require.NoError(t, err)
-	assert.True(t, peer.HasPendingConnection())
+	assert.True(t, peer.hasPendingConnection())
 
 	// Setting another should fail
 	client2, server2 := net.Pipe()
 	defer func() { _ = client2.Close() }()
 	defer func() { _ = server2.Close() }()
 
-	err = peer.SetPendingConnection(server2)
+	err = peer.setPendingConnection(server2)
 	require.Error(t, err)
 
 	// Clear pending
-	peer.ClearPendingConnection()
-	assert.False(t, peer.HasPendingConnection())
+	peer.clearPendingConnection()
+	assert.False(t, peer.hasPendingConnection())
 }
 
 // TestPeerResolvePendingCollisionLocalWins verifies collision resolution when local wins.
@@ -442,7 +442,7 @@ func TestPeerResolvePendingCollisionLocalWins(t *testing.T) {
 	pendingClient, pendingServer := net.Pipe()
 	defer func() { _ = pendingClient.Close() }()
 	defer func() { _ = pendingServer.Close() }()
-	_ = peer.SetPendingConnection(pendingServer)
+	_ = peer.setPendingConnection(pendingServer)
 
 	// Pending OPEN from "remote" with lower BGP ID
 	pendingOpen := &message.Open{
@@ -450,11 +450,11 @@ func TestPeerResolvePendingCollisionLocalWins(t *testing.T) {
 	}
 
 	// Resolve collision
-	acceptPending, conn, _, _ := peer.ResolvePendingCollision(pendingOpen)
+	acceptPending, conn, _, _ := peer.resolvePendingCollision(pendingOpen)
 
 	assert.False(t, acceptPending, "local wins: should reject pending")
 	assert.NotNil(t, conn, "should return connection for cleanup")
-	assert.False(t, peer.HasPendingConnection(), "pending should be cleared")
+	assert.False(t, peer.hasPendingConnection(), "pending should be cleared")
 }
 
 // TestPeerResolvePendingCollisionRemoteWins verifies collision resolution when remote wins.
@@ -504,7 +504,7 @@ func TestPeerResolvePendingCollisionRemoteWins(t *testing.T) {
 	pendingClient, pendingServer := net.Pipe()
 	defer func() { _ = pendingClient.Close() }()
 	defer func() { _ = pendingServer.Close() }()
-	_ = peer.SetPendingConnection(pendingServer)
+	_ = peer.setPendingConnection(pendingServer)
 
 	// Pending OPEN from "remote" with higher BGP ID
 	pendingOpen := &message.Open{
@@ -518,13 +518,13 @@ func TestPeerResolvePendingCollisionRemoteWins(t *testing.T) {
 	}()
 
 	// Resolve collision
-	acceptPending, conn, open, waitSession := peer.ResolvePendingCollision(pendingOpen)
+	acceptPending, conn, open, waitSession := peer.resolvePendingCollision(pendingOpen)
 
 	assert.True(t, acceptPending, "remote wins: should accept pending")
 	assert.NotNil(t, conn, "should return pending connection")
 	assert.Equal(t, pendingOpen, open, "should return pending OPEN")
 	assert.NotNil(t, waitSession, "should return wait channel")
-	assert.False(t, peer.HasPendingConnection(), "pending should be cleared")
+	assert.False(t, peer.hasPendingConnection(), "pending should be cleared")
 }
 
 // TestCollisionNonCollisionStates verifies states that cannot detect collision.
