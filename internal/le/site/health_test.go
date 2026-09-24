@@ -1,4 +1,4 @@
-// Design: website/AI.md -- the testing-health page is internal/le/testhealth's own record
+// Design: website/AI.md -- the testing-health page is internal/le/test/health's own record
 package site
 
 import (
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ze-software/ze/internal/le/testhealth"
+	testhealth "github.com/ze-software/ze/internal/le/test/health"
 )
 
 // healthPaths lays out one checkout whose test-health answer is the record the
@@ -61,7 +61,7 @@ func healthMetricFixture(key, label, status string) map[string]any {
 // published page was rendered from.
 //
 // The trend table is excluded and has cases of its own: the retired renderer
-// drew four series where internal/le/testhealth now states three, because the
+// drew four series where internal/le/test/health now states three, because the
 // mutation collector it took the fourth from no longer exists. Everything above
 // it is the same page.
 func TestTheTestingHealthPageReadsAsThePublishedPage(t *testing.T) {
@@ -203,7 +203,7 @@ func TestThePageHasALabelForEveryStatus(t *testing.T) {
 	}
 }
 
-// VALIDATES: the trend table draws the series internal/le/testhealth states,
+// VALIDATES: the trend table draws the series internal/le/test/health states,
 // under the labels it states, in its order.
 //
 // A second list of series here would drift from the mirror's, so one page would

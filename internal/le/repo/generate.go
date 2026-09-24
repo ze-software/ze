@@ -13,7 +13,7 @@ import (
 	repopackagemap "github.com/ze-software/ze/internal/le/repo/packagemap"
 	"github.com/ze-software/ze/internal/le/rfc"
 	sitefacts "github.com/ze-software/ze/internal/le/site/facts"
-	"github.com/ze-software/ze/internal/le/testhealth"
+	testhealth "github.com/ze-software/ze/internal/le/test/health"
 	webassets "github.com/ze-software/ze/internal/le/web/assets"
 	webvendor "github.com/ze-software/ze/internal/le/web/vendor"
 	yangglue "github.com/ze-software/ze/internal/le/yang/glue"
@@ -66,7 +66,7 @@ var generationActions = []generationAction{
 	{area: "arch-map", verb: verbUpdate, answer: repoarchmap.Answer},
 	{area: "discovery-index", verb: verbUpdate, answer: repopackagemap.Answer},
 	{area: areaDocIndex, verb: verbWrite, answer: docindex.Answer},
-	{area: "test-health", verb: verbUpdate, answer: testhealth.Answer},
+	{area: "test health", verb: verbUpdate, answer: testhealth.Answer},
 	{area: "site facts", verb: verbUpdate, answer: sitefacts.Answer},
 	{area: "ai sync", verb: verbWrite, answer: aisync.Answer},
 }
@@ -85,7 +85,7 @@ var generationChecks = []generationAction{
 	{area: "rfc", verb: verbCheck, answer: rfc.Answer},
 	{area: "arch-map", verb: verbCheck, answer: repoarchmap.Answer},
 	{area: areaDocIndex, verb: verbCheck, answer: docindex.Answer},
-	{area: "test-health", verb: verbCheck, answer: testhealth.Answer},
+	{area: "test health", verb: verbCheck, answer: testhealth.Answer},
 	{area: "site facts", verb: verbCheck, answer: sitefacts.Answer},
 	{area: "ai sync", verb: verbCheck, answer: aisync.Answer},
 }

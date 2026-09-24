@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/rfc"
-	"github.com/ze-software/ze/internal/le/testweakened"
+	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 )
 
 var rfcTagPattern = regexp.MustCompile(`RFC requirement:\s*[A-Za-z0-9][A-Za-z0-9._/-]*(?:\s+(?:positive|negative))?`)

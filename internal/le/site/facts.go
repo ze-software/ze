@@ -323,7 +323,7 @@ func factsFromTestHealth(repository string, facts *siteFacts) error {
 	facts.Tests.E2EDisplay = displayCount(facts.Tests.E2E)
 	facts.Tests.Editor = counts[countEditorTests]
 	facts.Tests.EditorDisplay = displayCount(facts.Tests.Editor)
-	facts.Sources["tests"] = "internal/le/testhealth.Render, over the tree this build read"
+	facts.Sources["tests"] = "internal/le/test/health.Render, over the tree this build read"
 	return nil
 }
 

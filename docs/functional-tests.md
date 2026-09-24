@@ -315,7 +315,7 @@ validation. Full contract and workflow: `test/draft/README.md`, or the
 
 An edit to a `.ci` or `.et` under `test/` that removes an `expect=`, empties a
 needle, or inverts a `reject=` is a weakening.
-`internal/le/testweakened` detects it, and a whole `.ci` file is one test, named by
+`internal/le/test/weakened` detects it, and a whole `.ci` file is one test, named by
 its file stem.
 
 Write the row in `test/weakened/<session>.md` BEFORE the edit, then make the
@@ -546,7 +546,7 @@ suite, because it needs no netlab. It reads `contrib/netlab/golden/r3.conf` thro
 parses `show bgp peer list | json compact` with `json.loads`. The render check proves the
 templates still emit what ze accepts. The functional test proves ze still runs what they
 emitted.
-<!-- source: internal/le/netlab/actions.go -- Actions -->
+<!-- source: internal/le/test/netlab/actions.go -- Actions -->
 <!-- source: test/plugin/netlab-lab-profile.ci -- golden read, daemon start, json compact -->
 
 ### Allocation-ceiling gate (`./le verify deps alloc`)
@@ -962,7 +962,7 @@ directory, so it stays correct after another session's run publishes its own
 failure index. Use
 `tmp/ze-verify.log` only when the whole combined run is needed.
 Automation should read `tmp/ze-verify-failures.json`.
-<!-- source: internal/le/testunit/actions.go -- Actions -->
+<!-- source: internal/le/test/unit/actions.go -- Actions -->
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
 ---
@@ -1023,7 +1023,7 @@ Rules the gate enforces:
   row names the unit, and the commit carries the row as an `RFC-approved:`
   trailer (`docs/contributing/rfc-implementation-guide.md`).
 
-<!-- source: internal/le/testweakened/proposed.go -- RFC-tagged carrier approval -->
+<!-- source: internal/le/test/weakened/proposed.go -- RFC-tagged carrier approval -->
 
 ### What the tags do not cover
 
@@ -2817,7 +2817,7 @@ FUZZ=FuzzParseUpdate PKG=./internal/... TIME=30s ./le fuzz run
 
 `./le fuzz run` discovers the targets and runs them through the native Go
 action.
-<!-- source: internal/le/fuzz/actions.go -- Actions -->
+<!-- source: internal/le/test/fuzz/actions.go -- Actions -->
 
 Fuzz tests are not part of `./le verify current mode full` (they're time-bounded, not pass/fail
 in the traditional sense). Run them periodically or before releases.
@@ -2841,7 +2841,7 @@ in the traditional sense). Run them periodically or before releases.
 | Other | 6 | `FuzzHandleRoundTrip`, `FuzzInvalidHandle`, `FuzzParseAttributes`, `FuzzEncodeDecode`, `FuzzScanner`, `FuzzFSMEventSequence` |
 <!-- source: internal/plugins/isis/packet/fuzz_test.go -- IS-IS packet fuzz targets -->
 <!-- source: internal/plugins/ospf/packet/fuzz_test.go -- OSPF packet fuzz targets -->
-<!-- source: internal/le/fuzz/actions.go -- Answer -->
+<!-- source: internal/le/test/fuzz/actions.go -- Answer -->
 <!-- source: internal/component/bgp/message/fuzz_test.go -- BGP message fuzz targets -->
 <!-- source: internal/component/bgp/plugins/bmp/fuzz_test.go -- FuzzDecodeBMPTLV -->
 <!-- source: internal/component/radius/fuzz_test.go -- FuzzDecodeRADIUSVSA -->

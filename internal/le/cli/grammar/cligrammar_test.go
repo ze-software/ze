@@ -302,22 +302,28 @@ func TestTheLeFeederFlagsAHyphenatedObjectRoot(t *testing.T) {
 	}
 }
 
-// VALIDATES: AC-13's second half. A root the exemption list names is not a
-// finding, and the run counts it.
-// PREVENTS: an exemption that silently does nothing, which would read as a
-// clean surface for the wrong reason.
+// VALIDATES: spec-le-subject-first-command-tree AC-19. The exemption list is
+// empty, so the two hyphenated roots that were its last entries are findings
+// again, and the run counts no exemption.
+// PREVENTS: an exemption that silently survives the split, which would read as
+// a clean surface for the wrong reason.
 func TestTheLeExemptionIsHonouredAndCounted(t *testing.T) {
+	if len(leNamespaceExempt) != 0 {
+		t.Fatalf("leNamespaceExempt holds %d entries, want none: every le command is subject first", len(leNamespaceExempt))
+	}
 	roots := append(leProbeRoots(), "test-unit", "test-chaos")
 
 	result, err := Check(writeTree(t, cleanFixture(t)), Floor{}, roots)
 	if err != nil {
 		t.Fatalf("the gate failed over the fixture: %v", err)
 	}
-	if namesLeFinding(result, "test-unit") || namesLeFinding(result, "test-chaos") {
-		t.Errorf("an exempt root was flagged:\n%s", result.Text())
+	for _, root := range []string{"test-unit", "test-chaos"} {
+		if !namesLeFinding(result, root) {
+			t.Errorf("%s shares the test segment with another root and was not flagged:\n%s", root, result.Text())
+		}
 	}
-	if result.LeExempt != 2 {
-		t.Errorf("the run counted %d le exemptions, want the 2 it excused: an uncounted exemption is a silent one", result.LeExempt)
+	if result.LeExempt != 0 {
+		t.Errorf("the run counted %d le exemptions, want 0: nothing is on the list to excuse", result.LeExempt)
 	}
 }
 

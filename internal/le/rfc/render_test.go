@@ -355,7 +355,7 @@ func TestASummaryDeclaringNoMUSTLevelRowRendersNoSectionAtAll(t *testing.T) {
 }
 
 func TestTheAuditTableCannotBeMistakenForTheRollup(t *testing.T) {
-	// internal/le/testhealth/actions.go pins the polarity rollup with a nine-cell
+	// internal/le/test/health/actions.go pins the polarity rollup with a nine-cell
 	// regex and matches it against every line of the ledger, so an audit row
 	// with the same shape would be folded into that tool's proof-density figure.
 	in := renderFixture(t, nil)

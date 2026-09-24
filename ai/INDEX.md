@@ -315,6 +315,7 @@ disagree, the manifest is right and the row is stale.
 | `./le build gosum` | `internal/le/build/gosum.Answer` | the packed gokrazy/ze/builddir/**/go.sum files agree with the root module about what a version contains |
 | `./le build host-driver` | `internal/le/build/hostdriver.Answer` | build ze-host, the `ze appliance ...` driver that runs on the build machine, at the checkout root |
 | `./le build installer` | `internal/le/build/installer.Answer` | cross-build the installer initrd PID 1 for amd64 or arm64 |
+| `./le chaos selftest` | `internal/le/chaos/selftest.Answer` | chaos simulator tests, reduced-tag CLI tests, and lint |
 | `./le cli catalog` | `internal/le/cli/catalog.Answer` | the generated command-catalog Markdown: check it against live registries, or rewrite it |
 | `./le cli dispatch` | `internal/le/cli/dispatch.Answer` | every command string this repository sends to its own daemon still routes, so a renamed command tree cannot leave a test passing against a key that is gone |
 | `./le cli grammar` | `internal/le/cli/grammar.Answer` | every built-in command, every registered root, every demo call site and every offline flag still obeys the CLI grammar: keyword before value, no flag in the command model, no dead launch form, and each flag in its own register |
@@ -336,15 +337,12 @@ disagree, the manifest is right and the row is stale.
 | `./le doc yang-contract` | `internal/le/doc/yangcontract.Answer` | the documentation gates: the YANG command contract, the doc drift check, and the generated operator table |
 | `./le evidence` | `internal/le/verify/evidence.Answer` | release-candidate evidence: run the verify gate over a clean clone of this checkout, inside a container |
 | `./le functional` | `internal/le/functional.Answer` | functional suites, fail-open Docker-exec analysis, and ExaBGP compatibility |
-| `./le fuzz` | `internal/le/fuzz.Answer` | Go fuzzing: every `func Fuzz` under internal/, discovered at run time |
 | `./le go-extract` | `internal/le/go/extract.Answer` | move named declarations from one Go file to another, comments and formatting intact |
 | `./le go-version` | `internal/le/go/versionpin.Answer` | every build carrier that copies this module in names the Go minor version go.mod declares, so no image builds Ze on a toolchain nobody chose |
 | `./le integration` | `internal/le/integration.Answer` | integration, interop, stress, and live proofs that need Docker, root, a namespace, or internet access |
 | `./le job` | `internal/le/job.Answer` | admit a heavy job before it runs, so the sessions sharing this machine do not oversubscribe it |
 | `./le journal` | `internal/le/spec/journal.Answer` | report recurring problem classes from the committed journal |
 | `./le module` | `internal/le/go/module.Answer` | preview or apply package-tree moves and repository Go module-path renames |
-| `./le mutation` | `internal/le/mutation.Answer` | combine mutation reports and append their per-package scores to committed history |
-| `./le netlab` | `internal/le/netlab.Answer` | render and validate the netlab daemon integration |
 | `./le perf-bench` | `internal/le/perfbench.Answer` | suggest a perf run when BGP data-plane code changed since the last one |
 | `./le platform-vet` | `internal/le/go/vetplatforms.Answer` | vet the host and interface trees against their Darwin and FreeBSD implementations |
 | `./le plugin boundary` | `internal/le/plugin/boundary.Answer` | no plugin reaches engine state through a plain in-process call, so moving that plugin to an external subprocess cannot silently disable it |
@@ -373,12 +371,14 @@ disagree, the manifest is right and the row is stale.
 | `./le spec session` | `internal/le/spec.Answer` | spec ownership, per-spec state paths, transcript model facts, and independent review artifacts |
 | `./le spec status` | `internal/le/spec/status.Answer` | the spec inventory: status, bucket and stale-skeleton flag for every plan/spec-*.md |
 | `./le staticcheck-feature-matrix` | `internal/le/go/staticcheck.Answer` | the tree type-checks in every feature-tag combination Ze can be built in, so a package the default build compiles out is judged too |
-| `./le stress-repro` | `internal/le/stressrepro.Answer` | reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure |
-| `./le test-chaos` | `internal/le/testchaos.Answer` | chaos simulator tests, reduced-tag CLI tests, and lint |
-| `./le test-health` | `internal/le/testhealth.Answer` | the project's testing state as one generated page: what is measured, what is ratcheted, and which structural facts are gated |
-| `./le test-sensitivity` | `internal/le/testsensitivity.Answer` | no more tests than the committed floor pass unconditionally or sit behind a build tag nothing supplies, which no count of tests can reveal |
-| `./le test-unit` | `internal/le/testunit.Answer` | the five race-instrumented component-group Go test suites, the installer initrd behind its own tag, and `all`: the whole checkout under the race detector |
-| `./le test-weakened` | `internal/le/testweakened.Answer` | detect and record test weakenings against a commit baseline |
+| `./le test fuzz` | `internal/le/test/fuzz.Answer` | Go fuzzing: every `func Fuzz` under internal/, discovered at run time |
+| `./le test health` | `internal/le/test/health.Answer` | the project's testing state as one generated page: what is measured, what is ratcheted, and which structural facts are gated |
+| `./le test mutation` | `internal/le/test/mutation.Answer` | combine mutation reports and append their per-package scores to committed history |
+| `./le test netlab` | `internal/le/test/netlab.Answer` | render and validate the netlab daemon integration |
+| `./le test sensitivity` | `internal/le/test/sensitivity.Answer` | no more tests than the committed floor pass unconditionally or sit behind a build tag nothing supplies, which no count of tests can reveal |
+| `./le test stress-repro` | `internal/le/test/stressrepro.Answer` | reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure |
+| `./le test unit` | `internal/le/test/unit.Answer` | the five race-instrumented component-group Go test suites, the installer initrd behind its own tag, and `all`: the whole checkout under the race detector |
+| `./le test weakened` | `internal/le/test/weakened.Answer` | detect and record test weakenings against a commit baseline |
 | `./le verify deps` | `internal/le/verify/deps.Answer` | the Go-tool and dependency stages used only by native pre-commit verification |
 | `./le verify lint` | `internal/le/go/lint.Answer` | run golangci-lint over every Go build flavor and prove tracked-file coverage |
 | `./le verify status` | `internal/le/verify/status.Answer` | read and write the verification certificate for the current checkout |
@@ -636,8 +636,8 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | .ci test prerequisite, option=needs-path, caps=net-raw, caps=net-admin, caps=bpf, test skips instead of failing, missing modcache, setup install prerequisite | `docs/architecture/testing/ci-format.md` (Options table), `ai/rules/platform-linux.md`, `internal/test/runner/caps.go`, `internal/test/runner/needs_path.go`, `./le setup install` |
 | test passes on macOS but fails in CI, works locally red in CI, unprivileged runner, 4-vCPU runner | `ai/rules/platform-linux.md` (skip-os is not a capability declaration), `ai/rules/completion.md` |
 | code-to-docs, reverse index, which docs | `ai/CODE-TO-DOCS.md` (generated, `./le docs-to-code index-update`) |
-| mutation testing, gomu, mutation score, mutant | `docs/contributing/testing.md` (Mutation tests), `./le mutation`, `internal/le/mutation/` |
-| test health, testing dashboard, proof density, assert-nothing, tests that cannot fail, tag-orphan, test KPI, is our testing correct | `docs/features/test-health.md`, `docs/architecture/testing/test-health.md` (architecture), `test/health/README.md`, `internal/le/testhealth.Answer`, `internal/le/testsensitivity.Answer`, `ai/rules/testing.md` (Test Sensitivity Ratchets) |
+| mutation testing, gomu, mutation score, mutant | `docs/contributing/testing.md` (Mutation tests), `./le test mutation`, `internal/le/test/mutation/` |
+| test health, testing dashboard, proof density, assert-nothing, tests that cannot fail, tag-orphan, test KPI, is our testing correct | `docs/features/test-health.md`, `docs/architecture/testing/test-health.md` (architecture), `test/health/README.md`, `internal/le/test/health.Answer`, `internal/le/test/sensitivity.Answer`, `ai/rules/testing.md` (Test Sensitivity Ratchets) |
 | find bugs, hunt bugs, bug classes, latent bugs, recurring traps, taxonomy sweep, silent fall-through, unwired feature | `ai/skills/ze-hunt.md`, `plan/learned/RECURRING-PATTERNS.md` |
 
 All architecture docs in `docs/architecture/` unless noted.

@@ -19,7 +19,7 @@
 # The old form raced -- SIGHUP and SIGTERM were sent back-to-back, so under load
 # the daemon was killed before it finished the reload, and the message the test
 # asserts was never emitted. Reproduced 2026-07-23 on invocation 1 of
-# `internal/le/stressrepro/actions.go "bgp reload" --any-failure` (64 burners / 32 cores);
+# `internal/le/test/stressrepro/actions.go "bgp reload" --any-failure` (64 burners / 32 cores);
 # the capture shows `received SIGHUP, reloading config...` as the daemon's last
 # line. See plan/known-failures/reload-transaction-tests-load-sensitive.md.
 

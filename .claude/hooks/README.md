@@ -31,7 +31,7 @@ this page names but that registry does not hold is a defect in this page.
 
 Session identity resolution and dated session paths are canonical in
 `internal/le/lepath/session.go`. Test weakening is judged by
-`internal/le/testweakened`, journal rows by `internal/le/spec/journal`, and spec session
+`internal/le/test/weakened`, journal rows by `internal/le/spec/journal`, and spec session
 state by `internal/le/spec`. The hook runtime calls those packages
 in-process rather than launching a second implementation.
 

@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/testweakened"
+	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 )
 
 // The two authors these tests drive. They are ordinary commit sessions: the

@@ -688,7 +688,7 @@ it is a forgery, not a shortcut, so the reason names what the owner approved
 and why the tagged requirement is still proven after the change, quoting the
 requirement id.
 
-<!-- source: internal/le/testweakened/proposed.go -- RFC-tagged carrier approval -->
+<!-- source: internal/le/test/weakened/proposed.go -- RFC-tagged carrier approval -->
 <!-- source: ai/skills/ze-rfc.md -- requirement id allocation and annotations -->
 
 Full rules: `ai/skills/ze-rfc.md`; audit method: `ai/skills/ze-rfc-audit.md`.

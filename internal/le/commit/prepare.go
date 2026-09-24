@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/testweakened"
+	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
 )
 

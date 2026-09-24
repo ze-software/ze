@@ -424,7 +424,7 @@ func TestSweepRefusesAnActionThatNamesTheWholeArea(t *testing.T) {
 
 	// The verb still runs when it is the whole line, which is the only shape it
 	// was ever for. Both dispatch routes answer it: an area that sends a
-	// one-word line to Sweep (internal/le/testunit) reaches the same refusal
+	// one-word line to Sweep (internal/le/test/unit) reaches the same refusal
 	// site with one name, and that line is not a selection.
 	if _, code := area.AnswerOrSweep([]string{"every"}, RunEveryAction); code != 0 || ran != 1 {
 		t.Errorf("`every` through AnswerOrSweep answered %d after %d run(s), want 0 after one", code, ran)

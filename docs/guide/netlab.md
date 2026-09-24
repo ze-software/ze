@@ -45,7 +45,7 @@ Or leave the netlab install alone and let a topology carry them, which is what
 `./le netlab render-check` does. netlab reads a `topology-defaults.yml` beside the
 topology and a `templates/ze/` directory beside it.
 <!-- source: contrib/netlab/README.md -- Installing it into a netlab checkout -->
-<!-- source: internal/le/netlab/actions.go -- Answer -->
+<!-- source: internal/le/test/netlab/actions.go -- Answer -->
 
 ## Step 3: run the reference topology
 
@@ -120,7 +120,7 @@ not validated against netlab's own integration tests.
 | A daemon runs one of those renders and answers the show command with JSON | `test/plugin/netlab-lab-profile.ci` |
 | Routes reach the FIB of a running lab, and a `ping` validation passes | Not run |
 | Each declared feature passes netlab's integration test for it | Not run |
-<!-- source: internal/le/netlab/actions.go -- Answer -->
+<!-- source: internal/le/test/netlab/actions.go -- Answer -->
 <!-- source: test/plugin/netlab-lab-profile.ci -- daemon start, SSH login, json compact -->
 
 Ze also sends and receives no LLDP frame, so a netlab validation that reads LLDP data
@@ -139,4 +139,4 @@ missing netlab is an error exit, never a skip. Use
 `./le netlab render-update` to rewrite the golden files.
 `test/plugin/netlab-lab-profile.ci` is the other half and needs no netlab: it
 starts a daemon from a golden file and parses the show command output.
-<!-- source: internal/le/netlab/actions.go -- Actions -->
+<!-- source: internal/le/test/netlab/actions.go -- Actions -->

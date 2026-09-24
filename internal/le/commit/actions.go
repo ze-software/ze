@@ -10,7 +10,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/leaction"
 	"github.com/ze-software/ze/internal/le/lepath"
-	"github.com/ze-software/ze/internal/le/testweakened"
+	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 	"github.com/ze-software/ze/internal/le/verify"
 	verifydispatch "github.com/ze-software/ze/internal/le/verify/dispatch"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"

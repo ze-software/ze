@@ -88,22 +88,12 @@ var rootNamespaceExempt = map[string]bool{}
 // command is one indivisible name even though its left segment looks like an
 // object.
 //
-// The six test-* commands are the standing entry, and the reason is the rule's
-// own trap: a shared prefix is not a namespace. test-unit and test-chaos run
-// suites, test-health generates a page, test-weakened gates a ledger,
-// test-sensitivity gates a count and test-helper produces fixtures. They are
-// five kinds of thing sharing a word, as flow-export and flow-recent are, and
-// there is no `le test` object holding them. Splitting them would also promise
-// a namespace that does not hold the real suites, which are `functional`,
-// `integration`, `deployment`, `qemu`, `fuzz`, `mutation` and `stress-repro`.
-var leNamespaceExempt = map[string]bool{
-	"test-chaos":       true,
-	"test-health":      true,
-	"test-helper":      true,
-	"test-sensitivity": true,
-	"test-unit":        true,
-	"test-weakened":    true,
-}
+// EMPTY today: every le command is subject first, and the test-* family that
+// held the last entries is now the `le test` namespace (`le test unit`,
+// `le test health`, ...). The chaos simulator's own tests are
+// `le chaos selftest`. Add an entry (value true) ONLY for a demonstrably
+// indivisible compound, with a one-line reason, as rootNamespaceExempt asks.
+var leNamespaceExempt = map[string]bool{}
 
 // leNamespaces answers the words that name an object on le's surface, so the
 // root check can tell `verify-lint` (an object and its member) from

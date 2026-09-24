@@ -73,11 +73,13 @@ own that holds only `register.go`: `le spec current` lives at
 `docs/architecture/cli/command-namespacing.md` states for the product CLI, and
 le follows it: `le verify lint`, not `le verify-lint`, because `verify` is an
 object with members, and `le cli stdio`, not `le dash-stdio`, because the
-check belongs to the `cli` subject. A shared prefix alone is not a namespace,
-so the six `test-*` commands keep their hyphen until their family moves: they
-are five kinds of thing sharing a word. Feeder 6 of the
-grammar gate (`./le cli grammar`) derives le's namespaces from the live
-registry and refuses a root that hyphenates an object to its member.
+check belongs to the `cli` subject. The tests are one subject too: `le test
+unit`, `le test health` and `le test weakened` are members of `test`, and the
+chaos simulator's own tests are `le chaos selftest`. Feeder 6 of the grammar
+gate (`./le cli grammar`) derives le's namespaces from the live registry and
+refuses a root that hyphenates an object to its member. Its exemption list,
+`leNamespaceExempt`, is empty.
+<!-- source: internal/le/cli/grammar/cligrammar.go -- leNamespaceExempt -->
 
 **A bare namespace token is a question, answered with exit 0.** `le spec` names
 no command, and `spec` holds `spec citation`, `spec status` and the rest, so the
@@ -281,7 +283,7 @@ set, which is where the verdict vocabulary drifted before the schema existed.
 The retired auxiliary tooling tree has no current role. Data fixtures live
 under the `testdata/` directory of the Go package that owns them.
 
-<!-- source: internal/le/testunit/groups.go -- allGroups -->
+<!-- source: internal/le/test/unit/groups.go -- allGroups -->
 <!-- source: internal/le/rfc/check.go -- Check -->
 <!-- source: internal/le/rfc/discriminate_action.go -- recordDiscrimination -->
 <!-- source: internal/le/leroot/dispatch.go -- Commands, Dispatch, helpTrailing, helpNode -->

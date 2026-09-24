@@ -137,7 +137,7 @@ with the fixture.
 rendered from the tree being built, through the two packages that own those
 numbers. Neither page computes a figure of its own.
 
-The testing-health page reads `internal/le/testhealth.Render`, which answers the
+The testing-health page reads `internal/le/test/health.Render`, which answers the
 metric record and the Markdown mirror in one pass. The mirror it publishes is
 `docs/features/test-health.md`'s own bytes, so the site is never a second author
 of that document.

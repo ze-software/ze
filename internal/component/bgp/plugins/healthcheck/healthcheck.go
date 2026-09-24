@@ -202,7 +202,7 @@ func (m *probeManager) markReady() {
 //
 // after which every later dispatch gets "mux conn read error: EOF" and the
 // plugin is dead for the process lifetime. Only load makes the window wide
-// enough to hit, which is why it surfaced under internal/le/stressrepro/actions.go and
+// enough to hit, which is why it surfaced under internal/le/test/stressrepro/actions.go and
 // not in a quiet run. ai/rules/plugins.md states the rule this restores:
 // a DispatchCommand aimed at another plugin's command (here bgp-watchdog's
 // "request bgp watchdog announce") belongs after the dispatcher command

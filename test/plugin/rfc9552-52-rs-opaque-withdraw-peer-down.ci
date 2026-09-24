@@ -43,7 +43,7 @@
 # then holds the daemon up until the withdrawal has been written.
 #
 # The first of those two barriers was added after a load run reproduced its
-# absence on invocation 8 of 40 (internal/le/stressrepro/actions.go): the source's own
+# absence on invocation 8 of 40 (internal/le/test/stressrepro/actions.go): the source's own
 # session came up first, it announced immediately, and the route server dropped
 # the UPDATE with
 #   "forward matched no target ... why=127.0.0.2=not-yet-up, 127.0.0.1=source".

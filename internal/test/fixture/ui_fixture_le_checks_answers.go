@@ -404,23 +404,23 @@ func runLEChecksAnswers(ctx context.Context) error {
 
 	// The sensitivity check's verdict is stdout. Its independently captured
 	// stderr is reserved for the ratchet notice.
-	sensitivityCheck, err := runLE(nil, "test-sensitivity", "check")
+	sensitivityCheck, err := runLE(nil, checkTestSensitivity, actionCheck)
 	if err != nil {
 		return err
 	}
 	if sensitivityCheck.code != 0 {
-		return leChecksFailf("`le test-sensitivity check` exited %d: %s%s", sensitivityCheck.code, sensitivityCheck.stdout, sensitivityCheck.stderr)
+		return leChecksFailf("`le test sensitivity check` exited %d: %s%s", sensitivityCheck.code, sensitivityCheck.stdout, sensitivityCheck.stderr)
 	}
 	if strings.TrimSpace(sensitivityCheck.stdout) == "" {
-		return leChecksFailf("`le test-sensitivity check` wrote no verdict to stdout")
+		return leChecksFailf("`le test sensitivity check` wrote no verdict to stdout")
 	}
 
-	trackedResult, err := runLE(nil, "test-sensitivity", "tracked", "|", "json")
+	trackedResult, err := runLE(nil, checkTestSensitivity, "tracked", "|", "json")
 	if err != nil {
 		return err
 	}
 	if trackedResult.code != 0 {
-		return leChecksFailf("`le test-sensitivity tracked | json` exited %d: %s", trackedResult.code, trackedResult.stderr)
+		return leChecksFailf("`le test sensitivity tracked | json` exited %d: %s", trackedResult.code, trackedResult.stderr)
 	}
 	trackedValue, err := leChecksJSON(trackedResult.stdout)
 	if err != nil {

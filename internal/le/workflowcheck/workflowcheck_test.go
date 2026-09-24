@@ -18,10 +18,10 @@ import (
 
 	_ "github.com/ze-software/ze/internal/le/build/hostdriver"
 	_ "github.com/ze-software/ze/internal/le/deployment"
-	_ "github.com/ze-software/ze/internal/le/fuzz"
 	_ "github.com/ze-software/ze/internal/le/integration"
 	"github.com/ze-software/ze/internal/le/leaction"
 	_ "github.com/ze-software/ze/internal/le/qemu"
+	_ "github.com/ze-software/ze/internal/le/test/fuzz"
 	_ "github.com/ze-software/ze/internal/le/verify"
 	_ "github.com/ze-software/ze/internal/le/verify/deps"
 	verifyengine "github.com/ze-software/ze/internal/le/verify/engine"
@@ -460,7 +460,7 @@ func TestEvidenceNightlyScheduleActionsAndPrivileges(t *testing.T) {
 	requireScheduledOnly(t, name)
 	requireEveryJobStatesItsOwnVerdict(t, name)
 	want := []string{
-		"fuzz/run",
+		"test fuzz/run",
 		"integration/iface", "integration/fib", "integration/firewall",
 		"integration/traffic", "integration/gtsm", "integration/as112",
 		"integration/interop", "integration/interop-ipsec", "integration/interop-radius",

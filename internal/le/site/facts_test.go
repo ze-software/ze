@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/le/rfc"
-	"github.com/ze-software/ze/internal/le/testhealth"
+	testhealth "github.com/ze-software/ze/internal/le/test/health"
 )
 
 // factsFixture lays out one checkout the facts snapshot can be derived from:

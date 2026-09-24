@@ -166,9 +166,9 @@ func TestNativeWeakeningProducerBindings(t *testing.T) {
 		sourcePaths[path] = struct{}{}
 	}
 	for _, boundary := range fixtureProducerBoundaries {
-		if boundary.actionOwner != "internal/le/testweakened/actions.go" ||
+		if boundary.actionOwner != "internal/le/test/weakened/actions.go" ||
 			boundary.actionEvidence != `Verb:   "proposed"` ||
-			boundary.nativeOwner != "internal/le/testweakened/proposed.go" ||
+			boundary.nativeOwner != "internal/le/test/weakened/proposed.go" ||
 			boundary.nativeEvidence == "" {
 			t.Errorf("%s native boundary = %+v", boundary.category, boundary)
 		}

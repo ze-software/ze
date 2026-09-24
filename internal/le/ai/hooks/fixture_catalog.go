@@ -3,7 +3,7 @@
 
 package aihooks
 
-import "github.com/ze-software/ze/internal/le/testweakened"
+import testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 
 // fixtureSites contains one typed row per Results.check callsite in category order.
 // Loop-backed callsites carry a generator whose labels expand to concrete runtime names.

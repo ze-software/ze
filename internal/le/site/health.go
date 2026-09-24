@@ -1,4 +1,4 @@
-// Design: website/AI.md -- the testing-health page is internal/le/testhealth's own record
+// Design: website/AI.md -- the testing-health page is internal/le/test/health's own record
 // Detail: rfccompliance.go holds the other quality page, over internal/le/rfc.
 package site
 
@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/testhealth"
+	testhealth "github.com/ze-software/ze/internal/le/test/health"
 )
 
 // The testing-health page registers from here.
@@ -75,7 +75,7 @@ func renderHealth(paths Paths) ([]string, error) {
 	return []string{healthRoute}, nil
 }
 
-// healthRecord is one whole reading of the tree, as internal/le/testhealth
+// healthRecord is one whole reading of the tree, as internal/le/test/health
 // states it.
 //
 // A metric is read by key rather than into a struct because the payload beside

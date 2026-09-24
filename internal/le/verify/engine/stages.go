@@ -83,8 +83,8 @@ func fullStages() []Stage {
 		stage("config ports", "check"),
 		stage("go version-pin", "check"),
 		stage("config claims"),
-		stage("test-sensitivity", "check"),
-		stage("test-weakened", "check"),
+		stage("test sensitivity", "check"),
+		stage("test weakened", "check"),
 	}
 	stages = slices.Concat(stages, staticcheckStages(), []Stage{
 		structural("repo tracked-build", "check"),
@@ -110,7 +110,7 @@ func fullStages() []Stage {
 		stage("ai rules", "condensed-check"),
 		stage("ai rules", "lint"),
 		stage("repo arch-map", "check"),
-		stage("test-health", "check"),
+		stage("test health", "check"),
 		stage("site facts", "check"),
 		stage("web htmx", "check"),
 		structural("verify deps", "evidence-vet"),

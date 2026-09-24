@@ -80,7 +80,7 @@ var gatedLevels = map[string]bool{
 // IsGatedLevel reports whether an RFC 2119 keyword creates an obligation this
 // repository's gates enforce.
 //
-// It is exported because internal/le/testhealth partitions the published ledger
+// It is exported because internal/le/test/health partitions the published ledger
 // on the same set and must cover exactly the rows the ledger's totals cover. It
 // kept its own copy of these five keywords until 2026-08-29, under a comment
 // saying it "mirrors the RFC gate's own gated set" -- a stated obligation to

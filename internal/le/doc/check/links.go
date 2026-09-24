@@ -90,7 +90,7 @@ func citationExcludes() []string {
 		//
 		// They also have no reachable repair, which the plan trees do. A shard
 		// is named for its session, ForeignShardProblems
-		// (internal/le/testweakened/shard.go) refuses a commit that carries
+		// (internal/le/test/weakened/shard.go) refuses a commit that carries
 		// another session's, and every commit gets a fresh session id. So the
 		// only author who could edit the row is one that will never exist
 		// again, and the gate reported a line nobody in the repository is

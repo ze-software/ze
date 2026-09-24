@@ -849,7 +849,7 @@ mechanisms carry the standing corpus:
 
 - `writeWeakening` (`internal/le/hookruntime/writeedit.go`) refuses the edit at
   write time, through `testweakened.Proposed`
-  (`internal/le/testweakened/proposed.go`). It blocks a behavior change to a
+  (`internal/le/test/weakened/proposed.go`). It blocks a behavior change to a
   test carrying an `RFC requirement:` tag, and separately blocks REMOVING the
   tag. Removal is checked first and on its own, because a tag is a comment and a
   behavior comparison would wave its deletion through. Scope is the enclosing

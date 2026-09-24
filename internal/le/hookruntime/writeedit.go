@@ -17,7 +17,7 @@ import (
 	docste "github.com/ze-software/ze/internal/le/doc/ste"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/spec/specpath"
-	"github.com/ze-software/ze/internal/le/testweakened"
+	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 )
 
 var (

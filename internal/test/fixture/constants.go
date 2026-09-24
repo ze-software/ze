@@ -292,7 +292,7 @@ const (
 	checkPortDefaults             = "config ports"
 	checkRepositoryTrackedBuild   = "repo tracked-build"
 	checkStaticcheckFeatureMatrix = "go staticcheck"
-	checkTestSensitivity          = "test-sensitivity"
+	checkTestSensitivity          = "test sensitivity"
 	checkYANGLeafMentions         = "config unread-leaves"
 	gateGokrazyGosum              = "build gosum"
 	gateProtocolSkeleton          = "rfc skeletons"

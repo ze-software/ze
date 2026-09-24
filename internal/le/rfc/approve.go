@@ -1,5 +1,5 @@
 // Design: docs/contributing/rfc-implementation-guide.md -- owner approval for RFC-tagged test changes
-// Related: internal/le/testweakened/proposed.go -- the edit-time hook that reads the file.
+// Related: internal/le/test/weakened/proposed.go -- the edit-time hook that reads the file.
 // Related: internal/le/commit/rfcchange.go -- the commit gate that reads it and writes the trailer.
 package rfc
 

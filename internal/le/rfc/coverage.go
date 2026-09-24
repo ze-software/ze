@@ -278,7 +278,7 @@ type auditCoverageInput struct {
 //
 // This is deliberately NOT the polarity rollup. That one answers "which
 // polarities exist"; subtracting an audit verdict from it would contradict that
-// doctrine outright, and would break the partition internal/le/testhealth/actions.go
+// doctrine outright, and would break the partition internal/le/test/health/actions.go
 // asserts. So Proven is a SEPARATE count in a separate section: a requirement
 // with both polarities and a `weak` verdict is counted in Both (it has both
 // polarities -- true) and NOT in Proven (it is not proven -- also true), and the

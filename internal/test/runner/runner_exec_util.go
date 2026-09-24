@@ -163,7 +163,7 @@ func zeRepoRootEnv(baseDir string) string {
 //   - A user-level runtime panic defaults to printing only the panicking
 //     goroutine. GOTRACEBACK=all prints every stack, which is what identifies the
 //     goroutine racing on the other side of a corrupt buffer. That is the case it
-//     buys, and why internal/le/stressrepro/actions.go:224 sets it.
+//     buys, and why internal/le/test/stressrepro/actions.go:224 sets it.
 //   - A runtime THROW ("fatal error: ...", e.g. the SIGBUS behind
 //     test/ospf/ospf-ldp-sync-restore.ci on 2026-07-29) already dumps every
 //     goroutine regardless: runtime1.go's gotraceback() forces all=true and

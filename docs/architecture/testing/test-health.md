@@ -18,7 +18,7 @@ The feature is two things that share collectors but not enforcement.
 | Question | "Did this commit make sensitivity worse?" | "What is the state of the suite?" |
 | Enforced by | `./le test-sensitivity check`, stage 10 of `./le verify current mode full` | `./le test-health check`, inside `./le repository generated-check` |
 | Reads | `test/health/sensitivity-baseline.json` + the working tree | the committed report vs the tree |
-| Source | `internal/le/testsensitivity.Answer` | `internal/le/testhealth.Answer` |
+| Source | `internal/le/test/sensitivity.Answer` | `internal/le/test/health.Answer` |
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
 The ratchets do NOT depend on the report. `./le test-sensitivity check` reads only
@@ -28,7 +28,7 @@ guarantee that you cannot add an inert test or strand a test file.
 ## The sensitivity detectors
 
 `./le test-sensitivity check` runs the native AST detectors in
-`internal/le/testsensitivity`. Its `selftest` action proves each detector on
+`internal/le/test/sensitivity`. Its `selftest` action proves each detector on
 known-bad fixtures before the live-tree check is trusted.
 
 ### assert-nothing
@@ -50,7 +50,7 @@ native test action is a tag orphan. The tag universe is derived from the Go
 action tables and feature manifest, so a new feature gate cannot silently
 orphan its tests. The satisfiability search handles negated and compile-out
 constraints such as `!linux` and `ze_core && !ze_web`.
-<!-- source: internal/le/testsensitivity/tags.go -- tagUniverse -->
+<!-- source: internal/le/test/sensitivity/tags.go -- tagUniverse -->
 
 ### Detector pitfalls
 
@@ -111,7 +111,7 @@ record in the change that adds it, and the standing corpus is grandfathered.
 A third gate, on a different failure: a test that stopped proving something with
 a written excuse attached.
 
-The compiled weakening detector in `internal/le/testweakened` refuses an edit that
+The compiled weakening detector in `internal/le/test/weakened` refuses an edit that
 deletes assertions, adds a `t.Skip`, drops an `expect=`, or introduces an
 assertion that cannot fail. Its escape hatch is a row naming the test the edit
 weakens, written in the ledger shard your own commit session owns. The owner's
@@ -121,10 +121,10 @@ it under `tmp/` and the commit carries it as an `RFC-approved:` trailer
 
 | | |
 |---|---|
-| Refused at edit time by | `internal/le/hookruntime` calling `internal/le/testweakened` |
+| Refused at edit time by | `internal/le/hookruntime` calling `internal/le/test/weakened` |
 | Refused at commit time by | `weakened_problems` (`internal/le/commit.Answer`) |
 | Reads | `test/weakened/<session>.md` + the HEAD content of the paths the commit names |
-| Source | `internal/le/testweakened.Answer`, called by both gates |
+| Source | `internal/le/test/weakened.Answer`, called by both gates |
 | Parse gate | `./le test-weakened check`, in `./le verify current mode full` both modes |
 <!-- source: internal/le/verify/engine/run.go -- RunMode, RunPart -->
 
@@ -210,7 +210,7 @@ sat in the file and contradicted each other for four months.
 
 ## The report
 
-`internal/le/testhealth.Answer` aggregates ten metrics, each assigned to one of
+`internal/le/test/health.Answer` aggregates ten metrics, each assigned to one of
 three questions (sensitivity / intent / integrity) and each stating the action
 its degradation implies. Every number is derived from committed state; which
 files count comes from `git ls-files`, so an untracked scratch test does not
@@ -231,7 +231,7 @@ that often for cosmetic reasons gets routed around rather than read: the
 "advisory gate permanently red" failure the report is built to expose. The
 counters are refreshed by `./le repository generate` and the page discloses that they may
 lag.
-<!-- source: internal/le/testhealth/actions.go -- Answer -->
+<!-- source: internal/le/test/health/actions.go -- Answer -->
 
 ### The KPI series
 
@@ -243,7 +243,7 @@ number of runs.
 ## Publication
 
 The native `./le site build` action renders the website health page from
-`internal/le/testhealth.Render`, which answers the metric record and the page
+`internal/le/test/health.Render`, which answers the metric record and the page
 Markdown for the tree being built and writes neither file. The site builder
 computes no new test-health facts: it draws the same metrics, under the same
 three questions, in the same worst-first order.
@@ -254,9 +254,9 @@ hand. A page sourced from the committed snapshot would state the tree as of the
 last refresh while claiming to describe the tree it was built from. The KPI
 trends still come from the committed `test/health/history.ndjson`, which is the
 only record of how the numbers moved.
-<!-- source: internal/le/testhealth/modes.go -- Render -->
+<!-- source: internal/le/test/health/modes.go -- Render -->
 <!-- source: internal/le/site/health.go -- renderHealth -->
-<!-- source: internal/le/testhealth/actions.go -- Actions -->
+<!-- source: internal/le/test/health/actions.go -- Actions -->
 
 ## Full operator reference
 

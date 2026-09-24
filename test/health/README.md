@@ -3,7 +3,7 @@
 Committed artifacts behind `docs/features/test-health.md`, the generated page that
 reports whether a regression would actually be caught.
 
-The three data files are produced by `internal/le/testhealth/actions.go` (this README
+The three data files are produced by `internal/le/test/health/actions.go` (this README
 is hand-written). Do not hand-edit the data; edit the collectors instead.
 
 | File | What it is | Written by |
@@ -66,7 +66,7 @@ its last green.
 
 The consequence: a metric that needs a live test run cannot go straight onto the
 page. `--record` appends it to `history.ndjson` (committed), and the page renders
-trends from there. `internal/le/mutation/actions.go` established the same pattern
+trends from there. `internal/le/test/mutation/actions.go` established the same pattern
 for mutation scores.
 
 ## The ratchets

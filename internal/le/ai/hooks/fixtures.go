@@ -21,7 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/le/hookruntime"
 	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/rfc"
-	"github.com/ze-software/ze/internal/le/testweakened"
+	testweakened "github.com/ze-software/ze/internal/le/test/weakened"
 )
 
 const (
@@ -53,11 +53,15 @@ var (
 		0xc3, 0xcd, 0x81, 0x31, 0x5e, 0xbb, 0xdf, 0x8d,
 		0x5b, 0x31, 0x89, 0x46, 0xfc, 0x3d, 0x38, 0xc5,
 	}
+	// Re-sealed 2026-09-25 for plan/spec-le-subject-first-command-tree.md:
+	// the weakened-test action and proposed-edit owners moved from
+	// internal/le/testweakened to internal/le/test/weakened. Two owner paths,
+	// no boundary or verdict.
 	fixtureBoundaryDigest = [sha256.Size]byte{
-		0x0e, 0x2e, 0xe0, 0x74, 0x92, 0x99, 0x21, 0xd2,
-		0x03, 0x19, 0x46, 0x59, 0x7b, 0x6b, 0x10, 0x72,
-		0x58, 0x14, 0x83, 0x9c, 0x06, 0xb1, 0xd4, 0x1c,
-		0x9f, 0xb3, 0x2d, 0xfa, 0x05, 0xb1, 0x2c, 0xe7,
+		0xe7, 0x36, 0xfc, 0xa9, 0x7d, 0x8e, 0xc4, 0x31,
+		0x7a, 0x8a, 0xd8, 0xad, 0x70, 0x07, 0x8e, 0xa4,
+		0xbc, 0x4d, 0xe3, 0x06, 0xdd, 0x30, 0x9e, 0x40,
+		0x53, 0xc2, 0xe6, 0x97, 0xb3, 0x02, 0xa5, 0xb0,
 	}
 	// Updated 2026-09-11: postInvalidateDerived joined posttool-writeedit and
 	// preMaterializeDerived joined pretool-bash, with the two hardcoded
@@ -106,11 +110,15 @@ var (
 	// (internal/le/ai/sync, internal/le/ai/rules, internal/le/doc/ste,
 	// internal/le/doc/index) and name `le ai hooks` and `le ai sync write` in
 	// comments and messages. No hook decision changed.
+	// Re-sealed 2026-09-25 for the same spec: writeedit.go imports the
+	// weakened-test checker from internal/le/test/weakened, under the alias
+	// testweakened that goimports writes because the package clause no longer
+	// matches the directory name. One import line, no hook decision changed.
 	hookSourcesDigest = [sha256.Size]byte{
-		0xc9, 0xd1, 0xfd, 0xa1, 0xc2, 0x4c, 0x69, 0x45,
-		0x22, 0x62, 0x24, 0x10, 0x20, 0x7b, 0xd2, 0x2a,
-		0x3d, 0xae, 0x67, 0x11, 0x4c, 0xcc, 0x38, 0x5d,
-		0xd9, 0xee, 0xda, 0x07, 0x6b, 0x69, 0xba, 0x0b,
+		0x65, 0xfe, 0xa4, 0xbc, 0xb9, 0x36, 0xbb, 0x82,
+		0xe3, 0x6e, 0x29, 0x1c, 0x13, 0x2a, 0xaa, 0x37,
+		0x25, 0xad, 0xf3, 0x30, 0x3c, 0x35, 0x9d, 0x76,
+		0x05, 0x1b, 0xca, 0xa7, 0xc7, 0x47, 0x65, 0xe6,
 	}
 )
 
@@ -1209,8 +1217,8 @@ const (
 	categoryMarkSourceRead       = "mark-source-read"
 	categorySubagentContext      = "subagent-context"
 	hookLifecycleFile            = "internal/le/hookruntime/lifecycle.go"
-	weakenedActionsFile          = "internal/le/testweakened/actions.go"
-	weakenedProposedFile         = "internal/le/testweakened/proposed.go"
+	weakenedActionsFile          = "internal/le/test/weakened/actions.go"
+	weakenedProposedFile         = "internal/le/test/weakened/proposed.go"
 	delegationHeading            = "Delegation:"
 	planningRule                 = "planning.md"
 	goSuffix                     = ".go"

@@ -76,7 +76,7 @@ coverage.html
 .gomu_history.json
 
 # Run artifacts that land at the checkout root rather than under tmp/.
-# The mutation report belongs at tmp/mutation-report.json (internal/le/mutation
+# The mutation report belongs at tmp/mutation-report.json (internal/le/test/mutation
 # combine.go, combinedReportRel); a copy here is a run that wrote to the wrong
 # place. daemon.ready is written by the plugin fixtures through a RELATIVE path
 # (internal/test/fixture/plugin_shell_extra_2.go), so it lands in whatever

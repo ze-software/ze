@@ -1,5 +1,5 @@
 // Design: website/AI.md -- the RFC compliance report is internal/le/rfc's own answer
-// Detail: health.go holds the other quality page, over internal/le/testhealth.
+// Detail: health.go holds the other quality page, over internal/le/test/health.
 package site
 
 import (

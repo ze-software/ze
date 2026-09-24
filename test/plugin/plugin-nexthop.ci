@@ -20,7 +20,7 @@ stdin=peer:terminator=EOF_PEER
 # then waits for `eor-sent`, so under ruling 1 the marker is owed between seq=1
 # and seq=2. Which frame wins is decided by how fast the plugin announces inside
 # the barrier window rather than by an order Ze publishes, and this file's rule
-# failed 13 of 40 on exactly that (internal/le/stressrepro/actions.go). The
+# failed 13 of 40 on exactly that (internal/le/test/stressrepro/actions.go). The
 # order ruling 1 makes assertable is asserted where the barrier, not a race,
 # decides it: test/plugin/initial-sync-barrier-raw.ci, whose plugin dispatches
 # `plugin session ready` so the marker is released by the barrier itself.

@@ -495,7 +495,7 @@ func orDashes(cell string) string {
 // section, no requirement row.
 //
 // The per-RFC tables are RenderShards. This is the index over them: the counts,
-// the evidence legend, the coverage rollup internal/le/testhealth/actions.go parses,
+// the evidence legend, the coverage rollup internal/le/test/health/actions.go parses,
 // the audit coverage, the extraction sign-off, the status backlog and the
 // no-MUST-summary table.
 func RenderIndex(in RenderInput) (string, error) {

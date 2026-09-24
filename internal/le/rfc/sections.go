@@ -166,7 +166,7 @@ func renderSupersededNote(in RenderInput, cov []CoverageRow) []string {
 // SAMPLING possible -- the only real check on whether a verdict was written by
 // someone who read something -- which no gate can perform.
 //
-// The COLUMN COUNT here is load-bearing. internal/le/testhealth/actions.go pins the
+// The COLUMN COUNT here is load-bearing. internal/le/test/health/actions.go pins the
 // polarity rollup with a nine-cell regex and matches it against every line of
 // this file, so a table whose rows had the same shape would be silently folded
 // into that tool's proof-density figure.
@@ -340,7 +340,7 @@ func verdictMeaning(reason string) string {
 // counts here as evidence. A discrimination record is what replaces reading
 // that sentence, and this section publishes how much of the corpus carries one.
 //
-// Prose, no table: internal/le/testhealth/collect_rfc.go matches a nine-cell
+// Prose, no table: internal/le/test/health/collect_rfc.go matches a nine-cell
 // regex against every line of this file, so a table of the same width would be
 // folded into the proof-density figure it reports.
 func renderDiscrimination(in RenderInput) []string {
