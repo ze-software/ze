@@ -20,7 +20,7 @@
       "claim-sha": "67ef6e9c962eea4d",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/sender.go::run",
-      "producer-sha": "dd6e83ac63b0b36e",
+      "producer-sha": "1e6505b36bf10daa",
       "break": "body of run replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -31,7 +31,7 @@
       "claim-sha": "56af294e125bf4a6",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/sender.go::run",
-      "producer-sha": "dd6e83ac63b0b36e",
+      "producer-sha": "1e6505b36bf10daa",
       "break": "body of run replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +42,7 @@
       "claim-sha": "037c140f680209c3",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/sender.go::run",
-      "producer-sha": "dd6e83ac63b0b36e",
+      "producer-sha": "1e6505b36bf10daa",
       "break": "body of run replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "071dff0f6a7d9035",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent",
-      "producer-sha": "70ff9019c70e1759",
+      "producer-sha": "2c360041ec2f4b82",
       "break": "body of peerHeaderFromEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "f2a94a71e9fd0df5",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/sender.go::writeRouteMirroring",
-      "producer-sha": "d319c883501d14de",
+      "producer-sha": "81edd51269581c83",
       "break": "body of writeRouteMirroring replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -130,7 +130,7 @@
       "claim-sha": "e1c1cfa8386bda53",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/msg.go::decodeStatisticsReport",
-      "producer-sha": "4e064044373b2df5",
+      "producer-sha": "6b4030ce6f7eaa4c",
       "break": "body of decodeStatisticsReport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "3a9f2fc90cd1edb3",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/msg.go::decodeStatisticsReport",
-      "producer-sha": "4e064044373b2df5",
+      "producer-sha": "6b4030ce6f7eaa4c",
       "break": "body of decodeStatisticsReport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -163,7 +163,7 @@
       "claim-sha": "054af39de121ab47",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent",
-      "producer-sha": "70ff9019c70e1759",
+      "producer-sha": "2c360041ec2f4b82",
       "break": "body of peerHeaderFromEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -174,7 +174,7 @@
       "claim-sha": "1fe0456c8ce4243c",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent",
-      "producer-sha": "70ff9019c70e1759",
+      "producer-sha": "2c360041ec2f4b82",
       "break": "body of peerHeaderFromEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -185,7 +185,7 @@
       "claim-sha": "d6f55821749a6cd3",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent",
-      "producer-sha": "70ff9019c70e1759",
+      "producer-sha": "2c360041ec2f4b82",
       "break": "body of peerHeaderFromEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -196,14 +196,14 @@
       "claim-sha": "0ea8e560c8a34396",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/bmp_events.go::peerHeaderFromEvent",
-      "producer-sha": "70ff9019c70e1759",
+      "producer-sha": "2c360041ec2f4b82",
       "break": "body of peerHeaderFromEvent replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7854-8.2-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/bmp/rfc7854_test.go::TestRFC7854BGPPeerUpCarriesTransportPorts",
-      "unit-sha": "e73884c6c2a29f52",
+      "unit-sha": "ac65e945be95211f",
       "claim-sha": "1314eb75de8b8b3d",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/msg.go::writePeerUp",
@@ -236,7 +236,7 @@
       "rid": "RFC7854-x-15",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/bmp/statistics_test.go::TestRFC7854StatisticsTimeoutZeroSendsNoReport",
-      "unit-sha": "4e9fed48e3537c6a",
+      "unit-sha": "dad95c030f3a13e0",
       "claim-sha": "3d77d9afb0c00207",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/statistics.go::setStatisticsTimeout",
@@ -251,7 +251,7 @@
       "claim-sha": "17fe18db973dbe81",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/sender.go::sendInitiation",
-      "producer-sha": "2ff47c6603a94619",
+      "producer-sha": "db462600e7edfc39",
       "break": "body of sendInitiation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

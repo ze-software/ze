@@ -7,10 +7,10 @@
       "unit": "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability",
       "unit-sha": "43945298a8c1e9bf",
       "claim-sha": "6d34bf520e38d753",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
-      "producer-sha": "8285556f7a9b03e2",
-      "break": "line 215: \"s.negotiateWith(localCaps, peerCaps)\" -\u003e \"for _, c := range peerCaps { if _, unknown := c.(*capability.Unknown); unknown { capData := make([]byte, c.Len()); c.WriteTo(capData, 0); s.logNotifyErr(s.Conn(), message.NotifyOpenMessage, message.NotifyOpenUnsupportedCapability, capData); s.logFSMEvent(fsm.EventBGPOpenMsgErr); s.closeConn(); return ErrInvalidState } }; s.negotiateWith(localCaps, peerCaps) // MUTATION-APPLIED\""
+      "producer-sha": "94e8c8a8e7563891",
+      "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5492-3-4",
@@ -18,10 +18,10 @@
       "unit": "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability",
       "unit-sha": "43945298a8c1e9bf",
       "claim-sha": "96dd562097241504",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
-      "producer-sha": "8285556f7a9b03e2",
-      "break": "line 215: \"s.negotiateWith(localCaps, peerCaps)\" -\u003e \"for _, c := range peerCaps { if _, unknown := c.(*capability.Unknown); unknown { capData := make([]byte, c.Len()); c.WriteTo(capData, 0); s.logNotifyErr(s.Conn(), message.NotifyOpenMessage, message.NotifyOpenUnsupportedCapability, capData); s.logFSMEvent(fsm.EventBGPOpenMsgErr); s.closeConn(); return ErrInvalidState } }; s.negotiateWith(localCaps, peerCaps) // MUTATION-APPLIED\""
+      "producer-sha": "94e8c8a8e7563891",
+      "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC5492-5-2",
@@ -29,10 +29,10 @@
       "unit": "internal/component/bgp/reactor/session_handlers_test.go::TestOpenIgnoresUnknownCapability",
       "unit-sha": "43945298a8c1e9bf",
       "claim-sha": "d9e4da576121e676",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
-      "producer-sha": "8285556f7a9b03e2",
-      "break": "line 215: \"s.negotiateWith(localCaps, peerCaps)\" -\u003e \"for _, c := range peerCaps { if _, unknown := c.(*capability.Unknown); unknown { capData := make([]byte, c.Len()); c.WriteTo(capData, 0); s.logNotifyErr(s.Conn(), message.NotifyOpenMessage, message.NotifyOpenUnsupportedCapability, capData); s.logFSMEvent(fsm.EventBGPOpenMsgErr); s.closeConn(); return ErrInvalidState } }; s.negotiateWith(localCaps, peerCaps) // MUTATION-APPLIED\""
+      "producer-sha": "94e8c8a8e7563891",
+      "break": "body of handleOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

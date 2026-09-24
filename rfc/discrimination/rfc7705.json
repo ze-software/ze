@@ -3,17 +3,6 @@
   "records": [
     {
       "rid": "RFC7705-3.3-1",
-      "polarity": "positive",
-      "unit": "internal/component/bgp/config/peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup",
-      "unit-sha": "5104e0f911f439cc",
-      "claim-sha": "77d4d43e34b1e05f",
-      "route": "revert",
-      "producer": "internal/component/bgp/reactor/config.go::parsePeerSettings",
-      "producer-sha": "6f7cf0e3f1e664ed",
-      "break": "body of parsePeerSettings replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC7705-3.3-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/config/peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup",
       "unit-sha": "5104e0f911f439cc",
@@ -22,6 +11,17 @@
       "producer": "internal/component/bgp/config/resolve.go::ResolveBGPTree",
       "producer-sha": "7f64166a642fa608",
       "break": "body of ResolveBGPTree replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7705-3.3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/config/peers_test.go::TestPeersFromConfigTree_LocalASOptionsPerNeighborGroup",
+      "unit-sha": "5104e0f911f439cc",
+      "claim-sha": "77d4d43e34b1e05f",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/config.go::parsePeerSettings",
+      "producer-sha": "9e4ba30aec70bad4",
+      "break": "body of parsePeerSettings replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC7705-3.3-2",
@@ -152,7 +152,7 @@
       "claim-sha": "c513878e3cee82f3",
       "route": "revert",
       "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
-      "producer-sha": "aa3702633b697bcb",
+      "producer-sha": "8cdc57d8ebca0af4",
       "break": "body of validateOpenPeerAS replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

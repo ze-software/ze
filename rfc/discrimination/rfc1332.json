@@ -5,22 +5,22 @@
       "rid": "RFC1332-2.1-3",
       "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU",
-      "unit-sha": "a2e3320971c36708",
-      "claim-sha": "363daf1d1f24e992",
+      "unit-sha": "9ce9ba7485406446",
+      "claim-sha": "70a8fb86a2d8a45c",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
-      "producer-sha": "8629d89b48acacfa",
+      "producer-sha": "2f7e0cd54e5067ab",
       "break": "body of afterLCPOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC1332-2.1-3",
       "polarity": "negative",
       "unit": "internal/component/l2tp/ppp/mtu_rfc1332_test.go::TestIPMTUInstalledFromNegotiatedMRU",
-      "unit-sha": "a2e3320971c36708",
-      "claim-sha": "74e6996dbe71a576",
+      "unit-sha": "9ce9ba7485406446",
+      "claim-sha": "d161b75488e1c80e",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/session_run.go::afterLCPOpen",
-      "producer-sha": "8629d89b48acacfa",
+      "producer-sha": "2f7e0cd54e5067ab",
       "break": "body of afterLCPOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

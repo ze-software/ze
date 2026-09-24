@@ -31,7 +31,7 @@
       "claim-sha": "8123e74c331388cf",
       "route": "revert",
       "producer": "internal/component/ike/engine/child.go::installChildSA",
-      "producer-sha": "d0f3810a89c0fb77",
+      "producer-sha": "20bfd6645a32907f",
       "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -405,7 +405,7 @@
       "claim-sha": "9fe6235926926052",
       "route": "revert",
       "producer": "internal/component/ike/ipsec/config.go::parseSiteToSitePeer",
-      "producer-sha": "8eec10e9213897ec",
+      "producer-sha": "eaba4e6ee9a18352",
       "break": "body of parseSiteToSitePeer replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

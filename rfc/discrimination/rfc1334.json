@@ -9,7 +9,7 @@
       "claim-sha": "10297f87371fc829",
       "route": "revert",
       "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
-      "producer-sha": "dc1c377ab0ac67b1",
+      "producer-sha": "c83d1658af0a4fc7",
       "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -20,7 +20,7 @@
       "claim-sha": "43a8c590ae547c68",
       "route": "revert",
       "producer": "internal/component/l2tp/pppoeclient/session.go::runClientAuth",
-      "producer-sha": "dc1c377ab0ac67b1",
+      "producer-sha": "c83d1658af0a4fc7",
       "break": "body of runClientAuth replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -31,7 +31,7 @@
       "claim-sha": "b992c0a7e95ec52c",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/pap.go::runPAPAuthPhase",
-      "producer-sha": "e091f4922cb57949",
+      "producer-sha": "9ddd1a2f803b541b",
       "break": "body of runPAPAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +42,7 @@
       "claim-sha": "afffb0ccb432c652",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/pap.go::runPAPAuthPhase",
-      "producer-sha": "e091f4922cb57949",
+      "producer-sha": "9ddd1a2f803b541b",
       "break": "body of runPAPAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -53,7 +53,7 @@
       "claim-sha": "e4d994cf8004d20b",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/pap.go::runPAPAuthPhase",
-      "producer-sha": "e091f4922cb57949",
+      "producer-sha": "9ddd1a2f803b541b",
       "break": "body of runPAPAuthPhase replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

@@ -53,7 +53,7 @@
       "claim-sha": "531d2a6f41a2e3d6",
       "route": "revert",
       "producer": "internal/plugins/ospf/neighbor/table.go::databaseSummaryLocked",
-      "producer-sha": "46cb3758474a581d",
+      "producer-sha": "701d8345ab6988e0",
       "break": "body of databaseSummaryLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "6b47103c5bb74078",
       "route": "revert",
       "producer": "internal/plugins/ospf/neighbor/table.go::databaseSummaryLocked",
-      "producer-sha": "46cb3758474a581d",
+      "producer-sha": "701d8345ab6988e0",
       "break": "body of databaseSummaryLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

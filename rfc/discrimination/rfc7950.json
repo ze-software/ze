@@ -383,7 +383,7 @@
       "claim-sha": "24cfde7a8d8b1f1d",
       "route": "revert",
       "producer": "internal/component/config/yang/validator.go::validateBoolean",
-      "producer-sha": "da9f2db58ab0223a",
+      "producer-sha": "ffdd3e2c1375b380",
       "break": "body of validateBoolean replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -394,7 +394,7 @@
       "claim-sha": "d1b74347e96f54ce",
       "route": "revert",
       "producer": "internal/component/config/yang/validator.go::validateBoolean",
-      "producer-sha": "da9f2db58ab0223a",
+      "producer-sha": "ffdd3e2c1375b380",
       "break": "body of validateBoolean replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

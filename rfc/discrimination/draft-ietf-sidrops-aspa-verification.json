@@ -2,6 +2,28 @@
   "rfc": "draft-ietf-sidrops-aspa-verification",
   "records": [
     {
+      "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate",
+      "unit-sha": "2ba0c90bb047bc9e",
+      "claim-sha": "39c434d207799356",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/aspa_cache.go::checkPair",
+      "producer-sha": "121c6aaa6bae04d7",
+      "break": "body of checkPair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAZeroDoesNotAuthorizeOrInvalidate",
+      "unit-sha": "2ba0c90bb047bc9e",
+      "claim-sha": "4ebe7b090d1b22c6",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/aspa_cache.go::checkPair",
+      "producer-sha": "121c6aaa6bae04d7",
+      "break": "body of checkPair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/rpki/compressed_aspa_test.go::TestASPACompressedASPath",
@@ -46,6 +68,50 @@
       "break": "line 46: \"if len(hops) == 0 || hops[len(hops)-1] != asn {\" -\u003e \"if func() bool { for _, hop := range hops { if hop == asn { return false } }; return true }() { // MUTATION-APPLIED: deduplicate all ASNs, including separated repeats\""
     },
     {
+      "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rpki/aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes",
+      "unit-sha": "bcde861a848c44e4",
+      "claim-sha": "e546c742ddb7f2c7",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rpki_config.go::configuredASPAMode",
+      "producer-sha": "063455b7e212d3ce",
+      "break": "body of configuredASPAMode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rpki/aspa_role_mode_test.go::TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes",
+      "unit-sha": "bcde861a848c44e4",
+      "claim-sha": "8f67f7f3ceec5af5",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rpki_config.go::configuredASPAMode",
+      "producer-sha": "063455b7e212d3ce",
+      "break": "body of configuredASPAMode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAStateForPath",
+      "unit-sha": "1bf6458edbfb54ee",
+      "claim-sha": "4c3c7367d2c029d9",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::aspaStateForPath",
+      "producer-sha": "3b33e650c5fe5331",
+      "break": "body of aspaStateForPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rpki/aspa_verify_test.go::TestASPAVerifyASSet",
+      "unit-sha": "1107231028aa4f2e",
+      "claim-sha": "a1bba2b7f5f0008f",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::aspaStateForPath",
+      "producer-sha": "3b33e650c5fe5331",
+      "break": "body of aspaStateForPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/rpki/aspa_family_scope_test.go::TestASPAAppliesToIPv4Unicast",
@@ -53,7 +119,7 @@
       "claim-sha": "0163c2add5bff11b",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::aspaStateForPath",
-      "producer-sha": "9a963db328ea2af7",
+      "producer-sha": "3b33e650c5fe5331",
       "break": "body of aspaStateForPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +130,7 @@
       "claim-sha": "8e21cc95f92b3a4e",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/rpki/aspa_verify.go::aspaStateForPath",
-      "producer-sha": "9a963db328ea2af7",
+      "producer-sha": "3b33e650c5fe5331",
       "break": "body of aspaStateForPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

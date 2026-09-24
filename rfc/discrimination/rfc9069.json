@@ -75,7 +75,7 @@
       "claim-sha": "7d3b044e83b9c157",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/bmp.go::processPeerUp",
-      "producer-sha": "bf885ab88b154dc7",
+      "producer-sha": "735722d69dcaa293",
       "break": "body of processPeerUp replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "976ac7f46f0db5c9",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/bmp.go::processPeerUp",
-      "producer-sha": "bf885ab88b154dc7",
+      "producer-sha": "735722d69dcaa293",
       "break": "body of processPeerUp replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

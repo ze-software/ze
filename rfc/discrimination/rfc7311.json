@@ -27,7 +27,7 @@
       "rid": "RFC7311-3.2-4",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc7311_aigp_receive_test.go::TestRFC7311AIGPNonTransitiveKeptOnReceive",
-      "unit-sha": "2b1cc7e10c14640b",
+      "unit-sha": "9bd6391aeec09fb9",
       "claim-sha": "85dc6b61c58a2ccd",
       "route": "revert",
       "producer": "internal/component/bgp/message/rfc7606.go::validateAttributeFlags",
@@ -53,7 +53,7 @@
       "claim-sha": "495667d2089f8695",
       "route": "revert",
       "producer": "internal/core/bgp/attribute/aigp.go::ParseAIGP",
-      "producer-sha": "3a6e16b606b95832",
+      "producer-sha": "7545844195cd43d6",
       "break": "body of ParseAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "dd8abb0aa03f042c",
       "route": "revert",
       "producer": "internal/core/bgp/attribute/aigp.go::ParseAIGP",
-      "producer-sha": "3a6e16b606b95832",
+      "producer-sha": "7545844195cd43d6",
       "break": "body of ParseAIGP replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

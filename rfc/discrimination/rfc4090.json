@@ -27,11 +27,11 @@
       "rid": "RFC4090-4.4-1",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/frr_test.go::TestPLRArmsBypass",
-      "unit-sha": "f866aed722d57b9d",
+      "unit-sha": "74c0671b2af1935c",
       "claim-sha": "5b3d5311ed6ca992",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
-      "producer-sha": "59695b6e2840d0a6",
+      "producer-sha": "f485360d9b8e2b03",
       "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -42,7 +42,7 @@
       "claim-sha": "6e4295507b5a3898",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
-      "producer-sha": "59695b6e2840d0a6",
+      "producer-sha": "f485360d9b8e2b03",
       "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -53,7 +53,7 @@
       "claim-sha": "802a7a7292edb070",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
-      "producer-sha": "59695b6e2840d0a6",
+      "producer-sha": "f485360d9b8e2b03",
       "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "fd4730f5692f9ba6",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
-      "producer-sha": "59695b6e2840d0a6",
+      "producer-sha": "f485360d9b8e2b03",
       "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "9d3a5451e7abc315",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/register.go::refreshPaths",
-      "producer-sha": "fa2632af56744265",
+      "producer-sha": "16323bbbb2f31d7a",
       "break": "body of refreshPaths replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "2bca9c90a21f9811",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/register.go::refreshPaths",
-      "producer-sha": "fa2632af56744265",
+      "producer-sha": "16323bbbb2f31d7a",
       "break": "body of refreshPaths replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "04829bb198b58cea",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/build.go::buildPath",
-      "producer-sha": "24ff3cd46e9583c8",
+      "producer-sha": "4d5759141b333cdd",
       "break": "body of buildPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -129,9 +129,9 @@
       "unit-sha": "e641c8c469c0f5fd",
       "claim-sha": "799a0b9561297642",
       "route": "revert",
-      "producer": "internal/plugins/rsvpte/engine.go::handleResvIngress",
-      "producer-sha": "044d26240909ae28",
-      "break": "body of handleResvIngress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/rsvpte/reservation.go::receivedReservation",
+      "producer-sha": "38110e8f415ad126",
+      "break": "body of receivedReservation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4090-5-3",
@@ -140,9 +140,9 @@
       "unit-sha": "e641c8c469c0f5fd",
       "claim-sha": "e1f61ff998197475",
       "route": "revert",
-      "producer": "internal/plugins/rsvpte/engine.go::handleResvIngress",
-      "producer-sha": "044d26240909ae28",
-      "break": "body of handleResvIngress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/rsvpte/reservation.go::receivedReservation",
+      "producer-sha": "38110e8f415ad126",
+      "break": "body of receivedReservation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4090-5-4",
@@ -162,19 +162,19 @@
       "unit-sha": "e795b086f837521b",
       "claim-sha": "96c383053c40fc62",
       "route": "revert",
-      "producer": "internal/plugins/rsvpte/engine.go::handleResvIngress",
-      "producer-sha": "044d26240909ae28",
-      "break": "body of handleResvIngress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/rsvpte/reservation.go::receivedReservation",
+      "producer-sha": "38110e8f415ad126",
+      "break": "body of receivedReservation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4090-6-1",
       "polarity": "negative",
       "unit": "internal/plugins/rsvpte/frr_rfc4090_test.go::TestRFC4090EgressDoesNotActAsPLR",
-      "unit-sha": "a4a4b8c08c37ffac",
+      "unit-sha": "1d8ca671348cba21",
       "claim-sha": "4ecb7eb501588969",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handlePathEgress",
-      "producer-sha": "b32fbaf1da16838f",
+      "producer-sha": "69edc65089534730",
       "break": "body of handlePathEgress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -229,7 +229,7 @@
       "claim-sha": "43f1b5e7be30d836",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::bypassEstablished",
-      "producer-sha": "c5e4445b4ed19a43",
+      "producer-sha": "ee5c9515bf7879cb",
       "break": "body of bypassEstablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -240,7 +240,7 @@
       "claim-sha": "1ae8fc6484c9498f",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::bypassEstablished",
-      "producer-sha": "c5e4445b4ed19a43",
+      "producer-sha": "ee5c9515bf7879cb",
       "break": "body of bypassEstablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -251,7 +251,7 @@
       "claim-sha": "e53a34bdf787774b",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::bypassEstablished",
-      "producer-sha": "c5e4445b4ed19a43",
+      "producer-sha": "ee5c9515bf7879cb",
       "break": "body of bypassEstablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -262,7 +262,7 @@
       "claim-sha": "9e3677d97ef3e404",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::bypassEstablished",
-      "producer-sha": "c5e4445b4ed19a43",
+      "producer-sha": "ee5c9515bf7879cb",
       "break": "body of bypassEstablished replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -273,7 +273,7 @@
       "claim-sha": "00ccaa23d2cf44cb",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
-      "producer-sha": "59695b6e2840d0a6",
+      "producer-sha": "f485360d9b8e2b03",
       "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -284,7 +284,7 @@
       "claim-sha": "e68a4789d2259e68",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::tryLocalRepair",
-      "producer-sha": "194876c668ff322a",
+      "producer-sha": "64f51006efbc1425",
       "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -306,7 +306,7 @@
       "claim-sha": "9e3abfdbc55768da",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
-      "producer-sha": "59695b6e2840d0a6",
+      "producer-sha": "f485360d9b8e2b03",
       "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -317,7 +317,7 @@
       "claim-sha": "35c0a971788ede35",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
-      "producer-sha": "59695b6e2840d0a6",
+      "producer-sha": "f485360d9b8e2b03",
       "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -327,9 +327,9 @@
       "unit-sha": "1be84061d56ea2c0",
       "claim-sha": "9eb3163568cbd682",
       "route": "revert",
-      "producer": "internal/plugins/rsvpte/frr.go::rroProtectionFlags",
-      "producer-sha": "59695b6e2840d0a6",
-      "break": "body of rroProtectionFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/plugins/rsvpte/reservation.go::receivedReservation",
+      "producer-sha": "38110e8f415ad126",
+      "break": "body of receivedReservation replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4090-6.2-1",
@@ -361,7 +361,7 @@
       "claim-sha": "a912b3c2b2c327df",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::tryLocalRepair",
-      "producer-sha": "194876c668ff322a",
+      "producer-sha": "64f51006efbc1425",
       "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -372,63 +372,63 @@
       "claim-sha": "c839ee0ee20ecf61",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::tryLocalRepair",
-      "producer-sha": "194876c668ff322a",
+      "producer-sha": "64f51006efbc1425",
       "break": "body of tryLocalRepair replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4090-6.4-1",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/frr_bypass_rfc4090_test.go::TestRFC4090ProtectedPathSurvivesRepair",
-      "unit-sha": "b815661f90fa6b08",
+      "unit-sha": "5bc24f3eaac14aa3",
       "claim-sha": "3752eb3e16a0dde0",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::sendPath",
       "producer-sha": "529788b1fb577511",
-      "break": "line 268: \"buildPath(psb, e.cfg().RouterID, defaultIPTTL)\" -\u003e \"buildPath(psb, psb.Hop.NextHop, defaultIPTTL)\""
+      "break": "body of sendPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4090-6.4-2",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/frr_bypass_rfc4090_test.go::TestRFC4090ProtectedPathSurvivesRepair",
-      "unit-sha": "b815661f90fa6b08",
+      "unit-sha": "5bc24f3eaac14aa3",
       "claim-sha": "e39e6588cc951f05",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::backupPath",
       "producer-sha": "acd5cbcd73c8c709",
-      "break": "line 598: \"netip.PrefixFrom(mp, mp.BitLen())\" -\u003e \"psb.ERO[0].Address\""
+      "break": "body of backupPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4090-6.4-3",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/frr_bypass_rfc4090_test.go::TestRFC4090ProtectedPathSurvivesRepair",
-      "unit-sha": "b815661f90fa6b08",
+      "unit-sha": "5bc24f3eaac14aa3",
       "claim-sha": "f2a58d9f6b70f1b1",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::backupPath",
       "producer-sha": "acd5cbcd73c8c709",
-      "break": "line 598: \"netip.PrefixFrom(mp, mp.BitLen())\" -\u003e \"psb.ERO[0].Address\""
+      "break": "body of backupPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4090-7.1-1",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/frr_bypass_rfc4090_test.go::TestRFC4090ProtectedPathSurvivesRepair",
-      "unit-sha": "b815661f90fa6b08",
+      "unit-sha": "5bc24f3eaac14aa3",
       "claim-sha": "bf339163a2e69801",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/plugins/rsvpte/frr.go::mergeBackupPath",
       "producer-sha": "dcc8a80e64bdd05d",
-      "break": "line 733: \"!\" -\u003e \"\""
+      "break": "body of mergeBackupPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4090-7.1-2",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/frr_bypass_rfc4090_test.go::TestRFC4090ProtectedPathSurvivesRepair",
-      "unit-sha": "b815661f90fa6b08",
+      "unit-sha": "5bc24f3eaac14aa3",
       "claim-sha": "70efdb772d06c7dd",
-      "route": "mutant",
+      "route": "revert",
       "producer": "internal/plugins/rsvpte/register.go::refreshPaths",
-      "producer-sha": "878e8af7f7e4dc2d",
-      "break": "line 994: \"||\" -\u003e \"\u0026\u0026\""
+      "producer-sha": "16323bbbb2f31d7a",
+      "break": "body of refreshPaths replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4090-7.2-1",
@@ -438,7 +438,7 @@
       "claim-sha": "ee71347b4c3be82d",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handleLinkDown",
-      "producer-sha": "8c1b2751983400a5",
+      "producer-sha": "0bcc1c13070b4f95",
       "break": "body of handleLinkDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -449,7 +449,7 @@
       "claim-sha": "71637b8fb5964675",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/engine.go::handleLinkDown",
-      "producer-sha": "8c1b2751983400a5",
+      "producer-sha": "0bcc1c13070b4f95",
       "break": "body of handleLinkDown replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -460,7 +460,7 @@
       "claim-sha": "d938a8caa16da02a",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/register.go::cleanupTick",
-      "producer-sha": "147b46ccc9c95866",
+      "producer-sha": "144c5d35c442bc45",
       "break": "body of cleanupTick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -471,7 +471,7 @@
       "claim-sha": "9b21cf74b92bdcf9",
       "route": "revert",
       "producer": "internal/plugins/rsvpte/register.go::cleanupTick",
-      "producer-sha": "147b46ccc9c95866",
+      "producer-sha": "144c5d35c442bc45",
       "break": "body of cleanupTick replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

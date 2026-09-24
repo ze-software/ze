@@ -5,44 +5,44 @@
       "rid": "RFC8414-3.1-1",
       "polarity": "positive",
       "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequestIsGETAtWellKnownPath",
-      "unit-sha": "b9869e601a28f369",
+      "unit-sha": "d23198acf2483695",
       "claim-sha": "a23bc57c79631d5a",
       "route": "revert",
       "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
-      "producer-sha": "c75b7d1e4fe09ad5",
+      "producer-sha": "9c3c0b8747d3dbfb",
       "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8414-3.1-1",
       "polarity": "negative",
       "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataRequestUsesNoOtherVerbOrPath",
-      "unit-sha": "14112e180567b5d3",
+      "unit-sha": "90b04affcc924ebb",
       "claim-sha": "1188b2f34bfc2c56",
       "route": "revert",
       "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
-      "producer-sha": "c75b7d1e4fe09ad5",
+      "producer-sha": "9c3c0b8747d3dbfb",
       "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8414-3.1-2",
       "polarity": "positive",
       "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataPathInsertedBeforeIssuerPath",
-      "unit-sha": "dae85a541c453b07",
+      "unit-sha": "41182f70bec1bf7e",
       "claim-sha": "d9e676f4b756b819",
       "route": "revert",
       "producer": "internal/component/mcp/as_metadata.go::asMetadataURL",
-      "producer-sha": "f6829b7147a4eac2",
+      "producer-sha": "40613bae2cd4d34e",
       "break": "body of asMetadataURL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC8414-3.1-2",
       "polarity": "negative",
       "unit": "internal/component/mcp/as_metadata_rfc8414_test.go::TestRFC8414MetadataPathNeverAppendedToIssuerPath",
-      "unit-sha": "746b10e388fe2240",
+      "unit-sha": "53321c4513f7d0f0",
       "claim-sha": "32228272d2c70ec2",
       "route": "revert",
       "producer": "internal/component/mcp/as_metadata.go::asMetadataURL",
-      "producer-sha": "f6829b7147a4eac2",
+      "producer-sha": "40613bae2cd4d34e",
       "break": "body of asMetadataURL replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -53,7 +53,7 @@
       "claim-sha": "90d00c2cc50ae8cc",
       "route": "revert",
       "producer": "internal/component/mcp/jwt.go::verifyJWT",
-      "producer-sha": "ac03548433568493",
+      "producer-sha": "d7f2925a3dc4abcb",
       "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "ab4c2dfa4f2d295c",
       "route": "revert",
       "producer": "internal/component/mcp/jwt.go::verifyJWT",
-      "producer-sha": "ac03548433568493",
+      "producer-sha": "d7f2925a3dc4abcb",
       "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -75,7 +75,7 @@
       "claim-sha": "c5d17820e0f43e0e",
       "route": "revert",
       "producer": "internal/component/mcp/jwt.go::verifyJWT",
-      "producer-sha": "ac03548433568493",
+      "producer-sha": "d7f2925a3dc4abcb",
       "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -86,7 +86,7 @@
       "claim-sha": "74b8e241a3d6abf8",
       "route": "revert",
       "producer": "internal/component/mcp/jwt.go::verifyJWT",
-      "producer-sha": "ac03548433568493",
+      "producer-sha": "d7f2925a3dc4abcb",
       "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -97,7 +97,7 @@
       "claim-sha": "57cf1617048c3ccd",
       "route": "revert",
       "producer": "internal/component/mcp/jwt.go::verifyJWT",
-      "producer-sha": "ac03548433568493",
+      "producer-sha": "d7f2925a3dc4abcb",
       "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -108,7 +108,7 @@
       "claim-sha": "dedbf78ab7555494",
       "route": "revert",
       "producer": "internal/component/mcp/jwt.go::verifyJWT",
-      "producer-sha": "ac03548433568493",
+      "producer-sha": "d7f2925a3dc4abcb",
       "break": "body of verifyJWT replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "8cbd927bb0986cfe",
       "route": "revert",
       "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
-      "producer-sha": "c75b7d1e4fe09ad5",
+      "producer-sha": "9c3c0b8747d3dbfb",
       "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -130,7 +130,7 @@
       "claim-sha": "80b57c5c1c126cf9",
       "route": "revert",
       "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
-      "producer-sha": "c75b7d1e4fe09ad5",
+      "producer-sha": "9c3c0b8747d3dbfb",
       "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "1df351d79aa5ccc8",
       "route": "revert",
       "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
-      "producer-sha": "c75b7d1e4fe09ad5",
+      "producer-sha": "9c3c0b8747d3dbfb",
       "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -152,7 +152,7 @@
       "claim-sha": "ebb2210c9db11837",
       "route": "revert",
       "producer": "internal/component/mcp/as_metadata.go::fetchASMetadata",
-      "producer-sha": "c75b7d1e4fe09ad5",
+      "producer-sha": "9c3c0b8747d3dbfb",
       "break": "body of fetchASMetadata replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

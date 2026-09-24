@@ -20,7 +20,7 @@
       "claim-sha": "727239123df97043",
       "route": "revert",
       "producer": "internal/plugins/isis/spf/route.go::BuildRoutes",
-      "producer-sha": "d468607e9fac5304",
+      "producer-sha": "7beede9dd623825b",
       "break": "body of BuildRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -31,7 +31,7 @@
       "claim-sha": "002df7fdbfb3837b",
       "route": "revert",
       "producer": "internal/plugins/isis/spf/route.go::BuildRoutes",
-      "producer-sha": "d468607e9fac5304",
+      "producer-sha": "7beede9dd623825b",
       "break": "body of BuildRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -119,7 +119,7 @@
       "claim-sha": "3db8646856461428",
       "route": "revert",
       "producer": "internal/plugins/isis/spf/route.go::BuildRoutes",
-      "producer-sha": "d468607e9fac5304",
+      "producer-sha": "7beede9dd623825b",
       "break": "body of BuildRoutes replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

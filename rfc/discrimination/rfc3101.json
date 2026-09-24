@@ -5,77 +5,77 @@
       "rid": "RFC3101-2.4-4",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit",
-      "unit-sha": "b4fd0cc926bcf891",
+      "unit-sha": "4be14e1e41d39e23",
       "claim-sha": "2aa90a50290b8148",
       "route": "revert",
       "producer": "internal/plugins/ospf/spf/external.go::ComputeExternalWith",
-      "producer-sha": "faa5f85a3bd04d53",
+      "producer-sha": "d1477a8fda3754a2",
       "break": "body of ComputeExternalWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3101-2.4-4",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit",
-      "unit-sha": "b4fd0cc926bcf891",
+      "unit-sha": "4be14e1e41d39e23",
       "claim-sha": "791fe7da192d76df",
       "route": "revert",
       "producer": "internal/plugins/ospf/spf/external.go::ComputeExternalWith",
-      "producer-sha": "faa5f85a3bd04d53",
+      "producer-sha": "d1477a8fda3754a2",
       "break": "body of ComputeExternalWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3101-2.4-4",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault",
-      "unit-sha": "d6cd6b60705bce9b",
+      "unit-sha": "d306f29c4fcd790c",
       "claim-sha": "daee601e708bd773",
       "route": "revert",
       "producer": "internal/plugins/ospf/spf/external.go::ComputeExternalWith",
-      "producer-sha": "faa5f85a3bd04d53",
+      "producer-sha": "d1477a8fda3754a2",
       "break": "body of ComputeExternalWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3101-2.4-4",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault",
-      "unit-sha": "40d0235611dbc3c9",
+      "unit-sha": "ba5135232d866bbf",
       "claim-sha": "daee601e708bd773",
       "route": "revert",
       "producer": "internal/plugins/ospf/spf/external.go::ComputeExternalWith",
-      "producer-sha": "faa5f85a3bd04d53",
+      "producer-sha": "d1477a8fda3754a2",
       "break": "body of ComputeExternalWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3101-2.5-1",
       "polarity": "positive",
       "unit": "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSABorderRouterDefaultPBit",
-      "unit-sha": "b4fd0cc926bcf891",
+      "unit-sha": "4be14e1e41d39e23",
       "claim-sha": "9c201906a1872b55",
       "route": "revert",
       "producer": "internal/plugins/ospf/spf/external.go::ComputeExternalWith",
-      "producer-sha": "faa5f85a3bd04d53",
+      "producer-sha": "d1477a8fda3754a2",
       "break": "body of ComputeExternalWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3101-2.5-1",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/nssa_install_gate_v6_test.go::TestOSPFv3NSSANonBorderRouterInstallsPClearDefault",
-      "unit-sha": "d6cd6b60705bce9b",
+      "unit-sha": "d306f29c4fcd790c",
       "claim-sha": "642cd3962177a76d",
       "route": "revert",
       "producer": "internal/plugins/ospf/spf/external.go::ComputeExternalWith",
-      "producer-sha": "faa5f85a3bd04d53",
+      "producer-sha": "d1477a8fda3754a2",
       "break": "body of ComputeExternalWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC3101-2.5-1",
       "polarity": "negative",
       "unit": "internal/plugins/ospf/spf/external_nssa_test.go::TestOSPFNSSANonBorderRouterInstallsPClearDefault",
-      "unit-sha": "40d0235611dbc3c9",
+      "unit-sha": "ba5135232d866bbf",
       "claim-sha": "642cd3962177a76d",
       "route": "revert",
       "producer": "internal/plugins/ospf/spf/external.go::ComputeExternalWith",
-      "producer-sha": "faa5f85a3bd04d53",
+      "producer-sha": "d1477a8fda3754a2",
       "break": "body of ComputeExternalWith replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -174,7 +174,7 @@
       "claim-sha": "1357524be4b034b7",
       "route": "revert",
       "producer": "internal/plugins/ospf/nssa.go::applyNSSADefaults",
-      "producer-sha": "931425e0f8165873",
+      "producer-sha": "89fbd1b79067a688",
       "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -185,7 +185,7 @@
       "claim-sha": "a222134fa9b4d3c2",
       "route": "revert",
       "producer": "internal/plugins/ospf/nssa.go::applyNSSADefaults",
-      "producer-sha": "931425e0f8165873",
+      "producer-sha": "89fbd1b79067a688",
       "break": "body of applyNSSADefaults replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

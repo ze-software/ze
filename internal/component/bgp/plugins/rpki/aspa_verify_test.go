@@ -53,6 +53,7 @@ func TestASPAVerifyUnknown(t *testing.T) {
 
 // TestASPAVerifyASSet checks the Invalid outcome in Section 5.5 step 3.
 func TestASPAVerifyASSet(t *testing.T) {
+	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2 positive -- a path carrying an AS_SET after an AS_SEQUENCE resolves to Invalid, not Unknown, under the upstream procedure.
 	// An AS_SET path resolves to Invalid rather than Unknown.
 	segments := []attribute.ASPathSegment{
 		{Type: attribute.ASSequence, ASNs: []uint32{100, 200}},
@@ -176,6 +177,7 @@ func TestASPANormalizeEmptySegments(t *testing.T) {
 // TestASPAStateForPath checks authorized and unauthorized ordered paths against
 // the same structural entry point used for received UPDATEs.
 func TestASPAStateForPath(t *testing.T) {
+	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2 negative -- the same authorized hops in one AS_SEQUENCE resolve to Valid, so only the AS_SET halts with Invalid.
 	// An authorized ordered path does not take the AS_SET Invalid outcome.
 	c := newASPACache()
 	// Path 100 -> 200 -> 300: 200 authorizes 100, 300 authorizes 200.
@@ -207,6 +209,8 @@ func TestASPAStateForPath(t *testing.T) {
 // TestASPAZeroDoesNotAuthorizeOrInvalidate checks the AS0 sentinel at the
 // verification boundary, where SPAS is the union of valid ASPA records.
 func TestASPAZeroDoesNotAuthorizeOrInvalidate(t *testing.T) {
+	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1 positive -- a SPAS listing AS 0 beside the real provider verifies the path Valid, as the provider alone does.
+	// RFC requirement: DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1 negative -- AS 0 is no wildcard: a SPAS holding only AS 0 leaves the hop unauthorized and the path Invalid.
 	// A mixed AS0 does not invalidate a real authorization; AS0 alone does not
 	// authorize an unlisted provider (Section 4).
 	c := newASPACache()

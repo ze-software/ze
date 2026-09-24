@@ -185,7 +185,7 @@
       "claim-sha": "9254e6c887160d6d",
       "route": "revert",
       "producer": "internal/plugins/ospf/spf/computer.go::Run",
-      "producer-sha": "7efb6aea0e32d68f",
+      "producer-sha": "1ae1de8fc0ce7026",
       "break": "body of Run replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -196,7 +196,7 @@
       "claim-sha": "7d73c3af2a747571",
       "route": "revert",
       "producer": "internal/plugins/ospf/spf/computer.go::Run",
-      "producer-sha": "7efb6aea0e32d68f",
+      "producer-sha": "1ae1de8fc0ce7026",
       "break": "body of Run replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

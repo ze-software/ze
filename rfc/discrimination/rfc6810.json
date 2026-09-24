@@ -1,0 +1,60 @@
+{
+  "rfc": "rfc6810",
+  "records": [
+    {
+      "rid": "RFC6810-5.1-3",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810ReservedPrefixOctetsIgnored",
+      "unit-sha": "a2e48774c67ffc1c",
+      "claim-sha": "f46ed8eebc354ae1",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU",
+      "producer-sha": "6c2e382d0d538dd2",
+      "break": "body of parsePrefixPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6810-5.1-3",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810ReservedPrefixOctetsIgnored",
+      "unit-sha": "a2e48774c67ffc1c",
+      "claim-sha": "3a1ec682b62c4152",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rtr_pdu.go::parsePrefixPDU",
+      "producer-sha": "6c2e382d0d538dd2",
+      "break": "body of parsePrefixPDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6810-6.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810DefaultPollCadenceIsHourly",
+      "unit-sha": "db3ce7d42931c42e",
+      "claim-sha": "cc6e3985a5af8c04",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::newRTRSession",
+      "producer-sha": "d097fb3f531daab2",
+      "break": "body of newRTRSession replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6810-6.4-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810NoDataAvailableRepeatsResetQuery",
+      "unit-sha": "95ae131196a71443",
+      "claim-sha": "ae4ca3946fbccd53",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
+      "producer-sha": "b1ddceb0a1db6a3c",
+      "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC6810-6.4-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rpki/rtr_rfc6810_test.go::TestRFC6810NoDataAvailableRepeatsResetQuery",
+      "unit-sha": "95ae131196a71443",
+      "claim-sha": "8c909c8c7d35d9db",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rpki/rtr_session.go::handlePDU",
+      "producer-sha": "b1ddceb0a1db6a3c",
+      "break": "body of handlePDU replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

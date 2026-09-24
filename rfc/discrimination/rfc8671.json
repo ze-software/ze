@@ -9,7 +9,7 @@
       "claim-sha": "80e36b804daddd9a",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/bmp/sender.go::writeStatisticsReport",
-      "producer-sha": "0257d06cf8c65ebb",
+      "producer-sha": "9f2f0931683b5058",
       "break": "body of writeStatisticsReport replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]

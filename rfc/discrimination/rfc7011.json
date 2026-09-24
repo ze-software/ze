@@ -53,7 +53,7 @@
       "claim-sha": "cadbff541f7f3fca",
       "route": "revert",
       "producer": "internal/plugins/flowexport/ipfix/flow_adapter.go::EncodeFlows",
-      "producer-sha": "c30268eac6575e3a",
+      "producer-sha": "f7407496f5531c43",
       "break": "body of EncodeFlows replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -64,7 +64,7 @@
       "claim-sha": "440ca8cb85eb154c",
       "route": "revert",
       "producer": "internal/plugins/flowexport/ipfix/flow_adapter.go::EncodeFlows",
-      "producer-sha": "c30268eac6575e3a",
+      "producer-sha": "f7407496f5531c43",
       "break": "body of EncodeFlows replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -130,7 +130,7 @@
       "claim-sha": "3c824f527ef98c39",
       "route": "revert",
       "producer": "internal/plugins/flowexport/ipfix/flow_adapter.go::sendTemplateMessage",
-      "producer-sha": "f067129062db5097",
+      "producer-sha": "7b70016ee0db36aa",
       "break": "body of sendTemplateMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -141,7 +141,7 @@
       "claim-sha": "8c7cd587e86a6ad7",
       "route": "revert",
       "producer": "internal/plugins/flowexport/ipfix/flow_adapter.go::sendTemplateMessage",
-      "producer-sha": "f067129062db5097",
+      "producer-sha": "7b70016ee0db36aa",
       "break": "body of sendTemplateMessage replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -152,7 +152,7 @@
       "claim-sha": "3156b98c903cfcf3",
       "route": "revert",
       "producer": "internal/plugins/flowexport/ipfix/adapter.go::Encode",
-      "producer-sha": "74e341dcdea42973",
+      "producer-sha": "88cc757598c7a877",
       "break": "body of Encode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -163,7 +163,7 @@
       "claim-sha": "e42ed358c64199f7",
       "route": "revert",
       "producer": "internal/plugins/flowexport/ipfix/adapter.go::Encode",
-      "producer-sha": "74e341dcdea42973",
+      "producer-sha": "88cc757598c7a877",
       "break": "body of Encode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

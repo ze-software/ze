@@ -6,7 +6,7 @@
       "polarity": "positive",
       "unit": "internal/component/l2tp/ppp/ncp_test.go::TestIPCPDNSIsOptional",
       "unit-sha": "0c0cd391a070fcfb",
-      "claim-sha": "833589b3890c6285",
+      "claim-sha": "26a1e1b8f6f3dd16",
       "route": "revert",
       "producer": "internal/component/l2tp/ppp/ncp.go::evalIPCPRequest",
       "producer-sha": "747da0042eb89b8e",

@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc7611",
+  "records": [
+    {
+      "rid": "RFC7611-2.1-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC7611OwnRouteNeverReacceptedIntoSource",
+      "unit-sha": "5c53b34a28cf4230",
+      "claim-sha": "a245ea6a0ec4cf16",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/filter/loop.go::LoopIngress",
+      "producer-sha": "3d7d83d30c08e517",
+      "break": "body of LoopIngress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC7611-2.1-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC7611OwnRouteNeverReacceptedIntoSource",
+      "unit-sha": "5c53b34a28cf4230",
+      "claim-sha": "968777c593297aa2",
+      "route": "revert",
+      "producer": "internal/component/bgp/reactor/filter/loop.go::LoopIngress",
+      "producer-sha": "3d7d83d30c08e517",
+      "break": "body of LoopIngress replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

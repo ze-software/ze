@@ -5,7 +5,7 @@
       "rid": "RFC3954-x-1",
       "polarity": "negative",
       "unit": "internal/plugins/flowexport/exporter_lifecycle_test.go::TestExporterTemplateFailureRetriesBeforeData",
-      "unit-sha": "917cc767030fddbc",
+      "unit-sha": "a0388cf45e2b0eec",
       "claim-sha": "a0dc9ff0dfef36ff",
       "route": "revert",
       "producer": "internal/plugins/flowexport/exporter.go::notifySnapshot",
