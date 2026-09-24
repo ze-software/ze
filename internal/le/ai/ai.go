@@ -352,7 +352,7 @@ func sameFile(left, right string) (bool, error) {
 	if leftErr != nil && rightErr != nil {
 		// Absent on both sides is the answer for shadowInstructions, which
 		// no generation writes.
-		return true, nil
+		return true, nil //nolint:nilerr // absence on both sides is the answer here, not an error
 	}
 	if leftErr != nil || rightErr != nil {
 		// One side is absent and the other is not. That is a DIFFERENCE, not
