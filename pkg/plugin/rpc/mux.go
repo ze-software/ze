@@ -11,7 +11,6 @@ import (
 	"io"
 	"iter"
 	"log/slog"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -22,14 +21,24 @@ import (
 // ErrMuxConnClosed is returned when CallRPC is called on a closed MuxConn.
 var ErrMuxConnClosed = fmt.Errorf("mux conn closed")
 
-// ErrAnswerQueueFull ends an answer whose consumer fell answerQueueDepth
-// records behind the peer. readLoop reads for every id on one connection, so it
-// abandons the one answer nobody is draining rather than stall the connection
-// behind it. The consumer sees this error and a truncated verdict, which is why
-// the records it did not get are never lost in silence.
+// ErrAnswerQueueFull ends an answer whose consumer holds answerQueueMaxBytes
+// of lines it has not read. readLoop serves every id on one connection and
+// never waits on a consumer, so this ceiling is what keeps a peer's answer from
+// growing this process's memory without end. The consumer sees this error and
+// a truncated verdict, so the records it did not get are never lost in silence.
 var ErrAnswerQueueFull = errors.New("answer queue full: consumer fell behind, answer abandoned")
 
-// ErrAnswerTruncated ends an answer whose line queue closed with no terminator
+// answerQueueMaxBytes is the most payload one answer's queue holds for a
+// consumer that has not read it. It is a MEMORY ceiling, sized from what one
+// answer in flight may cost, and deliberately not a line count tied to the
+// producer's burst: a line bound of AnswerBufferThreshold+3 abandoned whole
+// answers from ACTIVE consumers that were merely not scheduled yet
+// (plan/journal/bound-too-small-for-its-own-burst.md). Four maximum-size
+// messages is far past what scheduling delay accumulates, and it still bounds
+// a peer that streams without end to a consumer that never reads.
+const answerQueueMaxBytes = 4 * MaxMessageSize
+
+// ErrAnswerTruncated ends an answer whose line queue ended with no terminator
 // and no stated cause. A consumer that sees it received part of an answer and
 // MUST NOT read that part as the whole.
 var ErrAnswerTruncated = errors.New("answer ended before its terminator")
@@ -39,50 +48,109 @@ var ErrAnswerTruncated = errors.New("answer ended before its terminator")
 // plugin flooding the engine with junk.
 const maxConsecutiveBadLines = 100
 
-// answerQueueDepth is the number of answer lines readLoop holds for one
-// CallAnswer whose consumer is behind. It is bounded because the memory is paid
-// for each answer in flight. A full queue ends that answer with
-// ErrAnswerQueueFull; readLoop never waits on a consumer.
+// answerCall is the pending entry of one CallAnswer: the lines readLoop has
+// routed to it and not yet handed to the consumer, and the fault that ended it.
 //
-// It is DERIVED from the producer's burst, and that is the whole point. A
-// streamed answer does not trickle: WriteRecordAnswer (answer_write.go) holds
-// records until one passes AnswerBufferThreshold, then writes the head and
-// every held record back to back with nothing between them. That first flush is
-// therefore 1 + AnswerBufferThreshold + 1 lines, and the queue has to absorb it
-// with no consumer having run at all.
+// readLoop is the only writer: push appends a line and end marks the answer
+// over. The consumer is the only reader: next takes the oldest line. Neither
+// side ever waits on the other, so readLoop keeps serving every other id on the
+// connection whatever this consumer does (AC-17, R-5 of
+// spec-record-answers-1-sdk-path).
 //
-// The two numbers used to be the same literal 256, described as "of the same
-// order ... one number covers the pair". They are not a pair: one is a BURST and
-// the other is the BUFFER that must hold it, so equal meant every streamed
-// answer overflowed by two lines on its first flush and survived only by the
-// consumer being scheduled inside the burst. Under load it was not, and the
-// answer was abandoned: measured about one invocation in thirty with 32 burners
-// on 16 cores (plan/journal/bound-too-small-for-its-own-burst.md), and it is
-// what reddened test/plugin/plugin-reads-engine-answer.ci in a verification
-// sweep. `system command list` streams about 423 lines, so the case is ordinary
-// rather than extreme.
-//
-// The depth is the SMALLEST COMPLETE streamed answer: the head, the
-// AnswerBufferThreshold+1 records that first flush carries, and the terminator.
-// An answer of that size is therefore delivered whole with no consumer having
-// run once, and a longer one has its entire burst absorbed before the consumer
-// needs to do anything.
-//
-// TestAnswerQueueAbsorbsTheProducersFirstFlush pins the relationship, so a
-// change to either constant reddens a test rather than losing answers.
-const answerQueueDepth = AnswerBufferThreshold + 3
-
-// answerCall is the pending entry of one CallAnswer: the queue readLoop
-// delivers the answer's lines into, and the fault that ended it.
-//
-// readLoop is the only sender on lines and the only closer of it. A consumer
-// that abandons the answer removes the pending entry and stops reading; it MUST
-// NOT close lines, because readLoop can be mid-send. err is written before the
-// close and MUST be read only after that close is observed, which is the
-// happens-before edge the two goroutines share.
+// The queue is bounded by the payload bytes it holds (answerQueueMaxBytes), not
+// by a line count. A consumer that leaves detaches: it removes the pending
+// entry, and readLoop discards every later line for that id
+// (discardOrphanResponse).
 type answerCall struct {
-	lines chan AnswerTail
+	mu    sync.Mutex
+	queue []AnswerTail
+	// held is the payload bytes of the lines in queue.
+	held  int
+	sizes []int
+	ended bool
 	err   error
+	// ready carries one wake-up to a consumer waiting in next. Its one slot
+	// lets push and end signal without waiting, and a consumer re-reads the
+	// queue after every wake-up, so a merged signal loses nothing.
+	ready chan struct{}
+}
+
+func newAnswerCall() *answerCall {
+	return &answerCall{ready: make(chan struct{}, 1)}
+}
+
+// push appends one line of size payload bytes for the consumer and wakes it.
+// It never waits. It refuses the line, and reports false, when the queue
+// already holds lines and this one would take it past answerQueueMaxBytes. A
+// lone line always fits, because the frame reader bounds it to MaxMessageSize.
+func (c *answerCall) push(tail AnswerTail, size int) bool {
+	c.mu.Lock()
+	if len(c.queue) > 0 && c.held+size > answerQueueMaxBytes {
+		c.mu.Unlock()
+		return false
+	}
+	c.queue = append(c.queue, tail)
+	c.sizes = append(c.sizes, size)
+	c.held += size
+	c.mu.Unlock()
+	c.wake()
+	return true
+}
+
+// end marks the answer over, with the fault that ended it or nil for its
+// terminator. Lines already queued are still delivered before the end is seen.
+func (c *answerCall) end(cause error) {
+	c.mu.Lock()
+	c.ended = true
+	c.err = cause
+	c.mu.Unlock()
+	c.wake()
+}
+
+func (c *answerCall) wake() {
+	select {
+	case c.ready <- struct{}{}:
+	default: // A wake-up is already pending, and the consumer re-reads the queue.
+	}
+}
+
+// next returns the oldest queued line. open is false once the answer ended and
+// every queued line was taken; the cause is then endErr. It waits for a line,
+// for the end, or for ctx, and returns ctx.Err() on the last.
+func (c *answerCall) next(ctx context.Context) (tail AnswerTail, open bool, err error) {
+	for {
+		c.mu.Lock()
+		if len(c.queue) > 0 {
+			tail = c.queue[0]
+			c.queue[0] = AnswerTail{}
+			c.queue = c.queue[1:]
+			c.held -= c.sizes[0]
+			c.sizes = c.sizes[1:]
+			if len(c.queue) == 0 {
+				c.queue, c.sizes = nil, nil // Let the drained backing arrays go.
+			}
+			c.mu.Unlock()
+			return tail, true, nil
+		}
+		ended := c.ended
+		c.mu.Unlock()
+		if ended {
+			return AnswerTail{}, false, nil
+		}
+		select {
+		case <-c.ready:
+		case <-ctx.Done():
+			return AnswerTail{}, false, ctx.Err()
+		}
+	}
+}
+
+// endErr states why the answer ended. A nil cause with no terminator seen is
+// still an answer that stopped short (answerEndedErr).
+func (c *answerCall) endErr() error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.err
 }
 
 // pendingKey is the pending-map key for one in-flight call: the request id in
@@ -269,7 +337,7 @@ func (m *MuxConn) CallAnswer(ctx context.Context, method string, params any) (*A
 
 	// The entry lives until the answer ends rather than until its first line,
 	// which is what delivers every record to the one caller waiting on this id.
-	call := &answerCall{lines: make(chan AnswerTail, answerQueueDepth)}
+	call := newAnswerCall()
 	m.pending.Store(idStr, call)
 
 	var paramsRaw json.RawMessage
@@ -290,7 +358,7 @@ func (m *MuxConn) CallAnswer(ctx context.Context, method string, params any) (*A
 		return nil, fmt.Errorf("send request: %w", writeErr)
 	}
 
-	// The reader closes every queue it holds as it exits, and it can have
+	// The reader ends every answer it holds as it exits, and it can have
 	// exited between the check above and the Store. This re-check is what makes
 	// the entry either swept by that exit or abandoned here: the reader closes
 	// m.done before it sweeps, so an entry the sweep did not see was stored
@@ -315,26 +383,25 @@ func (m *MuxConn) CallAnswer(ctx context.Context, method string, params any) (*A
 // so a call that returns no Answer leaves readLoop nothing to route to.
 //
 // It waits on the line queue and on the caller's context, and on nothing else:
-// the reader closes every queue it still holds before it exits, and a receive
-// takes the queued lines before it sees that close. A peer that wrote the whole
+// the reader ends every answer it still holds before it exits, and next
+// returns the queued lines before it reports that end. A peer that wrote the whole
 // answer and then closed the connection therefore delivers it.
 func (m *MuxConn) awaitAnswerHead(ctx context.Context, idStr string, call *answerCall) (AnswerTail, error) {
-	select {
-	case head, open := <-call.lines:
-		if !open {
-			return AnswerTail{}, answerEndedErr(call)
-		}
-		// The line states its own kind. A first line that does not open an
-		// answer is refused by that token, never by a key inside its tail.
-		if head.Kind != AnswerKindHead {
-			m.pending.Delete(idStr)
-			return AnswerTail{}, fmt.Errorf("answer for id %s opens with a %s line, want %s", idStr, head.Kind, AnswerKindHead)
-		}
-		return head, nil
-	case <-ctx.Done():
+	head, open, waitErr := call.next(ctx)
+	if waitErr != nil {
 		m.pending.Delete(idStr)
-		return AnswerTail{}, ctx.Err()
+		return AnswerTail{}, waitErr
 	}
+	if !open {
+		return AnswerTail{}, answerEndedErr(call)
+	}
+	// The line states its own kind. A first line that does not open an
+	// answer is refused by that token, never by a key inside its tail.
+	if head.Kind != AnswerKindHead {
+		m.pending.Delete(idStr)
+		return AnswerTail{}, fmt.Errorf("answer for id %s opens with a %s line, want %s", idStr, head.Kind, AnswerKindHead)
+	}
+	return head, nil
 }
 
 // readerStopped reports whether the background reader has already exited.
@@ -363,39 +430,38 @@ func (m *MuxConn) readerStopped() bool {
 func (m *MuxConn) answerRecords(ctx context.Context, idStr string, call *answerCall, answer *Answer) iter.Seq[Record] {
 	return func(yield func(Record) bool) {
 		// Bounded by the answer: each pass either takes one line the peer wrote
-		// and readLoop bounded, or leaves on the terminator, on a closed queue,
+		// or leaves on the terminator, on an ended answer,
 		// or on the consumer stopping.
 		for {
-			select {
-			case line, open := <-call.lines:
-				if !open {
-					answer.err = answerEndedErr(call)
-					return
-				}
-				if line.Kind == AnswerKindTerminator {
-					terminator := line
-					answer.terminator = &terminator
-					return
-				}
-				if !yield(Record{Item: line.Item, Fault: line.Fault}) {
-					m.pending.Delete(idStr)
-					return
-				}
-			case <-ctx.Done():
+			line, open, waitErr := call.next(ctx)
+			if waitErr != nil {
 				m.pending.Delete(idStr)
-				answer.err = ctx.Err()
+				answer.err = waitErr
+				return
+			}
+			if !open {
+				answer.err = answerEndedErr(call)
+				return
+			}
+			if line.Kind == AnswerKindTerminator {
+				terminator := line
+				answer.terminator = &terminator
+				return
+			}
+			if !yield(Record{Item: line.Item, Fault: line.Fault}) {
+				m.pending.Delete(idStr)
 				return
 			}
 		}
 	}
 }
 
-// answerEndedErr states why a closed line queue ended its answer. readLoop
-// stores the cause before it closes the queue, and a close carrying no cause is
+// answerEndedErr states why an answer ended before its terminator. readLoop
+// stores the cause as it ends the answer, and an end carrying no cause is
 // still an answer that stopped short of its terminator.
 func answerEndedErr(call *answerCall) error {
-	if call.err != nil {
-		return call.err
+	if err := call.endErr(); err != nil {
+		return err
 	}
 	return ErrAnswerTruncated
 }
@@ -534,9 +600,9 @@ func (m *MuxConn) routeResponse(idStr, body, verb string) bool {
 // it and reports whether readLoop must close the connection.
 //
 // The answer ends at its terminator, at a line carrying a failure, at a line
-// this build cannot read, or at a queue its consumer fell behind. Each of those
-// removes the pending entry and closes the line queue, and nothing else closes
-// it.
+// this build cannot read, or at a consumer holding answerQueueMaxBytes unread.
+// Each of those removes the pending entry and ends the line queue, and nothing
+// else ends it. readLoop never waits for a consumer.
 func (m *MuxConn) routeAnswerLine(idStr string, call *answerCall, verb, payload string) bool {
 	if verb == AnswerKindNotUnderstood || verb == StatusError {
 		// A command the peer did not understand, and an RPC that failed before
@@ -557,24 +623,9 @@ func (m *MuxConn) routeAnswerLine(idStr string, call *answerCall, verb, payload 
 		return m.badLine()
 	}
 	m.consecutiveBad = 0
-	delivered := false
-	for range 64 {
-		select {
-		case call.lines <- tail:
-			delivered = true
-		default:
-			// Give an actively ranging consumer scheduler turns without
-			// waiting on it. An abandoned consumer never frees a slot and
-			// reaches the fail-closed path below after this fixed bound.
-			runtime.Gosched()
-		}
-		if delivered {
-			break
-		}
-	}
-	if !delivered {
+	if !call.push(tail, len(payload)) {
 		slog.Warn("mux conn: answer queue full, abandoning answer",
-			"id", idStr, "depth", answerQueueDepth)
+			"id", idStr, "max-bytes", answerQueueMaxBytes)
 		m.endAnswer(idStr, call, ErrAnswerQueueFull)
 		return false
 	}
@@ -587,9 +638,9 @@ func (m *MuxConn) routeAnswerLine(idStr string, call *answerCall, verb, payload 
 
 // endPendingAnswers ends every answer still registered when the reader stops.
 // A CallAnswer consumer waits on its line queue and on nothing else, so the
-// reader that owns that queue MUST close it before it exits. The records
-// already queued are delivered first: a receive takes them before it sees the
-// close.
+// reader that owns that queue MUST end it before it exits. The records
+// already queued are delivered first: next returns them before it reports the
+// end.
 //
 // A CallRPC entry needs none of this. Its caller waits on m.done as well, which
 // this function's caller closes next.
@@ -609,15 +660,11 @@ func (m *MuxConn) endPendingAnswers() {
 	})
 }
 
-// endAnswer removes the answer's pending entry and closes its line queue, after
-// storing the fault that ended it. cause is nil when the terminator ended it.
-//
-// The store MUST come before the close: the close is the edge that publishes it
-// to the consumer, which reads it only once the close is observed.
+// endAnswer removes the answer's pending entry and ends its line queue with the
+// fault that ended it. cause is nil when the terminator ended it.
 func (m *MuxConn) endAnswer(idStr string, call *answerCall, cause error) {
 	m.pending.Delete(idStr)
-	call.err = cause
-	close(call.lines)
+	call.end(cause)
 }
 
 // discardOrphanResponse handles a response line whose id has no caller waiting

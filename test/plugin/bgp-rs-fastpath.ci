@@ -11,6 +11,10 @@ option=timeout:value=20s
 # (injected routes carry no wire bytes, so a received UPDATE is required).
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=1
+# The source must outlive the observer's check. Without linger the peer closes
+# on ze's End-of-RIB, ze withdraws 10.20.30.0/24 on session down, and the
+# fast-path state the observer reads can be gone before it looks.
+option=linger:value=true
 option=update:value=send-route:prefix=10.20.30.0/24:origin-as=65001:next-hop=101.1.101.1
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER

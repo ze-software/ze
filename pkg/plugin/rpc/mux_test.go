@@ -891,7 +891,7 @@ func TestActiveAnswerConsumerStreamsPastQueueDepth(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
-	const records = answerQueueDepth + 100
+	const records = AnswerBufferThreshold*4 + 100
 	go func() {
 		engineConn := NewConn(engineEnd, engineEnd)
 		request, err := engineConn.ReadRequest(ctx)
@@ -919,15 +919,17 @@ func TestActiveAnswerConsumerStreamsPastQueueDepth(t *testing.T) {
 }
 
 // TestSlowConsumerDoesNotStallReadLoop checks that one caller that stops
-// reading its records cannot stop the connection. The method: a peer writes
-// more record lines than the queue holds for a caller that reads none, then
-// answers a second call, and the test asserts the second call returns and the
-// first is told its answer was abandoned.
+// reading its records cannot stop the connection, and that its answer still
+// arrives whole. The method: a peer writes four producer bursts of records for
+// a caller that reads none, then answers a second call, and the test asserts
+// the second call returns and the first caller, reading late, gets every record.
 //
-// VALIDATES: AC-17, R-5 -- readLoop never waits on a consumer, and a record it
-// cannot deliver becomes a reported fault rather than silence.
+// VALIDATES: AC-17, R-5 -- readLoop never waits on a consumer -- and that a
+// consumer which is merely late loses nothing.
 // PREVENTS: the reader goroutine blocking on a chan send, which stops every
-// other id on the connection with it.
+// other id on the connection with it; and the old line bound, which abandoned
+// the answer of any consumer not scheduled inside the producer's burst
+// (plan/journal/bound-too-small-for-its-own-burst.md).
 func TestSlowConsumerDoesNotStallReadLoop(t *testing.T) {
 	t.Parallel()
 
@@ -938,7 +940,7 @@ func TestSlowConsumerDoesNotStallReadLoop(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 
-	const records = answerQueueDepth + 100
+	const records = AnswerBufferThreshold*4 + 100
 
 	go func() {
 		engineConn := NewConn(engineEnd, engineEnd)
@@ -982,9 +984,9 @@ func TestSlowConsumerDoesNotStallReadLoop(t *testing.T) {
 	for range slow.Records {
 		delivered++
 	}
-	assert.Less(t, delivered, records, "the queue is bounded, so the abandoned answer is short")
-	assert.ErrorIs(t, slow.Err(), ErrAnswerQueueFull, "the records it did not get are reported, never dropped in silence")
-	assert.Equal(t, VerdictTruncated, slow.Verdict(), "an abandoned answer never reads as complete")
+	require.NoError(t, slow.Err(), "a late consumer is not an abandoned one")
+	assert.Equal(t, records, delivered, "every record the peer wrote reaches the late consumer")
+	assert.Equal(t, VerdictDone, slow.Verdict())
 }
 
 // TestAnswerWithoutTerminatorReportsTruncation checks that an answer cut short
@@ -1338,60 +1340,35 @@ func TestAwaitAnswerHeadValidatesByKind(t *testing.T) {
 	}
 }
 
-// TestAnswerQueueAbsorbsTheProducersFirstFlush pins the one relationship that
-// decides whether a streamed answer survives a consumer which has not run yet.
+// TestAnswerQueueBoundedByBytesNotLines checks the answer queue's ceiling. The
+// method: push lines with stated payload sizes into one answerCall that nobody
+// reads, and assert thousands of small lines fit while the byte ceiling still
+// refuses the line that would pass it, and that a lone line always fits.
 //
-// A streamed answer does not trickle. WriteRecordAnswer holds records until one
-// passes AnswerBufferThreshold, then writes the head and every held record back
-// to back. readLoop must be able to put that whole burst into the answer's queue
-// without any consumer draining it, because there is nothing in the burst for a
-// consumer to be scheduled between.
-//
-// VALIDATES: answerQueueDepth is strictly larger than the producer's first
-// flush, so the burst fits with room to spare.
-// PREVENTS: the two constants being set to the same number again. They were both
-// a literal 256, described as a pair covering one answer in flight; one is a
-// BURST and the other the BUFFER for it, so equal meant every streamed answer
-// overflowed by two lines on its first flush and survived only when the consumer
-// happened to be scheduled inside the burst. Under load it was not, and the
-// whole answer was abandoned with ErrAnswerQueueFull.
-func TestAnswerQueueAbsorbsTheProducersFirstFlush(t *testing.T) {
-	// The head line, then every record the producer held. It flushes on the
-	// record that makes len(held) exceed the threshold, so the flush carries
-	// AnswerBufferThreshold+1 records.
-	firstFlush := 1 + AnswerBufferThreshold + 1
-	assert.GreaterOrEqual(t, answerQueueDepth, firstFlush,
-		"the answer queue must hold the producer's first flush before any consumer runs: "+
-			"the head and every held record are written back to back, so a consumer cannot "+
-			"be scheduled between them")
-
-	// Stronger, and the property the depth is actually set to: the smallest
-	// answer that streams at all is the first flush plus its terminator, and
-	// that whole answer must land without a consumer running once.
-	smallestStreamed := firstFlush + 1
-	assert.GreaterOrEqual(t, answerQueueDepth, smallestStreamed,
-		"the smallest answer that streams must be deliverable whole with no consumer: "+
-			"head, the records of the first flush, and the terminator")
-}
-
-// TestAnswerQueueHoldsAWholeBurstWithNoConsumer proves the bound at the queue
-// itself rather than in arithmetic: a burst the size of the producer's first
-// flush is delivered with nothing reading it.
-//
-// VALIDATES: readLoop can route a whole first flush into one answer's queue
-// while its consumer is blocked.
-// PREVENTS: the abandonment this fixed. With the old depth the same burst filled
-// the queue two lines short of the end, and routeAnswerLine ended the answer with
-// ErrAnswerQueueFull after its fixed spin.
-func TestAnswerQueueHoldsAWholeBurstWithNoConsumer(t *testing.T) {
-	queue := make(chan AnswerTail, answerQueueDepth)
-	lines := 1 + AnswerBufferThreshold + 1 + 1 // head, first flush, terminator
+// VALIDATES: a consumer that is late by far more than the producer's burst
+// loses nothing, and a peer streaming without end to a consumer that never
+// reads still cannot grow memory past answerQueueMaxBytes.
+// PREVENTS: a line-count bound tied to the burst, which abandoned the answers of
+// active consumers under load (plan/journal/bound-too-small-for-its-own-burst.md).
+func TestAnswerQueueBoundedByBytesNotLines(t *testing.T) {
+	call := newAnswerCall()
+	lines := 10 * (AnswerBufferThreshold + 3)
 	for i := range lines {
-		select {
-		case queue <- AnswerTail{Kind: AnswerKindRecord}:
-		default:
-			t.Fatalf("the queue refused line %d of the %d-line smallest streamed answer with no consumer draining it",
-				i+1, lines)
-		}
+		require.True(t, call.push(AnswerTail{Kind: AnswerKindRecord}, 64), "line %d of %d small lines refused", i+1, lines)
 	}
+
+	big := newAnswerCall()
+	require.True(t, big.push(AnswerTail{Kind: AnswerKindRecord}, answerQueueMaxBytes+1), "a lone line always fits")
+	require.False(t, big.push(AnswerTail{Kind: AnswerKindRecord}, 1), "the line past the ceiling is refused")
+
+	full := newAnswerCall()
+	require.True(t, full.push(AnswerTail{Kind: AnswerKindRecord}, answerQueueMaxBytes-1))
+	require.True(t, full.push(AnswerTail{Kind: AnswerKindRecord}, 1), "exactly the ceiling fits")
+	require.False(t, full.push(AnswerTail{Kind: AnswerKindRecord}, 1))
+
+	// Reading frees what the consumer took.
+	_, open, err := full.next(context.Background())
+	require.NoError(t, err)
+	require.True(t, open)
+	require.True(t, full.push(AnswerTail{Kind: AnswerKindRecord}, 1), "a read line frees its bytes")
 }

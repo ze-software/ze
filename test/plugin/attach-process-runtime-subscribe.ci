@@ -20,6 +20,11 @@
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
 option=timeout:value=40s
+# The first session must stay up until the reload ends it. Without linger the
+# peer closes it the instant its End-of-RIB lands, ze reads that as session-down
+# and redials on its retry timer, and the keepalive window the observer measures
+# after the live subscribe can fall entirely inside that gap.
+option=linger:value=true
 # One session before the reload and one after it: a changed attach block tears
 # the peer down and re-adds it (ProcessBindings sits outside
 # hotSwappableSettings), and each session ends its initial sync with an

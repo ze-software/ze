@@ -664,7 +664,8 @@ func (p *Process) startExternal() error {
 	// The cancel is SIGKILL to the group, which nothing catches, and the only
 	// stream this child is given is an *os.File, which os/exec hands to the
 	// child directly rather than through a pipe of its own. The relay reading
-	// that file is bounded by stderrDrainGrace in monitorCmd.
+	// that file is bounded by stderrDrainGrace once the child is reaped
+	// (stderrRelayReader).
 	plugin.KillGroupOnCancel(p.cmd)
 
 	if err := p.cmd.Start(); err != nil {
@@ -682,11 +683,12 @@ func (p *Process) startExternal() error {
 
 	cmd := p.cmd
 	relayDone := make(chan struct{})
+	relayRead := newStderrRelayReader(stderrRead, stderrDrainGrace)
 	p.wg.Go(func() {
 		defer close(relayDone)
-		p.relayStderrFrom(stderrRead)
+		p.relayStderrFrom(relayRead)
 	})
-	p.wg.Go(func() { p.monitorCmd(cmd, relayDone, stderrRead) })
+	p.wg.Go(func() { p.monitorCmd(cmd, relayDone, relayRead) })
 
 	// Wait for the child to connect back via TLS (bounded timeout).
 	waitCtx, waitCancel := context.WithTimeout(p.ctx, 30*time.Second)
@@ -711,15 +713,57 @@ func (p *Process) startExternal() error {
 	return nil
 }
 
-// stderrDrainGrace bounds how long monitorCmd waits, after the plugin process
-// has been reaped, for the relay to finish reading what that process wrote.
+// stderrDrainGrace is how long the stderr relay waits for its NEXT byte once
+// the plugin process has been reaped and EOF has not come.
 //
 // EOF arrives the moment the last writer closes the pipe, which is normally the
-// plugin's own exit, so the wait is microseconds. The bound covers the one case
-// where it is not: a plugin that spawned a child of its own, which inherited the
-// descriptor and outlives it. Without a bound that goroutine would hold Wait
-// open for as long as the grandchild lives.
+// plugin's own exit, so the relay reads to EOF and this never fires. It covers
+// the one case where EOF does not come: a plugin that spawned a child of its
+// own, which inherited the descriptor and outlives it. Without a bound the
+// relay would hold Wait open for as long as that grandchild lives.
+//
+// It is an IDLE bound, refreshed before every read, and never a bound on the
+// whole drain. A relay that is slow to read -- the engine log it writes to is
+// slow, or the machine is loaded -- still finds every byte the plugin wrote
+// waiting in the pipe, and reads it before the bound can fire.
 const stderrDrainGrace = 2 * time.Second
+
+// stderrRelayReader is the read end of a plugin's stderr pipe, as the relay
+// reads it. Until the plugin is reaped a read waits as long as it must. After
+// that, each read waits at most grace for data, so a descendant holding the
+// write end open cannot hold the relay forever, while data already in the pipe
+// is always read.
+type stderrRelayReader struct {
+	file   *os.File
+	grace  time.Duration
+	reaped atomic.Bool
+}
+
+func newStderrRelayReader(file *os.File, grace time.Duration) *stderrRelayReader {
+	return &stderrRelayReader{file: file, grace: grace}
+}
+
+// Read reads from the pipe. Once the plugin is reaped it first moves the read
+// deadline grace past now, so the bound measures silence and never backlog.
+func (r *stderrRelayReader) Read(b []byte) (int, error) {
+	if r.reaped.Load() {
+		r.extendDeadline()
+	}
+	return r.file.Read(b)
+}
+
+// markReaped records that the plugin process has exited. It also bounds a read
+// already waiting, which started before any deadline existed.
+func (r *stderrRelayReader) markReaped() {
+	r.reaped.Store(true)
+	r.extendDeadline()
+}
+
+func (r *stderrRelayReader) extendDeadline() {
+	if err := r.file.SetReadDeadline(time.Now().Add(r.grace)); err != nil {
+		logger().Debug("set plugin stderr read deadline", "error", err)
+	}
+}
 
 // attachStderrRelay gives cmd a stderr pipe whose read end THIS process owns,
 // and returns both ends. The caller closes the write end after Start.
@@ -741,17 +785,14 @@ func attachStderrRelay(cmd *exec.Cmd) (read, write *os.File, err error) {
 	return read, write, nil
 }
 
-// drainStderrRelay releases the read end of a plugin's stderr pipe: as soon as
-// the relay goroutine has read it to EOF, or after grace when EOF never comes.
-// Closing it unblocks a relay still waiting on a descriptor a grandchild holds.
-func drainStderrRelay(relayDone <-chan struct{}, read io.Closer, grace time.Duration) {
-	timer := time.NewTimer(grace)
-	defer timer.Stop()
-	select {
-	case <-relayDone:
-	case <-timer.C:
-	}
-	if err := read.Close(); err != nil {
+// drainStderrRelay releases the read end of a plugin's stderr pipe once the
+// relay goroutine has read it to its end: EOF, or grace of silence after the
+// plugin was reaped (stderrRelayReader). It waits on the relay and on nothing
+// else, so no byte the plugin wrote is discarded by a timer.
+func drainStderrRelay(relayDone <-chan struct{}, read *stderrRelayReader) {
+	read.markReaped()
+	<-relayDone
+	if err := read.file.Close(); err != nil {
 		logger().Debug("close plugin stderr read end", "error", err)
 	}
 }
@@ -809,7 +850,15 @@ func (p *Process) relayStderrFrom(stderr io.Reader) {
 	// the other two end the RELAY while the plugin keeps running, so the panic
 	// block the paragraph above exists to carry never reaches the engine log.
 	// A relay that stopped says so.
-	if err := scanner.Err(); err != nil {
+	err := scanner.Err()
+	if errors.Is(err, os.ErrDeadlineExceeded) {
+		// The plugin was reaped and a descendant still holds its stderr open
+		// with nothing written for stderrDrainGrace (stderrRelayReader).
+		logger().Debug("plugin stderr relay ended: the plugin exited and its stderr stayed silent",
+			"plugin", p.config.Name)
+		return
+	}
+	if err != nil {
 		stderrLogger().Error("plugin stderr relay stopped, later plugin output is not relayed",
 			"plugin", p.config.Name, "err", err)
 	}
@@ -941,7 +990,7 @@ func (p *Process) Wait(ctx context.Context) error {
 //
 // relayDone closes when relayStderrFrom returns, and stderr is the read end that
 // goroutine is reading. Both are parameters for the same reason cmd is.
-func (p *Process) monitorCmd(cmd *exec.Cmd, relayDone <-chan struct{}, stderr io.Closer) {
+func (p *Process) monitorCmd(cmd *exec.Cmd, relayDone <-chan struct{}, stderr *stderrRelayReader) {
 	// Wait for process to exit
 	_ = cmd.Wait()
 
@@ -959,5 +1008,5 @@ func (p *Process) monitorCmd(cmd *exec.Cmd, relayDone <-chan struct{}, stderr io
 	// close it and the relay still holds every byte the plugin wrote on its way
 	// out. Release the descriptor only once the relay has read them, which is
 	// what keeps a plugin's last line -- its verdict, or its panic block.
-	drainStderrRelay(relayDone, stderr, stderrDrainGrace)
+	drainStderrRelay(relayDone, stderr)
 }

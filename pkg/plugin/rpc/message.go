@@ -645,12 +645,11 @@ var answerTypeWords = strings.Join(answerTypes, ", ")
 // already held go out in walk order ahead of the rest.
 //
 // It bounds what a producer holds for an answer nobody wants whole, which is
-// the memory this protocol exists to stop growing. The queue a consumer reads an
-// answer through DERIVES from it (answerQueueDepth, mux.go) and MUST stay
-// larger: this threshold is a BURST, because every record held goes out behind
-// the head with nothing between them, and that queue is the buffer which has to
-// absorb the burst before any consumer has run. They were once the same literal
-// and every streamed answer overflowed its consumer's queue by two lines.
+// the memory this protocol exists to stop growing. It is a BURST: every record
+// held goes out behind the head with nothing between them. The queue a consumer
+// reads an answer through is bounded by bytes (answerQueueMaxBytes, mux.go),
+// never by this count, because a queue sized from the burst abandoned answers
+// whose consumer was merely not scheduled inside it.
 //
 // It lives here rather than beside either producer because two producers decide
 // it: the plugin connection's encoder and the SSH exec channel's renderer. One

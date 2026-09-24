@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/component/plugin"
 )
@@ -54,9 +55,10 @@ func TestStderrRelayKeepsTheLineWrittenJustBeforeExit(t *testing.T) {
 
 		relayed := make(chan string, 4)
 		relayDone := make(chan struct{})
+		relayRead := newStderrRelayReader(read, stderrDrainGrace)
 		go func() {
 			defer close(relayDone)
-			scanner := bufio.NewScanner(read)
+			scanner := bufio.NewScanner(relayRead)
 			for scanner.Scan() {
 				select {
 				case relayed <- scanner.Text():
@@ -66,8 +68,7 @@ func TestStderrRelayKeepsTheLineWrittenJustBeforeExit(t *testing.T) {
 		}()
 
 		_ = cmd.Wait() //nolint:errcheck // the child's exit status is not what this test asserts
-		drainStderrRelay(relayDone, read, stderrDrainGrace)
-		<-relayDone
+		drainStderrRelay(relayDone, relayRead)
 		close(relayed)
 
 		var seen bool
@@ -79,6 +80,100 @@ func TestStderrRelayKeepsTheLineWrittenJustBeforeExit(t *testing.T) {
 		if !seen {
 			t.Fatalf("run %d: the child's last stderr line never reached the relay; it was discarded when the child exited", run)
 		}
+	}
+}
+
+// startStderrChild starts /bin/sh -c script with its stderr on a relay pipe
+// and returns the reader the relay would read.
+func startStderrChild(t *testing.T, script string, grace time.Duration) (*exec.Cmd, *stderrRelayReader) {
+	t.Helper()
+	cmd := exec.CommandContext(t.Context(), "/bin/sh", "-c", script) //nolint:gosec // fixed argv, no user input
+	read, write, err := attachStderrRelay(cmd)
+	if err != nil {
+		t.Fatalf("attachStderrRelay: %v", err)
+	}
+	if startErr := cmd.Start(); startErr != nil {
+		write.Close() //nolint:errcheck,gosec // test cleanup
+		read.Close()  //nolint:errcheck,gosec // test cleanup
+		t.Fatalf("start: %v", startErr)
+	}
+	if closeErr := write.Close(); closeErr != nil {
+		t.Fatalf("close write end: %v", closeErr)
+	}
+	return cmd, newStderrRelayReader(read, grace)
+}
+
+// TestStderrRelaySlowerThanTheGraceKeepsEveryLine checks that the drain after a
+// plugin exits is bounded by silence and never by backlog. The method: a child
+// writes three lines and exits, the relay only starts reading three graces after
+// the child was reaped, and the test asserts all three lines arrive.
+//
+// VALIDATES: a relay slowed by a loaded machine or a slow engine log still reads
+// every byte the plugin wrote before it exited.
+// PREVENTS: the fixed drain timer that closed the read end stderrDrainGrace after
+// the reap whether or not the relay had read the pipe, which lost a plugin's
+// last lines under functional-suite load (as112-external-refuses.ci).
+//
+// DISCRIMINATES: close the read end on a timer in drainStderrRelay and the relay
+// reads nothing.
+func TestStderrRelaySlowerThanTheGraceKeepsEveryLine(t *testing.T) {
+	const grace = 100 * time.Millisecond
+	cmd, relayRead := startStderrChild(t, "printf 'one\\ntwo\\nthree\\n' >&2", grace)
+	_ = cmd.Wait() //nolint:errcheck // the exit status is not what this test asserts
+
+	var lines []string
+	relayDone := make(chan struct{})
+	go func() {
+		defer close(relayDone)
+		time.Sleep(3 * grace) // The relay is behind: the child is long reaped.
+		scanner := bufio.NewScanner(relayRead)
+		for scanner.Scan() {
+			lines = append(lines, scanner.Text())
+		}
+	}()
+	drainStderrRelay(relayDone, relayRead)
+
+	if strings.Join(lines, ",") != "one,two,three" {
+		t.Fatalf("relayed %q, want every line the child wrote", lines)
+	}
+}
+
+// TestStderrRelayEndsWhenADescendantHoldsStderr checks the one case EOF never
+// ends the relay. The method: a child starts a grandchild that inherits stderr
+// and sleeps, then writes a line and exits, and the test asserts the drain
+// returns within a few graces with the line relayed.
+//
+// VALIDATES: a grandchild holding the write end cannot hold the relay, or Wait,
+// for as long as it lives.
+// PREVENTS: an unbounded drain replacing the timer this bound replaced.
+func TestStderrRelayEndsWhenADescendantHoldsStderr(t *testing.T) {
+	const grace = 100 * time.Millisecond
+	cmd, relayRead := startStderrChild(t, "sleep 30 & printf 'last\\n' >&2", grace)
+	t.Cleanup(func() { _ = relayRead.file.Close() })
+
+	var lines []string
+	relayDone := make(chan struct{})
+	go func() {
+		defer close(relayDone)
+		scanner := bufio.NewScanner(relayRead)
+		for scanner.Scan() {
+			lines = append(lines, scanner.Text())
+		}
+	}()
+	_ = cmd.Wait() //nolint:errcheck // the exit status is not what this test asserts
+
+	drained := make(chan struct{})
+	go func() {
+		defer close(drained)
+		drainStderrRelay(relayDone, relayRead)
+	}()
+	select {
+	case <-drained:
+	case <-time.After(20 * grace):
+		t.Fatal("the drain waited on a grandchild that holds stderr open")
+	}
+	if strings.Join(lines, ",") != "last" {
+		t.Fatalf("relayed %q, want the line written before exit", lines)
 	}
 }
 

@@ -313,8 +313,8 @@ var errRecordAnswerNeedsMux = errors.New(
 // caller reads one shape whichever transport carried it.
 //
 // What the engine holds for an answer is bounded by the reader and never by the
-// plugin: MuxConn queues at most answerQueueDepth lines for one answer and ends
-// it with rpc.ErrAnswerQueueFull when a consumer falls that far behind, each
+// plugin: MuxConn queues at most answerQueueMaxBytes of payload for one answer
+// and ends it with rpc.ErrAnswerQueueFull when a consumer falls that far behind, each
 // line is at most rpc.MaxMessageSize, and the connection ending ends every
 // answer still open (endPendingAnswers, pkg/plugin/rpc/mux.go). A plugin that
 // never writes a terminator therefore costs the queue and the caller's deadline,
