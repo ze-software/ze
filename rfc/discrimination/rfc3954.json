@@ -1,0 +1,27 @@
+{
+  "rfc": "rfc3954",
+  "records": [
+    {
+      "rid": "RFC3954-x-1",
+      "polarity": "negative",
+      "unit": "internal/plugins/flowexport/exporter_lifecycle_test.go::TestExporterTemplateFailureRetriesBeforeData",
+      "unit-sha": "917cc767030fddbc",
+      "claim-sha": "a0dc9ff0dfef36ff",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/exporter.go::notifySnapshot",
+      "producer-sha": "a36cce68d0ea99cf",
+      "break": "body of notifySnapshot replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC3954-x-8",
+      "polarity": "negative",
+      "unit": "internal/plugins/flowexport/netflow9/adapter_test.go::TestNetflow9SeqNumNotAdvancedOnSendError",
+      "unit-sha": "46f0e4117aea0c9c",
+      "claim-sha": "fc6a2be0a1ff720b",
+      "route": "revert",
+      "producer": "internal/plugins/flowexport/netflow9/adapter.go::Encode",
+      "producer-sha": "e32bc9a0c4176c57",
+      "break": "body of Encode replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}
