@@ -765,8 +765,15 @@ func leRFCAnswersGenerated(tree string) map[string][]byte {
 	} else if !os.IsNotExist(err) {
 		leRFCAnswersRequireNoError(err, "read "+ledgerPath)
 	}
+	// rfc/requirements is derived on demand and ignored by git, so a checkout
+	// that never ran index-update holds no directory. Absence is a state the
+	// caller compares like any other: a writer that fills the directory still
+	// changes the answer.
 	shardsPath := filepath.Join(tree, "rfc", "requirements")
 	entries, err := os.ReadDir(shardsPath)
+	if os.IsNotExist(err) {
+		return generated
+	}
 	leRFCAnswersRequireNoError(err, "read "+shardsPath)
 	for _, entry := range entries {
 		leRFCAnswersRequire(!entry.IsDir(),

@@ -489,11 +489,11 @@
       "rid": "RFC9552-5.3.3.1-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/ls/attr_flags_rfc9552_test.go::TestRFC9552IGPFlagsUndefinedBitsIgnored",
-      "unit-sha": "155888ed07678afe",
+      "unit-sha": "31423f3d0b225c1a",
       "claim-sha": "9cc53e7c5735691e",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/ls/attr_prefix.go::decodeIGPFlags",
-      "producer-sha": "31fb1603fe79b867",
+      "producer-sha": "39b13fd00c709f2f",
       "break": "body of decodeIGPFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
@@ -504,7 +504,7 @@
       "claim-sha": "3d690c5f125f6e5c",
       "route": "revert",
       "producer": "internal/component/bgp/plugins/nlri/ls/attr_prefix.go::decodeIGPFlags",
-      "producer-sha": "31fb1603fe79b867",
+      "producer-sha": "39b13fd00c709f2f",
       "break": "body of decodeIGPFlags replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {

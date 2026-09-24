@@ -93,23 +93,23 @@
       "rid": "RFC9514-4.1-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored",
-      "unit-sha": "ffaa7b91189cf9e9",
+      "unit-sha": "d1862bed4e3ea8c7",
       "claim-sha": "85eba67e0c4bac74",
-      "route": "revert",
+      "route": "mutant",
       "producer": "internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeSRv6EndXSID",
-      "producer-sha": "ffe4c5af42cbd73a",
-      "break": "body of decodeSRv6EndXSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer-sha": "4056910e9fd408f5",
+      "break": "line 725: \"data[4]\" -\u003e \"data[5]\""
     },
     {
       "rid": "RFC9514-4.1-2",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored",
-      "unit-sha": "ffaa7b91189cf9e9",
+      "unit-sha": "d1862bed4e3ea8c7",
       "claim-sha": "37affc572f16c75f",
-      "route": "revert",
+      "route": "mutant",
       "producer": "internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeSRv6EndXSID",
-      "producer-sha": "ffe4c5af42cbd73a",
-      "break": "body of decodeSRv6EndXSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer-sha": "4056910e9fd408f5",
+      "break": "line 725: \"data[4]\" -\u003e \"data[5]\""
     },
     {
       "rid": "RFC9514-4.2-1",
@@ -137,23 +137,23 @@
       "rid": "RFC9514-4.2-2",
       "polarity": "positive",
       "unit": "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored",
-      "unit-sha": "ffaa7b91189cf9e9",
+      "unit-sha": "d1862bed4e3ea8c7",
       "claim-sha": "5e92b99ec5b898f8",
-      "route": "revert",
+      "route": "mutant",
       "producer": "internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeSRv6EndXSID",
-      "producer-sha": "ffe4c5af42cbd73a",
-      "break": "body of decodeSRv6EndXSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer-sha": "4056910e9fd408f5",
+      "break": "line 725: \"data[4]\" -\u003e \"data[5]\""
     },
     {
       "rid": "RFC9514-4.2-2",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/nlri/ls/reserved_rfc9514_test.go::TestRFC9514EndXSIDReservedIgnored",
-      "unit-sha": "ffaa7b91189cf9e9",
+      "unit-sha": "d1862bed4e3ea8c7",
       "claim-sha": "1e2ec27f1c5a42fe",
-      "route": "revert",
+      "route": "mutant",
       "producer": "internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeSRv6EndXSID",
-      "producer-sha": "ffe4c5af42cbd73a",
-      "break": "body of decodeSRv6EndXSID replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer-sha": "4056910e9fd408f5",
+      "break": "line 725: \"data[4]\" -\u003e \"data[5]\""
     },
     {
       "rid": "RFC9514-5.1-1",

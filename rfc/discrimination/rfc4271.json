@@ -269,12 +269,12 @@
       "rid": "RFC4271-6.8-1",
       "polarity": "positive",
       "unit": "internal/component/bgp/reactor/rfc4271_rfc7611_ingress_test.go::TestRFC4271CollisionClosesExactlyOneConnection",
-      "unit-sha": "4418d4b1cad8ccd3",
+      "unit-sha": "4836aad76633670b",
       "claim-sha": "5392c62a046ad8c3",
       "route": "revert",
-      "producer": "internal/component/bgp/reactor/session.go::DetectCollision",
-      "producer-sha": "303df8ae09f41d34",
-      "break": "body of DetectCollision replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+      "producer": "internal/component/bgp/reactor/session.go::detectCollision",
+      "producer-sha": "327b4529b66487c8",
+      "break": "body of detectCollision replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "RFC4271-9-4",
