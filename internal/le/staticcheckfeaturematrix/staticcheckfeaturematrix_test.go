@@ -610,13 +610,12 @@ func TestMatrixRowFilterCatchesAGatedBreak(t *testing.T) {
 	}
 	root := writeGatedBreakFixture(t)
 
-	// A private cache, so the verdict depends on the fixture and not on the
-	// machine. Staticcheck trims its cache when it closes, at most once a day,
-	// and writes trim.txt only when the trim ends. Over a large shared cache on
-	// a slow disk the trim outlasts the deadline, the run is killed after its
-	// verdict exists, and every later run starts the same trim again. Measured
-	// 2026-09-24: 120s in DiskCache.Trim for a two-package module.
-	t.Setenv("STATICCHECK_CACHE", t.TempDir())
+	// Judge owns its cache (CacheDir), so the verdict depends on the fixture and
+	// not on the machine's shared cache, whose daily trim once outlasted the
+	// deadline. An inherited STATICCHECK_CACHE names a decoy here: a run that
+	// honored it would write there, and the check after the verdicts says so.
+	decoy := t.TempDir()
+	t.Setenv("STATICCHECK_CACHE", decoy)
 
 	// The answer the selector produces for that changed file: the tag gating its
 	// package, plus the tag the file NEGATES (reachedTags,
@@ -631,5 +630,12 @@ func TestMatrixRowFilterCatchesAGatedBreak(t *testing.T) {
 	// would prove nothing about it.
 	if !judgeFixture(t, root, []string{"ze_web"}) {
 		t.Error("the gate-only answer caught the break, so the negation union proves nothing")
+	}
+
+	if entries, err := os.ReadDir(decoy); err != nil || len(entries) != 0 {
+		t.Errorf("Judge wrote %d entries to the inherited STATICCHECK_CACHE (err %v); it must use its own cache", len(entries), err)
+	}
+	if entries, err := os.ReadDir(CacheDir(root)); err != nil || len(entries) == 0 {
+		t.Errorf("Judge left its own cache %s empty (err %v)", CacheDir(root), err)
 	}
 }

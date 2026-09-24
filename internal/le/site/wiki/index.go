@@ -10,14 +10,21 @@
 // The build never opens the wiki checkout, so a machine that has only this
 // repository produces the same artifact.
 //
+// The index reads the wiki's committed HEAD through git, never its working
+// directory. An untracked or edited file in one machine's checkout is not wiki
+// content, and reading it made the committed index depend on that machine: a
+// never-tracked CLAUDE.md reached website/data/wiki.json on 2026-09-19.
+//
 // Related: internal/le/site/llmsfull.go -- the reader of the committed index.
 package sitewiki
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -122,7 +129,7 @@ var accountedUnlisted = map[string]string{
 // sidebarLink matches one Markdown link of the sidebar.
 var sidebarLink = regexp.MustCompile(`\[([^\]]+)\]\(([^)]+)\)`)
 
-// Derive answers the index one wiki checkout states.
+// Derive answers the index the committed HEAD of one wiki checkout states.
 //
 // It refuses three things, each by name, because each one publishes a wrong
 // index in silence: a sidebar link that resolves to no page, a page the sidebar
@@ -131,14 +138,15 @@ func Derive(wikiRoot, baseURL string) (Index, error) {
 	if baseURL == "" {
 		baseURL = DefaultBaseURL
 	}
-	groups, listed, err := readSidebar(wikiRoot)
+	head, err := readHead(wikiRoot)
 	if err != nil {
 		return Index{}, err
 	}
-	present, err := readPages(wikiRoot)
+	groups, listed, err := readSidebar(head)
 	if err != nil {
 		return Index{}, err
 	}
+	present := readPages(head)
 	if err := refuseDanglingLinks(groups, present); err != nil {
 		return Index{}, err
 	}
@@ -149,7 +157,7 @@ func Derive(wikiRoot, baseURL string) (Index, error) {
 	for groupIndex := range groups {
 		for pageIndex := range groups[groupIndex].Pages {
 			page := &groups[groupIndex].Pages[pageIndex]
-			summary, readErr := pageSummary(wikiRoot, page.Slug)
+			summary, readErr := pageSummary(head, page.Slug)
 			if readErr != nil {
 				return Index{}, readErr
 			}
@@ -171,17 +179,15 @@ func Derive(wikiRoot, baseURL string) (Index, error) {
 // -- because a menu offers a reader two ways to the same page. The index is not
 // a menu: a second entry states one page's title, URL and summary again, and
 // makes the page count say the wiki is larger than it is.
-func readSidebar(wikiRoot string) ([]Group, map[string]bool, error) {
-	path := filepath.Join(wikiRoot, sidebarFile)
-	content, err := os.Open(path) //nolint:gosec // the wiki checkout this action was pointed at
+func readSidebar(head headTree) ([]Group, map[string]bool, error) {
+	content, err := head.file(sidebarFile)
 	if err != nil {
 		return nil, nil, fmt.Errorf("read the wiki sidebar: %w", err)
 	}
-	defer content.Close() //nolint:errcheck // a read-only file
 
 	var groups []Group
 	listed := make(map[string]bool, 192)
-	scanner := bufio.NewScanner(content)
+	scanner := bufio.NewScanner(bytes.NewReader(content))
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		match := sidebarLink.FindStringSubmatch(line)
@@ -214,25 +220,76 @@ func readSidebar(wikiRoot string) ([]Group, map[string]bool, error) {
 	return groups, listed, nil
 }
 
-// readPages answers the slug of every reader-facing page of a wiki checkout.
+// readPages answers the slug of every reader-facing page the wiki's HEAD
+// commits at its top level.
 //
 // A name opening with an underscore is wiki furniture -- the sidebar, the
 // footer -- rather than a page, so it is not a candidate for the index and not
 // a candidate for the refusal below either.
-func readPages(wikiRoot string) (map[string]bool, error) {
-	entries, err := os.ReadDir(wikiRoot)
-	if err != nil {
-		return nil, fmt.Errorf("read the wiki checkout: %w", err)
-	}
-	present := make(map[string]bool, len(entries))
-	for _, entry := range entries {
-		name := entry.Name()
-		if entry.IsDir() || filepath.Ext(name) != markdownExtension || strings.HasPrefix(name, "_") {
+func readPages(head headTree) map[string]bool {
+	present := make(map[string]bool, len(head.blobs))
+	for name := range head.blobs {
+		if filepath.Ext(name) != markdownExtension || strings.HasPrefix(name, "_") {
 			continue
 		}
 		present[strings.TrimSuffix(name, markdownExtension)] = true
 	}
-	return present, nil
+	return present
+}
+
+// headTree is the top level of a wiki checkout's committed HEAD: each file's
+// name and its blob id. A directory is not a page, so it is not held.
+type headTree struct {
+	root  string
+	blobs map[string]string
+}
+
+// readHead answers the committed HEAD of the wiki checkout at wikiRoot.
+func readHead(wikiRoot string) (headTree, error) {
+	listing, err := wikiGit(wikiRoot, "ls-tree", "-z", "HEAD")
+	if err != nil {
+		return headTree{}, fmt.Errorf("list the wiki's committed HEAD: %w", err)
+	}
+	head := headTree{root: wikiRoot, blobs: make(map[string]string, 192)}
+	for entry := range strings.SplitSeq(string(listing), "\x00") {
+		if entry == "" {
+			continue
+		}
+		// One entry is "<mode> <type> <object>\t<name>".
+		meta, name, found := strings.Cut(entry, "\t")
+		fields := strings.Fields(meta)
+		if !found || len(fields) != 3 {
+			return headTree{}, fmt.Errorf("list the wiki's committed HEAD: unreadable entry %q", entry)
+		}
+		if fields[1] != "blob" {
+			continue
+		}
+		head.blobs[name] = fields[2]
+	}
+	return head, nil
+}
+
+// file answers the committed content of one top-level file. A file HEAD does
+// not hold is an error, even when the working directory holds it.
+func (h headTree) file(name string) ([]byte, error) {
+	object, committed := h.blobs[name]
+	if !committed {
+		return nil, fmt.Errorf("%s is not committed at the wiki's HEAD", name)
+	}
+	return wikiGit(h.root, "cat-file", "blob", object)
+}
+
+// wikiGit runs one read-only git command in the wiki checkout and answers its
+// standard output, or an error carrying git's own message.
+func wikiGit(wikiRoot string, args ...string) ([]byte, error) {
+	cmd := exec.Command("git", append([]string{"-C", wikiRoot}, args...)...) //nolint:gosec // fixed git verbs over the wiki checkout this action was pointed at
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
+	}
+	return out, nil
 }
 
 // refuseDanglingLinks refuses a sidebar entry that resolves to no page.
@@ -293,9 +350,8 @@ func refuseUnjudgedPages(present, listed map[string]bool) ([]Unlisted, error) {
 var prosePrefixes = []string{"#", ">", "![", "|"}
 
 // pageSummary answers one page's first sentence of prose.
-func pageSummary(wikiRoot, slug string) (string, error) {
-	path := filepath.Join(wikiRoot, slug+markdownExtension)
-	content, err := os.ReadFile(path) //nolint:gosec // the wiki checkout this action was pointed at
+func pageSummary(head headTree, slug string) (string, error) {
+	content, err := head.file(slug + markdownExtension)
 	if err != nil {
 		return "", fmt.Errorf("read the wiki page %s: %w", slug, err)
 	}

@@ -4,6 +4,7 @@ package sitewiki
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -21,9 +22,56 @@ func repositoryRoot(t *testing.T) string {
 	return root
 }
 
-// fixtureWiki answers a copy of the committed wiki fixture, so a test that adds
-// or removes a page writes into its own directory.
-func fixtureWiki(t *testing.T) string {
+// fixtureWiki answers a git checkout holding the wiki fixture, committed at its
+// HEAD, so a test that adds or removes a page works in its own repository.
+//
+// Derive reads the committed HEAD, never the working directory, so edit runs
+// BEFORE the commit: a page it writes or removes is a committed change. A nil
+// edit commits the fixture as it is.
+func fixtureWiki(t *testing.T, edit func(wikiRoot string)) string {
+	t.Helper()
+	target := copyFixtureWiki(t)
+	if edit != nil {
+		edit(target)
+	}
+	git := fixtureGit(t, target)
+	git("init", "--quiet")
+	git("add", "--all")
+	git("commit", "--quiet", "--message", "fixture")
+	return target
+}
+
+// fixtureGit answers a git runner for the fixture wiki at root.
+//
+// The fixture answers for itself: a git that read this machine's global config
+// would sign a commit made here, or refuse it for want of an identity, and
+// either one makes the test a report about the machine.
+func fixtureGit(t *testing.T, root string) func(args ...string) {
+	t.Helper()
+	empty := filepath.Join(t.TempDir(), "gitconfig")
+	if err := os.WriteFile(empty, nil, 0o600); err != nil {
+		t.Fatalf("write the fixture git config: %v", err)
+	}
+	environment := append(os.Environ(),
+		"GIT_CONFIG_GLOBAL="+empty,
+		"GIT_CONFIG_NOSYSTEM=1",
+		"GIT_AUTHOR_NAME=sitewiki fixture",
+		"GIT_AUTHOR_EMAIL=fixture@example.invalid",
+		"GIT_COMMITTER_NAME=sitewiki fixture",
+		"GIT_COMMITTER_EMAIL=fixture@example.invalid",
+	)
+	return func(args ...string) {
+		t.Helper()
+		cmd := exec.CommandContext(t.Context(), "git", append([]string{"-C", root}, args...)...)
+		cmd.Env = environment
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v in the fixture: %v\n%s", args, err, out)
+		}
+	}
+}
+
+// copyFixtureWiki answers a plain copy of testdata/wiki in a directory of its own.
+func copyFixtureWiki(t *testing.T) string {
 	t.Helper()
 	source := filepath.Join("testdata", "wiki")
 	entries, err := os.ReadDir(source)
@@ -50,7 +98,7 @@ func fixtureWiki(t *testing.T) string {
 // to derive an index from a fixture whose sidebar states three groups in an
 // order alphabetical sorting would not produce, and to read the answer back.
 func TestTheWikiIndexTakesTheSidebarsOwnOrder(t *testing.T) {
-	index, err := Derive(fixtureWiki(t), "https://example.test/wiki/")
+	index, err := Derive(fixtureWiki(t, nil), "https://example.test/wiki/")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +138,7 @@ func TestTheWikiIndexTakesTheSidebarsOwnOrder(t *testing.T) {
 // the repeat to stay at its first position and to leave the later group with
 // the pages that are only its own.
 func TestAPageTheSidebarListsTwiceGetsOneEntry(t *testing.T) {
-	index, err := Derive(fixtureWiki(t), "")
+	index, err := Derive(fixtureWiki(t, nil), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +168,7 @@ func TestAPageTheSidebarListsTwiceGetsOneEntry(t *testing.T) {
 // VALIDATES: AC-17 -- the section references the wiki rather than republishing
 // it, so every page carries one summary and no body.
 func TestEveryReferencedWikiPageCarriesASummary(t *testing.T) {
-	index, err := Derive(fixtureWiki(t), "")
+	index, err := Derive(fixtureWiki(t, nil), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,15 +205,16 @@ func TestEveryReferencedWikiPageCarriesASummary(t *testing.T) {
 // page's own name in the message. A page nobody has judged cannot become a
 // silent omission in a committed artifact.
 func TestTheWikiIndexRefusesAPageTheSidebarDoesNotList(t *testing.T) {
-	wikiRoot := fixtureWiki(t)
-	if err := os.WriteFile(filepath.Join(wikiRoot, "community-filters.md"),
-		[]byte("# Community filters\n\nHow to publish a filter for other operators.\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(wikiRoot, "route-reflection.md"),
-		[]byte("# Route reflection\n\nHow a route reflector is configured.\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	wikiRoot := fixtureWiki(t, func(wikiRoot string) {
+		if err := os.WriteFile(filepath.Join(wikiRoot, "community-filters.md"),
+			[]byte("# Community filters\n\nHow to publish a filter for other operators.\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(wikiRoot, "route-reflection.md"),
+			[]byte("# Route reflection\n\nHow a route reflector is configured.\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	})
 
 	_, err := Derive(wikiRoot, "")
 	if err == nil {
@@ -184,7 +233,7 @@ func TestTheWikiIndexRefusesAPageTheSidebarDoesNotList(t *testing.T) {
 // VALIDATES: AC-17c's other half -- a judged omission is PUBLISHED as one, with
 // the reason it is out, so the committed file states what it leaves out.
 func TestAJudgedOmissionIsPublishedWithItsReason(t *testing.T) {
-	index, err := Derive(fixtureWiki(t), "")
+	index, err := Derive(fixtureWiki(t, nil), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,10 +248,11 @@ func TestAJudgedOmissionIsPublishedWithItsReason(t *testing.T) {
 // VALIDATES: a sidebar link that resolves to no page is refused by name, so the
 // index never publishes a link a reader clicks into a 404.
 func TestTheWikiIndexRefusesASidebarLinkWithNoPage(t *testing.T) {
-	wikiRoot := fixtureWiki(t)
-	if err := os.Remove(filepath.Join(wikiRoot, "install.md")); err != nil {
-		t.Fatal(err)
-	}
+	wikiRoot := fixtureWiki(t, func(wikiRoot string) {
+		if err := os.Remove(filepath.Join(wikiRoot, "install.md")); err != nil {
+			t.Fatal(err)
+		}
+	})
 	_, err := Derive(wikiRoot, "")
 	if err == nil {
 		t.Fatal("a sidebar link with no page was accepted")
@@ -212,10 +262,57 @@ func TestTheWikiIndexRefusesASidebarLinkWithNoPage(t *testing.T) {
 	}
 }
 
+// VALIDATES: the index states the wiki's committed HEAD, and nothing the
+// working directory holds beside it changes a byte of it.
+// PREVENTS: one machine's untracked or edited wiki file reaching the committed
+// website/data/wiki.json, which then goes stale on every machine without it.
+//
+// The method derives the index from a clean fixture, then leaves the working
+// directory holding every kind of uncommitted change the index could read: an
+// untracked page nobody has judged (refused if read), a deleted page the
+// sidebar links (refused if read), an edited page summary, and an edited
+// sidebar. The second index must equal the first, byte for byte.
+func TestTheWikiIndexReadsOnlyTheCommittedHead(t *testing.T) {
+	wikiRoot := fixtureWiki(t, nil)
+	clean, err := Derive(wikiRoot, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wanted, err := Marshal(clean)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	write := func(name, content string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(wikiRoot, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("route-reflection.md", "# Route reflection\n\nAn untracked page nobody has judged.\n")
+	write("about.md", "# About\n\nAn uncommitted summary that must not be published.\n")
+	write(sidebarFile, "**Uncommitted**\n\n- [Route reflection](route-reflection)\n")
+	if err := os.Remove(filepath.Join(wikiRoot, "install.md")); err != nil {
+		t.Fatal(err)
+	}
+
+	dirty, err := Derive(wikiRoot, "")
+	if err != nil {
+		t.Fatalf("the working directory reached the index: %v", err)
+	}
+	have, err := Marshal(dirty)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(have, wanted) {
+		t.Errorf("uncommitted wiki changes altered the index:\n%s\nwanted:\n%s", have, wanted)
+	}
+}
+
 // VALIDATES: AC-17a -- the committed index round-trips, so what `le site wiki
 // update` writes is what the site build reads back.
 func TestTheCommittedIndexRoundTrips(t *testing.T) {
-	index, err := Derive(fixtureWiki(t), "https://example.test/wiki/")
+	index, err := Derive(fixtureWiki(t, nil), "https://example.test/wiki/")
 	if err != nil {
 		t.Fatal(err)
 	}

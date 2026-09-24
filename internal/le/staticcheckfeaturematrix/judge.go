@@ -16,7 +16,9 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
@@ -102,8 +104,29 @@ func (e *badDeadlineError) Error() string {
 		Quoted(e.value).Str("; matrix could not be judged").String()
 }
 
+// cacheKey is the variable Staticcheck reads for the directory of its cache.
+const cacheKey = "STATICCHECK_CACHE"
+
+// CacheDir answers the Staticcheck cache the matrix over tree uses:
+// cache/staticcheck-matrix, owned by this gate and never shared.
+//
+// Staticcheck trims its cache in DiskCache.Close, after the verdict exists, at
+// most once a day, and records the trim in trim.txt only when the trim ends.
+// The trim is a walk over the whole cache, so its cost grows with the cache.
+// Over the shared ~/.cache/staticcheck, which every ad-hoc run on the machine
+// fills, one trim was measured at 120s on 2026-09-24: past the deadline, so the
+// run was killed after its verdict existed, trim.txt was never written, and
+// every later run started the same trim again. The verdict then depended on the
+// day and the disk (plan/journal/gate-verdict-depends-on-the-machine.md). A cache
+// only this gate fills holds only the matrix's own entries, so the trim walks a
+// bounded population and the deadline measures the type check.
+func CacheDir(tree string) string {
+	return filepath.Join(tree, "cache", "staticcheck-matrix")
+}
+
 // Judge runs Staticcheck over the rendered matrix in tree and answers what it
-// said.
+// said. It runs with CacheDir(tree) as its cache, whatever the caller's
+// environment names.
 //
 // The bool is whether the matrix was JUDGED at all. False means the answer is
 // exit code 2 and the error says why; it is not a type-check failure.
@@ -113,11 +136,21 @@ func Judge(tree string, matrix Matrix, deadline time.Duration) (Verdict, bool, e
 		return Verdict{}, false, err
 	}
 
+	cache := CacheDir(tree)
+	if err := os.MkdirAll(cache, 0o750); err != nil {
+		var tb textbuf.Buffer
+		return Verdict{}, false, errors.New(tb.Str("could not create the Staticcheck cache: ").Err(err).
+			Str("; matrix could not be judged").String())
+	}
+
 	ctx, cancel := context.WithTimeout(context.Background(), deadline)
 	defer cancel()
 
 	cmd := exec.CommandContext(ctx, "staticcheck", "-checks=-all", "-matrix", "./...")
 	cmd.Dir = tree
+	// The last entry for a key wins, so an inherited STATICCHECK_CACHE cannot
+	// point this run back at a shared cache.
+	cmd.Env = append(os.Environ(), cacheKey+"="+cache)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error {
 		if cmd.Process == nil {

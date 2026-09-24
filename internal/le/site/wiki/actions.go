@@ -1,8 +1,9 @@
 // Design: docs/architecture/core-design.md -- the wiki-index area, as one command
 //
 // actions.go is the command surface. `le site wiki update` derives the index
-// from a wiki checkout and writes the committed file; `le site wiki check`
-// reports what the committed file and the checkout disagree about.
+// from the committed HEAD of a wiki checkout and writes the committed file;
+// `le site wiki check` reports what the committed file and that HEAD disagree
+// about.
 //
 // The pair is the shape `le site facts` already has, and for the same reason: a
 // generated file nobody gates goes stale in silence.
@@ -32,7 +33,7 @@ const (
 
 var actions = leaction.New(area,
 	leaction.Action{Verb: "update",
-		Why:    "derive the wiki page index from a wiki checkout and write website/data/wiki.json, the file the site build reads instead of opening the wiki",
+		Why:    "derive the wiki page index from the committed HEAD of a wiki checkout and write website/data/wiki.json, the file the site build reads instead of opening the wiki",
 		Writes: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: keywordWiki, Value: "directory", Requirement: leaction.Optional},
@@ -40,7 +41,7 @@ var actions = leaction.New(area,
 		},
 		AnswerArgs: runUpdate},
 	leaction.Action{Verb: "check",
-		Why:        "report whether the committed wiki index still states what the wiki checkout holds",
+		Why:        "report whether the committed wiki index still states what the wiki checkout commits at HEAD",
 		Parameters: []leaction.Parameter{{Keyword: keywordWiki, Value: "directory", Requirement: leaction.Optional}},
 		AnswerArgs: runCheck},
 )

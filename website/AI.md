@@ -347,7 +347,9 @@ own source of truth (`spec-website-wiki-content-migration`,
 2026-07-22). It is read from the committed `data/wiki.json`, so the build never
 opens a wiki checkout and a machine without the sibling directory writes the
 same artifact. `./le site wiki update` refreshes that file from a checkout and
-`./le site wiki check` reports it stale. The order and the grouping are the
+`./le site wiki check` reports it stale. Both read the checkout's committed
+`HEAD` through git, never its working directory, so an untracked or uncommitted
+wiki file cannot change the committed index. The order and the grouping are the
 wiki's own `_Sidebar.md`, and a wiki page the sidebar does not list is refused
 by name unless `accountedUnlisted` in `internal/le/site/wiki/index.go` already
 states why it is out.

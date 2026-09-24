@@ -47,6 +47,16 @@ and most other runs exceeded it, which reported a slow gate as an unjudgeable
 one. `ZE_STATICCHECK_DEADLINE` still names an absolute bound for a run of any
 size.
 
+The deadline measures the type check, not the cache. Staticcheck trims its
+cache when it closes, after the verdict exists, at most once a day, and it
+records the trim only when the trim ends. Over the shared `~/.cache/staticcheck`
+one trim took 120 seconds on 2026-09-24, so the run was killed with its verdict
+in hand and every later run started the same trim again. The gate therefore runs
+Staticcheck with `STATICCHECK_CACHE` set to `cache/staticcheck-matrix` in the
+checkout (`CacheDir`), whatever the caller's environment names. Only the matrix
+fills that cache, so its trim walks a bounded population.
+<!-- source: internal/le/staticcheckfeaturematrix/judge.go -- CacheDir -->
+
 Staticcheck stops after package and test-variant type checking.
 `./le repository tracked-build check` supplies committed-tree final-link proof for
 its six tracked configurations, not for every shipped build flavor. Keep both
