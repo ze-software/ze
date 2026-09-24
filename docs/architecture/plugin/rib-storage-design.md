@@ -594,7 +594,11 @@ The selecting RIB consults `ribevents.RouteEligible` against this receive store.
 After changing it, Adj-RIB-In releases its lock and emits `ValidationChange`;
 `RIBManager.validationChanged` reruns best-path selection and updates the shared
 Loc-RIB, including withdrawal or selection of another peer's path. Recovery
-therefore needs no new UPDATE. Stored replay excludes ineligible paths, and
+therefore needs no new UPDATE. No `ValidationChange` is emitted before
+`enable-validation` registers the eligibility lookup. Without that lookup every
+path is eligible, so a store change alters no verdict. An event would make the
+route server and the reflector replay a route the live forward already sent.
+The lookup stays registered after `disable-validation`, and so do the events. Stored replay excludes ineligible paths, and
 recovery advances their replay sequence so an existing cursor can discover them.
 Ordinary withdrawals and session removal delete retained routes.
 

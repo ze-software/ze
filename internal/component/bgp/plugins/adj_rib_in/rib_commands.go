@@ -397,6 +397,7 @@ func (r *AdjRIBInManager) enableValidationCommand(args []string) (string, any, e
 	r.validationEnabled = true
 	if r.ingestTracked {
 		ribevents.RegisterValidationLookup(r.routeEligible, r.routePresent)
+		r.validationGate = true
 	}
 	data := map[string]any{"validation-enabled": true}
 	if refresh {

@@ -166,6 +166,11 @@ type AdjRIBInManager struct {
 	// this store without acquiring mu recursively.
 	validationChanges []ribevents.ValidationRoute
 	validationBus     ze.EventBus
+	// validationGate is set, under mu, once this store's eligibility lookup is
+	// registered with ribevents. Only then does the forward path and selection
+	// consult this store, so only then can a store change alter a verdict
+	// anyone read. It stays set after disable-validation: the lookup does too.
+	validationGate bool
 
 	mu sync.RWMutex
 

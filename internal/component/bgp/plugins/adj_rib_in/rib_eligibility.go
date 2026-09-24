@@ -62,8 +62,15 @@ func (r *AdjRIBInManager) routePresent(key ribevents.ValidationRoute) bool {
 
 // noteValidationChange MUST run under mu. The caller MUST finish with
 // unlockValidation, never mu.Unlock, so downstream selection sees the change.
+//
+// Nothing is noted until the eligibility gate is registered. Without it,
+// ribevents.RouteEligible answers true for every path, so the live forward
+// already carried each route and no verdict changed. A ValidationChange then
+// makes the route server and reflector replay the path to every target, which
+// sends each UPDATE a second time and re-announces a route the next UPDATE
+// withdraws.
 func (r *AdjRIBInManager) noteValidationChange(peer netip.Addr, key compactRouteKey) {
-	if r.validationBus == nil {
+	if r.validationBus == nil || !r.validationGate {
 		return
 	}
 	r.validationChanges = append(r.validationChanges, ribevents.ValidationRoute{
