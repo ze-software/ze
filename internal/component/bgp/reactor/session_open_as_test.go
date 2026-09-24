@@ -240,3 +240,60 @@ func TestSendOpenRefusesLocalASZero(t *testing.T) {
 		})
 	}
 }
+
+// Capability parsing must precede the peer-AS comparison: AS_TRANS is a
+// placeholder for the four-octet capability, not the AS a failed parse proves.
+func TestOpenCapabilityErrorsPreserveFourOctetPeerAS(t *testing.T) {
+	const peerAS uint32 = 4200000001
+	for _, rail := range []string{"handleOpen", "processOpen"} {
+		for _, tc := range []struct {
+			name      string
+			parameter []byte
+			zeroMyAS  bool
+			zeroASN4  bool
+			wantError error
+			subcode   uint8
+		}{
+			{name: "valid-four-octet"},
+			{name: "unknown-optional-parameter", parameter: []byte{99, 0}, wantError: ErrInvalidMessage, subcode: message.NotifyOpenUnsupportedOptParam},
+			{name: "malformed-known-capability", parameter: []byte{2, 3, byte(capability.CodeASN4), 1, 0}, wantError: ErrInvalidMessage},
+			{name: "zero-my-as", parameter: []byte{99, 0}, zeroMyAS: true, wantError: ErrBadPeerAS, subcode: message.NotifyOpenBadPeerAS},
+			{name: "zero-asn4-capability", zeroASN4: true, wantError: ErrBadPeerAS, subcode: message.NotifyOpenBadPeerAS},
+		} {
+			t.Run(rail+"/"+tc.name, func(t *testing.T) {
+				session, written := openSentSessionAS(t, peerAS, 0x0a000002)
+				body := openBodyWithASN4Capability(peerAS)
+				if tc.zeroASN4 {
+					body = openBodyWithASN4Capability(0)
+				}
+				body = append(body, tc.parameter...)
+				body[9] = byte(len(body) - 10)
+				if tc.zeroMyAS {
+					body[1], body[2] = 0, 0
+				}
+				var err error
+				if rail == "handleOpen" {
+					err = session.handleOpen(body)
+				} else {
+					var open *message.Open
+					open, err = message.UnpackOpen(body)
+					require.NoError(t, err)
+					err = session.processOpen(open)
+				}
+				if tc.wantError == nil {
+					require.NoError(t, err)
+					require.Equal(t, fsm.StateOpenConfirm, session.State())
+					code, subcode, found := notificationFrom(t, written)
+					require.False(t, found, "valid OPEN received NOTIFICATION %d/%d", code, subcode)
+					return
+				}
+				require.ErrorIs(t, err, tc.wantError)
+				require.NotEqual(t, fsm.StateOpenConfirm, session.State())
+				code, subcode, found := notificationFrom(t, written)
+				require.True(t, found)
+				require.Equal(t, uint8(message.NotifyOpenMessage), code)
+				require.Equal(t, tc.subcode, subcode)
+			})
+		}
+	}
+}

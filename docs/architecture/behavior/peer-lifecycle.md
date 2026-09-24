@@ -214,6 +214,16 @@ take additional locks safely.
     own goroutine (per-session lifecycle, not per-event), unless the
     startup convergence hold owns this peer's initial routing update.
 
+Established peer events and API snapshots report the TCP connection's local
+address and both socket ports, including an automatically chosen local address
+or ephemeral source port. Sent message events read an immutable endpoint
+snapshot captured before OPEN, because those callbacks run under the write
+lock and cannot safely acquire the session connection lock. Missing socket
+ports remain zero; listener and dial-target configuration are never substituted.
+<!-- source: internal/component/bgp/reactor/session_connection.go -- connectedTransport, connectionEstablished -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- establishedPeerInfo -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiver -->
+
 ### The startup convergence hold
 
 `bgp update-delay max-delay <seconds>` arms a hold when the daemon starts
@@ -282,7 +292,7 @@ sequence exactly as it reads above.
 
 | Scenario | Delay |
 |----------|-------|
-| Normal session error | Exponential, starting at `reconnectMin` (default 5s), doubling each attempt, capped at `reconnectMax` (default 60s). |
+| Normal session error | Exponential base, starting at `reconnectMin` (default 5s), doubling each attempt, capped at `reconnectMax` (default 60s). Each wait samples uniform jitter from 0.75 to 1.0 of that base. |
 | `ErrTeardown` (API-initiated stop) | Reset `delay` to `reconnectMin`, continue loop immediately. No wait. |
 | Successful session exit (err == nil) | Reset `delay` to `reconnectMin` and `prefixTeardownCount` to 0. |
 | Prefix teardown, family mode `never` (the default) | No delay, because there is no next attempt. The peer enters `PeerStateIdleHold`, raises a `prefix-hold` warning, refuses inbound connections and waits for the peer context to end. Only an operator recreating the peer brings it back. |
@@ -320,6 +330,13 @@ session and a second incoming connection for the same peer. The
 reactor stashes the second connection as a "pending" connection on the
 peer via `SetPendingConnection(conn)`. After the pending side sends its
 OPEN, the reactor calls `ResolvePendingCollision(pendingOpen)`.
+
+This also applies in Established: the new connection is retained until the
+complete OPEN arrives, then receives Cease / Connection Collision. The existing
+session is not replaced. OpenSent and OpenConfirm use the same pending reader,
+which waits for OPEN before comparing identifiers.
+
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject, handlePendingCollision -->
 
 `ResolvePendingCollision`:
 

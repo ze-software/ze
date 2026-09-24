@@ -695,20 +695,19 @@ func peerASFromExaBGPConfig(path string) (uint32, bool, error) {
 }
 
 // exabgpDefaultRoute is the UPDATE `option=update:send-default-route` sends: the
-// prefix 0.0.0.0/32 with ORIGIN igp, an empty AS_PATH, NEXT_HOP 127.0.0.1 and
+// prefix 0.0.0.0/32 with ORIGIN igp, an empty AS_PATH, NEXT_HOP 192.0.2.1 and
 // LOCAL_PREF 100.
 //
-// The bytes are upstream's, from qa/sbin/bgp-3.6 in the ExaBGP repository, where
-// the same option writes this literal. api-check's script waits for ze to render
-// exactly this route back to it as a text event, so a byte invented here would
-// be a route the case was never written about.
+// The upstream fixture used loopback as NEXT_HOP. Keep its prefix and other
+// attributes, but use a non-local host address so api-check exercises an
+// announcement rather than RFC 7606 treat-as-withdraw.
 func exabgpDefaultRoute() []byte {
 	return speakerMessage(bgpUpdate, []byte{
 		0x00, 0x00, // Withdrawn Routes Length
 		0x00, 0x15, // Total Path Attribute Length
 		0x40, 0x01, 0x01, 0x00, // ORIGIN igp
 		0x40, 0x02, 0x00, // AS_PATH, empty
-		0x40, 0x03, 0x04, 0x7F, 0x00, 0x00, 0x01, // NEXT_HOP 127.0.0.1
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP 192.0.2.1
 		0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64, // LOCAL_PREF 100
 		0x20, 0x00, 0x00, 0x00, 0x00, // NLRI 0.0.0.0/32
 	})

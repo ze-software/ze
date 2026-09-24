@@ -158,6 +158,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 	if hdr.Type == msgtype.TypeUPDATE {
 		wireUpdate = wireu.NewWireUpdate(body, ctxID)
 		wireUpdate.SetSourceID(sourceID)
+		receivedUpdate := wireUpdate
 
 		// RFC 7606: Validate BEFORE dispatching to plugins.
 		// Enforcement must happen before callback so malformed UPDATEs
@@ -171,6 +172,37 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 		if err != nil {
 			// session-reset: error propagated, no dispatch
 			return err, false
+		}
+
+		if action < message.RFC7606ActionTreatAsWithdraw && s.invalidReceiveNextHop(wireUpdate) {
+			// RFC 4271 Section 6.3: "the route SHOULD be ignored" and
+			// "the connection SHOULD NOT be closed". Withdraw a replaced
+			// announcement so an earlier route cannot remain usable.
+			wireUpdate = s.withdrawLegacyAnnouncements(wireUpdate)
+			s.rfc7606Diagnostics("invalid-next-hop", receivedUpdate,
+				uint8(attribute.AttrNextHop), "NEXT_HOP is local or outside the directly connected subnets")
+		}
+
+		if action < message.RFC7606ActionTreatAsWithdraw {
+			// Draft ASPA verification -28 Section 5 requires the reconstructed
+			// AS_PATH. First finish raw-wire error handling, including AS 0 and
+			// AS4 attribute discards, then compare the canonical neighbor AS.
+			collapsed, collapseErr := s.collapseASPathFamily(wireUpdate)
+			if collapseErr != nil {
+				sessionLogger().Error("cannot reconcile received AS path",
+					"peer", s.settings.Address, "error", collapseErr)
+				// The NLRI already passed RFC 7606 syntax validation. An
+				// unusable path must withdraw it, not leave an old route installed.
+				action = message.RFC7606ActionTreatAsWithdraw
+			} else {
+				wireUpdate = collapsed
+				if s.firstASMismatch(wireUpdate) {
+					action = message.RFC7606ActionTreatAsWithdraw
+					s.rfc7606Diagnostics("treat-as-withdraw",
+						receivedUpdate, uint8(attribute.AttrASPath),
+						"AS_PATH first AS does not match the neighbor AS")
+				}
+			}
 		}
 
 		if action == message.RFC7606ActionTreatAsWithdraw {
@@ -216,34 +248,11 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 				if s.onMessageReceived != nil {
 					extraWU := wireu.NewWireUpdate(extra, wireUpdate.SourceCtxID())
 					extraWU.SetSourceID(wireUpdate.SourceID())
-					s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, extra, extraWU,
-						ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: extra}, nil, "")
+					s.onMessageReceived(s.settings.Address, msgtype.TypeUPDATE, extra, extraWU, ctxID, rpc.DirectionReceived, BufHandle{ID: noPoolBufID, Buf: extra}, nil, "", 0)
 				}
 			}
 			wireUpdate = primary
 		}
-
-		// RFC 6793 Sections 4.1 and 4.2.3: the AS-path family is reconciled to
-		// four-octet truth ONCE, here, and every consumer below reads that one
-		// answer -- the ingress filters, the forward cache, the RIB and both
-		// forward rails. It runs AFTER enforceRFC7606, which judges what the
-		// PEER sent and must not judge ze's own rewrite, and BEFORE the import
-		// policy chain, which reads the AS path and must read the truth.
-		collapsed, collapseErr := s.collapseASPathFamily(wireUpdate)
-		if collapseErr != nil {
-			// The UPDATE is dropped, not answered with a NOTIFICATION: RFC 7606
-			// has already ruled on these attributes and found them acceptable,
-			// so the session survives exactly as it does for the family drop and
-			// the prefix-limit drop below. What must not happen is dispatch: a
-			// payload whose AS path is half rewritten reaches every consumer.
-			// The FSM handler for EventUpdateMsg restarts the HoldTimer per RFC
-			// 4271 Section 8.2.2 Event 27.
-			sessionLogger().Error("dropped an UPDATE whose AS path family could not be reconciled",
-				"peer", s.settings.Address, "error", collapseErr)
-			s.logFSMEvent(fsm.EventUpdateMsg)
-			return nil, false
-		}
-		wireUpdate = collapsed
 
 		// ActionNone or ActionAttributeDiscard: continue to dispatch.
 		// For attribute-discard, the malformed attributes are logged but the
@@ -329,7 +338,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 	// Callback returns true if it took ownership of buf (e.g., cached it).
 	var kept bool
 	if s.onMessageReceived != nil {
-		kept = s.onMessageReceived(s.settings.Address, hdr.Type, body, wireUpdate, ctxID, rpc.DirectionReceived, buf, nil, "")
+		kept = s.onMessageReceived(s.settings.Address, hdr.Type, body, wireUpdate, ctxID, rpc.DirectionReceived, buf, nil, "", 0)
 	}
 
 	// A policy filter on the import chain (e.g. filter_family tear-down) may have
@@ -394,9 +403,9 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 // context still describes the wire, and every consumer reads the width from the
 // payload's own context.
 //
-// The error means no canonical AS path exists. The caller MUST drop the UPDATE
-// on it and MUST NOT dispatch: half of a rewritten AS path is a malformed
-// attribute value toward every peer at once.
+// The error means no canonical AS path exists. The caller MUST treat the UPDATE
+// as withdrawn and MUST NOT dispatch its announcements: the NLRI was validated
+// before this call, but a half-rewritten path cannot be used.
 func (s *Session) collapseASPathFamily(wireUpdate *wireu.WireUpdate) (*wireu.WireUpdate, error) {
 	// The width is read from the context the PAYLOAD carries, never from the
 	// negotiated capability, so it describes the bytes rather than the session.

@@ -673,8 +673,8 @@ func TestSessionFamilyValidation(t *testing.T) {
 	pathAttrs = append(pathAttrs,
 		// ORIGIN = IGP
 		0x40, 0x01, 0x01, 0x00,
-		// AS_PATH (empty — valid for originating router)
-		0x40, 0x02, 0x00,
+		// AS_PATH: AS_SEQUENCE [65002], the eBGP neighbor.
+		0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xEA,
 		// MP_REACH_NLRI (optional non-transitive)
 		0x80, 0x0e, byte(len(mpReach)),
 	)
@@ -1437,8 +1437,8 @@ func TestSessionRFC7606MalformedOriginTreatAsWithdraw(t *testing.T) {
 	pathAttrs := []byte{
 		// ORIGIN with wrong length (2 bytes instead of 1)
 		0x40, 0x01, 0x02, 0x00, 0x00, // Flags, Code=1, Len=2, Value=0x0000
-		// AS_PATH (empty, valid for iBGP or originating router)
-		0x40, 0x02, 0x00,
+		// AS_PATH: AS_SEQUENCE [65002], so ORIGIN is the only error.
+		0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xEA,
 		// NEXT_HOP = 192.0.2.1
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01,
 	}
@@ -1541,8 +1541,8 @@ func TestSessionRFC7606MalformedCommunityTreatAsWithdraw(t *testing.T) {
 	pathAttrs := []byte{
 		// ORIGIN = IGP
 		0x40, 0x01, 0x01, 0x00,
-		// AS_PATH (empty)
-		0x40, 0x02, 0x00,
+		// AS_PATH: AS_SEQUENCE [65002], so COMMUNITY is the only error.
+		0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xEA,
 		// NEXT_HOP = 192.0.2.1
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01,
 		// COMMUNITY with wrong length (5 bytes, should be multiple of 4)
@@ -1641,8 +1641,8 @@ func TestSessionRFC7606MissingMandatoryTreatAsWithdraw(t *testing.T) {
 	// Build UPDATE MISSING ORIGIN (well-known mandatory)
 	// Only has AS_PATH and NEXT_HOP, no ORIGIN
 	pathAttrs := []byte{
-		// AS_PATH (empty) - NO ORIGIN!
-		0x40, 0x02, 0x00,
+		// AS_PATH: AS_SEQUENCE [65002] — ORIGIN alone is missing.
+		0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xEA,
 		// NEXT_HOP = 192.0.2.1
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01,
 	}
@@ -1694,7 +1694,7 @@ func setupEstablishedSessionEBGP(t *testing.T) (*Session, net.Conn, *int, func()
 
 	// Track callback invocations
 	callbackCount := new(int)
-	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string) bool {
+	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if direction == rpc.DirectionReceived {
 			*callbackCount++
 		}
@@ -1908,7 +1908,7 @@ func TestSessionNonNegotiatedMPFamilyNotification(t *testing.T) {
 	pathAttrs := make([]byte, 0, 10+len(mpReach))
 	pathAttrs = append(pathAttrs,
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
-		0x40, 0x02, 0x00, // AS_PATH = empty
+		0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xEA, // AS_SEQUENCE [65002]
 		0x80, 0x0e, byte(len(mpReach)), // MP_REACH_NLRI
 	)
 	pathAttrs = append(pathAttrs, mpReach...)
@@ -1985,8 +1985,7 @@ func TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal(t *testing.T) {
 	var dispatchCount int
 	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
-		_ BufHandle, _ map[string]any, _ string,
-	) bool {
+		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if direction == rpc.DirectionReceived && wu != nil {
 			dispatchCount++
 			dispatched = append([]byte(nil), wu.Payload()...)
@@ -1997,8 +1996,8 @@ func TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal(t *testing.T) {
 	// UPDATE announcing 10.0.0.0/8 with a MALFORMED ORIGIN (length=2 instead of 1).
 	pathAttrs := []byte{
 		0x40, 0x01, 0x02, 0x00, 0x00, // ORIGIN with length 2 (invalid)
-		0x40, 0x02, 0x00, // AS_PATH (empty)
-		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP = 192.0.2.1
+		0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xEA, // AS_SEQUENCE [65002]
+		0x40, 0x03, 0x04, 192, 0, 2, 254, // NEXT_HOP = 192.0.2.254
 	}
 
 	update := make([]byte, 0, 50)
@@ -2368,7 +2367,7 @@ func TestRouteRefreshInvalidLengthNotDelivered(t *testing.T) {
 
 			var messageCallbacks int
 			var refreshCallbacks int
-			session.onMessageReceived = func(_ netip.Addr, msgType msgtype.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string) bool {
+			session.onMessageReceived = func(_ netip.Addr, msgType msgtype.MessageType, _ []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 				if msgType == msgtype.TypeROUTEREFRESH {
 					messageCallbacks++
 				}
@@ -2429,7 +2428,7 @@ func TestRouteRefreshValidLengthDelivered(t *testing.T) {
 
 	var messageCallbacks int
 	var refreshCallbacks int
-	session.onMessageReceived = func(_ netip.Addr, msgType msgtype.MessageType, raw []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string) bool {
+	session.onMessageReceived = func(_ netip.Addr, msgType msgtype.MessageType, raw []byte, _ *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection, _ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if msgType == msgtype.TypeROUTEREFRESH {
 			messageCallbacks++
 			assert.Equal(t, []byte{0x00, 0x01, 0x00, 0x01}, raw)

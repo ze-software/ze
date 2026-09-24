@@ -77,6 +77,102 @@ func validOpenBody() []byte {
 	}
 }
 
+// newRequiredRefreshOpenSession advertises and requires Route Refresh through
+// the normal OPEN sender. recordingConn captures each synchronous socket write.
+func newRequiredRefreshOpenSession(t *testing.T) (*Session, *recordingConn, int) {
+	t.Helper()
+
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
+	settings.Connection = ConnectionPassive
+	settings.ReceiveHoldTime = 90 * time.Second
+	settings.Capabilities = []capability.Capability{&capability.RouteRefresh{}}
+	settings.RequiredCapabilities = []capability.Code{capability.CodeRouteRefresh}
+	session := NewSession(settings)
+	require.NoError(t, session.Start())
+	conn := &recordingConn{}
+	require.NoError(t, session.Accept(conn))
+	require.Equal(t, fsm.StateOpenSent, session.State())
+	t.Cleanup(func() {
+		require.NoError(t, session.Stop())
+		session.closeConn()
+	})
+	return session, conn, len(conn.written())
+}
+
+// TestOpenIgnoresUnknownCapability checks the session boundary, rather than
+// inferring session survival from successful TLV parsing.
+//
+// VALIDATES: an unknown capability leaves known capability negotiation and the
+// OPEN/KEEPALIVE exchange intact.
+// PREVENTS: generating Unsupported Capability or closing a session solely
+// because the peer advertised an unrecognized capability.
+//
+// RFC requirement: RFC5492-3-3 positive -- handleOpen accepts code 254 alongside
+// the required Route Refresh capability; KEEPALIVE completes establishment and
+// the connection remains open.
+// RFC requirement: RFC5492-3-4 positive -- handleOpen writes exactly a KEEPALIVE,
+// with no NOTIFICATION, for the OPEN containing unknown code 254.
+// RFC requirement: RFC5492-5-2 positive -- the unknown TLV does not prevent
+// negotiation of the following Route Refresh TLV or generate a NOTIFICATION.
+//
+// MUTATION: make handleOpen send Unsupported Capability 2/7 and terminate when
+// peerCaps contains an Unknown, before required-capability enforcement.
+func TestOpenIgnoresUnknownCapability(t *testing.T) {
+	s, conn, sent := newRequiredRefreshOpenSession(t)
+	body := validOpenBody()
+	body[9] = 8
+	body = append(body,
+		2, 6, // Capabilities Optional Parameter
+		254, 2, 0xAB, 0xCD, // Unknown capability
+		2, 0, // Required Route Refresh capability
+	)
+
+	require.NoError(t, s.handleOpen(body))
+	require.Equal(t, fsm.StateOpenConfirm, s.State())
+	require.NotNil(t, s.Negotiated())
+	assert.True(t, s.Negotiated().RouteRefresh, "the known TLV after the unknown TLV is negotiated")
+	written := conn.written()[sent:]
+	require.Len(t, written, message.HeaderLen, "acceptance writes only one KEEPALIVE")
+	assert.Equal(t, byte(msgtype.TypeKEEPALIVE), written[18])
+
+	require.NoError(t, s.handleKeepalive())
+	assert.Equal(t, fsm.StateEstablished, s.State())
+	assert.Same(t, conn, s.Conn())
+	assert.Equal(t, written, conn.written()[sent:], "establishment adds no NOTIFICATION")
+}
+
+// TestOpenUnknownCapabilityDoesNotHideMissingRequired checks configured
+// required-capability policy and its NOTIFICATION payload. RFC 5492 Sections 3
+// and 5 permit this rejection. It is not negative proof of the prohibitions on
+// rejecting an unknown capability: those prohibitions define no reject case.
+//
+// VALIDATES: ignoring unknown capabilities preserves configured requirements.
+// PREVENTS: blanket acceptance, or naming an unknown capability as the reason
+// for an otherwise legitimate Unsupported Capability NOTIFICATION.
+//
+// MUTATION: bypass validateCapabilityModes' required-capability branch; this
+// OPEN then receives a KEEPALIVE and advances instead of the expected 2/7.
+func TestOpenUnknownCapabilityDoesNotHideMissingRequired(t *testing.T) {
+	s, conn, sent := newRequiredRefreshOpenSession(t)
+	body := validOpenBody()
+	body[9] = 6
+	body = append(body,
+		2, 4, // Capabilities Optional Parameter
+		254, 2, 0xAB, 0xCD, // Same unknown capability, without Route Refresh
+	)
+
+	require.ErrorIs(t, s.handleOpen(body), ErrInvalidState)
+	assert.Equal(t, fsm.StateIdle, s.State())
+	assert.Nil(t, s.Conn(), "missing required Route Refresh closes the connection")
+	written := conn.written()[sent:]
+	require.Len(t, written, message.HeaderLen+4, "one NOTIFICATION with one zero-length capability")
+	assert.Equal(t, byte(msgtype.TypeNOTIFICATION), written[18])
+	assert.Equal(t, []byte{
+		byte(message.NotifyOpenMessage), message.NotifyOpenUnsupportedCapability,
+		byte(capability.CodeRouteRefresh), 0,
+	}, written[message.HeaderLen:], "only the missing required capability causes the rejection")
+}
+
 // TestOpenRejectsMalformedKnownCapability verifies OPEN capability parsing rejects
 // known zero-length capabilities with non-zero payload lengths.
 //
@@ -84,31 +180,9 @@ func validOpenBody() []byte {
 //
 // PREVENTS: Session establishment with malformed Route Refresh capability data.
 //
-// RFC requirement: RFC2918-2-1 negative -- a Route Refresh capability whose Length
-// is not 0 (here 1) is rejected: parseZeroLengthCapability (capability.go) returns
-// ErrInvalidLength, so the OPEN is refused with an Unsupported Capability
-// NOTIFICATION instead of establishing. Proves the Length-0 constraint is enforced,
-// not merely emitted.
-//
-// RFC requirement: RFC5492-3-1 positive -- when the Unsupported Capability NOTIFICATION
-// is sent, its Data field carries the offending capability TLV {CodeRouteRefresh, 0x01,
-// 0x00}; buildUnsupportedCapabilityData/ErrorData place the capability that caused the
-// message into the NOTIFICATION (internal/component/bgp/reactor/session_validation.go:396,
-// session_handlers.go:190-197).
-// RFC requirement: RFC5492-3-3 negative -- the session IS torn down here, but only because
-// the capability is a KNOWN one with a malformed length (ErrInvalidLength), not because it
-// is unsupported; this bounds the MUST-NOT-terminate rule to reject malformed input only.
-// RFC requirement: RFC5492-3-4 negative -- an Unsupported Capability NOTIFICATION IS
-// generated here for a malformed known capability, showing the notification path is reached
-// only on malformed input, never for a merely unrecognized capability.
-// RFC requirement: RFC5492-5-2 negative -- rejection with an Unsupported Capability
-// NOTIFICATION occurs only for a malformed known capability, distinguishing it from a
-// not-understood capability, which MUST be ignored rather than rejected.
-// Untagged for RFC4271-6.2-3: that requirement is recorded {gap} in rfc/short/rfc4271.md
-// because an OPEN whose body fails to decode returns from handleOpen with no NOTIFICATION
-// at all (internal/component/bgp/reactor/session_handlers.go:43-47). This case reaches only
-// the capability-validation rail (:185-199), which does emit Error Code 2, so it cannot
-// stand as coverage of "ALL OPEN errors".
+// RFC requirement: RFC2918-2-1 negative -- malformed Route Refresh length
+// refuses OPEN before negotiation. A malformed known capability is an OPEN
+// Message Error with subcode zero and empty Data, not Unsupported Capability.
 func TestOpenRejectsMalformedKnownCapability(t *testing.T) {
 	s, client := newOpenSentSessionWithClient(t)
 
@@ -141,11 +215,11 @@ func TestOpenRejectsMalformedKnownCapability(t *testing.T) {
 	case <-time.After(2 * time.Second):
 		t.Fatal("timed out waiting for OPEN NOTIFICATION")
 	}
-	require.GreaterOrEqual(t, len(notif), message.HeaderLen+5)
+	require.Len(t, notif, message.HeaderLen+2)
 	assert.Equal(t, byte(msgtype.TypeNOTIFICATION), notif[18])
 	assert.Equal(t, byte(message.NotifyOpenMessage), notif[message.HeaderLen])
-	assert.Equal(t, message.NotifyOpenUnsupportedCapability, notif[message.HeaderLen+1])
-	assert.Equal(t, []byte{byte(capability.CodeRouteRefresh), 0x01, 0x00}, notif[message.HeaderLen+2:])
+	assert.Equal(t, byte(0), notif[message.HeaderLen+1])
+	assert.Empty(t, notif[message.HeaderLen+2:])
 }
 
 // TestHandleOpen_InvalidVersion verifies OPEN with BGP version != 4.
@@ -189,13 +263,17 @@ func TestHandleOpen_InvalidHoldTime(t *testing.T) {
 
 // TestHandleOpen_Malformed verifies OPEN with body too short to parse.
 func TestHandleOpen_Malformed(t *testing.T) {
-	s := newOpenSentSession(t)
+	s, conn, sent := newRequiredRefreshOpenSession(t)
 
 	body := []byte{0x04, 0xFD} // Only 2 bytes, need at least 10
 
-	err := s.handleOpen(body)
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unpack OPEN")
+	require.ErrorIs(t, s.handleOpen(body), ErrInvalidMessage)
+	assert.Equal(t, fsm.StateIdle, s.State())
+	assert.Nil(t, s.Conn(), "malformed OPEN closes the connection")
+	notification := conn.written()[sent:]
+	require.Len(t, notification, message.HeaderLen+2)
+	assert.Equal(t, byte(msgtype.TypeNOTIFICATION), notification[18])
+	assert.Equal(t, []byte{byte(message.NotifyOpenMessage), 0}, notification[message.HeaderLen:])
 }
 
 // TestHandleOpen_RequiredFamilyMissing verifies rejection when peer lacks required families.

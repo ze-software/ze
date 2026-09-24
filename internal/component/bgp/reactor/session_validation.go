@@ -1,6 +1,7 @@
 // Design: docs/architecture/core-design.md — RFC 7606 UPDATE validation
 // Overview: session.go — BGP session struct and lifecycle
 // RFC: rfc/short/rfc7606.md — revised UPDATE error handling
+// RFC: rfc/short/draft-ietf-sidrops-aspa-verification.md — first-AS receive validation
 
 package reactor
 
@@ -121,6 +122,33 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 		asn4 = neg.ASN4
 	}
 	result := message.ValidateUpdateRFC7606AddPath(pathAttrs, hasNLRI, isIBGP, asn4, addPathFor)
+
+	// RFC 7311 Section 3.3: "If an AIGP attribute is received on a BGP
+	// session for which AIGP_SESSION is disabled, the attribute MUST be
+	// treated exactly as if it were an unrecognized non-transitive attribute."
+	if !s.settings.AIGPEnabled() {
+		if _, _, _, present := attribute.AttrFind(pathAttrs, attribute.AttrAIGP); present {
+			if result.Action < message.RFC7606ActionAttributeDiscard {
+				result.Action = message.RFC7606ActionAttributeDiscard
+				result.AttrCode = uint8(attribute.AttrAIGP)
+				result.Description = "RFC 7311 Section 3.3: AIGP disabled on this session"
+			}
+			if result.Action == message.RFC7606ActionAttributeDiscard {
+				recorded := false
+				for _, entry := range result.DiscardEntries {
+					if entry.Code == uint8(attribute.AttrAIGP) {
+						recorded = true
+						break
+					}
+				}
+				if !recorded {
+					result.DiscardEntries = append(result.DiscardEntries, message.DiscardEntry{
+						Code: uint8(attribute.AttrAIGP), Reason: message.DiscardReasonEBGPInvalid,
+					})
+				}
+			}
+		}
+	}
 
 	// RFC 8669 Section 4: discard PrefixSID from EBGP unless configured to accept.
 	//
@@ -301,10 +329,78 @@ func (s *Session) enforceRFC7606(wu *wireu.WireUpdate) (*wireu.WireUpdate, messa
 		return wu, message.RFC7606ActionTreatAsWithdraw, nil
 
 	case message.RFC7606ActionSessionReset:
+		if result.Notification != nil {
+			return s.rfc7606ResetNotification(wu, result.Description, result.Notification)
+		}
 		return s.rfc7606SessionReset(wu, result.Description)
 	}
 
 	return s.publishBase(wu), message.RFC7606ActionNone, nil
+}
+
+// firstASMismatch checks a validated, reconstructed path, not the peer's AS_TRANS
+// placeholders. The caller MUST finish RFC 7606 validation and AS4 reconstruction
+// first and MUST synthesize withdrawals on a mismatch.
+//
+// Draft-ietf-sidrops-aspa-verification-28 Section 5.1 describes the neighbor-AS
+// prerequisite and refers its error handling to RFC 4271 and RFC 7606.
+// Section 5.5 exempts the receiving RS-client; the route server itself still
+// checks paths received from its clients.
+func (s *Session) firstASMismatch(wu *wireu.WireUpdate) bool {
+	peerAS := s.settings.PeerAS
+	if peerAS == 0 {
+		if neg := s.Negotiated(); neg != nil {
+			peerAS = neg.PeerASN
+		}
+	}
+	if s.settings.isIBGPWith(peerAS) || s.localRSClient {
+		return false
+	}
+
+	attrs, err := wu.Attrs()
+	if err != nil {
+		return true
+	}
+	if attrs == nil {
+		return false // A withdrawal or End-of-RIB carries no AS_PATH to check.
+	}
+	nlri, err := wu.NLRI()
+	if err != nil {
+		return true
+	}
+	if len(nlri) == 0 {
+		mpReach, err := attrs.GetRaw(attribute.AttrMPReachNLRI)
+		if err != nil {
+			return true
+		}
+		if mpReach == nil {
+			return false
+		}
+	}
+	path, err := attrs.GetRaw(attribute.AttrASPath)
+	if err != nil {
+		return true
+	}
+
+	// RFC 4271 Section 4.3 / RFC 6793 Section 3:
+	// AS_PATH value: type[0], count[1], first ASN[2:4] or [2:6], ...
+	// An empty path or a leading set supplies no most-recent AS_SEQUENCE hop.
+	asn4 := false
+	if ctx := bgpctx.Registry.Get(wu.SourceCtxID()); ctx != nil {
+		asn4 = ctx.ASN4()
+	} else if neg := s.Negotiated(); neg != nil {
+		asn4 = neg.ASN4
+	}
+	if len(path) < 4 || path[0] != byte(attribute.ASSequence) || path[1] == 0 {
+		return true
+	}
+	if asn4 {
+		if len(path) < 6 {
+			return true
+		}
+		return binary.BigEndian.Uint32(path[2:6]) != peerAS
+	}
+	return uint32(binary.BigEndian.Uint16(path[2:4])) != peerAS
 }
 
 // publishBase stamps RFC 4271 Section 9's Partial bit and builds the attribute span index
@@ -396,6 +492,8 @@ func (s *Session) publishBase(wu *wireu.WireUpdate) *wireu.WireUpdate {
 				"peer", s.settings.Address, "count", len(ranges))
 		}
 	}
+
+	wu = discardNonVPNAcceptOwn(wu)
 
 	attrs, err := wu.Attrs()
 	if err != nil {
@@ -514,6 +612,13 @@ func ipv4PrefixList(field []byte, addPath bool) []string {
 // Every session-reset path routes through here, so the mandated NOTIFICATION cannot be
 // skipped by a caller that returns the action directly.
 func (s *Session) rfc7606SessionReset(wu *wireu.WireUpdate, description string) (*wireu.WireUpdate, message.RFC7606Action, error) {
+	return s.rfc7606ResetNotification(wu, description, &message.Notification{
+		ErrorCode:    message.NotifyUpdateMessage,
+		ErrorSubcode: message.NotifyUpdateMalformedAttr,
+	})
+}
+
+func (s *Session) rfc7606ResetNotification(wu *wireu.WireUpdate, description string, notification *message.Notification) (*wireu.WireUpdate, message.RFC7606Action, error) {
 	sessionLogger().Warn("RFC 7606 session-reset", "description", description)
 	// RFC 7606 Section 6. A session reset is the most damaging outcome and the one an
 	// operator most needs to diagnose, so it carries the same detail as the other two.
@@ -523,11 +628,7 @@ func (s *Session) rfc7606SessionReset(wu *wireu.WireUpdate, description string) 
 	conn := s.conn
 	s.mu.RUnlock()
 
-	s.logNotifyErr(conn,
-		message.NotifyUpdateMessage,
-		message.NotifyUpdateMalformedAttr,
-		nil,
-	)
+	s.logNotifyErr(conn, notification.ErrorCode, notification.ErrorSubcode, notification.Data)
 	s.logFSMEvent(fsm.EventUpdateMsgErr)
 	s.closeConn()
 
@@ -547,7 +648,12 @@ func (s *Session) rfc7606NLRISyntaxAction(
 	wu *wireu.WireUpdate, result *message.RFC7606ValidationResult, field string,
 ) (*wireu.WireUpdate, message.RFC7606Action, error) {
 	if result.Action == message.RFC7606ActionSessionReset {
-		return s.rfc7606SessionReset(wu, result.Description)
+		// RFC 4271 Section 6.3: "If the field is syntactically incorrect,
+		// then the Error Subcode MUST be set to Invalid Network Field."
+		return s.rfc7606ResetNotification(wu, result.Description, &message.Notification{
+			ErrorCode:    message.NotifyUpdateMessage,
+			ErrorSubcode: message.NotifyUpdateInvalidNetwork,
+		})
 	}
 	sessionLogger().Debug("RFC 7606 NLRI syntax",
 		"field", field,

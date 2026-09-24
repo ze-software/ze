@@ -31,6 +31,17 @@ the drain gives peers time to re-converge before TCP drops.
 IP only.** BGP resolves the unit's primary address and re-resolves it on an
 address event. This is the VyOS `update-source` behavior.
 
+**Address events refresh the received NEXT_HOP view as well as export link
+scope.** One interface read supplies unmasked local addresses for RFC 4271
+Section 6.3 own-address checks and masked prefixes for the existing RFC 2545
+common-subnet checks. Each live session receives an immutable replacement.
+If the interface read fails, legacy IPv4 announcements are withheld until a
+later successful refresh, rather than validated against stale addresses.
+
+<!-- source: internal/core/network/connected.go -- InterfacePrefixes -->
+<!-- source: internal/component/bgp/reactor/reactor_iface.go -- refreshPeerLinkScopes -->
+<!-- source: internal/component/bgp/reactor/session_next_hop.go -- receiveNextHopScope -->
+
 ## Constraints
 
 **A reactor handler must never hold `r.mu` across an event-bus operation.** The

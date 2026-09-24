@@ -121,6 +121,21 @@ RFC 4271 Section 4.2
 
 <!-- source: internal/core/bgp/capability/capability.go -- ParseFromOptionalParams -->
 
+An unknown Optional Parameter type causes OPEN Message Error / Unsupported
+Optional Parameters (2/4). A malformed recognized parameter, including a
+malformed capability TLV inside Type 2, causes OPEN Message Error / Unspecific
+(2/0) with no Data field. Unknown capability codes inside a well-formed Type 2
+parameter remain acceptable under RFC 5492 Section 3.
+
+The capability parser checks each known value's complete length. Multiprotocol
+and four-octet ASN capabilities require exactly four value octets; an FQDN
+capability must end after its hostname and domain fields. Extra octets are
+malformed input, even when the initial fields would otherwise negotiate a
+usable capability. An empty Type 2 parameter is also malformed.
+
+<!-- source: internal/core/bgp/capability/capability.go -- ParseFromOptionalParams -->
+<!-- source: internal/component/bgp/reactor/session_handlers.go -- rejectOpenCapabilityError -->
+
 ### Capability TLV (within Optional Parameter Type 2)
 
 ```
@@ -179,6 +194,31 @@ Example: 10.0.0.0/24 = `18 0A 00 00` (length=24, 3 prefix bytes)
 
 <!-- source: internal/core/bgp/wire/update_sections.go -- UpdateSections, ParseUpdateSections -->
 <!-- source: internal/component/bgp/message/update.go -- UPDATE message handling -->
+
+RFC 7606 replaces the base protocol's resets for malformed ORIGIN, AS_PATH,
+NEXT_HOP, MED and LOCAL_PREF with treat-as-withdraw. The receive path delivers
+withdrawals for their NLRI without closing the session. Malformed AGGREGATOR
+and ATOMIC_AGGREGATE use attribute discard.
+
+An unrecognized well-known attribute still causes NOTIFICATION 3/2, with the
+complete attribute in its Data field. Invalid IPv4 NLRI or Withdrawn Routes
+syntax causes NOTIFICATION 3/10. Section-length overruns and duplicate MP
+attributes retain NOTIFICATION 3/1.
+
+<!-- source: internal/component/bgp/message/rfc7606.go -- ValidateUpdateRFC7606AddPath, validateNextHopAttr -->
+<!-- source: internal/component/bgp/reactor/session_validation.go -- rfc7606NLRISyntaxAction, rfc7606ResetNotification -->
+
+Legacy IPv4 NLRI still requires a separate NEXT_HOP when the same UPDATE carries
+MP_REACH_NLRI. The MP next hop serves only its own NLRI. Missing ORIGIN or AS_PATH
+causes treat-as-withdraw for either announcement form.
+
+AIGP validation walks every TLV, including those after the first metric. A
+truncated TLV or a metric TLV whose inclusive length is not 11 causes attribute
+discard. Unknown and repeated TLV types remain valid; metric consumers use the
+first metric without copying the attribute.
+
+<!-- source: internal/core/bgp/attribute/aigp.go -- AIGPMetricOffset -->
+<!-- source: internal/component/bgp/message/rfc7606.go -- validateAIGPAttr -->
 
 ---
 

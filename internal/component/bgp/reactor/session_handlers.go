@@ -129,8 +129,7 @@ func (s *Session) handleOpen(body []byte) error {
 	}
 	open, err := message.UnpackOpen(body)
 	if err != nil {
-		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
-		return fmt.Errorf("unpack OPEN: %w", err)
+		return s.rejectOpenCapabilityError(err)
 	}
 
 	// Validate version.
@@ -174,7 +173,8 @@ func (s *Session) handleOpen(body []byte) error {
 	// RFC 7607 Section 2: abort the connection when the peer presents AS 0, with OPEN
 	// Message Error / Bad Peer AS. It runs before the identifier check because the AS is
 	// what scopes identifier uniqueness (RFC 6286 Section 2.1).
-	if err := s.validateOpenPeerAS(open); err != nil {
+	peerCaps, err := s.validateOpenPeerAS(open)
+	if err != nil {
 		return err
 	}
 
@@ -199,17 +199,13 @@ func (s *Session) handleOpen(body []byte) error {
 	localOpen := s.localOpen
 	s.mu.RUnlock()
 
-	// Parse capabilities from both OPENs for negotiation.
-	var localCaps, peerCaps []capability.Capability
+	// Peer capabilities were validated before checking AS identity.
+	var localCaps []capability.Capability
 	if localOpen != nil {
 		localCaps, err = capability.ParseFromOptionalParams(localOpen.OptionalParams, localOpen.ExtendedParams)
 		if err != nil {
 			return fmt.Errorf("parse local OPEN capabilities: %w", err)
 		}
-	}
-	peerCaps, err = capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
-	if err != nil {
-		return s.rejectOpenCapabilityError(err)
 	}
 
 	// Negotiate capabilities.
@@ -265,16 +261,15 @@ func (s *Session) rejectOpenCapabilityError(err error) error {
 	conn := s.conn
 	s.mu.RUnlock()
 
-	subcode := message.NotifyOpenUnsupportedOptParam
-	data := []byte(nil)
-	if errors.Is(err, capability.ErrInvalidLength) {
-		subcode = message.NotifyOpenUnsupportedCapability
-		// RFC 5492 Section 5: Unsupported Capability NOTIFICATION data
-		// MUST list the capability TLV that caused the notification.
-		data = capability.ErrorData(err)
+	// RFC 4271 Section 6.2: a recognized malformed Optional Parameter
+	// "MUST be set to 0 (Unspecific)". Unsupported Capability describes a
+	// failed capability requirement, not malformed capability encoding.
+	subcode := uint8(0)
+	if errors.Is(err, capability.ErrUnsupportedParameter) {
+		subcode = message.NotifyOpenUnsupportedOptParam
 	}
 
-	s.logNotifyErr(conn, message.NotifyOpenMessage, subcode, data)
+	s.logNotifyErr(conn, message.NotifyOpenMessage, subcode, nil)
 	s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 	s.closeConn()
 	return fmt.Errorf("%w: parse peer OPEN capabilities: %w", ErrInvalidMessage, err)

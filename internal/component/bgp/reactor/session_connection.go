@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"strconv"
 	"syscall"
 	"time"
@@ -39,9 +40,9 @@ const socketSendBufSize = 65536
 //
 // This is the one rail that OWNS the connection it hands to
 // connectionEstablished: it dialed it, and runOnce -- its only production caller
-// (peer_run.go) -- never sees the socket and cannot close it. So a sealed session
-// refusing the dial is closed here. The accept rails are the other way round:
-// their callers keep the connection, so connectionEstablished must not close it.
+// (peer_run.go) -- never sees the socket and cannot close it. Every installation
+// failure therefore releases it here. Accepted sockets remain owned by their
+// callers until installation succeeds.
 func (s *Session) Connect(ctx context.Context) error {
 	s.mu.Lock()
 	if s.conn != nil {
@@ -59,9 +60,7 @@ func (s *Session) Connect(ctx context.Context) error {
 	}
 
 	if err := s.connectionEstablished(conn); err != nil {
-		if errors.Is(err, ErrSessionTearingDown) {
-			closeConnQuietly(conn)
-		}
+		closeConnQuietly(conn)
 		return err
 	}
 	return nil
@@ -181,7 +180,8 @@ func (s *Session) processOpen(open *message.Open) error {
 
 	// RFC 7607 Section 2: the collision-winner rail refuses AS 0 exactly as the handleOpen
 	// rail does -- a reserved AS is reserved whichever connection survived.
-	if err := s.validateOpenPeerAS(open); err != nil {
+	peerCaps, err := s.validateOpenPeerAS(open)
+	if err != nil {
 		return err
 	}
 
@@ -203,18 +203,13 @@ func (s *Session) processOpen(open *message.Open) error {
 		return err
 	}
 
-	// Parse capabilities once from both OPENs.
+	// Peer capabilities were validated before checking AS identity.
 	var localCaps []capability.Capability
-	var err error
 	if localOpen != nil {
 		localCaps, err = capability.ParseFromOptionalParams(localOpen.OptionalParams, localOpen.ExtendedParams)
 		if err != nil {
 			return fmt.Errorf("parse local OPEN capabilities: %w", err)
 		}
-	}
-	peerCaps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
-	if err != nil {
-		return s.rejectOpenCapabilityError(err)
 	}
 
 	// Negotiate capabilities.
@@ -344,6 +339,12 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 		}
 	}
 
+	addresses, err := network.InterfacePrefixes()
+	if err != nil {
+		return fmt.Errorf("read local addresses for NEXT_HOP validation: %w", err)
+	}
+	s.nextHopScope.Store(newReceiveNextHopScope(addresses, conn, s.settings))
+
 	// INVARIANT: s.conn, s.bufReader and s.bufWriter are assigned in the same
 	// critical section so that readers capturing them under s.mu.RLock() (see
 	// Run loop in session.go and ReadAndProcess in session_read.go) always see
@@ -397,6 +398,7 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 	}
 	s.writeMu.Lock()
 	s.conn = conn
+	s.transport.Store(connectedTransport(conn))
 	readBufSize := max(env.GetInt("ze.buf.read.size", 65536), 4096)
 	writeBufSize := max(env.GetInt("ze.buf.write.size", 16384), 4096)
 	s.bufReader = bufio.NewReaderSize(conn, readBufSize)
@@ -555,6 +557,7 @@ func (s *Session) closeConn() {
 		if s.bufWriter != nil {
 			s.writeMu.Lock()
 			_ = s.bufWriter.Flush()
+			s.commitAIGPWrites(false)
 			s.writeMu.Unlock()
 		}
 		// Graceful close: send FIN (not RST) so the remote side can read
@@ -574,7 +577,10 @@ func (s *Session) closeConn() {
 			// If CloseWrite failed, socket is already broken -- skip drain.
 		}
 		_ = s.conn.Close()
+		s.writeMu.Lock()
 		s.conn = nil
+		s.transport.Store(nil)
+		s.writeMu.Unlock()
 		// bufReader is NOT nilled here: Run() may have captured conn (non-nil)
 		// before this lock and will call readAndProcessMessage next. The stale
 		// bufReader wrapping the closed conn returns a proper read error,
@@ -587,4 +593,26 @@ func (s *Session) closeConn() {
 // Only the first reason wins — subsequent calls are no-ops.
 func (s *Session) setCloseReason(err error) {
 	s.closeReason.CompareAndSwap(nil, &err)
+}
+
+// sessionTransport keeps only socket identity, never configured listener or
+// dial-target defaults. It is published once per connection before any message.
+type sessionTransport struct {
+	local                 netip.Addr
+	localString           string
+	localPort, remotePort uint16
+}
+
+func connectedTransport(conn net.Conn) *sessionTransport {
+	endpoints := &sessionTransport{}
+	if addr, ok := conn.LocalAddr().(*net.TCPAddr); ok {
+		local := addr.AddrPort()
+		endpoints.local = local.Addr().Unmap()
+		endpoints.localString = endpoints.local.String()
+		endpoints.localPort = local.Port()
+	}
+	if addr, ok := conn.RemoteAddr().(*net.TCPAddr); ok {
+		endpoints.remotePort = addr.AddrPort().Port()
+	}
+	return endpoints
 }

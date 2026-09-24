@@ -146,6 +146,18 @@ func collapseRecvSession(t *testing.T, settings *PeerSettings, asn4 bool) (*Sess
 	}
 
 	s := NewSession(settings)
+	// processMessage normally gets this snapshot at connection establishment.
+	// Keep the fixture's 1.1.1.1 third-party next hop on an attached subnet,
+	// distinct from both local addresses, so only AS4 processing rewrites it.
+	s.nextHopScope.Store(&receiveNextHopScope{
+		addresses: []netip.Prefix{
+			netip.MustParsePrefix("10.9.0.2/24"),
+			netip.MustParsePrefix("1.1.1.2/24"),
+		},
+		local:  netip.MustParseAddr("10.9.0.2"),
+		remote: settings.Address,
+		direct: true,
+	})
 	s.negotiated = capability.Negotiate(caps, caps, capability.PeerIdentity{LocalASN: settings.LocalAS, PeerASN: settings.PeerAS, Internal: settings.IsIBGP()})
 	require.Equal(t, asn4, s.negotiated.ASN4, "the fixture must negotiate the width it claims")
 
@@ -180,8 +192,7 @@ func collapseReceive(t *testing.T, s *Session, body []byte) *wireu.WireUpdate {
 	var dispatched *wireu.WireUpdate
 	s.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
-		_ BufHandle, _ map[string]any, _ string,
-	) bool {
+		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		dispatched = wu
 		return false
 	}
@@ -764,8 +775,7 @@ func TestReceivedBytesReachTheObserversUncollapsed(t *testing.T) {
 	var dispatched *wireu.WireUpdate
 	s.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, rawBytes []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, _ rpc.MessageDirection,
-		_ BufHandle, _ map[string]any, _ string,
-	) bool {
+		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		observed = rawBytes
 		dispatched = wu
 		return false

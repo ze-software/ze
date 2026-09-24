@@ -112,8 +112,30 @@ func (r *Reactor) refreshPeerLinkScopes() {
 		return
 	}
 
-	connected := network.ConnectedPrefixes()
+	addresses, err := network.InterfacePrefixes()
+	if err != nil {
+		reactorLogger().Error("refresh receive NEXT_HOP addresses", "error", err)
+	}
+	connected := make([]netip.Prefix, len(addresses))
+	for i, address := range addresses {
+		connected[i] = address.Masked()
+	}
 	for _, peer := range peers {
+		peer.mu.RLock()
+		session := peer.session
+		peer.mu.RUnlock()
+		if session != nil {
+			session.mu.RLock()
+			conn := session.conn
+			session.mu.RUnlock()
+			if conn != nil {
+				if err != nil {
+					session.nextHopScope.Store(nil)
+				} else {
+					session.nextHopScope.Store(newReceiveNextHopScope(addresses, conn, session.settings))
+				}
+			}
+		}
 		// An interface burst delivers one event per address, and the kernel already
 		// holds every address of the burst by the time the first event is delivered.
 		// Events 2..N therefore read a table identical to the one this peer's scope

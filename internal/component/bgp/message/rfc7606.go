@@ -58,6 +58,9 @@ type RFC7606ValidationResult struct {
 	Reason         uint8          // Discard reason code (draft-mangin-idr-attr-tombstone-00 Section 4.4)
 	Description    string         // Human-readable error description for the strongest error
 	DiscardEntries []DiscardEntry // Attributes to discard with reason codes when Action is AttributeDiscard
+	// Notification carries the specific RFC 4271 error when session reset
+	// requires more than Malformed Attribute List with an empty Data field.
+	Notification *Notification
 	// DuplicateRanges holds the byte range of every later (keep-first) occurrence
 	// of a non-MP attribute code that appeared more than once. RFC 7606 Section 3.g
 	// says duplicates other than MP_REACH/MP_UNREACH must be handled by discarding
@@ -348,6 +351,24 @@ func ValidateUpdateRFC7606AddPath(
 		attrData := pathAttrs[pos : pos+attrLen]
 		pos += attrLen
 
+		// RFC 4271 Section 6.3: "The Data field MUST contain the
+		// unrecognized attribute (type, length, and value)."
+		// RFC 7606 does not replace unrecognized well-known error handling.
+		if flags&attrFlagOptional == 0 {
+			if !attribute.AttributeCode(attrCode).Recognized() {
+				return &RFC7606ValidationResult{
+					Action:      RFC7606ActionSessionReset,
+					AttrCode:    attrCode,
+					Description: "RFC 4271 Section 6.3: unrecognized well-known attribute",
+					Notification: &Notification{
+						ErrorCode:    NotifyUpdateMessage,
+						ErrorSubcode: NotifyUpdateUnrecognizedAttr,
+						Data:         pathAttrs[attrStart:pos],
+					},
+				}
+			}
+		}
+
 		// RFC 8669 Section 4: note the Prefix-SID attribute here. This point is after the
 		// bounds check and before every branch that can skip the iteration. Earlier would
 		// count an attribute whose declared length overruns the section. Later would miss
@@ -414,7 +435,6 @@ func ValidateUpdateRFC7606AddPath(
 			hasNextHop = true
 		case attrCodeMPReachNLRI:
 			mpReachCount++
-			hasNextHop = true // MP_REACH provides next-hop
 			mpReachNLRI = locateMPNLRI(attrCode, attrData)
 		case attrCodeMPUnreachNLRI:
 			mpUnreachCount++
@@ -446,9 +466,8 @@ func ValidateUpdateRFC7606AddPath(
 	}
 
 	// RFC 7606 Section 3.d: Missing well-known mandatory attributes
-	// For UPDATE with NLRI: ORIGIN, AS_PATH, NEXT_HOP are mandatory
-	// (NEXT_HOP can be in MP_REACH_NLRI instead of explicit attribute)
-	if hasNLRI && mpReachCount == 0 {
+	// Legacy NLRI requires its own NEXT_HOP even when MP_REACH is present.
+	if hasNLRI {
 		if !hasOrigin {
 			recordError(&RFC7606ValidationResult{
 				Action:      RFC7606ActionTreatAsWithdraw,
@@ -547,12 +566,28 @@ func init() {
 	attrValidators[attrCodeMPReachNLRI] = validateMPReachAttr
 	attrValidators[attrCodeMPUnreachNLRI] = validateMPUnreachAttr
 	attrValidators[attrCodePrefixSID] = validatePrefixSIDAttr
+	attrValidators[attribute.AttrAIGP] = validateAIGPAttr
 }
 
 // validateAttribute checks a single attribute per RFC 7606 Section 7.
 func validateAttribute(code uint8, length int, attrData []byte, isIBGP, asn4 bool) *RFC7606ValidationResult {
 	if fn := attrValidators[code]; fn != nil {
 		return fn(code, length, attrData, isIBGP, asn4)
+	}
+	return nil
+}
+
+// RFC 7311 Section 3.2: "When receiving a BGP Update message containing a
+// malformed AIGP attribute, the attribute MUST be treated exactly as if it
+// were an unrecognized non-transitive attribute."
+func validateAIGPAttr(code uint8, _ int, data []byte, _, _ bool) *RFC7606ValidationResult {
+	if _, err := attribute.AIGPMetricOffset(data); err != nil {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionAttributeDiscard,
+			AttrCode:    code,
+			Reason:      DiscardReasonMalformedValue,
+			Description: "RFC 7311 Section 3.2: malformed AIGP TLV sequence",
+		}
 	}
 	return nil
 }
@@ -584,13 +619,25 @@ func validateASPathAttr(_ uint8, _ int, attrData []byte, _, asn4 bool) *RFC7606V
 }
 
 // RFC 7606 Section 7.3: NEXT_HOP must be length 4.
-func validateNextHopAttr(code uint8, length int, _ []byte, _, _ bool) *RFC7606ValidationResult {
+func validateNextHopAttr(code uint8, length int, data []byte, _, _ bool) *RFC7606ValidationResult {
 	if length != 4 {
 		var b textbuf.Buffer
 		return &RFC7606ValidationResult{
 			Action:      RFC7606ActionTreatAsWithdraw,
 			AttrCode:    code,
 			Description: b.Reset().Str("RFC 7606 Section 7.3: NEXT_HOP length ").Int(int64(length)).Str(" != 4").String(),
+		}
+	}
+	// RFC 4271 Section 6.3: "Syntactic correctness means that the
+	// NEXT_HOP attribute represents a valid IP host address."
+	// RFC 7606 Section 3(e) replaces the reset with treat-as-withdraw.
+	// Value offsets 0..3 encode the IPv4 address in network byte order.
+	unicastHost := data[0] != 0 && data[0] != 127 && data[0] < 224
+	if !unicastHost {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    code,
+			Description: "RFC 4271 Section 6.3: NEXT_HOP is not a unicast host address",
 		}
 	}
 	return nil

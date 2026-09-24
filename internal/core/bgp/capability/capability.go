@@ -33,8 +33,9 @@ const configTrue = "true"
 
 // Errors.
 var (
-	ErrShortRead     = errors.New("capability: short read")
-	ErrInvalidLength = errors.New("capability: invalid length")
+	ErrShortRead            = errors.New("capability: short read")
+	ErrInvalidLength        = errors.New("capability: invalid length")
+	ErrUnsupportedParameter = errors.New("capability: unsupported optional parameter")
 )
 
 type parseErrorWithData struct {
@@ -336,6 +337,9 @@ func parseMultiprotocol(data []byte) (*Multiprotocol, error) {
 	if len(data) < 4 {
 		return nil, ErrShortRead
 	}
+	if len(data) != 4 {
+		return nil, ErrInvalidLength
+	}
 	return &Multiprotocol{
 		AFI:  AFI(binary.BigEndian.Uint16(data[0:2])),
 		SAFI: SAFI(data[3]), // RFC 4760 Section 8: Reserved byte at offset 2 is ignored
@@ -370,6 +374,9 @@ func (a *ASN4) WriteTo(buf []byte, off int) int {
 func parseASN4(data []byte) (*ASN4, error) {
 	if len(data) < 4 {
 		return nil, ErrShortRead
+	}
+	if len(data) != 4 {
+		return nil, ErrInvalidLength
 	}
 	return &ASN4{
 		ASN: binary.BigEndian.Uint32(data),
@@ -836,6 +843,9 @@ func parseFQDN(data []byte) (*FQDN, error) {
 	if len(data) < 2+hostLen+domainLen {
 		return nil, ErrShortRead
 	}
+	if len(data) != 2+hostLen+domainLen {
+		return nil, ErrInvalidLength
+	}
 
 	domainName := string(data[2+hostLen : 2+hostLen+domainLen])
 
@@ -974,11 +984,21 @@ func ParseFromOptionalParams(optParams []byte, extended bool) ([]Capability, err
 		// of capability TLVs. Malformed Type 2 TLVs are protocol errors, not
 		// unknown capabilities to ignore.
 		if paramType == 2 {
+			// RFC 5492 Section 4: "The parameter contains one or more
+			// triples <Capability Code, Capability Length, Capability Value>".
+			if paramLen == 0 {
+				return nil, ErrInvalidLength
+			}
 			parsed, err := Parse(optParams[offset : offset+paramLen])
 			if err != nil {
 				return nil, err
 			}
 			caps = append(caps, parsed...)
+		} else {
+			// RFC 4271 Section 6.2: "If one of the Optional Parameters in
+			// the OPEN message is not recognized, then the Error Subcode
+			// MUST be set to Unsupported Optional Parameters."
+			return nil, ErrUnsupportedParameter
 		}
 		offset += paramLen
 	}

@@ -183,7 +183,7 @@ func TestRFC4760CorrectMPReachKeepsTheNeighborsRoutes(t *testing.T) {
 		0x00,                   // Reserved
 		0x18, 0x0a, 0x00, 0x00, // NLRI: 10.0.0.0/24, three octets present
 	}
-	attrs := append(append([]byte{}, validPathAttrs...), mpAttr(14, mpReach)...)
+	attrs := append(firstASAttrs(4, 65002), mpAttr(14, mpReach)...)
 
 	update := make([]byte, 0, 4+len(attrs))
 	update = append(update, 0x00, 0x00, byte(len(attrs)>>8), byte(len(attrs)))

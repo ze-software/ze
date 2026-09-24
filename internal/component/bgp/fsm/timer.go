@@ -4,6 +4,7 @@
 package fsm
 
 import (
+	"math/rand/v2"
 	"sync"
 	"time"
 
@@ -67,17 +68,15 @@ type TimerCallback func()
 //     RFC 4271 Section 10: "suggested default is 1/3 of the HoldTime"
 //   - ConnectRetryTimer: Delays between connection attempts.
 //
-// NOTE: RFC 4271 Section 10 SHOULD requirement not implemented:
-//
-//	"To minimize the likelihood that the distribution of BGP messages by a
-//	 given BGP speaker will contain peaks, jitter SHOULD be applied to the
-//	 timers associated with MinASOriginationIntervalTimer, KeepaliveTimer,
-//	 MinRouteAdvertisementIntervalTimer, and ConnectRetryTimer."
+// RFC 4271 Section 10 jitter applies to each KeepaliveTimer and
+// ConnectRetryTimer arm. HoldTimer remains the negotiated duration.
 type Timers struct {
 	mu sync.Mutex
 
 	// Clock for injectable time operations.
 	clock clock.Clock
+	// Uniform sampler, injectable with the clock for deterministic timing.
+	random func(int64) int64
 
 	// Timer durations
 	holdTime         time.Duration
@@ -127,6 +126,7 @@ type Timers struct {
 func NewTimers() *Timers {
 	return &Timers{
 		clock:            clock.RealClock{},
+		random:           rand.Int64N,
 		holdTime:         DefaultHoldTime,
 		connectRetryTime: DefaultConnectRetryTime,
 		bfdHoldTime:      DefaultBfdHoldTime,
@@ -378,12 +378,12 @@ func (t *Timers) StartKeepaliveTimer() {
 		// Reschedule for periodic firing
 		t.mu.Lock()
 		if t.keepaliveRunning {
-			t.keepaliveTimer = t.clock.AfterFunc(keepaliveInterval, timerFunc)
+			t.keepaliveTimer = t.clock.AfterFunc(max(time.Second, jitter(keepaliveInterval, t.random)), timerFunc)
 		}
 		t.mu.Unlock()
 	}
 
-	t.keepaliveTimer = t.clock.AfterFunc(keepaliveInterval, timerFunc)
+	t.keepaliveTimer = t.clock.AfterFunc(max(time.Second, jitter(keepaliveInterval, t.random)), timerFunc)
 	t.keepaliveRunning = true
 }
 
@@ -428,7 +428,7 @@ func (t *Timers) StartConnectRetryTimer() {
 
 	t.stopConnectRetryTimerLocked()
 
-	t.connectRetryTimer = t.clock.AfterFunc(t.connectRetryTime, func() {
+	t.connectRetryTimer = t.clock.AfterFunc(jitter(t.connectRetryTime, t.random), func() {
 		t.mu.Lock()
 		t.connectRetryRunning = false
 		cb := t.onConnectRetryExpires
@@ -439,6 +439,22 @@ func (t *Timers) StartConnectRetryTimer() {
 		}
 	})
 	t.connectRetryRunning = true
+}
+
+// Jitter implements RFC 4271 Section 10's suggested default: a factor
+// "uniformly distributed in the range from 0.75 to 1.0".
+// Each arm samples independently. Integer nanoseconds avoid floating point
+// rounding outside the specified interval, including near Duration's limit.
+func Jitter(base time.Duration) time.Duration {
+	return jitter(base, rand.Int64N)
+}
+
+func jitter(base time.Duration, random func(int64) int64) time.Duration {
+	if base <= 0 {
+		return base
+	}
+	span := base / 4
+	return base - span + time.Duration(random(int64(span)+1))
 }
 
 // StopConnectRetryTimer stops the connect retry timer.

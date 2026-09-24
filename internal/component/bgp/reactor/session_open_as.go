@@ -18,9 +18,9 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 )
 
-// validateOpenPeerAS enforces RFC 4271 Section 6.2 and RFC 7607 Section 2 on a received
-// OPEN: the AS the peer presents must be an AS this session is configured for, and it must
-// not be zero. Both answers are OPEN Message Error / Bad Peer AS (subcode 2).
+// validateOpenPeerAS parses peer capabilities before checking the advertised AS.
+// Malformed capabilities retain their OPEN error instead of turning AS_TRANS
+// into a peer-AS mismatch. It returns the parsed capabilities for negotiation.
 //
 // RFC 7607 Section 2: "If a BGP speaker receives zero as the peer AS in an OPEN message,
 // it MUST abort the connection and send a NOTIFICATION with Error Code 'OPEN Message
@@ -40,14 +40,29 @@ import (
 //
 // Both OPEN rails call it. On rejection it sends the NOTIFICATION, logs the FSM error
 // event and closes the connection, so no caller can accept a session ze must abort.
-func (s *Session) validateOpenPeerAS(open *message.Open) error {
-	if openClaimsASZero(open) {
+func (s *Session) validateOpenPeerAS(open *message.Open) ([]capability.Capability, error) {
+	advertised := uint32(open.MyAS)
+	var caps []capability.Capability
+	if advertised != 0 {
+		var err error
+		caps, err = capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
+		if err != nil {
+			return nil, s.rejectOpenCapabilityError(err)
+		}
+		for _, entry := range caps {
+			if asn4, ok := entry.(*capability.ASN4); ok {
+				advertised = asn4.ASN
+				break
+			}
+		}
+	}
+	if advertised == 0 {
 		s.rejectOpenPeerAS()
 		sessionLogger().Warn("RFC 7607 Section 2: peer AS is zero in OPEN",
 			"peer", s.settings.Address,
 			"my-as", open.MyAS,
 			"effect", "the connection is aborted with NOTIFICATION 2/2 Bad Peer AS")
-		return ErrBadPeerAS
+		return nil, ErrBadPeerAS
 	}
 
 	// RFC 4271 Section 6.2: "If the Autonomous System field of the OPEN message is
@@ -59,9 +74,8 @@ func (s *Session) validateOpenPeerAS(open *message.Open) error {
 	// the peer never claimed. peerASAccepted (session_as_migration.go) holds which ASNs
 	// are acceptable, including the RFC 7705 Section 4.2 pair, so the exception a
 	// migrating session needs is a rule rather than the absence of one.
-	advertised := openAdvertisedAS(open)
 	if s.settings.peerASAccepted(advertised) {
-		return nil
+		return caps, nil
 	}
 
 	s.rejectOpenPeerAS()
@@ -73,7 +87,7 @@ func (s *Session) validateOpenPeerAS(open *message.Open) error {
 		"migration-as", s.settings.MigrationAS,
 		"effect", "the connection is aborted with NOTIFICATION 2/2 Bad Peer AS")
 
-	return fmt.Errorf("%w: advertised %d", ErrPeerASMismatch, advertised)
+	return nil, fmt.Errorf("%w: advertised %d", ErrPeerASMismatch, advertised)
 }
 
 // rejectOpenPeerAS reports OPEN Message Error / Bad Peer AS to the peer and tears the
@@ -89,33 +103,4 @@ func (s *Session) rejectOpenPeerAS() {
 	s.logNotifyErr(conn, message.NotifyOpenMessage, message.NotifyOpenBadPeerAS, nil)
 	s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 	s.closeConn()
-}
-
-// openClaimsASZero reports whether a received OPEN presents AS 0 as the peer's AS.
-//
-// Two fields can carry it. The two-octet My Autonomous System field is the one RFC 4271
-// Section 4.2 defines. A speaker with a four-octet AS puts AS_TRANS there and its real AS
-// in the Four-octet AS capability instead (RFC 6793 Section 3), so a peer claiming AS 0
-// through that capability is claiming it just as plainly, and both are refused.
-//
-// A capability list that does not parse reports no zero. What is wrong with such an OPEN
-// is the encoding rather than the AS, and rejectOpenCapabilityError owns that verdict on
-// both rails; answering it here would report the wrong subcode to the peer.
-func openClaimsASZero(open *message.Open) bool {
-	if open.MyAS == 0 {
-		return true
-	}
-
-	caps, err := capability.ParseFromOptionalParams(open.OptionalParams, open.ExtendedParams)
-	if err != nil {
-		return false
-	}
-	for _, entry := range caps {
-		asn4, ok := entry.(*capability.ASN4)
-		if !ok {
-			continue
-		}
-		return asn4.ASN == 0
-	}
-	return false
 }

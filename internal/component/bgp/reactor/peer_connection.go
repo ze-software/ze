@@ -51,7 +51,7 @@ func (p *Peer) SessionState() fsm.State {
 }
 
 // SetPendingConnection queues an incoming connection for collision resolution.
-// RFC 4271 §6.8: Used when we're in OpenConfirm and an incoming connection arrives.
+// RFC 4271 Sections 6.8 and 8.2.2: retain the second connection until OPEN.
 // Returns error if there's already a pending connection.
 func (p *Peer) SetPendingConnection(conn net.Conn) error {
 	p.mu.Lock()

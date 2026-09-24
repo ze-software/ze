@@ -124,9 +124,8 @@ func TestCollisionEstablished(t *testing.T) {
 //
 // VALIDATES: When local_id > remote_id, incoming is rejected.
 // PREVENTS: Wrong connection being kept when local ID is higher.
-// RFC requirement: RFC4271-6.8-1 positive -- when a collision is detected one of the two
-// connections is closed: the existing OpenConfirm connection loses and is torn down
-// (internal/component/bgp/reactor/session.go:598-629).
+// This is a decision-only assertion: keep the existing connection and reject
+// the incoming connection. The real-socket collision tests assert teardown.
 // RFC requirement: RFC4271-6.8-2 positive -- on receipt of the OPEN the local system examines the
 // connection in OpenConfirm state and compares BGP Identifiers
 // (internal/component/bgp/reactor/session.go:610-620).

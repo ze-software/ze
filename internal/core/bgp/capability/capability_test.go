@@ -99,6 +99,51 @@ func TestParseCapabilities(t *testing.T) {
 	assert.Equal(t, uint32(65537), asn4.ASN)
 }
 
+// TestOptionalParamValueBounds checks that both OPEN framings reject malformed
+// known values without rejecting a complete capability with the same prefix.
+func TestOptionalParamValueBounds(t *testing.T) {
+	for _, extended := range []bool{false, true} {
+		for _, tc := range []struct {
+			name  string
+			value []byte
+			err   error
+		}{
+			{"multiprotocol", []byte{1, 4, 0, 1, 0, 1}, nil},
+			{"multiprotocol short", []byte{1, 3, 0, 1, 0}, ErrShortRead},
+			{"multiprotocol long", []byte{1, 5, 0, 1, 0, 1, 0}, ErrInvalidLength},
+			{"ASN4", []byte{65, 4, 0, 1, 0, 1}, nil},
+			{"ASN4 short", []byte{65, 3, 0, 1, 0}, ErrShortRead},
+			{"ASN4 long", []byte{65, 5, 0, 1, 0, 1, 0}, ErrInvalidLength},
+			{"FQDN", []byte{73, 4, 1, 'z', 1, 'e'}, nil},
+			{"FQDN truncated domain", []byte{73, 4, 1, 'z', 2, 'e'}, ErrShortRead},
+			{"FQDN trailing value", []byte{73, 5, 1, 'z', 1, 'e', 0}, ErrInvalidLength},
+			{"unknown capability", []byte{254, 2, 0xab, 0xcd}, nil},
+			{"empty parameter", nil, ErrInvalidLength},
+		} {
+			t.Run(fmt.Sprintf("%s/extended=%t", tc.name, extended), func(t *testing.T) {
+				caps, err := ParseFromOptionalParams(optionalParam(tc.value, extended), extended)
+				if tc.err != nil {
+					require.ErrorIs(t, err, tc.err)
+					require.Nil(t, caps, "malformed OPEN must not provide negotiation state")
+					return
+				}
+				require.NoError(t, err)
+				require.Len(t, caps, 1)
+				encoded := make([]byte, caps[0].Len())
+				caps[0].WriteTo(encoded, 0)
+				require.Equal(t, tc.value, encoded)
+			})
+		}
+		t.Run(fmt.Sprintf("unknown parameter/extended=%t", extended), func(t *testing.T) {
+			params := optionalParam([]byte{254, 0}, extended)
+			params[0] = 99
+			caps, err := ParseFromOptionalParams(params, extended)
+			require.ErrorIs(t, err, ErrUnsupportedParameter)
+			require.Nil(t, caps)
+		})
+	}
+}
+
 // TestParseEmpty verifies parsing empty capability data.
 //
 // VALIDATES: Edge case - no capabilities.
@@ -218,16 +263,6 @@ func TestOptionalParamRejectsTruncatedCapabilityTLV(t *testing.T) {
 // VALIDATES: AC-3 syntactically valid unknown capabilities are preserved.
 //
 // PREVENTS: Treating ignorable unknown capabilities as malformed OPEN input.
-//
-// RFC requirement: RFC5492-3-3 positive -- an unknown capability inside an OPEN Type-2
-// parameter is parsed without error, so the OPEN parse path yields no error for the
-// session layer to reject on; the session is not terminated (capability.go:847 ->
-// capability.go:239-242, terminate path in internal/component/bgp/reactor/session_handlers.go:190-197
-// fires only on ErrInvalidLength/ErrShortRead).
-// RFC requirement: RFC5492-3-4 positive -- the same unknown capability is preserved with
-// no error, so no Unsupported Capability NOTIFICATION is generated for it.
-// RFC requirement: RFC5492-5-2 positive -- a not-understood capability is preserved and
-// ignored, never rejected, on the OPEN optional-parameter parse path.
 func TestOptionalParamPreservesUnknownCapability(t *testing.T) {
 	t.Parallel()
 

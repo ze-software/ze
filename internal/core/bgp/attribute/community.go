@@ -59,8 +59,8 @@ const (
 	// link is about to go down. Receivers should de-preference tagged routes.
 	CommunityGracefulShutdown Community = 0xFFFF0000 // GRACEFUL_SHUTDOWN (RFC 8326)
 
-	// CommunityAcceptOwn - RFC 7611: Allows a router to accept routes with
-	// its own AS in the AS_PATH for VRF-to-VRF re-import on the same PE.
+	// CommunityAcceptOwn - RFC 7611: permits configured VPN re-import despite
+	// an own ORIGINATOR_ID or NEXT_HOP, never despite an AS_PATH loop.
 	CommunityAcceptOwn Community = 0xFFFF0001 // ACCEPT_OWN (RFC 7611)
 
 	// CommunityRouteFilterTranslatedV4 - IANA: Used by route servers to

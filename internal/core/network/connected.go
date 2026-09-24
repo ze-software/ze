@@ -24,9 +24,23 @@ import (
 // The call reads the kernel interface table, so it belongs at a session or
 // configuration boundary, never on a per-message path.
 func ConnectedPrefixes() []netip.Prefix {
-	addrs, err := net.InterfaceAddrs()
+	prefixes, err := InterfacePrefixes()
 	if err != nil {
 		return nil
+	}
+	for i := range prefixes {
+		prefixes[i] = prefixes[i].Masked()
+	}
+	return prefixes
+}
+
+// InterfacePrefixes returns each local interface address with its prefix length.
+// The host bits identify the local address; callers MUST preserve them when
+// checking whether a next hop belongs to this host. Read at lifecycle boundaries.
+func InterfacePrefixes() ([]netip.Prefix, error) {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return nil, err
 	}
 	out := make([]netip.Prefix, 0, len(addrs))
 	for _, a := range addrs {
@@ -54,9 +68,9 @@ func ConnectedPrefixes() []netip.Prefix {
 		if !prefix.IsValid() {
 			continue
 		}
-		out = append(out, prefix.Masked())
+		out = append(out, prefix)
 	}
-	return out
+	return out, nil
 }
 
 // SharesSubnet reports whether addr lies inside one of prefixes.

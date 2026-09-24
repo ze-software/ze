@@ -131,7 +131,7 @@ runbook).
 | Timer | Status | Reset/fired by |
 |-------|--------|-----------------|
 | HoldTimer | **running** (negotiated value) | reset inside the FSM when `EventKeepaliveMsg` or `EventUpdateMsg` fires (RFC 4271 §8.2.2 Events 26, 27); fires `EventHoldTimerExpires` on expiry |
-| KeepaliveTimer | **running** (hold/3) | periodic refire; callback sends KEEPALIVE and fires `EventKeepaliveTimerExpires` |
+| KeepaliveTimer | **running** (configured interval or hold/3, jittered) | each arm samples uniformly from 0.75 to 1.0 of the base, with a one-second minimum; callback sends KEEPALIVE and fires `EventKeepaliveTimerExpires` |
 | SendHoldTimer (RFC 9687) | **running** | reset on every successful write to the peer; fires teardown if we cannot send for too long |
 | ConnectRetryTimer | not running | not used in production |
 
@@ -149,11 +149,11 @@ grants no reprieve to a CPU-congested daemon.
 
 ## Wire side effects
 
-- **On receive UPDATE:** forwarded to plugins via the
-  `onMessageReceived` callback before validation, then UPDATE-specific
-  processing (RFC 7606, prefix limits) runs before the FSM event is
-  fired. Plugin delivery and peer forwarding happen in
-  `processMessage`.
+- **On receive UPDATE:** RFC 7606 validation, AS-path reconciliation,
+  NEXT_HOP semantic checks and prefix limits run before plugin delivery.
+  The callback receives accepted announcements or synthesized withdrawals;
+  it never receives malformed announcements as usable routes.
+  Processing and peer forwarding happen in `processMessage`.
   <!-- source: internal/component/bgp/reactor/session_read.go — processMessage -->
 - **On receive KEEPALIVE:** hold timer reset, FSM no-op. No wire output.
 - **On receive ROUTE-REFRESH:** handled in `handleRouteRefresh`, gated
@@ -172,6 +172,10 @@ grants no reprieve to a CPU-congested daemon.
   `errChan` with `ErrHoldTimerExpired`. The session Run loop observes
   the error and starts the teardown.
   <!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires signals errChan -->
+- **On a second TCP connection:** retain it until its OPEN arrives, then
+  reject it with Cease / Connection Collision. The established connection
+  remains usable throughout.
+  <!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject, handlePendingCollision -->
 
 ## Code map
 

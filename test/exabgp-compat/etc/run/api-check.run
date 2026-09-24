@@ -19,7 +19,7 @@ def main() -> None:
             if 'eor' in line:
                 continue
             if (
-                'neighbor 127.0.0.1 receive update announced 0.0.0.0/32 next-hop 127.0.0.1 origin igp local-preference 100'
+                'neighbor 127.0.0.1 receive update announced 0.0.0.0/32 next-hop 192.0.2.1 origin igp local-preference 100'
                 not in line
             ):
                 flush('neighbor 127.0.0.1 announce route 0.0.0.0/0 next-hop 255.255.255.255\n')

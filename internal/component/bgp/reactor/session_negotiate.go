@@ -44,13 +44,29 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 	// reader of the encoding context's IsIBGP -- the commit rail's LOCAL_PREF and AS_PATH
 	// decisions among them (rib/commit.go) -- took the eBGP arm for a genuine iBGP peer.
 	peerAS := sessionPeerAS(s.settings.PeerAS, s.peerOpen)
+	// Writers read ASN4 while holding writeMu, so publish the negotiated
+	// pointer under that lock as well as mu. No writer needs mu in reverse.
+	s.writeMu.Lock()
 	s.negotiated = capability.Negotiate(localCaps, peerCaps, capability.PeerIdentity{
 		LocalASN: s.settings.LocalAS,
 		PeerASN:  peerAS,
 		Internal: s.settings.isIBGPWith(peerAS),
 	})
 
-	s.writeMu.Lock()
+	// RFC 9234 Section 4.1: Role is code(1), length(1), value(1); value 2
+	// denotes the LOCAL RS-client. Retain our advertised role, not the peer's:
+	// loose-mode sessions need the transparent-RS exception without negotiation.
+	s.localRSClient = false
+	for _, cap := range localCaps {
+		if cap.Code() != capability.CodeRole || cap.Len() != 3 {
+			continue
+		}
+		var role [3]byte
+		cap.WriteTo(role[:], 0)
+		s.localRSClient = role[2] == 2
+		break
+	}
+
 	s.initPathsLimit(s.negotiated.Encoding)
 	s.writeMu.Unlock()
 

@@ -106,8 +106,7 @@ func TestSessionRFC7606TreatAsWithdrawTwoFamiliesDispatchesBoth(t *testing.T) {
 	var dispatched [][]byte
 	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
-		_ BufHandle, _ map[string]any, _ string,
-	) bool {
+		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if direction == rpc.DirectionReceived && wu != nil {
 			dispatched = append(dispatched, append([]byte(nil), wu.Payload()...))
 		}
@@ -177,7 +176,7 @@ func TestRFC7606TreatAsWithdrawNonNegotiatedFamilyDrops(t *testing.T) {
 	// only routes it carries are in the non-negotiated MP_REACH.
 	pathAttrs := []byte{
 		0x40, 0x01, 0x02, 0x00, 0x00, // ORIGIN with length 2 (invalid)
-		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xEA, // AS_SEQUENCE [65002]
 	}
 	pathAttrs = append(pathAttrs, 0x80, 0x0e, byte(len(mpReach)))
 	pathAttrs = append(pathAttrs, mpReach...)
@@ -214,7 +213,7 @@ func buildTwoFamilyTreatAsWithdrawUpdate() []byte {
 
 	pathAttrs := []byte{
 		0x40, 0x01, 0x02, 0x00, 0x00, // ORIGIN length 2 (invalid)
-		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xEA, // AS_SEQUENCE [65002]
 	}
 	pathAttrs = append(pathAttrs, 0x80, 0x0e, byte(len(mpReach)))
 	pathAttrs = append(pathAttrs, mpReach...)
@@ -249,8 +248,7 @@ func TestSessionRFC7606TreatAsWithdrawExtraFamilyForwardCacheEligible(t *testing
 	var captured []capture
 	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
-		buf BufHandle, _ map[string]any, _ string,
-	) bool {
+		buf BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if direction == rpc.DirectionReceived && wu != nil {
 			captured = append(captured, capture{
 				payload: append([]byte(nil), wu.Payload()...),

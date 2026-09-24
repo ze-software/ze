@@ -221,6 +221,8 @@ func TestSessionRFC7606ValidUpdateSendsNoNotification(t *testing.T) {
 	session, client, callbackCount, cleanup := setupEstablishedSessionEBGP(t)
 	defer cleanup()
 
+	// An eBGP announcement must start with the configured neighbor AS.
+	validPathAttrs := firstASAttrs(4, 65002)
 	update := make([]byte, 0, 4+len(validPathAttrs)+2)
 	update = append(update, 0x00, 0x00, byte(len(validPathAttrs)>>8), byte(len(validPathAttrs)))
 	update = append(update, validPathAttrs...)
@@ -287,8 +289,7 @@ func TestSessionRFC7606ValidUpdateDispatchesAnnouncement(t *testing.T) {
 	var dispatchCount int
 	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
-		_ BufHandle, _ map[string]any, _ string,
-	) bool {
+		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if direction == rpc.DirectionReceived && wu != nil {
 			dispatchCount++
 			dispatched = append([]byte(nil), wu.Payload()...)
@@ -296,7 +297,8 @@ func TestSessionRFC7606ValidUpdateDispatchesAnnouncement(t *testing.T) {
 		return false
 	}
 
-	// The same UPDATE as the treat-as-withdraw test, with a WELL-FORMED ORIGIN.
+	// Well-formed ORIGIN and the eBGP neighbor's own AS_SEQUENCE.
+	validPathAttrs := firstASAttrs(4, 65002)
 	update := make([]byte, 0, 4+len(validPathAttrs)+2)
 	update = append(update, 0x00, 0x00, byte(len(validPathAttrs)>>8), byte(len(validPathAttrs)))
 	update = append(update, validPathAttrs...)

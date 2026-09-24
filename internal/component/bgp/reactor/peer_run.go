@@ -147,7 +147,7 @@ func (p *Peer) run() {
 			select {
 			case <-p.ctx.Done():
 				return
-			case <-p.clock.After(delay):
+			case <-p.clock.After(fsm.Jitter(delay)):
 			case <-p.inboundNotify:
 				// Inbound connection arrived while session was nil.
 				// Restart runOnce immediately without doubling delay.
@@ -219,6 +219,8 @@ func (p *Peer) runOnce() error {
 	session.SetClock(p.clock)
 	session.SetDialer(p.dialer)
 	session.onMessageReceived = p.messageCallback
+	session.aigpReactor = p.reactor
+	session.aigpPeer = p
 	// Originated and injected routes, and the bgp-rs `update text`
 	// re-advertisement, run the peer's export filter chain at the session write
 	// gate, the same as forwarded routes do in forwardUpdateCore. The

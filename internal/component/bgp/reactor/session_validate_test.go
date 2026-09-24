@@ -447,8 +447,7 @@ func TestIgnoredFamilyUpdateNeverReachesDispatch(t *testing.T) {
 	var dispatched int
 	session.onMessageReceived = func(_ netip.Addr, _ msgtype.MessageType, _ []byte,
 		wu *wireu.WireUpdate, _ bgpctx.ContextID, direction rpc.MessageDirection,
-		_ BufHandle, _ map[string]any, _ string,
-	) bool {
+		_ BufHandle, _ map[string]any, _ string, _ uint64) bool {
 		if direction == rpc.DirectionReceived && wu != nil {
 			dispatched++
 		}
@@ -474,9 +473,9 @@ func TestIgnoredFamilyUpdateNeverReachesDispatch(t *testing.T) {
 	assert.Equal(t, 0, dispatched, "an unnegotiated family's UPDATE must reach no plugin, no RIB and no forward rail")
 
 	// Control: a negotiated family on the same session still arrives.
-	ipv4NLRI := []byte{0x18, 0x0A, 0x00, 0x00} // 10.0.0.0/24
-	origin := []byte{0x40, 0x01, 0x01, 0x00}   // ORIGIN IGP
-	asPath := []byte{0x40, 0x02, 0x00}         // empty AS_PATH
+	ipv4NLRI := []byte{0x18, 0x0A, 0x00, 0x00}                             // 10.0.0.0/24
+	origin := []byte{0x40, 0x01, 0x01, 0x00}                               // ORIGIN IGP
+	asPath := []byte{0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xEA} // AS_SEQUENCE [65002]
 	nextHop := []byte{0x40, 0x03, 0x04, 0x0A, 0x00, 0x00, 0x01}
 	v4Attrs := slices.Concat(origin, asPath, nextHop)
 

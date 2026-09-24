@@ -232,17 +232,11 @@ func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb connectionCallbac
 		return
 	}
 
-	// RFC 4271 §6.8: Check for collision with ESTABLISHED session.
-	// "collision with existing BGP connection that is in the Established
-	// state causes closing of the newly created connection"
-	if peer.State() == PeerStateEstablished {
-		r.rejectConnectionCollisionWithSettings(conn, settings)
-		return
-	}
-
-	// RFC 4271 §6.8: Check for collision with OpenConfirm session.
-	// Queue the connection and wait for OPEN to compare BGP IDs.
-	if peer.SessionState() == fsm.StateOpenConfirm {
+	// RFC 4271 Section 8.2.2, including Established: "the second
+	// connection SHALL be tracked until it sends an OPEN message".
+	// Section 6.8 chooses the loser only after that OPEN arrives.
+	state := peer.SessionState()
+	if state == fsm.StateOpenSent || state == fsm.StateOpenConfirm || state == fsm.StateEstablished {
 		if err := peer.SetPendingConnection(conn); err != nil {
 			r.rejectConnectionCollisionWithSettings(conn, settings)
 			return
