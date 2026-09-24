@@ -104,7 +104,7 @@ var buildMatrix = Matrix{
 		// setup_dispatch.go is `ze_setup && !ze_core`, so this flavor takes the
 		// core dispatch instead. That difference is the reason the row exists.
 		AnchorFiles: []string{coreDispatch, "setup_features_setup.go"},
-		Why:         "ze-host, the `ze appliance ...` build driver produced by internal/le/buildartifacts",
+		Why:         "ze-host, the `ze appliance ...` build driver produced by internal/le/build/compile",
 	},
 	{
 		Name:        "installer",

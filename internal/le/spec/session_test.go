@@ -123,8 +123,8 @@ func TestMalformedClaimMarkerFailsClosed(t *testing.T) {
 }
 
 func TestSpecSessionCommandMapsEveryOwnershipAction(t *testing.T) {
-	// VALIDATES: the grouped native command maps the old default/current,
-	// claim, wip, state, model, review-hash, and release interfaces.
+	// VALIDATES: every member of the spec namespace (current, claim, wip,
+	// state, model, review hash, release) answers through its own handler.
 	// PREVENTS: final hook routing reaching an API that has no command grammar.
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "plan"), 0o750); err != nil {
@@ -136,22 +136,22 @@ func TestSpecSessionCommandMapsEveryOwnershipAction(t *testing.T) {
 	setAnswerRoot(t, root)
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "command-session")
 
-	payload, code := Answer(nil)
+	payload, code := Current(nil)
 	if current, ok := payload.(currentReport); code != 0 || !ok || current.Spec != "" {
-		t.Fatalf("bare current = (%#v, %d)", payload, code)
+		t.Fatalf("current before claim = (%#v, %d)", payload, code)
 	}
-	payload, code = Answer([]string{"claim", "spec", "plan/spec-a.md"})
+	payload, code = Claim([]string{"spec", "plan/spec-a.md"})
 	if claim, ok := payload.(ClaimReport); code != 0 || !ok || !claim.Transitioned {
 		t.Fatalf("claim = (%#v, %d)", payload, code)
 	}
-	payload, code = Answer([]string{"current"})
+	payload, code = Current(nil)
 	if current, ok := payload.(currentReport); code != 0 || !ok || current.Spec != "spec-a.md" {
 		t.Fatalf("current = (%#v, %d)", payload, code)
 	}
-	if payload, code = Answer([]string{"wip"}); code != 0 {
+	if payload, code = WIP(nil); code != 0 {
 		t.Fatalf("wip = (%#v, %d)", payload, code)
 	}
-	if payload, code = Answer([]string{"state", "current"}); code != 0 {
+	if payload, code = State([]string{"current"}); code != 0 {
 		t.Fatalf("state current = (%#v, %d)", payload, code)
 	}
 	state, ok := payload.(statePathReport)
@@ -161,30 +161,30 @@ func TestSpecSessionCommandMapsEveryOwnershipAction(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, filepath.FromSlash(state.Path)), []byte("state\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if payload, code = Answer([]string{"state", "latest", "spec", "a"}); code != 0 {
+	if payload, code = State([]string{"latest", "spec", "a"}); code != 0 {
 		t.Fatalf("state latest = (%#v, %d)", payload, code)
 	}
 	latest, ok := payload.(statePathReport)
 	if !ok || latest.Path != state.Path {
 		t.Fatalf("state latest payload = %#v, want %s", payload, state.Path)
 	}
-	if payload, code = Answer([]string{"model", "current"}); code != 1 {
+	if payload, code = Model([]string{"current"}); code != 1 {
 		t.Fatalf("unreadable model = (%#v, %d), want advisory code 1", payload, code)
 	}
-	if payload, code = Answer([]string{"review", "hash", "file", "plan/spec-a.md"}); code != 0 {
+	if payload, code = Review([]string{"hash", "file", "plan/spec-a.md"}); code != 0 {
 		t.Fatalf("review hash = (%#v, %d)", payload, code)
 	}
-	if payload, code = Answer([]string{"release"}); code != 0 {
+	if payload, code = Release(nil); code != 0 {
 		t.Fatalf("release = (%#v, %d)", payload, code)
 	}
-	if _, code = Answer([]string{"claim", "spec-a.md"}); code != 2 {
+	if _, code = Claim([]string{"spec-a.md"}); code != 2 {
 		t.Fatalf("claim accepted a value without the spec selector, code %d", code)
 	}
 	t.Setenv("CLAUDE_CODE_SESSION_ID", "../unreadable")
-	if payload, code = Answer([]string{"model", "current"}); code != 1 {
+	if payload, code = Model([]string{"current"}); code != 1 {
 		t.Fatalf("model fail-speak = (%#v, %d)", payload, code)
 	}
-	if payload, code = Answer([]string{"wip"}); code != 0 {
+	if payload, code = WIP(nil); code != 0 {
 		t.Fatalf("wip depended on session ownership = (%#v, %d)", payload, code)
 	}
 	if spec, err := (specOwner{Root: root, SessionID: "command-session"}).currentSpec(); err != nil || spec != "" {

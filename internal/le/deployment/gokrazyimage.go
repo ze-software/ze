@@ -29,7 +29,7 @@ import (
 
 	"github.com/ze-software/ze/internal/appliance"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/buildartifacts"
+	buildcompile "github.com/ze-software/ze/internal/le/build/compile"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
 )
 
@@ -116,7 +116,7 @@ func gokrazyImage(tree, work, template, arch string, progress io.Writer) (string
 }
 
 func hostTool(tree string) (string, error) {
-	report, code := buildartifacts.BuildHost(tree)
+	report, code := buildcompile.BuildHost(tree)
 	if code != 0 || report.Output == "" {
 		return "", errors.New("build native host appliance driver")
 	}

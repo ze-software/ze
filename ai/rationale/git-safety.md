@@ -36,8 +36,7 @@ duration typed into a document is a claim, not a measurement.
 
 If a previous run is still going, the admission wrapper blocks the second
 invocation inside the same foreground Bash call until a slot frees. There is
-no lock file: `internal/le/verify/lock/register.go` is an alias for
-`internal/le/job/answer.go`, which keeps one entry per running job under
+no lock file: `internal/le/job/answer.go`, which keeps one entry per running job under
 `tmp/.ze-jobs/` and admits `ZE_RUN_SLOTS` of them at a time.
 
 Anti-patterns that look like "smart" backgrounding but break:

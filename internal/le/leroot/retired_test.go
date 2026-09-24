@@ -173,3 +173,57 @@ func TestRenameMapRowsAreDisjoint(t *testing.T) {
 		names[retired.Old] = true
 	}
 }
+
+// TestSpecIsANamespaceAndSpecSessionRunsItsMembers pins the one family whose
+// retired command became a namespace rather than a command. `spec session`
+// flattened into `spec`, so the bare `le spec` asks what the namespace holds
+// (AC-31) and a bare `spec session`, which answered the claimed spec, runs
+// `spec current`. It drives the real registry through Dispatch, because the
+// generic row test above probes with `--help` and never runs a handler.
+func TestSpecIsANamespaceAndSpecSessionRunsItsMembers(t *testing.T) {
+	code := 0
+	stdout, stderr := streams(t, func() { code = leroot.Dispatch("le", []string{"spec"}) })
+	if code != 0 {
+		t.Errorf("bare `le spec` answered %d, want 0: a namespace token is a question", code)
+	}
+	listing := stdout + stderr
+	for _, member := range []string{"claim", "current", "release", "state", "review", "wip", "model", "status", "roadmap", "citation", "journal"} {
+		if !strings.Contains(listing, member) {
+			t.Errorf("bare `le spec` does not list the member %q:\n%s", member, listing)
+		}
+	}
+
+	_, stderr = streams(t, func() { code = leroot.Dispatch("le", []string{"spec", "nope"}) })
+	if code != 1 {
+		t.Errorf("`le spec nope` answered %d, want 1", code)
+	}
+	if !strings.Contains(stderr, "is a namespace") {
+		t.Errorf("`le spec nope` was not refused as a namespace member:\n%s", stderr)
+	}
+
+	// warning is the one stderr line: it names the words the rename row
+	// matched, not the whole line the caller typed.
+	for _, row := range []struct {
+		old, fresh []string
+		warning    string
+	}{
+		{[]string{"spec", "session"}, []string{"spec", "current"},
+			"warning: le spec session is renamed: run le spec current\n"},
+		{[]string{"spec", "session", "current"}, []string{"spec", "current"},
+			"warning: le spec session current is renamed: run le spec current\n"},
+		{[]string{"spec", "session", "state", "current"}, []string{"spec", "state", "current"},
+			"warning: le spec session state is renamed: run le spec state\n"},
+	} {
+		old := strings.Join(row.old, " ")
+		fresh := strings.Join(row.fresh, " ")
+		oldCode, newCode := 0, 0
+		oldOut, oldErr := streams(t, func() { oldCode = leroot.Dispatch("le", row.old) })
+		newOut, newErr := streams(t, func() { newCode = leroot.Dispatch("le", row.fresh) })
+		if oldCode != newCode || oldOut != newOut {
+			t.Errorf("`le %s` answered (%d, %q), want what `le %s` answered (%d, %q)", old, oldCode, oldOut, fresh, newCode, newOut)
+		}
+		if oldErr != row.warning+newErr {
+			t.Errorf("`le %s` wrote %q to stderr, want %q then %q", old, oldErr, row.warning, newErr)
+		}
+	}
+}

@@ -34,8 +34,7 @@ stages. Both modes run the same vulnerability scan. It needs network access to
 the live Go vulnerability database. `TestStagesForModeBranchesAgree` and
 `TestStagesForModeMatchesGolden` in `internal/le/verify/engine` pin the two lists.
 
-Both modes use the shared admission code in `internal/le/job` and
-`internal/le/verify/lock`. A verify run continues across top-level stage
+Both modes use the shared admission code in `internal/le/job`. A verify run continues across top-level stage
 failures and writes:
 
 Each run writes its artifacts into its OWN directory, `tmp/verify/run-<start>-<mode>-<id>/`,

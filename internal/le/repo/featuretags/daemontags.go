@@ -33,7 +33,7 @@ const gatePrefix = "ze_"
 // DaemonBase is the tag pair a daemon build carries before its gates: the core,
 // and the word for which product this build is.
 //
-// A host driver is built without it. `internal/le/buildartifacts.BuildHost`
+// A host driver is built without it. `internal/le/build/compile.BuildHost`
 // builds the `ze appliance ...` driver with `ze_core ze_setup` and no feature
 // tags, because feature gates select daemon features and do not affect setup.
 const DaemonBase = "ze_core ze_distro"

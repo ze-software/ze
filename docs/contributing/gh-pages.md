@@ -16,7 +16,7 @@ serves and what the pages name. A build that rewrites the artifact keeps the
 media, because it lays the last published artifact down before any page is
 rendered. `TERMINAL_DEMO_OUTPUT` moves a render to another root.
 <!-- source: internal/le/site/demo.go -- (*demoCatalog).assetRoot -->
-<!-- source: internal/le/terminaldemo/actions.go -- renderEngine -->
+<!-- source: internal/le/site/terminaldemo/actions.go -- renderEngine -->
 
 A recording runs in a container this repository builds and publishes to no
 registry, so build it once per checkout with `./le terminal-demo image-build`.

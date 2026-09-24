@@ -96,13 +96,13 @@ func runLEDevAnswers(ctx context.Context) error {
 	}
 
 	// One payload, every rendering.
-	report, err := le("gokrazy-gosum", "|", "json")
+	report, err := le(gateGokrazyGosum, "|", "json")
 	if err != nil {
 		return err
 	}
 	var gosum map[string]any
 	if err := json.Unmarshal(report.stdout, &gosum); err != nil {
-		return uiLeDevGatesAnswersFailf("`le gokrazy-gosum | json` did not answer JSON: %v\n%s", err, uiLeDevGatesAnswersPrefix(report.stdout, 400))
+		return uiLeDevGatesAnswersFailf("`le build gosum | json` did not answer JSON: %v\n%s", err, uiLeDevGatesAnswersPrefix(report.stdout, 400))
 	}
 	for _, key := range []string{fieldFiles, "shared", "conflicts"} {
 		if _, found := gosum[key]; !found {
@@ -117,12 +117,12 @@ func runLEDevAnswers(ctx context.Context) error {
 		return uiLeDevGatesAnswersFailf("the gate reported conflicts: %v", gosum["conflicts"])
 	}
 	for _, rendering := range []string{renderYAML, renderTable} {
-		answer, err := le("gokrazy-gosum", "|", rendering)
+		answer, err := le(gateGokrazyGosum, "|", rendering)
 		if err != nil {
 			return err
 		}
 		if answer.code != 0 {
-			return uiLeDevGatesAnswersFailf("`le gokrazy-gosum | %s` was refused", rendering)
+			return uiLeDevGatesAnswersFailf("`le build gosum | %s` was refused", rendering)
 		}
 	}
 
@@ -205,7 +205,7 @@ func runLEDevAnswers(ctx context.Context) error {
 		return uiLeDevGatesAnswersFailf("an unknown action answered %d, want 2", unknown.code)
 	}
 
-	refused, err := le("gokrazy-gosum", "gokrazy/")
+	refused, err := le(gateGokrazyGosum, "gokrazy/")
 	if err != nil {
 		return err
 	}

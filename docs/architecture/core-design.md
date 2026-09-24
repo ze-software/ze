@@ -64,7 +64,10 @@ is a directory level, and a hyphen inside a level joins words naming one thing:
 holds in both directions, and
 `TestEveryCommandIsFoundAtThePathItsNamePredicts` refuses an exception. A
 reader who knows the command knows the directory. A package that registers
-nothing is a library, and it names nothing.
+nothing is a library, and it names nothing. The spec lifecycle is one library,
+`internal/le/spec`, and each of its verbs is a member with a directory of its
+own that holds only `register.go`: `le spec current` lives at
+`internal/le/spec/current`, and a bare `le spec` is the namespace token.
 
 **A hyphen joins one name; a space separates a namespace.** This is the rule
 `docs/architecture/cli/command-namespacing.md` states for the product CLI, and

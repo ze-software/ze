@@ -294,7 +294,7 @@ const (
 	checkStaticcheckFeatureMatrix = "go staticcheck"
 	checkTestSensitivity          = "test-sensitivity"
 	checkYANGLeafMentions         = "config unread-leaves"
-	gateGokrazyGosum              = "gokrazy-gosum"
+	gateGokrazyGosum              = "build gosum"
 	gateProtocolSkeleton          = "rfc skeletons"
 )
 

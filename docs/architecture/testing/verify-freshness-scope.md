@@ -181,7 +181,6 @@ Above that verdict the lifecycle names every stage that exited non-zero, one lin
 <!-- source: internal/le/verify/current.go -- runCurrent, jobLabel, slotFor -->
 <!-- source: internal/le/verify/lifecycle.go -- run, sharedCacheLink, worktreeArgv -->
 <!-- source: internal/le/job/answer.go -- Answer -->
-<!-- source: internal/le/verify/lock/register.go -- Answer -->
 
 ## Failure attribution
 

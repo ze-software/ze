@@ -100,7 +100,7 @@ func resolve(args []string) (string, registry.LocalDataHandler, []string) {
 }
 
 // members answers the commands registered under a namespace token, with the
-// token stripped: `spec` answers citation, session and status.
+// token stripped: `spec` answers citation, claim, current, status and the rest.
 //
 // The listing is derived from the registry rather than declared, so the help
 // page, a bare token's answer and a refusal cannot disagree about what a

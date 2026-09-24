@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ze-software/ze/internal/le/terminaldemo"
+	siteterminaldemo "github.com/ze-software/ze/internal/le/site/terminaldemo"
 )
 
 // demoMarker matches the comment a page source writes where its recorded
@@ -77,8 +77,8 @@ const (
 type demoCatalog struct {
 	paths  Paths
 	loaded bool
-	demos  map[string]terminaldemo.Demo
-	built  map[string]terminaldemo.ArtifactEntry
+	demos  map[string]siteterminaldemo.Demo
+	built  map[string]siteterminaldemo.ArtifactEntry
 	page   string
 	err    error
 }
@@ -99,7 +99,7 @@ func newDemoCatalog(paths Paths) *demoCatalog {
 
 // assetRoot is where a render writes the media this build publishes: the
 // ARTIFACT tree, which is where `./le terminal-demo render` and `render-all`
-// write by default (renderEngine, internal/le/terminaldemo/actions.go).
+// write by default (renderEngine, internal/le/site/terminaldemo/actions.go).
 //
 // It read the website SOURCE tree until 2026-09-01, and nothing ever copied one
 // to the other. The staging list comes from `git ls-files --exclude-standard`
@@ -126,12 +126,12 @@ func (catalog *demoCatalog) load() error {
 		catalog.err = errDemoMediaAbsent
 		return catalog.err
 	}
-	manifest, built, err := terminaldemo.Published(catalog.paths.Repository, catalog.assetRoot())
+	manifest, built, err := siteterminaldemo.Published(catalog.paths.Repository, catalog.assetRoot())
 	if err != nil {
 		catalog.err = err
 		return err
 	}
-	catalog.demos = make(map[string]terminaldemo.Demo, len(manifest.Demos))
+	catalog.demos = make(map[string]siteterminaldemo.Demo, len(manifest.Demos))
 	for index := range manifest.Demos {
 		id := manifest.Demos[index].ID
 		if _, repeated := catalog.demos[id]; repeated {
@@ -294,7 +294,7 @@ func substituteDemoMarkers(text string, rendered map[string]string) string {
 // A demonstration that publishes an asset its kind does not name is refused,
 // which is what keeps a half-converted recording from showing a player and a
 // video at once.
-func (catalog *demoCatalog) verifyAssets(id, kind string, entry terminaldemo.ArtifactEntry) (map[string]string, error) {
+func (catalog *demoCatalog) verifyAssets(id, kind string, entry siteterminaldemo.ArtifactEntry) (map[string]string, error) {
 	names, known := demoKindAssets[kind]
 	if !known {
 		return nil, fmt.Errorf("terminal demo %s has an unknown kind: %q", id, kind)
@@ -317,7 +317,7 @@ func (catalog *demoCatalog) verifyAssets(id, kind string, entry terminaldemo.Art
 
 // verifyAsset answers the file behind one asset, refusing a path that leaves
 // the media root and a file whose size or digest disagrees with the manifest.
-func (catalog *demoCatalog) verifyAsset(id, name string, entry terminaldemo.ArtifactEntry) (string, error) {
+func (catalog *demoCatalog) verifyAsset(id, name string, entry siteterminaldemo.ArtifactEntry) (string, error) {
 	metadata, present := entry.Assets[name]
 	if !present || metadata.Path == "" {
 		return "", fmt.Errorf("terminal demo %s is missing its %s artifact", id, name)
@@ -452,7 +452,7 @@ func demoPlayerHead(root string) string {
 
 // demoAssetURL answers the URL one asset is published at, with the first ten
 // characters of its digest as a cache-busting version.
-func demoAssetURL(root, id string, entry terminaldemo.ArtifactEntry, name string) string {
+func demoAssetURL(root, id string, entry siteterminaldemo.ArtifactEntry, name string) string {
 	digest := entry.Assets[name].SHA256
 	if len(digest) > 10 {
 		digest = digest[:10]
@@ -484,7 +484,7 @@ func demoPlatformSentence(platform string) (string, error) {
 
 // demoRelease answers the release a recording states, or the word the retired
 // renderer published when an artifact stated none.
-func demoRelease(entry terminaldemo.ArtifactEntry) string {
+func demoRelease(entry siteterminaldemo.ArtifactEntry) string {
 	if entry.Release == "" {
 		return "unknown"
 	}
@@ -515,9 +515,9 @@ func playerMount(castURL, transcriptURL string, facts castFacts, label string) s
 // and neither can fail.
 type demoRender struct {
 	ID   string
-	Demo terminaldemo.Demo
+	Demo siteterminaldemo.Demo
 	// Entry is the artifact manifest's record of the media this publishes.
-	Entry terminaldemo.ArtifactEntry
+	Entry siteterminaldemo.ArtifactEntry
 	// Root is the relative path from the page back to the site root.
 	Root string
 	// Duration is the running time as a reader reads it, taken from the

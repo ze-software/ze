@@ -277,10 +277,10 @@ var portedProducers = []portedProducer{
 	{Target: "ze-scratch-links-ensure", Area: "scratch", Verb: "links-ensure"},
 	{Target: "ze-scratch-migrate", Area: "scratch", Verb: "migrate"},
 	{Target: "ze-session-reap", Area: "session", Verb: "reap"},
-	{Target: "ze-host-build", Area: "build-artifacts", Verb: "host"},
-	{Target: "ze-setup-build", Area: "build-artifacts", Verb: "host", Note: "ze-host carries ze_core and ze_setup, and it is the binary that runs `ze appliance ...` on the build host"},
-	{Target: "ze-installer-build", Area: "build-artifacts", Verb: "installer-amd64", Note: "installer-arm64 carries the second half the target ran"},
-	{Target: "ze-gokrazy-gosum-check", Area: "gokrazy-gosum"},
+	{Target: "ze-host-build", Area: "build host-driver"},
+	{Target: "ze-setup-build", Area: "build host-driver", Note: "ze-host carries ze_core and ze_setup, and it is the binary that runs `ze appliance ...` on the build host"},
+	{Target: "ze-installer-build", Area: "build installer", Verb: "amd64", Note: "arm64 carries the second half the target ran"},
+	{Target: "ze-gokrazy-gosum-check", Area: "build gosum"},
 	{Target: "ze-netlab-render-check", Area: "netlab", Verb: "render-check"},
 	{Target: "ze-perf-suggestion-report", Area: "perf-bench", Verb: "suggestion-report"},
 	{Target: "ze-perf-bench", Area: "perf-bench", Verb: "run", Note: "the action builds bin/ze-perf, drives the multi-DUT runner that test/perf/run.py was ported into (internal/test/perfrunner.Runner.RunCLI), and writes the suggestion marker the target ended on"},
@@ -288,16 +288,16 @@ var portedProducers = []portedProducer{
 	{Target: "ze-evidence-perf-record", Area: "perf-bench", Verb: "evidence-record", Note: "run, append, then `ze-perf track --check` over the history, which is the regression gate the recipe ended on"},
 
 	// The published terminal demonstrations.
-	{Target: "ze-terminal-demo-image-build", Area: "terminal-demo", Verb: "image-build", Note: "the action reads the tag from demos/terminal/manifest.json rather than repeating it, so the image it builds is the one renderDemo runs"},
-	{Target: "ze-terminal-demo-check-all", Area: "terminal-demo", Verb: "check-all"},
-	{Target: "ze-terminal-demo-validation-check-all", Area: "terminal-demo", Verb: "validation-check-all"},
-	{Target: "ze-terminal-demo-release-check-all", Area: "terminal-demo", Verb: "release-check-all"},
-	{Target: "ze-terminal-demo-render-all", Area: "terminal-demo", Verb: "render-all"},
-	{Target: "ze-terminal-demo-render", Area: "terminal-demo", Verb: "render", Note: "`render name <id>` selects the one demo the target selected with DEMO=; RenderOne shares validateAndRender with RenderAll"},
-	{Target: "ze-terminal-demo-release-render-all", Area: "terminal-demo", Verb: "render-all", Note: "the target sequenced ze-terminal-demo-render-all alone"},
-	{Target: "ze-terminal-demo-binaries-build", Area: "terminal-demo", Verb: "binaries-build-ze", Note: "binaries-build-ze-test carries the second half the target ran"},
-	{Target: "ze-release-assets-update", Area: "terminal-demo", Verb: "render-all", Note: "the target sequenced ze-terminal-demo-release-render-all alone"},
-	{Target: "ze-release-assets-check", Area: "terminal-demo", Verb: "release-check-all", Note: "the target sequenced ze-terminal-demo-release-check-all alone"},
+	{Target: "ze-terminal-demo-image-build", Area: "site terminal-demo", Verb: "image-build", Note: "the action reads the tag from demos/terminal/manifest.json rather than repeating it, so the image it builds is the one renderDemo runs"},
+	{Target: "ze-terminal-demo-check-all", Area: "site terminal-demo", Verb: "check-all"},
+	{Target: "ze-terminal-demo-validation-check-all", Area: "site terminal-demo", Verb: "validation-check-all"},
+	{Target: "ze-terminal-demo-release-check-all", Area: "site terminal-demo", Verb: "release-check-all"},
+	{Target: "ze-terminal-demo-render-all", Area: "site terminal-demo", Verb: "render-all"},
+	{Target: "ze-terminal-demo-render", Area: "site terminal-demo", Verb: "render", Note: "`render name <id>` selects the one demo the target selected with DEMO=; RenderOne shares validateAndRender with RenderAll"},
+	{Target: "ze-terminal-demo-release-render-all", Area: "site terminal-demo", Verb: "render-all", Note: "the target sequenced ze-terminal-demo-render-all alone"},
+	{Target: "ze-terminal-demo-binaries-build", Area: "site terminal-demo", Verb: "binaries-build-ze", Note: "binaries-build-ze-test carries the second half the target ran"},
+	{Target: "ze-release-assets-update", Area: "site terminal-demo", Verb: "render-all", Note: "the target sequenced ze-terminal-demo-release-render-all alone"},
+	{Target: "ze-release-assets-check", Area: "site terminal-demo", Verb: "release-check-all", Note: "the target sequenced ze-terminal-demo-release-check-all alone"},
 
 	// One Go test, named by its -run pattern and its own flag. The area is the
 	// generic job grammar `le job run label <label> command <argv...>`, which
@@ -454,7 +454,7 @@ var retiredProducers = []retiredProducer{
 	},
 	{
 		Target: "ze-appliance-build",
-		Reason: "the subject is one Go toolchain command: `go build -tags 'ze_core ze_appliance' ./cmd/ze`. The appliance personality is driven through the ze-host binary `le build-artifacts host` writes",
+		Reason: "the subject is one Go toolchain command: `go build -tags 'ze_core ze_appliance' ./cmd/ze`. The appliance personality is driven through the ze-host binary `le build host-driver` writes",
 	},
 	{
 		Target: "ze-perf-build",

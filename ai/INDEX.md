@@ -312,7 +312,9 @@ disagree, the manifest is right and the row is stale.
 | `./le arch fs-persistence` | `internal/le/arch/fspersistence.Answer` | daemon runtime state is persisted through the managed `database/` store, never as a loose file a reimage would drop |
 | `./le arch iface-resolution` | `internal/le/arch/ifaceresolution.Answer` | no Ze code resolves a configured interface name straight against the kernel: every logical name goes through the shared resolver |
 | `./le arch tier` | `internal/le/arch/tier.Answer` | module-tier placement: a config-driven engine lives in internal/component/ when a feature depends on it and in internal/plugins/ otherwise, internal/core/ imports neither, and no always-on package imports a compile-out-able feature |
-| `./le build-artifacts` | `internal/le/buildartifacts.Answer` | build the host appliance driver and the amd64 or arm64 installer initrd |
+| `./le build gosum` | `internal/le/build/gosum.Answer` | the packed gokrazy/ze/builddir/**/go.sum files agree with the root module about what a version contains |
+| `./le build host-driver` | `internal/le/build/hostdriver.Answer` | build ze-host, the `ze appliance ...` driver that runs on the build machine, at the checkout root |
+| `./le build installer` | `internal/le/build/installer.Answer` | cross-build the installer initrd PID 1 for amd64 or arm64 |
 | `./le cli catalog` | `internal/le/cli/catalog.Answer` | the generated command-catalog Markdown: check it against live registries, or rewrite it |
 | `./le cli dispatch` | `internal/le/cli/dispatch.Answer` | every command string this repository sends to its own daemon still routes, so a renamed command tree cannot leave a test passing against a key that is gone |
 | `./le cli grammar` | `internal/le/cli/grammar.Answer` | every built-in command, every registered root, every demo call site and every offline flag still obeys the CLI grammar: keyword before value, no flag in the command model, no dead launch form, and each flag in its own register |
@@ -337,7 +339,6 @@ disagree, the manifest is right and the row is stale.
 | `./le fuzz` | `internal/le/fuzz.Answer` | Go fuzzing: every `func Fuzz` under internal/, discovered at run time |
 | `./le go-extract` | `internal/le/go/extract.Answer` | move named declarations from one Go file to another, comments and formatting intact |
 | `./le go-version` | `internal/le/go/versionpin.Answer` | every build carrier that copies this module in names the Go minor version go.mod declares, so no image builds Ze on a toolchain nobody chose |
-| `./le gokrazy-gosum` | `internal/le/gokrazygosum.Answer` | the packed gokrazy/ze/builddir/**/go.sum files agree with the root module about what a version contains |
 | `./le integration` | `internal/le/integration.Answer` | integration, interop, stress, and live proofs that need Docker, root, a namespace, or internet access |
 | `./le job` | `internal/le/job.Answer` | admit a heavy job before it runs, so the sessions sharing this machine do not oversubscribe it |
 | `./le journal` | `internal/le/spec/journal.Answer` | report recurring problem classes from the committed journal |
@@ -366,13 +367,13 @@ disagree, the manifest is right and the row is stale.
 | `./le session` | `internal/le/session.Answer` | manage this development session's isolated state |
 | `./le setup` | `internal/le/setup.Answer` | install and verify every tool a Ze dev or test workflow needs |
 | `./le site facts` | `internal/le/site/facts.Answer` | the numbers the website publishes about this repository: derive them into website/data/repo-facts.json, or check what has gone stale in it |
+| `./le site terminal-demo` | `internal/le/site/terminaldemo.Answer` | build, validate, verify, and render the published terminal demonstrations |
 | `./le spec citation` | `internal/le/spec/citation.Answer` | a plan/spec-*.md citing a sibling spec absent on disk fails, unless the target is grandfathered in plan/.citation-baseline; a path:line citation whose backtick-quoted token drifted off that line warns |
 | `./le spec roadmap` | `internal/le/spec/roadmap.Answer` | release roadmap and release progress: committed inventory preview, derived plan index, and pinned endpoint evidence for weekly news |
 | `./le spec session` | `internal/le/spec.Answer` | spec ownership, per-spec state paths, transcript model facts, and independent review artifacts |
 | `./le spec status` | `internal/le/spec/status.Answer` | the spec inventory: status, bucket and stale-skeleton flag for every plan/spec-*.md |
 | `./le staticcheck-feature-matrix` | `internal/le/go/staticcheck.Answer` | the tree type-checks in every feature-tag combination Ze can be built in, so a package the default build compiles out is judged too |
 | `./le stress-repro` | `internal/le/stressrepro.Answer` | reproduce load-dependent functional-test failures under bounded CPU, GC, and process pressure |
-| `./le terminal-demo` | `internal/le/terminaldemo.Answer` | build, validate, verify, and render the published terminal demonstrations |
 | `./le test-chaos` | `internal/le/testchaos.Answer` | chaos simulator tests, reduced-tag CLI tests, and lint |
 | `./le test-health` | `internal/le/testhealth.Answer` | the project's testing state as one generated page: what is measured, what is ratcheted, and which structural facts are gated |
 | `./le test-sensitivity` | `internal/le/testsensitivity.Answer` | no more tests than the committed floor pass unconditionally or sit behind a build tag nothing supplies, which no count of tests can reveal |
@@ -380,7 +381,6 @@ disagree, the manifest is right and the row is stale.
 | `./le test-weakened` | `internal/le/testweakened.Answer` | detect and record test weakenings against a commit baseline |
 | `./le verify deps` | `internal/le/verify/deps.Answer` | the Go-tool and dependency stages used only by native pre-commit verification |
 | `./le verify lint` | `internal/le/go/lint.Answer` | run golangci-lint over every Go build flavor and prove tracked-file coverage |
-| `./le verify lock` | `internal/le/verify/lock.Answer` | run a verify-class command through the shared heavy-job admission |
 | `./le verify status` | `internal/le/verify/status.Answer` | read and write the verification certificate for the current checkout |
 | `./le verify summary` | `internal/le/verify/summary.Answer` | append one stage failure block to the verification failure index |
 | `./le verify` | `internal/le/verify.Answer` | the full pre-commit gate against a fixed commit in a detached worktree |

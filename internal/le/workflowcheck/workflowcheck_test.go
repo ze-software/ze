@@ -16,7 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/le/leroot"
 
-	_ "github.com/ze-software/ze/internal/le/buildartifacts"
+	_ "github.com/ze-software/ze/internal/le/build/hostdriver"
 	_ "github.com/ze-software/ze/internal/le/deployment"
 	_ "github.com/ze-software/ze/internal/le/fuzz"
 	_ "github.com/ze-software/ze/internal/le/integration"
@@ -187,19 +187,25 @@ var nativeActionPattern = regexp.MustCompile(
 	`(?m)(^|[[:space:];&|])(\./)?le[[:space:]]+([a-z0-9-]+)[[:space:]]+([a-z0-9-]+)([[:space:]]+([a-z0-9-]+))?`,
 )
 
-// nativeActionsIn answers each `le` invocation in a workflow as command/verb.
+// nativeActionsIn answers each `le` invocation in a workflow as command/verb,
+// or as a bare two-word command with no verb.
 //
 // Which words are the command is a question only the registry can answer, so
 // the two-word reading is tried first and the one-word reading is the
 // fallback. Guessing from the text would make `le verify deps vulnerability`
 // read as the verb `deps` of the command `verify`, which exists and does
-// something else.
+// something else. A two-word command with nothing after it, as
+// `le build host-driver` is, is its own identity and carries no slash.
 func nativeActionsIn(source string) []string {
 	matches := nativeActionPattern.FindAllStringSubmatch(source, -1)
 	actions := make([]string, 0, len(matches))
 	for _, match := range matches {
 		first, second, third := match[3], match[4], match[6]
-		if third != "" && leroot.LookupCommand(first+" "+second) != nil {
+		if leroot.LookupCommand(first+" "+second) != nil {
+			if third == "" {
+				actions = append(actions, first+" "+second)
+				continue
+			}
 			actions = append(actions, first+" "+second+"/"+third)
 			continue
 		}
@@ -216,7 +222,20 @@ func nativeActions(t *testing.T, name string) []string {
 func actionExists(t *testing.T, identity string) {
 	t.Helper()
 	area, verb, ok := strings.Cut(identity, "/")
-	if !ok || area == "" || verb == "" {
+	if !ok {
+		// A bare command runs when named, so it is judged by registration
+		// alone. Its handler is never called here, because calling it would
+		// run the build or the gate. A command with an action table answers
+		// its bare name with a listing, which no workflow step wants.
+		if leroot.LookupCommand(identity) == nil {
+			t.Fatalf("native command %q is not registered", identity)
+		}
+		if _, declared := leroot.ActionsOf(identity); declared {
+			t.Fatalf("native command %q is named without one of its actions", identity)
+		}
+		return
+	}
+	if area == "" || verb == "" {
 		t.Fatalf("invalid native action identity %q", identity)
 	}
 	handler := leroot.LookupCommand(area)
@@ -482,7 +501,7 @@ func TestQEMUNightlyScheduleActionsCachesAndBudgets(t *testing.T) {
 		}
 		if strings.Contains(job.body, "./le qemu run") {
 			for _, required := range []string{
-				"./le build-artifacts host",
+				"./le build host-driver",
 				"./ze-host appliance kernel --target runtime --arch amd64",
 				"kernel tmp/kernel/build/vmlinuz",
 			} {

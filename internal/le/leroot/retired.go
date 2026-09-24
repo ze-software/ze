@@ -61,7 +61,16 @@ func (r Rename) New() []string {
 //nolint:goconst // a row reads whole: a constant per repeated word hides which command a row names
 var renames = []Rename{
 	{Retired: "verify lock", Command: "job"},
-	{Retired: "spec session", Command: "spec"},
+	// A bare `spec session` answered the claimed spec, so it runs `spec current`;
+	// every action row below is longer, so it wins over this one.
+	{Retired: "spec session", Command: "spec current"},
+	{Retired: "spec session", RetiredAction: "claim", Command: "spec claim"},
+	{Retired: "spec session", RetiredAction: "current", Command: "spec current"},
+	{Retired: "spec session", RetiredAction: "model", Command: "spec model"},
+	{Retired: "spec session", RetiredAction: "release", Command: "spec release"},
+	{Retired: "spec session", RetiredAction: "review", Command: "spec review"},
+	{Retired: "spec session", RetiredAction: "state", Command: "spec state"},
+	{Retired: "spec session", RetiredAction: "wip", Command: "spec wip"},
 	{Retired: "journal", Command: "spec journal"},
 	{Retired: "evidence", Command: "verify evidence"},
 	{Retired: "go-extract", Command: "go extract"},

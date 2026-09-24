@@ -14,89 +14,117 @@ import (
 	"github.com/ze-software/ze/internal/le/lepath"
 )
 
-const commandName = "spec"
+// The spec namespace holds one member per lifecycle verb, each registered from
+// its own directory (internal/le/spec/<verb>/register.go). The bare `le spec`
+// is the namespace token, so the dispatcher lists these members rather than
+// answering one of them.
 
-// Answer is `le spec`. Every value follows a closed keyword.
-func Answer(args []string) (any, int) {
+// Current is `le spec current`: the spec this session claimed.
+func Current(args []string) (any, int) {
+	if len(args) != 0 {
+		return nil, refuseLifecycle(args[0])
+	}
+	owner, err := ownerAtRoot()
+	if err != nil {
+		return lifecycleError(err)
+	}
+	spec, err := owner.currentSpec()
+	if err != nil {
+		return lifecycleError(err)
+	}
+	return currentReport{Spec: spec}, 0
+}
+
+// Claim is `le spec claim spec <spec>`: this session takes the spec.
+func Claim(args []string) (any, int) {
+	if len(args) != 2 {
+		return nil, refuseLifecycle(firstArgument(args, 0))
+	}
+	if args[0] != keywordSpec {
+		return nil, refuseLifecycle(args[0])
+	}
+	owner, err := ownerAtRoot()
+	if err != nil {
+		return lifecycleError(err)
+	}
+	report, err := owner.Claim(args[1])
+	if err != nil {
+		return lifecycleError(err)
+	}
+	if report.Refused {
+		return report, 3
+	}
+	return report, 0
+}
+
+// Release is `le spec release`: this session gives its claim back.
+func Release(args []string) (any, int) {
+	if len(args) != 0 {
+		return nil, refuseLifecycle(args[0])
+	}
+	owner, err := ownerAtRoot()
+	if err != nil {
+		return lifecycleError(err)
+	}
+	if err := owner.Release(); err != nil {
+		return lifecycleError(err)
+	}
+	return releaseReport{Released: true}, 0
+}
+
+// WIP is `le spec wip`: the in-progress specs against the WIP cap.
+func WIP(args []string) (any, int) {
+	if len(args) != 0 {
+		return nil, refuseLifecycle(args[0])
+	}
 	root, err := lepath.Root()
 	if err != nil {
 		return lifecycleError(err)
 	}
-	if len(args) == 0 {
-		owner, err := newSpecOwner(root)
-		if err != nil {
-			return lifecycleError(err)
-		}
-		spec, err := owner.currentSpec()
-		if err != nil {
-			return lifecycleError(err)
-		}
-		return currentReport{Spec: spec}, 0
+	report, err := wip(root, configuredWIPCap())
+	if err != nil {
+		return lifecycleError(err)
 	}
-	switch args[0] {
-	case "wip":
-		if len(args) != 1 {
-			return nil, refuseLifecycle(args[1])
-		}
-		report, err := wip(root, configuredWIPCap())
-		if err != nil {
-			return lifecycleError(err)
-		}
-		return report, 0
-	case "model":
-		return answerModel(root, args[1:])
-	case verbCurrent, "claim", "release", "state", "review":
-		owner, err := newSpecOwner(root)
-		if err != nil {
-			return lifecycleError(err)
-		}
-		return answerOwned(owner, args)
-	default:
-		return nil, refuseLifecycle(args[0])
-	}
+	return report, 0
 }
 
-func answerOwned(owner specOwner, args []string) (any, int) {
-	switch args[0] {
-	case verbCurrent:
-		if len(args) != 1 {
-			return nil, refuseLifecycle(args[1])
-		}
-		spec, err := owner.currentSpec()
-		if err != nil {
-			return lifecycleError(err)
-		}
-		return currentReport{Spec: spec}, 0
-	case "claim":
-		if len(args) != 3 {
-			return nil, refuseLifecycle(firstArgument(args, 1))
-		}
-		if args[1] != keywordSpec {
-			return nil, refuseLifecycle(args[1])
-		}
-		report, err := owner.Claim(args[2])
-		if err != nil {
-			return lifecycleError(err)
-		}
-		if report.Refused {
-			return report, 3
-		}
-		return report, 0
-	case "release":
-		if len(args) != 1 {
-			return nil, refuseLifecycle(args[1])
-		}
-		if err := owner.Release(); err != nil {
-			return lifecycleError(err)
-		}
-		return releaseReport{Released: true}, 0
-	case "state":
-		return answerState(owner, args[1:])
-	case "review":
-		return answerReview(owner.Root, owner.SessionID, args[1:])
-	default:
-		return nil, refuseLifecycle(args[0])
+// State is `le spec state current` and `le spec state latest spec <stem>`:
+// the path of a per-spec state file.
+func State(args []string) (any, int) {
+	owner, err := ownerAtRoot()
+	if err != nil {
+		return lifecycleError(err)
 	}
+	return answerState(owner, args)
+}
+
+// Model is `le spec model current [transcript <absolute-path>]`: the model a
+// session transcript records.
+func Model(args []string) (any, int) {
+	root, err := lepath.Root()
+	if err != nil {
+		return lifecycleError(err)
+	}
+	return answerModel(root, args)
+}
+
+// Review is `le spec review <hash|record|check> ...`: independent review
+// artifacts.
+func Review(args []string) (any, int) {
+	owner, err := ownerAtRoot()
+	if err != nil {
+		return lifecycleError(err)
+	}
+	return answerReview(owner.Root, owner.SessionID, args)
+}
+
+// ownerAtRoot answers the spec owner of this session in the checkout le runs in.
+func ownerAtRoot() (specOwner, error) {
+	root, err := lepath.Root()
+	if err != nil {
+		return specOwner{}, err
+	}
+	return newSpecOwner(root)
 }
 
 func answerState(owner specOwner, args []string) (any, int) {

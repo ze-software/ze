@@ -74,7 +74,7 @@ func agentCallBudgetCheck(ctx context) *verdict {
 	var count [20]byte
 	return &verdict{2, red + bold + "❌ Blocked: this agent has made " + string(strconv.AppendInt(count[:0], calls-1, 10)) + " tool calls; its budget is " + string(strconv.AppendInt(count[10:10], agentCallBudget, 10)) + " (ai/rules/context-economy.md)." + reset + "\n" +
 		"  -- Every call now re-feeds more context than a successor's whole start costs.\n" +
-		"  -- Append your handoff to the per-spec state file: `./le spec session state current` prints its path, and /ze-implement, \"Phase handoff\", names its four parts.\n" +
+		"  -- Append your handoff to the per-spec state file: `./le spec state current` prints its path, and /ze-implement, \"Phase handoff\", names its four parts.\n" +
 		"  -- Then report to the main thread that the package needs a continuation, and stop. The continuation carries the SAME package: no stub, no trimmed criterion, no parked item.\n" +
 		"  -- A call that names that state file still passes."}
 }
