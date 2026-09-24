@@ -1,0 +1,15 @@
+# Wiring proof for the cmd=background ready= barrier.
+#
+# The background server binds its port one second after it starts, which is
+# longer than the 100ms the runner grants a background helper that declares no
+# barrier. The foreground step dials that port ONCE. With ready= the runner holds
+# the dial until the server prints its listening line, so the dial connects.
+# Remove the ready= key and the dial starts first, is refused, and this test
+# goes red: the barrier, not luck, is what makes it pass.
+
+option=timeout:value=20s
+
+cmd=background:seq=1:exec=ze-test fixture runner/background-ready-server $PORT:ready=BACKGROUND-READY: listening
+cmd=foreground:seq=2:exec=ze-test fixture runner/background-ready-dial $PORT
+expect=exit:code=0
+expect=stdout:contains=ready-barrier-held

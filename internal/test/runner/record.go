@@ -74,6 +74,12 @@ const (
 	// connection_refused against a live peer.
 	FailTypePeerNeverBound = "peer_never_bound"
 
+	// FailTypeBackgroundNeverReady marks a cmd=background process that did not
+	// print its ready= text before the test budget ended. The next step would
+	// have dialed a socket nobody served, so the test stops here and names the
+	// process rather than failing later as a protocol stall.
+	FailTypeBackgroundNeverReady = "background_never_ready"
+
 	// FailTypeLoopbackMissing marks a test whose fixture binds an address this
 	// host does not carry. The runner adds an IPv4 loopback alias itself where
 	// it can, and can never add an IPv6 one, so this is an environment fault
@@ -309,6 +315,12 @@ type RunCommand struct {
 	// which names the previously-started background process to terminate. Empty
 	// for an unnamed background process or any foreground command.
 	Name string
+
+	// Ready is the text a cmd=background process prints, on stdout or stderr,
+	// once it can serve (cmd=background:...:ready=TEXT). The runner starts no
+	// later step until the text appears, and fails the test when the budget
+	// ends first. Empty means the process has no readiness barrier.
+	Ready string
 
 	// Signal selects how a cmd=stop directive terminates its target: "kill"
 	// (SIGKILL, the default -- a peer that stops answering, needed by the DPD

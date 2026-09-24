@@ -351,8 +351,18 @@ func configuredBMPMarker04(ctx context.Context, p *sdk.Plugin) (string, error) {
 	return bmpMarkerPath04(fmt.Sprintf("%.0f", number04(collectors[0]["port"]))), nil
 }
 
-func markerObserver04(_ bool, attempts int, delay time.Duration) ObserverScenario {
+// markerObserver04 waits for the BMP collector's completion marker, then for
+// the test peer's End-of-RIB.
+//
+// The marker wait takes 80% of the test budget (WaitAttempts), not a fixed
+// attempt count: ze's startup can stall on a saturated disk, and a fixed count
+// then expires while the collector is still receiving. It is longer than the
+// collector's own 70% deadline (bmpCollector04), so when ze never connects the
+// collector's message, which names what it missed, is printed first.
+// fallback is the attempt count when no runner published a budget.
+func markerObserver04(fallback int, delay time.Duration) ObserverScenario {
 	return func(ctx context.Context, p *sdk.Plugin) error {
+		attempts := WaitAttempts(80, delay, fallback)
 		marker, err := configuredBMPMarker04(ctx, p)
 		if err != nil {
 			return err
@@ -385,9 +395,19 @@ func bmpCollector04(mode string) Driver {
 			return err
 		}
 		defer listener.Close() //nolint:errcheck // fixture teardown
+		// One deadline bounds the whole exchange, the accept and every read,
+		// and it is 70% of the test budget rather than a constant. ze connects
+		// only after its own startup, which can stall on a saturated disk for
+		// longer than any fixed accept window, and the budget is the one value
+		// that already scales with the load the run is under. 70% leaves the
+		// collector's own message room to be the one the operator reads.
+		deadline := time.Now().Add(WaitBudget(70, 25*time.Second))
+		// The runner holds ze until this line appears (the ready= key on the
+		// collector's cmd=background line), so ze never dials a port that is
+		// not yet listening and falls into the RFC 7854 reconnect backoff.
 		fmt.Fprintf(os.Stderr, "BMP-COLLECTOR: listening on %s\n", args[0])
 		if tcp, ok := listener.(*net.TCPListener); ok {
-			if err := tcp.SetDeadline(time.Now().Add(15 * time.Second)); err != nil {
+			if err := tcp.SetDeadline(deadline); err != nil {
 				return fmt.Errorf("set the collector accept deadline: %w", err)
 			}
 		}
@@ -397,7 +417,7 @@ func bmpCollector04(mode string) Driver {
 			return err
 		}
 		defer conn.Close() //nolint:errcheck // fixture teardown
-		_ = conn.SetDeadline(time.Now().Add(10 * time.Second))
+		_ = conn.SetDeadline(deadline)
 		valid := false
 		// Statistics Reports counted so far. RFC 7854 Section 4.8 asks for
 		// "configuration control ... of the timer", so the mode is satisfied by

@@ -219,7 +219,7 @@ func TestCmdUnknownKeyRefused(t *testing.T) {
 	require.Error(t, err, "a cmd= line carrying a key the parser does not read must fail the file")
 	assert.Contains(t, err.Error(), `cmd=foreground: unknown key "env"`,
 		"the refusal names the directive the author wrote and the key it could not read")
-	assert.Contains(t, err.Error(), "(accepts exec, exit, name, seq, stdin, timeout)",
+	assert.Contains(t, err.Error(), "(accepts exec, exit, name, ready, seq, stdin, timeout)",
 		"the refusal lists what the runner accepts, so the author does not have to find the parser")
 	assert.Contains(t, err.Error(), "line 2", "the refusal names the line")
 }
@@ -253,7 +253,7 @@ func TestCmdUnknownKeyNotSwallowedIntoExec(t *testing.T) {
 // is parsed into a field, so a key that is listed but dead, or read but
 // unlisted, fails here rather than in a .ci nobody re-reads.
 func TestCmdKeysAreOneDeclaration(t *testing.T) {
-	line := "cmd=background:seq=7:exec=sh run.sh:stdin=block:timeout=15s:exit=3:name=holder"
+	line := "cmd=background:seq=7:exec=sh run.sh:stdin=block:timeout=15s:exit=3:name=holder:ready=up"
 
 	rc, err := parseCmdExec(modeBackground, line)
 	require.NoError(t, err)
@@ -262,11 +262,57 @@ func TestCmdKeysAreOneDeclaration(t *testing.T) {
 	assert.Equal(t, "block", rc.Stdin)
 	assert.Equal(t, "15s", rc.Timeout)
 	assert.Equal(t, "holder", rc.Name)
+	assert.Equal(t, "up", rc.Ready)
 	require.NotNil(t, rc.ExitCode)
 	assert.Equal(t, 3, *rc.ExitCode)
 
 	// Every key the line above wrote is in the declared list, and the line above
 	// writes every key in it. A key added to cmdExecKeys with no field behind it
 	// is caught by the count.
-	assert.Len(t, cmdExecKeys, 6, "cmdExecKeys grew or shrank: give the new key a field and a case above")
+	assert.Len(t, cmdExecKeys, 7, "cmdExecKeys grew or shrank: give the new key a field and a case above")
+}
+
+// TestParseCmdExecReady proves ready= parses where it can fire and is refused
+// where it never could.
+//
+// VALIDATES: a cmd=background line carries its ready text whole, including a
+// colon and spaces, in any key position; a foreground line, a ze-peer line and
+// an empty value are parse errors.
+// PREVENTS: a barrier that is accepted and then never waited for, which reads
+// as protection while the race it names stays open.
+func TestParseCmdExecReady(t *testing.T) {
+	good := []struct {
+		name string
+		line string
+		want string
+	}{
+		{"after_exec", "cmd=background:seq=1:exec=ze-test fixture plugin/c $PORT2:ready=BMP-COLLECTOR: listening on", "BMP-COLLECTOR: listening on"},
+		{"before_exec", "cmd=background:seq=1:ready=up now:exec=sleep 60", "up now"},
+		{"with_name", "cmd=background:seq=1:exec=sleep 60:ready=up:name=holder", "up"},
+	}
+	for _, tt := range good {
+		t.Run(tt.name, func(t *testing.T) {
+			rc, err := parseCmdExec(modeBackground, tt.line)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, rc.Ready)
+		})
+	}
+
+	bad := []struct {
+		name string
+		mode string
+		line string
+		want string
+	}{
+		{"foreground", modeForeground, "cmd=foreground:seq=1:exec=sleep 1:ready=up", "only valid on cmd=background"},
+		{"empty", modeBackground, "cmd=background:seq=1:exec=sleep 60:ready=", "empty ready="},
+		{"ze_peer", modeBackground, "cmd=background:seq=1:exec=ze-peer --port $PORT:ready=listening", "not valid on ze-peer"},
+	}
+	for _, tt := range bad {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parseCmdExec(tt.mode, tt.line)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.want)
+		})
+	}
 }

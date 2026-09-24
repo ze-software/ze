@@ -21,6 +21,7 @@ const (
 	markerExit    = ":exit="
 	markerName    = ":name="
 	markerSignal  = ":signal="
+	markerReady   = ":ready="
 )
 
 // cmdExecKeys and cmdStopKeys are the keys each cmd= parser reads, declared
@@ -28,7 +29,7 @@ const (
 // a key that is not in it, so what the runner accepts and what the parser reads
 // are one declaration rather than two (ai/rules/principles.md).
 var (
-	cmdExecKeys = []string{markerSeq, markerExec, markerStdin, markerTimeout, markerExit, markerName}
+	cmdExecKeys = []string{markerSeq, markerExec, markerStdin, markerTimeout, markerExit, markerName, markerReady}
 	cmdStopKeys = []string{markerSeq, markerName, markerSignal}
 )
 
@@ -48,8 +49,10 @@ func markerValue(line, marker string, keys []string) (string, bool) {
 // parseCmdExec extracts fields from a cmd=background/foreground line using
 // marker-based parsing. This handles exec= values containing colons correctly.
 //
-// Format: cmd=background:seq=N:exec=COMMAND[:stdin=BLOCK][:timeout=DUR][:exit=N][:name=NAME].
+// Format: cmd=background:seq=N:exec=COMMAND[:stdin=BLOCK][:timeout=DUR][:exit=N][:name=NAME][:ready=TEXT].
 // name= assigns a handle a later cmd=stop directive can reference (see parseCmdStop).
+// ready= names the text a background process prints on stdout or stderr once it
+// can serve; the runner starts no later step until it appears (awaitBackgroundReady).
 func parseCmdExec(mode, line string) (RunCommand, error) {
 	directive := cmdDirective(mode)
 	if err := checkMarkerKeys(directive, line, cmdExecKeys); err != nil {
@@ -90,6 +93,25 @@ func parseCmdExec(mode, line string) (RunCommand, error) {
 			return RunCommand{}, fmt.Errorf("%s invalid timeout=%q: %w", directive, timeout, err)
 		}
 		rc.Timeout = timeout
+	}
+
+	// ready= is a barrier on a process the runner does not otherwise wait for,
+	// so it is refused where it could never fire: a foreground command is
+	// already awaited or is the daemon itself, and a ze-peer has its own
+	// "listening on" barrier and its own output capture, which the ready text
+	// would never reach. An empty value would match the first byte of output
+	// and prove nothing.
+	if ready, ok := markerValue(line, markerReady, cmdExecKeys); ok {
+		if mode != modeBackground {
+			return RunCommand{}, fmt.Errorf("%s ready= is only valid on cmd=background", directive)
+		}
+		if ready == "" {
+			return RunCommand{}, fmt.Errorf("%s empty ready=", directive)
+		}
+		if isZePeerExec(execVal) {
+			return RunCommand{}, fmt.Errorf("%s ready= is not valid on ze-peer, which has its own listening barrier", directive)
+		}
+		rc.Ready = ready
 	}
 
 	if codeStr, ok := markerValue(line, markerExit, cmdExecKeys); ok {

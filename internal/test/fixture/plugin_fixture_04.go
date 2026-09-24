@@ -23,20 +23,20 @@ func init() {
 	Register("plugin/bmp-lg-bestpath-isolation", bmpBestpath04)
 	Register("plugin/bmp-lg-disconnect", bmpDisconnect04)
 	Register("plugin/bmp-lg-ingest", bmpIngest04)
-	Register("plugin/bmp-locrib", observe04(markerObserver04(false, 100, 100*time.Millisecond)))
+	Register("plugin/bmp-locrib", observe04(markerObserver04(100, 100*time.Millisecond)))
 	Register("plugin/bmp-locrib-collector", bmpCollector04("locrib"))
 	Register("plugin/bmp-receiver-messages", bmpMessages04)
 	Register("plugin/bmp-receiver-session", bmpReceiverSessionDriver04)
-	Register("plugin/bmp-sender-peer-up-open", observe04(markerObserver04(true, 60, 250*time.Millisecond)))
+	Register("plugin/bmp-sender-peer-up-open", observe04(markerObserver04(60, 250*time.Millisecond)))
 	Register("plugin/bmp-sender-peer-up-open-collector", bmpCollector04("peer-up"))
-	Register("plugin/bmp-sender-route-mirroring", observe04(markerObserver04(false, 60, 250*time.Millisecond)))
+	Register("plugin/bmp-sender-route-mirroring", observe04(markerObserver04(60, 250*time.Millisecond)))
 	Register("plugin/bmp-sender-route-mirroring-collector", bmpCollector04("mirroring"))
-	Register("plugin/bmp-sender-route-monitoring", observe04(markerObserver04(false, 60, 250*time.Millisecond)))
+	Register("plugin/bmp-sender-route-monitoring", observe04(markerObserver04(60, 250*time.Millisecond)))
 	Register("plugin/bmp-sender-route-monitoring-collector", bmpCollector04("monitoring"))
-	// Longer than the others: the collector waits for TWO Statistics Reports at
-	// the one-second interval the .ci configures, so the marker it writes is a
-	// second or more behind the first message ze sends.
-	Register("plugin/bmp-sender-statistics", observe04(markerObserver04(false, 100, 250*time.Millisecond)))
+	// A larger fallback than the others: the collector waits for TWO Statistics
+	// Reports at the one-second interval the .ci configures, so the marker it
+	// writes is a second or more behind the first message ze sends.
+	Register("plugin/bmp-sender-statistics", observe04(markerObserver04(100, 250*time.Millisecond)))
 	Register("plugin/bmp-sender-statistics-collector", bmpCollector04("statistics"))
 	Register("plugin/bmp-sessions-show", bmpSessions04)
 	Register("plugin/capture-interface-show", observe04(captureInterface04))

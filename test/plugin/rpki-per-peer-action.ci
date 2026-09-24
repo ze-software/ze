@@ -108,6 +108,6 @@ bgp {
 EOF_CONF
 
 # VRP: 10.0.0.0/8 maxlen=24 AS=65001 (route from AS 65999 = Invalid)
-cmd=background:seq=1:exec=ze-test rtr-mock --port $PORT2 --vrp 10.0.0.0/8,24,65001
+cmd=background:seq=1:exec=ze-test rtr-mock --port $PORT2 --vrp 10.0.0.0/8,24,65001:ready=ze-test rtr-mock: listening on
 cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
 cmd=foreground:seq=3:exec=ze -:stdin=ze-bgp:timeout=20s

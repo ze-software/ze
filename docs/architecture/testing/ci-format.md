@@ -653,7 +653,7 @@ cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.1 nlri ipv4
 For orchestrating multiple processes:
 
 ```
-cmd=background:seq=<N>:exec=<command>[:stdin=<name>][:name=<handle>][:timeout=<dur>]
+cmd=background:seq=<N>:exec=<command>[:stdin=<name>][:name=<handle>][:timeout=<dur>][:ready=<text>]
 cmd=foreground:seq=<N>:exec=<command>[:stdin=<name>][:timeout=<dur>][:exit=<N>]
 cmd=stop:seq=<N>:name=<handle>[:signal=kill|term]
 ```
@@ -666,6 +666,7 @@ cmd=stop:seq=<N>:name=<handle>[:signal=kill|term]
 | `timeout` | Foreground test budget, or background process lifetime (e.g., `10s`). |
 | `exit` | Exit code asserted for **this** command (0..255). See below. |
 | `name` | Handle for a background process, so a later `cmd=stop` can target it. |
+| `ready` | `cmd=background` only: text the process prints once it can serve. See below. |
 | `signal` | `cmd=stop` only: `kill` (SIGKILL, default) or `term` (SIGTERM). |
 
 Markers may appear in any order; each value runs to the next key in the table
@@ -755,6 +756,41 @@ client, and each test failed with `no credentials for 127.0.0.1:2222`.
 <!-- source: internal/test/runner/parsing.go -- runOneCommand, the parse suite's own execution -->
 <!-- source: internal/test/fixture/fixture.go -- Run, os.ExpandEnv over the fixture's own arguments -->
 <!-- test: test/runner/exec-quoted-argument.ci -- a quoted argument carrying a pipe reaches the callee as one argv element -->
+
+#### `ready=` -- wait for a background process to serve
+
+A background process that is not ze-peer gets 100ms to start before the next
+step runs. That is a guess, and a loaded host makes it wrong. A fixture that
+serves a socket the next step dials (a BMP collector, an RTR cache) then starts
+after ze has already dialed, ze gets connection refused, and ze waits out its
+reconnect interval: 30s for BMP (RFC 7854), 600s for RTR. The test fails as a
+protocol stall.
+
+`ready=<text>` removes the guess. The runner reads the process's stdout and
+stderr, and it starts no later step until the text appears:
+
+```
+cmd=background:seq=1:exec=ze-test fixture plugin/bmp-sender-statistics-collector $PORT2:ready=BMP-COLLECTOR: listening on
+cmd=background:seq=2:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-bmp -:stdin=ze-bgp
+```
+
+- The process MUST print the text AFTER it binds, never before.
+- The wait has no deadline of its own. The test budget bounds it. When the
+  budget ends first, the test fails with `background_never_ready`, and the
+  message names the command, the text, and all output of the process.
+- The key is refused on `cmd=foreground` and on a ze-peer line. A foreground
+  command is already awaited, and ze-peer has its own "listening on" barrier.
+  An empty value is refused because it matches any output.
+- The text is a substring match, and any `:<word>=` span ends it, as with every
+  other key.
+
+<!-- source: internal/test/runner/record_parse_cmd.go -- parseCmdExec (ready=) -->
+<!-- source: internal/test/runner/background_ready.go -- awaitBackgroundReady -->
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, the readySW tee -->
+<!-- test: internal/test/runner/record_parse_cmd_test.go TestParseCmdExecReady -->
+<!-- test: internal/test/runner/background_ready_test.go TestAwaitBackgroundReady -->
+<!-- test: test/runner/background-ready.ci -- a server that binds after 1s; the dial step connects only because of ready= -->
 
 #### `cmd=stop` -- terminate a background process mid-test
 
@@ -1099,7 +1135,7 @@ Nothing is dropped in silence, and nothing is guessed.
 ```
 line 12: unknown action "exepct" (accepts action, await, cmd, command, expect, http, option, reject, stream)
 line 12: unknown expect type "stdoutt" (accepts bgp, command-error, event, exit, file, json, output, stderr, stdout, stream, syslog)
-line 12: cmd=foreground: unknown key "env" (accepts exec, exit, name, seq, stdin, timeout)
+line 12: cmd=foreground: unknown key "env" (accepts exec, exit, name, ready, seq, stdin, timeout)
 ```
 
 The accepted set in each message is the list the parser gates on, so it cannot

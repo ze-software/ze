@@ -10,6 +10,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/exec"
@@ -966,6 +967,11 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		quickZe := cmd.Mode == modeForeground && binName == binNameZe && isQuickExitZeCommand(args)
 		var quickStdout, quickStderr strings.Builder
 
+		// readySW watches a cmd=background process for its ready= text. It sees
+		// both streams, because a fixture announces readiness on whichever one
+		// it writes, and it is nil for every process that declares no barrier.
+		var readySW *syncWriter
+
 		// Capture output: each ze-peer gets its own syncWriter/stderr
 		// so WaitFor works independently per process.
 		switch {
@@ -986,6 +992,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		case quickZe:
 			proc.Stdout = &quickStdout
 			proc.Stderr = &quickStderr
+		case cmd.Ready != "":
+			readySW = newSyncWriterPattern(cmd.Ready)
+			proc.Stdout = io.MultiWriter(&clientStdout, readySW)
+			proc.Stderr = io.MultiWriter(teeDaemonStderr(&clientStderr, awaitStderrSW, binName == binNameZe), readySW)
 		default:
 			proc.Stdout = &clientStdout
 			proc.Stderr = teeDaemonStderr(&clientStderr, awaitStderrSW, binName == binNameZe)
@@ -1038,6 +1048,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			// lifetime can, and the assertions stay on the foreground process
 			// where expect=stderr: reads them.
 			startBackgroundLifetime(testCtx, cmd, proc)
+			if readySW != nil && !awaitBackgroundReady(testCtx, rec, cmd, readySW) {
+				return false
+			}
 			switch {
 			case isZePeerExec(execStr):
 				// Wait for ze-peer to be ready (listening) instead of a fixed
@@ -1104,9 +1117,14 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 					pidPath := filepath.Join(rec.WorkDir, "daemon.pid")
 					_ = os.WriteFile(pidPath, fmt.Appendf(nil, "%d", proc.Process.Pid), 0o600)
 				}
+			case readySW != nil:
+				// awaitBackgroundReady above already saw the process say it can
+				// serve, which is the barrier the sleep below only guesses at.
 			default:
 				// Other non-peer background process (helper script, or a ze
-				// daemon with no tmpfs dir): brief sleep for startup.
+				// daemon with no tmpfs dir): brief sleep for startup. A process
+				// that serves a socket the next step dials declares ready=
+				// instead, because no sleep is long enough on a loaded host.
 				time.Sleep(100 * time.Millisecond)
 			}
 		case cmd.Mode == modeForeground && binName != binNameZe && binName != binNameZePeer && cmdIdx < len(cmds)-1:
