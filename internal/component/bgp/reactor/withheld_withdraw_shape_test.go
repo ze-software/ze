@@ -124,7 +124,7 @@ func TestWithheldFlowWithdrawWritesItsAttributesWithNoRoute(t *testing.T) {
 	peer, conn := flowSpecPeer(t, "10.0.0.2")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
-	err := adapter.WithdrawNLRIBatch(selector.All(), flowWithdrawBatch(t), plugin.OperatorSender())
+	err := adapter.WithdrawNLRIBatch(t.Context(), selector.All(), flowWithdrawBatch(t), plugin.OperatorSender())
 	require.Error(t, err, "the answer still carries the reason the routes were withheld")
 
 	bodies := updateBodies(t, conn.written())
@@ -153,10 +153,10 @@ func TestWithheldFlowWithdrawArmsNothing(t *testing.T) {
 	peer, conn := flowSpecPeer(t, "10.0.0.2")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
-	require.Error(t, adapter.WithdrawNLRIBatch(selector.All(), flowWithdrawBatch(t), plugin.OperatorSender()))
+	require.Error(t, adapter.WithdrawNLRIBatch(t.Context(), selector.All(), flowWithdrawBatch(t), plugin.OperatorSender()))
 	assert.False(t, peer.hasAdvertised(), "a message with no NLRI makes no destination reachable")
 
-	require.Error(t, adapter.WithdrawNLRIBatch(selector.All(), flowWithdrawBatch(t), plugin.OperatorSender()))
+	require.Error(t, adapter.WithdrawNLRIBatch(t.Context(), selector.All(), flowWithdrawBatch(t), plugin.OperatorSender()))
 
 	bodies := updateBodies(t, conn.written())
 	require.Len(t, bodies, 2, "the second withdrawal is withheld the same way")
@@ -189,7 +189,7 @@ func TestWithheldUnicastWithdrawWritesNothing(t *testing.T) {
 		Family: family.IPv6Unicast,
 		NLRIs:  []nlri.NLRI{nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8::/48"), 0)},
 	}
-	require.Error(t, adapter.WithdrawNLRIBatch(selector.All(), batch, plugin.OperatorSender()))
+	require.Error(t, adapter.WithdrawNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()))
 
 	assert.Empty(t, updateBodies(t, conn.written()),
 		"a withdrawal with no attributes of its own leaves nothing to write")

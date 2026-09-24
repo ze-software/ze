@@ -175,20 +175,22 @@ func (m *mockReactor) AddDynamicPeer(addr netip.Addr, tree map[string]any) error
 func (m *mockReactor) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
 	return nil
 }
-func (m *mockReactor) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
+func (m *mockReactor) AnnounceNLRIBatch(_ context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
 	m.announcedBatches = append(m.announcedBatches, struct {
 		peer  string
 		batch bgptypes.NLRIBatch
 	}{sel.String(), batch})
 	return nil
+
 }
 
-func (m *mockReactor) WithdrawNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
+func (m *mockReactor) WithdrawNLRIBatch(_ context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
 	m.withdrawnBatches = append(m.withdrawnBatches, struct {
 		peer  string
 		batch bgptypes.NLRIBatch
 	}{sel.String(), batch})
 	return nil
+
 }
 
 // RIB stubs.

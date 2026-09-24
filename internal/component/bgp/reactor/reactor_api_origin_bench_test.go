@@ -164,7 +164,7 @@ func BenchmarkAnnounceRails(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
 		for range b.N {
-			if u := buildRIBRouteUpdate(attrBuf, route, 65000, true, true, false); u == nil {
+			if u := buildRIBRouteUpdate(attrBuf, route, route.NextHop(), 65000, true, true, false); u == nil {
 				b.Fatal("queued build failed")
 			}
 		}

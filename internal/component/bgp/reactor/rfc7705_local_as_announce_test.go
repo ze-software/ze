@@ -91,7 +91,7 @@ func announceLocalASRun(t *testing.T, groups bool, dests []announceLocalASPeer) 
 		NLRIs:   []nlri.NLRI{nlri.NewINET(family.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("1.1.1.1")),
 	}
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), batch, plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()))
 
 	got := make(map[string][]uint32, len(dests))
 	for addr, conn := range conns {

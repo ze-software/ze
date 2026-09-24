@@ -3,6 +3,7 @@
 package types
 
 import (
+	"context"
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/bgp/rib"
@@ -53,7 +54,8 @@ type BGPReactor interface {
 
 	// AnnounceNLRIBatch announces a batch of NLRIs with shared attributes.
 	// RFC 4271 Section 4.3, RFC 4760, RFC 8654.
-	AnnounceNLRIBatch(sel *selector.Selector, batch NLRIBatch, sender plugin.Sender) error
+	// ctx bounds admission and the peer's socket write, including flush.
+	AnnounceNLRIBatch(ctx context.Context, sel *selector.Selector, batch NLRIBatch, sender plugin.Sender) error
 
 	// AnnounceEOR sends an End-of-RIB marker for the given address family.
 	AnnounceEOR(sel *selector.Selector, afi uint16, safi uint8, sender plugin.Sender) error
@@ -62,7 +64,8 @@ type BGPReactor interface {
 
 	// WithdrawNLRIBatch withdraws a batch of NLRIs.
 	// RFC 4271 Section 4.3, RFC 4760.
-	WithdrawNLRIBatch(sel *selector.Selector, batch NLRIBatch, sender plugin.Sender) error
+	// ctx bounds admission and the peer's socket write, including flush.
+	WithdrawNLRIBatch(ctx context.Context, sel *selector.Selector, batch NLRIBatch, sender plugin.Sender) error
 
 	// --- BGP messages (3 methods) ---
 

@@ -383,7 +383,7 @@ func TestRFC4271ThirdPartyNextHopDisableFailsClosed(t *testing.T) {
 	assert.Equal(t, nhModeNone, facts.nhMode, "no rewrite armed without a local address")
 
 	p := &Peer{settings: s}
-	_, err := p.resolveNextHop(bgptypes.NewNextHopSelf(), family.IPv4Unicast)
+	_, err := p.resolveNextHop(nil, bgptypes.NewNextHopSelf(), family.IPv4Unicast)
 	assert.ErrorIs(t, err, ErrNextHopSelfNoLocal)
 }
 

@@ -41,7 +41,7 @@ func llnhAdvertise(isIBGP bool, nextHop netip.Addr) *message.Update {
 	route := rib.NewRouteWithASPath(
 		nlri.NewINET(family.IPv6Unicast, netip.MustParsePrefix("2001:db8:7::/64"), 0),
 		nextHop, nil, nil)
-	return buildRIBRouteUpdate(make([]byte, message.MaxMsgLen), route, 65000,
+	return buildRIBRouteUpdate(make([]byte, message.MaxMsgLen), route, nextHop, 65000,
 		isIBGP, true /*asn4*/, false /*addPath*/)
 }
 

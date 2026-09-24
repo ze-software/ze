@@ -162,7 +162,7 @@ func TestStaticWithdrawWithheldOnAConnectionThatAdvertisedNothing(t *testing.T) 
 	peer, conn := newInitialSyncPeer(t, true, family.IPv4Unicast)
 	require.False(t, peer.hasAdvertised(), "the fixture must start with nothing advertised")
 
-	peer.withdrawStaticRoutes([]StaticRoute{staticRouteAt("10.0.1.0/24", "10.9.9.9")}, 4096, false)
+	peer.withdrawStaticRoutes(peer.currentSession(), []StaticRoute{staticRouteAt("10.0.1.0/24", "10.9.9.9")}, 4096, false)
 
 	assert.Empty(t, conn.written(), "no withdrawal is written on a connection that advertised nothing")
 }

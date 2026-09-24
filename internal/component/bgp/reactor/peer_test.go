@@ -401,8 +401,8 @@ func TestPeerOpQueueOrdering(t *testing.T) {
 	route1 := testRoute("10.0.0.0/8")
 	route2 := testRoute("20.0.0.0/8")
 
-	require.NoError(t, peer.QueueAnnounce(route1))
-	require.NoError(t, peer.QueueAnnounce(route2))
+	require.NoError(t, peer.QueueAnnounce(route1, false))
+	require.NoError(t, peer.QueueAnnounce(route2, false))
 
 	// Verify queue order
 	peer.mu.RLock()
@@ -442,7 +442,7 @@ func TestPeerShouldQueue(t *testing.T) {
 
 	// Queue has items → should queue (preserves insertion order)
 	route := testRoute("10.0.0.0/8")
-	require.NoError(t, peer.QueueAnnounce(route))
+	require.NoError(t, peer.QueueAnnounce(route, false))
 	require.True(t, peer.shouldQueue(), "should queue when opQueue non-empty")
 
 	// Clear queue, still established → should not queue
@@ -500,9 +500,9 @@ func TestPeerOpQueueMixedOperations(t *testing.T) {
 	route1 := testRoute("10.0.0.0/8")
 	route2 := testRoute("20.0.0.0/8")
 
-	require.NoError(t, peer.QueueAnnounce(route1))
+	require.NoError(t, peer.QueueAnnounce(route1, false))
 	require.NoError(t, peer.Teardown(4, ""))
-	require.NoError(t, peer.QueueAnnounce(route2))
+	require.NoError(t, peer.QueueAnnounce(route2, false))
 
 	peer.mu.RLock()
 	require.Len(t, peer.opQueue, 3, "queue should have 3 items")
@@ -558,7 +558,7 @@ func TestPeerOpQueueOverflow(t *testing.T) {
 	// Fill queue to capacity with valid routes
 	route := testRoute("10.0.0.0/8")
 	for range DefaultOpQueueSize {
-		require.NoError(t, peer.QueueAnnounce(route))
+		require.NoError(t, peer.QueueAnnounce(route, false))
 	}
 
 	peer.mu.RLock()
@@ -566,7 +566,7 @@ func TestPeerOpQueueOverflow(t *testing.T) {
 	peer.mu.RUnlock()
 
 	// Past the cap the route is DROPPED, not delayed, and the caller is told.
-	require.ErrorIs(t, peer.QueueAnnounce(route), ErrOpQueueFull)
+	require.ErrorIs(t, peer.QueueAnnounce(route, false), ErrOpQueueFull)
 	require.ErrorIs(t, peer.Teardown(4, ""), ErrOpQueueFull)
 
 	peer.mu.RLock()
@@ -1044,39 +1044,43 @@ func TestResolveNextHop_Explicit(t *testing.T) {
 	addr := netip.MustParseAddr("10.0.0.1")
 	nh := bgptypes.NewNextHopExplicit(addr)
 
-	got, err := peer.resolveNextHop(nh, family.IPv4Unicast)
+	got, err := peer.resolveNextHop(peer.session, nh, family.IPv4Unicast)
 	require.NoError(t, err)
 	require.Equal(t, addr, got)
 }
 
 // TestResolveNextHop_Self verifies self next-hop resolution.
 //
-// VALIDATES: Self policy returns LocalAddress from settings.
-// PREVENTS: Self policy using wrong address or failing unexpectedly.
+// VALIDATES: Self names the connected endpoint for both IP and BGP-LS NLRI.
+// PREVENTS: A configured bind address replacing the actual socket endpoint.
 func TestResolveNextHop_Self(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
 	settings.LocalAddress = netip.MustParseAddr("10.0.0.100")
 	peer := NewPeer(settings)
+	peer.session, _ = newConnectedLocalSession(t, settings, "127.0.0.1")
 
 	nh := bgptypes.NewNextHopSelf()
 
-	got, err := peer.resolveNextHop(nh, family.IPv4Unicast)
-	require.NoError(t, err)
-	require.Equal(t, settings.LocalAddress, got)
+	for _, fam := range []family.Family{family.IPv4Unicast, {AFI: family.AFIBGPLS, SAFI: family.SAFIBGPLinkState}} {
+		got, err := peer.resolveNextHop(peer.session, nh, fam)
+		require.NoError(t, err)
+		require.Equal(t, netip.MustParseAddr("127.0.0.1"), got)
+	}
 }
 
-// TestResolveNextHop_SelfNoLocal verifies error when Self without LocalAddress.
+// TestResolveNextHop_SelfNoLocal verifies self cannot invent a socket endpoint.
 //
-// VALIDATES: Self policy without LocalAddress returns ErrNextHopSelfNoLocal.
-// PREVENTS: Using invalid/zero address when LocalAddress not configured.
+// VALIDATES: A configured address without a connected endpoint is not self.
+// PREVENTS: A missing transport snapshot falling back to configured state.
 func TestResolveNextHop_SelfNoLocal(t *testing.T) {
 	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
-	// LocalAddress not set (zero value)
+	settings.LocalAddress = netip.MustParseAddr("10.0.0.100")
 	peer := NewPeer(settings)
+	peer.session = NewSession(settings)
 
 	nh := bgptypes.NewNextHopSelf()
 
-	_, err := peer.resolveNextHop(nh, family.IPv4Unicast)
+	_, err := peer.resolveNextHop(peer.session, nh, family.IPv4Unicast)
 	require.ErrorIs(t, err, ErrNextHopSelfNoLocal)
 }
 
@@ -1090,7 +1094,7 @@ func TestResolveNextHop_Unset(t *testing.T) {
 
 	var nh bgptypes.RouteNextHop // zero value = NextHopUnset
 
-	_, err := peer.resolveNextHop(nh, family.IPv4Unicast)
+	_, err := peer.resolveNextHop(peer.session, nh, family.IPv4Unicast)
 	require.ErrorIs(t, err, ErrNextHopUnset)
 }
 
@@ -1104,7 +1108,7 @@ func TestResolveNextHop_ExplicitInvalid(t *testing.T) {
 
 	nh := bgptypes.NewNextHopExplicit(netip.Addr{}) // invalid addr
 
-	got, err := peer.resolveNextHop(nh, family.IPv4Unicast)
+	got, err := peer.resolveNextHop(peer.session, nh, family.IPv4Unicast)
 	require.NoError(t, err, "explicit bypasses validation")
 	require.False(t, got.IsValid(), "should return invalid addr as-is")
 }
@@ -1251,6 +1255,36 @@ func TestPeerPauseReadingDelegates(t *testing.T) {
 		peer.resumeReading()
 		require.False(t, peer.isReadPaused())
 	})
+}
+
+// VALIDATES: RFC 9552 Section 5.5 lets either IP family carry BGP-LS next hops.
+// PREVENTS: applying Extended Next Hop requirements to LS, or accepting every
+// non-IP family or a non-unicast address under an overly broad exception.
+func TestCanUseNextHopFor_BGPls(t *testing.T) {
+	peer := NewPeer(NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101))
+	ls := family.Family{AFI: family.AFIBGPLS, SAFI: family.SAFIBGPLinkState}
+	vpn := family.Family{AFI: family.AFIBGPLS, SAFI: family.SAFIBGPLinkStateVPN}
+	for _, tc := range []struct {
+		name string
+		fam  family.Family
+		addr netip.Addr
+		want bool
+	}{
+		{"ls-ipv4", ls, netip.MustParseAddr("192.0.2.1"), true},
+		{"ls-ipv6", ls, netip.MustParseAddr("2001:db8::1"), true},
+		{"ls-vpn-ipv4", vpn, netip.MustParseAddr("192.0.2.1"), true},
+		{"ls-vpn-ipv6", vpn, netip.MustParseAddr("2001:db8::1"), true},
+		{"unknown-safi", family.Family{AFI: family.AFIBGPLS, SAFI: family.SAFIUnicast}, netip.MustParseAddr("192.0.2.1"), false},
+		{"unknown-afi", family.Family{AFI: 999, SAFI: family.SAFIBGPLinkState}, netip.MustParseAddr("192.0.2.1"), false},
+		{"missing", ls, netip.Addr{}, false},
+		{"unspecified", ls, netip.MustParseAddr("0.0.0.0"), false},
+		{"multicast", ls, netip.MustParseAddr("ff02::1"), false},
+		{"broadcast", ls, netip.MustParseAddr("255.255.255.255"), false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			require.Equal(t, tc.want, peer.canUseNextHopFor(tc.addr, tc.fam))
+		})
+	}
 }
 
 // TestPeerTeardownQueuesMessage verifies that Teardown preserves the RFC 8203

@@ -145,11 +145,12 @@ const (
 
 // peerOp represents a queued operation (announce, withdraw, or teardown).
 type peerOp struct {
-	Type    PeerOpType
-	Route   *rib.Route // For PeerOpAnnounce
-	NLRI    nlri.NLRI  // For PeerOpWithdraw
-	Subcode uint8      // For PeerOpTeardown
-	Message string     // For PeerOpTeardown: RFC 8203 shutdown communication
+	Type        PeerOpType
+	Route       *rib.Route // For PeerOpAnnounce
+	NextHopSelf bool       // Resolve against the session that drains this announcement.
+	NLRI        nlri.NLRI  // For PeerOpWithdraw
+	Subcode     uint8      // For PeerOpTeardown
+	Message     string     // For PeerOpTeardown: RFC 8203 shutdown communication
 
 	// Automatic is set when the LOCAL SYSTEM chose this teardown rather than
 	// the operator, so draining it raises RFC 4271 Event 8 (AutomaticStop)
@@ -183,7 +184,7 @@ const DefaultOpQueueSize = 10000
 //
 // The peer uses opQueue for ordering when session is not established.
 // Maintains strict ordering of announce/withdraw/teardown operations.
-// Processed on session establishment, with teardowns acting as batch separators.
+// Processed on session establishment until a queued teardown ends the sync.
 //
 // When a route is announced:
 //   - Session ESTABLISHED → sent immediately
@@ -191,7 +192,7 @@ const DefaultOpQueueSize = 10000
 //
 // On session establishment:
 //  1. opQueue is processed in order until a teardown is encountered
-//  2. Teardown sends EOR + NOTIFICATION, remaining opQueue items persist
+//  2. Teardown sends EOR + NOTIFICATION and discards unsent queue items.
 //
 // Note: Route persistence across reconnects is delegated to external API programs.
 // See capability contract for route-refresh handling.
@@ -245,6 +246,19 @@ type Peer struct {
 	// Created in runOnce() before session.Run(), closed after session exits.
 	// nil means synchronous delivery (no channel configured).
 	deliverChan chan deliveryItem
+
+	// validationForwardMu orders received and retained-route dispatch for this
+	// source. Callers MUST hold it from eligibility lookup through FIFO enqueue.
+	validationForwardMu sync.Mutex
+
+	// forwardCached latches once this source uses validation or AIGP forwarding.
+	// Later UPDATEs MUST use the same source FIFO, including attribute-free
+	// withdrawals. Reconnect and settings reload MUST NOT clear this latch.
+	forwardCached atomic.Bool
+
+	// forwardGeneration fences delayed live forwards across sessions. Publishing
+	// Established MUST advance it; receive snapshots MUST retain its value.
+	forwardGeneration atomic.Uint64
 
 	// Reconnect configuration
 	reconnectMin time.Duration
@@ -1337,34 +1351,6 @@ func (p *Peer) asn4() bool {
 	return ctx.ASN4()
 }
 
-// resolveNextHop returns the actual IP address for a RouteNextHop policy.
-// Uses session's LocalAddress for Self, validates against Extended NH capability.
-//
-// RFC 4271 Section 5.1.3 - NEXT_HOP attribute.
-// RFC 5549/8950 - Extended Next Hop Encoding.
-//
-// An IPv6 link-local address is refused on a session that may not carry the
-// form it produces (linkLocalOnlyNextHopPermitted below). The refusal is here,
-// on the one function every origination rail resolves through, rather than at
-// each of them: a route the speaker cannot encode conformantly is left out of
-// the announcement, which is what draft-ietf-idr-linklocal-capability Section 4
-// asks for -- "If, after completing these procedures, there are no IPv6 next hop
-// addresses included in the next hop, the BGP route MUST not be advertised to
-// its peer" -- and each caller already logs the skip.
-func (p *Peer) resolveNextHop(nh bgptypes.RouteNextHop, fam family.Family) (netip.Addr, error) {
-	addr, err := p.resolveNextHopAddr(nh, fam)
-	if err != nil {
-		return netip.Addr{}, err
-	}
-	if !addr.Is6() || !addr.IsLinkLocalUnicast() {
-		return addr, nil
-	}
-	if !p.linkLocalOnlyNextHopPermitted(fam) {
-		return netip.Addr{}, ErrNextHopLinkLocalOnly
-	}
-	return addr, nil
-}
-
 // linkLocalOnlyNextHopPermitted reports whether this session may send a 16-octet
 // Link-Local-only Next Hop field for an NLRI of fam.
 //
@@ -1386,32 +1372,49 @@ func (p *Peer) linkLocalOnlyNextHopPermitted(fam family.Family) bool {
 	)
 }
 
-// resolveNextHopAddr answers the address one RouteNextHop policy names, before
-// the wire-form question resolveNextHop asks of it.
-func (p *Peer) resolveNextHopAddr(nh bgptypes.RouteNextHop, fam family.Family) (netip.Addr, error) {
+// resolveNextHop returns the actual IP address for a RouteNextHop policy.
+// Self names the connected session endpoint, not a configured listener address.
+//
+// RFC 4271 Section 5.1.3 - NEXT_HOP attribute.
+// RFC 5549/8950 - Extended Next Hop Encoding.
+//
+// An IPv6 link-local address is refused on a session that may not carry the
+// form it produces (linkLocalOnlyNextHopPermitted). The refusal is here,
+// on the one function every origination rail resolves through, rather than at
+// each of them: a route the speaker cannot encode conformantly is left out of
+// the announcement, which is what draft-ietf-idr-linklocal-capability Section 4
+// asks for -- "If, after completing these procedures, there are no IPv6 next hop
+// addresses included in the next hop, the BGP route MUST not be advertised to
+// its peer" -- and each caller already logs the skip.
+// The caller binds self to the session that will write the UPDATE.
+// Queued operations retain the policy, so reconnecting cannot replay an old
+// connection's resolved address as though it were an explicit next hop.
+func (p *Peer) resolveNextHop(session *Session, nh bgptypes.RouteNextHop, fam family.Family) (netip.Addr, error) {
+	var addr netip.Addr
 	switch nh.Policy {
 	case bgptypes.NextHopExplicit:
-		// Explicit addresses bypass validation - user is responsible.
-		// Returns invalid addr without error if that's what was configured.
-		return nh.Addr, nil
-
+		// Explicit addresses are validated by the wire builder.
+		addr = nh.Addr
 	case bgptypes.NextHopSelf:
-		local := p.settings.LocalAddress
-		if !local.IsValid() {
+		if session == nil {
 			return netip.Addr{}, ErrNextHopSelfNoLocal
 		}
-		// Validate: can we use this address for this NLRI family?
-		if !p.canUseNextHopFor(local, fam) {
+		transport := session.transport.Load()
+		if transport == nil || !transport.local.IsValid() ||
+			transport.local.IsUnspecified() || transport.local.IsMulticast() {
+			return netip.Addr{}, ErrNextHopSelfNoLocal
+		}
+		addr = transport.local
+		if !p.canUseNextHopFor(addr, fam) {
 			return netip.Addr{}, ErrNextHopIncompatible
 		}
-		return local, nil
-
-	case bgptypes.NextHopUnset:
-		return netip.Addr{}, ErrNextHopUnset
-
 	default:
 		return netip.Addr{}, ErrNextHopUnset
 	}
+	if addr.Is6() && addr.IsLinkLocalUnicast() && !p.linkLocalOnlyNextHopPermitted(fam) {
+		return netip.Addr{}, ErrNextHopLinkLocalOnly
+	}
+	return addr, nil
 }
 
 // canUseNextHopFor checks if addr is valid as next-hop for family.
@@ -1420,6 +1423,14 @@ func (p *Peer) resolveNextHopAddr(nh bgptypes.RouteNextHop, fam family.Family) (
 //
 // RFC 5549/8950: Extended Next Hop Encoding for cross-family next-hops.
 func (p *Peer) canUseNextHopFor(addr netip.Addr, fam family.Family) bool {
+	// RFC 9552 Section 5.5: link-state information "can be carried over
+	// either an IPv4 BGP session or an IPv6 BGP session"; the next-hop
+	// length specifies its address family. Neither LS SAFI requires
+	// Extended Next Hop negotiation to use the transport's IP family.
+	if fam.AFI == family.AFIBGPLS &&
+		(fam.SAFI == family.SAFIBGPLinkState || fam.SAFI == family.SAFIBGPLinkStateVPN) {
+		return addr.IsGlobalUnicast() || addr.IsLoopback() || addr.IsLinkLocalUnicast()
+	}
 	// Natural match - always allowed
 	if addr.Is4() && fam.AFI == family.AFIIPv4 {
 		return true
@@ -1476,6 +1487,7 @@ func (p *Peer) State() PeerState {
 // pre-existing contract of the store this replaces.
 func (p *Peer) setState(s PeerState) {
 	if s == PeerStateEstablished {
+		p.forwardGeneration.Add(1)
 		p.sendingInitialRoutes.Store(1)
 		p.initialSyncEOROwed.Store(true)
 	}
@@ -1616,6 +1628,9 @@ func (p *Peer) sealSession() {
 
 // Stop signals the peer to stop.
 func (p *Peer) Stop() {
+	// Stop may precede asynchronous session teardown during configuration removal.
+	// Fence already queued live UPDATEs before another peer can reuse the address.
+	p.forwardGeneration.Add(1)
 	p.mu.Lock()
 	cancel := p.cancel
 	p.mu.Unlock()
@@ -1906,13 +1921,14 @@ func handshakeInFlight(session *Session) bool {
 
 // QueueAnnounce queues a route announcement for when session establishes.
 // Used when session is not established to maintain operation order.
+// nextHopSelf retains the policy until the receiving session drains the queue.
 // If queue is full, the operation is dropped with a warning.
 // Returns ErrOpQueueFull when the queue is at its cap and the route was NOT
 // queued. The error is the point: past the cap this route reaches the peer
 // NEVER, because the queue is the only path while the gate is closed, and a
 // caller that cannot tell a queued route from a dropped one reports success for
 // a RIB the peer will never receive (ai/rules/principles.md).
-func (p *Peer) QueueAnnounce(route *rib.Route) error {
+func (p *Peer) QueueAnnounce(route *rib.Route, nextHopSelf bool) error {
 	p.mu.Lock()
 	if len(p.opQueue) >= p.opQueueMax {
 		size := len(p.opQueue)
@@ -1921,7 +1937,7 @@ func (p *Peer) QueueAnnounce(route *rib.Route) error {
 		p.raiseOpQueueFull(size)
 		return ErrOpQueueFull
 	}
-	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpAnnounce, Route: route})
+	p.opQueue = append(p.opQueue, peerOp{Type: PeerOpAnnounce, Route: route, NextHopSelf: nextHopSelf})
 	p.mu.Unlock()
 	return nil
 }

@@ -6,6 +6,7 @@
 package reactor
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/netip"
@@ -134,6 +135,13 @@ func announceFactsFor(peer *Peer, fam family.Family, nextHop netip.Addr, isIBGP 
 	}
 }
 
+// announceTarget keeps a build's socket identity out of its byte-equivalence
+// key: peers may share bytes, but a replacement session cannot inherit them.
+type announceTarget struct {
+	peer    *Peer
+	session *Session
+}
+
 // nlriUnitLen is how many NLRIs of one batch a single UPDATE carries toward one
 // peer, and it is the ONE place `behavior { group-updates <bool> }` becomes
 // framing. Every rail that sends a batch reads it here -- the announce, the
@@ -188,7 +196,7 @@ func nlriUnitLen(count int, groupUpdates bool) int {
 // each peer that needed none because it already held the batch. The callers read
 // only whether it is zero, and a zero would say "no peer carries this family",
 // which is untrue of a peer that has the route already.
-func (a *reactorAPIAdapter) announceBatchToPeers(peers []*Peer, batch bgptypes.NLRIBatch, facts announceFacts) (int, error) {
+func (a *reactorAPIAdapter) announceBatchToPeers(ctx context.Context, targets []announceTarget, batch bgptypes.NLRIBatch, facts announceFacts) (int, error) {
 	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, facts.extended))
 
 	attrHandle := getBuildBuf()
@@ -203,9 +211,12 @@ func (a *reactorAPIAdapter) announceBatchToPeers(peers []*Peer, batch bgptypes.N
 	// partial holds the peers whose Adj-RIB-Out suppresses SOME of this unit's
 	// prefixes. It stays nil in the common case: a unit is one prefix whenever
 	// `group-updates false`, so a peer is either sent it or is not.
-	var partial []*Peer
+	var partial []announceTarget
 
 	for off := 0; ; off += unitLen {
+		if err := ctx.Err(); err != nil {
+			return sent, err
+		}
 		end := min(off+unitLen, len(batch.NLRIs))
 		unit := batch
 		unit.NLRIs = batch.NLRIs[off:end]
@@ -222,7 +233,11 @@ func (a *reactorAPIAdapter) announceBatchToPeers(peers []*Peer, batch bgptypes.N
 		built := newAnnounceUnit(update, nlriHandle.Buf, unit, facts)
 		partial = partial[:0]
 
-		for _, peer := range peers {
+		for _, target := range targets {
+			peer := target.peer
+			if err := ctx.Err(); err != nil {
+				return sent, err
+			}
 			held := built.heldBy(peer)
 			if held == len(unit.NLRIs) {
 				peer.adjOut.recordSuppressed(held)
@@ -231,10 +246,10 @@ func (a *reactorAPIAdapter) announceBatchToPeers(peers []*Peer, batch bgptypes.N
 				continue
 			}
 			if held > 0 {
-				partial = append(partial, peer)
+				partial = append(partial, target)
 				continue
 			}
-			if err := peer.sendUpdateWithSplit(update, maxMsgSize, facts.addPath); err != nil {
+			if err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, facts.addPath); err != nil {
 				lastErr = err
 				continue
 			}
@@ -243,7 +258,7 @@ func (a *reactorAPIAdapter) announceBatchToPeers(peers []*Peer, batch bgptypes.N
 		}
 
 		if len(partial) > 0 {
-			n, err := a.announcePartialToPeers(partial, &built, maxMsgSize)
+			n, err := a.announcePartialToPeers(ctx, partial, &built, maxMsgSize)
 			sent += n
 			if err != nil {
 				lastErr = err
@@ -265,7 +280,10 @@ func (a *reactorAPIAdapter) announceBatchToPeers(peers []*Peer, batch bgptypes.N
 // sender is who makes the announce: an attached process, or the operator. It
 // is gated on `send [ update ]`: this rail originates routes, which
 // is the permission an operator grants when they write that word.
-func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
+func (a *reactorAPIAdapter) AnnounceNLRIBatch(ctx context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	a.r.mu.RLock()
 	peers, permErr := a.getMatchingPeersSel(sel, announceOrigin(sender))
 	a.r.mu.RUnlock()
@@ -324,13 +342,14 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 	// how many messages the batch becomes for it. Only the zero test at the end
 	// reads it.
 	var acceptedCount int
+	queuedEVPNChecked := false
 
 	// Group-aware path: when update groups are enabled, collect established
 	// peers whose announceFacts are equal and build the UPDATE once per group.
 	// Falls back to per-peer when disabled or when peers differ.
 	type announceBuildGroup struct {
-		facts announceFacts
-		peers []*Peer
+		facts   announceFacts
+		targets []announceTarget
 	}
 
 	groupsEnabled := a.r.updateGroups != nil && a.r.updateGroups.Enabled()
@@ -341,6 +360,9 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 	}
 
 	for i := range peers {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		peer := peers[i]
 		// Guarded: this batch-announce path runs on an API/plugin goroutine and may read a
 		// dynamic peer still resolving its ASN (sibling PeerAS read at :886 is guarded too).
@@ -351,13 +373,22 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 		// the FlowSpec next-hop length to zero, so there is nothing to resolve
 		// and a failure to resolve it is not a reason to skip the peer
 		// (family.Family.NeedsNextHop).
-		nextHop, nhErr := peer.resolveNextHop(batch.NextHop, batch.Family)
-		if nhErr != nil && batch.Family.NeedsNextHop() {
-			routesLogger().Debug("next-hop resolution failed", "peer", peer.Settings().Address, "error", nhErr)
-			continue
+		queued := peer.shouldQueue()
+		target := announceTarget{peer: peer}
+		if !queued {
+			target.session = peer.currentSession()
+		}
+		var nextHop netip.Addr
+		if !queued || !batch.NextHop.IsSelf() {
+			var nhErr error
+			nextHop, nhErr = peer.resolveNextHop(target.session, batch.NextHop, batch.Family)
+			if nhErr != nil && batch.Family.NeedsNextHop() {
+				routesLogger().Debug("next-hop resolution failed", "peer", peer.Settings().Address, "error", nhErr)
+				continue
+			}
 		}
 
-		if !peer.shouldQueue() {
+		if !queued {
 			// Check family negotiation
 			nc := peer.negotiated.Load()
 			if nc == nil || !nc.Has(batch.Family) {
@@ -369,7 +400,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 			// depreferenced for non-LLGR iBGP, or withdrawn for non-LLGR eBGP.
 			// Rare (GR-expiry) path; the common Stale==0 path is untouched.
 			if batch.Stale > 0 && len(a.r.readvertiseEgressFilters) > 0 {
-				sent, failErr := a.sendStaleReadvertise(peer, batch, nextHop, isIBGP, nc)
+				sent, failErr := a.sendStaleReadvertise(ctx, target, batch, nextHop, isIBGP, nc)
 				acceptedCount += sent
 				switch {
 				case failErr != nil:
@@ -395,18 +426,25 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 					bg = &announceBuildGroup{facts: facts}
 					buildGroups[facts] = bg
 				}
-				bg.peers = append(bg.peers, peer)
+				bg.targets = append(bg.targets, target)
 			} else {
-				// Per-peer path (update groups disabled). peers[i:i+1] is a view
-				// of the slice already in hand, so the one-peer set costs no
-				// allocation on the fan-out (ai/rules/performance.md).
-				n, sendErr := a.announceBatchToPeers(peers[i:i+1], batch, facts)
+				// A single stack slot keeps the per-peer path allocation-free
+				// while binding resolution and delivery to the same session.
+				targets := [1]announceTarget{target}
+				n, sendErr := a.announceBatchToPeers(ctx, targets[:], batch, facts)
 				acceptedCount += n
 				if sendErr != nil {
 					lastErr = sendErr
 				}
 			}
 		} else {
+			if !queuedEVPNChecked && batch.Wire == nil &&
+				batch.Family == (family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}) {
+				if err := validateQueuedEVPNOrigin(batch, attrs); err != nil {
+					return err
+				}
+				queuedEVPNChecked = true
+			}
 			// Session not established or queue draining: queue to preserve order
 			// Build AS_PATH only for queue path (iBGP vs eBGP); the established
 			// path builds AS_PATH inside the UPDATE wire bytes directly.
@@ -419,8 +457,11 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 			// queueing gate closed for up to `max-delay` (update_delay.go).
 			queued := true
 			for _, n := range batch.NLRIs {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
 				ribRoute := rib.NewRouteWithASPath(n, nextHop, attrs, asPath)
-				if err := peer.QueueAnnounce(ribRoute); err != nil {
+				if err := peer.QueueAnnounce(ribRoute, batch.NextHop.IsSelf()); err != nil {
 					lastErr = err
 					queued = false
 					break
@@ -436,11 +477,14 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 	// and the send invariant are announceBatchToPeers's, so a group of peers and
 	// a single peer cannot be framed differently.
 	for _, bg := range buildGroups {
-		n, sendErr := a.announceBatchToPeers(bg.peers, batch, bg.facts)
+		n, sendErr := a.announceBatchToPeers(ctx, bg.targets, batch, bg.facts)
 		acceptedCount += n
 		if sendErr != nil {
 			lastErr = sendErr
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
 	// Return warning-level error if no peers accepted (all skipped due to family).
@@ -467,7 +511,8 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(sel *selector.Selector, batch bgpt
 		case errors.Is(lastErr, errAnnounceTooLarge),
 			errors.Is(lastErr, errAnnounceNextHopUnencodable),
 			errors.Is(lastErr, errWithdrawTooLarge),
-			errors.Is(lastErr, errStaleReadvertiseWithheld):
+			errors.Is(lastErr, errStaleReadvertiseWithheld),
+			errors.Is(lastErr, message.ErrEVPNOrigination):
 			return lastErr
 		}
 		return route.ErrNoPeersAcceptedFamily
@@ -543,7 +588,7 @@ func withdrawFactsFor(peer *Peer, batch bgptypes.NLRIBatch, isIBGP bool, nc *Neg
 // has no route for any withdrawal to name, so nothing is written to it and the
 // peers it happened to are ANSWERED (route.ErrWithdrawWithheld). The third
 // return is those peers, by address, in the order they were met.
-func (a *reactorAPIAdapter) withdrawBatchFromPeers(peers []*Peer, batch bgptypes.NLRIBatch, facts announceFacts) (int, []string, error) {
+func (a *reactorAPIAdapter) withdrawBatchFromPeers(ctx context.Context, peers []*Peer, batch bgptypes.NLRIBatch, facts announceFacts) (int, []string, error) {
 	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, facts.extended))
 
 	attrHandle := getBuildBuf()
@@ -566,13 +611,16 @@ func (a *reactorAPIAdapter) withdrawBatchFromPeers(peers []*Peer, batch bgptypes
 		// before that loop starts.
 		withheldUpdate := a.buildWithheldWithdrawUpdate(attrHandle.Buf, batch, facts)
 		for _, peer := range unarmed {
+			if err := ctx.Err(); err != nil {
+				return 0, withheld, err
+			}
 			peer.adjOut.recordWithheld(len(batch.NLRIs))
 			logWithdrawWithheld(peer, batch)
 			withheld = append(withheld, peer.Settings().Address.String())
 			if withheldUpdate == nil {
 				continue
 			}
-			if err := peer.SendUpdate(withheldUpdate); err != nil {
+			if err := peer.sendUpdateWithSplit(ctx, withheldUpdate, maxMsgSize, facts.addPath); err != nil {
 				lastErr = err
 			}
 		}
@@ -582,6 +630,9 @@ func (a *reactorAPIAdapter) withdrawBatchFromPeers(peers []*Peer, batch bgptypes
 	unitLen := nlriUnitLen(len(batch.NLRIs), facts.groupUpdates)
 
 	for off := 0; ; off += unitLen {
+		if err := ctx.Err(); err != nil {
+			return sent, withheld, err
+		}
 		end := min(off+unitLen, len(batch.NLRIs))
 		unit := batch
 		unit.NLRIs = batch.NLRIs[off:end]
@@ -595,13 +646,16 @@ func (a *reactorAPIAdapter) withdrawBatchFromPeers(peers []*Peer, batch bgptypes
 		}
 
 		for _, peer := range writable {
+			if err := ctx.Err(); err != nil {
+				return sent, withheld, err
+			}
 			// Forget first, and whatever the write does. The peer's Adj-RIB-Out
 			// is a model of what it holds, and after a withdrawal that failed to
 			// write it holds something this speaker can no longer name. Reading
 			// that as "the peer does not have it" re-sends a route it may still
 			// hold; reading it the other way would suppress one it does not.
 			forgetWithdrawn(peer, unit, nlriHandle.Buf, facts.addPath)
-			if err := peer.sendUpdateWithSplit(update, maxMsgSize, facts.addPath); err != nil {
+			if err := peer.sendUpdateWithSplit(ctx, update, maxMsgSize, facts.addPath); err != nil {
 				lastErr = err
 				continue
 			}
@@ -664,7 +718,10 @@ func logWithdrawWithheld(peer *Peer, unit bgptypes.NLRIBatch) {
 // is gated on `send [ update ]`, the same permission the announce
 // takes: a withdrawal is an UPDATE, and a program allowed to put a route into a
 // peer must be allowed to take it out again.
-func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
+func (a *reactorAPIAdapter) WithdrawNLRIBatch(ctx context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	a.r.mu.RLock()
 	peers, permErr := a.getMatchingPeersSel(sel, announceOrigin(sender))
 	a.r.mu.RUnlock()
@@ -699,6 +756,9 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 	}
 
 	for i := range peers {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		peer := peers[i]
 		if !peer.shouldQueue() {
 			// Check family negotiation
@@ -723,7 +783,7 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 				// Per-peer path (update groups disabled). peers[i:i+1] is a view
 				// of the slice already in hand, so the one-peer set costs no
 				// allocation on the fan-out (ai/rules/performance.md).
-				n, peerWithheld, sendErr := a.withdrawBatchFromPeers(peers[i:i+1], batch, facts)
+				n, peerWithheld, sendErr := a.withdrawBatchFromPeers(ctx, peers[i:i+1], batch, facts)
 				acceptedCount += n
 				withheld = append(withheld, peerWithheld...)
 				if sendErr != nil {
@@ -737,6 +797,9 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 			// contract as the announce rail above.
 			queued := true
 			for _, n := range batch.NLRIs {
+				if err := ctx.Err(); err != nil {
+					return err
+				}
 				if err := peer.QueueWithdraw(n); err != nil {
 					lastErr = err
 					queued = false
@@ -753,12 +816,15 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(sel *selector.Selector, batch bgpt
 	// and the send invariant are withdrawBatchFromPeers's, so a group of peers
 	// and a single peer cannot be framed differently.
 	for _, wg := range wdGroups {
-		n, groupWithheld, sendErr := a.withdrawBatchFromPeers(wg.peers, batch, wg.facts)
+		n, groupWithheld, sendErr := a.withdrawBatchFromPeers(ctx, wg.peers, batch, wg.facts)
 		acceptedCount += n
 		withheld = append(withheld, groupWithheld...)
 		if sendErr != nil {
 			lastErr = sendErr
 		}
+	}
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 
 	// Return warning-level error if no peers accepted (all skipped due to family).
@@ -975,13 +1041,11 @@ func baseASPath(base []byte, srcASN4 bool) *attribute.ASPath {
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
 //
-// Returns a nil update and the reason when the batch cannot be encoded, having
-// written nothing: every query runs before the write, so a truncated, over-long
-// or desynchronised block is not a state this function can produce
-// (ai/rules/evidence.md). The reason is returned rather than assumed by the
-// caller because the two refusals need different operator action: errAnnounceTooLarge
-// asks for fewer prefixes per announce, errAnnounceNextHopUnencodable asks for a
-// next hop at all.
+// Returns a nil update and the reason when the batch cannot be encoded or
+// violates local origination requirements. Caller-owned scratch may have been
+// written, but no partial UPDATE is returned for dispatch. The reason tells the
+// caller whether to reduce the batch size, supply an encodable next hop, or
+// correct the locally originated route.
 func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, batch bgptypes.NLRIBatch, facts announceFacts) (*message.Update, error) {
 	// Write NLRIs into caller-provided buffer
 	nlriOff := writeBatchNLRI(nlriBuf, batch.NLRIs, facts.addPath)
@@ -1042,6 +1106,15 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(attrBuf, nlriBuf []byte, ba
 		}
 		logAnnounceTooLarge(batch, len(attrBuf), "attributes")
 		return nil, errAnnounceTooLarge
+	}
+	if batch.Wire == nil && batch.Family == (family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}) {
+		// Builder-backed batches originate routes; wire-backed batches also
+		// carry received routes on replay and must retain receive semantics.
+		_, _, extCommunities, _ := attribute.AttrFind(attrBuf[:n], attribute.AttrExtCommunity)
+		if err := message.ValidateEVPNOrigination(nlriBytes, extCommunities, facts.addPath); err != nil {
+			routesLogger().Warn("announce rejected: invalid EVPN origination", "error", err)
+			return nil, err
+		}
 	}
 
 	update := &message.Update{PathAttributes: attrBuf[:n]}
@@ -1847,7 +1920,8 @@ func (o *withdrawOutcome) record(sendErr error, nlriCount int) {
 // withheld either way; failErr exists so the caller does not report a defect in
 // Ze as a peer that declined the family. A policy suppression yields (0, nil):
 // that IS a decision.
-func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP bool, nc *NegotiatedCapabilities) (sent int, failErr error) {
+func (a *reactorAPIAdapter) sendStaleReadvertise(ctx context.Context, target announceTarget, batch bgptypes.NLRIBatch, nextHop netip.Addr, isIBGP bool, nc *NegotiatedCapabilities) (sent int, failErr error) {
+	peer := target.peer
 	facts := announceFactsFor(peer, batch.Family, nextHop, isIBGP, nc)
 	maxMsgSize := int(message.MaxMessageLength(msgtype.TypeUPDATE, facts.extended))
 
@@ -1864,11 +1938,14 @@ func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRI
 	unitLen := nlriUnitLen(len(batch.NLRIs), facts.groupUpdates)
 
 	for off := 0; ; off += unitLen {
+		if err := ctx.Err(); err != nil {
+			return sent, err
+		}
 		end := min(off+unitLen, len(batch.NLRIs))
 		unit := batch
 		unit.NLRIs = batch.NLRIs[off:end]
 
-		unitSent, unitErr := a.sendStaleReadvertiseUnit(peer, unit, facts, maxMsgSize, attrHandle.Buf, nlriHandle.Buf)
+		unitSent, unitErr := a.sendStaleReadvertiseUnit(ctx, target, unit, facts, maxMsgSize, attrHandle.Buf, nlriHandle.Buf)
 		if unitErr != nil {
 			return sent, unitErr
 		}
@@ -1886,7 +1963,8 @@ func (a *reactorAPIAdapter) sendStaleReadvertise(peer *Peer, batch bgptypes.NLRI
 // sendStaleReadvertiseUnit runs the readvertise egress filters over ONE built
 // UPDATE and carries out what they decided. attrBuf and nlriBuf are the caller's
 // pooled build buffers, reused by every unit of the batch.
-func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(peer *Peer, batch bgptypes.NLRIBatch, facts announceFacts, maxMsgSize int, attrBuf, nlriBuf []byte) (sent bool, failErr error) {
+func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(ctx context.Context, target announceTarget, batch bgptypes.NLRIBatch, facts announceFacts, maxMsgSize int, attrBuf, nlriBuf []byte) (sent bool, failErr error) {
+	peer := target.peer
 	update, buildErr := a.buildBatchAnnounceUpdate(attrBuf, nlriBuf, batch, facts)
 	if update == nil {
 		// The announce itself could not be encoded (already logged). Report the
@@ -1955,16 +2033,20 @@ func (a *reactorAPIAdapter) sendStaleReadvertiseUnit(peer *Peer, batch bgptypes.
 			// rail's own cause (already logged); nothing was sent.
 			return false, errWithdrawTooLarge
 		}
-		return peer.sendUpdateWithSplit(wd, maxMsgSize, facts.addPath) == nil, nil
+		err := target.session.sendUpdateWithSplit(ctx, wd, maxMsgSize, facts.addPath)
+		return err == nil, err
 	case staleModify:
 		// Non-LLGR iBGP peer: apply the depreference mods (NO_EXPORT + LOCAL_PREF=0).
 		if modified == nil {
-			return peer.sendUpdateWithSplit(update, maxMsgSize, facts.addPath) == nil, nil
+			err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, facts.addPath)
+			return err == nil, err
 		}
-		return peer.sendBodyWithSplit(modified, maxMsgSize, facts.addPath) == nil, nil
+		err := target.session.sendBodyWithSplit(ctx, modified, maxMsgSize, facts.addPath)
+		return err == nil, err
 	default: // staleKeep
 		// LLGR-capable peer: send the stale route unchanged.
-		return peer.sendUpdateWithSplit(update, maxMsgSize, facts.addPath) == nil, nil
+		err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, facts.addPath)
+		return err == nil, err
 	}
 }
 

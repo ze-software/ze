@@ -90,11 +90,13 @@ func (m *mockReactor) AddDynamicPeer(_ netip.Addr, _ map[string]any) error    { 
 func (m *mockReactor) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
 	return nil
 }
-func (m *mockReactor) AnnounceNLRIBatch(_ *selector.Selector, _ bgptypes.NLRIBatch, _ plugin.Sender) error {
+func (m *mockReactor) AnnounceNLRIBatch(_ context.Context, _ *selector.Selector, _ bgptypes.NLRIBatch, _ plugin.Sender) error {
 	return nil
+
 }
-func (m *mockReactor) WithdrawNLRIBatch(_ *selector.Selector, _ bgptypes.NLRIBatch, _ plugin.Sender) error {
+func (m *mockReactor) WithdrawNLRIBatch(_ context.Context, _ *selector.Selector, _ bgptypes.NLRIBatch, _ plugin.Sender) error {
 	return nil
+
 }
 func (m *mockReactor) RIBInRoutes(_ string) []rib.RouteJSON { return nil }
 func (m *mockReactor) RIBStats() bgptypes.RIBStatsInfo      { return bgptypes.RIBStatsInfo{} }

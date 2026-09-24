@@ -156,7 +156,7 @@ func TestSendUpdateWithSplitBoundsAnOversizePayload(t *testing.T) {
 	require.Greater(t, message.HeaderLen+4+len(maxSizeAttrs)+len(nlri), maxSize,
 		"the fixture must exceed the maximum, or this test asserts nothing")
 
-	require.NoError(t, peer.sendUpdateWithSplit(update, maxSize, false))
+	require.NoError(t, peer.sendUpdateWithSplit(t.Context(), update, maxSize, false))
 
 	frames := framesOnTheWire(t, conn.written())
 	require.Greater(t, len(frames), 1,
@@ -197,7 +197,7 @@ func TestSendUpdateWithSplitLeavesAFittingPayloadWhole(t *testing.T) {
 	want := message.HeaderLen + 4 + len(maxSizeAttrs) + len(nlri)
 	require.LessOrEqual(t, want, maxSize, "the fixture must fit, or this test asserts nothing")
 
-	require.NoError(t, peer.sendUpdateWithSplit(update, maxSize, false))
+	require.NoError(t, peer.sendUpdateWithSplit(t.Context(), update, maxSize, false))
 
 	frames := framesOnTheWire(t, conn.written())
 	require.Len(t, frames, 1, "a payload within the maximum must not be split")
@@ -239,7 +239,7 @@ func TestSendUpdateWithSplitTracksTheNegotiatedMaximum(t *testing.T) {
 	require.Greater(t, want, message.MaxMsgLen, "the fixture must exceed RFC 4271's 4096")
 	require.LessOrEqual(t, want, maxSize, "the fixture must fit RFC 8654's 65535")
 
-	require.NoError(t, peer.sendUpdateWithSplit(update, maxSize, false))
+	require.NoError(t, peer.sendUpdateWithSplit(t.Context(), update, maxSize, false))
 
 	frames := framesOnTheWire(t, conn.written())
 	require.Len(t, frames, 1,
@@ -308,7 +308,7 @@ func newPluginGroupPeer(t *testing.T, extended bool, nlris [][]byte) *Peer {
 // as the send callback comes back (peer_initial_sync.go:698, :713).
 func collectPluginRoutes(p *Peer) []*message.Update {
 	var sent []*message.Update
-	p.sendPluginRoutesVia(func(u *message.Update) error {
+	p.sendPluginRoutesVia(nil, func(u *message.Update) error {
 		sent = append(sent, &message.Update{
 			PathAttributes: append([]byte(nil), u.PathAttributes...),
 		})

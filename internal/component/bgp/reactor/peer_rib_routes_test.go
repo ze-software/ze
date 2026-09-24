@@ -64,7 +64,7 @@ func TestBuildRIBRouteUpdate_RejectsAttributesTooLargeForBuildBuffer(t *testing.
 	attrBuf := backing[0:slot:len(backing)]
 	require.Greater(t, cap(attrBuf), len(attrBuf), "fixture must reproduce cap-past-len, or it proves nothing")
 
-	update := buildRIBRouteUpdate(attrBuf, route, 65000, false /*eBGP*/, true /*asn4*/, false /*addPath*/)
+	update := buildRIBRouteUpdate(attrBuf, route, route.NextHop(), 65000, false /*eBGP*/, true /*asn4*/, false /*addPath*/)
 	assert.Nil(t, update, "a route that does not fit the slot must be rejected, not resliced past len")
 }
 
@@ -92,13 +92,13 @@ func TestBuildRIBRouteUpdate_AttributesNeverReachTheNLRIRegion(t *testing.T) {
 	// Size the buffer so the attributes fit len(buf) but collide with the NLRI
 	// tail: find the exact fitting size first, then take the NLRI's room away.
 	big := make([]byte, message.MaxMsgLen)
-	fitted := buildRIBRouteUpdate(big, route, 65000, false, true, false)
+	fitted := buildRIBRouteUpdate(big, route, route.NextHop(), 65000, false, true, false)
 	require.NotNil(t, fitted)
 	need := len(fitted.PathAttributes)
 
 	t.Run("exact-fit-is-accepted", func(t *testing.T) {
 		buf := make([]byte, need+nlriLen)
-		update := buildRIBRouteUpdate(buf, route, 65000, false, true, false)
+		update := buildRIBRouteUpdate(buf, route, route.NextHop(), 65000, false, true, false)
 		require.NotNil(t, update, "attributes plus NLRI exactly filling the buffer must be built")
 		assert.Len(t, update.PathAttributes, need)
 		assert.Len(t, update.NLRI, nlriLen)
@@ -106,7 +106,7 @@ func TestBuildRIBRouteUpdate_AttributesNeverReachTheNLRIRegion(t *testing.T) {
 
 	t.Run("one-octet-short-is-refused", func(t *testing.T) {
 		buf := make([]byte, need+nlriLen-1)
-		assert.Nil(t, buildRIBRouteUpdate(buf, route, 65000, false, true, false),
+		assert.Nil(t, buildRIBRouteUpdate(buf, route, route.NextHop(), 65000, false, true, false),
 			"attributes must not be allowed to reach the NLRI region")
 	})
 }
@@ -167,7 +167,7 @@ func TestSendUpdateWithSplit_RejectedBuildIsRouteScoped(t *testing.T) {
 		PeerAS:     65000,
 	})
 
-	err := p.sendUpdateWithSplit(nil, message.MaxMsgLen, false)
+	err := p.sendUpdateWithSplit(t.Context(), nil, message.MaxMsgLen, false)
 	require.ErrorIs(t, err, errBuildRejected, "a rejected build must not reach Splitter.Split")
 	assert.True(t, isRouteScopedSendError(err), "a rejected build condemns the route, not the session")
 

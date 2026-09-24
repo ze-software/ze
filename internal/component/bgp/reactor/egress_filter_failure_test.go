@@ -254,7 +254,7 @@ func TestAnnounceNLRIBatchStaleFailureIsNotFamilyMismatch(t *testing.T) {
 			}
 			a := &reactorAPIAdapter{r: r}
 
-			err := a.AnnounceNLRIBatch(selector.All(), staleReadvertiseBatch(t), plugin.OperatorSender())
+			err := a.AnnounceNLRIBatch(t.Context(), selector.All(), staleReadvertiseBatch(t), plugin.OperatorSender())
 			assert.ErrorIs(t, err, tc.wantErr)
 
 			// The two failures must not ALSO read as a family mismatch, and

@@ -491,7 +491,7 @@ func handleBgpPeerList(ctx *pluginserver.CommandContext, args []string) (*plugin
 }
 
 // handleBgpPeerDetail returns detailed peer information indexed by IP.
-// Used by "show bgp peer <selector>" - filters to matching peers.
+// Used by "show bgp peer <selector> detail" - filters to matching peers.
 // The selector is extracted by dispatcher into ctx.Peer.
 func handleBgpPeerDetail(ctx *pluginserver.CommandContext, args []string) (*plugin.Response, error) {
 	peers, errResp, err := filterPeersByArgs(ctx, args)

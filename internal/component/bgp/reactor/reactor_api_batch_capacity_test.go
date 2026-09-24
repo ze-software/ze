@@ -84,7 +84,7 @@ func TestAnnounceNLRIBatch_RejectsBatchTooLargeForBuildBuffer(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
-	err := adapter.AnnounceNLRIBatch(selector.All(), batch, plugin.OperatorSender())
+	err := adapter.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender())
 	require.Error(t, err, "an announce that cannot be encoded must not report success")
 	assert.ErrorIs(t, err, errAnnounceTooLarge)
 }
@@ -165,7 +165,7 @@ func TestAnnounceNLRIBatch_RejectsNLRIsTooLargeForBuildBuffer(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
-	err := adapter.AnnounceNLRIBatch(selector.All(), batch, plugin.OperatorSender())
+	err := adapter.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender())
 	require.Error(t, err, "an announce whose NLRIs cannot be encoded must not report success")
 	assert.ErrorIs(t, err, errAnnounceTooLarge)
 }
@@ -189,7 +189,7 @@ func TestWithdrawNLRIBatch_RejectsNLRIsTooLargeForBuildBuffer(t *testing.T) {
 		NLRIs:  manyIPv6Host(900),
 	}
 
-	err := adapter.WithdrawNLRIBatch(selector.All(), batch, plugin.OperatorSender())
+	err := adapter.WithdrawNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender())
 	require.Error(t, err, "a withdraw whose NLRIs cannot be encoded must not report success")
 	assert.ErrorIs(t, err, errWithdrawTooLarge)
 }

@@ -5,6 +5,7 @@
 package reactor
 
 import (
+	"context"
 	"encoding/binary"
 	"reflect"
 
@@ -41,12 +42,12 @@ type staticWireSet struct {
 // The returned slice is one allocation per call. Both callers run once per
 // session establishment or once per reload, so this is a control-plane cost and
 // not a per-UPDATE one (ai/rules/performance.md).
-func (p *Peer) sendStaticRoutes(routes []StaticRoute, group bool, maxMsgSize int, prefixSIDAllowed bool) []StaticRoute {
-	if len(routes) == 0 {
+func (p *Peer) sendStaticRoutes(session *Session, routes []StaticRoute, group bool, maxMsgSize int, prefixSIDAllowed bool) []StaticRoute {
+	if len(routes) == 0 || session == nil {
 		return nil
 	}
 	if group {
-		return p.sendStaticRoutesGrouped(routes, maxMsgSize, prefixSIDAllowed)
+		return p.sendStaticRoutesGrouped(session, routes, maxMsgSize, prefixSIDAllowed)
 	}
 
 	addr := p.addrString
@@ -55,7 +56,7 @@ func (p *Peer) sendStaticRoutes(routes []StaticRoute, group bool, maxMsgSize int
 		route := &routes[i]
 		fam := routeFamily(route)
 		// Resolve next-hop from RouteNextHop policy.
-		nextHop, nhErr := p.resolveNextHop(route.NextHop, fam)
+		nextHop, nhErr := p.resolveNextHop(session, route.NextHop, fam)
 		if nhErr != nil {
 			routesLogger().Debug("next-hop resolution failed", "peer", addr, "prefix", route.Prefix, "error", nhErr)
 			continue
@@ -63,7 +64,7 @@ func (p *Peer) sendStaticRoutes(routes []StaticRoute, group bool, maxMsgSize int
 		addPath := p.addPathFor(fam)
 		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 		update := buildStaticRouteUpdateNew(ub, route, nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load(), prefixSIDAllowed)
-		err := p.sendUpdateWithSplit(update, maxMsgSize, addPath)
+		err := session.sendUpdateWithSplit(context.Background(), update, maxMsgSize, addPath)
 		message.PutUpdateBuilder(ub)
 		if err != nil {
 			routesLogger().Debug("send error", "peer", addr, "error", err)
@@ -83,7 +84,7 @@ func (p *Peer) sendStaticRoutes(routes []StaticRoute, group bool, maxMsgSize int
 // reached the peer, and the safe reading of "unknown" is that none did: the
 // group is then left out of the answer, and a later reload announces it again
 // rather than suppressing a route the peer may not hold.
-func (p *Peer) sendStaticRoutesGrouped(routes []StaticRoute, maxMsgSize int, prefixSIDAllowed bool) []StaticRoute {
+func (p *Peer) sendStaticRoutesGrouped(session *Session, routes []StaticRoute, maxMsgSize int, prefixSIDAllowed bool) []StaticRoute {
 	addr := p.addrString
 	sent := make([]StaticRoute, 0, len(routes))
 
@@ -91,14 +92,14 @@ func (p *Peer) sendStaticRoutesGrouped(routes []StaticRoute, maxMsgSize int, pre
 		addPath := p.addPathFor(routeFamily(&grouped[0]))
 		if len(grouped) == 1 {
 			// Single-route group (IPv6, VPN, LabeledUnicast, or solo IPv4).
-			nextHop, nhErr := p.resolveNextHop(grouped[0].NextHop, routeFamily(&grouped[0]))
+			nextHop, nhErr := p.resolveNextHop(session, grouped[0].NextHop, routeFamily(&grouped[0]))
 			if nhErr != nil {
 				routesLogger().Debug("next-hop resolution failed", "peer", addr, "error", nhErr)
 				continue
 			}
 			ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 			update := buildStaticRouteUpdateNew(ub, &grouped[0], nextHop, p.linkLocalNextHopFor(nextHop), p.sendCtx.Load(), prefixSIDAllowed)
-			err := p.sendUpdateWithSplit(update, maxMsgSize, addPath)
+			err := session.sendUpdateWithSplit(context.Background(), update, maxMsgSize, addPath)
 			message.PutUpdateBuilder(ub)
 			if err != nil {
 				routesLogger().Debug("send error", "peer", addr, "error", err)
@@ -116,7 +117,7 @@ func (p *Peer) sendStaticRoutesGrouped(routes []StaticRoute, maxMsgSize int, pre
 		included := make([]StaticRoute, 0, len(grouped))
 		for i := range grouped {
 			r := &grouped[i]
-			nextHop, nhErr := p.resolveNextHop(r.NextHop, routeFamily(r))
+			nextHop, nhErr := p.resolveNextHop(session, r.NextHop, routeFamily(r))
 			if nhErr != nil {
 				routesLogger().Debug("next-hop resolution failed", "peer", addr, "prefix", r.Prefix, "error", nhErr)
 				continue
@@ -128,7 +129,7 @@ func (p *Peer) sendStaticRoutesGrouped(routes []StaticRoute, maxMsgSize int, pre
 			message.PutUpdateBuilder(ub)
 			continue
 		}
-		err := ub.BuildGroupedUnicast(params, maxMsgSize, p.SendUpdate)
+		err := ub.BuildGroupedUnicast(params, maxMsgSize, session.SendUpdate)
 		message.PutUpdateBuilder(ub)
 		if err != nil {
 			routesLogger().Debug("grouped unicast error", "peer", addr, "error", err)
@@ -197,8 +198,8 @@ func (p *Peer) deliverStaticRouteDelta(wanted []StaticRoute) {
 	// cleared, because the initial send's own span can still be open: it clears
 	// the marker after its default-originate routes, which is outside staticMu.
 	restore := p.sendingConfigStatic.Swap(true)
-	p.withdrawStaticRoutes(withdraw, maxMsgSize, prefixSIDAllowed)
-	sent := p.sendStaticRoutes(announce, p.settings.GroupUpdates, maxMsgSize, prefixSIDAllowed)
+	p.withdrawStaticRoutes(session, withdraw, maxMsgSize, prefixSIDAllowed)
+	sent := p.sendStaticRoutes(session, announce, p.settings.GroupUpdates, maxMsgSize, prefixSIDAllowed)
 	p.sendingConfigStatic.Store(restore)
 
 	p.staticWire.routes = staticWireAfterDelta(wanted, announce, sent)
@@ -226,11 +227,11 @@ func (p *Peer) deliverStaticRouteDelta(wanted []StaticRoute) {
 // only ever passes routes taken from Peer.staticWire, which is what this
 // connection was sent, so the guard fires for a connection whose initial send
 // reached no socket at all.
-func (p *Peer) withdrawStaticRoutes(routes []StaticRoute, maxMsgSize int, prefixSIDAllowed bool) {
+func (p *Peer) withdrawStaticRoutes(session *Session, routes []StaticRoute, maxMsgSize int, prefixSIDAllowed bool) {
 	if len(routes) == 0 {
 		return
 	}
-	if !p.hasAdvertised() {
+	if session == nil || !session.advertised.Load() {
 		routesLogger().Warn("withdrawal withheld: this session has advertised no route to the peer",
 			"peer", p.addrString,
 			"routes", len(routes),
@@ -244,7 +245,7 @@ func (p *Peer) withdrawStaticRoutes(routes []StaticRoute, maxMsgSize int, prefix
 	for i := range routes {
 		route := &routes[i]
 		fam := routeFamily(route)
-		nextHop, nhErr := p.resolveNextHop(route.NextHop, fam)
+		nextHop, nhErr := p.resolveNextHop(session, route.NextHop, fam)
 		if nhErr != nil {
 			routesLogger().Warn("static route not withdrawn: its next hop no longer resolves",
 				"peer", p.addrString, "prefix", route.Prefix, "error", nhErr)
@@ -267,7 +268,7 @@ func (p *Peer) withdrawStaticRoutes(routes []StaticRoute, maxMsgSize int, prefix
 				"peer", p.addrString, "prefix", route.Prefix)
 			continue
 		}
-		if err := p.sendBodyWithSplit(withdrawn, maxMsgSize, addPath); err != nil {
+		if err := session.sendBodyWithSplit(context.Background(), withdrawn, maxMsgSize, addPath); err != nil {
 			routesLogger().Debug("withdraw send error", "peer", p.addrString, "prefix", route.Prefix, "error", err)
 			return
 		}

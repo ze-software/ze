@@ -551,11 +551,11 @@ func TestUpdateDelayQueueOverrunIsReportedNotSwallowed(t *testing.T) {
 	require.True(t, p.shouldQueue(), "a held peer must queue, or this test proves nothing about the hold")
 
 	for i := range p.opQueueMax {
-		require.NoError(t, p.QueueAnnounce(testRoute("10.0.0.0/24")),
+		require.NoError(t, p.QueueAnnounce(testRoute("10.0.0.0/24"), false),
 			"announce %d must fit under the cap", i)
 	}
 
-	require.ErrorIs(t, p.QueueAnnounce(testRoute("10.0.1.0/24")), ErrOpQueueFull,
+	require.ErrorIs(t, p.QueueAnnounce(testRoute("10.0.1.0/24"), false), ErrOpQueueFull,
 		"an announce past the cap must be REFUSED, not dropped in silence")
 	require.ErrorIs(t, p.QueueWithdraw(testRoute("10.0.2.0/24").NLRI()), ErrOpQueueFull,
 		"a withdrawal past the cap must be refused too: the peer keeps forwarding to a prefix this speaker took back")

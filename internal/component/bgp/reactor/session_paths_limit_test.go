@@ -403,16 +403,16 @@ func TestPathsLimitAPIReattemptAfterWithdrawal(t *testing.T) {
 		}
 		return b
 	}
-	if err := adapter.AnnounceNLRIBatch(selector.All(), batch(1, 2), plugin.OperatorSender()); err != nil {
+	if err := adapter.AnnounceNLRIBatch(t.Context(), selector.All(), batch(1, 2), plugin.OperatorSender()); err != nil {
 		t.Fatal(err)
 	}
-	if err := adapter.AnnounceNLRIBatch(selector.All(), batch(2), plugin.OperatorSender()); err != nil {
+	if err := adapter.AnnounceNLRIBatch(t.Context(), selector.All(), batch(2), plugin.OperatorSender()); err != nil {
 		t.Fatal(err)
 	}
-	if err := adapter.WithdrawNLRIBatch(selector.All(), batch(1), plugin.OperatorSender()); err != nil {
+	if err := adapter.WithdrawNLRIBatch(t.Context(), selector.All(), batch(1), plugin.OperatorSender()); err != nil {
 		t.Fatal(err)
 	}
-	if err := adapter.AnnounceNLRIBatch(selector.All(), batch(2), plugin.OperatorSender()); err != nil {
+	if err := adapter.AnnounceNLRIBatch(t.Context(), selector.All(), batch(2), plugin.OperatorSender()); err != nil {
 		t.Fatal(err)
 	}
 	if got := pathsLimitReceived(t, conn.written(), family.IPv4Unicast, false); !slices.Equal(got, []uint32{1, 2}) {

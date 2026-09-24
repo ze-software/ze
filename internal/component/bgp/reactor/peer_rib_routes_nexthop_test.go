@@ -56,7 +56,7 @@ func TestBuildRIBRouteUpdate_RefusesANextHopWithNoWireForm(t *testing.T) {
 	build := func(t *testing.T, fam family.Family, prefix string, nextHop netip.Addr) *message.Update {
 		t.Helper()
 		route := rib.NewRouteWithASPath(nlri.NewINET(fam, netip.MustParsePrefix(prefix), 0), nextHop, nil, nil)
-		return buildRIBRouteUpdate(make([]byte, message.MaxMsgLen), route, 65000,
+		return buildRIBRouteUpdate(make([]byte, message.MaxMsgLen), route, nextHop, 65000,
 			false /*eBGP*/, true /*asn4*/, false /*addPath*/)
 	}
 

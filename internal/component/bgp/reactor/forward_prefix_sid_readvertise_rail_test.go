@@ -163,7 +163,7 @@ func TestStaleReadvertiseKeepsPrefixSIDInsideTheSRDomain(t *testing.T) {
 			readvertiseEgressFilters: []filterapi.EgressFilterFunc{keepStaleReadvertise},
 		}}
 
-		require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), bgptypes.NLRIBatch{
+		require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), bgptypes.NLRIBatch{
 			Family:  family.IPv4Unicast,
 			NLRIs:   []nlri.NLRI{route},
 			NextHop: bgptypes.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),

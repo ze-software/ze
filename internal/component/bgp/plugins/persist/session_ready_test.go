@@ -49,7 +49,7 @@ func newSessionReadyHarness(t *testing.T) *sessionReadyHarness {
 	plugin := sdk.NewWithConn("persist-session-ready-test", rpc.NewBridgedConn(pluginEnd, bridge))
 	t.Cleanup(func() { _ = plugin.Close() })
 
-	bridge.SetDispatchCommand(func(command string) (*rpc.DispatchCommandOutput, error) {
+	bridge.SetDispatchCommand(func(_ context.Context, command string) (*rpc.DispatchCommandOutput, error) {
 		harness.record(command)
 		return &rpc.DispatchCommandOutput{Status: "done"}, nil
 	})

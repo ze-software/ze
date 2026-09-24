@@ -94,14 +94,16 @@ func (m *mockReactor) ReleaseUpdates(_ []uint64, _ string) error { return nil }
 
 // --- BGPReactor: route operations (stubs) ---
 
-func (m *mockReactor) AnnounceNLRIBatch(_ *selector.Selector, _ bgptypes.NLRIBatch, _ plugin.Sender) error {
+func (m *mockReactor) AnnounceNLRIBatch(_ context.Context, _ *selector.Selector, _ bgptypes.NLRIBatch, _ plugin.Sender) error {
 	return nil
+
 }
 func (m *mockReactor) AnnounceEOR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
 	return nil
 }
-func (m *mockReactor) WithdrawNLRIBatch(_ *selector.Selector, _ bgptypes.NLRIBatch, _ plugin.Sender) error {
+func (m *mockReactor) WithdrawNLRIBatch(_ context.Context, _ *selector.Selector, _ bgptypes.NLRIBatch, _ plugin.Sender) error {
 	return nil
+
 }
 func (m *mockReactor) SendBoRR(_ *selector.Selector, _ uint16, _ uint8, _ plugin.Sender) error {
 	return nil

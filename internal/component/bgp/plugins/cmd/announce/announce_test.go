@@ -4,6 +4,7 @@
 package announce
 
 import (
+	"context"
 	"net/netip"
 	"strings"
 	"testing"
@@ -34,12 +35,13 @@ type captureReactor struct {
 	calls  int
 }
 
-func (r *captureReactor) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
+func (r *captureReactor) AnnounceNLRIBatch(_ context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
 	r.sel = sel
 	r.batch = batch
 	r.sender = sender
 	r.calls++
 	return nil
+
 }
 
 func mustParsePrefix(t *testing.T, s string) netip.Prefix {

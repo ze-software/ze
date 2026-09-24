@@ -4,6 +4,7 @@
 package reactor
 
 import (
+	"errors"
 	"net/netip"
 	"slices"
 	"sort"
@@ -15,12 +16,20 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+var errPluginNextHopSelf = errors.New("plugin route next-hop self requires a connected local address")
+
 // toPluginParams converts a PluginRoute to PluginParams.
 // prefixSIDAllowed is RFC 8669 Section 8 for the destination
 // (prefixSIDAllowedTo, forward_prefix_sid.go). A plugin route carries its extra
 // attributes as pre-built wire bytes under any type code, code 40 included, so
 // the section reaches this rail through them.
-func toPluginParams(r PluginRoute, fam family.Family, prefixSIDAllowed bool) message.PluginParams {
+func toPluginParams(r PluginRoute, fam family.Family, prefixSIDAllowed bool, local netip.Addr) (message.PluginParams, error) {
+	if r.NextHopSelf {
+		if !local.IsValid() {
+			return message.PluginParams{}, errPluginNextHopSelf
+		}
+		r.NextHop = local
+	}
 	rawAttrs := r.RawAttrs
 	if !prefixSIDAllowed {
 		rawAttrs = rawAttrsWithoutPrefixSID(rawAttrs)
@@ -31,7 +40,7 @@ func toPluginParams(r PluginRoute, fam family.Family, prefixSIDAllowed bool) mes
 		NextHop: r.NextHop, RawAttrs: rawAttrs,
 		ASPath: r.ASPath, LocalPreference: r.LocalPreference,
 		MapV4NextHop: r.MapV4NextHop,
-	}
+	}, nil
 }
 
 // toStaticRouteUnicastParams converts a StaticRoute to UnicastParams.

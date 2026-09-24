@@ -300,7 +300,8 @@ func ribRouteWithASPath(t *testing.T, asns []uint32) *rib.Route {
 // AS_PATH holds a four-octet AS emits AS4_PATH when re-announced to an OLD peer.
 func TestRIBRouteUpdate_NonMappableASPath_OldPeer(t *testing.T) {
 	attrBuf := make([]byte, message.MaxMsgLen)
-	update := buildRIBRouteUpdate(attrBuf, ribRouteWithASPath(t, []uint32{mappableAS, nonMappableAS}), mappableAS, false, false /*OLD*/, false)
+	route := ribRouteWithASPath(t, []uint32{mappableAS, nonMappableAS})
+	update := buildRIBRouteUpdate(attrBuf, route, route.NextHop(), mappableAS, false, false /*OLD*/, false)
 
 	_, as4v, ok := findPathAttr(update.PathAttributes, byte(attribute.AttrAS4Path))
 	require.True(t, ok, "queued re-announce to OLD peer must carry AS4_PATH")
@@ -312,7 +313,8 @@ func TestRIBRouteUpdate_NonMappableASPath_OldPeer(t *testing.T) {
 // TestRIBRouteUpdate_NonMappableASPath_NewPeer: no AS4_PATH toward a 4-octet peer.
 func TestRIBRouteUpdate_NonMappableASPath_NewPeer(t *testing.T) {
 	attrBuf := make([]byte, message.MaxMsgLen)
-	update := buildRIBRouteUpdate(attrBuf, ribRouteWithASPath(t, []uint32{mappableAS, nonMappableAS}), mappableAS, false, true /*NEW*/, false)
+	route := ribRouteWithASPath(t, []uint32{mappableAS, nonMappableAS})
+	update := buildRIBRouteUpdate(attrBuf, route, route.NextHop(), mappableAS, false, true /*NEW*/, false)
 	_, _, ok := findPathAttr(update.PathAttributes, byte(attribute.AttrAS4Path))
 	assert.False(t, ok)
 }
@@ -321,7 +323,8 @@ func TestRIBRouteUpdate_NonMappableASPath_NewPeer(t *testing.T) {
 // AS4_PATH.
 func TestRIBRouteUpdate_AllMappable_NoAS4Path(t *testing.T) {
 	attrBuf := make([]byte, message.MaxMsgLen)
-	update := buildRIBRouteUpdate(attrBuf, ribRouteWithASPath(t, []uint32{mappableAS, 112}), mappableAS, false, false, false)
+	route := ribRouteWithASPath(t, []uint32{mappableAS, 112})
+	update := buildRIBRouteUpdate(attrBuf, route, route.NextHop(), mappableAS, false, false, false)
 	_, _, ok := findPathAttr(update.PathAttributes, byte(attribute.AttrAS4Path))
 	assert.False(t, ok)
 }

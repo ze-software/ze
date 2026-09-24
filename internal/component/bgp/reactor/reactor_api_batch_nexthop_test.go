@@ -130,7 +130,7 @@ func TestAnnounceNLRIBatch_NextHopUnencodableIsNotFamilyMismatch(t *testing.T) {
 		NextHop: bgptypes.NewNextHopExplicit(netip.Addr{}),
 	}
 
-	err := a.AnnounceNLRIBatch(selector.All(), batch, plugin.OperatorSender())
+	err := a.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender())
 	require.ErrorIs(t, err, errAnnounceNextHopUnencodable)
 	assert.NotErrorIs(t, err, route.ErrNoPeersAcceptedFamily,
 		"the family IS negotiated; a failure of this speaker must not be reported as a peer declining it")

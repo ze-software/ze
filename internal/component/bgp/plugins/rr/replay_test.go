@@ -1,6 +1,7 @@
 package rr
 
 import (
+	"context"
 	"encoding/json"
 	"net"
 	"slices"
@@ -43,7 +44,7 @@ func TestReplayForPeerDispatchesTypedReplayCommand(t *testing.T) {
 
 	var mu sync.Mutex
 	var calls []replayDispatchCall
-	bridge.SetDispatchCommandArgs(func(command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
+	bridge.SetDispatchCommandArgs(func(_ context.Context, command string, args []string, peer string) (*rpc.DispatchCommandOutput, error) {
 		mu.Lock()
 		calls = append(calls, replayDispatchCall{command: command, args: slices.Clone(args), peer: peer})
 		callNum := len(calls)

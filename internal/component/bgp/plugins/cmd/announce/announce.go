@@ -4,6 +4,7 @@
 package announce
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -83,8 +84,13 @@ func getOrInitRegistry(ctx *pluginserver.CommandContext) *Registry {
 	if err != nil {
 		return nil
 	}
+	// Expiry outlives the command that registered the route, but not the server.
+	lifetime := context.Background()
+	if ctx.Server != nil {
+		lifetime = ctx.Server.Context()
+	}
 	globalRegistry = NewRegistry(func(sel *selector.Selector, batch bgptypes.NLRIBatch, sender plugin.Sender) error {
-		return bgpReactor.WithdrawNLRIBatch(sel, batch, sender)
+		return bgpReactor.WithdrawNLRIBatch(lifetime, sel, batch, sender)
 	})
 	return globalRegistry
 }
@@ -223,8 +229,8 @@ func prefixToFamily(prefix netip.Prefix) family.Family {
 	return family.IPv4Unicast
 }
 
-func announceAndTrack(reg *Registry, bgpReactor bgptypes.BGPReactor, sel *selector.Selector, batch bgptypes.NLRIBatch, opts announceOpts, source string, sender plugin.Sender) (*plugin.Response, error) {
-	if err := bgpReactor.AnnounceNLRIBatch(sel, batch, sender); err != nil {
+func announceAndTrack(ctx context.Context, reg *Registry, bgpReactor bgptypes.BGPReactor, sel *selector.Selector, batch bgptypes.NLRIBatch, opts announceOpts, source string, sender plugin.Sender) (*plugin.Response, error) {
+	if err := bgpReactor.AnnounceNLRIBatch(ctx, sel, batch, sender); err != nil {
 		return &plugin.Response{Status: plugin.StatusError, Error: err.Error()}, err
 	}
 
@@ -352,7 +358,7 @@ parseOpts:
 		Attrs:   builder,
 	}
 
-	return announceAndTrack(reg, bgpReactor, sel, batch, opts, "cli", ctx.Sender)
+	return announceAndTrack(ctx.Context(), reg, bgpReactor, sel, batch, opts, "cli", ctx.Sender)
 }
 
 func handleAnnounceBlackhole(ctx *pluginserver.CommandContext, bgpReactor bgptypes.BGPReactor, reg *Registry, args []string) (*plugin.Response, error) {
@@ -406,7 +412,7 @@ parseOpts:
 		Attrs:   builder,
 	}
 
-	return announceAndTrack(reg, bgpReactor, sel, batch, opts, "cli", ctx.Sender)
+	return announceAndTrack(ctx.Context(), reg, bgpReactor, sel, batch, opts, "cli", ctx.Sender)
 }
 
 // handleAnnounceFlowspec originates a tracked FlowSpec rule on demand. Grammar:
@@ -467,7 +473,7 @@ func handleAnnounceFlowspec(ctx *pluginserver.CommandContext, bgpReactor bgptype
 		NextHop: bgptypes.NewNextHopSelf(),
 		Attrs:   builder,
 	}
-	return announceAndTrack(reg, bgpReactor, sel, batch, opts, "cli", ctx.Sender)
+	return announceAndTrack(ctx.Context(), reg, bgpReactor, sel, batch, opts, "cli", ctx.Sender)
 }
 
 // splitFlowspecArgs separates the match components from the traffic action and

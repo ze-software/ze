@@ -5,6 +5,7 @@
 package reactor
 
 import (
+	"context"
 	"net/netip"
 	"runtime"
 	"slices"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 )
@@ -99,7 +101,7 @@ func (p *Peer) sendInitialRoutes() {
 	// Uses atomic flag checked by notifyMessageReceiver to tag sent events.
 	p.sendingConfigStatic.Store(true)
 
-	sent := p.sendStaticRoutes(routes, p.settings.GroupUpdates, maxMsgSize, prefixSIDAllowed)
+	sent := p.sendStaticRoutes(wireSession, routes, p.settings.GroupUpdates, maxMsgSize, prefixSIDAllowed)
 	p.staticWire = staticWireSet{session: wireSession, routes: sent}
 	p.staticMu.Unlock()
 
@@ -164,14 +166,25 @@ func (p *Peer) sendInitialRoutes() {
 		case PeerOpAnnounce:
 			// Send route, splitting if needed.
 			fam := op.Route.NLRI().Family()
+			session := p.session
+			nextHop := op.Route.NextHop()
+			if op.NextHopSelf && fam.NeedsNextHop() {
+				var err error
+				nextHop, err = p.resolveNextHop(session, bgptypes.NewNextHopSelf(), fam)
+				if err != nil {
+					routesLogger().Warn("queued next-hop resolution failed", "peer", addr, "error", err)
+					processed++
+					continue
+				}
+			}
 			addPath := p.addPathFor(fam)
 			attrHandle := getBuildBuf()
 			// p.settings.IsIBGP() read directly: this is inside a p.mu.Lock section, so it is
 			// already synchronized with the resolveDynamicPeerSettings write. Using the
 			// p.IsIBGP() accessor here would deadlock (RLock while holding Lock).
-			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
-			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, addPath)
+			sendErr := session.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath)
 			putBuildBuf(attrHandle)
 			if sendErr != nil {
 				routesLogger().Debug("send error for queued route", "peer", addr, "nlri", op.Route.NLRI(), "error", sendErr)
@@ -194,7 +207,7 @@ func (p *Peer) sendInitialRoutes() {
 			wdHandle := getBuildBuf()
 			update := buildWithdrawNLRI(wdHandle.Buf, op.NLRI, addPath)
 			p.mu.Unlock()
-			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, addPath)
+			sendErr := p.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath)
 			putBuildBuf(wdHandle)
 			if sendErr != nil {
 				routesLogger().Debug("send error for withdrawal", "peer", addr, "nlri", op.NLRI, "error", sendErr)
@@ -314,7 +327,7 @@ func (p *Peer) sendInitialRoutes() {
 	}
 
 	// Send family-specific routes (config-originated)
-	p.sendPluginRoutesVia(sendFn)
+	p.sendPluginRoutesVia(session, sendFn)
 
 	if session != nil {
 		session.releaseWrites()
@@ -446,14 +459,25 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 		switch op.Type {
 		case PeerOpAnnounce:
 			fam := op.Route.NLRI().Family()
+			session := p.session
+			nextHop := op.Route.NextHop()
+			if op.NextHopSelf && fam.NeedsNextHop() {
+				var err error
+				nextHop, err = p.resolveNextHop(session, bgptypes.NewNextHopSelf(), fam)
+				if err != nil {
+					routesLogger().Warn("queued next-hop resolution failed", "peer", addr, "error", err)
+					finalProcessed++
+					continue
+				}
+			}
 			addPath := p.addPathFor(fam)
 			attrHandle := getBuildBuf()
 			// p.settings.IsIBGP() read directly: this is inside a p.mu.Lock section, so it is
 			// already synchronized with the resolveDynamicPeerSettings write. Using the
 			// p.IsIBGP() accessor here would deadlock (RLock while holding Lock).
-			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
+			update := buildRIBRouteUpdate(attrHandle.Buf, op.Route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
-			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, addPath)
+			sendErr := session.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath)
 			putBuildBuf(attrHandle)
 			if sendErr != nil {
 				routesLogger().Debug("send error for a queued route", "peer", addr, "error", sendErr)
@@ -478,7 +502,7 @@ func (p *Peer) drainAndCloseQueueGate(addr string, opMaxMsgSize int) {
 			wdHandle := getBuildBuf()
 			update := buildWithdrawNLRI(wdHandle.Buf, op.NLRI, addPath)
 			p.mu.Unlock()
-			sendErr := p.sendUpdateWithSplit(update, opMaxMsgSize, addPath)
+			sendErr := p.sendUpdateWithSplit(context.Background(), update, opMaxMsgSize, addPath)
 			putBuildBuf(wdHandle)
 			if sendErr != nil {
 				routesLogger().Debug("send error for a queued withdrawal", "peer", addr, "error", sendErr)
@@ -566,6 +590,8 @@ func pluginRouteGroupKey(r *PluginRoute) string {
 	b.Sep()
 	b.Addr(r.NextHop)
 	b.Sep()
+	b.Bool(r.NextHopSelf)
+	b.Sep()
 	b.uint32Slice(r.ASPath)
 	b.Sep()
 	b.Uint(uint64(r.LocalPreference))
@@ -579,10 +605,16 @@ func pluginRouteGroupKey(r *PluginRoute) string {
 // sendPluginRoutesVia sends generic plugin-registered routes. Routes whose
 // plugin sets Group=true (MVPN) are packed by shared attributes into a single
 // UPDATE (one MP_REACH, multiple NLRIs); all others are sent one per UPDATE.
-func (p *Peer) sendPluginRoutesVia(sendFn func(*message.Update) error) {
+func (p *Peer) sendPluginRoutesVia(session *Session, sendFn func(*message.Update) error) {
 	nc := p.negotiated.Load()
 	if nc == nil || len(p.settings.PluginRoutes) == 0 {
 		return
+	}
+	var local netip.Addr
+	if session != nil {
+		if transport := session.transport.Load(); transport != nil {
+			local = transport.local
+		}
 	}
 
 	addr := p.settings.Address.String()
@@ -613,7 +645,7 @@ func (p *Peer) sendPluginRoutesVia(sendFn func(*message.Update) error) {
 	}
 	slices.Sort(groupOrder)
 	for _, key := range groupOrder {
-		p.sendPluginRouteGroup(groups[key], maxMsgSize, sendFn, addr)
+		p.sendPluginRouteGroup(groups[key], local, maxMsgSize, sendFn, addr)
 	}
 
 	// Pass 2: non-grouped routes, one per UPDATE, in config order.
@@ -632,11 +664,16 @@ func (p *Peer) sendPluginRoutesVia(sendFn func(*message.Update) error) {
 			continue
 		}
 
+		params, err := toPluginParams(*route, fam, p.prefixSIDAllowed(), local)
+		if err != nil {
+			routesLogger().Warn("skipping plugin route", "peer", addr, "family", route.Family, "error", err)
+			continue
+		}
 		addPath := p.addPathFor(fam)
 		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 		// RFC 8669 Section 8, as for the static routes above: a plugin route's
 		// pre-built attribute bytes can carry type code 40.
-		update := ub.BuildPlugin(toPluginParams(*route, fam, p.prefixSIDAllowed()))
+		update := ub.BuildPlugin(params)
 		// A single plugin route (e.g. an atomic FlowSpec rule) cannot be split;
 		// skip it rather than emit an UPDATE the peer would reject.
 		if pluginUpdateSize(update) > maxMsgSize {
@@ -669,10 +706,14 @@ func concatNLRIs(nlris [][]byte) []byte {
 // exceeds maxMsgSize does it fall back to packNLRIs to split across UPDATEs (the
 // rare path; that split does O(n^2) sizing builds, acceptable since oversized
 // same-attribute groups are uncommon and this runs only at session establishment).
-func (p *Peer) sendPluginRouteGroup(g *pluginRouteGroup, maxMsgSize int, sendFn func(*message.Update) error, addr string) {
+func (p *Peer) sendPluginRouteGroup(g *pluginRouteGroup, local netip.Addr, maxMsgSize int, sendFn func(*message.Update) error, addr string) {
 	addPath := p.addPathFor(g.fam)
 	// RFC 8669 Section 8, as in the non-grouped pass (sendPluginRoutesVia).
-	base := toPluginParams(*g.rep, g.fam, p.prefixSIDAllowed())
+	base, err := toPluginParams(*g.rep, g.fam, p.prefixSIDAllowed(), local)
+	if err != nil {
+		routesLogger().Warn("skipping plugin route group", "peer", addr, "family", g.rep.Family, "error", err)
+		return
+	}
 	emit := func(nlri []byte) {
 		ub := message.GetUpdateBuilder(p.settings.LocalAS, p.IsIBGP(), p.asn4(), addPath)
 		params := base

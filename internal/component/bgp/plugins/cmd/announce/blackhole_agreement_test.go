@@ -6,6 +6,7 @@
 package announce
 
 import (
+	"context"
 	"net/netip"
 	"testing"
 
@@ -37,10 +38,11 @@ type agreementReactor struct {
 	batches []bgptypes.NLRIBatch
 }
 
-func (r *agreementReactor) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
+func (r *agreementReactor) AnnounceNLRIBatch(_ context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
 	r.sels = append(r.sels, sel)
 	r.batches = append(r.batches, batch)
 	return nil
+
 }
 
 func (r *agreementReactor) Peers() []plugin.PeerInfo      { return r.peers }

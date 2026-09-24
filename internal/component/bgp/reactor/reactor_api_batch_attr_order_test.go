@@ -247,7 +247,7 @@ func buildQueuedRail(t *testing.T, c orderCase) []byte {
 	route := rib.NewRouteWithASPath(wn, netip.MustParseAddr(c.nextHop), attrs, asPath)
 
 	attrBuf := make([]byte, message.MaxMsgLen)
-	update := buildRIBRouteUpdate(attrBuf, route, c.localAS, c.isIBGP, c.asn4, false /*addPath*/)
+	update := buildRIBRouteUpdate(attrBuf, route, route.NextHop(), c.localAS, c.isIBGP, c.asn4, false /*addPath*/)
 	require.NotNil(t, update)
 	return update.PathAttributes
 }

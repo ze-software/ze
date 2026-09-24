@@ -200,7 +200,7 @@ func TestAnnounceGroupUpdatesFalseSendsOneUpdatePerNLRI(t *testing.T) {
 	peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "false")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), groupUpdatesBatch(), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), groupUpdatesBatch(), plugin.OperatorSender()))
 
 	frames := framesOf(t, conn, false)
 	require.Len(t, frames, 2, "group-updates false sends one UPDATE per NLRI")
@@ -221,7 +221,7 @@ func TestAnnounceGroupUpdatesAbsentSendsOneUpdate(t *testing.T) {
 	require.True(t, peer.Settings().GroupUpdates, "the YANG default for group-updates is true")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), groupUpdatesBatch(), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), groupUpdatesBatch(), plugin.OperatorSender()))
 
 	frames := framesOf(t, conn, false)
 	require.Len(t, frames, 1, "a peer that groups updates receives one UPDATE")
@@ -245,7 +245,7 @@ func TestAnnounceBuildGroupSplitsOnGroupUpdates(t *testing.T) {
 	split, splitConn := newGroupUpdatesPeer(t, "10.0.0.5", "false")
 	adapter := groupUpdatesReactor([]*Peer{packed, split}, true)
 
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), groupUpdatesBatch(), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), groupUpdatesBatch(), plugin.OperatorSender()))
 
 	packedFrames := framesOf(t, packedConn, false)
 	require.Len(t, packedFrames, 1, "the grouping peer receives one UPDATE")
@@ -269,7 +269,7 @@ func TestAnnounceBuildGroupSplitsOnGroupUpdates(t *testing.T) {
 // flag is what keeps these tests honest about the path.
 func advertiseFirst(t *testing.T, adapter *reactorAPIAdapter, conns ...*recordingConn) []int {
 	t.Helper()
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), groupUpdatesBatch(), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), groupUpdatesBatch(), plugin.OperatorSender()))
 
 	sent := make([]int, 0, len(conns))
 	for _, conn := range conns {
@@ -291,7 +291,7 @@ func TestWithdrawGroupUpdatesFalseSendsOneUpdatePerNLRI(t *testing.T) {
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 	announced := advertiseFirst(t, adapter, conn)
 
-	require.NoError(t, adapter.WithdrawNLRIBatch(selector.All(), groupUpdatesBatch(), plugin.OperatorSender()))
+	require.NoError(t, adapter.WithdrawNLRIBatch(t.Context(), selector.All(), groupUpdatesBatch(), plugin.OperatorSender()))
 
 	frames := framesOf(t, conn, true)[announced[0]:]
 	require.Len(t, frames, 2, "group-updates false withdraws one prefix per UPDATE")
@@ -312,7 +312,7 @@ func TestWithdrawBuildGroupSplitsOnGroupUpdates(t *testing.T) {
 	adapter := groupUpdatesReactor([]*Peer{packed, split}, true)
 	announced := advertiseFirst(t, adapter, packedConn, splitConn)
 
-	require.NoError(t, adapter.WithdrawNLRIBatch(selector.All(), groupUpdatesBatch(), plugin.OperatorSender()))
+	require.NoError(t, adapter.WithdrawNLRIBatch(t.Context(), selector.All(), groupUpdatesBatch(), plugin.OperatorSender()))
 
 	packedFrames := framesOf(t, packedConn, true)[announced[0]:]
 	require.Len(t, packedFrames, 1, "the grouping peer receives one withdrawal")

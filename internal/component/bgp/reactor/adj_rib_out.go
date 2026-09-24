@@ -6,6 +6,7 @@ package reactor
 
 import (
 	"bytes"
+	"context"
 	"sync"
 	"sync/atomic"
 
@@ -415,7 +416,7 @@ func (u *announceUnit) storedSignature() []byte {
 // caller's still holds the shared build the signature and the per-NLRI keys are
 // read out of. Only a partial peer pays for it, and a partial peer needs a build
 // of its own in any case.
-func (a *reactorAPIAdapter) announcePartialToPeers(peers []*Peer, u *announceUnit, maxMsgSize int) (int, error) {
+func (a *reactorAPIAdapter) announcePartialToPeers(ctx context.Context, targets []announceTarget, u *announceUnit, maxMsgSize int) (int, error) {
 	attrHandle := getBuildBuf()
 	nlriHandle := getBuildBuf()
 	defer putBuildBuf(attrHandle)
@@ -430,7 +431,11 @@ func (a *reactorAPIAdapter) announcePartialToPeers(peers []*Peer, u *announceUni
 	sent := 0
 	var lastErr error
 
-	for _, peer := range peers {
+	for _, target := range targets {
+		peer := target.peer
+		if err := ctx.Err(); err != nil {
+			return sent, err
+		}
 		owed, owedWire = owed[:0], owedWire[:0]
 		off := 0
 		for _, route := range u.batch.NLRIs {
@@ -461,7 +466,7 @@ func (a *reactorAPIAdapter) announcePartialToPeers(peers []*Peer, u *announceUni
 			lastErr = buildErr
 			continue
 		}
-		if err := peer.sendUpdateWithSplit(update, maxMsgSize, u.facts.addPath); err != nil {
+		if err := target.session.sendUpdateWithSplit(ctx, update, maxMsgSize, u.facts.addPath); err != nil {
 			lastErr = err
 			continue
 		}

@@ -155,7 +155,7 @@ func TestSendPermissionRefusesUnattachedPeer(t *testing.T) {
 
 	// The announce rail refuses before it builds anything, so the same guard
 	// covers the command an operator's program actually issues.
-	err = adapter.AnnounceNLRIBatch(selector.Addr(netip.MustParseAddr("10.0.0.3")), testBatchOnePrefix(t), plugin.ProcessSender("injector"))
+	err = adapter.AnnounceNLRIBatch(t.Context(), selector.Addr(netip.MustParseAddr("10.0.0.3")), testBatchOnePrefix(t), plugin.ProcessSender("injector"))
 	require.ErrorIs(t, err, errSendNotPermitted)
 }
 
@@ -193,7 +193,7 @@ func TestSendPermissionSeparatesUpdateFromRefresh(t *testing.T) {
 		errSendNotPermitted,
 		"send [ refresh ] must NOT permit an UPDATE")
 	require.ErrorIs(t,
-		adapter.AnnounceNLRIBatch(all, testBatchOnePrefix(t), plugin.ProcessSender("poller")),
+		adapter.AnnounceNLRIBatch(t.Context(), all, testBatchOnePrefix(t), plugin.ProcessSender("poller")),
 		errSendNotPermitted,
 		"send [ refresh ] must NOT permit an announce")
 
@@ -231,11 +231,11 @@ func TestSendPermissionGrantsTheWildcardAndNamesTheRightProcess(t *testing.T) {
 		"send [ * ] must grant refresh too")
 
 	require.ErrorIs(t,
-		adapter.AnnounceNLRIBatch(all, testBatchOnePrefix(t), plugin.ProcessSender("observer")),
+		adapter.AnnounceNLRIBatch(t.Context(), all, testBatchOnePrefix(t), plugin.ProcessSender("observer")),
 		errSendNotPermitted,
 		"a process attached with no send list must be refused, even beside a wildcard sibling")
 	require.ErrorIs(t,
-		adapter.AnnounceNLRIBatch(all, testBatchOnePrefix(t), plugin.ProcessSender("stranger")),
+		adapter.AnnounceNLRIBatch(t.Context(), all, testBatchOnePrefix(t), plugin.ProcessSender("stranger")),
 		errSendNotPermitted,
 		"a process the peer does not name at all must be refused")
 }
@@ -305,7 +305,7 @@ func TestSendPermissionRefusesACommandWithNoSender(t *testing.T) {
 	assert.Contains(t, err.Error(), "CommandContext.Sender",
 		"the refusal must name the field the dispatch path failed to set")
 
-	require.ErrorIs(t, adapter.AnnounceNLRIBatch(all, testBatchOnePrefix(t), nobody), errSendNoSender,
+	require.ErrorIs(t, adapter.AnnounceNLRIBatch(t.Context(), all, testBatchOnePrefix(t), nobody), errSendNoSender,
 		"an announce from nobody must be refused")
 	require.ErrorIs(t, adapter.SendRefresh(all, uint16(family.AFIIPv4), uint8(family.SAFIUnicast), nobody), errSendNoSender,
 		"a ROUTE-REFRESH from nobody must be refused")

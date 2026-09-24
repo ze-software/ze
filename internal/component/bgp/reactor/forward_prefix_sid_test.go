@@ -333,8 +333,12 @@ func TestPrefixSIDOriginationBoundary(t *testing.T) {
 		route := PluginRoute{RawAttrs: [][]byte{other, wire}}
 		fam := family.IPv4Unicast
 
-		assert.Len(t, toPluginParams(route, fam, true).RawAttrs, 2)
-		assert.Equal(t, [][]byte{other}, toPluginParams(route, fam, false).RawAttrs,
+		allowed, err := toPluginParams(route, fam, true, netip.Addr{})
+		require.NoError(t, err)
+		assert.Len(t, allowed.RawAttrs, 2)
+		blocked, err := toPluginParams(route, fam, false, netip.Addr{})
+		require.NoError(t, err)
+		assert.Equal(t, [][]byte{other}, blocked.RawAttrs,
 			"only the Prefix-SID is removed; the plugin's other attributes still go out")
 	})
 }

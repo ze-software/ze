@@ -168,7 +168,7 @@ func buildPreserveQueuedRail(t *testing.T, c preserveCase) []byte {
 	asPath := adapter.buildBatchASPathAttr(userASPath, 0, c.isIBGP, false /*rsClient*/, localASOnly(65000))
 	route := rib.NewRouteWithASPath(wn, netip.MustParseAddr(c.nextHop), attrs, asPath)
 
-	update := buildRIBRouteUpdate(make([]byte, message.MaxMsgLen), route, 65000, c.isIBGP, true /*asn4*/, false /*addPath*/)
+	update := buildRIBRouteUpdate(make([]byte, message.MaxMsgLen), route, route.NextHop(), 65000, c.isIBGP, true /*asn4*/, false /*addPath*/)
 	require.NotNil(t, update)
 	return update.PathAttributes
 }

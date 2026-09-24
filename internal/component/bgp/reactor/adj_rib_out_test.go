@@ -54,10 +54,10 @@ func TestAnnounceTwiceSendsOneUpdate(t *testing.T) {
 	peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
 	require.Len(t, framesOf(t, conn, false), 1, "the first announce reaches the wire")
 
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
 
 	assert.Len(t, framesOf(t, conn, false), 1, "the second announce of an unchanged route sends nothing")
 	assert.Equal(t, uint64(1), peer.adjOut.suppressedCount(),
@@ -78,8 +78,8 @@ func TestAnnounceTwiceReportsSuccess(t *testing.T) {
 	peer, _ := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
-	assert.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
+	assert.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
 }
 
 // TestAnnounceChangedNextHopSendsAgain is the other polarity, and it is the
@@ -93,8 +93,8 @@ func TestAnnounceChangedNextHopSendsAgain(t *testing.T) {
 	peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), adjOutBatch("2.2.0.1/32", "2.2.2.2"), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.1/32", "2.2.2.2"), plugin.OperatorSender()))
 
 	assert.Len(t, framesOf(t, conn, false), 2, "a changed next hop is a changed route")
 	assert.Equal(t, uint64(0), peer.adjOut.suppressedCount())
@@ -111,9 +111,9 @@ func TestWithdrawThenAnnounceSendsAgain(t *testing.T) {
 	peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
-	require.NoError(t, adapter.WithdrawNLRIBatch(selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
+	require.NoError(t, adapter.WithdrawNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
 
 	assert.Len(t, framesOf(t, conn, false), 3, "announce, withdraw, announce: three messages")
 	assert.Equal(t, uint64(0), peer.adjOut.suppressedCount())
@@ -133,11 +133,11 @@ func TestReplayAnnounceIsNotSuppressed(t *testing.T) {
 	peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
 
 	replay := adjOutBatch("2.2.0.1/32", "1.1.1.1")
 	replay.Replay = true
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), replay, plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), replay, plugin.OperatorSender()))
 
 	assert.Len(t, framesOf(t, conn, false), 2, "a replay re-sends what the peer already holds")
 	assert.Equal(t, uint64(0), peer.adjOut.suppressedCount())
@@ -157,11 +157,11 @@ func TestSessionTeardownEmptiesAdjRIBOut(t *testing.T) {
 	peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
 
 	peer.clearEncodingContexts()
 
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
 
 	assert.Len(t, framesOf(t, conn, false), 2, "a new session is owed the route again")
 }
@@ -180,12 +180,12 @@ func TestAnnouncePartlyHeldSendsOnlyTheRest(t *testing.T) {
 	peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), adjOutBatch("10.10.0.0/24", "1.1.1.1"), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), adjOutBatch("10.10.0.0/24", "1.1.1.1"), plugin.OperatorSender()))
 	require.Len(t, framesOf(t, conn, false), 1)
 
 	both := groupUpdatesBatch()
 	require.Equal(t, "10.10.0.0/24", groupUpdatesPrefixes[0].String(), "the shared batch leads with the prefix already sent")
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), both, plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), both, plugin.OperatorSender()))
 
 	frames := framesOf(t, conn, false)
 	require.Len(t, frames, 2, "the peer is owed one prefix, so it receives one more UPDATE")
@@ -319,7 +319,7 @@ func TestWithdrawWithheldUntilSessionAdvertises(t *testing.T) {
 	peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
-	err := adapter.WithdrawNLRIBatch(selector.All(), adjOutBatch("1.1.0.0/24", "1.1.1.1"), plugin.OperatorSender())
+	err := adapter.WithdrawNLRIBatch(t.Context(), selector.All(), adjOutBatch("1.1.0.0/24", "1.1.1.1"), plugin.OperatorSender())
 
 	require.ErrorIs(t, err, route.ErrWithdrawWithheld, "the answer carries the reason")
 	assert.Contains(t, err.Error(), "10.0.0.2", "and it names the peer it was withheld from")
@@ -342,8 +342,8 @@ func TestWithdrawSentAfterAnyNLRIAdvertised(t *testing.T) {
 	peer, conn := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), adjOutBatch("2.2.0.0/24", "1.1.1.1"), plugin.OperatorSender()))
-	require.NoError(t, adapter.WithdrawNLRIBatch(selector.All(), adjOutBatch("2.2.0.0/25", "1.1.1.1"), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.0/24", "1.1.1.1"), plugin.OperatorSender()))
+	require.NoError(t, adapter.WithdrawNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.0/25", "1.1.1.1"), plugin.OperatorSender()))
 
 	assert.Len(t, framesOf(t, conn, false), 2, "the announce, then the withdrawal of a route the peer never held")
 	assert.Equal(t, uint64(0), peer.adjOut.withheldCount())
@@ -382,7 +382,7 @@ func TestAdvertisedStateClearedOnTeardown(t *testing.T) {
 	peer, _ := newGroupUpdatesPeer(t, "10.0.0.2", "absent")
 	adapter := groupUpdatesReactor([]*Peer{peer}, false)
 
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), adjOutBatch("2.2.0.1/32", "1.1.1.1"), plugin.OperatorSender()))
 	require.True(t, peer.hasAdvertised(), "the announce armed this connection")
 
 	peer.clearEncodingContexts()

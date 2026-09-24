@@ -54,6 +54,13 @@ announce and a withdraw of one prefix are order-sensitive, and the whole batch
 leaves in a single flush, so a partition by kind would invert that pair and buy
 no time.
 
+Overflow superseding preserves this order as well. When a new item has the same
+body as an older queued item, the older item is removed and the new item goes at
+the tail. Replacing the older slot in place would put a recovery announcement
+before an intervening withdrawal and leave the destination withdrawn. The queue
+depth stays unchanged, and the removed item's cache reference and buffer handles
+are released once.
+
 The route-server fast path writes into the destination's `bufWriter` without
 going through the pool, so it also refuses while that destination has items
 pending in overflow. The pool's own `TryDispatch` refuses its channel for the

@@ -4,6 +4,7 @@
 package reactor
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"sync"
@@ -341,7 +342,7 @@ func (c *pathsLimitCommitSender) SendUpdate(update *message.Update) error {
 		return ErrNotConnected
 	}
 	var counts pathsLimitSendCounts
-	if err := session.sendUpdateCounted(update, &counts); err != nil {
+	if err := session.sendUpdateCounted(context.Background(), update, &counts); err != nil {
 		return err
 	}
 	c.withheld.routes += counts.routes

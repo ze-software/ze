@@ -213,7 +213,7 @@ func announceFactRun(t *testing.T, batch bgptypes.NLRIBatch, dests ...announceFa
 		attrModHandlers: attrModHandlersWithDefaults(),
 		updateGroups:    newUpdateGroupIndex(true),
 	}}
-	require.NoError(t, adapter.AnnounceNLRIBatch(selector.All(), batch, plugin.OperatorSender()))
+	require.NoError(t, adapter.AnnounceNLRIBatch(t.Context(), selector.All(), batch, plugin.OperatorSender()))
 
 	got := make(map[string][]byte, len(dests))
 	for addr, conn := range conns {
@@ -265,6 +265,7 @@ func newAnnounceFactPeer(t *testing.T, dest announceFactPeer) (*Peer, *recording
 	conn := &recordingConn{}
 	session.mu.Lock()
 	session.conn = conn
+	session.transport.Store(&sessionTransport{local: settings.LocalAddress})
 	session.bufWriter = bufio.NewWriterSize(conn, message.MaxMsgLen)
 	// RFC 8654: the session write buffer starts at 4096 and grows to 65535 when
 	// the capability is negotiated, which session_negotiate.go does on a live

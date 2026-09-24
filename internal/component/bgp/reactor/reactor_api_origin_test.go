@@ -139,7 +139,7 @@ func TestAnnounceOversizeDropsWithNamedLog(t *testing.T) {
 		route := rib.NewRouteWithASPath(inet, netip.MustParseAddr("10.0.0.1"), attrs,
 			&attribute.ASPath{Segments: []attribute.ASPathSegment{{Type: attribute.ASSequence, ASNs: []uint32{65000}}}})
 
-		update := buildRIBRouteUpdate(make([]byte, 256), route, 65000, true, true, false)
+		update := buildRIBRouteUpdate(make([]byte, 256), route, route.NextHop(), 65000, true, true, false)
 
 		require.Nil(t, update, "an announce that does not fit must be dropped, never truncated")
 		logged := sink.String()
@@ -186,7 +186,7 @@ func TestQueuedRailNLRIRegionIntact(t *testing.T) {
 		for i := range attrBuf {
 			attrBuf[i] = 0x5A // poison: an unwritten byte is visible
 		}
-		update := buildRIBRouteUpdate(attrBuf, route, 65000, true /*iBGP*/, true /*asn4*/, false)
+		update := buildRIBRouteUpdate(attrBuf, route, route.NextHop(), 65000, true /*iBGP*/, true /*asn4*/, false)
 
 		nlriOff := bufLen - nlriLen
 		assert.Equal(t, hex.EncodeToString(wantNLRI), hex.EncodeToString(attrBuf[nlriOff:]),
@@ -342,7 +342,7 @@ func TestAnnounceStripsLocalPrefTowardExternalPeer(t *testing.T) {
 		require.True(t, ok)
 		asPath := adapter.buildBatchASPathAttr(asp, 0, isIBGP, false /*rsClient*/, localASOnly(65000))
 		route := rib.NewRouteWithASPath(wn, netip.MustParseAddr("10.0.0.1"), attrs, asPath)
-		update := buildRIBRouteUpdate(make([]byte, message.MaxMsgLen), route, 65000, isIBGP, true /*asn4*/, false)
+		update := buildRIBRouteUpdate(make([]byte, message.MaxMsgLen), route, route.NextHop(), 65000, isIBGP, true /*asn4*/, false)
 		require.NotNil(t, update)
 		return update.PathAttributes
 	}

@@ -1,6 +1,7 @@
 package rr
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"net"
@@ -53,14 +54,14 @@ func newSessionReadyHarness(t *testing.T) *sessionReadyHarness {
 	plugin := sdk.NewWithConn("rr-session-ready-test", rpc.NewBridgedConn(pluginEnd, bridge))
 	t.Cleanup(func() { _ = plugin.Close() })
 
-	bridge.SetDispatchCommandArgs(func(command string, _ []string, _ string) (*rpc.DispatchCommandOutput, error) {
+	bridge.SetDispatchCommandArgs(func(_ context.Context, command string, _ []string, _ string) (*rpc.DispatchCommandOutput, error) {
 		harness.record(command)
 		if harness.replayErr != nil {
 			return nil, harness.replayErr
 		}
 		return &rpc.DispatchCommandOutput{Status: statusDone, Data: json.RawMessage(`{"last-index":0,"replayed":0}`)}, nil
 	})
-	bridge.SetDispatchCommand(func(command string) (*rpc.DispatchCommandOutput, error) {
+	bridge.SetDispatchCommand(func(_ context.Context, command string) (*rpc.DispatchCommandOutput, error) {
 		harness.record(command)
 		return &rpc.DispatchCommandOutput{Status: statusDone}, nil
 	})

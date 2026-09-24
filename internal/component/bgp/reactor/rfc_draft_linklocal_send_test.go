@@ -100,7 +100,7 @@ var llnhLinkLocalNextHop = bgptypes.RouteNextHop{
 func TestLinkLocalOnlyNextHopFieldIsSixteenOctets(t *testing.T) {
 	peer := llnhPeer(t, true /*llnh*/, false /*extendedNextHop*/)
 
-	nextHop, err := peer.resolveNextHop(llnhLinkLocalNextHop, family.IPv6Unicast)
+	nextHop, err := peer.resolveNextHop(peer.session, llnhLinkLocalNextHop, family.IPv6Unicast)
 	require.NoError(t, err, "a negotiated session admits a link-local next hop")
 
 	field := llnhNextHopField(t, llnhBuildUnicast(t, "2001:db8:7::/64", nextHop, netip.Addr{}, false))
@@ -154,7 +154,7 @@ func TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination(t *testing.T) {
 
 	require.False(t, peer.linkLocalOnlyNextHopPermitted(family.IPv4Unicast),
 		"without capability 77 the combination is not negotiated")
-	_, err := peer.resolveNextHop(llnhLinkLocalNextHop, family.IPv4Unicast)
+	_, err := peer.resolveNextHop(peer.session, llnhLinkLocalNextHop, family.IPv4Unicast)
 	require.ErrorIs(t, err, ErrNextHopLinkLocalOnly,
 		"a Link-Local-only Next Hop is refused for IPv4 NLRI outside the combination")
 
@@ -185,7 +185,7 @@ func TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination(t *testing.T) {
 
 	require.True(t, peer.linkLocalOnlyNextHopPermitted(family.IPv4Unicast),
 		"both capabilities negotiated is the combination Section 5 names")
-	nextHop, err := peer.resolveNextHop(llnhLinkLocalNextHop, family.IPv4Unicast)
+	nextHop, err := peer.resolveNextHop(peer.session, llnhLinkLocalNextHop, family.IPv4Unicast)
 	require.NoError(t, err, "the combination admits a Link-Local-only Next Hop for IPv4 NLRI")
 
 	field := llnhNextHopField(t, llnhBuildUnicast(t, "192.0.2.0/24",

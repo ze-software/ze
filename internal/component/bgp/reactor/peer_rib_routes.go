@@ -22,6 +22,8 @@ import (
 // Used for re-announcing routes from Adj-RIB-Out on session re-establishment.
 // Rebuilds the full set of required attributes since rib.Route may not store all.
 // RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
+// nextHop is resolved by the drainer for this connection; it is deliberately
+// separate from the stored route so a queued self policy survives reconnects.
 // RFC 6793: asn4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
 //
 // A stored AS_PATH is emitted VERBATIM, with no local-AS prepend. That is
@@ -47,7 +49,7 @@ import (
 // attribute writes themselves could reach the NLRI region and corrupt the prefix
 // the UPDATE was announcing. Both rails now take that bound as an explicit region
 // argument to announceAttrs.emit (ai/rules/evidence.md).
-func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBGP, asn4, addPath bool) *message.Update {
+func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, nextHop netip.Addr, localAS uint32, isIBGP, asn4, addPath bool) *message.Update {
 	// The destination encoding context for AS_PATH (RFC 6793 ASN width). Shared
 	// rather than built per route: it is a pure function of asn4 and is immutable.
 	dstCtx := announceDstCtx(asn4)
@@ -111,14 +113,13 @@ func buildRIBRouteUpdate(attrBuf []byte, route *rib.Route, localAS uint32, isIBG
 	nlri.WriteNLRI(routeNLRI, attrBuf, nlriOff, addPath)
 	nlriData := attrBuf[nlriOff : nlriOff+nlriLen]
 
-	// The stored next hop is not validated anywhere upstream of this rail. A route
-	// queued by AnnounceNLRIBatch (reactor_api_batch.go) carries whatever
-	// Peer.resolveNextHop returned, and resolveNextHop hands an explicit next-hop
-	// back unvalidated, the zero netip.Addr included. Both branches below refuse
+	// An explicit next hop is not validated upstream of this rail; self is
+	// resolved from the draining session instead of from the stored route.
+	// Either way, the supplied value still needs an encodable wire form.
+	// Both branches below refuse an absent required next hop
 	// rather than encode: this rail builds over an EMPTY base, so there is no
 	// previous NEXT_HOP to fall back on, and an UPDATE missing one is a Missing
 	// Well-known Attribute (RFC 4271 Section 5.1.3, RFC 7606 Section 3(d)).
-	nextHop := route.NextHop()
 
 	var nlriBytes []byte
 	if fam.AFI == family.AFIIPv4 && fam.SAFI == family.SAFIUnicast {
