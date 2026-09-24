@@ -66,9 +66,32 @@ const (
 	// proves a rotation did not rebind the socket (AC-6).
 	lgPKIListenBanner = "looking glass listening on"
 
-	lgPKIPollAttempts = 150
-	lgPKIPollDelay    = 200 * time.Millisecond
+	// lgPKIPollDelay is how often a fence rereads the daemon's output.
+	lgPKIPollDelay = 200 * time.Millisecond
+
+	// lgPKIPollFallback is the attempt count a fence uses when no runner
+	// published a budget (a fixture run by hand): 30 seconds at lgPKIPollDelay.
+	lgPKIPollFallback = 150
 )
+
+// lgPKIStartAttempts answers how many polls the wait for the listener banner
+// may take. It is a share of the test's budget, not a constant, because the
+// daemon creates its live store before it binds, and that store's directory
+// fsync is paced by the disk. On 2026-09-24 one directory fsync on the shared
+// cache disk took 27.8 seconds, and a fixed 30-second wait failed the start
+// while the daemon sat in storage.Create. The start takes the largest share;
+// the two reload fences of the longest driver take lgPKIReloadAttempts each,
+// and together they stay under the budget so the fixture's message is the one
+// the operator reads.
+func lgPKIStartAttempts() int {
+	return WaitAttempts(40, lgPKIPollDelay, lgPKIPollFallback)
+}
+
+// lgPKIReloadAttempts answers how many polls one reload fence may take, as a
+// share of the test's budget (see lgPKIStartAttempts).
+func lgPKIReloadAttempts() int {
+	return WaitAttempts(25, lgPKIPollDelay, lgPKIPollFallback)
+}
 
 // lgPKILeaf is one device certificate the pki container can carry: base64 DER
 // for both halves, which is the encoding every pki leaf takes.
@@ -283,12 +306,14 @@ func startLGPKIDaemon(ctx context.Context, path, config string, port int) (*lgPK
 	var banner textbuf.Buffer
 	banner.Str(lgPKIListenBanner).Str(" https://127.0.0.1:").Int(int64(port)).Byte('/')
 	needle := banner.String()
-	ready := Poll(ctx, lgPKIPollAttempts, lgPKIPollDelay, func() bool {
+	attempts := lgPKIStartAttempts()
+	ready := Poll(ctx, attempts, lgPKIPollDelay, func() bool {
 		return strings.Contains(daemon.output.String(), needle)
 	})
 	if !ready {
 		daemon.stop()
-		return nil, fmt.Errorf("the looking glass never announced %q:\n%s", needle, daemon.output.String())
+		waited := time.Duration(attempts) * lgPKIPollDelay
+		return nil, fmt.Errorf("the looking glass never announced %q within %s:\n%s", needle, waited, daemon.output.String())
 	}
 	return daemon, nil
 }
@@ -324,9 +349,11 @@ func (d *lgPKIDaemon) reload(ctx context.Context, config string) (accepted bool,
 	if err := syscall.Kill(d.command.Process.Pid, syscall.SIGHUP); err != nil {
 		return false, err
 	}
-	settled := Poll(ctx, lgPKIPollAttempts, lgPKIPollDelay, func() bool { return d.verdicts() > verdictsBefore })
+	attempts := lgPKIReloadAttempts()
+	settled := Poll(ctx, attempts, lgPKIPollDelay, func() bool { return d.verdicts() > verdictsBefore })
 	if !settled {
-		return false, fmt.Errorf("the daemon printed no reload verdict:\n%s", d.output.String())
+		waited := time.Duration(attempts) * lgPKIPollDelay
+		return false, fmt.Errorf("the daemon printed no reload verdict within %s:\n%s", waited, d.output.String())
 	}
 	return strings.Count(d.output.String(), lgPKIReloadDone) > acceptedBefore, nil
 }
