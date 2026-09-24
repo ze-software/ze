@@ -266,6 +266,7 @@ ze_bgp   internal/component/bgp/plugins/cmd/policy
 ze_bgp   internal/component/bgp/plugins/cmd/raw
 ze_bgp   internal/component/bgp/plugins/cmd/rib
 ze_bgp   internal/component/bgp/plugins/cmd/update
+ze_bgp   internal/component/bgp/plugins/epe
 ze_bgp   internal/component/bgp/plugins/filter_aspath
 ze_bgp   internal/component/bgp/plugins/filter_aspath_length
 ze_bgp   internal/component/bgp/plugins/filter_community
@@ -280,6 +281,7 @@ ze_bgp   internal/component/bgp/plugins/gr
 ze_bgp   internal/component/bgp/plugins/healthcheck
 ze_bgp   internal/component/bgp/plugins/hostname
 ze_bgp   internal/component/bgp/plugins/llnh
+ze_bgp   internal/component/bgp/plugins/ls_export
 ze_bgp   internal/component/bgp/plugins/nlri/evpn
 ze_bgp   internal/component/bgp/plugins/nlri/flowspec
 ze_bgp   internal/component/bgp/plugins/nlri/labeled

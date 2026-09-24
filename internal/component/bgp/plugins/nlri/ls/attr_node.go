@@ -79,7 +79,7 @@ func (t *lsOpaqueNodeAttr) Code() uint16 { return TLVOpaqueNodeAttr }
 func (t *lsOpaqueNodeAttr) Len() int     { return 4 + len(t.Data) }
 
 func (t *lsOpaqueNodeAttr) WriteTo(buf []byte, off int) int {
-	return writeTLVBytes(buf, off, TLVOpaqueNodeAttr, t.Data)
+	return WriteTLVBytes(buf, off, TLVOpaqueNodeAttr, t.Data)
 }
 
 func (t *lsOpaqueNodeAttr) ToJSON() map[string]any {
@@ -106,7 +106,7 @@ func (t *lsNodeName) Code() uint16 { return TLVNodeName }
 func (t *lsNodeName) Len() int     { return 4 + len(t.Name) }
 
 func (t *lsNodeName) WriteTo(buf []byte, off int) int {
-	return writeTLVBytes(buf, off, TLVNodeName, []byte(t.Name))
+	return WriteTLVBytes(buf, off, TLVNodeName, []byte(t.Name))
 }
 
 func (t *lsNodeName) ToJSON() map[string]any {
@@ -131,7 +131,7 @@ func (t *lsISISAreaID) Code() uint16 { return TLVISISAreaID }
 func (t *lsISISAreaID) Len() int     { return 4 + len(t.AreaID) }
 
 func (t *lsISISAreaID) WriteTo(buf []byte, off int) int {
-	return writeTLVBytes(buf, off, TLVISISAreaID, t.AreaID)
+	return WriteTLVBytes(buf, off, TLVISISAreaID, t.AreaID)
 }
 
 func (t *lsISISAreaID) ToJSON() map[string]any {
@@ -228,15 +228,15 @@ const (
 type LsSrLabelRange struct {
 	Range    uint32 // number of labels in range
 	FirstSID uint32 // first SID/label value
-	// sidLen preserves 3 vs 4 byte SID encoding for round-trip.
-	sidLen int
+	// SIDLen preserves 3 vs 4 byte SID encoding for round-trip.
+	SIDLen int
 }
 
 // srLabelRangesLen returns the wire length of a slice of label ranges (without TLV header or flags).
 func srLabelRangesLen(ranges []LsSrLabelRange) int {
 	n := 0
 	for _, r := range ranges {
-		sidLen := r.sidLen
+		sidLen := r.SIDLen
 		if sidLen == 0 {
 			sidLen = 4
 		}
@@ -254,7 +254,7 @@ func writeSrLabelRanges(buf []byte, off int, ranges []LsSrLabelRange) {
 		buf[pos+2] = byte(r.Range)
 		pos += 3
 
-		sidLen := r.sidLen
+		sidLen := r.SIDLen
 		if sidLen == 0 {
 			sidLen = 4
 		}
@@ -300,7 +300,7 @@ func decodeSrLabelRanges(data []byte) ([]LsSrLabelRange, error) {
 		ranges = append(ranges, LsSrLabelRange{
 			Range:    rangeVal,
 			FirstSID: sid,
-			sidLen:   subLen,
+			SIDLen:   subLen,
 		})
 		rest = rest[subLen:]
 	}

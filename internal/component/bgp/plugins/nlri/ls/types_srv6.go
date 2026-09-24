@@ -57,7 +57,7 @@ func (sd *SRv6SIDDescriptor) Len() int {
 // Returns bytes written.
 func (sd *SRv6SIDDescriptor) WriteTo(buf []byte, off int) int {
 	if len(sd.SRv6SID) > 0 {
-		return writeTLVBytes(buf, off, TLVSRv6SID, sd.SRv6SID)
+		return WriteTLVBytes(buf, off, TLVSRv6SID, sd.SRv6SID)
 	}
 	return 0
 }
@@ -79,9 +79,9 @@ type BGPLSSRv6SID struct {
 	SRv6SID   SRv6SIDDescriptor // RFC 9514 - SRv6 SID Descriptor
 }
 
-// newBGPLSSRv6SID creates a new SRv6 SID NLRI.
+// NewBGPLSSRv6SID creates a new SRv6 SID NLRI.
 // RFC 9514 - SRv6 SID NLRI (Type 6).
-func newBGPLSSRv6SID(proto BGPLSProtocolID, id uint64, node NodeDescriptor, sid SRv6SIDDescriptor) *BGPLSSRv6SID {
+func NewBGPLSSRv6SID(proto BGPLSProtocolID, id uint64, node NodeDescriptor, sid SRv6SIDDescriptor) *BGPLSSRv6SID {
 	return &BGPLSSRv6SID{nlriType: BGPLSSRv6SIDNLRI, protocolID: proto, identifier: id, LocalNode: node,
 		SRv6SID: sid}
 }

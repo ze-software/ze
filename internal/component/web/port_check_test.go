@@ -189,13 +189,23 @@ const portSnapshotScript = "the snapshot page's live view is an external script,
 // to it.
 const portCLITerminalKnowsShowBgp = "the terminal running `show bgp` reads the peer table, where the mock knew only the longer spelling"
 
+// portRootListsEPEAndExport is why the CLI mode response moved, and like the
+// terminal entry above the templ port did not produce it.
+//
+// The bgp-epe and bgp-ls-export plugins each register a configuration root, so
+// the root listing that post-cli-mode.txt captures gained two containers when
+// the plugins arrived. The listing is derived from the loaded schema, and the
+// pre-port capture predates both plugins.
+const portRootListsEPEAndExport = "the root listing carries the bgp-epe and bgp-ls-export containers, whose plugins postdate the pre-port capture"
+
 // webPortHandlers explains each response whose content changed on purpose.
 // Every other difference is a finding.
 //
-// Ten responses moved. Nine moved to make a page work: eight are the snapshot
+// Eleven responses moved. Nine moved to make a page work: eight are the snapshot
 // views above, and the ninth is AC-5, recorded against A-2 in
 // spec-web-templ-migration. The tenth is the web terminal above, which is a
-// command rename rather than a port artifact.
+// command rename rather than a port artifact. The eleventh is the CLI mode
+// root listing above, which gained two plugins' configuration roots.
 //
 // handleDashboardEventsPage (page_dashboard.go) ran each cell through
 // template.HTMLEscapeString and handed the result to markup that escapes
@@ -275,6 +285,7 @@ var webPortHandlers = map[string]string{
 	"post-login-ok.txt":                 portSecurityHeaders,
 
 	"post-cli-terminal.txt": portCLITerminalKnowsShowBgp,
+	"post-cli-mode.txt":     portRootListsEPEAndExport,
 }
 
 // TestWebTemplPortFidelity compares every captured unit against the bytes it

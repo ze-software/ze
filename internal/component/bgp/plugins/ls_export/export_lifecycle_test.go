@@ -1,6 +1,6 @@
 // Design: docs/architecture/wire/nlri-bgpls.md -- native exporter lifecycle
 
-package ls
+package ls_export
 
 import (
 	"context"

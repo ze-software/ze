@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri-bgpls.md -- native SRv6 origination
 // RFC: rfc/short/rfc9514.md -- capability, locator and SID advertisements
 
-package ls
+package ls_export
 
 import (
 	"context"

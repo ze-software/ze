@@ -101,7 +101,7 @@ func (t *lsOpaquePrefixAttr) Code() uint16 { return TLVOpaquePrefixAttr }
 func (t *lsOpaquePrefixAttr) Len() int     { return 4 + len(t.Data) }
 
 func (t *lsOpaquePrefixAttr) WriteTo(buf []byte, off int) int {
-	return writeTLVBytes(buf, off, TLVOpaquePrefixAttr, t.Data)
+	return WriteTLVBytes(buf, off, TLVOpaquePrefixAttr, t.Data)
 }
 
 func (t *lsOpaquePrefixAttr) ToJSON() map[string]any {
@@ -295,7 +295,7 @@ func (t *lsSourceRouterID) Code() uint16 { return TLVSourceRouterID }
 func (t *lsSourceRouterID) Len() int     { return 4 + len(t.ID) }
 
 func (t *lsSourceRouterID) WriteTo(buf []byte, off int) int {
-	return writeTLVBytes(buf, off, TLVSourceRouterID, t.ID)
+	return WriteTLVBytes(buf, off, TLVSourceRouterID, t.ID)
 }
 
 func (t *lsSourceRouterID) ToJSON() map[string]any {

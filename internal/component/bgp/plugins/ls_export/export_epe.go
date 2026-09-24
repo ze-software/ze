@@ -1,13 +1,14 @@
 // Design: docs/architecture/wire/nlri-bgpls.md -- EPE originator invariants
 // RFC: rfc/short/rfc9086.md -- mandatory PeerNode SID and advertised SRGB
 
-package ls
+package ls_export
 
 import (
 	"encoding/binary"
 	"errors"
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
 	"github.com/ze-software/ze/internal/core/linkstateevents"
 )
 
@@ -26,7 +27,7 @@ func validateNativeEPE(snapshot *linkstateevents.Snapshot) error {
 			return errors.New("native BGP node requires ASN and nonzero BGP Router-ID")
 		}
 		for _, attr := range node.Attributes {
-			if attr.Type != TLVSRCapabilities {
+			if attr.Type != ls.TLVSRCapabilities {
 				continue
 			}
 			if len(attr.Value) < 12 {
@@ -34,7 +35,7 @@ func validateNativeEPE(snapshot *linkstateevents.Snapshot) error {
 			}
 			var total uint64
 			for value := attr.Value[2:]; len(value) != 0; {
-				if len(value) < 10 || binary.BigEndian.Uint16(value[3:5]) != TLVSIDLabel || binary.BigEndian.Uint16(value[5:7]) != 3 {
+				if len(value) < 10 || binary.BigEndian.Uint16(value[3:5]) != ls.TLVSIDLabel || binary.BigEndian.Uint16(value[5:7]) != 3 {
 					return errors.New("native EPE SRGB requires complete label ranges")
 				}
 				size := uint32(value[0])<<16 | uint32(value[1])<<8 | uint32(value[2])
@@ -55,10 +56,10 @@ func validateNativeEPE(snapshot *linkstateevents.Snapshot) error {
 		}
 		peerNode := false
 		for _, attr := range link.Attributes {
-			if attr.Type != TLVPeerNodeSID && attr.Type != TLVPeerAdjSID && attr.Type != TLVPeerSetSID {
+			if attr.Type != ls.TLVPeerNodeSID && attr.Type != ls.TLVPeerAdjSID && attr.Type != ls.TLVPeerSetSID {
 				continue
 			}
-			peerNode = peerNode || attr.Type == TLVPeerNodeSID
+			peerNode = peerNode || attr.Type == ls.TLVPeerNodeSID
 			switch len(attr.Value) {
 			case 7:
 				if attr.Value[0]&0xc0 != 0xc0 || attr.Value[4]&0xf0 != 0 {

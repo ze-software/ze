@@ -540,8 +540,8 @@ func TestSRCapabilitiesRoundTrip(t *testing.T) {
 	original := &LsSRCapabilities{
 		Flags: 0xC0, // I=1, V=1
 		Ranges: []LsSrLabelRange{
-			{Range: 8000, FirstSID: 16000, sidLen: 4},
-			{Range: 1000, FirstSID: 100000, sidLen: 3},
+			{Range: 8000, FirstSID: 16000, SIDLen: 4},
+			{Range: 1000, FirstSID: 100000, SIDLen: 3},
 		},
 	}
 	decoded := tlvRoundTrip(t, original)
@@ -584,7 +584,7 @@ func TestSRAlgorithmRoundTrip(t *testing.T) {
 func TestSRLocalBlockRoundTrip(t *testing.T) {
 	original := &LsSRLocalBlock{
 		Flags:  0, // RFC 9085 Section 5: MUST be 0
-		Ranges: []LsSrLabelRange{{Range: 1000, FirstSID: 15000, sidLen: 4}},
+		Ranges: []LsSrLabelRange{{Range: 1000, FirstSID: 15000, SIDLen: 4}},
 	}
 	decoded := tlvRoundTrip(t, original)
 	assert.Equal(t, uint8(0), decoded.Flags)

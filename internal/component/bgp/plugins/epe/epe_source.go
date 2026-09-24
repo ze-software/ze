@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri-bgpls.md -- live EPE segment producer
 // RFC: rfc/short/rfc9086.md -- instantiated PeerNode SIDs
 
-package ls
+package epe
 
 import (
 	"encoding/binary"
@@ -14,12 +14,13 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
 	"github.com/ze-software/ze/internal/core/linkstateevents"
 	"github.com/ze-software/ze/internal/core/mplsfib"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
-var epeSnapshots = linkstateevents.RegisterSource(epeName)
+var epeSnapshots = linkstateevents.RegisterSource(Name)
 var epeGeneration atomic.Uint64
 
 const epeMPLSSource uint16 = 5
@@ -30,10 +31,13 @@ type epeSession struct {
 	localAddress netip.Addr
 }
 
-type epeSource struct {
+// Source instantiates the PeerNode SIDs of the configured peers: it installs one
+// MPLS label for each established session and publishes the matching link-state
+// snapshot. Safe for concurrent use.
+type Source struct {
 	mu        sync.Mutex
 	bus       ze.EventBus
-	config    epeConfig
+	config    Config
 	sessions  map[netip.Addr]epeSession
 	installed map[netip.Addr]uint32
 	stopped   bool
@@ -41,11 +45,13 @@ type epeSource struct {
 	retired   bool // Both native labels and the last advertised snapshot are cleared.
 }
 
-func newEPESource(bus ze.EventBus) *epeSource {
-	return &epeSource{bus: bus, sessions: make(map[netip.Addr]epeSession), installed: make(map[netip.Addr]uint32)}
+// NewSource returns a Source that emits labels and snapshots on bus.
+func NewSource(bus ze.EventBus) *Source {
+	return &Source{bus: bus, sessions: make(map[netip.Addr]epeSession), installed: make(map[netip.Addr]uint32)}
 }
 
-func (s *epeSource) configure(config epeConfig) error {
+// Configure replaces the configuration and republishes the snapshot.
+func (s *Source) Configure(config Config) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.config = config
@@ -56,7 +62,8 @@ func (s *epeSource) configure(config epeConfig) error {
 	return s.publishLocked()
 }
 
-func (s *epeSource) state(event *bgp.Event) error {
+// State applies one BGP peer state event and republishes the snapshot.
+func (s *Source) State(event *bgp.Event) error {
 	peer, err := netip.ParseAddr(event.GetPeerAddress())
 	if err != nil {
 		return err
@@ -97,13 +104,15 @@ func (s *epeSource) state(event *bgp.Event) error {
 	return s.publishLocked()
 }
 
-func (s *epeSource) replay() error {
+// Replay publishes the current snapshot again.
+func (s *Source) Replay() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.publishLocked()
 }
 
-func (s *epeSource) stop() error {
+// Stop removes the installed labels and publishes an empty snapshot.
+func (s *Source) Stop() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.stopped {
@@ -120,7 +129,7 @@ func (s *epeSource) stop() error {
 // publishLocked withdraws obsolete label assignments before installing their
 // replacements. The snapshot describes only labels acknowledged by the native
 // FIB owner, never hypothetical SIDs attached to ordinary BGP sessions.
-func (s *epeSource) publishLocked() error {
+func (s *Source) publishLocked() error {
 	if s.retired {
 		// A successful bye may race the next producer's startup. The deferred
 		// stop must not reset labels that the new instance has since acquired.
@@ -129,9 +138,9 @@ func (s *epeSource) publishLocked() error {
 	desired := make(map[netip.Addr]uint32)
 	var failures []error
 	if !s.stopped {
-		for peer, config := range s.config.peers {
+		for peer, config := range s.config.Peers {
 			if _, up := s.sessions[peer]; up {
-				desired[peer] = s.config.base + config.index
+				desired[peer] = s.config.Base + config.Index
 			}
 		}
 	}
@@ -190,23 +199,23 @@ func (s *epeSource) publishLocked() error {
 	nodes := make(map[[8]byte]struct{})
 	for _, peer := range peers {
 		session := s.sessions[peer]
-		config := s.config.peers[peer]
+		config := s.config.Peers[peer]
 		id := session.local.BGPRouterID.As4()
 		var key [8]byte
 		binary.BigEndian.PutUint32(key[:4], session.local.ASN)
 		copy(key[4:], id[:])
 		if _, exists := nodes[key]; !exists {
 			nodes[key] = struct{}{}
-			capabilities := LsSRCapabilities{Ranges: []LsSrLabelRange{{Range: s.config.size, FirstSID: s.config.base, sidLen: 3}}}
+			capabilities := ls.LsSRCapabilities{Ranges: []ls.LsSrLabelRange{{Range: s.config.Size, FirstSID: s.config.Base, SIDLen: 3}}}
 			wire := make([]byte, capabilities.Len())
 			capabilities.WriteTo(wire, 0)
 			snapshot.Nodes = append(snapshot.Nodes, linkstateevents.Node{ID: session.local,
-				Attributes: []linkstateevents.TLV{{Type: TLVSRCapabilities, Value: wire[4:]}}})
+				Attributes: []linkstateevents.TLV{{Type: ls.TLVSRCapabilities, Value: wire[4:]}}})
 		}
 		// Index encoding refers to the advertised local SRGB. P reflects the
 		// persistent operator assignment, while V and L are clear for an index.
-		value := []byte{0x10, config.weight, 0, 0, 0, 0, 0, 0}
-		binary.BigEndian.PutUint32(value[4:], config.index)
+		value := []byte{0x10, config.Weight, 0, 0, 0, 0, 0, 0}
+		binary.BigEndian.PutUint32(value[4:], config.Index)
 		snapshot.Links = append(snapshot.Links, linkstateevents.Link{Local: session.local, Remote: session.remote,
 			LocalAddresses: []netip.Addr{session.localAddress}, RemoteAddresses: []netip.Addr{peer},
 			Attributes: []linkstateevents.TLV{{Type: 1101, Value: value}}})
@@ -218,7 +227,7 @@ func (s *epeSource) publishLocked() error {
 	return errors.Join(failures...)
 }
 
-func (s *epeSource) emitLabel(action mplsfib.Action, label uint32, peer netip.Addr) error {
+func (s *Source) emitLabel(action mplsfib.Action, label uint32, peer netip.Addr) error {
 	entries := []mplsfib.Entry{{Action: action, Op: mplsfib.OpPop,
 		InLabel: label, NextHop: peer, Source: epeMPLSSource}}
 	if err := mplsfib.Apply(s.bus, entries); err != nil {

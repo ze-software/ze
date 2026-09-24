@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri-bgpls.md -- native origination contract
 // RFC: rfc/short/rfc9552.md
 
-package ls
+package ls_export
 
 import (
 	"bytes"

@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri-bgpls.md -- native opaque attribute provenance
 // RFC: rfc/short/rfc9552.md -- OSPF opaque attribute carriers
 
-package ls
+package ls_export
 
 import (
 	"context"

@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri-bgpls.md -- routing-universe identity
 // RFC: rfc/short/rfc9552.md -- operator-configurable 64-bit Instance-ID
 
-package ls
+package ls_export
 
 import (
 	"encoding/json"

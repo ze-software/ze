@@ -1,49 +1,24 @@
 // Design: docs/architecture/wire/nlri-bgpls.md -- native exporter lifecycle
 
-package ls
+package ls_export
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net"
 	"net/netip"
 	"sync"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp"
-	lsyang "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls/yang"
-	"github.com/ze-software/ze/internal/component/plugin/cli"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/events"
 	"github.com/ze-software/ze/internal/core/linkstateevents"
-	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
-
-const exporterName = "bgp-ls-export"
-
-var exportLogger = slog.Default()
-
-func init() {
-	// UPDATE RPCs are statically registered by the BGP feature, not a plugin dependency.
-	reg := registry.Registration{Name: exporterName, Description: "Export native routing databases through BGP-LS",
-		RFCs: []string{"9552", "9085", "9086", "9514"}, Features: "yang", YANG: lsyang.ZeBGPLsExportConfYANG,
-		ConfigRoots: []string{exporterName}, Dependencies: []string{"bgp-nlri-ls"},
-		RunEngine: runTopologyExporter, InProcessConfigVerifier: verifyExporterConfig,
-		ConfigureEngineLogger: func(name string) { exportLogger = slogutil.Logger(name) }}
-	reg.CLIHandler = func(args []string) int {
-		cfg := cli.BaseConfig(&reg)
-		cfg.GetYANG = func() string { return lsyang.ZeBGPLsExportConfYANG }
-		cfg.ConfigLogger = func(level string) { exportLogger = slogutil.PluginLogger(reg.Name, level) }
-		return cli.RunPlugin(cfg, args)
-	}
-	if err := registry.Register(reg); err != nil {
-		panic(fmt.Sprintf("BUG: register native BGP-LS exporter: %v", err))
-	}
-}
 
 func verifyExporterConfig(sections []rpc.ConfigSection) error {
 	_, err := parseExportConfig(sections)
@@ -142,8 +117,8 @@ func runTopologyExporter(conn net.Conn) int {
 		case rpc.EventKindState:
 			exporter.peerState(peer, event.GetPeerState() == "up")
 		case rpc.EventKindRefresh:
-			if event.AFI == BGPLSFamily.AFI {
-				if event.SAFI == BGPLSFamily.SAFI {
+			if event.AFI == ls.BGPLSFamily.AFI {
+				if event.SAFI == ls.BGPLSFamily.SAFI {
 					exporter.peerRefresh(peer)
 				}
 			}

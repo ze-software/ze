@@ -1,7 +1,7 @@
 // Design: docs/architecture/wire/nlri-bgpls.md -- native EPE lifecycle proof
 // RFC: rfc/short/rfc9086.md -- PeerNode index and SRGB coupling
 
-package ls
+package ls_export
 
 import (
 	"context"
@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp"
+	"github.com/ze-software/ze/internal/component/bgp/plugins/epe"
 	"github.com/ze-software/ze/internal/core/linkstateevents"
 	"github.com/ze-software/ze/internal/core/mplsfib"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -92,10 +93,10 @@ func TestRFC9086NativePeerIndexAdvertisesSRGB(t *testing.T) {
 	// RFC requirement: RFC9086-4.2-2 positive -- collector-visible remote descriptors contain the live BGP identifier and AS.
 	exporter, capture := exportFixture(t)
 	bus := &epeProofBus{exporter: exporter, labels: make(map[uint32]netip.Addr)}
-	source := newEPESource(bus)
+	source := epe.NewSource(bus)
 	peer := netip.MustParseAddr("198.51.100.2")
-	require.NoError(t, source.configure(epeConfig{base: 16000, size: 100, peers: map[netip.Addr]epePeerConfig{peer: {index: 7, weight: 5}}}))
-	require.NoError(t, source.state(epeProofEvent(t, "up")))
+	require.NoError(t, source.Configure(epe.Config{Base: 16000, Size: 100, Peers: map[netip.Addr]epe.PeerConfig{peer: {Index: 7, Weight: 5}}}))
+	require.NoError(t, source.State(epeProofEvent(t, "up")))
 	require.Equal(t, map[uint32]netip.Addr{16007: peer}, bus.labels)
 	require.NoError(t, exporter.reconcile(context.Background()))
 	require.Len(t, capture.commands, 2)
@@ -114,7 +115,7 @@ func TestRFC9086NativePeerIndexAdvertisesSRGB(t *testing.T) {
 	require.Equal(t, [][]byte{{192, 0, 2, 2}}, exportTLVValues(t, remote[0], 516))
 	require.Equal(t, [][]byte{{0, 0, 253, 232}}, exportTLVValues(t, local[0], 512))
 	require.Equal(t, [][]byte{{0, 0, 253, 233}}, exportTLVValues(t, remote[0], 512))
-	require.NoError(t, source.state(epeProofEvent(t, "down")))
+	require.NoError(t, source.State(epeProofEvent(t, "down")))
 	require.Empty(t, bus.labels)
 	require.NoError(t, exporter.reconcile(context.Background()))
 	require.Len(t, capture.commands, 4)
@@ -135,7 +136,7 @@ func TestRFC9086NativePeerIndexRequiresSRGB(t *testing.T) {
 	snapshot := &linkstateevents.Snapshot{Domain: linkstateevents.Domain{Protocol: linkstateevents.BGP},
 		Nodes: []linkstateevents.Node{{ID: local}}, Links: []linkstateevents.Link{{Local: local, Remote: remote,
 			Attributes: []linkstateevents.TLV{{Type: 1101, Value: []byte{0x10, 0, 0, 0, 0, 0, 0, 7}}}}}}
-	require.Error(t, exporter.replace(epeName, snapshot))
+	require.Error(t, exporter.replace(epe.Name, snapshot))
 	require.NoError(t, exporter.reconcile(context.Background()))
 	require.Empty(t, capture.commands)
 }
@@ -146,31 +147,31 @@ func TestRFC9086NativePeerIndexRequiresSRGB(t *testing.T) {
 func TestNativeEPEInstallFailureDoesNotAdvertiseSID(t *testing.T) {
 	exporter, capture := exportFixture(t)
 	bus := &epeProofBus{exporter: exporter, labels: make(map[uint32]netip.Addr), reject: errors.New("MPLS install rejected")}
-	source := newEPESource(bus)
+	source := epe.NewSource(bus)
 	peer := netip.MustParseAddr("198.51.100.2")
-	require.NoError(t, source.configure(epeConfig{base: 16000, size: 100, peers: map[netip.Addr]epePeerConfig{peer: {index: 7}}}))
-	require.Error(t, source.state(epeProofEvent(t, "up")))
+	require.NoError(t, source.Configure(epe.Config{Base: 16000, Size: 100, Peers: map[netip.Addr]epe.PeerConfig{peer: {Index: 7}}}))
+	require.Error(t, source.State(epeProofEvent(t, "up")))
 	require.NoError(t, exporter.reconcile(context.Background()))
 	require.Empty(t, capture.commands)
 	require.Empty(t, bus.labels)
 	bus.reject = nil
-	require.NoError(t, source.replay())
+	require.NoError(t, source.Replay())
 	require.NoError(t, exporter.reconcile(context.Background()))
 	require.Len(t, capture.commands, 2)
 	bus.reject = errors.New("replacement label rejected")
-	require.Error(t, source.configure(epeConfig{base: 17000, size: 100, peers: map[netip.Addr]epePeerConfig{peer: {index: 7}}}))
+	require.Error(t, source.Configure(epe.Config{Base: 17000, Size: 100, Peers: map[netip.Addr]epe.PeerConfig{peer: {Index: 7}}}))
 	require.NoError(t, exporter.reconcile(context.Background()))
 	require.Len(t, capture.commands, 4)
 	require.Contains(t, capture.commands[2], " del ")
 	require.Contains(t, capture.commands[3], " del ")
 	require.Equal(t, map[uint32]netip.Addr{16007: peer}, bus.labels, "failed deletion remains tracked for retry")
 	bus.rejectAction = mplsfib.ActionAdd
-	require.Error(t, source.replay())
+	require.Error(t, source.Replay())
 	require.Empty(t, bus.labels, "old removal succeeded but the replacement installation failed")
 	require.NoError(t, exporter.reconcile(context.Background()))
 	require.Len(t, capture.commands, 4, "no SID may be re-advertised without its forwarding label")
 	bus.reject = nil
-	require.NoError(t, source.replay())
+	require.NoError(t, source.Replay())
 	require.Equal(t, map[uint32]netip.Addr{17007: peer}, bus.labels)
 	require.NoError(t, exporter.reconcile(context.Background()))
 	require.Len(t, capture.commands, 6)
@@ -189,12 +190,12 @@ func TestRFC9086NativePeerRequiresNodeIdentities(t *testing.T) {
 		t.Run(identity.name, func(t *testing.T) {
 			exporter, capture := exportFixture(t)
 			bus := &epeProofBus{exporter: exporter, labels: make(map[uint32]netip.Addr)}
-			source := newEPESource(bus)
+			source := epe.NewSource(bus)
 			peer := netip.MustParseAddr("198.51.100.2")
-			require.NoError(t, source.configure(epeConfig{base: 16000, size: 100, peers: map[netip.Addr]epePeerConfig{peer: {index: 7}}}))
+			require.NoError(t, source.Configure(epe.Config{Base: 16000, Size: 100, Peers: map[netip.Addr]epe.PeerConfig{peer: {Index: 7}}}))
 			event := epeProofEvent(t, "up")
 			event.Peer = []byte(strings.Replace(string(event.Peer), identity.from, identity.to, 1))
-			require.Error(t, source.state(event))
+			require.Error(t, source.State(event))
 			require.Empty(t, bus.labels)
 			require.NoError(t, exporter.reconcile(context.Background()))
 			require.Empty(t, capture.commands)
@@ -208,20 +209,20 @@ func TestRFC9086NativePeerRequiresNodeIdentities(t *testing.T) {
 func TestRFC9086NativeConfigurationEnableDisable(t *testing.T) {
 	// RFC requirement: RFC9086-7-1 positive -- operator configuration produces forwarding state and a real PeerNode advertisement.
 	// RFC requirement: RFC9086-7-1 negative -- removing that configuration withdraws forwarding and collector state despite the session remaining up.
-	config, err := parseEPEConfig([]rpc.ConfigSection{{Root: epeName, Data: `{"bgp-epe":{"srgb":{"lower-bound":"16000","upper-bound":"16099"},"peer":{"198.51.100.2":{"sid-index":"7","weight":"5"}}}}`}})
+	config, err := epe.ParseConfig([]rpc.ConfigSection{{Root: epe.Name, Data: `{"bgp-epe":{"srgb":{"lower-bound":"16000","upper-bound":"16099"},"peer":{"198.51.100.2":{"sid-index":"7","weight":"5"}}}}`}})
 	require.NoError(t, err)
 	exporter, capture := exportFixture(t)
 	bus := &epeProofBus{exporter: exporter, labels: make(map[uint32]netip.Addr)}
-	source := newEPESource(bus)
-	require.NoError(t, source.state(epeProofEvent(t, "up")))
-	require.NoError(t, source.configure(config))
+	source := epe.NewSource(bus)
+	require.NoError(t, source.State(epeProofEvent(t, "up")))
+	require.NoError(t, source.Configure(config))
 	require.NoError(t, exporter.reconcile(context.Background()))
 	require.Equal(t, map[uint32]netip.Addr{16007: netip.MustParseAddr("198.51.100.2")}, bus.labels)
 	require.Len(t, capture.commands, 2)
 	require.Equal(t, [][]byte{{0x10, 5, 0, 0, 0, 0, 0, 7}}, exportTLVValues(t, exportCommandBytes(t, capture.commands[1], "attr")[11:], 1101))
-	disabled, err := parseEPEConfig(nil)
+	disabled, err := epe.ParseConfig(nil)
 	require.NoError(t, err)
-	require.NoError(t, source.configure(disabled))
+	require.NoError(t, source.Configure(disabled))
 	require.Empty(t, bus.labels)
 	require.NoError(t, exporter.reconcile(context.Background()))
 	require.Len(t, capture.commands, 4)

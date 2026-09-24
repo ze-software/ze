@@ -400,7 +400,7 @@ func (t *lsOpaqueLinkAttr) Code() uint16 { return TLVOpaqueLinkAttr }
 func (t *lsOpaqueLinkAttr) Len() int     { return 4 + len(t.Data) }
 
 func (t *lsOpaqueLinkAttr) WriteTo(buf []byte, off int) int {
-	return writeTLVBytes(buf, off, TLVOpaqueLinkAttr, t.Data)
+	return WriteTLVBytes(buf, off, TLVOpaqueLinkAttr, t.Data)
 }
 
 func (t *lsOpaqueLinkAttr) ToJSON() map[string]any {
@@ -425,7 +425,7 @@ func (t *lsLinkName) Code() uint16 { return TLVLinkName }
 func (t *lsLinkName) Len() int     { return 4 + len(t.Name) }
 
 func (t *lsLinkName) WriteTo(buf []byte, off int) int {
-	return writeTLVBytes(buf, off, TLVLinkName, []byte(t.Name))
+	return WriteTLVBytes(buf, off, TLVLinkName, []byte(t.Name))
 }
 
 func (t *lsLinkName) ToJSON() map[string]any {

@@ -2,7 +2,7 @@
 // RFC: rfc/short/rfc9552.md
 // RFC: rfc/short/rfc9086.md
 
-package ls
+package ls_export
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/plugins/epe"
 	"github.com/ze-software/ze/internal/core/linkstateevents"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
@@ -198,7 +199,7 @@ func TestRFC9086NativeLinkWithoutPeerNodeRefused(t *testing.T) {
 	remote := linkstateevents.NodeID{ASN: 65001, BGPRouterID: netip.MustParseAddr("192.0.2.2")}
 	snapshot := &linkstateevents.Snapshot{Domain: linkstateevents.Domain{Protocol: linkstateevents.BGP},
 		Nodes: []linkstateevents.Node{{ID: local}}, Links: []linkstateevents.Link{{Local: local, Remote: remote}}}
-	require.Error(t, exporter.replace(epeName, snapshot))
+	require.Error(t, exporter.replace(epe.Name, snapshot))
 	require.NoError(t, exporter.reconcile(context.Background()))
 	require.Empty(t, capture.commands)
 }
@@ -210,12 +211,12 @@ func TestRFC9086NativeRepeatedUpKeepsOnePeerNodeSID(t *testing.T) {
 	// RFC requirement: RFC9086-3-2 negative -- a second up event and a replay for the same session leave one installed label and one PeerNode SID TLV on the one advertised Link.
 	exporter, capture := exportFixture(t)
 	bus := &epeProofBus{exporter: exporter, labels: make(map[uint32]netip.Addr)}
-	source := newEPESource(bus)
+	source := epe.NewSource(bus)
 	peer := netip.MustParseAddr("198.51.100.2")
-	require.NoError(t, source.configure(epeConfig{base: 16000, size: 100, peers: map[netip.Addr]epePeerConfig{peer: {index: 7, weight: 5}}}))
-	require.NoError(t, source.state(epeProofEvent(t, "up")))
-	require.NoError(t, source.state(epeProofEvent(t, "up")))
-	require.NoError(t, source.replay())
+	require.NoError(t, source.Configure(epe.Config{Base: 16000, Size: 100, Peers: map[netip.Addr]epe.PeerConfig{peer: {Index: 7, Weight: 5}}}))
+	require.NoError(t, source.State(epeProofEvent(t, "up")))
+	require.NoError(t, source.State(epeProofEvent(t, "up")))
+	require.NoError(t, source.Replay())
 	require.Len(t, bus.labels, 1)
 	require.NoError(t, exporter.reconcile(context.Background()))
 	links := 0
@@ -239,7 +240,7 @@ func TestRFC9086NativePeerSIDReservedFlagsZero(t *testing.T) {
 	snapshot := &linkstateevents.Snapshot{Domain: linkstateevents.Domain{Protocol: linkstateevents.BGP},
 		Nodes: []linkstateevents.Node{{ID: local}}, Links: []linkstateevents.Link{{Local: local, Remote: remote,
 			Attributes: []linkstateevents.TLV{{Type: 1101, Value: []byte{0xcf, 5, 0xff, 0xff, 0x00, 0x3e, 0x80}}}}}}
-	require.NoError(t, exporter.replace(epeName, snapshot))
+	require.NoError(t, exporter.replace(epe.Name, snapshot))
 	require.NoError(t, exporter.reconcile(context.Background()))
 	var sid []byte
 	for _, command := range capture.commands {

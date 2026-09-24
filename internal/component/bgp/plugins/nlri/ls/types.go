@@ -526,9 +526,9 @@ func writeTLV(buf []byte, off int, tlvType uint16, valueLen int) int {
 	return 4 + valueLen
 }
 
-// writeTLVBytes writes a complete TLV with value bytes.
+// WriteTLVBytes writes a complete TLV with value bytes.
 // Returns total bytes written.
-func writeTLVBytes(buf []byte, off int, tlvType uint16, value []byte) int {
+func WriteTLVBytes(buf []byte, off int, tlvType uint16, value []byte) int {
 	binary.BigEndian.PutUint16(buf[off:], tlvType)
 	binary.BigEndian.PutUint16(buf[off+2:], uint16(len(value))) //nolint:gosec // Length validated by caller
 	copy(buf[off+4:], value)

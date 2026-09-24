@@ -359,10 +359,16 @@ for a replay, encodes the borrowed snapshot synchronously, and retains only its
 own wire bytes. Source generation numbers prevent an older snapshot from
 resurrecting a removed domain.
 
+The exporter is the package `internal/component/bgp/plugins/ls_export`, and
+`bgp-epe` is the package `internal/component/bgp/plugins/epe`. Each package
+registers one plugin and owns its YANG module. Both encode through the BGP-LS
+codec in `internal/component/bgp/plugins/nlri/ls`.
+
 The `bgp-ls-export` and `bgp-epe` schemas are always loaded. A `bgp-ls-export`
 or `bgp-epe` block in the configuration starts its plugin, and removing the
 block stops it.
-<!-- source: internal/component/bgp/plugins/nlri/ls/yang/register.go -- init -->
+<!-- source: internal/component/bgp/plugins/ls_export/yang/register.go -- init -->
+<!-- source: internal/component/bgp/plugins/epe/yang/register.go -- init -->
 
 `bgp-ls-export { }` enables the internal exporter. Collector peers negotiate the
 `bgp-ls` family and attach the plugin with `state` and `refresh` event delivery
@@ -417,7 +423,8 @@ The `domain` list maps a source namespace, Protocol-ID, native instance, and
 native area to an operator-chosen 64-bit `instance-id`. IS-IS uses native instance
 1 with areas 1 and 2 for its levels; OSPF uses its configured instance and numeric
 area. Without a mapping, the source's routing-universe identifier is retained.
-The exporter refuses a database replacement above 65536 routes and keeps the
+The exporter refuses a database replacement above 65536 routes
+(`linkstateevents.RouteMax`) and keeps the
 previous accepted state. It requires the engine event bus and refuses forked
 execution rather than running without native data.
 A replacement which gives an existing cross-domain NLRI different attributes is
@@ -456,18 +463,18 @@ remain opaque on the propagation path; the originator restriction does not
 inspect or rewrite them. Caller-supplied raw BGP messages remain a separate
 operator interface without native topology provenance or originator guarantees.
 
-<!-- source: internal/core/linkstateevents/events.go -- Snapshot, RegisterSource, Request -->
+<!-- source: internal/core/linkstateevents/events.go -- Snapshot, RegisterSource, Request, RouteMax -->
 <!-- source: internal/plugins/isis/bgpls_export.go -- publishBGPLSLocked -->
 <!-- source: internal/plugins/ospf/bgpls_export.go -- publishBGPLSLocked -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/export_plugin.go -- runTopologyExporter -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/export_state.go -- replace, reconcile -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/export_encode.go -- encodeTopology, originateAttributes -->
+<!-- source: internal/component/bgp/plugins/ls_export/export_plugin.go -- runTopologyExporter -->
+<!-- source: internal/component/bgp/plugins/ls_export/export_state.go -- replace, reconcile -->
+<!-- source: internal/component/bgp/plugins/ls_export/export_encode.go -- encodeTopology, originateAttributes -->
 <!-- source: internal/component/bgp/message/chunk_mp_nlri.go -- bgpLSNLRISize -->
 <!-- source: internal/plugins/isis/spf/computer.go -- Reachability, SetOnComplete -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/export_config.go -- parseExportConfig -->
+<!-- source: internal/component/bgp/plugins/ls_export/export_config.go -- parseExportConfig -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- establishedPeerInfo, connectedLocalEndpoint -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/epe_source.go -- publishLocked, emitLabel -->
-<!-- source: internal/component/bgp/plugins/nlri/ls/epe_config.go -- parseEPEConfig -->
+<!-- source: internal/component/bgp/plugins/epe/epe_source.go -- publishLocked, emitLabel -->
+<!-- source: internal/component/bgp/plugins/epe/epe_config.go -- ParseConfig -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- Session.SendRawMessage -->
 
 ### Receive-Path Fault Management (RFC 9552 Section 8.2.2)

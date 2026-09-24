@@ -109,7 +109,7 @@ func TestBGPLSAppendJSON(t *testing.T) {
 func TestBGPLSAppendJSONSRv6SID(t *testing.T) {
 	t.Parallel()
 
-	sid := newBGPLSSRv6SID(
+	sid := NewBGPLSSRv6SID(
 		ProtoOSPFv3, 0x300,
 		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
 		SRv6SIDDescriptor{SRv6SID: []byte{
@@ -178,7 +178,7 @@ func TestBGPLSAppendJSONMatchesRPCDecode(t *testing.T) {
 			NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
 			PrefixDescriptor{IPReachabilityInfo: []byte{64, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0}},
 		),
-		newBGPLSSRv6SID(
+		NewBGPLSSRv6SID(
 			ProtoOSPFv3, 0x300,
 			NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
 			SRv6SIDDescriptor{SRv6SID: []byte{

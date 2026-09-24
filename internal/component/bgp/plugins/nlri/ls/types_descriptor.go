@@ -160,7 +160,7 @@ func (nd *NodeDescriptor) WriteTo(buf []byte, off int) int {
 		binary.BigEndian.PutUint32(buf[pos-4:], nd.OSPFAreaID)
 	}
 	if len(nd.IGPRouterID) > 0 {
-		pos += writeTLVBytes(buf, pos, TLVIGPRouterID, nd.IGPRouterID)
+		pos += WriteTLVBytes(buf, pos, TLVIGPRouterID, nd.IGPRouterID)
 	}
 	if nd.BGPRouterID != 0 {
 		pos += writeTLV(buf, pos, TLVBGPRouterID, 4)
@@ -171,7 +171,7 @@ func (nd *NodeDescriptor) WriteTo(buf []byte, off int) int {
 		binary.BigEndian.PutUint32(buf[pos-4:], nd.ConfedMember)
 	}
 	for _, sid := range nd.srv6SIDsOrdered() {
-		pos += writeTLVBytes(buf, pos, TLVSRv6SID, sid)
+		pos += WriteTLVBytes(buf, pos, TLVSRv6SID, sid)
 	}
 
 	return pos - off
@@ -316,10 +316,10 @@ func (ld *LinkDescriptor) WriteTo(buf []byte, off int) int {
 
 	first, second := ld.addressTLVs()
 	if first.value != nil {
-		pos += writeTLVBytes(buf, pos, first.kind, first.value)
+		pos += WriteTLVBytes(buf, pos, first.kind, first.value)
 	}
 	if second.value != nil {
-		pos += writeTLVBytes(buf, pos, second.kind, second.value)
+		pos += WriteTLVBytes(buf, pos, second.kind, second.value)
 	}
 
 	if ld.HasMultiTopologyID || ld.MultiTopologyID != 0 {
@@ -409,10 +409,10 @@ func (pd *PrefixDescriptor) WriteTo(buf []byte, off int) int {
 		binary.BigEndian.PutUint16(buf[pos-2:], pd.MultiTopologyID)
 	}
 	if pd.OSPFRouteType != 0 {
-		pos += writeTLVBytes(buf, pos, TLVOSPFRouteType, []byte{pd.OSPFRouteType})
+		pos += WriteTLVBytes(buf, pos, TLVOSPFRouteType, []byte{pd.OSPFRouteType})
 	}
 	if len(pd.IPReachabilityInfo) > 0 {
-		pos += writeTLVBytes(buf, pos, TLVIPReachabilityInfo, pd.IPReachabilityInfo)
+		pos += WriteTLVBytes(buf, pos, TLVIPReachabilityInfo, pd.IPReachabilityInfo)
 	}
 	return pos - off
 }

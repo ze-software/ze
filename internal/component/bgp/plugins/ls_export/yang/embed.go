@@ -4,8 +4,5 @@ package yang
 
 import _ "embed"
 
-//go:embed ze-bgp-epe-conf.yang
-var ZeBGPEpeConfYANG string
-
 //go:embed ze-bgp-ls-export-conf.yang
 var ZeBGPLsExportConfYANG string

@@ -16,6 +16,11 @@ import (
 
 const EventType = "link-state-snapshot"
 
+// RouteMax is the most BGP-LS routes one exported database may carry. The
+// exporter refuses a snapshot, a domain set or an expansion past it, and a source
+// sizes its own configuration so that its snapshot stays inside it.
+const RouteMax = 65536
+
 // Request asks every running source to publish its current domains. Sources
 // subscribe before their initial publication and publish empty domains on stop.
 var Request = events.RegisterSignal("link-state", "snapshot-request")

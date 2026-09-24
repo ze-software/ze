@@ -7,6 +7,5 @@ import (
 )
 
 func init() {
-	configyang.RegisterModule("ze-bgp-epe-conf.yang", ZeBGPEpeConfYANG)
 	configyang.RegisterModule("ze-bgp-ls-export-conf.yang", ZeBGPLsExportConfYANG)
 }

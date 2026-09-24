@@ -231,7 +231,7 @@ func TestBGPLSPrefixV6NLRIDecode(t *testing.T) {
 // PREVENTS: Wrong NLRI type detection.
 func TestBGPLSSRv6SIDNLRIDecode(t *testing.T) {
 	t.Parallel()
-	srv6 := newBGPLSSRv6SID(
+	srv6 := NewBGPLSSRv6SID(
 		ProtoSegment, 0x300,
 		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
 		SRv6SIDDescriptor{SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}},

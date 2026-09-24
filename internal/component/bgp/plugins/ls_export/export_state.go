@@ -1,6 +1,6 @@
 // Design: docs/architecture/wire/nlri-bgpls.md -- native snapshot replacement
 
-package ls
+package ls_export
 
 import (
 	"bytes"
@@ -14,10 +14,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
 	"github.com/ze-software/ze/internal/core/linkstateevents"
 )
-
-const exportRouteLimit = 65536
 
 type exportDomainKey struct {
 	source string
@@ -74,7 +73,7 @@ func (e *topologyExporter) replace(source string, snapshot *linkstateevents.Snap
 	if snapshot == nil {
 		return errors.New("nil native topology snapshot")
 	}
-	if len(snapshot.Nodes)+len(snapshot.Links)+len(snapshot.Prefixes)+len(snapshot.SIDs) > exportRouteLimit {
+	if len(snapshot.Nodes)+len(snapshot.Links)+len(snapshot.Prefixes)+len(snapshot.SIDs) > linkstateevents.RouteMax {
 		return errors.New("native topology snapshot exceeds route limit")
 	}
 	e.mu.Lock()
@@ -110,7 +109,7 @@ func (e *topologyExporter) replace(source string, snapshot *linkstateevents.Snap
 			}
 		}
 	}
-	if total > exportRouteLimit {
+	if total > linkstateevents.RouteMax {
 		return errors.New("native topology export exceeds route limit")
 	}
 	// Keep an empty generation tombstone until disable so a late snapshot cannot
@@ -343,7 +342,7 @@ func (e *topologyExporter) send(ctx context.Context, peer string, route exported
 		copy(attrs[11:], route.attributes)
 		command += "attr set " + hex.EncodeToString(attrs) + " nhop set self "
 	}
-	command += "nlri " + BGPLSFamily.String()
+	command += "nlri " + ls.BGPLSFamily.String()
 	if withdraw {
 		command += " del "
 	} else {
