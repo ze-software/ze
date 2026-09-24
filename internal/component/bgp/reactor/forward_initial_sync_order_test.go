@@ -309,7 +309,7 @@ func TestForwardedWithdrawWaitsForQueuedAnnounceRSRail(t *testing.T) {
 // would overtake them, so the rail asks the pool as well as the peer. The test
 // holds that state open: the sync flag is cleared WITHOUT the wake
 // Peer.wakeForwardOverflow sends, so the announce stays parked while
-// forwardOrderHold() is already false. Nothing but the pending-overflow count
+// forwardOrderHold(false) is already false. Nothing but the pending-overflow count
 // can hold the withdraw back.
 //
 // VALIDATES: AC-1 -- reactorForwardRS consults Peer.forwardOverflowPending
@@ -354,7 +354,7 @@ func TestForwardedUpdateWaitsForPendingOverflowRSRail(t *testing.T) {
 	// it in the daemon, so the announce is still parked here and the ONLY thing
 	// that can hold the withdraw back is the pending-overflow count.
 	dst.sendingInitialRoutes.Store(0)
-	require.False(t, dst.forwardOrderHold(), "the destination must be out of its sync hold")
+	require.False(t, dst.forwardOrderHold(false), "the destination must be out of its sync hold")
 	require.True(t, dst.forwardOverflowPending(), "the announce must still be parked")
 
 	withdraw := syncOrderPublish(t, r, ctxID, withdrawID, syncOrderWithdrawBody)
@@ -470,7 +470,7 @@ func TestForwardedUpdateWaitsForInFlightOverflowRSRail(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("the released announce never reached the destination's batch handler")
 	}
-	require.False(t, dst.forwardOrderHold(), "the destination must be out of its sync hold")
+	require.False(t, dst.forwardOrderHold(false), "the destination must be out of its sync hold")
 
 	// The announce is in flight: out of w.overflow, not yet written. A withdraw
 	// forwarded now must not reach the peer's write buffer ahead of it.

@@ -256,6 +256,11 @@ func (rs *routeServer) batchForwardUpdate(key workerKey, sourcePeer string, msgI
 // flushBatch sends the accumulated IDs via the reactor-owned ForwardCached
 // primitive (rs-fastpath-3). Bypasses the text-command tokenise path; the
 // engine dispatches directly to the reactor adapter.
+//
+// A destination still inside its peer-up replay is a target like any other.
+// The engine holds the forward for that one destination behind its replay (the
+// replay fence, released by signalSessionReady), so this call never waits for a
+// replay and other destinations are never delayed by one.
 func (rs *routeServer) flushBatch(batch *forwardBatch) {
 	if len(batch.ids) == 0 {
 		return

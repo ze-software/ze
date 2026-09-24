@@ -43,7 +43,7 @@ still inside its initial route sync has UPDATEs of its own that must reach the
 wire first. Both forwarding rails ask `Peer.forwardOrderHold()` before they
 dispatch, and send the item to `dispatchOverflow` when the answer is yes.
 `drainOverflow` keeps the item there while the same predicate stays true
-(`overflowHeld`), so a forwarded withdraw cannot overtake a queued announce of
+(`takeOverflowReleased`), so a forwarded withdraw cannot overtake a queued announce of
 the same prefix and leave the peer holding a route that was withdrawn. Gate and
 hold are ONE predicate on purpose: a gate wider than its hold parks items
 nothing will release, and a hold wider than its gate releases items the gate
@@ -87,8 +87,45 @@ One consequence is visible to operators: `request peer <sel> flush` blocks until
 every targeted peer has finished its initial sync, because the barrier sentinel
 queues behind the held items.
 
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- overflowHeld, wakeOverflow, safeBatchHandle, dispatchOverflow -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- takeOverflowReleased, wakeOverflow, safeBatchHandle, dispatchOverflow -->
 <!-- source: internal/component/bgp/reactor/peer.go -- forwardOrderHold, forwardOverflowPending, wakeForwardOverflow -->
+
+### The replay fence
+
+The ordering hold has a second cause. A process that reports a peer's initial
+routing update ("plugin session ready") can still be sending it after the
+reactor's own sync has ended. A route server's peer-up replay is the case that
+matters: it reaches the peer on the relay rail, while the same server's live
+forwards reach it on the forwarding rails, and nothing orders the two. A live
+withdraw that overtakes the replayed announce of the same prefix leaves the peer
+holding a withdrawn route.
+
+So the peer carries a fence, `initialUpdateOwed`. It goes up at `resetAPISync`,
+when the session establishes and before the initial sync can end, if any
+process is named to report. It comes down in `SignalAPIReady`, when the last of
+them reports, and that call wakes the worker. `forwardOrderHold` takes one
+argument for it: an item that is part of the initial update
+(`rpc.StoredRoute.InitialUpdate`, set by every peer-up replay) passes the fence,
+and every live item waits behind it. The route-server fast path carries live
+UPDATEs only, so it always asks as live.
+
+The hold is therefore per item, not per queue. `takeOverflowReleased` takes the
+items the hold does not cover out of the worker's overflow and leaves the held
+ones in their order. A released item overtakes a held one on purpose: the
+initial update goes out first, and the live changes follow in the order they
+arrived. A sentinel queued behind a held item stays behind it, so `request peer
+<sel> flush` still answers only once everything before it is written.
+
+The fence belongs to one peer. Other destinations read their own fence, so a
+replay on one peer never delays forwarding to another. The held items are
+queued overflow like any congested destination's, so the controls above apply
+to them unchanged: a denied handle at 80% pool use, and teardown of the worst
+destination at 95% after the grace period. Nothing is dropped in silence. A
+process that never reports keeps the fence up for the life of the session, and
+the same controls are what end it.
+<!-- source: internal/component/bgp/reactor/peer.go -- initialUpdateOwed, forwardOrderHold, SignalAPIReady, resetAPISync -->
+<!-- source: internal/component/bgp/reactor/forward_pool.go -- takeOverflowReleased -->
+<!-- source: internal/component/bgp/reactor/reactor_api_relay.go -- RelayStoredRoute -->
 
 ## Buffer Ownership: Zero-Copy with Copy-on-Modify
 

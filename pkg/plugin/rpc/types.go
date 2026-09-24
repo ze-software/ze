@@ -844,6 +844,12 @@ type StoredRoute struct {
 	// Withdraw explicitly removes a path no longer held by the receive store.
 	// AttrHex and NextHopHex are then unused; NLRIHex still names the path.
 	Withdraw bool `json:"withdraw,omitempty"`
+	// InitialUpdate marks the route as part of the destination's initial
+	// routing update: a peer-up replay. While a process still owes that peer
+	// its share of the update, the engine holds the peer's LIVE forwards and
+	// lets a route marked here pass, so the replay reaches the peer before any
+	// later change to the same prefix. A live change MUST leave it false.
+	InitialUpdate bool `json:"initial-update,omitempty"`
 	// PathID is the RFC 7911 Path Identifier the source session used for this
 	// route. It is meaningful only when NLRIFraming is NLRIFramingPrefixOnly.
 	PathID uint32 `json:"path-id,omitempty"`

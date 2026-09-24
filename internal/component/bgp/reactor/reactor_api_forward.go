@@ -459,6 +459,11 @@ type forwardSourceInfo struct {
 	resolved       bool
 	peer           *Peer
 	sender         plugin.Sender
+	// initialUpdate is true when the forward carries part of the destination's
+	// initial routing update, a peer-up replay, so it passes the destination's
+	// replay fence (Peer.forwardOrderHold). Only the relay rail sets it, from
+	// rpc.StoredRoute.InitialUpdate.
+	initialUpdate bool
 }
 
 // forwardUpdateSection dispatches one received-next-hop section through every
@@ -1124,8 +1129,14 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			// before the queued announce of the same prefix leaves the peer
 			// holding a route that was withdrawn. Park it in overflow instead;
 			// drainOverflow releases it when the sync ends, on this same
-			// predicate (peer.go forwardOrderHold, forward_pool.go overflowHeld).
-			if dst := pending[i].item.peer; dst != nil && dst.forwardOrderHold() {
+			// predicate (peer.go forwardOrderHold, forward_pool.go takeOverflowReleased).
+			//
+			// The same predicate carries the replay fence: while a process
+			// still owes this destination part of its initial update, a live
+			// change parks here and an item of that update passes
+			// (Peer.initialUpdateOwed).
+			pending[i].item.initialUpdate = srcInfo.initialUpdate
+			if dst := pending[i].item.peer; dst != nil && dst.forwardOrderHold(srcInfo.initialUpdate) {
 				if a.r.fwdPool.dispatchOverflow(pending[i].key, pending[i].item) {
 					a.r.fwdPool.recordOverflowed(srcAddr)
 					dispatchedCount++

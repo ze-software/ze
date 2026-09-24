@@ -145,6 +145,15 @@ type Registration struct {
 	// counting it would delay every such peer's End-of-RIB to the timeout.
 	SignalsSessionReady bool
 
+	// FencesLiveForwards declares that this plugin replays a peer's routes on
+	// peer-up while it also forwards live changes to that peer, on two rails
+	// with no order between them. The engine then holds the peer's live
+	// forwards until the plugin reports "plugin session ready" (its replay is
+	// over), and lets the replay's own routes pass (rpc.StoredRoute.
+	// InitialUpdate). It counts only with SignalsSessionReady, because the
+	// report is what lowers the hold.
+	FencesLiveForwards bool
+
 	YANG string // YANG schema content (empty if none)
 
 	// Commands are the commands this plugin serves, and what each answer
@@ -1553,4 +1562,14 @@ func TopologicalTiers(names []string, external map[string]bool) ([][]string, err
 	}
 
 	return tiers, nil
+}
+
+// FencesLiveForwards reports whether the plugin registered under name declares
+// Registration.FencesLiveForwards. An unregistered name answers false: a plugin
+// that never declared the fence is never waited for.
+func FencesLiveForwards(name string) bool {
+	mu.RLock()
+	reg := plugins[name]
+	mu.RUnlock()
+	return reg != nil && reg.FencesLiveForwards && reg.SignalsSessionReady
 }

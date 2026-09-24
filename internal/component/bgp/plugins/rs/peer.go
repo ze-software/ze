@@ -24,13 +24,32 @@ type PeerState struct {
 	// route loss on a healthy session. StateSeen is false only in the not-yet
 	// window; a peer that went down keeps its entry with StateSeen true.
 	StateSeen bool
-	// Replaying is true from handleStateUp until replayForPeer finishes. It is NOT
-	// consulted by selectForwardTargets: a replaying peer IS a live-forward target
-	// on purpose, because excluding it loses routes when peers connect together
-	// and a duplicate UPDATE is idempotent at the receiver
-	// (TestReplayingPeerIncludedInForwardTargets pins this).
-	// Its only readers are the replay goroutine's own generation bookkeeping.
-	Replaying bool // In-flight RIB replay; see note above
+	// replayDone is the peer-up REPLAY GATE: non-nil from the instant
+	// handleStateUp makes this peer a live forward target until the replay
+	// goroutine for that session ends, then cleared and closed by that
+	// goroutine alone (endReplay). A replaying peer IS still selected by
+	// selectForwardTargets -- excluding it lost routes when peers connected
+	// together.
+	//
+	// The replay and the live rail carry disjoint messages (see ForwardFrom),
+	// yet reach the peer through different processes with no ordering between
+	// them, so a live WITHDRAW could reach the peer before a replayed announce
+	// of the same prefix and leave a withdrawn route installed there. The
+	// engine orders the two for this peer alone: it holds the peer's live
+	// forwards behind its replay fence until signalSessionReady, sent at the
+	// end of the replay, and lets the replay's relays pass. No live rail here
+	// waits, so one peer's replay delays no other destination.
+	//
+	// The gate itself covers the rail the engine cannot hold, the peer-down
+	// withdrawal sent by selector: holdForReplays keeps a copy for each peer
+	// whose gate is set, and endReplay sends it once the replay is over.
+	//
+	// Protected by rs.mu. Set in the same critical section that sets Up and
+	// ForwardFrom, so no selection can see the peer as a target without its gate.
+	replayDone chan struct{}
+	// heldWithdrawals are the peer-down withdrawal commands holdForReplays kept
+	// for this peer while replayDone was set, in order. Protected by rs.mu.
+	heldWithdrawals []string
 
 	ReplayGen    uint64                 // Incremented on each handleStateUp, guards stale goroutines
 	Capabilities map[string]bool        // Negotiated capabilities (e.g., "route-refresh": true)

@@ -46,6 +46,10 @@ func (rs *routeServer) processValidation(key workerKey, route ribevents.Validati
 	}
 	targets := rs.selectForwardTargets(nil, key.sourcePeer, 0, map[family.Family]bool{route.Family: true})
 	rs.mu.RUnlock()
+	// A validation change is a live change. Its relay leaves
+	// StoredRoute.InitialUpdate false, so the engine holds it behind the
+	// peer-up replay of a destination still replaying, like a forwarded UPDATE
+	// (flushBatch), and nothing here waits.
 	for _, target := range targets {
 		ctx, cancel := context.WithTimeout(context.Background(), forwardCachedTimeout)
 		if ribevents.IsFlowSpec(route.Family) {
@@ -109,7 +113,8 @@ func (rs *routeServer) replayFlowSpecs(destination string, gen, cut uint64) {
 		}
 		route := rpc.StoredRoute{SourcePeer: key.Peer.String(), Family: key.Family.String(),
 			PathID: key.PathID, MsgID: path.MsgID, NLRIFraming: rpc.NLRIFramingPrefixOnly,
-			NLRIHex: hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes)}
+			NLRIHex: hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
+			InitialUpdate: true} // peer-up replay: passes the destination's replay fence
 		if err := rs.plugin.RelayStoredRoute(ctx, destination, []rpc.StoredRoute{route}); err != nil {
 			logger().Error("FlowSpec peer-up replay failed", "source", key.Peer, "target", destination, "error", err)
 			return

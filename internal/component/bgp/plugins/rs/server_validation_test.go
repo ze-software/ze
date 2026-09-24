@@ -175,7 +175,7 @@ func TestPeerUpReplaysExistingFlowSpecBeforeEOR(t *testing.T) {
 			rs.mu.Lock()
 			rs.peers[target].ReplayGen++
 			rs.mu.Unlock()
-			rs.replayForPeer(target, 1, 42)
+			rs.replayForPeer(target, 1, 42, make(chan struct{}))
 			if !slices.Equal(delivered, []string{"rule", "eor", "ready"}) {
 				t.Fatalf("old-session replay reached reconnected peer: %v", delivered)
 			}

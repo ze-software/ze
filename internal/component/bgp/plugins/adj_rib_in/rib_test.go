@@ -580,6 +580,8 @@ func TestReplayRouteCarriesSource(t *testing.T) {
 		AttrHex:    "400101004002060201000000c8",
 		NextHopHex: "0a000001",
 		NLRIHex:    "180a0000",
+		// A replay is the destination's initial update.
+		InitialUpdate: true,
 	}, routes[0])
 }
 

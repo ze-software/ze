@@ -363,7 +363,7 @@ func TestInitialSyncShutsTheQueueGateAndFreesTheRailsWithTheMarker(t *testing.T)
 		"the marker follows ze's own table and waits for no process")
 	assert.False(t, peer.shouldQueue(),
 		"the queueing gate must be shut once the marker is out, or route ops queue behind nothing")
-	assert.False(t, peer.forwardOrderHold(),
+	assert.False(t, peer.forwardOrderHold(false),
 		"the forwarding rails must be free, or a relayed route is held behind a barrier that has "+
 			"nothing to do with it")
 	assert.False(t, peer.pendingSync(),

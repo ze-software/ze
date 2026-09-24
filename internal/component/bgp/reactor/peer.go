@@ -419,6 +419,22 @@ type Peer struct {
 	apiSyncReady     chan struct{}       // Closed when every expected process has reported
 	apiSyncReadyOnce sync.Once           // Ensures channel is closed only once
 
+	// initialUpdateOwed is the REPLAY FENCE: true from raiseReplayFence while
+	// some process in replayFence has not yet reported that its peer-up replay
+	// is out, false once every one has (SignalAPIReady). A reporter that did
+	// not declare the fence never holds it: a process that never reports must
+	// not hold this peer's forwarding rails. While it holds, a forwarded LIVE change for this peer
+	// waits in its forward worker's overflow, and an item marked as part of the
+	// initial update passes it (Peer.forwardOrderHold). A route server's peer-up
+	// replay and its live forwards reach this peer on two rails with no order
+	// between them, so without the fence a live withdraw could overtake the
+	// replayed announce of the same prefix and leave it installed here.
+	// Atomic so the hold reads it without p.mu (forward_pool.go, takeOverflowReleased).
+	initialUpdateOwed atomic.Bool
+	// replayFence names the processes whose report lowers initialUpdateOwed:
+	// the reporters that declared registry.FencesLiveForwards. Protected by p.mu.
+	replayFence []string
+
 	// Peer-up barrier: plugins that must have PROCESSED this session's peer-up
 	// event before its initial-sync End-of-RIB goes out, so that "End-of-RIB
 	// sent" implies "every such plugin has registered this peer". Distinct from
@@ -778,6 +794,19 @@ func (p *Peer) resetAPISync(expected []string) {
 	p.apiSyncSignalled = make(map[string]struct{}, len(expected))
 	p.apiSyncReady = make(chan struct{})
 	p.apiSyncReadyOnce = sync.Once{}
+	p.replayFence = nil
+	p.initialUpdateOwed.Store(false)
+	p.mu.Unlock()
+}
+
+// raiseReplayFence raises the replay fence for this session over the
+// reporters that declared it. Called after resetAPISync and before
+// startInitialRoutes (peer_run.go), so the initial-sync hold setState raised
+// covers every forward until the fence is up.
+func (p *Peer) raiseReplayFence() {
+	p.mu.Lock()
+	p.replayFence = p.replayFenceOwners()
+	p.initialUpdateOwed.Store(len(p.replayFence) > 0)
 	p.mu.Unlock()
 }
 
@@ -816,8 +845,8 @@ func (p *Peer) resetAPISync(expected []string) {
 // The operator is refused in silence, because `send` grants authority to a
 // process and never to a person, so an operator is never a member of this set.
 //
-// Uses a single Lock (not RLock→WLock upgrade) to prevent a race where
-// resetAPISync replaces apiSyncReady between the read and close operations.
+// A report that completes the set lowers the replay fence
+// (Peer.initialUpdateOwed) and releases the live forwards parked behind it.
 func (p *Peer) SignalAPIReady(sender plugin.Sender) {
 	process, named := sender.Process()
 	if !named {
@@ -828,16 +857,32 @@ func (p *Peer) SignalAPIReady(sender plugin.Sender) {
 		return
 	}
 
+	if p.creditAPIReady(process) {
+		// The last report lowered the replay fence. Wake the forward worker
+		// so the live changes parked behind it go out now, not with the next
+		// forward (wakeForwardOverflow). Outside p.mu: the wake takes the
+		// pool lock.
+		p.wakeForwardOverflow()
+	}
+}
+
+// creditAPIReady records one process's report for this session and reports
+// whether that report completed the set, which lowers the replay fence
+// (Peer.initialUpdateOwed). Caller MUST NOT hold p.mu.
+//
+// Uses a single Lock (not RLock→WLock upgrade) to prevent a race where
+// resetAPISync replaces apiSyncReady between the read and close operations.
+func (p *Peer) creditAPIReady(process string) bool {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	if !slices.Contains(p.apiSyncExpected, process) {
 		routesLogger().Debug("plugin session ready from a process this peer's barrier does not name, so the report is not credited",
 			"peer", p.settings.Address.String(), "process", process, "barrier", p.apiSyncExpected)
-		return
+		return false
 	}
 	if _, reported := p.apiSyncSignalled[process]; reported {
-		return
+		return false
 	}
 	p.apiSyncSignalled[process] = struct{}{}
 
@@ -851,13 +896,33 @@ func (p *Peer) SignalAPIReady(sender plugin.Sender) {
 		"peer", p.settings.Address.String(), "process", process,
 		"reported", len(p.apiSyncSignalled), "expected", len(p.apiSyncExpected))
 
-	if len(p.apiSyncSignalled) >= len(p.apiSyncExpected) && p.apiSyncReady != nil {
+	lowered := p.lowerReplayFence()
+	if len(p.apiSyncSignalled) < len(p.apiSyncExpected) {
+		return lowered
+	}
+	if p.apiSyncReady != nil {
 		p.apiSyncReadyOnce.Do(func() {
 			close(p.apiSyncReady)
 		})
-		routesLogger().Debug("every route-pushing process has reported",
-			"peer", p.settings.Address.String(), "processes", p.apiSyncExpected)
 	}
+	routesLogger().Debug("every route-pushing process has reported",
+		"peer", p.settings.Address.String(), "processes", p.apiSyncExpected)
+	return lowered
+}
+
+// lowerReplayFence lowers the replay fence once every process that holds it
+// has reported, and reports whether this call lowered it. Caller MUST hold p.mu.
+func (p *Peer) lowerReplayFence() bool {
+	if !p.initialUpdateOwed.Load() {
+		return false
+	}
+	for _, name := range p.replayFence {
+		if _, reported := p.apiSyncSignalled[name]; !reported {
+			return false
+		}
+	}
+	p.initialUpdateOwed.Store(false)
+	return true
 }
 
 // ResetPeerUpBarrier clears the peer-up barrier for a new session.
@@ -1840,7 +1905,7 @@ func (p *Peer) initialSyncInProgress() bool {
 // parked behind the peer's own route operations instead of going to the wire.
 // ONE predicate for both halves of that decision: the dispatch gates on the two
 // forwarding rails (reactor_api_forward.go, forward_rs.go) and the hold in
-// drainOverflow (forward_pool.go, overflowHeld). A gate wider than its hold
+// drainOverflow (forward_pool.go, takeOverflowReleased). A gate wider than its hold
 // parks items nothing will release, and a hold wider than its gate releases
 // items the gate never parked.
 //
@@ -1860,8 +1925,25 @@ func (p *Peer) initialSyncInProgress() bool {
 // non-empty with the flag CLEAR is one nothing will drain -- sendInitialRoutes
 // is the only drainer and it has returned -- so ordering a forwarded UPDATE
 // behind it would park that UPDATE for the life of the session.
-func (p *Peer) forwardOrderHold() bool {
-	return p.State() == PeerStateEstablished && p.initialSyncInProgress()
+//
+// It holds for a second reason, the replay fence (Peer.initialUpdateOwed): a
+// process that owes this session part of its initial routing update, a route
+// server's peer-up replay for one, has not reported it done. That hold is for
+// LIVE changes only. initialUpdate is true for an item that IS part of the
+// initial update (rpc.StoredRoute.InitialUpdate), which must pass the fence or
+// the fence would wait on itself. Only this peer is held: other destinations,
+// and their workers, never read its fence.
+func (p *Peer) forwardOrderHold(initialUpdate bool) bool {
+	if p.State() != PeerStateEstablished {
+		return false
+	}
+	if p.initialSyncInProgress() {
+		return true
+	}
+	if initialUpdate {
+		return false
+	}
+	return p.initialUpdateOwed.Load()
 }
 
 // forwardOverflowPending reports whether the forward pool still owes this peer
@@ -1891,12 +1973,12 @@ func (p *Peer) forwardOverflowPending() bool {
 }
 
 // wakeForwardOverflow releases the forwarded UPDATEs parked behind this peer's
-// initial route sync. Call it after every store that clears
-// sendingInitialRoutes.
+// initial route sync or its replay fence. Call it after every store that clears
+// sendingInitialRoutes or initialUpdateOwed.
 //
 // The forwarding rails park an UPDATE for a peer that forwardOrderHold()s in the
 // destination worker's overflow buffer, and drainOverflow keeps it there while
-// that stays true (forward_pool.go, overflowHeld). The worker re-evaluates the
+// that stays true (forward_pool.go, takeOverflowReleased). The worker re-evaluates the
 // hold only after something reaches its channel, and a held worker's channel is
 // empty by construction, so the store alone would leave the items parked until
 // the next forward to this peer.

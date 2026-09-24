@@ -298,6 +298,7 @@ func (a *reactorAPIAdapter) RelayStoredRoute(destination netip.Addr, routes []rp
 		fwdErr := func() error {
 			defer a.r.recentUpdates.Release(updateID)
 			src.info.sender = sender
+			src.info.initialUpdate = routes[i].InitialUpdate
 			return a.forwardUpdateCore(update, updateID, matchingPeers, src.info)
 		}()
 
@@ -384,6 +385,7 @@ func relayRunLen(routes []rpc.StoredRoute) int {
 			next.NextHopHex != first.NextHopHex ||
 			next.MsgID != first.MsgID ||
 			next.Withdraw != first.Withdraw ||
+			next.InitialUpdate != first.InitialUpdate ||
 			next.AttrHex != first.AttrHex {
 			break
 		}

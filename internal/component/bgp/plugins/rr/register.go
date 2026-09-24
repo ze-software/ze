@@ -83,8 +83,11 @@ func init() {
 		// signalSessionReady reports when it is out, after this plugin's own
 		// End-of-RIB (rr.go).
 		SignalsSessionReady: true,
-		RunEngine:           runRouteReflector,
-		Commands:            commandDecls(),
+		// Its peer-up replay and its live forwards reach a peer on two rails:
+		// the engine holds the live ones until the replay is reported.
+		FencesLiveForwards: true,
+		RunEngine:          runRouteReflector,
+		Commands:           commandDecls(),
 		ConfigureEventBus: func(bus ze.EventBus) {
 			validationBus.Store(&bus)
 		},

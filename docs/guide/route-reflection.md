@@ -159,6 +159,32 @@ route server preserves its received-generation cut, and both roles check the
 destination's reconnect generation. Reconstructed routes still pass ordinary
 authorization, reflection and export policy.
 <!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- replayForPeer -->
+
+The route server splits the UPDATEs for a peer that comes up at a message-id
+cut. The replay delivers every UPDATE at or below the cut, and the live forward
+delivers every UPDATE above it. The two rails reach the peer through different
+processes, so the engine orders them for that peer alone. While a process that
+reports the peer's initial update (the route server, the route reflector) has not
+yet reported it done, the engine holds the peer's live forwards and validation
+changes in the peer's forward queue. The replayed routes pass. The report comes
+after the replay's End-of-RIB, and the held changes then go out in the order they
+arrived. A live withdrawal can then never arrive before a replayed announcement
+of the same prefix, and the first route the source announced arrives first.
+
+Other peers are not held. A live UPDATE goes to every other destination at
+once, whatever replay is running. The held changes wait in the peer's forward
+overflow queue, so the congestion controls of that queue apply to them: overflow
+denial, then teardown of the peer, never a silent drop (see
+[the replay fence](../architecture/forward-congestion-pool.md#the-replay-fence)).
+
+A peer-down withdrawal leaves the route server by selector, which the engine
+does not hold. The route server sends it to every peer at once, and sends a
+second copy to each peer whose replay is still running when that replay ends.
+A replay read before the receive store processed the peer-down can still carry
+the route, and the copy removes it.
+<!-- source: internal/component/bgp/reactor/peer.go -- forwardOrderHold, initialUpdateOwed -->
+<!-- source: internal/component/bgp/plugins/rs/server_handlers.go -- handleStateUp, holdForReplays, endReplay -->
+<!-- source: internal/component/bgp/plugins/rs/server_forward.go -- flushBatch -->
 <!-- source: internal/component/bgp/plugins/rs/server_validation.go -- replayFlowSpecs -->
 <!-- source: internal/component/bgp/plugins/rr/rr.go -- replayForPeer -->
 <!-- source: internal/component/bgp/plugins/rr/validation.go -- replayFlowSpecs -->

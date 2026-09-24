@@ -779,12 +779,12 @@ func TestStateUpBeforeOpen_FamiliesNil(t *testing.T) {
 	stateInput := "peer 10.0.0.1 remote as 65001 state up"
 	rs.dispatchText(stateInput)
 
-	// Wait for replay goroutine to complete (Replaying cleared).
+	// Wait for replay goroutine to complete (replay gate opened).
 	require.Eventually(t, func() bool {
 		rs.mu.RLock()
 		defer rs.mu.RUnlock()
 		p := rs.peers["10.0.0.1"]
-		return p != nil && !p.Replaying
+		return p != nil && p.replayDone == nil
 	}, 2*time.Second, time.Millisecond, "replay goroutine should complete")
 
 	rs.mu.RLock()
@@ -830,12 +830,12 @@ func TestOpenThenStateUp_FamiliesPopulated(t *testing.T) {
 	stateInput := "peer 10.0.0.1 remote as 65001 state up"
 	rs.dispatchText(stateInput)
 
-	// Wait for replay goroutine to complete (Replaying cleared).
+	// Wait for replay goroutine to complete (replay gate opened).
 	require.Eventually(t, func() bool {
 		rs.mu.RLock()
 		defer rs.mu.RUnlock()
 		p := rs.peers["10.0.0.1"]
-		return p != nil && !p.Replaying
+		return p != nil && p.replayDone == nil
 	}, 2*time.Second, time.Millisecond, "replay goroutine should complete")
 
 	rs.mu.RLock()

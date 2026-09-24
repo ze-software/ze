@@ -185,6 +185,8 @@ func TestBuildReplayRoutesCarriesFraming(t *testing.T) {
 		NLRIHex:     "180a0000",
 		PathID:      0,
 		NLRIFraming: rpc.NLRIFramingPrefixOnly,
+		// A replay is the destination's initial update.
+		InitialUpdate: true,
 	}, routes[0])
 }
 

@@ -473,6 +473,9 @@ func (p *Peer) runOnce() error {
 			// plugin's word (Peer.SignalAPIReady). The names are also what the
 			// timeout diagnostic prints when one of them never reports.
 			p.resetAPISync(p.initialUpdateReporters())
+			// The replay fence: live forwards wait for the reporters that
+			// declared it (Peer.initialUpdateOwed).
+			p.raiseReplayFence()
 
 			// Reset the peer-up barrier for this session BEFORE plugins are
 			// notified below: the dispatcher raises its expected count and the
@@ -814,6 +817,18 @@ func (p *Peer) holdDownAfterPrefixTeardown(fam string) {
 // The reactor learns no plugin name here: the grant is config, the declaration
 // is a registry lookup on the name the binding already carries, and nothing in
 // this package interprets either (ai/rules/plugins.md).
+// replayFenceOwners names the reporters that declared the replay fence
+// (registry.FencesLiveForwards). Caller MUST hold p.mu.
+func (p *Peer) replayFenceOwners() []string {
+	var owners []string
+	for _, name := range p.apiSyncExpected {
+		if registry.FencesLiveForwards(name) {
+			owners = append(owners, name)
+		}
+	}
+	return owners
+}
+
 func (p *Peer) initialUpdateReporters() []string {
 	var reporters []string
 	// Under p.mu: a reload can deliver a derived binding change onto the

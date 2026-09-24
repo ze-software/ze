@@ -40,7 +40,7 @@ func TestRPKIDisablePreservesReceivedGenerations(t *testing.T) {
 	require.Equal(t, []rpc.StoredRoute{{
 		SourcePeer: "192.0.2.1", Family: "ipv4/unicast", MsgID: 40, PathID: 1,
 		AttrHex: hex.EncodeToString(body[4:18]), NextHopHex: "0a000001",
-		NLRIHex: "18cb0071", NLRIFraming: rpc.NLRIFramingPrefixOnly,
+		NLRIHex: "18cb0071", NLRIFraming: rpc.NLRIFramingPrefixOnly, InitialUpdate: true,
 	}}, routes, "only the unsuperseded pending sibling is released")
 	// A queued decision after disable must not recreate its removed policy.
 	retainedDecision(t, r, "i", 1, 40)
@@ -70,7 +70,7 @@ func TestRPKIDisablePreservesReceivedGenerations(t *testing.T) {
 	require.Equal(t, []rpc.StoredRoute{{
 		SourcePeer: "192.0.2.1", Family: "ipv4/unicast", MsgID: 41,
 		AttrHex: hex.EncodeToString(newBody[4:18]), NextHopHex: "0a000002",
-		NLRIHex: "18cb0071", NLRIFraming: rpc.NLRIFramingPrefixOnly,
+		NLRIHex: "18cb0071", NLRIFraming: rpc.NLRIFramingPrefixOnly, InitialUpdate: true,
 	}}, recovered, "re-enabled validation replays only the accepted current generation")
 }
 

@@ -721,7 +721,11 @@ func reactorForwardRS(r *Reactor, update *ReceivedUpdate, updateID uint64, sourc
 			// hand: four atomic loads for the whole gate, where a pool lookup
 			// took fp.mu.RLock and hashed a fwdKey per destination per UPDATE.
 			dst := pending[i].item.peer
-			if dst != nil && (dst.forwardOrderHold() || dst.forwardOverflowPending()) {
+			//
+			// This rail carries live UPDATEs only, never part of a
+			// destination's initial update, so the replay fence holds it
+			// (Peer.initialUpdateOwed).
+			if dst != nil && (dst.forwardOrderHold(false) || dst.forwardOverflowPending()) {
 				if r.fwdPool.dispatchOverflow(pending[i].key, pending[i].item) {
 					delivered++
 					r.fwdPool.recordOverflowed(sourcePeerAddr)

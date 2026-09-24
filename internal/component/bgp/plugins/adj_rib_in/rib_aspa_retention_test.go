@@ -2,6 +2,7 @@ package adj_rib_in
 
 import (
 	"encoding/hex"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
@@ -93,7 +94,13 @@ func TestASPARetainedPathReplayRecovery(t *testing.T) {
 	require.True(t, ok, "replay last-index is %T, want uint64", firstReplay["last-index"])
 	delta, _ := retainedRelay(t, r, "request bgp adj-rib-in replay", "192.0.2.99",
 		strconv.FormatUint(lastIndex, 10))
-	require.Equal(t, retained, delta, "acceptance rediscovers only the recovered path without an UPDATE")
+	// The delta is a peer-up replay, so it carries the initial-update mark the
+	// targeted reconciliation (a live change) does not.
+	wantDelta := slices.Clone(retained)
+	for i := range wantDelta {
+		wantDelta[i].InitialUpdate = true
+	}
+	require.Equal(t, wantDelta, delta, "acceptance rediscovers only the recovered path without an UPDATE")
 
 	retainedReceive(t, r, 41, []byte{0, 8, 0, 0, 0, 0, 24, 203, 0, 113, 0, 0})
 	gone, _ := retainedRelay(t, r, "request bgp adj-rib-in replay-path",
@@ -143,6 +150,6 @@ func TestASPARetainedEarlyReplacementSurvivesTimeout(t *testing.T) {
 	require.Equal(t, []rpc.StoredRoute{{
 		SourcePeer: "192.0.2.1", Family: "ipv4/unicast", MsgID: 51,
 		AttrHex: hex.EncodeToString(body[4:18]), NextHopHex: "0a000002",
-		NLRIHex: "18cb0071", NLRIFraming: rpc.NLRIFramingPrefixOnly,
+		NLRIHex: "18cb0071", NLRIFraming: rpc.NLRIFramingPrefixOnly, InitialUpdate: true,
 	}}, routes, "recovery must use the replacement's bytes, never the expired predecessor")
 }

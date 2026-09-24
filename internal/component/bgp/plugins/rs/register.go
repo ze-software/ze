@@ -57,8 +57,11 @@ func init() {
 		// (server_handlers.go). Distinct from PeerUpBarrier above: that one says
 		// this plugin has REGISTERED the peer, this one says its ROUTES are out.
 		SignalsSessionReady: true,
-		RunEngine:           RunRouteServer,
-		Commands:            commandDecls(),
+		// Its peer-up replay and its live forwards reach a peer on two rails:
+		// the engine holds the live ones until the replay is reported.
+		FencesLiveForwards: true,
+		RunEngine:          RunRouteServer,
+		Commands:           commandDecls(),
 		ConfigureEventBus: func(bus ze.EventBus) {
 			validationBus.Store(&bus)
 		},

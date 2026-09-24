@@ -90,6 +90,7 @@ func (r *AdjRIBInManager) replayFlowSpecs(targetPeer netip.Addr) error {
 			SourcePeer: key.Peer.String(), Family: key.Family.String(),
 			PathID: key.PathID, MsgID: path.MsgID, NLRIFraming: rpc.NLRIFramingPrefixOnly,
 			NLRIHex: hex.EncodeToString([]byte(key.NLRI)), AttrHex: hex.EncodeToString(path.Attributes),
+			InitialUpdate: true, // peer-up replay: passes the destination's replay fence
 		})
 	}
 	r.mu.RLock()

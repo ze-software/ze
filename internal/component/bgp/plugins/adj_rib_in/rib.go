@@ -1088,7 +1088,10 @@ func (r *AdjRIBInManager) buildReplayRoutes(targetPeer netip.Addr, fromIndex uin
 				NLRIHex:     rt.NLRIHex,
 				PathID:      rt.PathID,
 				NLRIFraming: rt.NLRIFraming,
-				MsgID:       rt.MsgID,
+				// A replay is the destination's initial update: it passes the
+				// fence that holds the peer's live forwards behind it.
+				InitialUpdate: true,
+				MsgID:         rt.MsgID,
 			})
 			if seq > maxSeq {
 				maxSeq = seq

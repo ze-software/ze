@@ -298,7 +298,7 @@ func TestUpdateDelaySuppressesOutbound(t *testing.T) {
 
 	require.True(t, held.shouldQueue(),
 		"a held peer must still queue route operations, or a plugin route reaches the wire from under the hold")
-	require.True(t, held.forwardOrderHold(),
+	require.True(t, held.forwardOrderHold(false),
 		"a held peer must still park forwarded UPDATEs, or another peer's route reaches the wire from under the hold")
 	require.True(t, held.pendingSync(),
 		"a held peer must read as owing the wire its initial update, or a quiescer reports it settled while held")

@@ -69,6 +69,10 @@ type fwdItem struct {
 	aigpRevision       uint64
 	aigpReplay         *aigpAdvertisement
 	supersedeKey       uint64 // FNV-1a hash of raw body for route superseding (AC-23); 0 = no superseding
+	// initialUpdate marks an item that belongs to the destination's initial
+	// routing update (a peer-up replay), so it passes the destination's replay
+	// fence where a live change waits (Peer.forwardOrderHold).
+	initialUpdate bool
 }
 
 // forwardSourceCurrent is lock-free because workers call it under the
@@ -795,6 +799,12 @@ func (fp *fwdPool) dispatchOverflow(key fwdKey, item fwdItem) bool {
 			if w.overflow[i].supersedeKey != item.supersedeKey {
 				continue
 			}
+			// Never across the replay fence: an initial-update item passes a
+			// held live one, so replacing the live item with it would put the
+			// live change ahead of the changes queued after it.
+			if w.overflow[i].initialUpdate != item.initialUpdate {
+				continue
+			}
 			// Verify content match (guard against FNV hash collision).
 			if !fwdBodiesEqual(w.overflow[i].rawBodies, item.rawBodies) {
 				continue
@@ -1222,22 +1232,19 @@ func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
 		return
 	}
 
-	// Ordering hold: the destination is inside its initial route sync, so the
-	// dispatch gates parked these items here to sit BEHIND the route operations
-	// its opQueue still holds (reactor_api_forward.go, forward_rs.go). Draining
-	// now would put a forwarded withdraw on the wire ahead of the queued
-	// announce of the same prefix and leave the peer holding a route that was
-	// withdrawn. sendInitialRoutes clears the flag and wakes this worker
-	// (Peer.wakeForwardOverflow), which is when the items go out.
-	if overflowHeld(w.overflow) {
-		w.overflowMu.Unlock()
+	// Ordering hold: the destination is inside its initial route sync, or its
+	// replay fence is up, so the dispatch gates parked these items here to sit
+	// BEHIND its initial routing update (reactor_api_forward.go, forward_rs.go).
+	// Draining a held item now would put a forwarded withdraw on the wire ahead
+	// of the announce of the same prefix that update still carries, and leave
+	// the peer holding a route that was withdrawn. The item stays until the
+	// hold lifts and the peer wakes this worker (Peer.wakeForwardOverflow).
+	// Items the hold does not cover go out now, ahead of the held ones.
+	items := takeOverflowReleased(w)
+	w.overflowMu.Unlock()
+	if len(items) == 0 {
 		return
 	}
-
-	// Take all overflow items under the lock, then release.
-	items := w.overflow
-	w.overflow = nil
-	w.overflowMu.Unlock()
 
 	fp.mu.RLock()
 	if fp.stopped {
@@ -1283,32 +1290,74 @@ func (fp *fwdPool) drainOverflow(key fwdKey, w *fwdWorker) {
 	}
 }
 
-// overflowHeld reports whether this worker's overflow must stay parked because
-// its destination peer is still inside its initial route sync.
+// takeOverflowReleased removes from w.overflow, and returns, the items its
+// destination's ordering hold does not cover, and leaves the held ones there in
+// their order. Caller MUST hold w.overflowMu.
 //
 // The predicate is Peer.forwardOrderHold, the same one the two dispatch gates
 // park on (peer.go). Gate and hold must be one condition: a gate wider than its
 // hold parks items nothing will release, and a hold wider than its gate releases
-// items the gate never parked.
+// items the gate never parked. fwdKey IS the destination, so every real item in
+// one worker's overflow names the same peer.
 //
-// The decision belongs to the first REAL item: sentinels (barrier
-// done-callbacks, wake-ups) carry a nil peer, and fwdKey IS the destination, so
-// every real item in one worker's overflow names the same peer. A worker holding
-// nothing but sentinels holds nothing back.
+// The hold is per item because the replay fence holds live changes and passes
+// the initial update. A released item overtakes a held one, and that is the
+// point: the initial update goes out first, and the live changes follow it in
+// the order they arrived. Within one kind, order is kept.
 //
-// This runs with w.overflowMu held, and forwardOrderHold reads two atomics and
-// takes no peer lock. Keep it that way: a predicate that took p.mu here would
-// put p.mu under w.overflowMu, and the peer's own goroutine takes them the other
-// way round.
-func overflowHeld(items []fwdItem) bool {
-	for i := range items {
-		p := items[i].peer
-		if p == nil {
+// A sentinel (barrier done-callback, wake-up) carries a nil peer. Once an item
+// is held, every later sentinel is held too, so a flush barrier still answers
+// only after everything queued before it is written. A worker holding nothing
+// but sentinels holds nothing back.
+//
+// forwardOrderHold reads atomics and takes no peer lock. Keep it that way: a
+// predicate that took p.mu here would put p.mu under w.overflowMu, and the
+// peer's own goroutine takes them the other way round.
+func takeOverflowReleased(w *fwdWorker) []fwdItem {
+	items := w.overflow
+	first := firstOverflowHeld(items)
+	if first < 0 {
+		// The common case, with no hold: the whole queue, no copy.
+		w.overflow = nil
+		return items
+	}
+	released := make([]fwdItem, 0, len(items)-first)
+	released = append(released, items[:first]...)
+	kept := items[:0]
+	for i := first; i < len(items); i++ {
+		if len(kept) > 0 && items[i].peer == nil {
+			kept = append(kept, items[i])
 			continue
 		}
-		return p.forwardOrderHold()
+		if overflowItemHeld(&items[i]) {
+			kept = append(kept, items[i])
+			continue
+		}
+		released = append(released, items[i])
 	}
-	return false
+	clear(items[len(kept):])
+	w.overflow = kept
+	return released
+}
+
+// firstOverflowHeld returns the index of the first item the ordering hold
+// covers, or -1 when it covers none.
+func firstOverflowHeld(items []fwdItem) int {
+	for i := range items {
+		if overflowItemHeld(&items[i]) {
+			return i
+		}
+	}
+	return -1
+}
+
+// overflowItemHeld reports whether the ordering hold covers one parked item. A
+// sentinel names no peer, so no hold covers it on its own account.
+func overflowItemHeld(item *fwdItem) bool {
+	if item.peer == nil {
+		return false
+	}
+	return item.peer.forwardOrderHold(item.initialUpdate)
 }
 
 // wakeOverflow nudges the worker for key so it re-evaluates the ordering hold in

@@ -1275,13 +1275,13 @@ func TestHandleStateUpReplay(t *testing.T) {
 
 // TestRSSoftDepSkipsReplay verifies that when adj-rib-in is absent (soft-dep
 // not loaded) and the replay dispatch fails with ErrUnknownCommand, bgp-rs
-// skips the convergence replay loop, still clears the Replaying flag, and
+// skips the convergence replay loop, still opens the replay gate, and
 // still sends EOR so the newly-connected peer receives end-of-RIB markers.
 //
 // VALIDATES: spec-rs-fastpath-2-adjrib AC-6 -- graceful no-op when
 // OptionalDependencies entry bgp-adj-rib-in is missing at run time.
 // PREVENTS: bgp-rs unusable without bgp-adj-rib-in (would defeat the
-// soft-dep refactor), or peer stuck with Replaying=true and no EOR.
+// soft-dep refactor), or peer stuck with its replay gate shut and no EOR.
 func TestRSSoftDepSkipsReplay(t *testing.T) {
 	rs := newTestRouteServer(t)
 
@@ -1322,22 +1322,24 @@ func TestRSSoftDepSkipsReplay(t *testing.T) {
 	rs.handleStateUp("10.0.0.1")
 
 	// Wait for the terminal EOR signal (or fail on a generous timeout). Once
-	// EOR has fired, replayForPeer has completed its fallback path and both
-	// Replaying and the dispatch count are in their final state.
+	// EOR has fired, replayForPeer has run its fallback path and the dispatch
+	// count is in its final state.
 	select {
 	case <-eorCh:
 	case <-time.After(5 * time.Second):
 		t.Fatal("timed out waiting for EOR after replay fallback")
 	}
 
-	// Replaying must have been cleared by the same code path that produced EOR.
-	rs.mu.RLock()
-	p := rs.peers["10.0.0.1"]
-	replaying := p != nil && p.Replaying
-	rs.mu.RUnlock()
-	if replaying {
-		t.Errorf("Replaying flag should have been cleared by the fallback path")
-	}
+	// The replay gate must be opened by the same code path that produced EOR.
+	// It opens AFTER the End-of-RIB (endReplay runs as replayForPeer returns),
+	// so live forwards follow the initial update; wait for it rather than read
+	// it at the EOR instant.
+	require.Eventually(t, func() bool {
+		rs.mu.RLock()
+		defer rs.mu.RUnlock()
+		p := rs.peers["10.0.0.1"]
+		return p != nil && p.replayDone == nil
+	}, 2*time.Second, time.Millisecond, "replay gate should have been opened by the fallback path")
 
 	// Expect exactly one dispatch attempt (the initial replay), not the full
 	// convergence loop.
@@ -1371,7 +1373,7 @@ func TestReplayingPeerIncludedInForwardTargets(t *testing.T) {
 	rs := newTestRouteServer(t)
 
 	rs.mu.Lock()
-	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true, Replaying: true,
+	rs.peers["10.0.0.1"] = &PeerState{Address: "10.0.0.1", Up: true, replayDone: make(chan struct{}),
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
 	rs.peers["10.0.0.2"] = &PeerState{Address: "10.0.0.2", Up: true,
 		Families: map[family.Family]bool{family.IPv4Unicast: true}}
@@ -1548,10 +1550,10 @@ func TestWithdrawalOnPeerDown(t *testing.T) {
 }
 
 // TestReplayGeneration_RapidReconnect verifies stale replay goroutines don't
-// clear Replaying for a newer session.
+// open the replay gate of a newer session.
 //
 // VALIDATES: Rapid reconnect (down→up while old replay running) doesn't cause ghost routes.
-// PREVENTS: Stale goroutine prematurely clearing Replaying for a new session.
+// PREVENTS: Stale goroutine prematurely opening the replay gate of a new session.
 func TestReplayGeneration_RapidReconnect(t *testing.T) {
 	rs := newTestRouteServer(t)
 
@@ -1609,12 +1611,12 @@ func TestReplayGeneration_RapidReconnect(t *testing.T) {
 		t.Fatal("second replay timed out")
 	}
 
-	// Wait for goroutine B to set Replaying=false.
+	// Wait for goroutine B to open its replay gate.
 	require.Eventually(t, func() bool {
 		rs.mu.RLock()
 		defer rs.mu.RUnlock()
-		return !rs.peers["10.0.0.1"].Replaying
-	}, 2*time.Second, time.Millisecond, "goroutine B did not clear Replaying")
+		return rs.peers["10.0.0.1"].replayDone == nil
+	}, 2*time.Second, time.Millisecond, "goroutine B did not open its replay gate")
 
 	// Goroutine B completed — verify ReplayGen.
 	rs.mu.RLock()
@@ -1627,13 +1629,13 @@ func TestReplayGeneration_RapidReconnect(t *testing.T) {
 	// Now unblock goroutine A (stale).
 	close(firstBlock)
 
-	// Stale goroutine A must NOT change Replaying back to true.
+	// Stale goroutine A must NOT shut the new session gate again.
 	require.Never(t, func() bool {
 		rs.mu.RLock()
 		defer rs.mu.RUnlock()
-		return rs.peers["10.0.0.1"].Replaying
+		return rs.peers["10.0.0.1"].replayDone != nil
 	}, 100*time.Millisecond, time.Millisecond,
-		"stale goroutine must not set Replaying=true after completing")
+		"stale goroutine must not leave the peer replaying after completing")
 }
 
 // TestTextUpdateParseableByFields verifies text UPDATE events parse with strings.Fields.
