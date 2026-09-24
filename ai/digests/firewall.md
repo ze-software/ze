@@ -81,20 +81,19 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
     (`firewall/engine.go`).
 12. **flowspec-firewall: BGP FlowSpec → nftables.** Registered with `Dependencies:
     ["firewall"]` (`internal/plugins/flowspec-firewall/register.go`,
-    `internal/plugins/flowspec-firewall/register.go`). `handleEvent`
-    (`internal/plugins/flowspec-firewall/engine.go`) dispatches parsed BGP events: `"state"`
-    down → `handlePeerDown` (line 84, evicts via `ruleMap.removePeer`,
-    `internal/plugins/flowspec-firewall/state.go`); `"update"` → `handleUpdate` (line 99),
-    which parses extended communities into a `flowAction` (discard/rate-limit/mark) via
-    `parseExtendedCommunities` (`flowspec-firewall/translate.go`) and, per FlowSpec NLRI op, calls
-    `handleFlowSpecAdd` (line 149) → `parseNLRIJSON` (`flowspec-firewall/translate.go`) +
-    `translateFlowSpec` (`flowspec-firewall/translate.go`), mapping RFC 8955 components to `firewall.Match`
-    (`componentToMatch`, `flowspec-firewall/translate.go`) and the action to `firewall.Action`
-    (`actionToFirewall`, `flowspec-firewall/translate.go`). FlowSpec Type-4 "port" (src OR dst) is split into
-    two terms to avoid nftables AND semantics (`flowspec-firewall/translate.go`). Destination-local
-    detection (`localAddrs.containsWithin`, `internal/plugins/flowspec-firewall/localaddr.go`,
-    fed by interface `addr-added`/`addr-removed` EventBus subscriptions,
-    `internal/plugins/flowspec-firewall/engine.go`) picks the input vs forward hook.
+    `internal/plugins/flowspec-firewall/register.go`). It never parses raw UPDATEs: `runEngine`
+    (`internal/plugins/flowspec-firewall/engine.go`) subscribes to `ribevents.FlowSpecChanged` in
+    `OnConfigure` and emits a replay request, so it sees only the RIB's authorized winning path.
+    `handleSelected` (`internal/plugins/flowspec-firewall/selected.go`) keys the rule on the
+    canonical NLRI identity, removes the previous action first (an old discard never survives a
+    replace), then parses the NLRI with `flowspec.ParseFlowSpec` and the extended communities into
+    a `flowAction` (`parseExtendedCommunities`, `flowspec-firewall/translate.go`).
+    `translateFlowSpec` (`flowspec-firewall/translate.go`) maps RFC 8955 components to
+    `firewall.Match` (`componentToMatch`, numeric ranges in `numeric_ranges.go`, TCP flags and
+    transport protocols in `transport.go`) and the action to `firewall.Action`
+    (`actionToFirewall`); `ruleChains` (`rule_chains.go`) orders the terms. A rule that cannot be
+    installed is refused and counted, never installed with a dropped condition. Every rule is
+    installed in both base chains, so no local-address tracking chooses a hook.
     `ruleMap` (`state.go`) caps at `maxRulesDefault=1000`
     (`internal/plugins/flowspec-firewall/engine.go`); `buildTable` (`state.go`) emits table
     `"flowspec"` with `flowspec-fwd` (hook forward) / `flowspec-in` (hook input) chains,
@@ -188,10 +187,10 @@ resolved prefixes → dynamic nftables interval sets, i.e. "address groups").
 | `internal/plugins/firewall/nft/readback_linux.go` | Kernel → Table/Chain/Set/Flowtable readback (structural only, not bijective) |
 | `internal/plugins/firewall/nft/cmd_show.go` | `show firewall ruleset`/`show firewall group` RPC handlers |
 | `internal/plugins/firewall/nft/health.go` | Health-check registration around `AuditTables` |
-| `internal/plugins/flowspec-firewall/engine.go` | BGP event subscription (`OnEvent`) + FlowSpec rule lifecycle |
+| `internal/plugins/flowspec-firewall/engine.go` | `FlowSpecChanged` subscription, replay request, rule apply and removal |
 | `internal/plugins/flowspec-firewall/translate.go` | RFC 8955 component/action → `firewall.Term` translation |
 | `internal/plugins/flowspec-firewall/state.go` | Per-peer `ruleMap` + `ze_flowspec` table builder |
-| `internal/plugins/flowspec-firewall/localaddr.go` | Local-address tracking for input-vs-forward hook choice |
+| `internal/plugins/flowspec-firewall/selected.go` | `handleSelected`: install or withdraw the RIB-selected rule |
 | `internal/plugins/policyroute/register.go` | SDK lifecycle; dual apply (nftables marks + netlink rules/routes) |
 | `internal/plugins/policyroute/translate.go` | Policy → `firewall.Term` (`SetMark`) + `ipRuleSpec`/`autoRouteSpec` |
 | `internal/plugins/policyroute/marks.go` | fwmark (`0x50000-0x5FFFF`) / auto-table (`2000-2999`) allocators |
