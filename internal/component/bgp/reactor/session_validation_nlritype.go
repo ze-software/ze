@@ -169,7 +169,8 @@ func (s *Session) typedNLRIEdit(
 	// them. A family with neither ruling leaves before the attribute is located.
 	afi := attribute.AFI(loc.AFI)
 	safi := attribute.SAFI(loc.SAFI)
-	if recognize == nil && !message.NLRISyntaxRuled(afi, safi) {
+	isEVPN := fam.AFI == family.AFIL2VPN && fam.SAFI == family.SAFIEVPN
+	if recognize == nil && !isEVPN && !message.NLRISyntaxRuled(afi, safi) {
 		return edits, true
 	}
 
@@ -187,6 +188,11 @@ func (s *Session) typedNLRIEdit(
 	if err != nil {
 		sessionLogger().Warn("RFC 7606 Section 5.3: MP NLRI framing overruns the attribute",
 			"peer", s.settings.Address, "family", fam, "attr", code, "error", err)
+		return edits, false
+	}
+	if isEVPN && !message.ValidEVPNNLRILengths(kept, addPath) {
+		sessionLogger().Warn("RFC 7606 Section 5.3: Ethernet A-D NLRI has an invalid length",
+			"peer", s.settings.Address, "family", fam, "attr", code)
 		return edits, false
 	}
 	if dropped > 0 {

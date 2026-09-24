@@ -704,8 +704,8 @@
       "quote": "As described in Section 8.1.1, the route MUST carry an ESI Label extended community with a valid ESI label.",
       "disposition": "excluded",
       "excluded-kind": "duplicate-of",
-      "reason": "Restates the ESI Label extended community the Ethernet Segment route must carry, stated in Section 8.1.1 and carried by RFC7432-8.1.1-2.",
-      "mapped-to": "RFC7432-8.1.1-2"
+      "reason": "The surrounding Section 8.3 paragraph concerns the Ethernet A-D per ES route and repeats its ESI Label requirement from Section 8.2.1. The sentence cross-references Section 8.1.1, whose Ethernet Segment route actually requires ES-Import, not ESI Label.",
+      "mapped-to": "RFC7432-8.2.1-3"
     },
     {
       "id": "8.3.1.1:1",

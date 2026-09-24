@@ -286,14 +286,17 @@ type EVPNType1 struct {
 	rd          RouteDistinguisher
 	esi         ESI
 	ethernetTag uint32
-	labels      []uint32
+	label       uint32 // Complete three-octet field; preserve received low bits.
 	pathID      uint32
 	hasPath     bool
 }
 
 func parseEVPNType1(data []byte, pathID uint32, hasPath bool) (*EVPNType1, error) {
-	if len(data) < 8+10+4 {
+	if len(data) < 8+10+4+3 {
 		return nil, ErrEVPNTruncated
+	}
+	if len(data) != 8+10+4+3 {
+		return nil, errors.New("evpn: Ethernet A-D requires one three-octet label field")
 	}
 
 	e := &EVPNType1{pathID: pathID, hasPath: hasPath}
@@ -312,13 +315,7 @@ func parseEVPNType1(data []byte, pathID uint32, hasPath bool) (*EVPNType1, error
 	e.ethernetTag = binary.BigEndian.Uint32(data[offset : offset+4])
 	offset += 4
 
-	if offset < len(data) {
-		labels, _, err := ParseLabelStack(data[offset:])
-		if err != nil {
-			return nil, err
-		}
-		e.labels = labels
-	}
+	e.label = uint32(data[offset])<<16 | uint32(data[offset+1])<<8 | uint32(data[offset+2])
 
 	return e, nil
 }
@@ -328,17 +325,15 @@ func (e *EVPNType1) RouteType() EVPNRouteType { return EVPNRouteType1 }
 func (e *EVPNType1) RD() RouteDistinguisher   { return e.rd }
 func (e *EVPNType1) ESI() ESI                 { return e.esi }
 func (e *EVPNType1) EthernetTag() uint32      { return e.ethernetTag }
-func (e *EVPNType1) Labels() []uint32         { return nlri.LabelValues(e.labels) }
+func (e *EVPNType1) Labels() []uint32         { return []uint32{nlri.LabelValue(e.label)} }
 func (e *EVPNType1) PathID() uint32           { return e.pathID }
 func (e *EVPNType1) HasPathID() bool          { return e.hasPath }
 func (e *EVPNType1) SupportsAddPath() bool    { return true }
 
 // WriteTo encodes the EVPN Type 1 NLRI directly into buf at off. Returns
-// bytes written. Zero-alloc primitive: label stack and RD are written
-// in place via their own WriteTo helpers, never through an intermediate
-// `make`.
+// bytes written. The single label field and RD are written in place.
 func (e *EVPNType1) WriteTo(buf []byte, off int) int {
-	payloadLen := 8 + 10 + 4 + len(e.labels)*3
+	const payloadLen = 8 + 10 + 4 + 3
 	buf[off] = byte(EVPNRouteType1)
 	buf[off+1] = byte(payloadLen)
 	pos := off + 2
@@ -347,7 +342,8 @@ func (e *EVPNType1) WriteTo(buf []byte, off int) int {
 	pos += 10
 	binary.BigEndian.PutUint32(buf[pos:], e.ethernetTag)
 	pos += 4
-	pos += WriteLabelStack(buf, pos, e.labels)
+	buf[pos], buf[pos+1], buf[pos+2] = byte(e.label>>16), byte(e.label>>8), byte(e.label)
+	pos += 3
 	return pos - off
 }
 
@@ -361,18 +357,13 @@ func (e *EVPNType1) Bytes() []byte {
 }
 
 func (e *EVPNType1) Len() int {
-	return 8 + 10 + 4 + len(e.labels)*3 + 2
+	return 8 + 10 + 4 + 3 + 2
 }
 
 func (e *EVPNType1) String() string {
 	var b textbuf.Buffer
 	b.Str("ethernet-ad rd ").Str(e.rd.String()).Str(" esi ").Str(e.esi.String()).Str(" etag ").Uint32(e.ethernetTag)
-	if len(e.labels) > 0 {
-		b.Str(" label ").Uint32(nlri.LabelValue(e.labels[0]))
-		for _, l := range e.labels[1:] {
-			b.Byte(',').Uint32(nlri.LabelValue(l))
-		}
-	}
+	b.Str(" label ").Uint32(nlri.LabelValue(e.label))
 	return b.String()
 }
 
@@ -876,6 +867,8 @@ func (e *EVPNType5) WriteTo(buf []byte, off int) int {
 		if e.gateway.IsValid() {
 			gw4 := e.gateway.As4()
 			copy(buf[pos:], gw4[:])
+		} else {
+			clear(buf[pos : pos+4])
 		}
 		pos += 4
 	case 16:
@@ -885,6 +878,8 @@ func (e *EVPNType5) WriteTo(buf []byte, off int) int {
 		if e.gateway.IsValid() {
 			gw6 := e.gateway.As16()
 			copy(buf[pos:], gw6[:])
+		} else {
+			clear(buf[pos : pos+16])
 		}
 		pos += 16
 	}
@@ -975,8 +970,8 @@ func (e *eVPNGeneric) WriteTo(buf []byte, off int) int {
 // Constructors for creating EVPN routes.
 
 // NewEVPNType1 creates an Ethernet Auto-Discovery route (Type 1).
-func NewEVPNType1(rd RouteDistinguisher, esi [10]byte, ethernetTag uint32, labels []uint32) *EVPNType1 {
-	return &EVPNType1{rd: rd, esi: esi, ethernetTag: ethernetTag, labels: nlri.LabelEntriesFor(labels)}
+func NewEVPNType1(rd RouteDistinguisher, esi [10]byte, ethernetTag, label uint32) *EVPNType1 {
+	return &EVPNType1{rd: rd, esi: esi, ethernetTag: ethernetTag, label: label << 4}
 }
 
 // NewEVPNType2 creates a MAC/IP Advertisement route (Type 2).

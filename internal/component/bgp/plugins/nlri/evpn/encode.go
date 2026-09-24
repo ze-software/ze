@@ -48,7 +48,10 @@ func EncodeRoute(routeCmd, _ string, localAS uint32, isIBGP, asn4, addPath bool)
 	}
 
 	// Build UPDATE
-	update := ub.BuildEVPN(params)
+	update, err := ub.BuildEVPN(params)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	// Pack UPDATE body using PackTo
 	updateBody := message.PackTo(update, nil)
@@ -63,8 +66,15 @@ func EncodeRoute(routeCmd, _ string, localAS uint32, isIBGP, asn4, addPath bool)
 //nolint:goconst // String literals are clearer for route type matching.
 func l2vpnRouteToEVPNParams(r bgptypes.L2VPNRoute) (message.EVPNParams, error) {
 	p := message.EVPNParams{
-		NextHop: r.NextHop,
-		Origin:  attribute.OriginIGP,
+		NextHop:           r.NextHop,
+		Origin:            attribute.OriginIGP,
+		ExtCommunityBytes: r.ExtCommunityBytes,
+	}
+	if r.Label1 > 0xfffff {
+		return p, errors.New("EVPN label exceeds 20 bits")
+	}
+	if r.Label2 > 0xfffff {
+		return p, errors.New("EVPN second label exceeds 20 bits")
 	}
 
 	// Parse RD
@@ -88,34 +98,47 @@ func l2vpnRouteToEVPNParams(r bgptypes.L2VPNRoute) (message.EVPNParams, error) {
 	var evpnNLRI EVPN
 	switch r.RouteType {
 	case "ethernet-ad":
-		var labels []uint32
-		if r.Label1 != 0 {
-			labels = []uint32{r.Label1}
-		}
-		evpnNLRI = NewEVPNType1(rd, esiArr, r.EthernetTag, labels)
+		// RFC 7432 Section 7.1 carries one label even when its value is zero.
+		evpnNLRI = NewEVPNType1(rd, esiArr, r.EthernetTag, r.Label1)
 	case "mac-ip":
 		mac, macErr := parseMAC(r.MAC)
 		if macErr != nil {
 			return p, fmt.Errorf("invalid MAC: %w", macErr)
 		}
-		var labels []uint32
-		if r.Label1 != 0 {
-			labels = []uint32{r.Label1}
-			if r.Label2 != 0 {
-				labels = append(labels, r.Label2)
-			}
+		labels := []uint32{r.Label1}
+		if r.Label2 != 0 {
+			labels = append(labels, r.Label2)
 		}
 		evpnNLRI = NewEVPNType2(rd, esiArr, r.EthernetTag, mac, r.IP, labels)
 	case "multicast":
-		evpnNLRI = NewEVPNType3(rd, r.EthernetTag, r.NextHop)
-	case RouteNameEthernetSegment:
-		evpnNLRI = NewEVPNType4(rd, esiArr, r.NextHop)
-	case RouteNameIPPrefix:
-		var labels []uint32
-		if r.Label1 != 0 {
-			labels = []uint32{r.Label1}
+		originator := r.IP
+		if !originator.IsValid() {
+			originator = r.NextHop
 		}
-		evpnNLRI = newEVPNType5(rd, esiArr, r.EthernetTag, r.Prefix, r.Gateway, labels)
+		if !originator.IsValid() {
+			return p, errors.New("multicast route requires an originating router IP")
+		}
+		evpnNLRI = NewEVPNType3(rd, r.EthernetTag, originator)
+	case RouteNameEthernetSegment:
+		originator := r.IP
+		if !originator.IsValid() {
+			originator = r.NextHop
+		}
+		if !originator.IsValid() {
+			return p, errors.New("Ethernet Segment route requires an originating router IP")
+		}
+		evpnNLRI = NewEVPNType4(rd, esiArr, originator)
+	case RouteNameIPPrefix:
+		if !r.Prefix.IsValid() {
+			return p, errMissingPrefix
+		}
+		if r.Gateway.IsValid() {
+			if r.Gateway.Is4() != r.Prefix.Addr().Is4() {
+				return p, errors.New("EVPN gateway and prefix address families differ")
+			}
+		}
+		// RFC 9136 Section 3 carries a fixed label field, including zero.
+		evpnNLRI = newEVPNType5(rd, esiArr, r.EthernetTag, r.Prefix.Masked(), r.Gateway, []uint32{r.Label1})
 	default:
 		return p, fmt.Errorf("unknown EVPN route type: %s", r.RouteType)
 	}
@@ -157,6 +180,9 @@ func parseL2VPNArgs(args []string) (bgptypes.L2VPNRoute, error) {
 
 	if len(args) < 1 {
 		return route, errMissingRouteType
+	}
+	if len(args)%2 == 0 {
+		return route, fmt.Errorf("missing value for %s", args[len(args)-1])
 	}
 
 	// First argument is route type
@@ -219,11 +245,26 @@ func parseL2VPNArgs(args []string) (bgptypes.L2VPNRoute, error) {
 			}
 			route.Label1 = uint32(n)
 		case "label2":
+			if route.RouteType != "mac-ip" {
+				return route, errors.New("only MAC/IP advertisements carry a second label")
+			}
 			n, err := strconv.ParseUint(value, 10, 32)
 			if err != nil {
 				return route, fmt.Errorf("invalid label2: %s", value)
 			}
 			route.Label2 = uint32(n)
+		case "extended-community":
+			var ec attribute.ExtendedCommunity
+			var err error
+			if strings.HasPrefix(value, "0x") || strings.HasPrefix(value, "0X") {
+				ec, err = attribute.ParseExtendedCommunityHex(value)
+			} else {
+				ec, err = attribute.ParseSingleExtCommunity(value)
+			}
+			if err != nil {
+				return route, err
+			}
+			route.ExtCommunityBytes = append(route.ExtCommunityBytes, ec[:]...)
 		case "next-hop":
 			nh, err := netip.ParseAddr(value)
 			if err != nil {

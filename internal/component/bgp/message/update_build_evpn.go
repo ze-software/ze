@@ -5,12 +5,18 @@
 package message
 
 import (
+	"encoding/binary"
+	"errors"
+	"fmt"
 	"net/netip"
 	"slices"
 
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 )
+
+// ErrEVPNOrigination identifies a refused local EVPN advertisement.
+var ErrEVPNOrigination = errors.New("invalid EVPN origination")
 
 // EVPNParams contains parameters for building EVPN route UPDATEs.
 //
@@ -43,7 +49,22 @@ type EVPNParams struct {
 // BuildEVPN builds an UPDATE message for EVPN routes (AFI=25, SAFI=70).
 //
 // RFC 7432 - BGP MPLS-Based Ethernet VPN.
-func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) *Update {
+func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) (*Update, error) {
+	if len(p.NLRI) == 0 {
+		return nil, fmt.Errorf("%w: missing NLRI", ErrEVPNOrigination)
+	}
+	if !p.NextHop.IsValid() {
+		return nil, fmt.Errorf("%w: missing next hop", ErrEVPNOrigination)
+	}
+	if p.NextHop.IsUnspecified() {
+		return nil, fmt.Errorf("%w: unspecified next hop", ErrEVPNOrigination)
+	}
+	if p.NextHop.IsMulticast() {
+		return nil, fmt.Errorf("%w: multicast next hop", ErrEVPNOrigination)
+	}
+	if err := ValidateEVPNOrigination(p.NLRI, p.ExtCommunityBytes, false); err != nil {
+		return nil, err
+	}
 	ub.resetScratch()
 
 	var attrs []attribute.Attribute
@@ -134,27 +155,15 @@ func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) *Update {
 
 	return &Update{
 		PathAttributes: attrBytes,
-	}
+	}, nil
 }
 
 // buildMPReachEVPN builds MP_REACH_NLRI for EVPN routes.
 // NLRI bytes must be pre-built by the caller in p.NLRI.
 func (ub *UpdateBuilder) buildMPReachEVPN(p EVPNParams) *rawAttribute {
-	if len(p.NLRI) == 0 {
-		return &rawAttribute{
-			flags: attribute.FlagOptional,
-			code:  attribute.AttrMPReachNLRI,
-			data:  nil,
-		}
-	}
 
-	// Build next-hop bytes
-	var nhBytes []byte
-	if p.NextHop.Is4() || p.NextHop.Is6() {
-		nhBytes = p.NextHop.AsSlice()
-	} else {
-		nhBytes = []byte{0, 0, 0, 0} // No next-hop: IPv4 0.0.0.0
-	}
+	// BuildEVPN checked that the caller supplied a usable next hop.
+	nhBytes := p.NextHop.AsSlice()
 	nhLen := len(nhBytes)
 
 	// MP_REACH_NLRI format:
@@ -173,4 +182,88 @@ func (ub *UpdateBuilder) buildMPReachEVPN(p EVPNParams) *rawAttribute {
 		code:  attribute.AttrMPReachNLRI,
 		data:  value,
 	}
+}
+
+// ValidateEVPNOrigination checks requirements on locally originated EVPN routes.
+// It does not apply sender constraints to received routes or withdrawals.
+func ValidateEVPNOrigination(nlris, extCommunities []byte, addPath bool) error {
+	if len(extCommunities)%8 != 0 {
+		return fmt.Errorf("%w: incomplete extended community", ErrEVPNOrigination)
+	}
+	hasRT, hasESILabel, hasESImport := false, false, false
+	for off := 0; off+8 <= len(extCommunities); off += 8 {
+		ec := extCommunities[off : off+8]
+		switch ec[1] {
+		case 1:
+			if ec[0] == 6 {
+				hasESILabel = true
+			}
+		case 2:
+			switch ec[0] {
+			case 0, 1, 2:
+				hasRT = true
+			case 6:
+				hasESImport = true
+			}
+		}
+	}
+	for len(nlris) != 0 {
+		if addPath {
+			if len(nlris) < 4 {
+				return fmt.Errorf("%w: invalid path identifier length", ErrEVPNOrigination)
+			}
+			nlris = nlris[4:]
+		}
+		if len(nlris) < 2 {
+			return fmt.Errorf("%w: invalid NLRI length", ErrEVPNOrigination)
+		}
+		if int(nlris[1])+2 > len(nlris) {
+			return fmt.Errorf("%w: invalid NLRI length", ErrEVPNOrigination)
+		}
+		size := int(nlris[1]) + 2
+		switch nlris[0] {
+		case 1:
+			if size != 27 {
+				return fmt.Errorf("%w: Ethernet A-D requires one three-octet label field", ErrEVPNOrigination)
+			}
+			// RFC 7432 Section 8.2.1: MAX-ET identifies an A-D per ES route,
+			// whose Route Distinguisher must be the IPv4-address type.
+			if binary.BigEndian.Uint32(nlris[20:24]) == 0xffffffff {
+				if binary.BigEndian.Uint16(nlris[2:4]) != 1 {
+					return fmt.Errorf("%w: Ethernet A-D per ES requires a type 1 route distinguisher", ErrEVPNOrigination)
+				}
+				if nlris[24]|nlris[25]|nlris[26] != 0 {
+					return fmt.Errorf("%w: Ethernet A-D per ES requires a zero NLRI label", ErrEVPNOrigination)
+				}
+				if !hasESILabel {
+					return fmt.Errorf("%w: Ethernet A-D per ES requires an ESI Label extended community", ErrEVPNOrigination)
+				}
+				if !hasRT {
+					return fmt.Errorf("%w: Ethernet A-D per ES requires a route target", ErrEVPNOrigination)
+				}
+			}
+		case 3:
+			// RFC 7432 Section 11.1: IMET advertisements carry one or more RTs.
+			if !hasRT {
+				return fmt.Errorf("%w: inclusive multicast Ethernet Tag route requires a route target", ErrEVPNOrigination)
+			}
+		case 4:
+			if size != 25 && size != 37 {
+				return fmt.Errorf("%w: invalid Ethernet Segment route length", ErrEVPNOrigination)
+			}
+			if int(nlris[20]) != (size-21)*8 {
+				return fmt.Errorf("%w: invalid Ethernet Segment originator address length", ErrEVPNOrigination)
+			}
+			// RFC 7432 Section 8.1.1: the Ethernet Segment RD MUST be Type 1,
+			// and its advertisement MUST carry the Section 7.6 ES-Import RT.
+			if binary.BigEndian.Uint16(nlris[2:4]) != 1 {
+				return fmt.Errorf("%w: Ethernet Segment requires a type 1 route distinguisher", ErrEVPNOrigination)
+			}
+			if !hasESImport {
+				return fmt.Errorf("%w: Ethernet Segment requires an ES-Import route target", ErrEVPNOrigination)
+			}
+		}
+		nlris = nlris[size:]
+	}
+	return nil
 }

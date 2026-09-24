@@ -16,6 +16,7 @@ import (
 	"net/netip"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 )
 
@@ -104,13 +105,16 @@ var rfc6793Originators = []rfc6793Originator{
 	{
 		name:         "BuildEVPN",
 		configurable: true,
-		build: func(_ *testing.T, ub *UpdateBuilder, asPath []uint32) []byte {
-			return ub.BuildEVPN(EVPNParams{
-				NLRI:    []byte{3, 9, 0, 0, 0, 0, 0, 0, 0, 0, 1, 4, 192, 0, 2, 1},
-				NextHop: netip.MustParseAddr("192.0.2.1"),
-				Origin:  attribute.OriginIGP,
-				ASPath:  asPath,
-			}).PathAttributes
+		build: func(t *testing.T, ub *UpdateBuilder, asPath []uint32) []byte {
+			update, err := ub.BuildEVPN(EVPNParams{
+				NLRI:              testEVPNType3Bytes(makeRD(1), netip.MustParseAddr("192.0.2.1")),
+				NextHop:           netip.MustParseAddr("192.0.2.1"),
+				Origin:            attribute.OriginIGP,
+				ASPath:            asPath,
+				ExtCommunityBytes: []byte{0, 2, 0xfd, 0xe8, 0, 0, 0, 1},
+			})
+			require.NoError(t, err)
+			return update.PathAttributes
 		},
 	},
 	{

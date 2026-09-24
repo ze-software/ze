@@ -1,0 +1,57 @@
+# Test: Native EVPN next-hop self reaches the connected collector.
+# VALIDATES: full configuration loading retains explicit self policy through
+# generic plugin-route conversion and resolves it before actual UPDATE emission.
+# PREVENTS: ParseAddr("self") refusing an otherwise valid native EVPN route,
+# or confusing the independent IMET originator with the session next hop.
+# Local auto keeps the configured address unset; only the connected socket can
+# supply 127.0.0.1. The collector listens on distinct address 127.0.0.2.
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=20s
+option=asn:value=65000
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003001946
+# MP_REACH: AFI 25 / SAFI 70; next hop 127.0.0.1; IMET originator 198.51.100.1.
+expect=bgp:conn=1:seq=1:contains=001946047F0000010003110000FDE8000000070000000020C6336401
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external self-observer {
+        run "ze-test fixture plugin/evpn-config-self"
+        encoder json
+    }
+}
+bgp {
+    peer collector {
+        connection {
+            remote { ip 127.0.0.2; }
+            local { ip auto; accept false; }
+        }
+        session {
+            asn { local 65000; remote 65000; }
+            router-id 192.0.2.1
+            # Explicit route self overrides this unrelated export default.
+            next-hop 192.0.2.99
+            family { l2vpn/evpn { prefix { maximum 10000; } } }
+            capability { graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        update {
+            attribute {
+                origin igp
+                next-hop self
+                extended-community target:65000:100
+            }
+            nlri { l2vpn/evpn add multicast rd 65000:7 ip 198.51.100.1; }
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-nlri-evpn -:stdin=ze-bgp:timeout=20s
+expect=exit:code=0
+expect=stderr:contains=OK native EVPN self route and EOR reached collector
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

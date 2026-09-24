@@ -37,9 +37,10 @@ func init() {
 		InProcessDecoder: func(input, output *bytes.Buffer) int {
 			return runEVPNDecode(input, output)
 		},
-		InProcessNLRIDecoder:  DecodeNLRIHex,
-		InProcessNLRIEncoder:  EncodeNLRIHex,
-		InProcessRouteEncoder: EncodeRoute,
+		InProcessNLRIDecoder:       DecodeNLRIHex,
+		InProcessNLRIEncoder:       EncodeNLRIHex,
+		InProcessRouteEncoder:      EncodeRoute,
+		InProcessConfigRouteParser: parseConfigRoute,
 	}
 	reg.CLIHandler = func(args []string) int {
 		var family *string

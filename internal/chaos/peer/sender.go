@@ -151,14 +151,20 @@ func (s *Sender) buildEVPNRoute(route scenario.EVPNRoute) []byte {
 	}
 
 	evpnNLRI := evpn.NewEVPNType2(rd, [10]byte{}, route.EthernetTag, route.MAC, route.IP, route.Labels)
+	// RFC 7432 Section 9.2.1 -- see rfc/short/rfc7432.md.
+	// A generated MAC route needs an import target too. Use the scenario's
+	// RD administrator and assigned value as its deterministic target.
+	target := route.RDBytes
+	target[0], target[1] = target[1], 2
 	params := message.EVPNParams{
-		NLRI:    evpnNLRI.Bytes(),
-		NextHop: s.nextHop,
-		Origin:  attribute.OriginIGP,
+		NLRI:              evpnNLRI.Bytes(),
+		NextHop:           s.nextHop,
+		Origin:            attribute.OriginIGP,
+		ExtCommunityBytes: target[:],
 	}
 
-	update := s.builder.BuildEVPN(params)
-	if update == nil {
+	update, err := s.builder.BuildEVPN(params)
+	if err != nil {
 		return nil
 	}
 

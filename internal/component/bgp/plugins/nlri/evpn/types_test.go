@@ -885,26 +885,24 @@ func TestEVPNType5RoundTripIPv6(t *testing.T) {
 	assert.Equal(t, original, encoded, "round-trip encoding mismatch")
 }
 
-// TestEVPNType1RoundTripMultiLabel verifies Type 1 with label stack.
-//
-// VALIDATES: Bytes() correctly encodes multiple MPLS labels with BOS bit.
-// PREVENTS: Label stack corruption breaking EVPN-MPLS forwarding.
-func TestEVPNType1RoundTripMultiLabel(t *testing.T) {
+// TestEVPNType1RoundTripLabelField preserves all three label octets, including
+// received low bits, without treating Ethernet A-D as a variable label stack.
+func TestEVPNType1RoundTripLabelField(t *testing.T) {
 	t.Parallel()
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
 	ethTag := []byte{0x00, 0x00, 0x00, 0x0A}
-	labels := []byte{0x00, 0x06, 0x40, 0x00, 0x0C, 0x81}
+	label := []byte{0x00, 0x06, 0x4f}
 
-	original := buildEVPNData(EVPNRouteType1, byte(8+10+4+6),
-		rd, esi, ethTag, labels)
+	original := buildEVPNData(EVPNRouteType1, byte(25),
+		rd, esi, ethTag, label)
 
 	parsed, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)
 
 	evpn, ok := parsed.(*EVPNType1)
 	require.True(t, ok)
-	assert.Equal(t, []uint32{100, 200}, evpn.Labels())
+	assert.Equal(t, []uint32{100}, evpn.Labels())
 
 	encoded := evpn.Bytes()
 	assert.Equal(t, original, encoded, "round-trip encoding mismatch")
@@ -1025,7 +1023,7 @@ func TestEVPNType1StringCommandStyle(t *testing.T) {
 	rd, _ := ParseRDString("65000:100")
 	esi := [10]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
 
-	e := NewEVPNType1(rd, esi, 10, []uint32{1000})
+	e := NewEVPNType1(rd, esi, 10, 1000)
 	s := e.String()
 	assert.Contains(t, s, "ethernet-ad", "should start with route type")
 	assert.Contains(t, s, "rd 0:65000:100", "rd field should be present")

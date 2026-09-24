@@ -183,6 +183,9 @@ type L2VPNRoute struct {
 
 	// Next-hop
 	NextHop netip.Addr
+
+	// Extended communities, including the route targets required for IMET.
+	ExtCommunityBytes []byte
 }
 
 // L3VPNRoute specifies an L3VPN (MPLS VPN) route for announcement.

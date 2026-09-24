@@ -247,7 +247,7 @@ func TestEvpnToJSON(t *testing.T) {
 	}{
 		{
 			name: "type1",
-			evpn: NewEVPNType1(rd, ESI{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, 100, []uint32{1000}),
+			evpn: NewEVPNType1(rd, ESI{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}, 100, 1000),
 			checks: map[string]any{
 				"code":   1,
 				"name":   "Ethernet Auto-Discovery",

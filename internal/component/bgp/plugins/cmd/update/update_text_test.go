@@ -1198,7 +1198,7 @@ type mockReactorBatch struct {
 // test below to the "BGP reactor not available" branch.
 var _ bgptypes.BGPReactor = (*mockReactorBatch)(nil)
 
-func (m *mockReactorBatch) AnnounceNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
+func (m *mockReactorBatch) AnnounceNLRIBatch(_ context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
 	if m.noPeersMatching {
 		return route.ErrNoPeersMatch
 	}
@@ -1208,9 +1208,10 @@ func (m *mockReactorBatch) AnnounceNLRIBatch(sel *selector.Selector, batch bgpty
 	m.peerSelector = sel.String()
 	m.announceCalls = append(m.announceCalls, batch)
 	return m.announceError
+
 }
 
-func (m *mockReactorBatch) WithdrawNLRIBatch(sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
+func (m *mockReactorBatch) WithdrawNLRIBatch(_ context.Context, sel *selector.Selector, batch bgptypes.NLRIBatch, _ plugin.Sender) error {
 	if m.noPeersMatching {
 		return route.ErrNoPeersMatch
 	}
@@ -1220,6 +1221,7 @@ func (m *mockReactorBatch) WithdrawNLRIBatch(sel *selector.Selector, batch bgpty
 	m.peerSelector = sel.String()
 	m.withdrawCalls = append(m.withdrawCalls, batch)
 	return m.withdrawError
+
 }
 
 // Stub implementations for other ReactorLifecycle methods.
@@ -3612,6 +3614,7 @@ func TestParseUpdateText_EVPNMissingType(t *testing.T) {
 // PREVENTS: Type 3 routes silently failing.
 func TestParseUpdateText_EVPNType3Multicast(t *testing.T) {
 	result, err := ParseUpdateText([]string{
+		"extended-community", "target:65000:1",
 		"nlri", "l2vpn/evpn", "add", "multicast",
 		"rd", "1:1",
 		"ip", "192.168.1.1",

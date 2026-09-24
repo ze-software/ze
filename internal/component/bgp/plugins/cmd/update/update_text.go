@@ -46,6 +46,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/component/bgp/route"
 	"github.com/ze-software/ze/internal/component/bgp/textparse"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
@@ -728,6 +729,14 @@ func ParseUpdateText(args []string) (*bgptypes.UpdateTextResult, error) {
 			if err != nil {
 				return nil, err
 			}
+			if result.Family == (family.Family{AFI: family.AFIL2VPN, SAFI: family.SAFIEVPN}) {
+				_, _, extCommunities, _ := attribute.AttrFind(wire.Packed(), attribute.AttrExtCommunity)
+				for _, announced := range result.Announce {
+					if err := message.ValidateEVPNOrigination(announced.Bytes(), extCommunities, false); err != nil {
+						return nil, err
+					}
+				}
+			}
 
 			// RFC 4724: EOR is signaled by valid family with empty announce/withdraw lists.
 			if len(result.Announce) == 0 && len(result.Withdraw) == 0 && result.Family.AFI != 0 {
@@ -1097,7 +1106,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				Stale:    staleLevel,
 				Replay:   replay,
 			}
-			if err := bgpReactor.AnnounceNLRIBatch(sel, batch, ctx.Sender); err != nil {
+			if err := bgpReactor.AnnounceNLRIBatch(ctx.Context(), sel, batch, ctx.Sender); err != nil {
 				if errors.Is(err, route.ErrNoPeersAcceptedFamily) {
 					warnings = append(warnings, fmt.Sprintf("announce %v: %s", group.Family, err))
 					continue
@@ -1122,7 +1131,7 @@ func DispatchNLRIGroups(ctx *pluginserver.CommandContext, groups []bgptypes.NLRI
 				NextHop: group.NextHop,
 				Wire:    group.Wire,
 			}
-			switch err := bgpReactor.WithdrawNLRIBatch(sel, batch, ctx.Sender); {
+			switch err := bgpReactor.WithdrawNLRIBatch(ctx.Context(), sel, batch, ctx.Sender); {
 			case err == nil:
 			case errors.Is(err, route.ErrWithdrawWithheld):
 				// The named peers had been advertised nothing on this session,

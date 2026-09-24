@@ -74,7 +74,9 @@ func convertPluginRoute(pr PluginRouteConfig) (reactor.PluginRoute, error) {
 		MapV4NextHop:    pr.MapV4NextHop,
 	}
 
-	if pr.NextHop != "" {
+	if pr.NextHop == configSelf {
+		route.NextHopSelf = true
+	} else if pr.NextHop != "" {
 		ip, err := netip.ParseAddr(pr.NextHop)
 		if err != nil {
 			return route, fmt.Errorf("parse next-hop: %w", err)

@@ -230,7 +230,7 @@ func (p *evpnEncodeParams) setField(key, value string) error {
 
 // evpnRouteTypes is the set of valid EVPN route types for encoding.
 var evpnRouteTypes = map[string]bool{
-	routeTypeToken2: true, routeTypeToken3: true, routeTypeToken5: true,
+	routeTypeToken1: true, routeTypeToken2: true, routeTypeToken3: true, routeTypeToken4: true, routeTypeToken5: true,
 }
 
 // buildEVPNFromParams creates an EVPN NLRI from parsed parameters.
@@ -239,12 +239,56 @@ func buildEVPNFromParams(routeType string, p *evpnEncodeParams) (EVPN, error) {
 	if !evpnRouteTypes[routeType] {
 		return nil, fmt.Errorf("unsupported EVPN route type: %s", routeType)
 	}
+	for _, label := range p.labels {
+		if label > 0xfffff {
+			return nil, errors.New("EVPN label exceeds 20 bits")
+		}
+	}
 	switch routeType {
+	case routeTypeToken1:
+		if len(p.labels) > 1 {
+			return nil, errors.New("Ethernet A-D requires exactly one label field")
+		}
+		var label uint32
+		if len(p.labels) == 1 {
+			label = p.labels[0]
+		}
+		// RFC 7432 Section 7.1 requires the field even when no label is assigned.
+		return NewEVPNType1(p.rd, p.esi, p.ethernetTag, label), nil
 	case routeTypeToken2:
+		if len(p.labels) > 2 {
+			return nil, errors.New("MAC/IP advertisement permits at most two labels")
+		}
+		if len(p.labels) == 0 {
+			p.labels = []uint32{0}
+		}
 		return NewEVPNType2(p.rd, p.esi, p.ethernetTag, p.mac, p.ip, p.labels), nil
 	case routeTypeToken3:
+		if !p.ip.IsValid() {
+			return nil, errors.New("multicast route requires an originating router IP")
+		}
 		return NewEVPNType3(p.rd, p.ethernetTag, p.ip), nil
+	case routeTypeToken4:
+		if !p.ip.IsValid() {
+			return nil, errors.New("Ethernet Segment route requires an originating router IP")
+		}
+		return NewEVPNType4(p.rd, p.esi, p.ip), nil
 	case routeTypeToken5:
+		if !p.prefix.IsValid() {
+			return nil, errMissingPrefix
+		}
+		if p.gateway.IsValid() {
+			if p.gateway.Is4() != p.prefix.Addr().Is4() {
+				return nil, errors.New("EVPN gateway and prefix address families differ")
+			}
+		}
+		if len(p.labels) > 1 {
+			return nil, errors.New("IP Prefix route requires one label field")
+		}
+		if len(p.labels) == 0 {
+			p.labels = []uint32{0}
+		}
+		p.prefix = p.prefix.Masked()
 		return newEVPNType5(p.rd, p.esi, p.ethernetTag, p.prefix, p.gateway, p.labels), nil
 	}
 	return nil, fmt.Errorf("unsupported EVPN route type: %s", routeType)

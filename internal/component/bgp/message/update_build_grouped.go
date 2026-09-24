@@ -268,7 +268,10 @@ func (ub *UpdateBuilder) buildLabeledUnicastWithMaxSize(p *LabeledUnicastParams,
 // RFC 4271 Section 4.3 - UPDATE max 4096 bytes (standard).
 // RFC 8654 - Extended Message raises max to 65535 bytes.
 func (ub *UpdateBuilder) buildEVPNWithMaxSize(p EVPNParams, maxSize int) (*Update, error) {
-	update := ub.BuildEVPN(p)
+	update, err := ub.BuildEVPN(p)
+	if err != nil {
+		return nil, err
+	}
 
 	// EVPN uses MP_REACH_NLRI, no inline NLRI
 	updateSize := HeaderLen + 4 + len(update.PathAttributes)

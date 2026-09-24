@@ -74,7 +74,11 @@ func testEVPNType3Bytes(rd nlri.RouteDistinguisher, originatorIP netip.Addr) []b
 // testEVPNType5Bytes builds EVPN Type 5 (IP Prefix) NLRI bytes inline.
 func testEVPNType5Bytes(rd nlri.RouteDistinguisher, ethernetTag uint32, prefix netip.Prefix, gateway netip.Addr, label uint32) []byte {
 	prefixBits := prefix.Bits()
-	prefixBytes := (prefixBits + 7) / 8
+	// RFC 9136 Section 3.1: the prefix field occupies 4 or 16 octets.
+	prefixBytes := 16
+	if prefix.Addr().Is4() {
+		prefixBytes = 4
+	}
 	var gwBytes []byte
 	if gateway.Is4() {
 		b := gateway.As4()
@@ -130,7 +134,8 @@ func TestUpdateBuilder_BuildEVPN_Type2(t *testing.T) {
 		Origin:  attribute.OriginIGP,
 	}
 
-	update := ub.BuildEVPN(params)
+	update, err := ub.BuildEVPN(params)
+	require.NoError(t, err)
 
 	require.NotNil(t, update, "BuildEVPN returned nil")
 
@@ -162,10 +167,19 @@ func TestUpdateBuilder_BuildEVPN_Type5(t *testing.T) {
 		LocalPreference: 150,
 	}
 
-	update := ub.BuildEVPN(params)
+	update, err := ub.BuildEVPN(params)
+	require.NoError(t, err)
 
 	require.NotNil(t, update, "BuildEVPN returned nil")
-	assert.Greater(t, len(update.PathAttributes), 0, "PathAttributes should not be empty")
+	_, _, value, found := attribute.AttrFind(update.PathAttributes, attribute.AttrMPReachNLRI)
+	require.True(t, found)
+	reach, err := attribute.ParseMPReachNLRI(value)
+	require.NoError(t, err)
+	require.Equal(t, attribute.AFI(25), reach.AFI)
+	require.Equal(t, attribute.SAFI(70), reach.SAFI)
+	require.Len(t, reach.NLRI, 36)
+	require.Equal(t, []byte{5, 34}, reach.NLRI[:2])
+	require.Equal(t, []byte{24, 10, 0, 0, 0, 0, 0, 0, 0, 0, 12, 129}, reach.NLRI[24:])
 }
 
 // TestUpdateBuilder_BuildEVPN_Type3 verifies EVPN Type 3 (Inclusive Multicast) UPDATE.
@@ -182,12 +196,14 @@ func TestUpdateBuilder_BuildEVPN_Type3(t *testing.T) {
 	nlriBytes := testEVPNType3Bytes(rd, netip.MustParseAddr("192.168.1.1"))
 
 	params := EVPNParams{
-		NLRI:    nlriBytes,
-		NextHop: netip.MustParseAddr("192.168.1.1"),
-		Origin:  attribute.OriginIGP,
+		NLRI:              nlriBytes,
+		NextHop:           netip.MustParseAddr("192.168.1.1"),
+		Origin:            attribute.OriginIGP,
+		ExtCommunityBytes: []byte{0, 2, 0xfd, 0xe8, 0, 0, 0, 1},
 	}
 
-	update := ub.BuildEVPN(params)
+	update, err := ub.BuildEVPN(params)
+	require.NoError(t, err)
 
 	require.NotNil(t, update, "BuildEVPN returned nil")
 }
@@ -223,10 +239,63 @@ func TestUpdateBuilder_BuildEVPN_ExtCommunity(t *testing.T) {
 		ExtCommunityBytes: rt,
 	}
 
-	update := ub.BuildEVPN(params)
+	update, err := ub.BuildEVPN(params)
+	require.NoError(t, err)
 
 	require.NotNil(t, update, "BuildEVPN returned nil")
 
 	// Verify path attributes are present
 	assert.Greater(t, len(update.PathAttributes), 0)
+}
+
+// TestBuildEVPNRejectsPartialCommunity prevents a complete Route Target from
+// hiding trailing bytes that make the emitted Extended Communities malformed.
+func TestBuildEVPNRejectsPartialCommunity(t *testing.T) {
+	builder := NewUpdateBuilder(65001, false, true, false)
+	params := EVPNParams{
+		NLRI:              testEVPNType3Bytes(makeRD(1), netip.MustParseAddr("192.0.2.1")),
+		NextHop:           netip.MustParseAddr("192.0.2.1"),
+		Origin:            attribute.OriginIGP,
+		ExtCommunityBytes: []byte{0, 2, 0xfd, 0xe8, 0, 0, 0, 1},
+	}
+	update, err := builder.BuildEVPN(params)
+	require.NoError(t, err)
+	_, _, communities, found := attribute.AttrFind(update.PathAttributes, attribute.AttrExtCommunity)
+	require.True(t, found)
+	require.Equal(t, params.ExtCommunityBytes, communities)
+
+	params.ExtCommunityBytes = append(params.ExtCommunityBytes, 0)
+	update, err = builder.BuildEVPN(params)
+	require.ErrorIs(t, err, ErrEVPNOrigination)
+	require.Nil(t, update)
+}
+
+// TestBuildEVPNRejectsMissingWireInputs exercises the builder's public boundary
+// so omitted routes and unusable next hops never produce malformed MP_REACH.
+func TestBuildEVPNRejectsMissingWireInputs(t *testing.T) {
+	nlriBytes := testEVPNType3Bytes(makeRD(1), netip.MustParseAddr("192.0.2.1"))
+	for _, tc := range []struct {
+		name    string
+		nlri    []byte
+		nextHop netip.Addr
+	}{
+		{"empty NLRI", nil, netip.MustParseAddr("192.0.2.1")},
+		{"missing next hop", nlriBytes, netip.Addr{}},
+		{"unspecified IPv4", nlriBytes, netip.IPv4Unspecified()},
+		{"unspecified IPv6", nlriBytes, netip.IPv6Unspecified()},
+		{"multicast IPv4", nlriBytes, netip.MustParseAddr("224.0.0.1")},
+		{"multicast IPv6", nlriBytes, netip.MustParseAddr("ff02::1")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			builder := NewUpdateBuilder(65001, false, true, false)
+			update, err := builder.BuildEVPN(EVPNParams{
+				NLRI:              tc.nlri,
+				NextHop:           tc.nextHop,
+				Origin:            attribute.OriginIGP,
+				ExtCommunityBytes: []byte{0, 2, 0xfd, 0xe8, 0, 0, 0, 1},
+			})
+			require.ErrorIs(t, err, ErrEVPNOrigination)
+			require.Nil(t, update)
+		})
+	}
 }
