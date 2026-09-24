@@ -7,7 +7,7 @@
 # PREVENTS: Sending raw 4-byte AS_PATH or 8-byte AGGREGATOR wire bytes
 # to a 2-byte-only RS-client peer, causing malformed UPDATE.
 #
-# Two-peer scenario: source (AS 65001, ASN4-capable) sends an UPDATE carrying a
+# Two-peer scenario: source (AS 4200000000, ASN4-capable) sends an UPDATE carrying a
 # non-mappable ASN (4200000000) in AS_PATH and AGGREGATOR. Receiver (AS 65002)
 # has ASN4 disabled, forcing the RS to transcode. The receiver must see:
 #   - AS_PATH re-encoded to 2-byte with AS_TRANS (23456)
@@ -44,6 +44,9 @@ option=bind:value=0.0.0.0
 option=conn_map:value=remote-ip
 
 # Source peer (conn=1): send UPDATE with non-mappable ASN 4200000000 (0xFA56EA00).
+# RFC 4271 Section 6.3 lets ze check that the leftmost AS of an eBGP UPDATE is
+# the neighbor's own AS, and ze does (firstASMismatch, reactor/session_validation.go).
+# The source peer IS AS 4200000000, so its path opens with its own AS.
 # ORIGIN=IGP, AS_PATH=[4200000000] (4-byte), NEXT_HOP=1.1.1.1,
 # AGGREGATOR=4200000000/10.0.0.1 (8-byte), NLRI=10.0.0.0/24.
 # No LOCAL_PREF -- EBGP source, see header.
@@ -130,7 +133,7 @@ bgp {
 		session {
 			asn {
 				local 65000
-				remote 65001
+				remote 4200000000
 			}
 			router-id 1.2.3.4
 			rs-client true

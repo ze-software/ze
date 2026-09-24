@@ -18,6 +18,10 @@ option=linger:value=true
 # route (the observed 27-byte WITHDRAW) instead of forwarding it.
 option=conn_map:value=remote-ip
 
+# RFC 4271 Section 6.3 lets ze check that the leftmost AS of an eBGP UPDATE is
+# the neighbor's own AS, and ze does (firstASMismatch, reactor/session_validation.go).
+# The path opens with 64496, so source-peer is AS 64496, the AS a real eBGP
+# speaker sending this path has (RFC 4271 Section 5.1.2).
 # Source peer (conn=1): ORIGIN=IGP, AS_PATH=[64496 64512 64497], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
 #
 # No LOCAL_PREF. source-peer is EXTERNAL, and RFC 4271 Section 5.1.5 forbids
@@ -116,7 +120,7 @@ bgp {
 		session {
 			asn {
 				local 65000
-				remote 65001
+				remote 64496
 			}
 			router-id 1.2.3.4
 			family {

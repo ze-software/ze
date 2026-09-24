@@ -30,6 +30,8 @@ type connWithID struct {
 	conn     net.Conn
 	routerID uint32
 	remoteIP netip.Addr
+	// senderAS is ze-peer's own AS on an eBGP session, 0 on iBGP (ebgpSenderAS).
+	senderAS uint32
 }
 
 // runConnMap accepts mapped connection batches and processes expect/send rules
@@ -199,7 +201,7 @@ func (p *Peer) acceptConnMapBatch(ctx context.Context, ln net.Listener, batchSiz
 			defer wg.Done()
 			remote := c.RemoteAddr()
 			p.printf("\nnew connection from %s\n", remote)
-			_, _, rid, hErr := p.doOpenHandshake(c)
+			_, zeOpen, rid, hErr := p.doOpenHandshake(c)
 			if hErr != nil {
 				// Name the connection: with a batch of N a bare "read OPEN"
 				// says nothing about which peer failed to hand over its OPEN.
@@ -248,6 +250,7 @@ func (p *Peer) acceptConnMapBatch(ctx context.Context, ln net.Listener, batchSiz
 				conn:     c,
 				routerID: rid,
 				remoteIP: remoteIPFromConn(c),
+				senderAS: p.ebgpSenderAS(zeOpen, c),
 			}
 		}(i, conn)
 	}
@@ -332,7 +335,7 @@ func (p *Peer) waitBatchClosed(ctx context.Context, conns []connWithID) {
 func (p *Peer) processConnBatch(ctx context.Context, conns []connWithID) Result {
 	for _, c := range conns {
 		p.checker.Init()
-		result := p.runMessageLoop(ctx, c.conn)
+		result := p.runMessageLoop(ctx, c.conn, c.senderAS)
 		if !result.Success {
 			return result
 		}

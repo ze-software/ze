@@ -52,7 +52,10 @@ option=bind:value=0.0.0.0
 # connects first is a race and the announce can land on the receiver.
 option=conn_map:value=remote-ip
 
-# Source peer (conn=1, EBGP AS 65001, ASN4 negotiated): one UPDATE whose AS_PATH
+# RFC 4271 Section 6.3 lets ze check that the leftmost AS of an eBGP UPDATE is
+# the neighbor's own AS, and ze does (firstASMismatch, reactor/session_validation.go).
+# The source peer IS AS 4200000000, so its path opens with its own AS.
+# Source peer (conn=1, EBGP AS 4200000000, ASN4 negotiated): one UPDATE whose AS_PATH
 # carries the non-mappable ASN 4200000000 (0xFA56EA00).
 #   0000                withdrawn routes length = 0
 #   0014                total path attribute length = 20
@@ -130,7 +133,7 @@ bgp {
 		session {
 			asn {
 				local 65000
-				remote 65001
+				remote 4200000000
 			}
 			router-id 1.2.3.4
 			family {

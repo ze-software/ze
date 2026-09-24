@@ -24,8 +24,10 @@ option=timeout:value=15s
 # Same lever as the 224 forward-overflow-two-tier fix (spec-fixit-peer-verdict-and-forward-rail).
 option=linger:value=true
 # No role capability added -- this peer is "unknown/untagged"
-# Send UPDATE: ORIGIN=IGP, AS_PATH=empty, NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0029020000000E4001010040020040030401010101180A0000
+# Send UPDATE: ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1, NLRI=10.0.0.0/24
+# AS_PATH=[65001]: an eBGP speaker prepends its own AS (RFC 4271 Section 5.1.2),
+# and ze checks the leftmost AS against the neighbor (RFC 4271 Section 6.3).
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
@@ -34,7 +36,8 @@ EOF_PEER
 stdin=dest:terminator=EOF_DEST
 option=tcp_connections:value=1
 option=timeout:value=15s
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE840030401010101180A0000
+# ze prepends its own AS 65000 on export: AS_PATH=[65000 65001].
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
 # // the removed End-of-RIB rule was unsatisfiable by construction, so
 # it asserted nothing and only produced a red the runner used to mask. This peer's
 # EOR is emitted by its OWN initial sync the moment it establishes

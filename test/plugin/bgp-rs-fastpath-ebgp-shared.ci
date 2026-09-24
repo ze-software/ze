@@ -8,8 +8,11 @@
 # PREVENTS: silent regression where the fast path is not engaged for eBGP
 # forwarding, or where AS_PATH prepend produces incorrect wire bytes.
 #
-# Two eBGP peers: source (65001) sends one UPDATE with empty AS_PATH,
-# receiver (65002) must get the forwarded UPDATE with AS_PATH=[65000].
+# Two eBGP peers: source (65001) sends one UPDATE with AS_PATH=[65001],
+# receiver (65002) must get the forwarded UPDATE with AS_PATH=[65000 65001].
+# The source path opens with the source's own AS, as every eBGP speaker's does
+# (RFC 4271 Section 5.1.2). An empty path from an eBGP neighbor fails the
+# RFC 4271 Section 6.3 leftmost-AS check ze enforces.
 # Peers use different loopback IPs to avoid duplicate peer key collision.
 #
 # NO LOCAL_PREF: this test's UPDATE is sourced from an EBGP peer, and RFC 4271
@@ -40,21 +43,21 @@ option=bind:value=0.0.0.0
 option=conn_map:value=remote-ip
 
 # Source peer (conn=1): send one UPDATE with NLRI 10.0.0.0/24.
-# ORIGIN=IGP, AS_PATH=empty, NEXT_HOP=1.1.1.1 (no LOCAL_PREF -- EBGP source, see above)
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0029020000000E4001010040020040030401010101180A0000
+# ORIGIN=IGP, AS_PATH=[65001], NEXT_HOP=1.1.1.1 (no LOCAL_PREF -- EBGP source, see above)
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 
 # Receiver peer (conn=2): expect the forwarded UPDATE with exact byte content.
-# RS prepends local AS 65000 (0x0000FDE8) to the empty AS_PATH, producing
-# AS_PATH=AS_SEQUENCE[65000]. All other attributes preserved as-is.
+# RS prepends local AS 65000 (0x0000FDE8) to AS_PATH [65001], producing
+# AS_PATH=AS_SEQUENCE[65000 65001]. All other attributes preserved as-is.
 #
 # Expected UPDATE breakdown:
 #   Marker:    FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF (16 bytes)
-#   Length:    002F (47 bytes)
+#   Length:    0033 (51 bytes)
 #   Type:      02 (UPDATE)
 #   WdLen:     0000 (no withdrawals)
-#   AttrLen:   0014 (20 bytes)
+#   AttrLen:   0018 (24 bytes)
 #   ORIGIN:    40010100 (IGP)
-#   AS_PATH:   40020602010000FDE8 (AS_SEQUENCE[65000])
+#   AS_PATH:   40020A02020000FDE80000FDE9 (AS_SEQUENCE[65000 65001])
 #   NEXT_HOP:  40030401010101 (1.1.1.1)
 #   NLRI:      180A0000 (10.0.0.0/24)
 # NOTE: exact hex= match is intentional (not contains=). This is the byte-equality
@@ -72,7 +75,7 @@ action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0029020000000E40010
 # enforced by the compiled observer, which fails closed if either is
 # missing; conn=1's EOR (no forward races it) stays as a direct wire assertion.
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE840030401010101180A0000
+expect=bgp:conn=2:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003302000000184001010040020A02020000FDE80000FDE940030401010101180A0000
 EOF_PEER
 
 # Compiled observer shuts down cleanly after forwarding completes.

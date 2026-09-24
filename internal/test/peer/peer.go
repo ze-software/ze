@@ -635,23 +635,30 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 		}
 	}
 
-	return p.runMessageLoop(ctx, conn)
+	return p.runMessageLoop(ctx, conn, p.ebgpSenderAS(body, conn))
 }
 
 // runMessageLoop handles the post-OPEN message loop: send configured routes,
 // process action/expect rules, and validate received messages. Called by both
 // sequential handleConnection and router-id-mapped runConnMapRouterID.
-func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn) Result {
+// senderAS is ze-peer's own AS on an eBGP session and 0 on iBGP
+// (ebgpSenderAS); send-default-route and every send-route prepend it.
+func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint32) Result {
 	// Send default route if requested.
 	if p.config.SendDefaultRoute {
 		p.printf("sending default-route\n")
-		if _, err := conn.Write(defaultRouteMsg()); err != nil {
+		msg, err := BuildRouteMsg(defaultRoute(senderAS))
+		if err != nil {
+			return Result{Success: false, Error: fmt.Errorf("build default route: %w", err)}
+		}
+		if _, err := conn.Write(msg); err != nil {
 			return Result{Success: false, Error: fmt.Errorf("write default route: %w", err)}
 		}
 	}
 
 	// Send custom routes if configured.
 	for _, route := range p.config.SendRoutes {
+		route.SenderAS = senderAS
 		p.printf("sending route %s origin-as=%d\n", route.Prefix, route.OriginAS)
 		msg, err := BuildRouteMsg(route)
 		if err != nil {

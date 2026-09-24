@@ -846,6 +846,19 @@ func (p *Peer) openAS(zeBody []byte, conn net.Conn) uint32 {
 	return zeAdvertisedAS(zeBody)
 }
 
+// ebgpSenderAS answers the AS ze-peer prepends to the routes it sends: its own
+// OPEN AS when that differs from ze's, so the session is eBGP, and 0 when the
+// two match, so the session is iBGP and RFC 4271 Section 5.1.2 prepends
+// nothing. It reads the same openIdentity the OPEN was built from, so the path
+// and the OPEN cannot name two different senders.
+func (p *Peer) ebgpSenderAS(zeOpen []byte, conn net.Conn) uint32 {
+	own := p.openIdentity(zeOpen, conn).as
+	if own == zeAdvertisedAS(zeOpen) {
+		return 0
+	}
+	return own
+}
+
 // addrOf reads the IP out of a net.Addr, or returns the zero Addr when it
 // carries none.
 func addrOf(addr net.Addr) netip.Addr {

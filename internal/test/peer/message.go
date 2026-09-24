@@ -170,30 +170,12 @@ func KeepaliveMsg() []byte {
 	return msg
 }
 
-// defaultRouteMsg returns an UPDATE with route 0.0.0.0/32.
-// Used for testing UPDATE receive handling.
-func defaultRouteMsg() []byte {
-	return []byte{
-		// BGP Header (16 bytes marker + 2 bytes length + 1 byte type)
-		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-		0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-		0x00, 0x31, // Length: 49 bytes (19 header + 30 body)
-		0x02, // Type: UPDATE
-		// UPDATE body (30 bytes)
-		0x00, 0x00, // Withdrawn routes length: 0
-		0x00, 0x15, // Path attributes length: 21
-		// ORIGIN: IGP (0) - 4 bytes
-		0x40, 0x01, 0x01, 0x00,
-		// AS_PATH: empty - 3 bytes
-		0x40, 0x02, 0x00,
-		// NEXT_HOP: 127.0.0.1 - 7 bytes
-		0x40, 0x03, 0x04, 0x7F, 0x00, 0x00, 0x01,
-		// LOCAL_PREF: 100 - 7 bytes
-		0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64,
-		// NLRI: 0.0.0.0/32 - 5 bytes
-		0x20,                   // Prefix length: 32 bits
-		0x00, 0x00, 0x00, 0x00, // Prefix: 0.0.0.0
-	}
+// defaultRoute is the route option=update:value=send-default-route sends:
+// 0.0.0.0/32 via 127.0.0.1, used for testing UPDATE receive handling. senderAS
+// follows RouteToSend.SenderAS, so an eBGP session gets the path a real
+// speaker sends.
+func defaultRoute(senderAS uint32) RouteToSend {
+	return RouteToSend{Prefix: "0.0.0.0/32", NextHop: "127.0.0.1", SenderAS: senderAS}
 }
 
 // RouteToSend describes a custom route for ze-peer to send after OPEN.
@@ -203,6 +185,11 @@ type RouteToSend struct {
 	OriginAS uint32 // Origin ASN for AS_PATH
 	NextHop  string // Next-hop IP (e.g. "10.0.0.1")
 	ASSet    bool   // Use AS_SET instead of AS_SEQUENCE
+
+	// SenderAS is ze-peer's own AS when the session is eBGP, and 0 when it is
+	// iBGP. AS 0 is reserved (RFC 7607 Section 2), so it never names a real
+	// sender. runMessageLoop sets it from the OPEN exchange, never the .ci.
+	SenderAS uint32
 
 	// Extended fields for loop detection tests.
 	ASPath       []uint32 // Explicit AS_PATH sequence (overrides OriginAS if set)
@@ -220,6 +207,76 @@ func BuildRouteMsg(route RouteToSend) ([]byte, error) {
 		return buildLabeledRouteMsg(route)
 	}
 	return buildIPv4RouteMsg(route)
+}
+
+// asPathAttr builds the AS_PATH attribute ze-peer sends for route, with
+// four-octet ASNs (RFC 6793).
+//
+// An explicit as-path is the whole path as the .ci wrote it, and it goes out
+// unchanged. Otherwise ze-peer builds the path a real speaker builds. RFC 4271
+// Section 5.1.2: a speaker that advertises a route to an external peer "shall
+// prepend its own AS number as the last element of the sequence". So on an
+// eBGP session the path opens with SenderAS, and origin-as follows when it
+// names a different AS. On iBGP the path is origin-as alone, or empty. Ze
+// enforces the matching receive check, the leftmost AS of RFC 4271 Section
+// 6.3 (firstASMismatch, internal/component/bgp/reactor).
+func asPathAttr(route RouteToSend) []byte {
+	var data []byte
+	if len(route.ASPath) > 0 {
+		segType := byte(asSequence)
+		if route.ASSet {
+			segType = asSet
+		}
+		data = appendASSegment(data, segType, route.ASPath)
+		return appendASPathHeader(data)
+	}
+	sequence := make([]uint32, 0, 2)
+	if route.SenderAS != 0 {
+		sequence = append(sequence, route.SenderAS)
+	}
+	if route.ASSet {
+		// The origin goes into an AS_SET of its own, after the sender's
+		// AS_SEQUENCE, which is the shape aggregation produces.
+		data = appendASSegment(data, asSequence, sequence)
+		if route.OriginAS != 0 {
+			data = appendASSegment(data, asSet, []uint32{route.OriginAS})
+		}
+		return appendASPathHeader(data)
+	}
+	if route.OriginAS != 0 {
+		if route.OriginAS != route.SenderAS {
+			sequence = append(sequence, route.OriginAS)
+		}
+	}
+	data = appendASSegment(data, asSequence, sequence)
+	return appendASPathHeader(data)
+}
+
+// AS_PATH segment types, RFC 4271 Section 4.3.
+const (
+	asSet      = 0x01
+	asSequence = 0x02
+)
+
+// appendASSegment appends one AS_PATH segment carrying asns, or nothing when
+// asns is empty, because RFC 4271 Section 4.3 gives a segment at least one AS.
+func appendASSegment(data []byte, segType byte, asns []uint32) []byte {
+	if len(asns) == 0 {
+		return data
+	}
+	data = append(data, segType, byte(len(asns))) //nolint:gosec // a .ci path is far below 256 ASNs
+	for _, asn := range asns {
+		data = append(data, byte(asn>>24), byte(asn>>16), byte(asn>>8), byte(asn))
+	}
+	return data
+}
+
+// appendASPathHeader wraps the segment bytes in the AS_PATH attribute header:
+// flags 0x40 (well-known transitive), type 2, one-octet length.
+func appendASPathHeader(data []byte) []byte {
+	attr := make([]byte, 0, 3+len(data))
+	attr = append(attr, 0x40, 0x02, byte(len(data))) //nolint:gosec // a .ci path is far below 256 octets
+	return append(attr, data...)
 }
 
 func buildIPv4RouteMsg(route RouteToSend) ([]byte, error) {
@@ -245,25 +302,7 @@ func buildIPv4RouteMsg(route RouteToSend) ([]byte, error) {
 	// ORIGIN: IGP (0) - flags=0x40, type=1, len=1, value=0
 	origin := []byte{0x40, 0x01, 0x01, 0x00}
 
-	// AS_PATH with 4-byte ASNs
-	segType := byte(0x02) // AS_SEQUENCE
-	if route.ASSet {
-		segType = 0x01 // AS_SET
-	}
-	asns := route.ASPath
-	if len(asns) == 0 && route.OriginAS != 0 {
-		asns = []uint32{route.OriginAS}
-	}
-	asPathData := make([]byte, 0, 2+len(asns)*4)
-	if len(asns) > 0 {
-		asPathData = append(asPathData, segType, byte(len(asns)))
-		for _, asn := range asns {
-			asPathData = append(asPathData, byte(asn>>24), byte(asn>>16), byte(asn>>8), byte(asn))
-		}
-	}
-	asPath := make([]byte, 0, 3+len(asPathData))
-	asPath = append(asPath, 0x40, 0x02, byte(len(asPathData)))
-	asPath = append(asPath, asPathData...)
+	asPath := asPathAttr(route)
 
 	// NEXT_HOP - flags=0x40, type=3, len=4
 	nextHop := make([]byte, 0, 7)
@@ -340,21 +379,7 @@ func buildLabeledRouteMsg(route RouteToSend) ([]byte, error) {
 
 	origin := []byte{0x40, 0x01, 0x01, 0x00}
 
-	segType := byte(0x02)
-	asns := route.ASPath
-	if len(asns) == 0 && route.OriginAS != 0 {
-		asns = []uint32{route.OriginAS}
-	}
-	asPathData := make([]byte, 0, 2+len(asns)*4)
-	if len(asns) > 0 {
-		asPathData = append(asPathData, segType, byte(len(asns)))
-		for _, asn := range asns {
-			asPathData = append(asPathData, byte(asn>>24), byte(asn>>16), byte(asn>>8), byte(asn))
-		}
-	}
-	asPath := make([]byte, 0, 3+len(asPathData))
-	asPath = append(asPath, 0x40, 0x02, byte(len(asPathData)))
-	asPath = append(asPath, asPathData...)
+	asPath := asPathAttr(route)
 
 	localPref := []byte{0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64}
 

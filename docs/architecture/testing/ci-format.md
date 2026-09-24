@@ -581,10 +581,22 @@ expectations.
 
 | Value | Keys | Description |
 |-------|------|-------------|
-| `send-default-route` | none | Send one UPDATE for `0.0.0.0/0` |
+| `send-default-route` | none | Send one UPDATE for `0.0.0.0/32` via `127.0.0.1` |
 | `send-route` | `prefix`, `origin-as`, `next-hop`, and optionally `as-path`, `as-set`, `originator-id`, `cluster-list`, `label` | Send one UPDATE for one prefix. Repeat the line for more |
 | `send-bulk` | `prefix`, `count`, `next-hop`, `origin-as`, and optionally `max-msg`, `eor` | Generate `count` sequential prefixes from `prefix` and send them as whole BGP messages |
 <!-- source: internal/test/peer/expect.go -- parseOptionConfig "update"; parseBulkSpec -->
+
+`send-default-route` and `send-route` build the AS_PATH that a real speaker
+sends. On an eBGP session, where ze-peer's OPEN AS differs from ze's, the path
+starts with ze-peer's own AS (RFC 4271 Section 5.1.2). An `origin-as` that
+names a different AS follows it, so `origin-as=65001` from AS 65002 sends
+`[65002 65001]`. On iBGP the path is `origin-as` alone, or empty. An `as-path`
+key is the whole path and goes out as written. Ze drops a route from an eBGP
+neighbor whose leftmost AS is not the neighbor's (RFC 4271 Section 6.3), so a
+hand-written `hex=` UPDATE from an eBGP peer MUST start its AS_PATH with that
+peer's AS.
+<!-- source: internal/test/peer/message.go -- asPathAttr; defaultRoute -->
+<!-- source: internal/test/peer/open.go -- ebgpSenderAS -->
 
 **Generating one oversize UPDATE (`max-msg`):**
 
@@ -676,6 +688,13 @@ keep their own default when it does not parse, so it is refused here instead.
 <!-- source: internal/test/runner/record_parse_cmd.go -- cmdExecKeys, cmdStopKeys, parseCmdExec -->
 <!-- source: internal/test/runner/record_parse_keys.go -- checkMarkerKeys -->
 <!-- test: internal/test/runner/record_parse_cmd_test.go TestCmdUnknownKeyRefused, TestCmdUnknownKeyNotSwallowedIntoExec -->
+
+The test deadline ends the whole process tree of every `cmd=` process. Each one
+leads its own process group, and the deadline kills that group, so a fixture's
+daemon dies with the fixture. A descendant that left the group cannot hold the
+test open either: the runner stops reading its output pipes 10s after the kill.
+<!-- source: internal/test/runner/runner_exec_util.go -- boundProcessDeadline, processWaitDelay -->
+<!-- test: internal/test/runner/process_deadline_test.go TestStartedProcessDeadlineEndsTheTree -->
 
 **Background:** Starts and keeps running until its timeout, an explicit stop, or test completion.
 **Foreground:** Setup commands finish before the next step. A `ze` daemon starts
