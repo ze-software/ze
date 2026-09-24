@@ -17,11 +17,26 @@ import (
 	"github.com/ze-software/ze/internal/core/selector"
 )
 
+// channelOrderRail is the rail newChannelOrderRail builds: the reactor, the
+// source and destination peers, the destination's recorded wire, and the gate
+// that holds the destination's worker.
+type channelOrderRail struct {
+	r       *Reactor
+	src     *Peer
+	dst     *Peer
+	conn    *recordingConn
+	publish func(uint64, []byte) *ReceivedUpdate
+	// entered closes when the worker is stopped inside the batch handler.
+	entered <-chan struct{}
+	// release lets the stopped worker go on. It is safe to call more than once.
+	release func()
+}
+
 // newChannelOrderRail is newSyncOrderRailWith with the destination out of its
 // initial sync and a batch handler that stops the worker on entry to the first
 // batch carrying a real item, BEFORE fwdBatchHandler takes session.writeMu.
 // entered closes when the worker is stopped there, and release lets it go on.
-func newChannelOrderRail(t *testing.T) (r *Reactor, src, dst *Peer, conn *recordingConn, publish func(uint64, []byte) *ReceivedUpdate, entered <-chan struct{}, release func()) {
+func newChannelOrderRail(t *testing.T) *channelOrderRail {
 	t.Helper()
 
 	enteredCh := make(chan struct{})
@@ -39,14 +54,23 @@ func newChannelOrderRail(t *testing.T) (r *Reactor, src, dst *Peer, conn *record
 	// Registered AFTER the rail, so it runs BEFORE the pool's own Stop: a failed
 	// assertion would otherwise leave Stop waiting on a worker blocked in the
 	// handler, and the test would hang instead of reporting.
-	release = func() { releaseOnce.Do(func() { close(gate) }) }
+	release := func() { releaseOnce.Do(func() { close(gate) }) }
 	t.Cleanup(release)
 
 	dst.sendingInitialRoutes.Store(0)
 	require.False(t, dst.forwardOrderHold(false), "the destination must be out of its sync hold")
 
-	publish = func(id uint64, body []byte) *ReceivedUpdate { return syncOrderPublish(t, r, ctxID, id, body) }
-	return r, src, dst, conn, publish, enteredCh, release
+	return &channelOrderRail{
+		r:    r,
+		src:  src,
+		dst:  dst,
+		conn: conn,
+		publish: func(id uint64, body []byte) *ReceivedUpdate {
+			return syncOrderPublish(t, r, ctxID, id, body)
+		},
+		entered: enteredCh,
+		release: release,
+	}
 }
 
 // awaitEntered waits for the destination's worker to stop inside the batch
@@ -79,7 +103,8 @@ func awaitEntered(t *testing.T, entered <-chan struct{}) {
 func TestForwardedUpdateWaitsForChannelItemRSRail(t *testing.T) {
 	const announceID, withdrawID uint64 = 7600, 7601
 
-	r, src, dst, conn, publish, entered, release := newChannelOrderRail(t)
+	rail := newChannelOrderRail(t)
+	r, src, dst, conn, publish, entered, release := rail.r, rail.src, rail.dst, rail.conn, rail.publish, rail.entered, rail.release
 	srcAddr := netip.MustParseAddr(forwardSourceAddr)
 
 	dst.mu.RLock()
@@ -123,7 +148,8 @@ func TestForwardedUpdateWaitsForChannelItemRSRail(t *testing.T) {
 // withheld as never advertised, which left the peer holding a route whose
 // source withdrew it.
 func TestAnnounceRailWithdrawFollowsChannelForwards(t *testing.T) {
-	r, src, dst, conn, publish, entered, release := newChannelOrderRail(t)
+	rail := newChannelOrderRail(t)
+	r, src, dst, conn, publish, entered, release := rail.r, rail.src, rail.dst, rail.conn, rail.publish, rail.entered, rail.release
 	adapter := &reactorAPIAdapter{r: r}
 	dst.resetAPISync(nil)
 

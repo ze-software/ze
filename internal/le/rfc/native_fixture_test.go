@@ -314,7 +314,11 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// record's red come from the tagged unit itself (discriminate_observe.go),
 	// and 976436f9a6, which runs the checker's go vet with -trimpath
 	// (check_compile.go). Each is an intended change its commit states.
-	const want = "650eedc45d0d47977d37ab0a1594fc041d3d17657fc01675e46bae2fefed97c9"
+	//
+	// Re-sealed 2026-09-24 for 114d7e99b5, which publishes index-update's
+	// pages as one unsynced batch through derived.WriteAtomicAll (write.go).
+	// It is an intended change its commit states.
+	const want = "c322eb46d876a72ba741b5a8ec3d90ee5c47636bdc8d56536bbfd48860576d44"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

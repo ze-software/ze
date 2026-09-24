@@ -11,10 +11,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
 )
+
+// vppMsgCreateLoopback is the VPP binary API message the stub logs for a loopback create.
+const vppMsgCreateLoopback = "create_loopback"
 
 type plugin16VPPEntry struct {
 	Message string         `json:"msg"`
@@ -190,8 +194,8 @@ type plugin16VPPRun struct {
 func plugin16StartVPP(ctx context.Context) (run *plugin16VPPRun, stop func(), err error) {
 	var cleanups []func()
 	stopAll := func() {
-		for i := len(cleanups) - 1; i >= 0; i-- {
-			cleanups[i]()
+		for _, cleanup := range slices.Backward(cleanups) {
+			cleanup()
 		}
 	}
 	defer func() {
@@ -266,13 +270,13 @@ func plugin16StartVPP(ctx context.Context) (run *plugin16VPPRun, stop func(), er
 	// measured past 40s, so both waits derive from the test budget: 45% for the
 	// start, 30% for the reload's address and 15% for the reload's outcome
 	// leave room for the stop below.
-	entries, err := plugin16WaitVPPMessage(ctx, requestLog, "create_loopback", WaitAttempts(45, 50*time.Millisecond, 800))
+	entries, err := plugin16WaitVPPMessage(ctx, requestLog, vppMsgCreateLoopback, WaitAttempts(45, 50*time.Millisecond, 800))
 	if err != nil {
 		return nil, nil, err
 	}
 	foundCreate := false
 	for _, entry := range entries {
-		if entry.Message == "create_loopback" {
+		if entry.Message == vppMsgCreateLoopback {
 			foundCreate = true
 			break
 		}
@@ -305,7 +309,7 @@ func plugin16VPPReapply(ctx context.Context, _ []string) error {
 	adds := make([]plugin16VPPEntry, 0, 2)
 	for _, entry := range entries {
 		switch entry.Message {
-		case "create_loopback":
+		case vppMsgCreateLoopback:
 			creates = append(creates, entry)
 		case "sw_interface_add_del_address":
 			if isAdd, _ := entry.Fields["is_add"].(bool); isAdd {
@@ -391,7 +395,7 @@ func plugin16VPPReloadCreate(ctx context.Context, _ []string) error {
 	}
 	creates := 0
 	for _, entry := range entries {
-		if entry.Message == "create_loopback" {
+		if entry.Message == vppMsgCreateLoopback {
 			creates++
 		}
 	}

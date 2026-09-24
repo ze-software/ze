@@ -252,10 +252,10 @@ func WriteAtomic(path string, content []byte) (err error) {
 			_ = os.Remove(temporaryPath)
 		}
 	}()
-	if err = syncFile(temporaryPath); err != nil {
+	if err := syncFile(temporaryPath); err != nil {
 		return err
 	}
-	if err = os.Rename(temporaryPath, path); err != nil {
+	if err := os.Rename(temporaryPath, path); err != nil {
 		return fmt.Errorf("publish %s: %w", path, err)
 	}
 	return nil
@@ -364,7 +364,7 @@ func writeTemporary(path string, content []byte) (temporaryPath string, err erro
 // syncFile makes one written file durable. A new descriptor is enough: fsync
 // flushes the inode, whichever descriptor wrote it.
 func syncFile(path string) error {
-	file, err := os.Open(path)
+	file, err := os.Open(path) //nolint:gosec // the name os.CreateTemp answered in writeTemporary, beside a registered derived target
 	if err != nil {
 		return fmt.Errorf("open %s to sync it: %w", path, err)
 	}
