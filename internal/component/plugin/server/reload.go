@@ -48,7 +48,8 @@ func reloadCallerFromContext(ctx context.Context) *process.Process {
 }
 
 // txLock enforces one config transaction at a time.
-// CLI/API commits are rejected when locked. SIGHUP is queued.
+// CLI/API commits are rejected when locked. A SIGHUP reload waits for the
+// holder to end (ConfigTransactionDone), then runs.
 //
 // It also holds the handle Stop needs to stand down a running transaction.
 // cancel stops it, and done reports when it has unwound. The transaction owns
@@ -58,7 +59,6 @@ func reloadCallerFromContext(ctx context.Context) *process.Process {
 type txLock struct {
 	mu         sync.Mutex
 	locked     bool
-	sighup     bool
 	cancel     context.CancelCauseFunc
 	done       chan struct{}
 	acceptance *reloadAcceptance
@@ -135,30 +135,14 @@ func (l *txLock) release() {
 	l.locked = false
 }
 
-// queueSIGHUP records that a SIGHUP was received during an active transaction.
-func (l *txLock) queueSIGHUP() {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	l.sighup = true
-}
-
-// drainSIGHUP clears the queued SIGHUP flag and returns whether one was queued.
-func (l *txLock) drainSIGHUP() bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	had := l.sighup
-	l.sighup = false
-	return had
-}
-
-// QueueSIGHUP queues a SIGHUP for later processing if a transaction is active.
-func (s *Server) QueueSIGHUP() {
-	s.txLock.queueSIGHUP()
-}
-
-// DrainSIGHUP returns true if a SIGHUP was queued and clears the flag.
-func (s *Server) DrainSIGHUP() bool {
-	return s.txLock.drainSIGHUP()
+// ConfigTransactionDone returns a channel that closes when the config
+// transaction holding the lock ends, with success or failure, or nil when no
+// transaction holds it. A SIGHUP reload refused with ErrReloadInProgress waits
+// on it and then runs, so the end of the holder starts the queued reload.
+// Safe for concurrent use.
+func (s *Server) ConfigTransactionDone() <-chan struct{} {
+	_, done := s.txLock.inFlight()
+	return done
 }
 
 // ErrReloadInProgress is returned when a config reload is attempted while

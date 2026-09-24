@@ -459,6 +459,212 @@ func TestWaitLoopSIGTERMDuringFailedReload(t *testing.T) {
 	}
 }
 
+// heldReloadReactor holds the config transaction lock for a reload whose
+// VerifyConfig runs before release is closed, as a commit holds it while its
+// plugins verify. Every later VerifyConfig returns at once.
+type heldReloadReactor struct {
+	*reloadTestReactor
+	verifying chan struct{}
+	release   chan struct{}
+}
+
+func (r *heldReloadReactor) VerifyConfig(map[string]any) error {
+	select {
+	case r.verifying <- struct{}{}:
+	default:
+	}
+	<-r.release
+	return nil
+}
+
+// startHeldTransaction runs a reload that holds the config transaction lock
+// until reactor.release is closed, and returns the channel that reports its
+// result. It returns once the reload holds the lock.
+func startHeldTransaction(t *testing.T, server *pluginserver.Server, reactor *heldReloadReactor) <-chan error {
+	t.Helper()
+	result := make(chan error, 1)
+	go func() {
+		result <- server.ReloadConfig(context.Background(), map[string]any{"bgp": map[string]any{"router-id": "2.2.2.2"}})
+	}()
+	select {
+	case <-reactor.verifying:
+	case <-time.After(5 * time.Second):
+		close(reactor.release)
+		t.Fatal("the holder's reload did not take the config transaction lock")
+	}
+	return result
+}
+
+// VALIDATES: a SIGHUP that arrives while another config transaction holds the
+// lock runs once, as soon as that transaction ends, with no further SIGHUP.
+// Two SIGHUPs, the second during the first reload, both reload.
+// PREVENTS: the queued SIGHUP waiting for an unrelated SIGHUP to replay it, so
+// the operator's edit is never applied and nothing reports it; and a queued
+// reload starting after shutdown began.
+//
+// Method: the real reload worker (handleSIGHUPReload) and signal loop
+// (waitLoop) run against a server whose lock is held by a reload blocked in
+// VerifyConfig, as a commit holds it. A SIGHUP arrives, finds the lock held,
+// and the holder is then released. The worker MUST load the config a second
+// time and apply it, with no second SIGHUP sent.
+func TestSIGHUPQueuedBehindTransactionRunsWhenItEnds(t *testing.T) {
+	t.Parallel()
+
+	newServer := func(t *testing.T) (*pluginserver.Server, *heldReloadReactor) {
+		t.Helper()
+		reactor := &heldReloadReactor{
+			reloadTestReactor: &reloadTestReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}},
+			verifying:         make(chan struct{}, 1),
+			release:           make(chan struct{}),
+		}
+		server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
+		require.NoError(t, err)
+		t.Cleanup(func() { server.Stop() })
+		return server, reactor
+	}
+	sighupTree := map[string]any{"bgp": map[string]any{"router-id": "3.3.3.3"}}
+
+	t.Run("runs once when the holder ends", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		store := newTestStore(t, dir)
+		configPath := filepath.Join(dir, "router.conf")
+		activeStamp := "20260524-090000.000"
+		require.NoError(t, store.WriteFile(configPath, []byte("edited-file"), 0o600))
+		require.NoError(t, store.WriteVersion(configPath, []byte("active-version"), mustParseReloadStamp(t, activeStamp)))
+		setConfigPointer(t, store, configPath, zefs.KeyConfigActive, activeStamp)
+
+		server, reactor := newServer(t)
+		loads := make(chan struct{}, 4)
+		load := func() (map[string]any, *zeconfig.Tree, error) {
+			loads <- struct{}{}
+			return sighupTree, nil, nil
+		}
+
+		held := startHeldTransaction(t, server, reactor)
+
+		sigCh := make(chan os.Signal, 4)
+		reloadCh := make(chan os.Signal, 1)
+		reloadDone := make(chan struct{})
+		go handleSIGHUPReload(t.Context(), reloadCh, reloadDone, server, nil, nil, store, configPath, load, nil, nil)
+		loopDone := make(chan struct{})
+		go func() {
+			waitLoop(sigCh, reloadCh, nil)
+			close(loopDone)
+		}()
+
+		sigCh <- syscall.SIGHUP
+		select {
+		case <-loads:
+		case <-time.After(5 * time.Second):
+			close(reactor.release)
+			t.Fatal("the reload worker did not start the SIGHUP reload")
+		}
+
+		close(reactor.release)
+		require.NoError(t, <-held)
+		select {
+		case <-loads:
+		case <-time.After(5 * time.Second):
+			t.Fatal("the queued SIGHUP did not reload when the holder's transaction ended")
+		}
+
+		sigCh <- syscall.SIGTERM
+		<-loopDone
+		close(reloadCh)
+		awaitReloadWorker(reloadDone, 5*time.Second, func() { t.Error("the queued reload did not finish") })
+		select {
+		case <-loads:
+			t.Error("the queued SIGHUP reloaded more than once")
+		default:
+		}
+		assert.Equal(t, sighupTree, reactor.setTree, "the queued reload did not apply the edited config")
+		_, ok := configPointer(t, store, configPath, zefs.KeyConfigCandidate)
+		assert.False(t, ok, "the queued reload left its candidate staged")
+	})
+
+	t.Run("two SIGHUPs, the second during the first reload", func(t *testing.T) {
+		t.Parallel()
+		server, reactor := newServer(t)
+		// No transaction is held here: the SIGHUP reloads verify at once.
+		close(reactor.release)
+		release := make(chan struct{})
+		loads := make(chan struct{}, 4)
+		load := func() (map[string]any, *zeconfig.Tree, error) {
+			loads <- struct{}{}
+			<-release
+			return sighupTree, nil, nil
+		}
+
+		reloadCh := make(chan os.Signal, 1)
+		reloadDone := make(chan struct{})
+		go handleSIGHUPReload(t.Context(), reloadCh, reloadDone, server, nil, nil, nil, "", load, nil, nil)
+
+		reloadCh <- syscall.SIGHUP
+		select {
+		case <-loads:
+		case <-time.After(5 * time.Second):
+			close(release)
+			t.Fatal("the reload worker did not start the first reload")
+		}
+		// The worker is inside the first reload, so this SIGHUP waits in reloadCh.
+		reloadCh <- syscall.SIGHUP
+		close(release)
+		select {
+		case <-loads:
+		case <-time.After(5 * time.Second):
+			t.Fatal("the second SIGHUP did not reload after the first reload ended")
+		}
+
+		close(reloadCh)
+		awaitReloadWorker(reloadDone, 5*time.Second, func() { t.Error("the second reload did not finish") })
+		select {
+		case <-loads:
+			t.Error("two SIGHUPs reloaded more than twice")
+		default:
+		}
+	})
+
+	t.Run("never runs after shutdown began", func(t *testing.T) {
+		t.Parallel()
+		server, reactor := newServer(t)
+		loads := make(chan struct{}, 4)
+		load := func() (map[string]any, *zeconfig.Tree, error) {
+			loads <- struct{}{}
+			return sighupTree, nil, nil
+		}
+
+		held := startHeldTransaction(t, server, reactor)
+
+		reloadCh := make(chan os.Signal, 1)
+		reloadDone := make(chan struct{})
+		go handleSIGHUPReload(t.Context(), reloadCh, reloadDone, server, nil, nil, nil, "", load, nil, nil)
+		reloadCh <- syscall.SIGHUP
+		select {
+		case <-loads:
+		case <-time.After(5 * time.Second):
+			close(reactor.release)
+			t.Fatal("the reload worker did not start the SIGHUP reload")
+		}
+
+		// Shutdown begins while the SIGHUP is queued behind the holder.
+		close(reloadCh)
+		select {
+		case <-reloadDone:
+		case <-time.After(5 * time.Second):
+			close(reactor.release)
+			t.Fatal("the reload worker did not stop when shutdown began")
+		}
+		close(reactor.release)
+		require.NoError(t, <-held)
+		select {
+		case <-loads:
+			t.Error("the queued SIGHUP reloaded after shutdown began")
+		default:
+		}
+	})
+}
+
 // mustParseReloadStamp parses a version stamp in the store's own layout,
 // local time to the millisecond, which is what the store formats back.
 func mustParseReloadStamp(t *testing.T, stamp string) time.Time {

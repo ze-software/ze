@@ -476,9 +476,10 @@ when the final `applied` or `rolled-back` is emitted. The lock carries the
 transaction ID and initiator for diagnostics.
 
 SIGHUP is queued rather than rejected because the user expects reload to happen.
-If the current transaction completes, the queued SIGHUP fires. If a second SIGHUP
-arrives while one is already queued, it replaces the queued one (only the latest
-config matters).
+When the current transaction ends, with success or failure, the queued SIGHUP
+runs once and reads the config source again. A second SIGHUP that arrives while
+one is queued joins it (only the latest config matters). A queued SIGHUP does not
+run after shutdown began.
 
 Live plugin removal is also provisional until the outer reload accepts it.
 `OnBye` must return successful cleanup before a dependency can stop. A callback

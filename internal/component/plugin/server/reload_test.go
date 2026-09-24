@@ -765,45 +765,47 @@ func TestReloadConfigConcurrentRejected(t *testing.T) {
 	s.txLock.release()
 }
 
-// TestTxLockSIGHUPQueuing verifies SIGHUP is queued when the lock is held and drained after release.
+// TestConfigTransactionDone verifies the channel a queued SIGHUP reload waits
+// on: nil with the lock free, open while a transaction holds it, and closed
+// when the holder releases it.
 //
-// VALIDATES: AC-8 - SIGHUP queued during active transaction, replayed after.
-// PREVENTS: SIGHUP lost when received during config reload.
-func TestTxLockSIGHUPQueuing(t *testing.T) {
+// VALIDATES: a queued SIGHUP reload can observe the end of the holder.
+// PREVENTS: a queued SIGHUP reload waiting on an event the holder never sends.
+func TestConfigTransactionDone(t *testing.T) {
 	t.Parallel()
 
 	s := newTestReloadServer(t, &mockReloadReactor{tree: map[string]any{}}, nil)
 
-	// Acquire lock.
+	if s.ConfigTransactionDone() != nil {
+		t.Fatal("ConfigTransactionDone is not nil with the lock free")
+	}
 	if !s.txLock.tryAcquire() {
 		t.Fatal("first acquire failed")
 	}
-
-	// Second acquire should fail.
 	if s.txLock.tryAcquire() {
 		t.Fatal("second acquire should fail while locked")
 	}
 
-	// Queue a SIGHUP and verify it's queued.
-	s.QueueSIGHUP()
-	if !s.txLock.sighup {
-		t.Fatal("SIGHUP not queued")
+	done := s.ConfigTransactionDone()
+	if done == nil {
+		t.Fatal("ConfigTransactionDone is nil while a transaction holds the lock")
+	}
+	select {
+	case <-done:
+		t.Fatal("ConfigTransactionDone closed before the holder released the lock")
+	default:
 	}
 
-	// Release lock.
 	s.txLock.release()
-
-	// Drain should return true and clear the flag.
-	if !s.DrainSIGHUP() {
-		t.Fatal("DrainSIGHUP returned false, expected true")
+	select {
+	case <-done:
+	default:
+		t.Fatal("ConfigTransactionDone did not close when the holder released the lock")
+	}
+	if s.ConfigTransactionDone() != nil {
+		t.Fatal("ConfigTransactionDone is not nil after release")
 	}
 
-	// Second drain should return false.
-	if s.DrainSIGHUP() {
-		t.Fatal("DrainSIGHUP returned true after already drained")
-	}
-
-	// Lock should be available again.
 	if !s.txLock.tryAcquire() {
 		t.Fatal("acquire after release failed")
 	}

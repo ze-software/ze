@@ -75,9 +75,14 @@ func diskConfigLoaders(store storage.Storage, configPath string, plugins []strin
 // triggers plugin-level reload via ReloadFromDisk, refreshes the shared
 // ConfigProvider with the freshly loaded tree, then fans Reload out to every
 // registered subsystem (engine.Reload) so diff-able knobs hot-apply.
-// If a transaction is in progress (lock held), the SIGHUP is queued and replayed
-// after the current reload completes.
 // Lifecycle goroutine (one-time, runs for daemon lifetime).
+//
+// A SIGHUP that finds another config transaction holding the lock (a commit,
+// an API reload) is queued: the worker waits for that transaction to end, with
+// success or failure, and then runs the reload once (awaitConfigTransaction).
+// The holder's end is the only event that can start the queued reload. Waiting
+// for the next SIGHUP instead left an operator's edit unapplied, with nothing
+// reported, until an unrelated signal came.
 //
 // It closes done when reloadCh is closed and the reload it was running has
 // reported. Shutdown waits on that (awaitReloadWorker), so a SIGTERM racing a
@@ -90,36 +95,74 @@ func handleSIGHUPReload(ctx context.Context, reloadCh <-chan os.Signal, done cha
 			return
 		}
 		fmt.Fprintf(os.Stderr, "received SIGHUP, reloading config...\n")
-		if err := stageSIGHUPCandidate(store, configPath); err != nil {
-			fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
-			continue
-		}
-		if err := doReloadContext(ctx, s, eng, cp, store, configPath, load, lm); err != nil {
-			if errors.Is(err, pluginserver.ErrReloadInProgress) {
-				fmt.Fprintf(os.Stderr, "transaction in progress, queuing SIGHUP...\n")
-				s.QueueSIGHUP()
-				continue
+		trigger := "SIGHUP"
+		// Each pass follows the end of another config transaction, so the loop
+		// ends when one attempt finds the lock free or shutdown begins.
+		for {
+			err := sighupReload(ctx, s, eng, cp, store, configPath, load, lm, recorder, trigger)
+			if !errors.Is(err, pluginserver.ErrReloadInProgress) {
+				break
 			}
-			fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
-		} else {
-			recordDaemonReloadAudit(recorder, "system", "signal", audit.System, "SIGHUP")
-			reloadComplete()
-		}
-		// After reload completes, drain any queued SIGHUP.
-		if ctx.Err() == nil && s.DrainSIGHUP() {
+			fmt.Fprintf(os.Stderr, "transaction in progress, queuing SIGHUP...\n")
+			if !awaitConfigTransaction(ctx, s, reloadCh) {
+				return
+			}
 			fmt.Fprintf(os.Stderr, "replaying queued SIGHUP...\n")
-			if err := stageSIGHUPCandidate(store, configPath); err != nil {
-				fmt.Fprintf(os.Stderr, "queued reload error: %v\n", err)
-				continue
-			}
-			if err := doReloadContext(ctx, s, eng, cp, store, configPath, load, lm); err != nil {
-				fmt.Fprintf(os.Stderr, "queued reload error: %v\n", err)
-			} else {
-				recordDaemonReloadAudit(recorder, "system", "signal", audit.System, "queued SIGHUP")
-				reloadComplete()
-			}
+			trigger = "queued SIGHUP"
 		}
 	}
+}
+
+// sighupReload stages the config source as the candidate and reloads it. It
+// prints every error except ErrReloadInProgress, which it returns unprinted so
+// the caller can queue the reload. trigger names the reload in the audit log.
+func sighupReload(ctx context.Context, s *pluginserver.Server, eng *engine.Engine, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator, recorder audit.Recorder, trigger string) error {
+	if err := stageSIGHUPCandidate(store, configPath); err != nil {
+		fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
+		return err
+	}
+	err := doReloadContext(ctx, s, eng, cp, store, configPath, load, lm)
+	if errors.Is(err, pluginserver.ErrReloadInProgress) {
+		return err
+	}
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "reload error: %v\n", err)
+		return err
+	}
+	recordDaemonReloadAudit(recorder, "system", "signal", audit.System, trigger)
+	reloadComplete()
+	return nil
+}
+
+// awaitConfigTransaction waits for the config transaction holding the lock to
+// end. It returns true when the queued reload can run, and false when shutdown
+// began first: ctx is canceled or reloadCh is closed. A SIGHUP read meanwhile
+// is coalesced into the queued reload, which reads the config source when it
+// runs, so it applies every edit the coalesced signal announced.
+func awaitConfigTransaction(ctx context.Context, s *pluginserver.Server, reloadCh <-chan os.Signal) bool {
+	held := s.ConfigTransactionDone()
+	for held != nil {
+		select {
+		case <-held:
+			held = nil
+		case _, open := <-reloadCh:
+			if !open {
+				return false
+			}
+		case <-ctx.Done():
+			return false
+		}
+	}
+	// The transaction can end at the instant shutdown begins, and select picks
+	// either ready case, so shutdown is asked once more before the reload runs.
+	select {
+	case _, open := <-reloadCh:
+		if !open {
+			return false
+		}
+	default:
+	}
+	return ctx.Err() == nil
 }
 
 // reloadGate counts the reloads a commit path starts on a request goroutine
@@ -245,7 +288,8 @@ func recordDaemonReloadAudit(recorder audit.Recorder, actor, remoteAddr, surface
 // polling it could read state the reload had not finished touching.
 //
 // ErrReloadInProgress is deliberately NOT marked: that reload never ran: it is
-// queued and replayed by handleSIGHUPReload, and the replay marks it. Marking
+// queued, handleSIGHUPReload runs it when the holder's transaction ends, and
+// that run marks it. Marking
 // it here would fence an observer on a reload that had not been processed.
 func doReload(s *pluginserver.Server, cp *zeconfig.Provider, store storage.Storage, configPath string, load func() (map[string]any, *zeconfig.Tree, error), lm *listenerMigrator) error {
 	return doReloadContext(context.Background(), s, nil, cp, store, configPath, load, lm)

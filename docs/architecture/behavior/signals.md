@@ -295,6 +295,17 @@ slow or failing reload was not read until that reload returned. Each reload has
 a 30s timeout.
 <!-- source: cmd/ze/hub/main.go -- waitLoop -->
 
+A SIGHUP reload can find another config transaction holding the lock, for
+example a commit. The reload worker then queues the SIGHUP and waits for that
+transaction to end, with success or failure. The end of the holder starts the
+queued reload once, and the reload reads the config source again. SIGHUPs that
+arrive during the wait join the queued reload. When shutdown begins during the
+wait, the worker stops and the queued reload does not run. Before 2026-09-24
+the queued reload ran only after a later SIGHUP completed its own reload, so
+without that SIGHUP the edit was never applied and nothing reported it.
+<!-- source: cmd/ze/hub/main_reload.go -- awaitConfigTransaction -->
+<!-- source: internal/component/plugin/server/reload.go -- ConfigTransactionDone -->
+
 The reactor runs its own `SignalHandler` only when it is standalone. Under the
 hub, `externalServer` is true, the reactor skips `startSignalHandler`, and the
 hub owns every signal.
