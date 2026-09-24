@@ -107,7 +107,7 @@ func (f *fakePPPDriver) EventsOut() <-chan ppp.Event         { return f.eventsOu
 func deliverOwnedKernelSuccess(r *l2tpReactor, event kernelSetupSucceeded) {
 	tunnel := r.tunnelsByLocalID[event.localTID]
 	session := &L2TPSession{localSID: event.localSID}
-	tunnel.sessions[event.localSID] = session
+	tunnel.addSession(session)
 	event.session = session
 	event.owner = &event.fds
 	r.kernelWorker = &kernelWorker{

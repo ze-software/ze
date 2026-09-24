@@ -185,24 +185,26 @@ func TestWebAuthRejectsUserRemovedFromRunningConfig(t *testing.T) {
 }
 
 // VALIDATES: the same deletion holds once a RADIUS/TACACS chain is installed.
-// This is the path the defect lived on: the chain rejects a user it never knew,
-// and the fallback used to answer from the boot snapshot, which still said yes.
-// PREVENTS: the chain's rejection being overturned by a stale local copy.
+// This is the path the defect lived on: the fallback used to answer from the
+// boot snapshot, which still said yes. A chain REJECTION is terminal for an
+// ordinary config user (TestWebAuthRemoteRejectionStopsOrdinaryFallback), so the
+// fallback is reached here through a chain that fails to answer.
+// PREVENTS: a stale local copy authenticating a deleted user while the chain is down.
 func TestWebAuthRejectsRemovedUserWhenChainInstalled(t *testing.T) {
 	resetAAABundleForTest(t)
 	cfg := &runningConfig{users: []authz.UserConfig{bcryptUser(t, "alice", "alicepw", "admin")}}
 	auth := webAuthOver(cfg)
-	swapAAABundle(&aaa.Bundle{Authenticator: fixedAuthn{user: "radiususer", pass: "radiuspw", source: "radius"}}, nil)
+	swapAAABundle(&aaa.Bundle{Authenticator: stubAuthn{}}, nil)
 
 	res, err := auth.Authenticate(aaa.AuthRequest{Username: "alice", Password: "alicepw"})
-	require.NoError(t, err, "a config user the chain does not know must still authenticate")
+	require.NoError(t, err, "a config user must authenticate locally while the chain cannot answer")
 	require.True(t, res.Authenticated)
 	assert.Equal(t, "local", res.Source)
 
 	cfg.users = nil
 
 	_, err = auth.Authenticate(aaa.AuthRequest{Username: "alice", Password: "alicepw"})
-	require.Error(t, err, "the chain rejected her and the config no longer declares her: both say no")
+	require.Error(t, err, "the chain cannot answer and the config no longer declares her: no login")
 }
 
 // VALIDATES: a user the reload KEEPS still authenticates, and a user the reload

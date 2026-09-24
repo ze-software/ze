@@ -8,6 +8,7 @@ bgp-adj-rib-in
 bgp-aigp
 bgp-bmp
 bgp-capa
+bgp-epe
 bgp-filter-aspath
 bgp-filter-aspath-length
 bgp-filter-community
@@ -22,6 +23,7 @@ bgp-gr
 bgp-healthcheck
 bgp-hostname
 bgp-llnh
+bgp-ls-export
 bgp-nlri-evpn
 bgp-nlri-flowspec
 bgp-nlri-labeled

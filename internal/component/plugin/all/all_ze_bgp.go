@@ -66,6 +66,7 @@ import (
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/flowspec/yang"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/labeled"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls"
+	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls/yang"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/mup"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/mvpn"
 	_ "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/rtc"

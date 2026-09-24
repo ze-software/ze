@@ -359,8 +359,10 @@ for a replay, encodes the borrowed snapshot synchronously, and retains only its
 own wire bytes. Source generation numbers prevent an older snapshot from
 resurrecting a removed domain.
 
-Select the exporter before loading its configuration, for example with
-`ze --plugin ze.bgp-ls-export ...`, so its configuration schema is available.
+The `bgp-ls-export` and `bgp-epe` schemas are always loaded. A `bgp-ls-export`
+or `bgp-epe` block in the configuration starts its plugin, and removing the
+block stops it.
+<!-- source: internal/component/bgp/plugins/nlri/ls/yang/register.go -- init -->
 
 `bgp-ls-export { }` enables the internal exporter. Collector peers negotiate the
 `bgp-ls` family and attach the plugin with `state` and `refresh` event delivery

@@ -21,8 +21,10 @@ Ze uses a JUNOS-like hierarchical configuration format.
 Indentation is not significant. Unknown keys are rejected with a suggestion for the closest valid key.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- BGP config YANG schema; internal/component/bgp/config/resolve.go -- ResolveBGPTree -->
 
-Select optional plugin schemas at startup with `--plugin`, for example
-`ze --plugin ze.bgp-ls-export ...`. Reload verification retains that selection,
+A plugin that registers no schema at build time has its schema selected at
+startup with `--plugin`, for example `ze --plugin ze.<name> ...`. The schemas of
+the internal plugins, `bgp-ls-export` and `bgp-epe` among them, are always loaded,
+so their configuration needs no selection. Reload verification retains that selection,
 including when a configuration removes and later restores the plugin's root.
 It does not enable schemas for other optional plugins.
 <!-- source: internal/component/config/loader.go -- LoadConfig -->

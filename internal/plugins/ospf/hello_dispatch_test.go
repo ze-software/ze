@@ -393,41 +393,50 @@ func dispatchLSUpdateV6(t *testing.T, eng *engine, ifindex int, router types.Rou
 // the real LSDB -> SPF -> route-install integration on a single host (the route computation was
 // otherwise only unit-tested with a stand-in source).
 func TestOSPFEngineIPv6InstallsRoute(t *testing.T) {
-	eng, ifindex, peer, src, area := bringV6NeighborFull(t)
-	local := ridOf("10.0.0.1")
-	dst := netip.MustParseAddr("ff02::5")
+	synctest.Test(t, func(t *testing.T) {
+		eng, ifindex, peer, src, area := bringV6NeighborFull(t)
+		local := ridOf("10.0.0.1")
+		dst := netip.MustParseAddr("ff02::5")
 
-	prefix, ok := netipToV6Prefix(netip.MustParsePrefix("2001:db8:2::/64"), 5)
-	if !ok {
-		t.Fatal("netipToV6Prefix failed")
-	}
-	routerLSA := ospfv3packet.LSA{
-		Header: ospfv3packet.LSAHeader{Age: 1, Type: ospfv3types.LSTypeRouter, AdvertisingRouter: ospfv3types.RouterID(peer), Sequence: ospfv3types.InitialSequenceNumber},
-		Router: &ospfv3packet.RouterLSA{
-			Options: ospfv3types.OptV6 | ospfv3types.OptR,
-			Links:   []ospfv3packet.RouterLink{{Type: ospfv3packet.RouterLinkTypeP2P, Metric: 1, NeighborRouterID: ospfv3types.RouterID(local)}},
-		},
-	}
-	intraLSA := ospfv3packet.LSA{
-		Header:       ospfv3packet.LSAHeader{Age: 1, Type: ospfv3types.LSTypeIntraAreaPrefix, LinkStateID: ospfv3types.LinkStateID{0, 0, 0, 1}, AdvertisingRouter: ospfv3types.RouterID(peer), Sequence: ospfv3types.InitialSequenceNumber},
-		IntraAreaPfx: &ospfv3packet.IntraAreaPrefixLSA{ReferencedLSType: ospfv3types.LSTypeRouter, ReferencedAdvRouter: ospfv3types.RouterID(peer), Prefixes: []ospfv3packet.Prefix{prefix}},
-	}
-	dispatchLSUpdateV6(t, eng, ifindex, peer, area, src, dst, routerLSA, intraLSA)
+		// Full queues this router's Router-LSA on the maintenance worker. The SPF
+		// two-way check needs that back-link, so advance virtual time until the
+		// worker originates it.
+		// sleep(protocol): virtual time only, matching the native maintenance cadence.
+		time.Sleep(time.Second)
+		synctest.Wait()
 
-	eng.spf.Run()
-
-	want := netip.MustParsePrefix("2001:db8:2::/64")
-	var got bool
-	for _, r := range eng.spf.Routes() {
-		if r.Prefix != want {
-			continue
+		prefix, ok := netipToV6Prefix(netip.MustParsePrefix("2001:db8:2::/64"), 5)
+		if !ok {
+			t.Fatal("netipToV6Prefix failed")
 		}
-		got = true
-		if len(r.NextHops) != 1 || r.NextHops[0].Addr != src {
-			t.Fatalf("route %s next-hops = %v, want the peer's link-local [%s]", r.Prefix, r.NextHops, src)
+		routerLSA := ospfv3packet.LSA{
+			Header: ospfv3packet.LSAHeader{Age: 1, Type: ospfv3types.LSTypeRouter, AdvertisingRouter: ospfv3types.RouterID(peer), Sequence: ospfv3types.InitialSequenceNumber},
+			Router: &ospfv3packet.RouterLSA{
+				Options: ospfv3types.OptV6 | ospfv3types.OptR,
+				Links:   []ospfv3packet.RouterLink{{Type: ospfv3packet.RouterLinkTypeP2P, Metric: 1, NeighborRouterID: ospfv3types.RouterID(local)}},
+			},
 		}
-	}
-	if !got {
-		t.Fatalf("IPv6 route %s not installed from the peer's Intra-Area-Prefix-LSA; routes = %v", want, eng.spf.Routes())
-	}
+		intraLSA := ospfv3packet.LSA{
+			Header:       ospfv3packet.LSAHeader{Age: 1, Type: ospfv3types.LSTypeIntraAreaPrefix, LinkStateID: ospfv3types.LinkStateID{0, 0, 0, 1}, AdvertisingRouter: ospfv3types.RouterID(peer), Sequence: ospfv3types.InitialSequenceNumber},
+			IntraAreaPfx: &ospfv3packet.IntraAreaPrefixLSA{ReferencedLSType: ospfv3types.LSTypeRouter, ReferencedAdvRouter: ospfv3types.RouterID(peer), Prefixes: []ospfv3packet.Prefix{prefix}},
+		}
+		dispatchLSUpdateV6(t, eng, ifindex, peer, area, src, dst, routerLSA, intraLSA)
+
+		eng.spf.Run()
+
+		want := netip.MustParsePrefix("2001:db8:2::/64")
+		var got bool
+		for _, r := range eng.spf.Routes() {
+			if r.Prefix != want {
+				continue
+			}
+			got = true
+			if len(r.NextHops) != 1 || r.NextHops[0].Addr != src {
+				t.Fatalf("route %s next-hops = %v, want the peer's link-local [%s]", r.Prefix, r.NextHops, src)
+			}
+		}
+		if !got {
+			t.Fatalf("IPv6 route %s not installed from the peer's Intra-Area-Prefix-LSA; routes = %v", want, eng.spf.Routes())
+		}
+	})
 }

@@ -227,6 +227,9 @@ func TestDoReloadClosesTheAAABundleItAbandons(t *testing.T) {
 	reactor := &reloadTestReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}}
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
 	require.NoError(t, err)
+	// A rejected reload compensates under the server's lifetime context, which
+	// exists only once the server runs, as it always does before a daemon reload.
+	require.NoError(t, server.Start())
 	t.Cleanup(func() { server.Stop() })
 
 	lm := newListenerMigrator()
@@ -272,6 +275,8 @@ func TestDoReloadRefusesWhenTheAAABundleCannotBeBuilt(t *testing.T) {
 	reactor := &reloadTestReactor{tree: map[string]any{"bgp": map[string]any{"router-id": "1.1.1.1"}}}
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
 	require.NoError(t, err)
+	// The rejected reload compensates under the running server's context.
+	require.NoError(t, server.Start())
 	t.Cleanup(func() { server.Stop() })
 
 	load := func() (map[string]any, *zeconfig.Tree, error) {

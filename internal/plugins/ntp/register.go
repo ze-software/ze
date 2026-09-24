@@ -27,6 +27,12 @@ var (
 
 const configRootEnvironment = "environment"
 
+// configPathNTP is the one environment container ntp owns. Auto-load matches
+// ConfigRoots against every container path of the config, so the bare
+// environment root would start ntp for any environment block, such as
+// api-server, including during reload compensation.
+const configPathNTP = configRootEnvironment + "/ntp"
+
 func setEventBus(eb ze.EventBus) {
 	eventBusMu.Lock()
 	defer eventBusMu.Unlock()
@@ -50,7 +56,7 @@ func init() {
 		Description:             "NTP client: system clock synchronization",
 		Features:                "yang",
 		YANG:                    ntpyang.ZeNTPConfYANG,
-		ConfigRoots:             []string{configRootEnvironment},
+		ConfigRoots:             []string{configPathNTP},
 		InProcessConfigVerifier: verifyNTPConfig,
 		RunEngine:               runNTPPlugin,
 	}

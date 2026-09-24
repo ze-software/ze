@@ -195,6 +195,8 @@ func TestDoReloadRollsBackOnListenerMigrationFailure(t *testing.T) {
 	reactor := &reloadTestReactor{tree: oldTree}
 	server, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, reactor)
 	require.NoError(t, err)
+	// The rejected reload compensates under the running server's context.
+	require.NoError(t, server.Start())
 	t.Cleanup(func() { server.Stop() })
 	cp := zeconfig.NewProvider()
 	cp.SetRoot("bgp", map[string]any{"router-id": "1.1.1.1"})

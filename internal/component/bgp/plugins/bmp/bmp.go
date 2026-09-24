@@ -98,6 +98,11 @@ const (
 	configRootEnvironment = "environment"
 	configRootSystem      = "system"
 	protocolBMP           = "bmp"
+
+	// configPathReceiver is the one environment container BMP owns. Auto-load
+	// matches it, not the environment root, because every other environment
+	// block (api-server, log) belongs to another owner.
+	configPathReceiver = configRootEnvironment + "/" + protocolBMP
 )
 
 // environmentSection wraps the full environment config section.

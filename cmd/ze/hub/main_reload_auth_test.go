@@ -33,6 +33,10 @@ func reloadDriver(t *testing.T, tree map[string]any) (*pluginserver.Server, *zec
 	t.Helper()
 	srv, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, plugin.NewCoordinator(tree))
 	require.NoError(t, err)
+	// A daemon reloads a running server, and a rejected reload compensates
+	// under that server's lifetime context.
+	require.NoError(t, srv.Start())
+	t.Cleanup(func() { srv.Stop() })
 	return srv, zeconfig.NewProvider()
 }
 

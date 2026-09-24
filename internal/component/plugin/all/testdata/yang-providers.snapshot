@@ -6,6 +6,7 @@ bfd
 bgp
 bgp-adj-rib-in
 bgp-bmp
+bgp-epe
 bgp-filter-aspath
 bgp-filter-aspath-length
 bgp-filter-community
@@ -20,6 +21,7 @@ bgp-gr
 bgp-healthcheck
 bgp-hostname
 bgp-llnh
+bgp-ls-export
 bgp-rib
 bgp-role
 bgp-route-refresh

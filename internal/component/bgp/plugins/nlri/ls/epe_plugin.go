@@ -3,7 +3,6 @@
 package ls
 
 import (
-	_ "embed"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/ze-software/ze/internal/component/bgp"
+	lsyang "github.com/ze-software/ze/internal/component/bgp/plugins/nlri/ls/yang"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/linkstateevents"
@@ -19,20 +19,17 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
-//go:embed ze-bgp-epe-conf.yang
-var epeYANG string
-
 var epeLogger = slog.Default()
 
 func init() {
 	reg := registry.Registration{Name: epeName, Description: "Native BGP Egress Peer Engineering segments",
-		RFCs: []string{"9086"}, Features: "yang", YANG: epeYANG, ConfigRoots: []string{epeName},
+		RFCs: []string{"9086"}, Features: "yang", YANG: lsyang.ZeBGPEpeConfYANG, ConfigRoots: []string{epeName},
 		NeedsDataPlane: true, RunEngine: runEPEProducer,
 		ConfigureEngineLogger:   func(name string) { epeLogger = slogutil.Logger(name) },
 		InProcessConfigVerifier: func(sections []rpc.ConfigSection) error { _, err := parseEPEConfig(sections); return err }}
 	reg.CLIHandler = func(args []string) int {
 		cfg := cli.BaseConfig(&reg)
-		cfg.GetYANG = func() string { return epeYANG }
+		cfg.GetYANG = func() string { return lsyang.ZeBGPEpeConfYANG }
 		cfg.ConfigLogger = func(level string) { epeLogger = slogutil.PluginLogger(reg.Name, level) }
 		return cli.RunPlugin(cfg, args)
 	}

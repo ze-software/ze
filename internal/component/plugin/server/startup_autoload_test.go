@@ -287,6 +287,9 @@ func newAutoloadTeardownTestServer() (*Server, *process.ProcessManager) {
 		config:        &ServerConfig{},
 		registry:      plugin.NewPluginRegistry(),
 		loadedPlugins: make(map[string]bool),
+		// Removal waits for a stopped plugin under the server's lifetime
+		// context, which StartWithContext sets on a running server.
+		ctx: context.Background(),
 	}
 	pm := process.NewProcessManager(nil)
 	s.procManager.Store(pm)

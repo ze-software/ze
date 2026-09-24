@@ -19,7 +19,12 @@ func init() {
 		RFCs:        []string{"7854", "8671"},
 		Features:    "yang",
 		YANG:        bmpyang.ZeBMPConfYANG,
-		ConfigRoots: []string{configRootBGP, configRootEnvironment, configRootSystem},
+		// ConfigRoots decides auto-load. The system root is read through
+		// WantsConfig (bmp.go) for the Initiation identity only, so a config
+		// holding just `system` must not start BMP. The receiver is claimed
+		// at `environment bmp`, so a config holding only another environment
+		// block (api-server, log) must not start BMP either.
+		ConfigRoots: []string{configRootBGP, configPathReceiver},
 		RunEngine:   runBMPPlugin,
 		Commands:    commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
