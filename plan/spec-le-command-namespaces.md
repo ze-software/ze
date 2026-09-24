@@ -9,6 +9,11 @@
 | Handoff | - |
 | Updated | 2026-08-28 |
 
+**Superseded by `plan/spec-le-subject-first-command-tree.md` (owner decision,
+2026-09-24).** Open AC-11 moved there as AC-31. AC-13 and AC-14 are reshaped
+there as AC-19 and AC-18. The decisions "the test-* family is not split" and
+"docvalid and docs-to-code are left alone" are reversed there.
+
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
