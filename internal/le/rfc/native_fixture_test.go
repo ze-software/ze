@@ -309,7 +309,12 @@ func TestNativeImplementationFixture(t *testing.T) {
 	// and a checklist id is no longer refused for disagreeing with its
 	// section). 58f6154746 added a verification-archive exclusion and
 	// b9779d6fbb removed it again. Each is an intended change its commit states.
-	const want = "0b22efc92e6ebf494fd2c13b3cc879463d8050c1e2d2b0797cad56508ff493e4"
+	//
+	// Re-sealed 2026-09-24 for 68b2070c69, which makes a discrimination
+	// record's red come from the tagged unit itself (discriminate_observe.go),
+	// and 976436f9a6, which runs the checker's go vet with -trimpath
+	// (check_compile.go). Each is an intended change its commit states.
+	const want = "650eedc45d0d47977d37ab0a1594fc041d3d17657fc01675e46bae2fefed97c9"
 	// HEAD's committed bytes, never the working tree. A seal taken over the
 	// working tree states a fact about one transient moment: it passed for the
 	// session that minted it and was RED on a clean clone, because the value it

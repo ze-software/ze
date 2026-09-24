@@ -610,6 +610,14 @@ func TestMatrixRowFilterCatchesAGatedBreak(t *testing.T) {
 	}
 	root := writeGatedBreakFixture(t)
 
+	// A private cache, so the verdict depends on the fixture and not on the
+	// machine. Staticcheck trims its cache when it closes, at most once a day,
+	// and writes trim.txt only when the trim ends. Over a large shared cache on
+	// a slow disk the trim outlasts the deadline, the run is killed after its
+	// verdict exists, and every later run starts the same trim again. Measured
+	// 2026-09-24: 120s in DiskCache.Trim for a two-package module.
+	t.Setenv("STATICCHECK_CACHE", t.TempDir())
+
 	// The answer the selector produces for that changed file: the tag gating its
 	// package, plus the tag the file NEGATES (reachedTags,
 	// internal/le/changed/selector.go).
