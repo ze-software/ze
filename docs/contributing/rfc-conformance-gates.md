@@ -745,9 +745,21 @@ stayed green records nothing, and a run that went red without naming the unit
 records nothing either: a build error, a sibling test and a flake each turn a
 run red, and none of them says the claim's own test discriminated the break.
 
+For a Go unit, the name is the unit's own `--- FAIL: <Func>` line, or a
+subtest's `--- FAIL: <Func>/...` line. The match is on the whole name, so
+`--- FAIL: TestWidgetSibling` does not name `TestWidget`. The unit runs under
+`go test -v`. A revert halt can kill the binary from a goroutine the test does
+not own, and then no FAIL line prints. That crash counts only when the output
+carries the halt's own text and when `=== RUN   <Func>` comes before it. A halt
+reached from package `init`, or from a package-level `var` initializer, fires
+before any test starts. Every test in the package shows that red, so it is
+refused as a red from initialization. Break a function the unit reaches, or
+use the mutant route inside the value that the initializer returns
+(`observationRunner.killedByTheBreak`).
+
 | Route | The break | The runner |
 |---|---|---|
-| `mutant` | one gomu mutant, substituted into its own line | `go test -run '^<Func>$'` over the tagged unit's package, under a Go `-overlay` |
+| `mutant` | one gomu mutant, substituted into its own line | `go test -v -run '^<Func>$'` over the tagged unit's package, under a Go `-overlay` |
 | `revert` on a `.ci` | the producing function's body replaced by a halt | `ze-test <suite> <name>`, ONE `.ci`, against the isolated set `functional.Prepare` builds under the same overlay |
 | `revert` on an interop checker | the same | `./le integration interop` with `INTEROP_SCENARIO` set to the scenario the checker's own `const name` declares |
 

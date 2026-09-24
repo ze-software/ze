@@ -239,8 +239,10 @@ func (o *observationRunner) requireRed(broken overlayFile) (ObservedRed, error) 
 // Two refusals, and the pair is the whole of AC-11. A run that stayed GREEN
 // under the break records nothing, because the proof would then be a claim. A
 // run that went red without naming the unit records nothing either: a build
-// error, a sibling test and a flake each turn a run red, and none of them says
-// the claim's own test discriminated the break.
+// error, a sibling test, a crash in package initialization and a flake each
+// turn a run red, and none of them says the claim's own test discriminated the
+// break. The refusal carries the reason attribution gave, so the operator
+// learns which of those it was.
 func (o *observationRunner) judgeRed(passed bool, output string) error {
 	var tb textbuf.Buffer
 	if passed {
@@ -249,20 +251,23 @@ func (o *observationRunner) judgeRed(passed bool, output string) error {
 			Str(". Nothing is written: a proof this run did not observe is never recorded. ").
 			Str("Either the test does not discriminate the claim, or the break does not engage it"))
 	}
-	if !o.attributes(output) {
-		return parseErr(tb.Str("the run went red under the break, and its output ").
-			Str("does not name ").Quoted(o.names).Str(", so the failure is not this unit's. ").
-			Str("Nothing is written:\n").Str(excerpt(output)))
+	if why := o.attribution(output); why != "" {
+		return parseErr(tb.Str("the run went red under the break, and ").Str(why).
+			Str(", so the failure is not this unit's. Nothing is written:\n").Str(excerpt(output)))
 	}
 	return nil
 }
 
-// attributes answers whether a failing run named the tagged unit.
+// attribution answers why a failing run is NOT the tagged unit's red, or the
+// empty string when it is.
 //
-// For a Go unit that is the `--- FAIL: <Name>` line `go test` prints, which is
-// also where a killed mutant's attribution has to be read from: gomu declares
-// Result.TestOutput and fills it nowhere (A-2, measured over 3,683 results).
-func (o *observationRunner) attributes(output string) bool {
+// For a Go unit the red is the unit's own `--- FAIL: <Name>` line, matched on
+// the exact name or one of its subtests, never on a prefix: `TestWidget` is not
+// named by `--- FAIL: TestWidgetSibling`. That line is also where a killed
+// mutant's attribution has to be read from: gomu declares Result.TestOutput and
+// fills it nowhere (A-2, measured over 3,683 results).
+func (o *observationRunner) attribution(output string) string {
+	var tb textbuf.Buffer
 	if o.scenario != "" {
 		// An interop run is SELECTED down to one scenario, by a name read off
 		// the checker and confirmed against test/interop/scenarios/, so nothing
@@ -271,19 +276,44 @@ func (o *observationRunner) attributes(output string) bool {
 		// so there is nothing in the text to match on either. What makes the red
 		// the break's is the clean run that passed minutes earlier over the same
 		// lab, which requireCleanGreen has already demanded.
-		return true
+		return ""
 	}
 	if o.unitName == "" {
-		return strings.Contains(output, o.names)
+		if strings.Contains(output, o.names) {
+			return ""
+		}
+		return tb.Str("its output does not name ").Quoted(o.names).String()
 	}
-	var tb textbuf.Buffer
-	if strings.Contains(output, tb.Str("--- FAIL: ").Str(o.unitName).String()) {
-		return true
+	if goTestLineNames(output, "--- FAIL: ", o.unitName) >= 0 {
+		return ""
 	}
 	return o.killedByTheBreak(output)
 }
 
-// killedByTheBreak answers whether the run died executing the disabled body.
+// goTestLineNames answers the byte offset of the first `go test` line that
+// opens with prefix and names unit or one of its subtests, or -1.
+//
+// `go test` indents a subtest's line, and follows the name with a space and
+// the duration, so the name is the text up to the first space.
+func goTestLineNames(output, prefix, unit string) int {
+	offset := 0
+	for line := range strings.SplitAfterSeq(output, "\n") {
+		start := offset
+		offset += len(line)
+		rest, found := strings.CutPrefix(strings.TrimLeft(line, " \t"), prefix)
+		if !found {
+			continue
+		}
+		name, _, _ := strings.Cut(strings.TrimSpace(rest), " ")
+		if name == unit || strings.HasPrefix(name, unit+"/") {
+			return start
+		}
+	}
+	return -1
+}
+
+// killedByTheBreak answers why a run that printed no `--- FAIL:` line for the
+// unit is NOT a red the unit produced, or the empty string when it is.
 //
 // A producer reached only from a goroutine the test does not own cannot print
 // `--- FAIL:` at all. The halt panics on that goroutine, which takes the test
@@ -292,21 +322,38 @@ func (o *observationRunner) attributes(output string) bool {
 // the socket in its own goroutine, so every tag on the RFC 5176 walk test named
 // a producer this attribution could not reach.
 //
-// The interop branch above already settles the same question the same way, and
-// three facts make the answer safe here too. The run is SELECTED to one unit,
-// because argv passes `-run ^<unit>$` over one package directory, so no other
-// test could have been running. The panic text is the break's OWN, so a crash
-// the producer did not cause is not counted. And the unit has already passed
-// clean (requireCleanGreen) and has already been shown to execute this producer
-// (requireProducerReached), so the break engaged code the test reaches.
+// Such a crash counts only when three facts hold. The panic text is the
+// break's OWN, so a crash the producer did not cause is not counted. The unit
+// had STARTED before the crash: argv runs `-v`, so `go test` prints
+// `=== RUN   <Name>` when the unit begins, and that line must come before the
+// halt. And the run is selected to that one unit (`-run ^<unit>$`), so no other
+// test could have been running. The second fact is what refuses a producer run
+// by package initialization: `init` runs before any test is selected or
+// started, so a halt there reddens every test in the package and names none of
+// them (plan/journal/green-that-could-not-have-been-red.md, 2026-09-24).
 //
 // The revert route only. A mutant substitutes an expression and never halts, so
 // a panic under one is a defect in the mutant rather than a proof.
-func (o *observationRunner) killedByTheBreak(output string) bool {
+func (o *observationRunner) killedByTheBreak(output string) string {
+	var tb textbuf.Buffer
+	tb.Str("its output carries no `--- FAIL: ").Str(o.unitName).Str("` line")
 	if o.record.Route != RouteRevert {
-		return false
+		return tb.String()
 	}
-	return strings.Contains(output, revertMarker)
+	halt := strings.Index(output, revertMarker)
+	if halt < 0 {
+		return tb.String()
+	}
+	started := goTestLineNames(output, "=== RUN   ", o.unitName)
+	if started < 0 || started > halt {
+		return tb.Str(", and the break's halt fired before ").Str(o.unitName).
+			Str(" started (no `=== RUN   ").Str(o.unitName).Str("` line precedes it). ").
+			Str("The producer ran during package initialization or test setup, where ").
+			Str("every test in the package would show the same red. Break a producer ").
+			Str("the unit itself reaches, or take the mutant route inside the value ").
+			Str("the initializer returns").String()
+	}
+	return ""
 }
 
 // argv answers the command that runs this tagged unit.
@@ -315,8 +362,10 @@ func (o *observationRunner) argv(overlay, profile string) []string {
 		return o.carrierArgv()
 	}
 	var tb textbuf.Buffer
-	options := make([]string, 0, 10)
-	options = append(options, "-run", tb.Byte('^').Str(o.unitName).Byte('$').String(), "-count=1")
+	options := make([]string, 0, 11)
+	// -v prints `=== RUN   <Name>` as the unit starts, which is what tells a
+	// crash inside the unit from one in package initialization (killedByTheBreak).
+	options = append(options, "-run", tb.Byte('^').Str(o.unitName).Byte('$').String(), "-count=1", "-v")
 	if overlay != "" {
 		options = append(options, "-overlay", overlay)
 	}

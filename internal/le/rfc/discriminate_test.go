@@ -413,6 +413,76 @@ func TestDiscriminateRefusesUnobservedRed(t *testing.T) {
 	}
 }
 
+// VALIDATES: a red counts only when the tagged unit itself ran and failed. The
+// unit's own assertion failure and a break-caused crash after the unit started are
+// accepted. A crash in package initialization, a sibling test whose name extends
+// the unit's, and a mutant-route crash are refused, each naming why.
+// METHOD: judgeRed over `go test -v` output shaped as each case prints it.
+// PREVENTS: the RFC 9514 revert records of 2026-09-24, whose break of
+// decodeSRv6EndXSID halted in `init`, before any test ran, so every test in the
+// package showed the same red and the record proved nothing about its unit
+// (plan/journal/green-that-could-not-have-been-red.md).
+func TestDiscriminateRedMustComeFromTheUnit(t *testing.T) {
+	revert := judgeFixture("TestWidget", "TestWidget")
+	revert.record.Route = RouteRevert
+	halt := "panic: " + revertMarker + "\n\ngoroutine 7 [running]:\n"
+
+	initPanic := "panic: BUG: ./le rfc discriminate-record " + revertMarker + "\n\n" +
+		"goroutine 1 [running]:\nexample.test/sample.decodeWidget(...)\n" +
+		"\t/tree/sample/widget.go:12\nexample.test/sample.init.0()\n" +
+		"\t/tree/sample/register.go:5 +0x1d\nruntime.doInit1(...)\n" +
+		"FAIL\texample.test/sample\t0.004s\n"
+	err := revert.judgeRed(false, initPanic)
+	if err == nil {
+		t.Fatal("a halt in package initialization, before any test ran, was recorded as the unit's red")
+	}
+	if !strings.Contains(err.Error(), "initialization") || !strings.Contains(err.Error(), "TestWidget") {
+		t.Errorf("the refusal does not say the halt fired before TestWidget started: %v", err)
+	}
+
+	// A halt that precedes the RUN line is the same case under -v output order.
+	if revert.judgeRed(false, halt+"=== RUN   TestWidget\n") == nil {
+		t.Error("a halt printed before the unit started was recorded as the unit's red")
+	}
+
+	// Another test's RUN line does not say this unit started.
+	if revert.judgeRed(false, "=== RUN   TestWidgetSibling\n"+halt) == nil {
+		t.Error("a halt under a sibling test was recorded as TestWidget's red")
+	}
+
+	sibling := "=== RUN   TestWidgetSibling\n--- FAIL: TestWidgetSibling (0.00s)\n" +
+		"\twidget_test.go:9: no\nFAIL\n"
+	err = revert.judgeRed(false, sibling)
+	if err == nil {
+		t.Fatal("a sibling test whose name extends the unit's was recorded as the unit's red")
+	}
+	if !strings.Contains(err.Error(), "--- FAIL: TestWidget`") {
+		t.Errorf("the refusal does not name the missing FAIL line: %v", err)
+	}
+
+	own := "=== RUN   TestWidget\n=== RUN   TestWidget/ipv4\n    widget_test.go:5: 0 != 1\n" +
+		"--- FAIL: TestWidget (0.00s)\n    --- FAIL: TestWidget/ipv4 (0.00s)\nFAIL\n"
+	if err := revert.judgeRed(false, own); err != nil {
+		t.Errorf("the unit's own assertion failure was refused: %v", err)
+	}
+	subtestOnly := "    --- FAIL: TestWidget/ipv4 (0.00s)\n"
+	if err := revert.judgeRed(false, subtestOnly); err != nil {
+		t.Errorf("a failure of the unit's own subtest was refused: %v", err)
+	}
+
+	// A producer served from a goroutine the test does not own crashes the
+	// binary after the unit started, and prints no FAIL line: still the unit's.
+	if err := revert.judgeRed(false, "=== RUN   TestWidget\n"+halt+"FAIL\n"); err != nil {
+		t.Errorf("a break-caused crash after the unit started was refused: %v", err)
+	}
+
+	// A mutant never halts, so a crash under one is no proof.
+	mutant := judgeFixture("TestWidget", "TestWidget")
+	if mutant.judgeRed(false, "=== RUN   TestWidget\n"+halt) == nil {
+		t.Error("a crash under the mutant route was recorded as a proof")
+	}
+}
+
 // VALIDATES: AC-6 and R-10 -- a revert record naming a producer the tagged unit's own
 // coverage profile never executes is refused, and so is one that does not resolve.
 // METHOD: the fixture's producer with a real coverage profile written twice, once with
