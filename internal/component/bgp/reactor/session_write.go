@@ -735,10 +735,16 @@ func (s *Session) releaseWrites() {
 
 // SendUpdateHeld sends an UPDATE while writeMu is already held by the caller
 // via HoldWrites. Calling without HoldWrites is undefined.
+//
+// It MUST NOT take s.mu. The caller already holds writeMu, and the lock
+// hierarchy orders s.mu BEFORE writeMu (see the Session type). closeConn takes
+// s.mu and then writeMu, so an RLock here waited on closeConn's s.mu while
+// closeConn waited on the writeMu this caller holds: a prefix-limit teardown
+// that landed during the initial sync deadlocked the peer for good. The state
+// read needs no s.mu anyway: s.fsm is set once in NewSession and FSM.State
+// takes the FSM's own lock.
 func (s *Session) SendUpdateHeld(update *message.Update) error {
-	s.mu.RLock()
 	state := s.fsm.State()
-	s.mu.RUnlock()
 
 	if state != fsm.StateEstablished {
 		return ErrInvalidState
