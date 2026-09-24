@@ -1640,6 +1640,35 @@ func (p *Peer) Stop() {
 	}
 }
 
+// stopWithCease ends the peer the way a configuration change owes it: a Cease
+// NOTIFICATION on the live session, then Stop. Stop alone only cancels a
+// context, and the session then closes TCP with no NOTIFICATION at all.
+//
+// RFC 4486 Section 4: "If a BGP speaker decides to de-configure a peer, then
+// the speaker SHOULD send a NOTIFICATION message with the Error Code Cease and
+// the Error Subcode "Peer De-configured"."
+//
+// RFC 4486 Section 4: "If a BGP speaker decides to administratively reset the
+// peering with a neighbor due to a configuration change other than the ones
+// described above, then the speaker SHOULD send a NOTIFICATION message with the
+// Error Code Cease and the Error Subcode "Other Configuration Change"."
+//
+// The caller picks the subcode, because only the caller knows which of the two
+// decisions it made.
+func (p *Peer) stopWithCease(subcode uint8) {
+	p.mu.Lock()
+	session := p.session
+	p.mu.Unlock()
+
+	if session != nil {
+		// Session.teardown returns nil on every path: a NOTIFICATION that
+		// cannot be written is logged where the write error exists
+		// (logNotifyErr), as shutdownNotify also relies on.
+		_ = session.Teardown(subcode, "")
+	}
+	p.Stop()
+}
+
 // ErrOpQueueFull is returned when the operation queue is full and the teardown
 // cannot be queued. This prevents the API from reporting success when the
 // teardown was silently dropped.

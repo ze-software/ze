@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/bgp/filterapi"
+	"github.com/ze-software/ze/internal/component/bgp/message"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -177,12 +178,13 @@ func (r *Reactor) buildDynamicPeerSettings(dg *DynamicGroupConfig, remoteAddr ne
 }
 
 // removeDynamicPeer removes a dynamic peer and decrements the group counter.
+// The peer's live session, if any, is sent Cease with subcode (stopWithCease).
 // Must be called with r.mu held (Lock).
-func (r *Reactor) removeDynamicPeer(peer *Peer) {
+func (r *Reactor) removeDynamicPeer(peer *Peer, subcode uint8) {
 	settings := peer.Settings()
 	key := settings.PeerKey()
 
-	peer.Stop()
+	peer.stopWithCease(subcode)
 	// Same synchronous release as removePeer and the reload-remove path: Stop
 	// only cancels a context, so a dynamic peer removed and recreated (the
 	// remove/recreate path this function serves) would otherwise race its own
@@ -323,6 +325,10 @@ func (r *Reactor) SetDynamicGroups(groups []*DynamicGroupConfig) {
 		}
 
 		var toRemove []*Peer
+		// restart marks the peers whose group template changed. The others in
+		// toRemove left the config, and RFC 4486 Section 4 gives the two
+		// different Cease subcodes.
+		restart := make(map[*Peer]bool)
 		for _, peer := range r.peers {
 			settings := peer.Settings()
 			if !settings.IsDynamic {
@@ -341,10 +347,15 @@ func (r *Reactor) SetDynamicGroups(groups []*DynamicGroupConfig) {
 				reactorLogger().Info("dynamic peer restart required",
 					"peer", settings.Address, "group", settings.GroupName, "changed", "group template")
 				toRemove = append(toRemove, peer)
+				restart[peer] = true
 			}
 		}
 		for _, peer := range toRemove {
-			r.removeDynamicPeer(peer)
+			subcode := message.NotifyCeasePeerDeconfigured
+			if restart[peer] {
+				subcode = message.NotifyCeaseOtherConfigChange
+			}
+			r.removeDynamicPeer(peer, subcode)
 		}
 	}
 
@@ -483,7 +494,7 @@ func (r *Reactor) scheduleDynamicPeerCleanup(peer *Peer) {
 		if current.State() == PeerStateEstablished {
 			return
 		}
-		r.removeDynamicPeer(current)
+		r.removeDynamicPeer(current, message.NotifyCeasePeerDeconfigured)
 		reactorLogger().Info("dynamic peer removed after idle timeout", "addr", addr, "group", groupName)
 	})
 }

@@ -6,6 +6,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/bgp/reactor"
+	"github.com/ze-software/ze/internal/component/config"
 	bgpevents "github.com/ze-software/ze/internal/core/bgp/events"
 	"github.com/ze-software/ze/internal/core/events"
 )
@@ -89,4 +91,63 @@ func TestAIGPAllowsExternalRIBMetricFeed(t *testing.T) {
 		require.NotContains(t, fedBy(graph, bgpevents.EventUpdate, events.DirSent, peer), "routes")
 		require.NotContains(t, fedBy(graph, bgpevents.EventRefresh, events.DirReceived, peer), "routes")
 	}
+}
+
+// aigpUntouchedBase is an eBGP peer and a dynamic group, neither of which
+// enables AIGP. %s is where the edit adds a peer.
+const aigpUntouchedBase = `
+bgp {
+    router-id 10.0.0.1;
+    session { asn { local 65000; } }
+    peer upstream {
+        connection { remote { ip 10.0.0.2; } local { ip 10.0.0.1; } }
+        session { asn { local 65000; remote 65001; } }
+    }
+    %s
+    group ix {
+        connection {
+            remote { ip dynamic; connect false; range 127.0.0.0/8; }
+            local { ip 127.0.0.1; accept true; }
+        }
+        session { asn { local 65000; } }
+    }
+}`
+
+// TestAddingIBGPPeerLeavesOtherBindingsUnchanged holds the reload invariant
+// for derived delivery: an edit never changes the derived settings of a peer
+// it did not touch.
+//
+// VALIDATES: adding one iBGP peer, which enables AIGP by the RFC 7311 Section
+// 3.3 default, leaves the ProcessBindings of the existing static peer and of
+// the dynamic group template byte-for-byte what they were.
+// PREVENTS: the reload restarting every established session. ProcessBindings
+// is not hot-swappable, so a derived grant that follows another peer's AIGP
+// state bounces every session (reload-dynamic-peer-survives.ci).
+func TestAddingIBGPPeerLeavesOtherBindingsUnchanged(t *testing.T) {
+	const added = `peer spare {
+        connection { remote { ip 10.0.0.3; } local { ip 10.0.0.1; } }
+        session { asn { local 65000; remote 65000; } }
+    }`
+	build := func(input string) (static, dynamic []reactor.ProcessBinding) {
+		t.Helper()
+		schema, err := config.YANGSchema()
+		require.NoError(t, err)
+		tree, err := config.NewParser(schema).Parse(input)
+		require.NoError(t, err)
+		peers, groups, err := peersAndDynamicGroups(tree)
+		require.NoError(t, err)
+		require.Len(t, groups, 1)
+		for _, ps := range peers {
+			if ps.Name == "upstream" {
+				return ps.ProcessBindings, groups[0].Settings.ProcessBindings
+			}
+		}
+		t.Fatal("peer upstream not built from the config")
+		return nil, nil
+	}
+
+	staticBefore, dynamicBefore := build(fmt.Sprintf(aigpUntouchedBase, ""))
+	staticAfter, dynamicAfter := build(fmt.Sprintf(aigpUntouchedBase, added))
+	require.Equal(t, staticBefore, staticAfter, "adding an iBGP peer changed an untouched static peer's bindings")
+	require.Equal(t, dynamicBefore, dynamicAfter, "adding an iBGP peer changed the dynamic group template's bindings")
 }

@@ -275,8 +275,8 @@ func (r *Reactor) doRemovePeer(addr netip.Addr) (*plugin.PeerInfo, error) {
 	localAddr := settings.LocalAddress
 	listenPort := r.peerListenPort(settings)
 
-	// Stop peer if running
-	peer.Stop()
+	// RFC 4486 Section 4: a de-configured peer is told so (stopWithCease).
+	peer.stopWithCease(message.NotifyCeasePeerDeconfigured)
 
 	// Release the AS-wide BGP Identifier claim synchronously, for the same
 	// reason the reload-remove path does (reactor_api.go): Stop only cancels a

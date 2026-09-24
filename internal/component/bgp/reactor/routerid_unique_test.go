@@ -607,7 +607,7 @@ func TestRouterIDClaimReleasedOnPeerRemoval(t *testing.T) {
 		require.NoError(t, err)
 
 		r.mu.Lock()
-		r.removeDynamicPeer(holder)
+		r.removeDynamicPeer(holder, message.NotifyCeasePeerDeconfigured)
 		r.mu.Unlock()
 
 		if _, held := r.routerIDs.holder(peerAS, bgpID); held {

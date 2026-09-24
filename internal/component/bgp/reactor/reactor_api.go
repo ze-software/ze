@@ -800,6 +800,9 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 
 	// Categorize peers: to remove, to add, to swap in place, unchanged.
 	var toRemove []netip.AddrPort
+	// restarted marks the keys in toRemove that come back in toAdd, so the
+	// removal loop can tell the peer which RFC 4486 Cease subcode applies.
+	restarted := make(map[netip.AddrPort]bool)
 	var toAdd []*PeerSettings
 	var toSwap []peerSettingsSwap
 
@@ -862,6 +865,7 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 				session.raiseBFDStrictConfigChanged()
 			}
 			toRemove = append(toRemove, key)
+			restarted[key] = true
 			toAdd = append(toAdd, newSettings)
 			reactorLogger().Info("peer restart required", "phase", label, "peer", key, "changed", reason)
 			continue
@@ -891,7 +895,14 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, la
 				r.mu.Lock()
 				defer r.mu.Unlock()
 				if peer, ok := r.peers[peerKey]; ok {
-					peer.Stop()
+					// RFC 4486 Section 4: a removed peer is told "Peer
+					// De-configured", a restarted one "Other Configuration
+					// Change" (stopWithCease, peer.go).
+					subcode := message.NotifyCeasePeerDeconfigured
+					if restarted[peerKey] {
+						subcode = message.NotifyCeaseOtherConfigChange
+					}
+					peer.stopWithCease(subcode)
 					// Stop only cancels the peer's context (Peer.Stop, peer.go);
 					// the peer's own goroutine gives up its AS-wide BGP Identifier
 					// claim later, from cleanup (peer_run.go). A reload that MOVES
