@@ -61,7 +61,7 @@ func (m *Message) isUpdate() bool { return m.Kind() == MsgUPDATE }
 // LENGTH of 11 was read as the multiprotocol marker, and a legacy marker (body
 // 4) with a 7-byte attribute stamped onto it is also 11 bytes. An EoR that
 // matches no expectation is accepted in silence (checker.go
-// ExpectedOrKeepalive). A test asserting that a relayed marker arrives UNSTAMPED
+// expectedOrKeepalive). A test asserting that a relayed marker arrives UNSTAMPED
 // could therefore only fail by timing out. It never saw the stamped message it
 // was there to refuse.
 //

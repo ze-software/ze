@@ -25,7 +25,7 @@ func eorMessage(body []byte) *Message {
 //
 // PREVENTS: the length test this replaced. It accepted any 11-byte body, and a
 // legacy marker (body 4) with a 7-byte attribute stamped onto it is exactly 11.
-// Checker.ExpectedOrKeepalive silently accepts an unmatched EoR, so a .ci
+// Checker.expectedOrKeepalive silently accepts an unmatched EoR, so a .ci
 // asserting that a relayed marker arrives UNSTAMPED could only fail by timing
 // out: the stamped message it existed to refuse was classified as the very thing
 // it was waiting for.

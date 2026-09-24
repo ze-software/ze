@@ -104,3 +104,26 @@ func TestPrintTraceStepFallback(t *testing.T) {
 		t.Errorf("expected step number 3 in output, got: %s", out)
 	}
 }
+
+// TestPrintFailedStepsOnlyFailed proves the concise form prints the failed step
+// with its detail and drops the passing steps around it.
+func TestPrintFailedStepsOnlyFailed(t *testing.T) {
+	var buf bytes.Buffer
+	steps := []StepResult{
+		{Step: 1, Line: 5, Kind: "action", Assert: "open", Passed: true},
+		{Step: 2, Line: 8, Kind: "expect", Assert: "element", Passed: false, Detail: "not found"},
+		{Step: 3, Line: 9, Kind: "action", Assert: "click", Passed: true},
+	}
+	PrintFailedSteps(&buf, "test.wb", steps, false)
+	out := buf.String()
+
+	if !strings.Contains(out, "expect element -> not found") {
+		t.Errorf("failed step missing from output:\n%s", out)
+	}
+	if strings.Contains(out, "action open") || strings.Contains(out, "action click") {
+		t.Errorf("passing step printed:\n%s", out)
+	}
+	if strings.Count(out, "VERIFY STEP: ") != 1 {
+		t.Errorf("want one machine line:\n%s", out)
+	}
+}

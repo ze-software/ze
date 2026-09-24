@@ -167,7 +167,7 @@ type parallelRunner[T any] struct {
 	label          string         // test suite label for header
 	noHeader       bool           // if true, don't print header in Run (caller manages it)
 	noSummary      bool           // if true, skip Summary/TimingDetail/DebugHints in Run
-	onFail         func(T, error) // Called for each failed test (for verbose output)
+	onFail         func(T, error) // Called for each failed test to print its reason
 	onReport       func(*Tests)   // Called after run when there are failures (for PrintAllFailures)
 	onVerbose      func(*Tests)   // Called after run under -v, failures or not (for the step trace)
 	baseDir        string         // project root for timing baseline persistence
@@ -523,9 +523,12 @@ func (r *parallelRunner[T]) Run(ctx context.Context) bool {
 		r.onVerbose(r.display.tests)
 	}
 
-	// Verify mode must include concise failure detail in saved logs without
-	// making normal interactive runs verbose.
-	if (r.verbose || verifyModeEnabled()) && r.onFail != nil && len(failures) > 0 {
+	// Every failing test prints its reason: a run that says only "failed"
+	// sends the reader to re-run it under -v to learn why. The callback is
+	// concise (the error and the failing step), so a normal run stays short
+	// while passing tests print nothing. Quiet mode suppresses it, except in
+	// verify mode, whose saved logs MUST carry the reason.
+	if r.onFail != nil && len(failures) > 0 && (!r.quiet || r.verbose || verifyModeEnabled()) {
 		for _, f := range failures {
 			r.onFail(f.test, f.err)
 		}

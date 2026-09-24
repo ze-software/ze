@@ -196,7 +196,6 @@ func cmdWebMain(args []string) error {
 	if err != nil {
 		return err
 	}
-	defer zeTestCloseAllBrowserSessions()
 
 	colors := runner.NewColors()
 	pr := runner.NewParallelRunner[*zeTestWebTest](colors)
@@ -214,9 +213,13 @@ func cmdWebMain(args []string) error {
 
 	pr.SetOnFail(func(t *zeTestWebTest, _ error) {
 		fmt.Fprintf(os.Stdout, "  %s\n", t.GetError()) //nolint:errcheck // terminal output
-		if len(t.Steps) > 0 {
+		// Under -v the whole step trace shows what ran; otherwise only the
+		// failed step, so a normal run stays concise.
+		if *verbose {
 			trace.PrintTrace(os.Stdout, t.Name, t.Steps, colors.Enabled())
+			return
 		}
+		trace.PrintFailedSteps(os.Stdout, t.Name, t.Steps, colors.Enabled())
 	})
 
 	success := pr.Run(ctx)
@@ -288,7 +291,7 @@ func zeTestRunWebTest(ctx context.Context, test *zeTestWebTest, bins zeTestWebBi
 	defer srv.stop()
 
 	baseURL := tb.Reset().Str(scheme).Str(listenAddr).String()
-	result := webtesting.RunWBFileWithSession(test.Path, baseURL, test.Nick)
+	result := webtesting.RunWBFileWithSession(test.Path, baseURL, zeTestBrowserSession(test.Nick))
 	test.Steps = result.Steps
 
 	if result.Skipped {
@@ -772,7 +775,17 @@ func (s *zeTestWebServer) stop() {
 	}
 }
 
-func zeTestCloseAllBrowserSessions() {
-	cmd := exec.CommandContext(context.Background(), "agent-browser", "--ignore-https-errors", "close", "--all") //nolint:gosec // fixed binary name
-	cmd.Run()                                                                                                    //nolint:errcheck // best-effort cleanup
+// zeTestBrowserSession names the agent-browser session one test drives. The
+// agent-browser daemon is per user, not per process, so several ze-test web
+// runs on one host (sessions share the machine) see each other's sessions. A
+// name built from the test nick alone made two concurrent runs drive the SAME
+// browser for the same test number, and a run that closed its sessions killed
+// the other run's pages mid-step ("signal: killed" on open, or a page that
+// shows the other run's URL). The process id makes the name unique among the
+// runs alive at one time. Each test closes its own session when it finishes
+// (runWBTestCase), and AGENT_BROWSER_IDLE_TIMEOUT_MS reaps a daemon whose run
+// died, so no run ever closes a session it does not own.
+func zeTestBrowserSession(nick string) string {
+	var tb textbuf.Buffer
+	return tb.Str("ze-test-web-").Int(int64(os.Getpid())).Byte('-').Str(nick).String()
 }

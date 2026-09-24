@@ -265,7 +265,14 @@ The web suite runs each `.wb` test in parallel (capped at 4) with full per-test
 isolation: each test gets its own `ze` daemon (own port via `ReservePorts` + own
 tmpdir config store) and its own `agent-browser` session (via `AGENT_BROWSER_SESSION`
 env var), so `.wb` scenarios that mutate and `commit` config cannot corrupt each other.
+The session name carries the runner's process id and the test nick
+(`ze-test-web-<pid>-<nick>`). The `agent-browser` daemon is shared by every run
+on the host, so a name from the nick alone made two concurrent runs drive one
+browser for the same test number. Each test closes only its own session, and
+the daemon's idle timeout reaps a session whose run died. No run closes all
+sessions, because that kills the pages of every other run on the host.
 <!-- source: internal/test/cli/cmd_web.go -- zeTestRunWebTest, per-test ReservePorts + MkdirTemp + session -->
+<!-- source: internal/test/cli/cmd_web.go -- zeTestBrowserSession -->
 <!-- source: internal/component/web/testing/runner.go -- newBrowserWithSession, agentEnv sets AGENT_BROWSER_SESSION -->
 
 ## `.ci` and `.et` formats
@@ -448,8 +455,13 @@ They emit two trace formats through `internal/test/trace`:
 - **Human:** colored `checkmark`/`cross` glyphs, one line per step, with kind, assert, and failure detail.
 - **Machine:** `VERIFY STEP: {json}` token per step, matching the `VERIFY FAILURE GROUP` convention from `failure_group.go`.
 
-Trace is emitted automatically on failure (default tier). Under `-v`, passing
-tests also show their step trace. The `.ci` runner emits trace in failure
+Trace is emitted automatically on failure (default tier). Every suite on the
+parallel runner (`.ci`, parse, decode, editor, web) prints each failed test's
+reason in a normal run: the error, and for editor and web the failed step
+only (`trace.PrintFailedSteps`). Under `-v` a failed test prints its whole
+step trace, and passing tests also show theirs. Until 2026-09-24 the parallel
+runner called the failure callback only under `-v` or verify mode, so a normal
+`./le functional web` run named a failed test and never said why. The `.ci` runner emits trace in failure
 reports when `rec.StepTrace` is non-empty, and `Report.printStepTraces` prints
 every selected test's trace under `-v`. That last half was untrue for the `.ci`
 runner until 2026-09-07: `RunOptions.Verbose` was carried from the command line

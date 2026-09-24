@@ -38,6 +38,19 @@ func PrintTrace(w io.Writer, file string, steps []StepResult, colorEnabled bool)
 	}
 }
 
+// PrintFailedSteps writes the human and machine trace lines of the failed
+// steps only. A normal (non-verbose) run prints it for a failing test, so the
+// reader sees which step failed and why without the passing steps around it.
+func PrintFailedSteps(w io.Writer, file string, steps []StepResult, colorEnabled bool) {
+	for _, s := range steps {
+		if s.Passed {
+			continue
+		}
+		writeHuman(w, s, colorEnabled)
+		writeMachine(w, file, s)
+	}
+}
+
 func writeHuman(w io.Writer, s StepResult, colorEnabled bool) {
 	c := textbuf.C
 	loc := s.Step

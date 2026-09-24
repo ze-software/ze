@@ -139,6 +139,9 @@ screenlog.*
 /ze.audit.jsonl
 etc/ze/*.tmp
 etc/ze/debug.zefs
+# crashlog's runtime crash files (debug.SetCrashOutput): one per running
+# process, harvested into crash-*.log on the next start.
+etc/ze/crash/.pending/
 # The live config store is a TREE after storage-1, not a blob, so the rule
 # above it stopped covering it: `ze init --from etc/ze/database.zefs` now
 # writes a directory, its owner lock and, mid-import, its intent and stage.

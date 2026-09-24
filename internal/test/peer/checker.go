@@ -34,7 +34,7 @@ type Checker struct {
 	connectionJustEnded bool   // True if last match ended a connection (not just sequence)
 	expectClose         bool   // True after sighup action — next EOF is expected (daemon restarts peer)
 	// misorder holds one note per marker accepted in silence that ALSO matched an
-	// expectation the fixture still owed (ExpectedOrKeepalive). misorderPending is
+	// expectation the fixture still owed (expectedOrKeepalive). misorderPending is
 	// the note the caller has not read yet, so the peer can print it where it
 	// happened rather than only where a later frame fails.
 	misorder        []string
@@ -486,12 +486,12 @@ func (c *Checker) Expected(msg *Message) bool {
 	return false
 }
 
-// ExpectedOrKeepalive checks if message matches expectations.
+// expectedOrKeepalive checks if message matches expectations.
 // Returns (matched, silentAccept):
 //   - (true, false): message matched and was consumed
 //   - (false, true): KEEPALIVE not in expectations, silently accepted
 //   - (false, false): message doesn't match, should fail
-func (c *Checker) ExpectedOrKeepalive(msg *Message) (matched, silentAccept bool) {
+func (c *Checker) expectedOrKeepalive(msg *Message) (matched, silentAccept bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

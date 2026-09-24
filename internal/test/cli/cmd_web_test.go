@@ -1,6 +1,8 @@
 package cli
 
 import (
+	"os"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -24,5 +26,23 @@ func TestWebBrowserMissingFailsInVerifyMode(t *testing.T) {
 func TestWebBrowserMissingSkipsOutsideVerifyMode(t *testing.T) {
 	if err := webBrowserMissing(false); err != nil {
 		t.Fatalf("local runs without agent-browser must skip, got error: %v", err)
+	}
+}
+
+// TestZeTestBrowserSessionIsPerRun proves a test's browser session is owned by
+// its run. Method: the name carries this process id and the test nick, so two
+// concurrent ze-test web runs never drive one browser for the same test number.
+//
+// VALIDATES: zeTestBrowserSession embeds the pid and the nick.
+// PREVENTS: sessions keyed by nick alone, where one run's test N navigated and
+// closed the browser another run's test N was reading.
+func TestZeTestBrowserSessionIsPerRun(t *testing.T) {
+	got := zeTestBrowserSession("12")
+	want := "ze-test-web-" + strconv.Itoa(os.Getpid()) + "-12"
+	if got != want {
+		t.Fatalf("zeTestBrowserSession(12) = %q, want %q", got, want)
+	}
+	if zeTestBrowserSession("1") == zeTestBrowserSession("12") {
+		t.Fatal("two nicks share one session name")
 	}
 }

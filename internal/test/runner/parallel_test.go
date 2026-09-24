@@ -46,6 +46,47 @@ func TestParallelRunnerFailureLinesAppearWithoutVerboseWhenVerifyMode(t *testing
 	}
 }
 
+// TestParallelRunnerFailureReasonInNormalMode proves a normal run prints why a
+// test failed. Method: run one failing test with neither -v nor verify mode,
+// then once quiet, and count the failure callbacks.
+//
+// VALIDATES: a non-verbose, non-quiet run calls onFail for each failed test.
+// PREVENTS: a normal functional run that says a test failed but not why.
+func TestParallelRunnerFailureReasonInNormalMode(t *testing.T) {
+	t.Setenv("ZE_VERIFY_MODE", "")
+	env.ResetCache()
+	t.Cleanup(env.ResetCache)
+
+	for _, quiet := range []bool{false, true} {
+		r := NewParallelRunner[string](NewColorsWithOverride(false))
+		r.SetLabel("normal")
+		r.SetQuiet(quiet)
+		var reasons []string
+		r.SetOnFail(func(_ string, err error) {
+			reasons = append(reasons, err.Error())
+		})
+		r.addTestWithoutNick("broken-test", "fixture", func(context.Context, string) (bool, error) {
+			return false, errors.New("broken")
+		})
+		r.addTestWithoutNick("good-test", "fixture", func(context.Context, string) (bool, error) {
+			return true, nil
+		})
+		if r.Run(context.Background()) {
+			t.Fatalf("quiet=%v: expected runner failure", quiet)
+		}
+		want := 1
+		if quiet {
+			want = 0
+		}
+		if len(reasons) != want {
+			t.Fatalf("quiet=%v: onFail called %d times (%v), want %d", quiet, len(reasons), reasons, want)
+		}
+		if want == 1 && reasons[0] != "broken" {
+			t.Fatalf("onFail reason = %q, want %q", reasons[0], "broken")
+		}
+	}
+}
+
 // TestParallelRunnerHonorsConfiguredConcurrency verifies the configurable cap.
 //
 // VALIDATES: AC-3 — SetConcurrency(N) limits the scheduler to N concurrent tests.

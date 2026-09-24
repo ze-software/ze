@@ -143,7 +143,12 @@ func checkTagPackagesCompile(tree string, tags []Tag, carriers []Carrier) ([]str
 	if err != nil {
 		return nil, err
 	}
-	args := append([]string{"vet", "-framepointer", "-tags", tagsArg}, packages...)
+	// -trimpath drops the package directory from the compile cache key, so a
+	// tree at another path with the same content (an export of HEAD, a second
+	// worktree) reuses the checkout's compiled dependencies. Without it every
+	// new path recompiled them all: 104s and ten CPU-minutes against 12s,
+	// measured on one export on 2026-09-24.
+	args := append([]string{"vet", "-trimpath", "-framepointer", "-tags", tagsArg}, packages...)
 	ctx, cancel := context.WithTimeout(context.Background(), vetTimeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, "go", args...) //nolint:gosec // package paths are derived from files in the checkout

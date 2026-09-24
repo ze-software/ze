@@ -874,7 +874,7 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 		// Check mode: try to match message against expectations
 		p.replyKeepalive(conn)
 
-		matched, silentAccept := p.checker.ExpectedOrKeepalive(msg)
+		matched, silentAccept := p.checker.expectedOrKeepalive(msg)
 		if silentAccept {
 			// KEEPALIVE not in expectations, silently accept. A marker that also
 			// matched an expectation still owed is accepted the same way and said

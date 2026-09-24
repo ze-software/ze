@@ -651,11 +651,14 @@ func runWBTestCase(tc *WBTestCase, baseURL, session string) *WBTestResult {
 	}
 	// Free this test's browser session when it finishes. Sessions are keyed per
 	// test. Without this close, more than 80 live pages accumulate and starve the
-	// later tests. The suite-end sweep is only a backstop.
+	// later tests. A daemon whose run died is reaped by its idle timeout
+	// (browserIdleWindow), never by a sweep: agent-browser sessions are shared
+	// by every run on the host, so closing all of them kills other runs' pages.
 	//
 	// There is no leading Close here. A close immediately followed by Open makes
 	// agent-browser stop and start the same session back-to-back. The navigation
-	// can then stay on about:blank. Each test has a unique session, so its first
+	// can then stay on about:blank. The caller names a session unique to its
+	// run and test (zeTestBrowserSession in internal/test/cli), so its first
 	// Open already starts with a clean context.
 	defer browser.Close()
 

@@ -62,7 +62,7 @@ func mkOrderedChecker(t *testing.T) *Checker {
 func TestCheckerEORExpectedInALaterGroupIsNamedByTheFailure(t *testing.T) {
 	c := mkOrderedChecker(t)
 
-	matched, silent := c.ExpectedOrKeepalive(mkFrame(t, orderEORHex))
+	matched, silent := c.expectedOrKeepalive(mkFrame(t, orderEORHex))
 	assert.False(t, matched, "the marker does not satisfy the seq-1 announce expectation")
 	assert.True(t, silent, "the marker is accepted: a second identical one can still fill seq 2")
 
@@ -70,11 +70,11 @@ func TestCheckerEORExpectedInALaterGroupIsNamedByTheFailure(t *testing.T) {
 	assert.Contains(t, note, orderEORHex,
 		"the marker must be recorded where it landed, so a run that ends in a timeout still names it")
 
-	matched, _ = c.ExpectedOrKeepalive(mkFrame(t, orderAnnounceHex))
+	matched, _ = c.expectedOrKeepalive(mkFrame(t, orderAnnounceHex))
 	assert.True(t, matched, "the announce satisfies seq 1")
 
 	// seq 2 owes a marker, and the only frame left is the withdraw.
-	matched, silent = c.ExpectedOrKeepalive(mkFrame(t, orderWithdrawHex))
+	matched, silent = c.expectedOrKeepalive(mkFrame(t, orderWithdrawHex))
 	assert.False(t, matched, "the withdraw does not satisfy the seq-2 marker expectation")
 	assert.False(t, silent, "a withdraw is no marker and is never accepted in silence")
 
@@ -101,7 +101,7 @@ func TestCheckerEORUnexpectedIsStillSwallowed(t *testing.T) {
 	require.NoError(t, err)
 	c.Init()
 
-	matched, silent := c.ExpectedOrKeepalive(mkFrame(t, orderEORHex))
+	matched, silent := c.expectedOrKeepalive(mkFrame(t, orderEORHex))
 
 	assert.False(t, matched)
 	assert.True(t, silent, "a marker no expectation asks for is noise and stays silent")
@@ -118,7 +118,7 @@ func TestCheckerEORInOrderMatchesAcrossGroups(t *testing.T) {
 	c := mkOrderedChecker(t)
 
 	for _, frameHex := range []string{orderAnnounceHex, orderEORHex, orderWithdrawHex} {
-		matched, silent := c.ExpectedOrKeepalive(mkFrame(t, frameHex))
+		matched, silent := c.expectedOrKeepalive(mkFrame(t, frameHex))
 		assert.True(t, matched, "frame %s must match its own expectation", frameHex)
 		assert.False(t, silent, "a matched frame is never a silent accept")
 	}

@@ -47,14 +47,14 @@ func TestCheckerRelayShapeToleratesAnEarlyIdenticalMarker(t *testing.T) {
 	require.NoError(t, err)
 	c.Init()
 
-	matched, silent := c.ExpectedOrKeepalive(mkFrame(t, relayEORHex))
+	matched, silent := c.expectedOrKeepalive(mkFrame(t, relayEORHex))
 	assert.False(t, matched, "the marker does not satisfy the seq-1 route expectation")
 	assert.True(t, silent, "ze's own establishment marker is not the fixture's business")
 	assert.Contains(t, c.takeMisorderNote(), relayEORHex,
 		"it is accepted, and recorded: had the run gone on to fail, this frame is a suspect")
 
 	for _, frameHex := range []string{relayRouteHex, relayWithdrawHex, relayEORHex} {
-		m, s := c.ExpectedOrKeepalive(mkFrame(t, frameHex))
+		m, s := c.expectedOrKeepalive(mkFrame(t, frameHex))
 		assert.True(t, m, "frame %.46s must satisfy its own expectation", frameHex)
 		assert.False(t, s)
 	}
@@ -74,7 +74,7 @@ func TestCheckerRelayShapeInDeclaredOrder(t *testing.T) {
 	c.Init()
 
 	for _, frameHex := range []string{relayRouteHex, relayWithdrawHex, relayEORHex} {
-		m, s := c.ExpectedOrKeepalive(mkFrame(t, frameHex))
+		m, s := c.expectedOrKeepalive(mkFrame(t, frameHex))
 		assert.True(t, m, "frame %.46s must satisfy its own expectation", frameHex)
 		assert.False(t, s)
 	}

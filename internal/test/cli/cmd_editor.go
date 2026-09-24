@@ -180,9 +180,13 @@ func runEditorTests(tests *runner.EditorTests, baseDir string, verbose, quiet bo
 		if t.TempDir != "" {
 			fmt.Fprintf(os.Stdout, "  temp dir: %s\n", t.TempDir) //nolint:errcheck // terminal output
 		}
-		if len(t.Steps) > 0 {
+		// Under -v the whole step trace shows what ran; otherwise only the
+		// failed step, so a normal run stays concise.
+		if verbose {
 			trace.PrintTrace(os.Stdout, t.Name, t.Steps, colors.Enabled())
+			return
 		}
+		trace.PrintFailedSteps(os.Stdout, t.Name, t.Steps, colors.Enabled())
 	})
 
 	success := pr.Run(context.Background())
