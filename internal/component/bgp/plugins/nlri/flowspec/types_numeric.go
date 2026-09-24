@@ -20,6 +20,7 @@ import (
 type numericComponent struct {
 	compType FlowComponentType
 	matches  []FlowMatch
+	wireData []byte // received operator bytes, retained for RFC 8955 binary precedence
 }
 
 func (c *numericComponent) Type() FlowComponentType { return c.compType }
@@ -42,6 +43,7 @@ func (c *numericComponent) mergeMatches(other *numericComponent) {
 	}
 
 	joined := len(c.matches)
+	c.wireData = nil
 	c.matches = append(c.matches, other.matches...)
 	c.matches[joined].And = false
 }
@@ -58,47 +60,8 @@ func (c *numericComponent) Values() []uint64 {
 // Bytes returns the wire encoding per RFC 8955 Section 4.2.1.1.
 // Format: <type (1 octet), [numeric_op, value]+>.
 func (c *numericComponent) Bytes() []byte {
-	data := []byte{byte(c.compType)}
-
-	for i, m := range c.matches {
-		// Determine value length - RFC 8955 Section 4.2.1.1:
-		// len field encodes (1 << len) bytes: 0=1, 1=2, 2=4, 3=8 octets
-		var lenCode, valueLen byte
-		switch {
-		case m.Value <= 0xFF:
-			lenCode, valueLen = 0, 1
-		case m.Value <= 0xFFFF:
-			lenCode, valueLen = 1, 2
-		default: // > 0xFFFF
-			lenCode, valueLen = 2, 4
-		}
-
-		// Build operator byte per RFC 8955 Section 4.2.1.1:
-		// [e][a][len:2][0][lt][gt][eq]
-		op := lenCode << 4
-		if m.And {
-			op |= byte(FlowOpAnd) // Set 'a' bit
-		}
-		if i == len(c.matches)-1 {
-			op |= byte(FlowOpEnd) // Set 'e' bit on last pair
-		}
-		op |= byte(m.Op) // Add comparison operator bits (lt, gt, eq)
-
-		data = append(data, op)
-
-		// Encode value in network byte order (big-endian)
-		switch valueLen {
-		case 1:
-			data = append(data, byte(m.Value))
-		case 2:
-			data = append(data, byte(m.Value>>8), byte(m.Value))
-		case 4:
-			var buf [4]byte
-			binary.BigEndian.PutUint32(buf[:], uint32(m.Value)) //nolint:gosec // Flowspec value size validated
-			data = append(data, buf[:]...)
-		}
-	}
-
+	data := make([]byte, c.Len())
+	c.WriteTo(data, 0)
 	return data
 }
 
@@ -208,6 +171,9 @@ func fragmentFlagsToString(flags FlowFragmentFlag) string {
 
 // Len returns the wire-format length in bytes.
 func (c *numericComponent) Len() int {
+	if c.compType == FlowFragment {
+		return 1 + 2*len(c.matches)
+	}
 	n := 1 // type byte
 	for _, m := range c.matches {
 		n++ // operator byte
@@ -216,8 +182,10 @@ func (c *numericComponent) Len() int {
 			n++
 		case m.Value <= 0xFFFF:
 			n += 2
-		default: // > 0xFFFF
+		case m.Value <= 0xFFFFFFFF:
 			n += 4
+		default:
+			n += 8
 		}
 	}
 	return n
@@ -226,11 +194,22 @@ func (c *numericComponent) Len() int {
 // WriteTo writes the component directly to buf at offset.
 // Returns bytes written.
 func (c *numericComponent) WriteTo(buf []byte, off int) int {
+	return c.writeToAFI(buf, off, AFIIPv4)
+}
+
+// writeToAFI applies the enclosing NLRI's fragment semantics without changing
+// a component that may also be shared by another address family's rule.
+func (c *numericComponent) writeToAFI(buf []byte, off int, afi AFI) int {
 	pos := off
 	buf[pos] = byte(c.compType)
 	pos++
 
 	for i, m := range c.matches {
+		if c.compType == FlowFragment {
+			// Both families require one octet. Remove reserved bits before
+			// choosing its width, including IPv6's absent Don't Fragment bit.
+			m.Value &= fragmentMask(afi)
+		}
 		// Determine value length
 		var lenCode, valueLen byte
 		switch {
@@ -238,19 +217,27 @@ func (c *numericComponent) WriteTo(buf []byte, off int) int {
 			lenCode, valueLen = 0, 1
 		case m.Value <= 0xFFFF:
 			lenCode, valueLen = 1, 2
-		default: // > 0xFFFF
+		case m.Value <= 0xFFFFFFFF:
 			lenCode, valueLen = 2, 4
+		default:
+			lenCode, valueLen = 3, 8
 		}
 
 		// Build operator byte
 		op := lenCode << 4
-		if m.And {
+		// RFC 8955 Section 4.2.1.1: the first AND bit MUST be unset.
+		if i > 0 && m.And {
 			op |= byte(FlowOpAnd)
 		}
 		if i == len(c.matches)-1 {
 			op |= byte(FlowOpEnd)
 		}
-		op |= byte(m.Op)
+		// RFC 8955 Sections 4.2.1.1-2: reserved bits MUST be zero on encoding.
+		mask := FlowOperator(0x07)
+		if c.compType == FlowTCPFlags || c.compType == FlowFragment {
+			mask = 0x03
+		}
+		op |= byte(m.Op & mask)
 
 		buf[pos] = op
 		pos++
@@ -267,10 +254,21 @@ func (c *numericComponent) WriteTo(buf []byte, off int) int {
 		case 4:
 			binary.BigEndian.PutUint32(buf[pos:], uint32(m.Value)) //nolint:gosec // Flowspec value size validated
 			pos += 4
+		case 8:
+			binary.BigEndian.PutUint64(buf[pos:], m.Value)
+			pos += 8
 		}
 	}
 
 	return pos - off
+}
+
+func fragmentMask(afi AFI) uint64 {
+	if afi == AFIIPv6 {
+		// RFC 8956 Section 3.6: LF=8, FF=4, IsF=2; all other bits reserved.
+		return 0x0e
+	}
+	return 0x0f
 }
 
 // CheckedWriteTo validates capacity before writing.
@@ -286,7 +284,7 @@ func (c *numericComponent) CheckedWriteTo(buf []byte, off int) (int, error) {
 // RFC 8955 Section 4.2.1.1 defines the numeric operator format.
 // The component consists of a list of {operator, value} pairs.
 // Encoding: <type (1 octet), [numeric_op, value]+>.
-func parseNumericComponent(t FlowComponentType, data []byte) (FlowComponent, []byte, error) {
+func parseNumericComponent(t FlowComponentType, data []byte, afi AFI) (FlowComponent, []byte, error) {
 	if len(data) == 0 {
 		return nil, nil, ErrFlowSpecTruncated
 	}
@@ -301,9 +299,11 @@ func parseNumericComponent(t FlowComponentType, data []byte) (FlowComponent, []b
 		// Determine value length from operator's len field (bits 2-3)
 		// RFC 8955 Section 4.2.1.1: length = 1 << len (1, 2, 4, or 8 octets)
 		lenCode := (op & FlowOpLenMask) >> 4
-		valueLen := min(1<<lenCode,
-			// Note: RFC allows 8 octets (len=11), but we cap at 4 for uint32 values
-			4)
+		valueLen := 1 << lenCode
+		if (t == FlowTCPFlags && valueLen > 2) ||
+			((t == FlowDSCP || t == FlowFragment) && valueLen != 1) {
+			return nil, nil, ErrFlowSpecTruncated
+		}
 
 		if offset+valueLen > len(data) {
 			return nil, nil, ErrFlowSpecTruncated
@@ -315,29 +315,32 @@ func parseNumericComponent(t FlowComponentType, data []byte) (FlowComponent, []b
 			value = value<<8 | uint64(data[offset+i])
 		}
 
-		// Extract comparison operator bits (mask out EOL, AND, LEN bits)
-		// The remaining bits are lt, gt, eq per RFC 8955 Table 1
-		compOp := op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask)
+		// RFC 8955 Sections 4.2.1.1-2: reserved bits MUST be ignored.
+		mask := FlowOperator(0x07)
+		if t == FlowTCPFlags || t == FlowFragment {
+			mask = 0x03
+		}
+		compOp := op & mask
+		if t == FlowFragment {
+			// RFC 8955 Section 4.2.2.12 and RFC 8956 Section 3.6.
+			value &= fragmentMask(afi)
+		}
 
 		matches = append(matches, FlowMatch{
 			Op:    compOp,
-			And:   op&FlowOpAnd != 0,
+			And:   len(matches) > 0 && op&FlowOpAnd != 0,
 			Value: value,
 		})
 		offset += valueLen
 
 		// Check for end of list (RFC 8955: 'e' bit set in last pair)
 		if op&FlowOpEnd != 0 {
-			break
+			return &numericComponent{compType: t, matches: matches, wireData: append([]byte(nil), data[:offset]...)}, data[offset:], nil
 		}
 	}
 
-	comp := &numericComponent{
-		compType: t,
-		matches:  matches,
-	}
-
-	return comp, data[offset:], nil
+	// A component without its terminating EOL bit is incomplete.
+	return nil, nil, ErrFlowSpecTruncated
 }
 
 // ============================================================================

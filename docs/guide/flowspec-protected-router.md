@@ -73,7 +73,7 @@ set bgp peer flowspec-rr session asn local 65010
 set bgp peer flowspec-rr session asn remote 65010
 set bgp peer flowspec-rr session family ipv4/flow mode enable
 set bgp peer flowspec-rr session family ipv4/flow prefix maximum 1000
-set bgp peer flowspec-rr attach process flowspec-firewall receive [ update-received state ]
+set bgp peer flowspec-rr session family ipv4/unicast mode enable
 EOF
 
 /usr/local/bin/ze config migrate -o "$CONFIG_IMPORT" format hierarchical "$CONFIG_SET"
@@ -92,15 +92,67 @@ What each block does:
 
 | Config | Purpose |
 | --- | --- |
-| `plugin internal flowspec-firewall` | Starts the in-process bridge that listens for FlowSpec UPDATE events. |
+| `plugin internal flowspec-firewall` | Starts the bridge and subscribes to validated BGP RIB best-path changes. |
 | `firewall backend nft` | Uses Linux nftables as the firewall backend. |
 | `control-plane-protection bgp` | Rate-limits new TCP connections to the protected BGP port. |
 | `trusted-source` | Bypasses CoPP for known BGP route reflectors or upstream routers. |
 | `family ipv4/flow` | Negotiates IPv4 FlowSpec with the route reflector. |
-| `attach process flowspec-firewall { receive [ update-received state ]; }` | Feeds the plugin the FlowSpec routes this peer announces, and its session state. Without the receive list the peer feeds it nothing. |
 | `ddos flowspec` | Optional automatic upstream mitigation policy for the DDoS pipeline. |
 
 `over-limit-policy drop` is intentionally strict. During first turn-up you can use `accept` to observe without dropping, then switch to `drop` after counters and logs look correct.
+
+The bridge receives selected routes from `bgp-rib`. Received UPDATE events do
+not program the firewall. The RIB validates FlowSpec against unicast reachability
+and removes rules when authorization is lost. Startup requests replay the
+current selected rules, including their action communities.
+The same peer must also supply eligible unicast reachability covering the
+protected destination, or reflect it with the matching ORIGINATOR_ID. With no
+covering unicast route, a received external FlowSpec rule cannot authorize
+itself. Enabling the unicast family above supplies that validation input.
+
+The firewall applies an attribute-only replacement to the same rule and removes
+the old action even when the replacement cannot be enforced. Native NLRI length
+encoding does not create a second rule. VPN FlowSpec remains a BGP validation
+and propagation capability; this global firewall bridge installs SAFI 133 only.
+
+At initial configuration, after the firewall backend is ready, the bridge
+clears any `ze_flowspec` table left by a previous process before requesting
+replay. Live plugin removal suspends selected-route callbacks while it withdraws
+the table. A failed reconcile restores the previous desired rules and returns
+an error without disabling delivery, so the running configuration remains
+usable and removal can be retried. Successful removal stops delivery. Daemon
+shutdown remains governed by `firewall { flush-on-shutdown ...; }`; the bridge
+does not flush separately.
+A compensating Configure after failed removal preserves that live subscription
+and selection; it does not repeat the startup sweep. Initialization is complete
+only after replay succeeds. A failed initial replay removes its partial rules
+and subscription instead of treating that partial view as configured.
+
+<!-- source: internal/plugins/flowspec-firewall/engine.go -- clearStaleRules, removeRules and runEngine -->
+
+<!-- source: internal/plugins/flowspec-firewall/selected.go -- handleSelected -->
+
+Enabling a FlowSpec family derives a `bgp-rib` receive binding for every BGP
+peer, including unicast-only peers and dynamic group templates. An explicit
+binding must grant `update-received` and `state`; a narrower binding is refused
+at configuration load because it would hide routes needed for authorization.
+This does not grant the RIB permission to send routes.
+
+FlowSpec authorization requires an internal `bgp-rib`. A `bgp-rs`, `bgp-rr` or
+`bgp-adj-rib-in` process that receives a FlowSpec peer's state and has
+`send [ update ]` permission must also run internally: its peer-up replay reads
+the same process-local selecting RIB. Process aliases do not change this
+requirement. An Adj-RIB-In that normally delegates replay still needs access,
+because it resumes replay when the forwarder's per-peer ownership is absent.
+External processes attached only to unicast peers, or without the state and
+UPDATE-send grants needed for replay, remain supported.
+Execution mode comes from the effective plugin declaration: `use bgp-rib`
+runs in-process even inside an `external` stanza, while
+`run "ze plugin bgp-rib"` forks a subprocess. Validation and derived receive
+bindings use that same resolved declaration.
+
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
+<!-- source: internal/component/bgp/config/flowspec_binding.go -- requireRIBDelivery -->
 
 ## 3. Check the firewall backend
 
@@ -115,7 +167,7 @@ The FlowSpec bridge generates an nft table named `ze_flowspec`. The `ze_` prefix
 
 | Chain | Hook | Used for |
 | --- | --- | --- |
-| `flowspec-fwd` | `forward` | Transit traffic that matches non-local FlowSpec destinations. |
+| `flowspec-fwd` | `forward` | Transit packets matching any selected FlowSpec rule. |
 | `flowspec-in` | `input` | Locally terminated traffic for addresses owned by the router. |
 
 ### What the bridge enforces, and what it refuses
@@ -126,26 +178,63 @@ enforces the ten protocol names the firewall backends know (`icmp`, `tcp`,
 `udp`, `gre`, `esp`, `ah`, `icmpv6`, `ospf`, `vrrp`, `sctp`, listed with their
 IANA numbers in the firewall guide) and refuses a route naming any other value.
 
+Port components are restricted to TCP and UDP by RFC 8955 Sections 4.2.2.4-6,
+including when the rule omits an explicit protocol. SCTP protocol-only rules
+can be enforced; SCTP combined with a port component matches no packet and is
+refused. ICMP type components select ICMPv4 or ICMPv6 according to the NLRI
+family. TCP flag bitmasks are enforced when one masked equality expresses the
+whole predicate; unsupported alternatives are refused rather than truncated.
+
+<!-- source: internal/plugins/flowspec-firewall/transport.go -- transportProtocols and tcpFlagsMatch -->
+<!-- source: internal/plugins/flowspec-firewall/translate.go -- componentToMatch -->
+
 A refused route is logged with the protocol number and the route key, and
 counted in `ze_flowspec_rules_refused_total`. It installs nothing. Ze does not
 install the same rule with the protocol condition removed: that rule would drop
 more traffic than the peer asked it to drop.
 
-A refused route stops at the bridge and goes no further. Routes ze CAN enforce,
-and the rulesets of every other firewall owner, continue to reach the kernel.
+A bridge refusal prevents local firewall installation. The route remains
+available to BGP policy and propagation. Other enforceable FlowSpec rules and
+the rulesets of other firewall owners continue to reach the kernel.
 
 <!-- source: internal/plugins/flowspec-firewall/translate.go -- protocolMatches -->
 
-### Traffic filtering actions ze does not perform
+### Traffic filtering actions
 
-Ze performs three of the RFC 8955 Section 7 traffic filtering actions:
-traffic-rate-bytes, traffic-rate-packets and traffic-marking. It does not
-perform rt-redirect (Section 7.4), traffic-action (Section 7.3), or the
-redirect-to-nexthop pair of draft-ietf-idr-flowspec-redirect-ip.
+Ze performs traffic-rate-bytes, traffic-rate-packets, traffic-marking and
+traffic-action. The Terminal Action bit has the RFC's counterintuitive meaning:
+set continues to later matching rules; clear stops evaluation. Sample enables
+packet logging. Rules without an action use normal forwarding.
 
-Section 7.4 gives rt-redirect three encodings: a two-octet AS, an IPv4 address,
-and a four-octet AS. Ze refuses all three alike. A four-byte-ASN peer therefore
-gets the same answer as a two-byte-ASN peer.
+Rules are ordered by their NLRI components, not by receipt time or peer name.
+Each matching rule is sampled and rate-limited once even when both its source-
+and destination-port alternatives match. The limiter drops excess traffic;
+conforming traffic proceeds according to the Terminal Action bit. Marking is
+deferred until all applicable matches have been evaluated against the original
+packet header. If several matching rules request different DSCP values, the
+highest-precedence marking rule wins. Discard takes precedence over marking
+and normal forwarding.
+
+When one route carries several limits in the same unit, the lowest rate wins.
+A route asking for both byte and packet limits is refused because the bridge
+has one limiter per rule and cannot enforce both dimensions together.
+
+<!-- source: internal/plugins/flowspec-firewall/state.go -- buildTable -->
+<!-- source: internal/plugins/flowspec-firewall/rule_chains.go -- ruleChains and markingTerms -->
+
+Known rt-redirect, redirect-to-nexthop and copy-to-nexthop actions remain
+unperformable by this bridge. This includes IPv6 next hops carried in the
+20-octet IPv6 extended-community attribute, not just ordinary eight-octet
+communities. Unknown generic transitive communities have no local packet
+action. They remain available to BGP policy and propagation.
+
+<!-- source: internal/plugins/flowspec-firewall/selected.go -- handleSelected -->
+
+RFC 8955 Section 7.4 gives rt-redirect three encodings: a two-octet AS, an IPv4
+address and a four-octet AS. RFC 8956 Section 6.1 adds the IPv6-address-specific
+route-target redirect with the complete type value `0x000d` in attribute 25.
+Ze recognizes and refuses all four; the IPv6 route-target form is distinct
+from the subtype `0x0c` redirect-to-next-hop action.
 
 <!-- source: internal/plugins/flowspec-firewall/translate.go -- unperformableAction -->
 
@@ -169,7 +258,11 @@ accepted.
 
 The bridge only programs nftables from FlowSpec that `edge-01` *receives*, so the rule must be announced from a peer toward `edge-01`, not injected on `edge-01` itself. Use a lab prefix first. The example below drops TCP traffic to `10.0.0.0/8` port 80.
 
-If the source (`flowspec-rr`, `203.0.113.1`) is a Ze node, announce toward `edge-01` (`192.0.2.10`) with the required `peer <selector>` prefix:
+The source must already announce eligible unicast reachability covering
+`10.0.0.0/8`, as described above. Without that route, the validation gate
+refuses the FlowSpec and no firewall rule appears.
+
+If the source (`flowspec-rr`, `203.0.113.1`) is a Ze node, announce toward `edge-01` (`192.0.2.10`) with its peer selector:
 
 ```bash
 export XDG_RUNTIME_DIR=/run/ze
@@ -239,4 +332,6 @@ sudo /usr/local/bin/ze config rollback 1 edge-01.conf
 sudo systemctl reload ze.service
 ```
 
-Use the revision number from `ze config history`. To stop enforcing received FlowSpec while keeping the BGP session, remove the `attach process flowspec-firewall` binding and the `plugin internal flowspec-firewall` line with the same zefs update pattern, validate, import, and reload.
+Use the revision number from `ze config history`. To stop filtering while keeping
+the BGP session, remove the `plugin internal flowspec-firewall` line, validate
+the configuration, import it, and reload.

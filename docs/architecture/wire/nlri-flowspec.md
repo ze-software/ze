@@ -107,6 +107,25 @@ else:
 +---------------------------+
 ```
 
+The pattern contains `ceil((length-offset)/8)` octets, starting at the first
+matched address bit. The native writer zeroes final padding; the decoder ignores
+it and reconstructs a masked address with the skipped bits clear. Except for
+`length=offset=0`, bounds must satisfy `offset < length <= 128`. Configured
+offsets and received wire bounds are checked rather than silently replaced by
+zero. Unicast authorization requires a destination offset of zero; the firewall
+also refuses nonzero source offsets because its address match is a CIDR.
+
+The builder also rejects a prefix from the wrong address family and multiple
+values for one prefix component. A malformed token anywhere in a numeric,
+protocol or flag list refuses the complete configured criterion, including
+partly readable AND expressions. Type 13 (Flow Label) is accepted only in IPv6.
+Empty lists and criteria with no value are rejected before component
+construction, so a valid prefix cannot conceal a missing constraint.
+
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/config_builder.go -- buildFlowSpecComponents -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- AddComponent and parseFlowComponent -->
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/config.go -- flowSpecCriteriaFromContent -->
+
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/types_prefix.go -- prefix component encoding -->
 
 ---
@@ -147,11 +166,21 @@ Common to all non-prefix components:
 | Bits | Operator |
 |------|----------|
 | 00 | include (any bit set) |
-| 01 | match (exact match) |
+| 01 | match (all selected bits set) |
 | 10 | not (none set) |
-| 11 | diff (not exact match) |
+| 11 | diff (at least one selected bit clear) |
 
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/types.go -- FlowOperator type and flags -->
+
+Decoding ignores the reserved operator bits and the first operator's AND bit.
+Numeric operands retain all eight octets when their length code is 3. TCP flag
+operands accept one or two octets; DSCP and fragment operands require one.
+Fragment operands always occupy one octet on encoding. The enclosing NLRI family
+selects the reserved-bit mask: IPv4 permits `0x0f`, while IPv6 permits `0x0e`
+(IsF=`0x02`, FF=`0x04`, LF=`0x08`). IPv6 ignores DF and all other reserved bits
+on reception and clears them on transmission. Components can be shared between
+families without changing their semantic flags.
+An operator list without an end-of-list bit is malformed.
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/types_numeric.go -- numericComponent, parseNumericComponent -->
 
 ---
@@ -372,6 +401,30 @@ d4 01 f4           len=2, end, AND, lt   <500
 A peer that receives two Type 4 components instead reads the UPDATE as malformed.
 GoBGP 3.31 logs "ipv4-flowspec nlri violate strict type ordering" and resets the
 session.
+
+### Packet-filter precedence
+
+<!-- source: internal/component/bgp/plugins/nlri/flowspec/compare.go -- Compare -->
+<!-- source: internal/plugins/flowspec-firewall/state.go -- ruleMap.buildTable -->
+
+The firewall orders complete FlowSpec rules with the RFC 8955 Section 5.1
+component comparison. More-specific overlapping prefixes precede their covering
+prefixes. Disjoint prefixes use address order. Numeric and bitmask components
+use binary comparison, with the longer component first when the common bytes
+are equal. Expanded terms from one rule remain together.
+
+IPv6 prefixes compare their offsets first, with the lower offset taking
+precedence, then use the same prefix comparison. Received numeric and bitmask
+bytes retain their operand widths for ordering even when a retransmission
+uses a shorter encoding. A rule's length octets frame the NLRI and do not
+change its identity on replacement or withdrawal.
+
+<!-- source: internal/plugins/flowspec-firewall/selected.go -- handleSelected -->
+<!-- source: internal/core/bgp/nlri/nlrisplit/prefix_key.go -- keyFlowSpec -->
+
+RFC 8955 obsoletes RFC 5575. Its next-hop, VPN length and ordering requirements
+remain binding. RFC 9117 updates validation; RFC 8956 adds IPv6 component
+semantics, and RFC 9184 updates registry names.
 
 ---
 

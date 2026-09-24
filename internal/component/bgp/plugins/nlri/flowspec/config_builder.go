@@ -5,7 +5,6 @@
 package flowspec
 
 import (
-	"log/slog"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -40,29 +39,36 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 		}
 	}
 
-	// Add destination prefix (first value only - prefix is singular). Both
-	// spellings are looked up and the operator's own word is what a refusal
-	// names, so the message quotes the config rather than an internal key.
+	// Prefix components are singular. Refuse multiple values rather than
+	// silently selecting the first; report the operator's criterion name.
 	if key, vals, ok := prefixCriterion(matchCriteria, kwDestinationIPv4, kwDestinationIPv6); ok {
 		seen[key] = true
-		if prefix, offset := parseFlowPrefixWithOffset(first(vals)); !prefix.IsValid() {
-			dropped = append(dropped, key)
-		} else if prefix.Addr().Is6() && offset > 0 {
+		switch len(vals) {
+		case 1:
+			prefix, offset := parseFlowPrefixWithOffset(vals[0])
+			if !prefix.IsValid() {
+				dropped = append(dropped, key)
+				break
+			}
 			add(key, newFlowDestPrefixComponentWithOffset(prefix, offset))
-		} else {
-			add(key, NewFlowDestPrefixComponent(prefix))
+		default:
+			dropped = append(dropped, key)
 		}
 	}
 
-	// Add source prefix (first value only - prefix is singular)
+	// Source prefixes have the same singular-value requirement.
 	if key, vals, ok := prefixCriterion(matchCriteria, kwSourceIPv4, kwSourceIPv6); ok {
 		seen[key] = true
-		if prefix, offset := parseFlowPrefixWithOffset(first(vals)); !prefix.IsValid() {
-			dropped = append(dropped, key)
-		} else if prefix.Addr().Is6() && offset > 0 {
+		switch len(vals) {
+		case 1:
+			prefix, offset := parseFlowPrefixWithOffset(vals[0])
+			if !prefix.IsValid() {
+				dropped = append(dropped, key)
+				break
+			}
 			add(key, newFlowSourcePrefixComponentWithOffset(prefix, offset))
-		} else {
-			add(key, NewFlowSourcePrefixComponent(prefix))
+		default:
+			dropped = append(dropped, key)
 		}
 	}
 
@@ -144,46 +150,37 @@ func buildFlowSpecComponents(matchCriteria map[string][]string, isIPv6 bool) (*F
 	return fs, dropped
 }
 
-// first returns the first element of s, or "" if s is empty.
-func first(s []string) string {
-	if len(s) == 0 {
-		return ""
-	}
-	return s[0]
-}
-
 // parseFlowPrefixWithOffset parses a FlowSpec prefix like "10.0.0.1/32" or "::1/128/120".
 // Returns the prefix and offset (0 if no offset).
 func parseFlowPrefixWithOffset(s string) (netip.Prefix, uint8) {
-	// Handle IPv6 offset format: addr/len/offset
 	parts := strings.Split(s, "/")
-	if len(parts) >= 2 {
-		addrStr := parts[0]
-		lenStr := parts[1]
-		var offset uint8
-		if len(parts) >= 3 {
-			if off, err := strconv.Atoi(parts[2]); err == nil && off >= 0 && off <= 255 {
-				offset = uint8(off) // #nosec G115 -- bounds checked
-			}
-		}
-
-		addr, err := netip.ParseAddr(addrStr)
-		if err != nil {
-			return netip.Prefix{}, 0
-		}
-		prefixLen, err := strconv.Atoi(lenStr)
-		if err != nil {
-			return netip.Prefix{}, 0
-		}
-		return netip.PrefixFrom(addr, prefixLen), offset
+	if len(parts) < 2 {
+		return netip.Prefix{}, 0
 	}
-
-	// Try parsing as simple prefix
-	prefix, err := netip.ParsePrefix(s)
+	if len(parts) > 3 {
+		return netip.Prefix{}, 0
+	}
+	prefix, err := netip.ParsePrefix(parts[0] + "/" + parts[1])
 	if err != nil {
 		return netip.Prefix{}, 0
 	}
-	return prefix, 0
+	if len(parts) == 2 {
+		return prefix, 0
+	}
+	value, err := strconv.ParseUint(parts[2], 10, 8)
+	if err != nil {
+		return netip.Prefix{}, 0
+	}
+	if value == 0 {
+		return prefix, 0
+	}
+	if !prefix.Addr().Is6() {
+		return netip.Prefix{}, 0
+	}
+	if int(value) >= prefix.Bits() {
+		return netip.Prefix{}, 0
+	}
+	return prefix, uint8(value)
 }
 
 // parseFlowProtocolMatches parses protocol values with operators.
@@ -210,9 +207,13 @@ func parseFlowProtocolMatches(s string) []FlowMatch {
 		p = strings.ToLower(p)
 		if v, ok := protocolNameToNumber[p]; ok {
 			result = append(result, FlowMatch{Op: op, Value: uint64(v)})
-		} else if n, err := strconv.ParseUint(p, 10, 8); err == nil {
-			result = append(result, FlowMatch{Op: op, Value: n})
+			continue
 		}
+		n, err := strconv.ParseUint(p, 10, 8)
+		if err != nil {
+			return nil
+		}
+		result = append(result, FlowMatch{Op: op, Value: n})
 	}
 	return result
 }
@@ -255,13 +256,11 @@ func parseFlowMatches(s string) []FlowMatch {
 				op = FlowOpEqual
 			}
 
-			if n, err := strconv.ParseUint(rp, 10, 32); err == nil {
-				result = append(result, FlowMatch{
-					Op:    op,
-					And:   isAnd,
-					Value: n,
-				})
+			n, err := strconv.ParseUint(rp, 10, 64)
+			if err != nil {
+				return nil
 			}
+			result = append(result, FlowMatch{Op: op, And: isAnd, Value: n})
 		}
 	}
 	return result
@@ -275,9 +274,11 @@ func parseFlowOctets(s string) []uint8 {
 
 	for _, p := range parts {
 		p = strings.TrimPrefix(p, "=")
-		if n, err := strconv.ParseUint(p, 10, 8); err == nil {
-			result = append(result, uint8(n))
+		n, err := strconv.ParseUint(p, 10, 8)
+		if err != nil {
+			return nil
 		}
+		result = append(result, uint8(n))
 	}
 	return result
 }
@@ -306,7 +307,7 @@ var icmpTypeNames = map[string]uint8{
 
 // parseFlowICMPTypes parses ICMP type values or names.
 // Handles: [ unreachable echo-request echo-reply ] or [ 3 8 0 ] or [ =3 =8 =0 ].
-// Unknown names are logged as warnings and skipped.
+// An unknown token refuses the complete criterion.
 func parseFlowICMPTypes(s string) []uint8 {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
@@ -324,8 +325,7 @@ func parseFlowICMPTypes(s string) []uint8 {
 			result = append(result, n)
 			continue
 		}
-		// Unknown name - log warning
-		slog.Warn("unknown ICMP type name", "name", p)
+		return nil
 	}
 	return result
 }
@@ -366,7 +366,7 @@ var icmpCodeNames = map[string]uint8{
 
 // parseFlowICMPCodes parses ICMP code values or names.
 // Handles: [ host-unreachable network-unreachable ] or [ 1 0 ] or [ =1 =0 ].
-// Unknown names are logged as warnings and skipped.
+// An unknown token refuses the complete criterion.
 func parseFlowICMPCodes(s string) []uint8 {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
@@ -384,8 +384,7 @@ func parseFlowICMPCodes(s string) []uint8 {
 			result = append(result, n)
 			continue
 		}
-		// Unknown name - log warning
-		slog.Warn("unknown ICMP code name", "name", p)
+		return nil
 	}
 	return result
 }
@@ -397,9 +396,11 @@ func parseFlowFragment(s string) []FlowFragmentFlag {
 	var result []FlowFragmentFlag
 
 	for _, p := range parts {
-		if f, ok := fragmentFlagNameToValue[p]; ok {
-			result = append(result, FlowFragmentFlag(f))
+		f, ok := fragmentFlagNameToValue[p]
+		if !ok {
+			return nil
 		}
+		result = append(result, FlowFragmentFlag(f))
 	}
 	return result
 }
@@ -433,9 +434,11 @@ func parseFlowTCPFlagMatches(s string) []FlowMatch {
 			}
 
 			fp = strings.ToLower(fp)
-			if f, ok := tcpFlagNameToValue[fp]; ok {
-				result = append(result, FlowMatch{Op: op, And: isAnd, Value: uint64(f)})
+			f, ok := tcpFlagNameToValue[fp]
+			if !ok {
+				return nil
 			}
+			result = append(result, FlowMatch{Op: op, And: isAnd, Value: uint64(f)})
 		}
 	}
 	return result
@@ -449,9 +452,10 @@ func parseFlowLabels(s string) []uint32 {
 	for p := range parts {
 		p = strings.TrimPrefix(p, "=")
 		val, err := strconv.ParseUint(p, 10, 32)
-		if err == nil {
-			result = append(result, uint32(val))
+		if err != nil {
+			return nil
 		}
+		result = append(result, uint32(val))
 	}
 	return result
 }
@@ -462,7 +466,11 @@ func parseFlowLabels(s string) []uint32 {
 func parseFlowProtocolMatchesSlice(vals []string) []FlowMatch {
 	result := make([]FlowMatch, 0, len(vals))
 	for _, v := range vals {
-		result = append(result, parseFlowProtocolMatches(v)...)
+		matches := parseFlowProtocolMatches(v)
+		if len(matches) == 0 {
+			return nil
+		}
+		result = append(result, matches...)
 	}
 	return result
 }
@@ -471,7 +479,11 @@ func parseFlowProtocolMatchesSlice(vals []string) []FlowMatch {
 func parseFlowMatchesSlice(vals []string) []FlowMatch {
 	result := make([]FlowMatch, 0, len(vals))
 	for _, v := range vals {
-		result = append(result, parseFlowMatches(v)...)
+		matches := parseFlowMatches(v)
+		if len(matches) == 0 {
+			return nil
+		}
+		result = append(result, matches...)
 	}
 	return result
 }
@@ -480,7 +492,11 @@ func parseFlowMatchesSlice(vals []string) []FlowMatch {
 func parseFlowOctetsSlice(vals []string) []uint8 {
 	result := make([]uint8, 0, len(vals))
 	for _, v := range vals {
-		result = append(result, parseFlowOctets(v)...)
+		octets := parseFlowOctets(v)
+		if len(octets) == 0 {
+			return nil
+		}
+		result = append(result, octets...)
 	}
 	return result
 }
@@ -489,7 +505,11 @@ func parseFlowOctetsSlice(vals []string) []uint8 {
 func parseFlowLabelsSlice(vals []string) []uint32 {
 	result := make([]uint32, 0, len(vals))
 	for _, v := range vals {
-		result = append(result, parseFlowLabels(v)...)
+		labels := parseFlowLabels(v)
+		if len(labels) == 0 {
+			return nil
+		}
+		result = append(result, labels...)
 	}
 	return result
 }
@@ -498,7 +518,11 @@ func parseFlowLabelsSlice(vals []string) []uint32 {
 func parseFlowFragmentSlice(vals []string) []FlowFragmentFlag {
 	result := make([]FlowFragmentFlag, 0, len(vals))
 	for _, v := range vals {
-		result = append(result, parseFlowFragment(v)...)
+		flags := parseFlowFragment(v)
+		if len(flags) == 0 {
+			return nil
+		}
+		result = append(result, flags...)
 	}
 	return result
 }
@@ -507,7 +531,11 @@ func parseFlowFragmentSlice(vals []string) []FlowFragmentFlag {
 func parseFlowTCPFlagMatchesSlice(vals []string) []FlowMatch {
 	result := make([]FlowMatch, 0, len(vals))
 	for _, v := range vals {
-		result = append(result, parseFlowTCPFlagMatches(v)...)
+		matches := parseFlowTCPFlagMatches(v)
+		if len(matches) == 0 {
+			return nil
+		}
+		result = append(result, matches...)
 	}
 	return result
 }
@@ -516,7 +544,11 @@ func parseFlowTCPFlagMatchesSlice(vals []string) []FlowMatch {
 func parseFlowICMPTypesSlice(vals []string) []uint8 {
 	result := make([]uint8, 0, len(vals))
 	for _, v := range vals {
-		result = append(result, parseFlowICMPTypes(v)...)
+		types := parseFlowICMPTypes(v)
+		if len(types) == 0 {
+			return nil
+		}
+		result = append(result, types...)
 	}
 	return result
 }
@@ -525,7 +557,11 @@ func parseFlowICMPTypesSlice(vals []string) []uint8 {
 func parseFlowICMPCodesSlice(vals []string) []uint8 {
 	result := make([]uint8, 0, len(vals))
 	for _, v := range vals {
-		result = append(result, parseFlowICMPCodes(v)...)
+		codes := parseFlowICMPCodes(v)
+		if len(codes) == 0 {
+			return nil
+		}
+		result = append(result, codes...)
 	}
 	return result
 }

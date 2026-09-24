@@ -23,6 +23,7 @@ import (
 	"context"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/netip"
@@ -348,6 +349,15 @@ type RIBManager struct {
 	// the owning shard's lock. NOT protected by r.peerMu.
 	bestPrev *bestPrevShards
 
+	// flowSpec is the immutable authorization and winning-action snapshot.
+	// flowSpecMu serializes recomputation; events run after it is released.
+	flowSpec              atomic.Pointer[flowSpecState]
+	flowSpecMu            sync.Mutex
+	flowSpecEmitting      bool
+	flowSpecReplayPending bool
+	flowSpecPending       *flowSpecState
+	flowSpecPublished     *flowSpecState
+
 	// bestPathInterner dedupes peer address, next-hop, and MED values across
 	// every family's bestPrevStore into uint16 reverse-table indices that are
 	// packed into the stored bestPathRecord. Shared, not per-family, because
@@ -366,7 +376,8 @@ type RIBManager struct {
 	//
 	// May be nil in tests that do not wire a Loc-RIB; callers that touch
 	// this field MUST nil-check first.
-	locRIB *locrib.RIB
+	locRIB  *locrib.RIB
+	forkRIB *remoteRIB
 
 	// unsubForwardObs releases the forward-handle observability
 	// subscription registered by SetLocRIB. Nil when no locRIB is wired
@@ -633,11 +644,19 @@ func runRIBPlugin(conn net.Conn) int {
 	r := newRIBManager(p)
 	activeManager.Store(r)
 	defer activeManager.Store(nil)
+	ribevents.RegisterFlowSpecLookup(r.flowSpecEligible, r.flowSpecPresent, r.flowSpecPath, r.flowSpecRoutes)
+	defer ribevents.RegisterFlowSpecLookup(nil, nil, nil, nil)
 
-	// Wire the process-wide Loc-RIB so BGP best-path changes mirror into
-	// the cross-protocol store. locrib.Default() returns nil in forked
-	// plugin subprocesses; SetLocRIB is nil-safe (mirroring is disabled).
+	// In-process consumers use the shared Loc-RIB; a subprocess mirrors selected
+	// routes and resolves next-hop distances over the registered engine RPC.
 	r.SetLocRIB(locrib.Default())
+	if r.locRIB == nil {
+		r.setupRemoteRIB()
+	}
+	if bus := getEventBus(); bus != nil {
+		unsubscribe := ribevents.ValidationChange.Subscribe(bus, r.validationChanged)
+		defer unsubscribe()
+	}
 
 	rpc.RegisterRouteInjector(r.handleInjectWireRoute)
 
@@ -731,7 +750,13 @@ func runRIBPlugin(conn net.Conn) int {
 	// The scheduler runs as a goroutine tied to the plugin context,
 	// reclaiming dead buffer space in attribute pools under route churn.
 	p.OnStarted(func(ctx context.Context) error {
+		if r.forkRIB != nil {
+			if _, err := p.RouteMetrics(ctx, nil); err != nil {
+				return fmt.Errorf("bgp-rib requires engine next-hop metrics: %w", err)
+			}
+		}
 		go runCompaction(ctx, pool.AllPools())
+		go r.runAIGPSelection(ctx)
 		if metricsPtr.Load() != nil {
 			go r.runMetricsLoop(ctx)
 		}
@@ -981,7 +1006,10 @@ func (r *RIBManager) handleReceived(event *Event) {
 	}
 
 	r.peerMu.Lock()
-	defer r.peerMu.Unlock()
+	defer func() {
+		r.peerMu.Unlock()
+		r.reconcileReceived(event)
+	}()
 
 	// Track peer metadata for best-path comparison (eBGP/iBGP detection).
 	r.updatePeerMetadata(event, peerAddr)
@@ -1017,7 +1045,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr) {
 	for _, fam := range event.RawNLRIFamilies() {
 		nlriBytes := event.GetRawNLRIBytes(fam)
 		if len(nlriBytes) > 0 {
-			r.insertPoolNLRIs(peerRIB, fam, nlriBytes, attrBytes, event.AddPath[fam])
+			r.insertPoolNLRIs(peerRIB, fam, nlriBytes, attrBytes, event.AddPath[fam], event.GetMsgID())
 		}
 	}
 }
@@ -1025,7 +1053,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr) {
 // insertPoolNLRIs inserts split NLRIs into the peer's RIB. Metric labels and
 // log lines use PeerRIB's cached canonical address string (no per-call
 // conversion).
-func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family, nlriBytes, attrBytes []byte, addPath bool) {
+func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family, nlriBytes, attrBytes []byte, addPath bool, msgID uint64) {
 	famStr := fam.String()
 	if !nlrisplit.Supported(fam) {
 		logger().Debug("pool: no splitter for family", "peer", peerRIB.PeerAddr(), "family", famStr)
@@ -1040,6 +1068,9 @@ func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 	}
 	for _, wirePrefix := range prefixes {
 		peerRIB.Insert(fam, attrBytes, wirePrefix)
+		peerRIB.ModifyFamilyEntry(fam, wirePrefix, func(entry *storage.RouteEntry) {
+			entry.MsgID = msgID
+		})
 	}
 	if m := metricsPtr.Load(); m != nil {
 		m.routeInserts.With(peerRIB.PeerAddr(), famStr).Add(float64(len(prefixes)))

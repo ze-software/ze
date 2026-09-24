@@ -421,6 +421,14 @@ RFC 4360 - Extended community values.
 | 0x06:0x01 | EVPN ESI Label |
 <!-- source: internal/core/bgp/attribute/community.go -- ExtendedCommunity, ExtendedCommunities -->
 
+The separate IPv6 extended-community attribute (code 25, RFC 5701) carries
+20-octet values. RFC 8956 Section 6.1 assigns the complete type `0x000d` to
+IPv6 route-target redirect. Its named form is `redirect:[IPv6-address]:number`,
+so the FlowSpec firewall can refuse the unsupported action rather than mistake
+it for an unknown community. Subtype `0x0c` instead names redirect or copy to
+an IPv6 next hop. Unrecognized types retain their raw hex form.
+<!-- source: internal/core/bgp/attribute/extcomm_decoded.go -- IPv6ExtendedCommunity.AppendDecoded -->
+
 ---
 
 ## 17. AS4_PATH (Code 17)
@@ -607,6 +615,14 @@ a relayed Prefix-SID is byte-identical to the one received.
 
 A malformed TLV is refused: the parse returns an error and no attribute, rather
 than a value filled as far as the bytes allowed.
+
+For local origination, the command and configuration paths share
+`EncodePrefixSIDSRv6`. Its optional SID Structure is checked against the 128-bit
+SID and the transposition range before encoding. Transposed bits must already be
+zero in the supplied SID. The accepted text and argument restrictions are
+documented in [the UPDATE syntax reference](../api/update-syntax.md).
+
+<!-- source: internal/core/bgp/attribute/prefixsid.go -- EncodePrefixSIDSRv6, validateSRv6OriginStructure -->
 
 JSON, under the key `bgp-prefix-sid`, with one member per TLV. The member names
 are ExaBGP's, so the two agree on the wire and in the API:

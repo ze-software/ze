@@ -274,6 +274,19 @@ func (f *FlowSpec) Components() []FlowComponent {
 // second prefix component (Type 1 or 2) has no list to join, so it is refused
 // rather than silently replacing or duplicating the prefix already present.
 func (f *FlowSpec) AddComponent(c FlowComponent) error {
+	if c == nil {
+		return ErrFlowSpecInvalidType
+	}
+	if c.Type() == FlowFlowLabel {
+		if f.family.AFI != AFIIPv6 {
+			return ErrFlowSpecInvalidType
+		}
+	}
+	if prefix, ok := c.(*prefixComponent); ok {
+		if err := prefix.validate(f.family.AFI); err != nil {
+			return err
+		}
+	}
 	present := f.componentOfType(c.Type())
 	if present == nil {
 		f.components = append(f.components, c)
@@ -463,6 +476,11 @@ func parseFlowComponent(data []byte, fam Family) (FlowComponent, []byte, error) 
 	}
 
 	compType := FlowComponentType(data[0])
+	if compType == FlowFlowLabel {
+		if fam.AFI != AFIIPv6 {
+			return nil, nil, ErrFlowSpecInvalidType
+		}
+	}
 
 	switch compType {
 	case FlowDestPrefix, FlowSourcePrefix:
@@ -472,7 +490,7 @@ func parseFlowComponent(data []byte, fam Family) (FlowComponent, []byte, error) 
 		FlowICMPType, FlowICMPCode, FlowTCPFlags, FlowPacketLength,
 		FlowDSCP, FlowFragment, FlowFlowLabel:
 		// Type 3-13: Numeric/bitmask components (RFC 8955 Section 4.2.2.3-12)
-		return parseNumericComponent(compType, data[1:])
+		return parseNumericComponent(compType, data[1:], fam.AFI)
 	default:
 		// RFC 8955 Section 4.2: unknown component type is malformed NLRI
 		return nil, nil, ErrFlowSpecInvalidType
@@ -503,7 +521,11 @@ func (f *FlowSpec) writeComponentsSorted(buf []byte, off int) int {
 		if component == nil {
 			continue
 		}
-		pos += component.WriteTo(buf, pos)
+		if numeric, ok := component.(*numericComponent); ok {
+			pos += numeric.writeToAFI(buf, pos, f.family.AFI)
+		} else {
+			pos += component.WriteTo(buf, pos)
+		}
 	}
 	return pos - off
 }

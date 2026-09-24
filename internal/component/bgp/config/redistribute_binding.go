@@ -14,8 +14,8 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin"
 )
 
-// locRIBReceive is the receive grant the built-in Loc-RIB needs, written in the
-// vocabulary an operator writes in an `attach process` block.
+// locRIBReceive is the receive grant derived for a BGP redistribution source,
+// written in the vocabulary of an `attach process` block.
 //
 // It states exactly what the plugin declares it handles. bgp-rib subscribes to
 // `update direction sent`, `update direction received`, `state` and `refresh`
@@ -42,24 +42,21 @@ const (
 	orchestratorSend    = "update"
 )
 
-// wireRedistributeDelivery grants every peer the process bindings the config's
-// `redistribute` rules depend on, and grants nothing where no rule needs one.
-//
-// Two rules imply a binding, and each implies its own:
-//
-//	import bgp        the Loc-RIB must be FED this peer's UPDATEs
-//	destination bgp   the orchestrator must be PERMITTED to send to this peer
-//
-// Each has one correct value, so the config derives it rather than asking the
-// operator to write plumbing no page documents (Key Design Decisions,
-// spec-fixit-redistribution-chain-drops-silently). A config whose rules imply
-// neither is left exactly as written.
+// wireRedistributeDelivery derives Loc-RIB delivery for redistribution,
+// FlowSpec authorization and AIGP selection. Explicit incomplete feature
+// bindings are refused. Only destination-BGP rules grant forwarding authority.
 func wireRedistributeDelivery(tree *config.Tree, settings []*reactor.PeerSettings) error {
 	rules, err := config.ExtractRedistributeRules(tree)
 	if err != nil {
 		return err
 	}
 
+	flowSpec := false
+	aigp := false
+	for _, peer := range settings {
+		aigp = aigp || peer.AIGPEnabled()
+		flowSpec = flowSpec || hasFlowSpecFamily(peer)
+	}
 	locRIB, orchestrator := false, false
 	for i := range rules {
 		if bgpredist.SourceIsBGP(rules[i].Source) {
@@ -69,13 +66,36 @@ func wireRedistributeDelivery(tree *config.Tree, settings []*reactor.PeerSetting
 			orchestrator = true
 		}
 	}
-	if locRIB {
-		if err := grantEveryPeer(tree, settings, bgpredist.LocRIBPlugin, locRIBReceive, ""); err != nil {
+	if !locRIB && !flowSpec && !aigp && !orchestrator {
+		return nil
+	}
+	plugins, err := config.ExtractPluginsFromTree(tree)
+	if err != nil {
+		return err
+	}
+	if locRIB || flowSpec || aigp {
+		// Selection and authorization consume inbound candidates, not sent-route
+		// storage or refresh replay. Redistribution keeps its existing grant.
+		receive := "update-received state"
+		if locRIB {
+			receive = locRIBReceive
+		}
+		if err := grantEveryPeer(plugins, settings, bgpredist.LocRIBPlugin, receive, ""); err != nil {
+			return err
+		}
+	}
+	if flowSpec {
+		if err := requireRIBDelivery(plugins, settings, "FlowSpec authorization", true); err != nil {
+			return err
+		}
+	}
+	if aigp {
+		if err := requireRIBDelivery(plugins, settings, "AIGP selection", false); err != nil {
 			return err
 		}
 	}
 	if orchestrator {
-		if err := grantEveryPeer(tree, settings, bgpredist.OrchestratorPlugin, orchestratorReceive, orchestratorSend); err != nil {
+		if err := grantEveryPeer(plugins, settings, bgpredist.OrchestratorPlugin, orchestratorReceive, orchestratorSend); err != nil {
 			return err
 		}
 	}
@@ -85,8 +105,8 @@ func wireRedistributeDelivery(tree *config.Tree, settings []*reactor.PeerSetting
 // grantEveryPeer adds one derived binding to every peer the config builds. The
 // process is named as the plugin server will run it, which is the operator's
 // alias where a `plugin` block declares one.
-func grantEveryPeer(tree *config.Tree, settings []*reactor.PeerSettings, registryName, receive, send string) error {
-	process := processNameFor(tree, registryName)
+func grantEveryPeer(plugins []plugin.PluginConfig, settings []*reactor.PeerSettings, registryName, receive, send string) error {
+	process := processNameFor(plugins, registryName)
 	for _, ps := range settings {
 		if err := reactor.EnsureProcessBinding(ps, process, receive, send); err != nil {
 			return fmt.Errorf("peer %s: %w", ps.Name, err)
@@ -99,29 +119,18 @@ func grantEveryPeer(tree *config.Tree, settings []*reactor.PeerSettings, registr
 // under. A peer's binding has to name it for the delivery graph to resolve the
 // process (newDeliveryGraph, internal/component/plugin/server/delivery_graph.go).
 //
-// The operator chooses that name with a `plugin` block, written
-// `internal <alias> { use <registryName> }`. Where no block declares one, the
-// server auto-loads the plugin under its registry name from a config root it
-// claims (Server.getConfigPathPlugins,
-// internal/component/plugin/server/startup_autoload.go).
+// The operator can name it through `use` or an external `run` command. Reading
+// the loader's effective PluginConfig also covers inline process declarations.
+// Without a declaration, the server auto-loads the registry name from a config
+// root it claims (Server.getConfigPathPlugins, startup_autoload.go).
 //
 // plugin.RegistryNames resolves the alias. The plugin server asks the same
 // function whether a registry row is already configured, so both sides answer
-// from one definition of what `use` means.
-func processNameFor(tree *config.Tree, registryName string) string {
-	pluginContainer := tree.GetContainer("plugin")
-	if pluginContainer == nil {
-		return registryName
-	}
-	for _, kind := range []string{"internal", "external"} {
-		for name, declared := range pluginContainer.GetList(kind) {
-			use, _ := declared.Get("use")
-			if use == "" {
-				continue
-			}
-			if slices.Contains(plugin.RegistryNames(plugin.PluginConfig{Name: name, Run: use}), registryName) {
-				return name
-			}
+// from one definition of the configured process's registry identity.
+func processNameFor(plugins []plugin.PluginConfig, registryName string) string {
+	for _, declared := range plugins {
+		if slices.Contains(plugin.RegistryNames(declared), registryName) {
+			return declared.Name
 		}
 	}
 	return registryName

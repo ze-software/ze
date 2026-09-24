@@ -138,6 +138,9 @@ func flowSpecCriteriaFromContent(content []string) (string, map[string][]string,
 			if !closed {
 				return "", nil, fmt.Errorf("flowspec criterion %q: unterminated '[' list", key)
 			}
+			if j == i+2 {
+				return "", nil, fmt.Errorf("flowspec criterion %q: empty '[' list", key)
+			}
 			i = j + 1
 			continue
 		}
@@ -147,7 +150,7 @@ func flowSpecCriteriaFromContent(content []string) (string, map[string][]string,
 			i += 2
 			continue
 		}
-		i++
+		return "", nil, fmt.Errorf("flowspec criterion %q: missing value", key)
 	}
 
 	return rd, criteria, nil

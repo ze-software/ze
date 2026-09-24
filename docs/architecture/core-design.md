@@ -1068,6 +1068,17 @@ shape of each one, is "The Attribute Names in the Filter Text Protocol" in
 `docs/architecture/api/process-protocol.md`. A filter's declared attribute list
 records what it reads and does not narrow the subject.
 
+FlowSpec UPDATEs expose each destination prefix component to the same
+prefix-list policy used for unicast (`prefix`, `ge`, and `le`). Other flow
+components remain in the original NLRI. A missing destination or an IPv6
+nonzero-offset destination cannot be represented by CIDR policy and is denied.
+Every destination in a multi-NLRI UPDATE must pass: a mixed result rejects the
+whole UPDATE rather than rewriting its flow components. This operator policy
+is separate from the RIB's mandatory FlowSpec-origin validation.
+
+<!-- source: internal/component/bgp/reactor/filter_flowspec.go -- appendFlowSpecFilterBlock -->
+<!-- source: internal/component/bgp/plugins/filter_prefix/filter_prefix.go -- handleFilterUpdate FlowSpec whole-update policy -->
+
 The route attribute modifier (`bgp-filter-modify`) computes an `increment` or a
 `decrement` from the value the subject carries. When the subject carries none,
 the value it starts from comes from `bgp { defaults { attribute { } } }`, read
@@ -1621,6 +1632,12 @@ ordinary state: an OSPF or IS-IS next-hop on a link whose connected route no
 plugin inserted is on-link all the same, and the kernel resolves it against its
 own connected routes.
 
+An explicit `OnLink` path names a protocol-established adjacency and bypasses
+recursive gateway lookup. Its interface and marker remain attached to the
+primary next hop and each equal-cost member. The kernel writer sets
+`RTNH_F_ONLINK` on the corresponding single-path route or multipath member.
+<!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildRichRoute, buildNexthopInfo -->
+
 The cascade adds ONE rule above that tail and it is about a TRANSITION rather
 than about the verdict: the proved path recorded with the install is gone. That
 is what a cascade exists to report, and it is the only thing it reads that the
@@ -1672,12 +1689,13 @@ either command sees them.
 ### Shared Route Watcher
 
 The `routewatch` package (`internal/core/routewatch/`) owns a single netlink route
-subscription with `ListExisting: true`. It parses each `RouteUpdate`, applies common
-filters (nil Dst, non-NEWROUTE/DELROUTE, `rtproto.IsZe()`), and fans out parsed
-`RouteEvent` values to registered consumers via synchronous callbacks. Both `fib-kernel`
-(route re-assertion) and `kernel` (BGP redistribution) register as consumers. Late
-registration is supported; the handler slice is snapshotted on each event. On non-Linux,
-`subscribe()` blocks without delivering events.
+subscription with `ListExisting: true`. It discards updates without a destination
+and messages other than NEWROUTE or DELROUTE. Registered consumers receive
+`RouteEvent` values through synchronous callbacks, including Ze-owned route changes.
+Each event carries the kernel table and priority so consumers can identify the
+affected route. Both `fib-kernel` (route recovery) and `kernel` (BGP redistribution)
+register as consumers. Late registration is supported: each event uses a snapshot
+of the handlers. On non-Linux, `subscribe()` blocks without delivering events.
 
 The watcher retries in two ways, because it has two failures. A subscription that was
 created and then died is re-created once a second, for as long as the process runs.
@@ -1699,14 +1717,27 @@ The `fib-kernel` plugin subscribes to `system-rib/best-change` and programs OS r
 via netlink on Linux. It uses a custom rtm_protocol ID (RTPROT_ZE=250) so ze-installed
 routes are distinguishable from other routing daemons. On startup, existing ze routes
 are marked stale; after reconvergence, stale routes are swept. A routewatch consumer
-detects external modifications (other daemons, manual changes) and re-asserts ze routes
-when overwritten.
+detects external changes and restores deleted ze routes from their last accepted
+forwarding metadata. Update and monitor reassertion both preserve a conflicting
+foreign-owned route instead of replacing it; the monitor reports the failed
+reassertion through `fib/external-change`.
+
+The monitor ignores Ze add notifications to prevent a recovery loop. A deletion
+must match the currently owned prefix, table and priority before recovery starts.
+Route writes and ownership changes hold the same lock as recovery, so a queued
+notification sees completed withdrawals and priority migrations. The monitor
+therefore leaves withdrawn routes and superseded priorities retired.
 
 When `BestChangeEntry` carries rich fields (route type, metric, table ID, ECMP paths,
 MPLS labels, or SRv6 SID), the backend dispatches to `richRouteBackend` which builds
 a full `netlink.Route` with `RTN_BLACKHOLE`/`RTN_UNREACHABLE`/`RTN_PROHIBIT` type,
 `Priority` from metric, per-route `Table`, `MultiPath` for ECMP, `MPLSEncap` for
 MPLS lwtunnel, and `SEG6Encap` for SRv6.
+
+An IPv4 route with an IPv6 gateway uses `RTA_VIA`, for its primary next hop and
+each ECMP member. Same-family gateways use `RTA_GATEWAY`. The encoding preserves
+the device, on-link flag, weights, encapsulation and route priority. IPv6 routes
+with IPv4 gateways remain unsupported by this kernel backend.
 <!-- source: internal/plugins/fib/kernel/fibkernel.go -- routeBackend, startupSweep, sweepStale -->
 <!-- source: internal/plugins/fib/kernel/richroute.go -- RichRoute, richRouteBackend interface -->
 <!-- source: internal/plugins/fib/kernel/nexthop_linux.go -- buildRichRoute, routeTypeToLinux, buildMultiPath -->
@@ -1717,10 +1748,12 @@ MPLS lwtunnel, and `SEG6Encap` for SRv6.
 ### Kernel Route Redistribution
 
 The `kernel` plugin registers as a routewatch consumer and emits `redistevents.RouteChangeBatch`
-events for externally-installed kernel routes. Consumer-side filtering excludes RTPROT_KERNEL (2)
-to avoid overlap with the `connected` plugin and RTPROT_REDIRECT (1) to avoid transient ICMP
-redirect churn. Routes from DHCP (16), PPP/manual (BOOT=3), and admin static (STATIC=4) are
-redistributed. Tracks announced prefixes; withdraws all on shutdown. Configured via
+events for externally-installed kernel routes. Consumer-side filtering excludes
+Ze protocols (250–252) to prevent FIB output from becoming external candidates.
+It also excludes RTPROT_KERNEL (2), which the `connected` plugin handles, and
+RTPROT_REDIRECT (1), which represents transient ICMP redirects. Routes from DHCP
+(16), PPP/manual (BOOT=3), and admin static (STATIC=4) are redistributed. The
+plugin tracks announced prefixes and withdraws all on shutdown. Configured via
 `redistribute { destination bgp { import kernel; } }`.
 <!-- source: internal/plugins/kernel/kernel.go -- routeObserver, handleRouteEvent, withdrawAll -->
 <!-- source: internal/plugins/kernel/events/events.go -- redistevents producer registration -->

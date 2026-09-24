@@ -42,6 +42,8 @@ func init() {
 		"plugin/firewall-irr-table-term-uncached-reject":   firewallIRRTableTermUncached07,
 		"plugin/firewall-irr-update":                       firewallIRRUpdate07,
 		"plugin/flowspec-announce":                         flowSpecAnnounce07,
+		"plugin/flowspec-fw-legacy-table-removed":          flowSpecLegacyTable07,
+		"plugin/flowspec-fw-withdraw-removes-table":        flowSpecWithdrawTable07,
 		"plugin/flowspec-fw-withdraw":                      flowSpecWithdraw07,
 	}
 	for name, scenario := range observers {
@@ -53,10 +55,8 @@ func init() {
 	Register("plugin/fib-vpp-coexist-with-fib-kernel", fibVPPCoexist07)
 	Register("plugin/fib-vpp-plugin-load", fibVPPLoad07)
 	Register("plugin/firewall-metrics-registered", firewallMetrics07)
-	Register("plugin/flowspec-fw-legacy-table-removed", flowSpecLegacyTable07)
 	Register("plugin/flowspec-fw-protocol-sctp", flowSpecSCTP07)
 	Register("plugin/flowspec-fw-untranslatable-keeps-others", flowSpecUntranslatable07)
-	Register("plugin/flowspec-fw-withdraw-removes-table", flowSpecWithdrawTable07)
 	Register("plugin/firewall-irr-table-term-commit/reload", func(ctx context.Context, _ []string) error {
 		return reloadFirewallIRR07(ctx, "observer.fetched")
 	})

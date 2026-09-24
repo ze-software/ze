@@ -1,13 +1,8 @@
-# FlowSpec-to-firewall bridge: verify plugin loads and FlowSpec events flow
-# The daemon starts with the flowspec-firewall plugin registered. A FlowSpec
-# route is sent to the peer, proving the BGP event delivery path exercises
-# the plugin's OnEvent handler (subscribed to "update direction received").
-#
-# VALIDATES: plugin loads as part of the daemon without errors
-# VALIDATES: FlowSpec UPDATE wire encoding is correct with plugin present
-#
-# NOTE: Full end-to-end test (peer sends FlowSpec TO ze, bridge creates
-# nftables rules) requires ze-peer FlowSpec injection support (future).
+# FlowSpec outbound wire encoding through the configured BGP CLI path.
+# VALIDATES: UPDATE and EOR bytes, including the required empty next hop.
+# This carrier does not prove received-route authorization or firewall delivery.
+# Those paths have retained-RIB regressions, the privileged selected-rule kernel
+# carrier, and the bgp-flowspec-sctp-gobgp interop scenario.
 
 # ze-peer expectations: receive a FlowSpec route from ze
 stdin=peer:terminator=EOF_PEER

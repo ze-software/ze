@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/wireu"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
+	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/family"
 )
 
@@ -25,13 +26,11 @@ import (
 //
 // For families whose NLRI is a plain CIDR prefix (unicast, multicast,
 // mpls-label in AFI IPv4/IPv6), the prefix list is emitted inline so text-
-// mode filters can match directly. For non-CIDR families (EVPN, Flowspec,
-// VPN, BGP-LS, MVPN, etc.) a marker block `nlri <family> <op>` is emitted
-// WITHOUT prefixes, so a text-mode filter plugin attached to a session
-// carrying those families can still tell that an update exists for a given
-// family. A filter plugin that needs to inspect non-CIDR NLRI bytes MUST
-// declare `raw=true` in its `FilterRegistration` and parse the wire payload
-// from `FilterUpdateInput.Raw`.
+// mode filters can match directly. FlowSpec renders its destination prefix
+// component for every NLRI, without converting the NLRI to unicast. Prefix-list
+// policy makes a whole-update decision for this projection; it never rewrites
+// away the other flow components. Other non-CIDR families remain marker-only.
+// Filters inspecting their payload must declare raw=true.
 //
 // The "as-path" token carries the AS path information the route traversed, not
 // the AS_PATH attribute as encoded: on a session that did not negotiate the
@@ -52,6 +51,7 @@ func AppendUpdateForFilter(buf []byte, attrs *attribute.AttributesWire, wireUpda
 	if wireUpdate == nil {
 		return buf
 	}
+	ctx := bgpctx.Registry.Get(wireUpdate.SourceCtxID())
 
 	// Legacy IPv4 unicast NLRI (RFC 4271 Section 4.3).
 	if raw, err := wireUpdate.NLRI(); err == nil && len(raw) > 0 {
@@ -74,10 +74,18 @@ func AppendUpdateForFilter(buf []byte, attrs *attribute.AttributesWire, wireUpda
 
 	// MP_REACH_NLRI and MP_UNREACH_NLRI (RFC 4760).
 	if mp, err := wireUpdate.MPReach(); err == nil && mp != nil {
-		buf = appendMPBlock(buf, mp.Family(), "add", mp.Prefixes(), len(buf) == start)
+		if isFlowSpecFamily(mp.Family()) {
+			buf = appendFlowSpecFilterBlock(buf, mp.Family(), "add", mp.NLRIBytes(), ctx != nil && ctx.AddPath(mp.Family()), len(buf) == start)
+		} else {
+			buf = appendMPBlock(buf, mp.Family(), "add", mp.Prefixes(), len(buf) == start)
+		}
 	}
 	if mpu, err := wireUpdate.MPUnreach(); err == nil && mpu != nil {
-		buf = appendMPBlock(buf, mpu.Family(), "del", mpu.Prefixes(), len(buf) == start)
+		if isFlowSpecFamily(mpu.Family()) {
+			buf = appendFlowSpecFilterBlock(buf, mpu.Family(), "del", mpu.WithdrawnBytes(), ctx != nil && ctx.AddPath(mpu.Family()), len(buf) == start)
+		} else {
+			buf = appendMPBlock(buf, mpu.Family(), "del", mpu.Prefixes(), len(buf) == start)
+		}
 	}
 
 	return buf

@@ -41,6 +41,7 @@ func flowspecAnnounceBody(med uint32, nlri []byte) []byte {
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
 		0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xE9, // AS_PATH = [65001]
 		0x80, 0x04, 0x04, byte(med >> 24), byte(med >> 16), byte(med >> 8), byte(med), // MED
+		0x80, 0x09, 0x04, 0x01, 0x01, 0x01, 0x01, // same ORIGINATOR_ID as covering unicast
 	}
 	attrs = append(attrs, 0x80, 0x0e, byte(len(mpReach))) //nolint:gosec // test NLRI is short
 	attrs = append(attrs, mpReach...)
@@ -87,6 +88,8 @@ func TestRFC8955FlowSpecPathSelectionPicksOneSetOfAttributes(t *testing.T) {
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
 	nlri := flowspecNLRI(24, 10, 0, 0) // destination 10.0.0.0/24
+	flowValidationReceive(t, r, peerA, 65001, 65000, 1, family.IPv4Unicast, []byte{8, 10},
+		flowValidationAttrs(flowValidationPath(2, 65001), netip.MustParseAddr("1.1.1.1"), 0, nil), false)
 
 	// Peer A announces with MED 200.
 	feedReceived(r, peerA, ctxID, flowspecAnnounceBody(200, nlri))
@@ -165,6 +168,8 @@ func TestRFC8955FlowSpecLosingPathIsNeverPublished(t *testing.T) {
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 
 	nlri := flowspecNLRI(24, 10, 0, 0)
+	flowValidationReceive(t, r, peerA, 65001, 65000, 1, family.IPv4Unicast, []byte{8, 10},
+		flowValidationAttrs(flowValidationPath(2, 65001), netip.MustParseAddr("1.1.1.1"), 0, nil), false)
 
 	feedReceived(r, peerA, ctxID, flowspecAnnounceBody(100, nlri))
 	feedReceived(r, peerB, ctxID, flowspecAnnounceBody(200, nlri))

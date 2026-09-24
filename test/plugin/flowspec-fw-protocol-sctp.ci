@@ -1,88 +1,41 @@
-# Test: a peer's FlowSpec SCTP rule becomes a kernel drop rule.
-#
-# VALIDATES: AC-1 -- a type 3 component carrying IP protocol 132 translates to
-#            the canonical name "sctp" and lowers to an nftables rule.
-# PREVENTS:  the private five-name protocol table returning. It knew 1, 6, 17,
-#            47 and 58 and rendered every other value as decimal digits, which
-#            no backend resolves. The nft backend returns that error from Apply
-#            BEFORE its single Flush, so one such route from one peer left the
-#            kernel holding the previous ruleset for every firewall owner.
-#
-# Reverting the translator change makes this test fail: the term would carry
-# MatchProtocol{"132"}, the reconcile would fail, and no table named ze_flowspec
-# would ever appear in the kernel. The presence of the RULE is therefore the
-# discriminating assertion, and the spelling nft prints it in is not.
-#
-# nft prints the lowered value as `meta l4proto 132`, measured against nftables
-# in the QEMU Alpine VM on 2026-08-22. It reserves its symbolic names for the
-# protocols its own inet_proto table carries, so both spellings are accepted
-# here rather than one being asserted.
-#
-# Requires CAP_NET_ADMIN.
-
+# Test: a selected protocol-only SCTP rule reaches both kernel hooks.
+# VALIDATES: protocol132 lowers to SCTP without widening or requiring a port.
+# PREVENTS: an unlowerable protocol freezing firewall reconciliation, or a
+# raw-UPDATE fixture passing without retained unicast authorization.
 option=needs-linux:caps=net-admin
-# Every member of this cluster programs the node-wide nftables ruleset and
-# they all use the table name ze_flowspec, so two running at once delete each
-# other's table mid-assertion. The legacy seeds add `table inet flowspec` to
-# the same shared namespace.
+# Both suites use the kernel-global ze_flowspec table.
 option=exclusive:group=flowspec-nft
 option=env:var=ze.log.firewall:value=info
 option=env:var=ze.log.flowspec.firewall:value=info
 option=timeout:value=40s
 
-# The test peer sends ONE FlowSpec UPDATE to ze.
 stdin=peer:terminator=EOF_PEER
-# The peer has no expectation left once it sends, so without linger it closes
-# the instant its write lands. ze reads that as session-down and purges the
-# peer's routes, which is the state this test's observer polls for.
 option=linger:value=true
 option=tcp_connections:value=1
 option=timeout:value=35s
-# Marker(16) + Len=0048(72) + Type=02 + WdLen=0000 + AttrLen=0031(49)
-#   ORIGIN:       40010100                    (igp)
-#   AS_PATH:      400200                      (empty, iBGP)
-#   LOCAL_PREF:   40050400000064              (100)
-#   MP_REACH:     800E15 0001 85 04 01020304 00
-#                 NLRI len 0B:
-#                   01 18 0A0100  destination 10.1.0.0/24
-#                   03 81 84      protocol  = 132 (sctp)
-#                   05 81 50      dest port = 80
-#   EXT_COMM:     C01008 8006 0000 00000000   traffic-rate 0 -> discard
-action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004802000000314001010040020040050400000064800E150001850401020304000B01180A0100038184058150C010088006000000000000
+# Eligible covering unicast precedes every selected FlowSpec rule.
+action=send:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E02000000154001010040020040050400000064400304C0000201080A
+# Destination10.1.0.0/24, protocol132, discard. No port component.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0041020000002A4001010040020040050400000064800E0E00018500000801180A0100038184C010088006000000000000
 EOF_PEER
-
 
 stdin=ze-bgp:terminator=EOF_CONF
 plugin {
-	internal flowspec-firewall {
-		use flowspec-firewall
-	}
+	internal flowspec-firewall { use flowspec-firewall; }
 }
-
 bgp {
 	peer peer1 {
 		connection {
-			remote {
-				ip 127.0.0.1
-			}
-			local {
-				ip 127.0.0.1
-				accept false
-			}
+			remote { ip 127.0.0.1; }
+			local { ip 127.0.0.1; accept false; }
 		}
 		session {
-			asn {
-				local 1
-				remote 1
-			}
-			router-id 1.2.3.4
+			asn { local 1; remote 1; }
+			router-id 1.2.3.4;
 			family {
+				ipv4/unicast { prefix { maximum 10000; } }
 				ipv4/flow { prefix { maximum 10000; } }
 			}
-		}
-
-		attach process flowspec-firewall {
-			receive [ update-received state ]
 		}
 	}
 }
@@ -93,12 +46,6 @@ cmd=background:seq=2:exec=ze -:stdin=ze-bgp
 cmd=foreground:seq=3:exec=ze-test fixture plugin/flowspec-fw-protocol-sctp:timeout=35s
 expect=exit:code=0
 expect=stdout:contains=table inet ze_flowspec
-expect=stdout:contains=10.1.0.0/24
-# One rule carrying every condition the peer announced. Asserting the protocol
-# alone would accept a rule wider than the announcement, which is the failure
-# mode a dropped match produces.
-expect=stdout:pattern=daddr 10\.1\.0\.0/24 th dport 80 meta l4proto (132|sctp) drop
-# A `reject` on a digits spelling stood here and could never fire. With the
-# defect in place lowerProtoMatch refuses MatchProtocol{"132"} and Apply returns
-# before its Flush, so no rule of any spelling reaches the kernel. The rule
-# pattern above is what denies.
+expect=stdout:contains=chain flowspec-in
+expect=stdout:contains=chain flowspec-fwd
+expect=stdout:pattern=daddr 10\.1\.0\.0/24 meta l4proto (132|sctp)( counter packets [0-9]+ bytes [0-9]+)? drop

@@ -136,6 +136,14 @@ func handleFilterUpdate(in *sdk.FilterUpdateInput) *sdk.FilterUpdateOutput {
 		return &sdk.FilterUpdateOutput{Action: sdk.FilterAccept}
 	}
 
+	// FlowSpec exposes its destination component, not a replacement NLRI.
+	// A mixed decision rejects the complete UPDATE instead of dropping the
+	// other components or emitting unicast bytes under SAFI 133/134.
+	switch partition.family {
+	case "ipv4/flow", "ipv6/flow", "ipv4/flow-vpn", "ipv6/flow-vpn":
+		return &sdk.FilterUpdateOutput{Action: sdk.FilterReject}
+	}
+
 	// Mixed: modify. Emit a delta whose nlri block contains only the
 	// accepted subset. The engine picks this up in applyFilterDelta (which
 	// replaces the nlri key verbatim) and in extractNLRIOverride (which

@@ -92,7 +92,7 @@ behind.
 |--------|------|--------|---------|
 | `ze_firewall_apply_duration_seconds` | histogram | `result` | Time spent in `Backend.Apply`. `result` is `ok`, `timeout`, `error`, or `panic`. |
 | `ze_firewall_apply_timeout_total` | counter | | Reconciles that failed because the dataplane did not answer within the backend deadline. |
-| `ze_flowspec_rules_refused_total` | counter | `reason` | FlowSpec routes received from a peer that did not become a firewall rule. `reason` is `unknown-protocol`, `unsupported-component`, `no-action`, `parse`, or `max-rules`. |
+| `ze_flowspec_rules_refused_total` | counter | `reason` | FlowSpec routes received from a peer that did not become a firewall rule. `reason` is `unknown-protocol`, `unsupported-component`, `unsupported-action`, `parse`, or `max-rules`. |
 
 The `result` label is what separates a healthy-but-slow apply from one that gave
 up: a backend deadline of 10s and a 10s successful reconcile land in the same

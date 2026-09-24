@@ -7,6 +7,7 @@
 package flowspec
 
 import (
+	"fmt"
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/core/bgp/wire"
@@ -36,13 +37,25 @@ func NewFlowSourcePrefixComponent(prefix netip.Prefix) FlowComponent {
 // newFlowDestPrefixComponentWithOffset creates an IPv6 destination prefix with offset.
 // The offset field is defined in RFC 8956 for IPv6 FlowSpec.
 func newFlowDestPrefixComponentWithOffset(prefix netip.Prefix, offset uint8) FlowComponent {
-	return &prefixComponent{compType: FlowDestPrefix, prefix: prefix, offset: offset}
+	return &prefixComponent{compType: FlowDestPrefix, prefix: flowPrefixPattern(prefix, offset), offset: offset}
 }
 
 // newFlowSourcePrefixComponentWithOffset creates an IPv6 source prefix with offset.
 // The offset field is defined in RFC 8956 for IPv6 FlowSpec.
 func newFlowSourcePrefixComponentWithOffset(prefix netip.Prefix, offset uint8) FlowComponent {
-	return &prefixComponent{compType: FlowSourcePrefix, prefix: prefix, offset: offset}
+	return &prefixComponent{compType: FlowSourcePrefix, prefix: flowPrefixPattern(prefix, offset), offset: offset}
+}
+
+// Skipped address bits are not part of an IPv6 pattern. Normalize once so
+// configured and received components use the same precedence representation.
+func flowPrefixPattern(prefix netip.Prefix, offset uint8) netip.Prefix {
+	if offset == 0 {
+		return prefix.Masked()
+	}
+	addr := prefix.Addr().As16()
+	clear(addr[:int(offset)/8])
+	addr[int(offset)/8] &= 0xff >> (offset % 8)
+	return netip.PrefixFrom(netip.AddrFrom16(addr), prefix.Bits()).Masked()
 }
 
 func (c *prefixComponent) Type() FlowComponentType { return c.compType }
@@ -53,32 +66,8 @@ func (c *prefixComponent) Offset() uint8           { return c.offset }
 // IPv4: <type (1), length (1), prefix (variable)>.
 // IPv6: <type (1), length (1), offset (1), prefix (variable)> per RFC 8956.
 func (c *prefixComponent) Bytes() []byte {
-	bits := c.prefix.Bits()
-	addr := c.prefix.Addr()
-
-	// IPv6 FlowSpec prefixes include an offset byte (RFC 8956)
-	if addr.Is6() {
-		// Calculate bytes needed for the prefix data (from offset to prefix length)
-		// The prefix length field includes offset
-		prefixBytes := (bits + 7) / 8
-		data := make([]byte, 3+prefixBytes)
-		data[0] = byte(c.compType)
-		data[1] = byte(bits)
-		data[2] = c.offset
-
-		ip6 := addr.As16()
-		copy(data[3:], ip6[:prefixBytes])
-		return data
-	}
-
-	// IPv4: RFC 8955 encoding - no offset byte
-	prefixBytes := (bits + 7) / 8
-	data := make([]byte, 2+prefixBytes)
-	data[0] = byte(c.compType)
-	data[1] = byte(bits)
-
-	ip4 := addr.As4()
-	copy(data[2:], ip4[:prefixBytes])
+	data := make([]byte, c.Len())
+	c.WriteTo(data, 0)
 	return data
 }
 
@@ -110,39 +99,62 @@ func (c *prefixComponent) keyword() string {
 // Len returns the wire-format length in bytes.
 func (c *prefixComponent) Len() int {
 	bits := c.prefix.Bits()
-	prefixBytes := (bits + 7) / 8
 	if c.prefix.Addr().Is6() {
-		return 3 + prefixBytes // type + length + offset + prefix
+		return 3 + (bits-int(c.offset)+7)/8
 	}
-	return 2 + prefixBytes // type + length + prefix
+	return 2 + (bits+7)/8
 }
 
 // WriteTo writes the component directly to buf at offset.
 // Returns bytes written.
 func (c *prefixComponent) WriteTo(buf []byte, off int) int {
 	bits := c.prefix.Bits()
-	addr := c.prefix.Addr()
-	prefixBytes := (bits + 7) / 8
-
-	pos := off
-	buf[pos] = byte(c.compType)
-	pos++
-	buf[pos] = byte(bits)
-	pos++
-
+	addr := c.prefix.Masked().Addr()
+	buf[off] = byte(c.compType)
+	buf[off+1] = byte(bits)
 	if addr.Is6() {
-		buf[pos] = c.offset
-		pos++
-		ip6 := addr.As16()
-		copy(buf[pos:], ip6[:prefixBytes])
-		pos += prefixBytes
-	} else {
-		ip4 := addr.As4()
-		copy(buf[pos:], ip4[:prefixBytes])
-		pos += prefixBytes
+		buf[off+2] = c.offset
+		ip := addr.As16()
+		patternBits := bits - int(c.offset)
+		size := (patternBits + 7) / 8
+		start, shift := int(c.offset)/8, c.offset%8
+		for i := range size {
+			b := ip[start+i] << shift
+			if shift != 0 && start+i+1 < len(ip) {
+				b |= ip[start+i+1] >> (8 - shift)
+			}
+			buf[off+3+i] = b
+		}
+		if size != 0 && patternBits%8 != 0 {
+			buf[off+2+size] &= 0xff << (8 - patternBits%8)
+		}
+		return 3 + size
 	}
+	ip := addr.As4()
+	size := (bits + 7) / 8
+	copy(buf[off+2:], ip[:size])
+	return 2 + size
+}
 
-	return pos - off
+// validate checks the address layout before a configured component is attached
+// to its enclosing NLRI. RFC 8956 Section 3.1 -- see rfc/short/rfc8956.md.
+func (c *prefixComponent) validate(afi AFI) error {
+	if !c.prefix.IsValid() {
+		return fmt.Errorf("flowspec: invalid prefix")
+	}
+	if c.prefix.Addr().Is4() != (afi == AFIIPv4) {
+		return fmt.Errorf("flowspec: prefix address family differs from NLRI")
+	}
+	if c.offset == 0 {
+		return nil
+	}
+	if afi != AFIIPv6 {
+		return fmt.Errorf("flowspec: IPv4 prefix has a nonzero offset")
+	}
+	if int(c.offset) >= c.prefix.Bits() {
+		return fmt.Errorf("flowspec: prefix offset must be below its length")
+	}
+	return nil
 }
 
 // CheckedWriteTo validates capacity before writing.
@@ -168,53 +180,45 @@ func parsePrefixComponent(t FlowComponentType, data []byte, fam Family) (FlowCom
 	if len(data) == 0 {
 		return nil, nil, ErrFlowSpecTruncated
 	}
-
 	prefixLen := int(data[0])
-	prefixBytes := (prefixLen + 7) / 8
-
-	// IPv6 FlowSpec includes an offset byte per RFC 8956 Section 3.1
 	var offset uint8
-	headerLen := 1 // Just prefix length for IPv4
+	headerLen, maximum := 1, 32
 	if fam.AFI == AFIIPv6 {
 		if len(data) < 2 {
 			return nil, nil, ErrFlowSpecTruncated
 		}
 		offset = data[1]
-		headerLen = 2 // Prefix length + offset for IPv6
+		headerLen, maximum = 2, 128
 	}
-
+	if prefixLen > maximum || (offset != 0 && int(offset) >= prefixLen) {
+		return nil, nil, fmt.Errorf("flowspec: invalid prefix length %d at offset %d", prefixLen, offset)
+	}
+	prefixBytes := (prefixLen - int(offset) + 7) / 8
 	if len(data) < headerLen+prefixBytes {
 		return nil, nil, ErrFlowSpecTruncated
 	}
-
-	// Build prefix - encoding matches RFC 4271 prefix encoding
 	var addr netip.Addr
 	if fam.AFI == AFIIPv4 {
 		var ip [4]byte
-		copy(ip[:], data[1:1+prefixBytes])
+		copy(ip[:], data[headerLen:headerLen+prefixBytes])
 		addr = netip.AddrFrom4(ip)
 	} else {
 		var ip [16]byte
-		copy(ip[:], data[headerLen:headerLen+prefixBytes])
+		start, shift := int(offset)/8, offset%8
+		for i, b := range data[headerLen : headerLen+prefixBytes] {
+			ip[start+i] |= b >> shift
+			if shift != 0 && start+i+1 < len(ip) {
+				ip[start+i+1] |= b << (8 - shift)
+			}
+		}
 		addr = netip.AddrFrom16(ip)
 	}
-
-	prefix := netip.PrefixFrom(addr, prefixLen)
-
+	prefix := netip.PrefixFrom(addr, prefixLen).Masked()
 	var comp FlowComponent
 	if t == FlowDestPrefix {
-		if offset > 0 {
-			comp = newFlowDestPrefixComponentWithOffset(prefix, offset)
-		} else {
-			comp = NewFlowDestPrefixComponent(prefix)
-		}
+		comp = newFlowDestPrefixComponentWithOffset(prefix, offset)
 	} else {
-		if offset > 0 {
-			comp = newFlowSourcePrefixComponentWithOffset(prefix, offset)
-		} else {
-			comp = NewFlowSourcePrefixComponent(prefix)
-		}
+		comp = newFlowSourcePrefixComponentWithOffset(prefix, offset)
 	}
-
 	return comp, data[headerLen+prefixBytes:], nil
 }

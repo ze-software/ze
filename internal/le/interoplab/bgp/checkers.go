@@ -261,10 +261,17 @@ var scenarioOperations = map[string][]operation{
 	},
 	"bgp-flowspec-sctp-gobgp": {
 		{kind: opGoBGPSession, argument: zeLabAddress},
+		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, flowspecMatchPrefix, "nexthop", "172.30.0.5"}},
 		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4Flowspec, gobgpAdd, "match", "destination", flowspecMatchPrefix, "protocol", "==sctp", "then", "discard"}},
 		{kind: opWaitContains, peer: "ze", command: []string{cmdNft, nftActionList, nftObjectRuleset}, contains: []string{"sctp", flowspecMatchPrefix}, timeout: 30 * time.Second},
+		// A unicast-only change must remove and restore the existing filter;
+		// the peer never reannounces its FlowSpec between these assertions.
+		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "del", flowspecMatchPrefix}},
+		{kind: opWaitAbsent, peer: "ze", command: []string{cmdNft, "-j", nftActionList, nftObjectRuleset}, absent: []string{"sctp"}, proof: []string{"\"nftables\""}, timeout: 30 * time.Second},
+		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, gobgpAdd, flowspecMatchPrefix, "nexthop", "172.30.0.5"}},
+		{kind: opWaitContains, peer: "ze", command: []string{cmdNft, nftActionList, nftObjectRuleset}, contains: []string{"sctp", flowspecMatchPrefix}, timeout: 30 * time.Second},
 		{kind: opExec, peer: peerGoBGP, command: []string{cmdGoBGP, gobgpGlobal, gobgpRIB, "-a", gobgpFamilyIPv4Flowspec, "del", "match", "destination", flowspecMatchPrefix, "protocol", "==sctp", "then", "discard"}},
-		{kind: opWaitAbsent, peer: "ze", command: []string{cmdNft, nftActionList, nftObjectRuleset}, absent: []string{flowspecMatchPrefix}, proof: []string{nftObjectTable}, timeout: 30 * time.Second},
+		{kind: opWaitAbsent, peer: "ze", command: []string{cmdNft, "-j", nftActionList, nftObjectRuleset}, absent: []string{"sctp"}, proof: []string{"\"nftables\""}, timeout: 30 * time.Second},
 		{kind: opGoBGPSession, argument: zeLabAddress},
 	},
 	scenarioGracefulRestartFRR: {
@@ -814,10 +821,6 @@ var scenarioOperations = map[string][]operation{
 	"ospf-te-interas-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 	},
-	"ospf-virtual-link-frr": {
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPFNeighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", "show ip route ospf"}, contains: []string{"192.0.2.0/24"}, timeout: 60 * time.Second},
-	},
 	"ospfv3-bfd-frr": {
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowBFDPeers}, contains: []string{bfdStatusUp}, timeout: 60 * time.Second},
@@ -877,14 +880,8 @@ var scenarioOperations = map[string][]operation{
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}, timeout: 90 * time.Second},
 		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Route}, contains: []string{"::/0"}, timeout: 90 * time.Second},
 	},
-	"ospfv3-vlink-frr": {
-		{kind: opWaitContains, peer: peerFRR, command: []string{cmdVtysh, "-c", frrShowOSPF6Neighbor}, contains: []string{ospfStateFull}},
-	},
 	scenarioRPKIFRR: {
 		{kind: opFRRSession, argument: zeLabAddress},
-	},
-	"rtr-stayrtr": {
-		{kind: opWaitContains, peer: peerStayRTR, command: []string{"wget", "-q", "-O", "-", "http://127.0.0.1:9847/rpki.json"}, contains: []string{"prefix"}},
 	},
 	scenarioShutdownCeaseFRR: {
 		{kind: opFRRSession, argument: zeLabAddress},

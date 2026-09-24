@@ -1,6 +1,7 @@
 // Design: docs/architecture/wire/attributes.md -- path attribute encoding
 // RFC: rfc/short/rfc4360.md -- Route Target and Route Origin extended communities
 // RFC: rfc/short/rfc8955.md -- FlowSpec traffic filtering actions (Section 7)
+// RFC: rfc/short/rfc8956.md -- IPv6 route-target redirect (Section 6.1)
 // Related: flowspec_action.go -- the encode table for colon-less FlowSpec keywords
 // Related: text_append.go -- AppendText, the raw 8-octet hex filter-text form
 //
@@ -54,6 +55,7 @@ const (
 	extCommRedirectAS2        = 0x8008 // RFC 8955 Section 7.4: rt-redirect, two-octet AS specific
 	extCommRedirectIPv4       = 0x8108 // RFC 8955 Section 7.4: rt-redirect, IPv4 address specific
 	extCommRedirectAS4        = 0x8208 // RFC 8955 Section 7.4: rt-redirect, four-octet AS specific
+	extCommRedirectIPv6       = 0x000d // RFC 8956 Section 6.1: IPv6 address specific route-target redirect
 	extCommTrafficMarking     = 0x8009 // RFC 8955 Section 7.5: traffic-marking
 	extCommTrafficRatePackets = 0x800c // RFC 8955 Section 7.2: traffic-rate-packets
 	extCommLayer2Info         = 0x800a // RFC 4761 Section 3.2.4: Layer2 Info, VPLS pseudowire control
@@ -402,16 +404,16 @@ func appendExtCommTrafficRate(buf []byte, e ExtendedCommunity, unit string) []by
 // Section 3.1 puts a two-octet AS, so every field offset the 8-octet vocabulary
 // reads names something else here and the two cannot share a renderer.
 //
-// One sub-type is named, and it is the one Ze itself produces:
-// draft-ietf-idr-flowspec-redirect-ip's redirect-to-IP, written by
-// FlowSpecRedirectToIPv6 (flowspec_encode.go) from the `redirect-to-nexthop
-// <IPv6>` an operator configures. Rendering it as hex meant a FlowSpec redirect
-// to an IPv6 next hop was the one action Ze could accept and could not read
-// back.
+// RFC 8956 Section 6.1 assigns type 0x000d to an IPv6 route-target redirect.
+// The redirect-to-IP subtype 0x0c instead names a next hop, as produced by
+// FlowSpecRedirectToIPv6 (flowspec_encode.go).
 //
-// Anything else keeps its octets as "0x<transitivity><sub-type>:<hex>", the
-// same shape the 8-octet renderer falls back to.
+// Route targets and origins use their RFC 5701 names. Other types keep their
+// octets as "0x<transitivity><sub-type>:<hex>", like the 8-octet renderer.
 func (e IPv6ExtendedCommunity) AppendDecoded(buf []byte) []byte {
+	if binary.BigEndian.Uint16(e[0:2]) == extCommRedirectIPv6 {
+		return appendExtCommIPv6Specific(buf, "redirect:", e)
+	}
 	if e[1] == flowSpecSubtypeRedirectToIP {
 		if binary.BigEndian.Uint16(e[18:20])&0x01 != 0 {
 			buf = append(buf, "copy-to-nexthop "...)

@@ -14,6 +14,28 @@
       "citation": "RFC 8955 Section 4"
     },
     {
+      "rid": "RFC8955-4-4",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec",
+      "unit-sha": "06407627416120c3",
+      "claim-sha": "64038d448c7436c6",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::entryNextHopAddr",
+      "producer-sha": "a2c8bcfda8dc029a",
+      "break": "body of entryNextHopAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC8955-4-4",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec",
+      "unit-sha": "06407627416120c3",
+      "claim-sha": "8b81d117c915df08",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::entryNextHopAddr",
+      "producer-sha": "a2c8bcfda8dc029a",
+      "break": "body of entryNextHopAddr replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
       "rid": "RFC8955-6-5",
       "polarity": "negative",
       "unit": "internal/component/bgp/plugins/rib/rfc8955_flowspec_bestchange_test.go::TestRFC8955FlowSpecLosingPathIsNeverPublished",

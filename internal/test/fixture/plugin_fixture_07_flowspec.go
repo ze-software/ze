@@ -130,26 +130,55 @@ func tableBlock07(ruleset, header string) string {
 	return ruleset[start:]
 }
 
-func flowSpecLegacyTable07(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon07(ctx)
-	if err != nil {
+// Each selected rule is installed once in each relevant kernel hook.
+func flowSpecBothHooks07(ruleset, prefix string) bool {
+	table := tableBlock07(ruleset, "table inet ze_flowspec {")
+	for _, hook := range []struct{ chain, hook string }{
+		{"flowspec-in", "input"},
+		{"flowspec-fwd", "forward"},
+	} {
+		chain := tableBlock07(table, "chain "+hook.chain+" {")
+		if !strings.Contains(chain, "hook "+hook.hook) {
+			return false
+		}
+		if strings.Count(chain, prefix) != 1 {
+			return false
+		}
+	}
+	return strings.Count(table, prefix) == 2
+}
+
+func flowSpecLegacyTable07(ctx context.Context, plugin *sdk.Plugin) error {
+	var err error
+	var ruleset string
+	original := Poll(ctx, 150, 100*time.Millisecond, func() bool {
+		ruleset, err = nftRuleset07(ctx)
+		if err != nil {
+			return false
+		}
+		table := tableBlock07(ruleset, "table inet ze_flowspec {")
+		return flowSpecBothHooks07(ruleset, "10.1.0.0/24") && !strings.Contains(table, "log prefix")
+	})
+	if !original {
+		return fmt.Errorf("unsampled original never reached both FlowSpec hooks exactly once: %s", ruleset)
+	}
+	if err := releaseFlowSpecPeer07(ctx, plugin); err != nil {
 		return err
 	}
-	var ruleset string
-	ok := Poll(ctx, 200, 100*time.Millisecond, func() bool {
+	ok := Poll(ctx, 150, 100*time.Millisecond, func() bool {
 		ruleset, err = nftRuleset07(ctx)
-		return err == nil && strings.Contains(tableBlock07(ruleset, "table inet ze_flowspec {"), "10.1.0.0/24")
+		if err != nil {
+			return false
+		}
+		table := tableBlock07(ruleset, "table inet ze_flowspec {")
+		return flowSpecBothHooks07(ruleset, "10.1.0.0/24") && strings.Contains(table, "log prefix")
 	})
-	fmt.Fprint(os.Stdout, ruleset) //nolint:errcheck // progress output
-	_ = terminate07(pid)
+	fmt.Fprint(os.Stderr, ruleset) //nolint:errcheck // observed kernel state relayed by the daemon
 	if !ok {
-		return errors.New("announced route never reached table inet ze_flowspec")
+		return errors.New("sampled replacement never reached both FlowSpec hooks exactly once")
 	}
 	if strings.Contains(ruleset, "table inet flowspec {") || strings.Contains(ruleset, "198.51.100.0/24") {
 		return errors.New("legacy FlowSpec table or rule survived reconcile")
-	}
-	if copies := strings.Count(tableBlock07(ruleset, "table inet ze_flowspec {"), "10.1.0.0/24"); copies != 1 {
-		return fmt.Errorf("table inet ze_flowspec holds %d copies of route, want 1", copies)
 	}
 	return nil
 }
@@ -159,15 +188,18 @@ func flowSpecSCTP07(ctx context.Context, _ []string) error {
 	if err != nil {
 		return err
 	}
+	defer func() { _ = terminate07(pid) }()
 	var ruleset string
 	ok := Poll(ctx, 200, 100*time.Millisecond, func() bool {
 		ruleset, err = nftRuleset07(ctx)
-		return err == nil && strings.Contains(ruleset, "table inet ze_flowspec") && (strings.Contains(ruleset, "l4proto 132") || strings.Contains(ruleset, "l4proto sctp"))
+		if err != nil {
+			return false
+		}
+		return flowSpecBothHooks07(ruleset, "10.1.0.0/24") && (strings.Contains(ruleset, "l4proto 132") || strings.Contains(ruleset, "l4proto sctp"))
 	})
 	fmt.Fprint(os.Stdout, ruleset) //nolint:errcheck // progress output
-	_ = terminate07(pid)
 	if !ok {
-		return errors.New("no SCTP rule in kernel ruleset")
+		return errors.New("protocol-only SCTP rule did not reach both kernel hooks")
 	}
 	return nil
 }
@@ -180,14 +212,31 @@ func flowSpecUntranslatable07(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
+	defer func() { _ = terminate07(pid) }()
 	var ruleset, metrics string
-	installed := Poll(ctx, 200, 100*time.Millisecond, func() bool {
+	settled := Poll(ctx, 200, 100*time.Millisecond, func() bool {
 		ruleset, err = nftRuleset07(ctx)
-		return err == nil && strings.Contains(ruleset, "ze_fslocal") && (strings.Contains(ruleset, "l4proto 132") || strings.Contains(ruleset, "l4proto sctp"))
-	})
-	counted := Poll(ctx, 200, 100*time.Millisecond, func() bool {
+		if err != nil {
+			return false
+		}
 		metrics, err = fetch07(ctx, args[0])
-		return err == nil && strings.Contains(metrics, `ze_flowspec_rules_refused_total{reason="unknown-protocol"}`)
+		if err != nil {
+			return false
+		}
+		for _, reason := range []string{"unknown-protocol", "unsupported-component"} {
+			count, exists := counter07(metrics, `ze_flowspec_rules_refused_total{reason="`+reason+`"}`)
+			if !exists || count < 1 {
+				return false
+			}
+		}
+		table := tableBlock07(ruleset, "table inet ze_flowspec {")
+		if strings.Contains(table, "10.2.0.0/24") || strings.Contains(table, "10.3.0.0/24") {
+			return false
+		}
+		if !strings.Contains(ruleset, "table inet ze_fslocal {") {
+			return false
+		}
+		return flowSpecBothHooks07(ruleset, "10.1.0.0/24") && (strings.Contains(table, "l4proto 132") || strings.Contains(table, "l4proto sctp"))
 	})
 	fmt.Fprint(os.Stdout, ruleset) //nolint:errcheck // progress output
 	for line := range strings.SplitSeq(metrics, "\n") {
@@ -195,12 +244,8 @@ func flowSpecUntranslatable07(ctx context.Context, args []string) error {
 			fmt.Fprintln(os.Stdout, line) //nolint:errcheck // progress output
 		}
 	}
-	_ = terminate07(pid)
-	if !installed {
-		return errors.New("reconcile did not survive untranslatable FlowSpec route")
-	}
-	if !counted {
-		return errors.New("refused route never reached ze_flowspec_rules_refused_total")
+	if !settled {
+		return errors.New("refusal isolation did not preserve both hooks and the other owner with both refusals counted")
 	}
 	return nil
 }
@@ -239,43 +284,58 @@ func flowSpecTables07(ruleset string) []string {
 	return tables
 }
 
-func flowSpecWithdrawTable07(ctx context.Context, _ []string) error {
-	pid, err := waitDaemon07(ctx)
+// The peer waits for this unique UPDATE before its observed-state transition.
+// It is not an EOR or KEEPALIVE that initial sync could satisfy by accident.
+// Keep the expectations in the legacy-table and withdrawal .ci carriers.
+const flowSpecTransitionMarker07 = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003102000000154001010040020040050400000064400304C000020120C612FFFE"
+
+// Use the attached process's authenticated SDK rail, not the operator SSH CLI.
+func releaseFlowSpecPeer07(ctx context.Context, plugin *sdk.Plugin) error {
+	_, err := plugin01RequireDone(ctx, plugin, "send bgp 127.0.0.1 raw hex "+flowSpecTransitionMarker07)
+	return err
+}
+
+func flowSpecWithdrawTable07(ctx context.Context, plugin *sdk.Plugin) error {
+	var err error
+	var ruleset string
+	installed := Poll(ctx, 150, 100*time.Millisecond, func() bool {
+		ruleset, err = nftRuleset07(ctx)
+		return err == nil && flowSpecBothHooks07(ruleset, "10.1.0.0/24") && flowSpecBothHooks07(ruleset, "10.2.0.0/24")
+	})
+	if !installed {
+		return fmt.Errorf("both selected rules never reached both hooks: %s", ruleset)
+	}
+	if err := releaseFlowSpecPeer07(ctx, plugin); err != nil {
+		return err
+	}
+	settled := Poll(ctx, 150, 100*time.Millisecond, func() bool {
+		ruleset, err = nftRuleset07(ctx)
+		return err == nil && flowSpecBothHooks07(ruleset, "10.1.0.0/24") && !strings.Contains(ruleset, "10.2.0.0/24")
+	})
+	if !settled {
+		return fmt.Errorf("MP_UNREACH did not remove only the withdrawn rule: %s", ruleset)
+	}
+	fmt.Fprint(os.Stderr, ruleset) //nolint:errcheck // observed surviving rule relayed by the daemon
+	peers, err := peerPIDs07()
 	if err != nil {
 		return err
 	}
-	var ruleset string
-	settled := Poll(ctx, 300, 100*time.Millisecond, func() bool {
-		ruleset, err = nftRuleset07(ctx)
-		return err == nil && strings.Contains(ruleset, "table inet ze_flowspec") && strings.Contains(ruleset, "10.1.0.0/24") && !strings.Contains(ruleset, "10.2.0.0/24")
-	})
-	if !settled {
-		fmt.Fprint(os.Stdout, ruleset) //nolint:errcheck // progress output
-		_ = terminate07(pid)
-		return errors.New("kernel never reached one kept route and no withdrawn route")
-	}
-	installed := ruleset
-	if copies := strings.Count(installed, "10.1.0.0/24"); copies != 1 {
-		_ = terminate07(pid)
-		return fmt.Errorf("kept route installed %d times, want 1", copies)
-	}
-	peers, err := peerPIDs07()
-	if err != nil || len(peers) == 0 {
-		_ = terminate07(pid)
-		return fmt.Errorf("no peer process to stop: %w", err)
+	if len(peers) == 0 {
+		return errors.New("no peer process to stop after the observed withdrawal")
 	}
 	for _, peer := range peers {
-		_ = terminate07(peer)
+		if err := terminate07(peer); err != nil {
+			return fmt.Errorf("stop peer: %w", err)
+		}
 	}
-	gone := Poll(ctx, 300, 100*time.Millisecond, func() bool {
+	gone := Poll(ctx, 150, 100*time.Millisecond, func() bool {
 		ruleset, err = nftRuleset07(ctx)
 		return err == nil && len(flowSpecTables07(ruleset)) == 0
 	})
-	fmt.Fprint(os.Stdout, installed) //nolint:errcheck // progress output
-	fmt.Fprint(os.Stdout, ruleset)   //nolint:errcheck // progress output
-	_ = terminate07(pid)
+	fmt.Fprint(os.Stderr, ruleset) //nolint:errcheck // observed final kernel state
 	if !gone {
 		return fmt.Errorf("FlowSpec table survives last withdraw: %v", flowSpecTables07(ruleset))
 	}
-	return nil
+	_, err = fmt.Fprintf(os.Stderr, "flowspec-tables-after-peer-withdraw=%d\n", len(flowSpecTables07(ruleset)))
+	return err
 }

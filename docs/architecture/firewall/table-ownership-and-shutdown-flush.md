@@ -87,14 +87,13 @@ One case needs its own trigger. The removal runs inside `Backend.Apply`, and
 `ApplyAll` returns before it reaches a backend when the merged desired set is
 empty and none is loaded. A box with no `firewall {}` section, whose FlowSpec
 source has stopped announcing, therefore gets no reconcile at all. An owner whose
-own registration is event-driven runs one empty reconcile at startup while the
-removal is pending. `ApplyAll` loads a backend for that one reconcile. Two owners
-do it: the FlowSpec bridge and the anomaly-shape responder.
-
-The other two need no trigger. copp registers its table whenever it is
-configured, so it always drives a reconcile of its own. ddos-local always
-presents a non-empty desired set in its start-of-process sweep (Rule 4), so it
-reaches a backend on every start.
+own registration is event-driven must reach a backend at startup even when no
+fresh rule exists. The anomaly-shape responder runs one empty reconcile while
+the legacy removal is pending. The FlowSpec bridge and ddos-local instead
+claim their current table names with empty tables, then withdraw those claims
+(Rule 4). Their first reconcile always has a non-empty desired set, so it also
+triggers legacy removal. copp registers its table whenever it is configured,
+which likewise drives a reconcile of its own.
 
 Remove an entry from `legacy_tables.go` when no supported upgrade path starts
 from a build that wrote it. The file is written to be deleted.
@@ -184,9 +183,17 @@ The nft ownership explanation above does not establish that a VPP drop survives
 an incorrectly ordered ddos-local sweep.
 <!-- source: internal/plugins/firewall/vpp/backend_linux.go -- reconcileWithOps, cleanupStartupOrphans -->
 
-The same shape fits any owner whose table is an automatic RESPONSE rather than
-provisioned config. The FlowSpec bridge and the anomaly-shape responder are the
-other two, and neither carries the sweep today.
+The FlowSpec bridge uses the same two-reconcile ownership claim at initial
+configuration, after its firewall dependency has configured the backend. It
+then subscribes and requests the authoritative selected-route replay. This
+removes a stale `ze_flowspec` table even when no route remains eligible; a
+refresh or an ordinary action replacement does not run the startup sweep.
+Unlike ddos-local, a cleanup failure refuses bridge initialization rather
+than installing fresh rules over uncertain state. The anomaly-shape responder
+does not yet carry this startup sweep.
+
+<!-- source: internal/plugins/flowspec-firewall/engine.go -- clearStaleRules and runEngine -->
+<!-- source: internal/plugins/flowspec-firewall/selected_integration_linux_test.go -- TestSelectedFlowSpecKernelPacketSemantics -->
 
 <!-- source: internal/plugins/ddos/local/register.go -- clearStaleDropRule -->
 <!-- source: internal/plugins/firewall/nft/backend_linux.go -- shouldDeleteTable -->
