@@ -34,6 +34,9 @@ const (
 	ActionUnspecified Action = 0
 	ActionAdd         Action = 1
 	ActionRemove      Action = 2
+	// ActionRemoveLabelSource retires retained swap/pop labels owned by Source.
+	// Prefix-keyed push contexts keep their separate per-entry lifecycle.
+	ActionRemoveLabelSource Action = 3
 )
 
 // Op is the MPLS label operation. Zero is invalid.
@@ -118,4 +121,12 @@ func Apply(bus ze.EventBus, entries []Entry) error {
 		return errNoOwnerAcknowledgement
 	}
 	return result
+}
+
+// RemoveLabelSource retires all AF_MPLS swap/pop labels retained by the native owner
+// for source. It does not remove prefix-keyed push contexts. A failed deletion
+// remains owned and is retried by the next call; other successful deletions are
+// not rolled back. The caller must not reuse labels until this returns nil.
+func RemoveLabelSource(bus ze.EventBus, source uint16) error {
+	return Apply(bus, []Entry{{Action: ActionRemoveLabelSource, Source: source}})
 }

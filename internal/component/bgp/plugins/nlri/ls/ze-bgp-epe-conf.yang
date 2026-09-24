@@ -1,0 +1,74 @@
+module ze-bgp-epe-conf {
+    namespace "urn:ze:bgp:epe:conf";
+    prefix epe;
+
+    import ze-extensions { prefix ze; }
+    import ietf-inet-types { prefix inet; }
+
+    description
+        "Native BGP Egress Peer Engineering forwarding and topology state.";
+
+    revision 2026-09-21 {
+        description "Persistent PeerNode SID index assignments and local SRGB.";
+    }
+
+    container bgp-epe {
+        presence "Enable native BGP EPE segments.";
+        ze:config-root "bgp-epe";
+        ze:help "Instantiate BGP Egress Peer Engineering segments.";
+        description
+            "The internal bgp-epe plugin consumes state events from attached
+             BGP sessions. Each configured peer gets a persistent PeerNode SID
+             index. While its session is established, the corresponding local
+             label is popped and forwarded to the peer by the selected MPLS
+             FIB writer. State withdrawal removes that label and its BGP-LS
+             advertisement. Configure bgp-ls-export to advertise the native
+             state to collectors. This SRGB must be reserved exclusively for
+             these EPE labels and must not overlap another label producer.";
+        container srgb {
+            description "Local SRGB reserved for EPE PeerNode segments.";
+            ze:help "Reserve the local label range for EPE PeerNode segments.";
+            leaf lower-bound {
+                type uint32 { range "16..1048575"; }
+                mandatory true;
+                description "Inclusive lower label bound; labels below 16 are reserved by MPLS.";
+                ze:help "First label in the EPE SRGB.";
+            }
+            leaf upper-bound {
+                type uint32 { range "16..1048575"; }
+                mandatory true;
+                description "Inclusive upper label bound, which must be at least the lower bound.";
+                ze:help "Last label in the EPE SRGB.";
+            }
+        }
+        list peer {
+            key "address";
+            min-elements 1;
+            max-elements 32768;
+            description
+                "Assign one distinct SRGB index to each established session's
+                 remote peer. Removing an assignment removes its forwarding
+                 label and withdraws its native BGP-LS state.";
+            ze:help "BGP session whose connected peer is an EPE next hop.";
+            leaf address {
+                type inet:ip-address;
+                description "Remote transport address used to identify the attached BGP session.";
+                ze:help "Remote address of the BGP session.";
+            }
+            leaf sid-index {
+                type uint32 { range "0..1048559"; }
+                mandatory true;
+                description
+                    "Unique offset into the configured SRGB. The assignment
+                     remains stable across process restart and session flap.";
+                ze:help "Persistent PeerNode SID index in the EPE SRGB.";
+            }
+            leaf weight {
+                type uint8;
+                default 0;
+                description "Relative load-balancing weight advertised in the PeerNode SID attribute.";
+                ze:help "PeerNode SID load-balancing weight.";
+            }
+        }
+    }
+}

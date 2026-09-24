@@ -1,0 +1,126 @@
+{
+  "rfc": "rfc9086",
+  "records": [
+    {
+      "rid": "RFC9086-3-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+      "unit-sha": "7b4656a749d1c4ac",
+      "claim-sha": "1fb6453039a60ae5",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/epe_source.go::publishLocked",
+      "producer-sha": "1646dd16af3a6e4a",
+      "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-3-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+      "unit-sha": "7b4656a749d1c4ac",
+      "claim-sha": "8e5d7dc3c49fadb1",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/epe_source.go::publishLocked",
+      "producer-sha": "1646dd16af3a6e4a",
+      "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-4.2-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+      "unit-sha": "7b4656a749d1c4ac",
+      "claim-sha": "06d83c16d4cca7b1",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/epe_source.go::publishLocked",
+      "producer-sha": "1646dd16af3a6e4a",
+      "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-4.2-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/ls/epe_rfc9086_test.go::TestRFC9086NativePeerRequiresNodeIdentities",
+      "unit-sha": "8175ee0664a92935",
+      "claim-sha": "da2416390007fc2f",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/epe_source.go::state",
+      "producer-sha": "311281d1202e5721",
+      "break": "body of state replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-4.2-2",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+      "unit-sha": "7b4656a749d1c4ac",
+      "claim-sha": "001bd0e5ffc7810b",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/epe_source.go::publishLocked",
+      "producer-sha": "1646dd16af3a6e4a",
+      "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-4.2-2",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/ls/epe_rfc9086_test.go::TestRFC9086NativePeerRequiresNodeIdentities",
+      "unit-sha": "8175ee0664a92935",
+      "claim-sha": "19403867391d1a3c",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/epe_source.go::state",
+      "producer-sha": "311281d1202e5721",
+      "break": "body of state replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-5-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+      "unit-sha": "7b4656a749d1c4ac",
+      "claim-sha": "4897979624c081a8",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/epe_source.go::publishLocked",
+      "producer-sha": "1646dd16af3a6e4a",
+      "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-5-10",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/epe_rfc9086_test.go::TestRFC9086NativePeerIndexAdvertisesSRGB",
+      "unit-sha": "7b4656a749d1c4ac",
+      "claim-sha": "c5af3b5b6b32ebfc",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/epe_source.go::publishLocked",
+      "producer-sha": "1646dd16af3a6e4a",
+      "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-5-10",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/ls/epe_rfc9086_test.go::TestRFC9086NativePeerIndexRequiresSRGB",
+      "unit-sha": "c45de1847f69feea",
+      "claim-sha": "cef49ee537d172b1",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/export_epe.go::validateNativeEPE",
+      "producer-sha": "45d282178151cab3",
+      "break": "body of validateNativeEPE replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-7-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/ls/epe_rfc9086_test.go::TestRFC9086NativeConfigurationEnableDisable",
+      "unit-sha": "03ba3025e491a40f",
+      "claim-sha": "fa1ec6345481a87b",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/epe_source.go::publishLocked",
+      "producer-sha": "1646dd16af3a6e4a",
+      "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "RFC9086-7-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/ls/epe_rfc9086_test.go::TestRFC9086NativeConfigurationEnableDisable",
+      "unit-sha": "03ba3025e491a40f",
+      "claim-sha": "95de167da0797bd5",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/ls/epe_source.go::publishLocked",
+      "producer-sha": "1646dd16af3a6e4a",
+      "break": "body of publishLocked replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    }
+  ]
+}

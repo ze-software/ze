@@ -127,7 +127,7 @@ Each NLRI type plugin implements `String()`, which produces the text appended af
 
 A field name is followed by a space and then its value. No `set` keyword sits between the two. FlowSpec match operators (`==`, `>=`, `!=`) pass through as part of the value token.
 
-A label stack of more than one label prints as a comma-separated list, `label 1000,2000`. VPN, labeled unicast and the three EVPN types that carry labels hold RFC 3032 Section 2.1 stack entries. `String()` prints the 20-bit label of each entry through `nlri.LabelValue`. The traffic class and the bottom-of-stack bit of an entry are kept on the wire and are not printed.
+A label stack of more than one label prints as a comma-separated list, `label 1000,2000`. VPN and labeled unicast carry RFC 3032 Section 2.1 stack entries. EVPN Type 2 carries one or two label fields; Type 5 carries exactly one. `String()` prints the 20-bit label of each entry through `nlri.LabelValue`. The traffic class and bottom-of-stack bits are kept on the wire and are not printed. EVPN Type 1 carries exactly one three-octet label field, including the zero value required for per-ES routes; its received low bits are preserved without requiring a bottom-of-stack bit.
 <!-- source: internal/core/bgp/nlri/rd.go -- LabelValue -->
 
 `path-id <id>` is printed by VPN and labeled unicast, and only when the NLRI carries a Path Identifier. RFC 7911 Section 3 gives the field four octets and reserves no value, so zero is an identifier like any other: the types record a presence flag (`VPN.HasPathID`, `LabeledUnicast.HasPathID`) set by `ParseVPN` from the ADD-PATH negotiation, or by the caller of the constructor, and the clause follows that flag rather than a test on the value. `INET.String` prints the prefix alone, so an IPv4 or IPv6 unicast NLRI reads the same whether or not ADD-PATH was negotiated.
@@ -139,6 +139,23 @@ MVPN prints a route type name from RFC 6514 Section 4, such as `source-active` o
 MUP prints a route type name from draft-ietf-bess-mup-safi, one of `isd`, `dsd`, `t1st` and `t2st`, and `type(<N>)` for any other route type. It adds `rd <rd>` only for a route type ze decodes, which is these four under architecture type 3gpp-5G. Every other pair of architecture type and route type prints the route type name alone. Ze keeps the octets of such a route and does not read them.
 <!-- source: internal/component/bgp/plugins/nlri/mup/types.go -- MUP.String, MUP.parseBody -->
 <!-- source: internal/component/bgp/plugins/nlri/mup/rfc7606.go -- MUPRouteType.Implemented -->
+
+The MUP plugin supplies a BGP control-plane role: explicit route origination,
+NLRI decoding, and received-route propagation. It does not instantiate N3RAN
+routing instances or perform the user-plane PE's Type 2 ST resolution. The
+DSD/ISD selection rules in draft-ietf-bess-mup-safi Section 3.3.12 apply to a
+speaker acting as that PE: Direct Segment communities select matching DSD
+routes, Interwork Segment communities select matching ISD routes, and routes
+without a MUP community select the default ISD segment. These procedures are
+not supplied by the control-plane role; MUP non-CIDR routes do not enter the
+system IP FIB.
+
+On the decoding path, extension TLV applicability remains route-specific.
+ST2-only Session, Interwork Endpoint, and Source Endpoint TLVs do not override
+the mandatory fields of an ST1 route, nor are their values interpreted as ST1
+addresses. Their enclosing TLV framing must still be valid.
+<!-- source: internal/component/bgp/plugins/nlri/mup/types.go -- MUP.parseBody -->
+<!-- source: internal/component/sysrib/sysrib.go -- processEvent -->
 
 The Source column above is relative to `internal/component/bgp/plugins/`, and `nlri/inet.go` is relative to `internal/core/bgp/`.
 

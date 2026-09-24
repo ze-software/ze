@@ -10,8 +10,10 @@
 package server
 
 import (
+	"context"
 	"net/netip"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/redistevents"
@@ -86,10 +88,10 @@ func TestForkedProducerKeepsItsOwnDistanceWhenUndeclared(t *testing.T) {
 func TestRouteInstallEntryCarriesRouteTypeAndECMP(t *testing.T) {
 	path := installOne(t, locrib.NewRIB(), rpc.RouteInstallEntry{
 		Protocol: "test-restamp", AFI: uint16(family.AFIIPv4), SAFI: uint8(family.SAFIUnicast),
-		Prefix: "10.92.0.0/24", NextHop: "192.0.2.1", Interface: "tun100", Weight: 3,
+		Prefix: "10.92.0.0/24", NextHop: "192.0.2.1", Interface: "tun100", OnLink: true, Weight: 3,
 		RouteType: uint8(routetype.Blackhole), AdminDistance: 10,
 		ECMP: []rpc.RouteNextHop{
-			{NextHop: "192.0.2.2", Weight: 1},
+			{NextHop: "192.0.2.2", Interface: "tun100", OnLink: true, Weight: 1},
 			{Interface: "tun101", Weight: 2},
 		},
 	})
@@ -100,11 +102,17 @@ func TestRouteInstallEntryCarriesRouteTypeAndECMP(t *testing.T) {
 	if path.Interface != "tun100" || path.Weight != 3 {
 		t.Errorf("primary device/share = %q/%d, want tun100/3", path.Interface, path.Weight)
 	}
+	if !path.OnLink {
+		t.Error("RPC primary lost direct-link reachability")
+	}
 	if len(path.ECMP) != 2 {
 		t.Fatalf("ECMP = %+v, want two members", path.ECMP)
 	}
 	if path.ECMP[0].Addr != netip.MustParseAddr("192.0.2.2") || path.ECMP[0].Weight != 1 {
 		t.Errorf("ECMP[0] = %+v, want 192.0.2.2 at weight 1", path.ECMP[0])
+	}
+	if !path.ECMP[0].OnLink || path.ECMP[1].OnLink {
+		t.Errorf("RPC members lost individual direct-link flags: %+v", path.ECMP)
 	}
 	if path.ECMP[1].Interface != "tun101" || path.ECMP[1].Weight != 2 {
 		t.Errorf("ECMP[1] = %+v, want tun101 at weight 2", path.ECMP[1])
@@ -126,5 +134,96 @@ func TestRouteInstallRejectsAnEmptyECMPMember(t *testing.T) {
 	}
 	if _, ok := rib.Lookup(v4u(), mustPfx(t, "10.93.0.0/24")); ok {
 		t.Error("a refused batch must apply nothing")
+	}
+}
+
+// A malformed SID must reject the whole batch before an earlier route is
+// installed. A valid SID must remain on the selected path for the FIB consumer.
+func TestRouteInstallValidatesSRv6SIDBeforeApplyingBatch(t *testing.T) {
+	valid := rpc.RouteInstallEntry{
+		Protocol: "test-restamp", AFI: 1, SAFI: 1,
+		Prefix: "10.94.0.0/24", NextHop: "2001:db8::1", SRv6SID: "2001:db8:100::1",
+	}
+	for _, sid := range []string{"broken", "192.0.2.1", "::ffff:192.0.2.1"} {
+		rib := locrib.NewRIB()
+		invalid := valid
+		invalid.Prefix = "10.95.0.0/24"
+		invalid.SRv6SID = sid
+		if _, err := applyRouteInstall(rib, rpc.RouteInstallInput{Routes: []rpc.RouteInstallEntry{valid, invalid}}); err == nil {
+			t.Fatalf("invalid SRv6 SID %q was accepted", sid)
+		}
+		if _, ok := rib.Lookup(v4u(), mustPfx(t, valid.Prefix)); ok {
+			t.Fatal("a refused batch installed its first route")
+		}
+	}
+	path := installOne(t, locrib.NewRIB(), valid)
+	if path.SRv6SID != netip.MustParseAddr(valid.SRv6SID) {
+		t.Fatalf("selected route lost its service SID: %v", path.SRv6SID)
+	}
+}
+
+// Both RPC transports must apply the operator's BGP class distances at the
+// arbitration point, not the producer's bootstrap values or a "bgp" config key.
+func TestRouteInstallRPCSelectsConfiguredBGPDistance(t *testing.T) {
+	bgp := redistevents.RegisterProtocol("bgp")
+	static := redistevents.RegisterProtocol("static")
+	ribdistance.Set(func(protocol string) (uint8, bool) {
+		switch protocol {
+		case "ebgp":
+			return 220, true
+		case "ibgp":
+			return 80, true
+		case "static":
+			return 120, true
+		default:
+			return 0, false
+		}
+	})
+	t.Cleanup(func() { ribdistance.Set(nil) })
+	for _, direct := range []bool{false, true} {
+		name := "socket"
+		if direct {
+			name = "direct"
+		}
+		t.Run(name, func(t *testing.T) {
+			client := stateRPCClient(t, direct)
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			const prefix = "198.19.248.0/24"
+			routes := []rpc.RouteInstallEntry{
+				{Protocol: "static", AFI: 1, SAFI: 1, Prefix: prefix, AdminDistance: 1},
+				{Protocol: "bgp", AFI: 1, SAFI: 1, Prefix: prefix, IsBGP: true, IsEBGP: true, AdminDistance: 20},
+			}
+			t.Cleanup(func() {
+				cleanup, done := context.WithTimeout(context.Background(), 5*time.Second)
+				defer done()
+				if _, err := client.RouteRemove(cleanup, []rpc.RouteRemoveEntry{
+					{Protocol: "static", AFI: 1, SAFI: 1, Prefix: prefix},
+					{Protocol: "bgp", AFI: 1, SAFI: 1, Prefix: prefix},
+				}); err != nil {
+					t.Error(err)
+				}
+			})
+			if _, err := client.RouteInstall(ctx, routes); err != nil {
+				t.Fatal(err)
+			}
+			assertBest := func(want redistevents.ProtocolID) {
+				t.Helper()
+				group, found := locrib.Default().Lookup(v4u(), mustPfx(t, prefix))
+				if !found || group.Best < 0 {
+					t.Fatal("RPC-installed routes produced no selected path")
+				}
+				if got := group.Paths[group.Best].Source; got != want {
+					t.Fatalf("selected protocol %v, want %v under configured class distances", got, want)
+				}
+			}
+			assertBest(static)
+			routes[1].IsEBGP = false
+			routes[1].AdminDistance = 200
+			if _, err := client.RouteInstall(ctx, routes[1:]); err != nil {
+				t.Fatal(err)
+			}
+			assertBest(bgp)
+		})
 	}
 }

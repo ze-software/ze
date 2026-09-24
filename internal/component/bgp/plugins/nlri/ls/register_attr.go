@@ -22,6 +22,7 @@ func init() {
 	registerLsAttrTLV(TLVMaxReservableBW, decodeMaxReservableBW)
 	registerLsAttrTLV(TLVUnreservedBW, decodeUnreservedBW)
 	registerLsAttrTLV(TLVTEDefaultMetric, decodeTEDefaultMetric)
+	registerLsAttrTLV(tlvMPLSProtocolMask, decodeMPLSProtocolMask)
 	registerLsAttrTLV(TLVIGPMetric, decodeIGPMetric)
 	registerLsAttrTLV(TLVSRLG, decodeSRLG)
 	registerLsAttrTLV(TLVOpaqueLinkAttr, decodeOpaqueLinkAttr)
@@ -62,6 +63,8 @@ func init() {
 	registerLsAttrTLV(TLVDelayVariation, decodeDelayVariation)
 
 	// SRv6 attribute TLVs (RFC 9514)
+	registerLsAttrTLV(tlvSRv6Capabilities, decodeSRv6Capabilities)
+	registerLsAttrTLV(tlvSRv6Locator, decodeSRv6Locator)
 	registerLsAttrTLV(TLVSRv6EndpointBehavior, decodeSRv6EndpointBehavior)
 	registerLsAttrTLV(TLVSRv6BGPPeerNodeSID, decodeSRv6BGPPeerNodeSID)
 	registerLsAttrTLV(TLVSRv6SIDStructure, decodeSRv6SIDStructure)

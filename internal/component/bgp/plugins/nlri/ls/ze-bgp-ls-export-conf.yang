@@ -1,0 +1,71 @@
+module ze-bgp-ls-export-conf {
+    namespace "urn:ze:bgp-ls-export:conf";
+    prefix bgp-ls-export;
+
+    import ze-extensions { prefix ze; }
+
+    description
+        "Native routing-database export through BGP-LS.";
+
+    revision 2026-09-21 {
+        description "Native topology source snapshots and BGP-LS origination.";
+    }
+
+    container bgp-ls-export {
+        presence "Enable native BGP-LS origination.";
+        description
+            "Export the running native IGP databases to BGP peers that attach
+             this internal plugin with state/refresh receive and update send grants.
+             Each database snapshot replaces prior node, link, prefix, and
+             SRv6 SID advertisements. Removed identities are withdrawn before
+             replacements. The exporter retains at most 65536 routes and
+             refuses a replacement exceeding that bound without changing the
+             last accepted database. This feature requires the in-process
+             engine event bus; it does not originate from a forked plugin.";
+        ze:help "Export native routing state through BGP-LS.";
+        ze:config-root "bgp-ls-export";
+        list domain {
+            key "name";
+            max-elements 65536;
+            description
+                "Assign a routing-universe Instance-ID to one native domain.
+                 Unmapped domains retain the source's native identifier.";
+            ze:help "Set the 64-bit BGP-LS Instance-ID of a native domain.";
+            leaf name {
+                type string { length "1..255"; }
+                description "Unique operator-assigned name for this native domain mapping.";
+                ze:help "Operator name for this mapping.";
+            }
+            leaf source {
+                type string { length "1..255"; }
+                mandatory true;
+                description "Registered link-state publisher namespace, such as isis, ospf, or bgp-epe.";
+                ze:help "Native source namespace.";
+            }
+            leaf protocol-id {
+                type uint8 { range "1..7"; }
+                mandatory true;
+                description "Protocol identifier of the native snapshot selected by this mapping.";
+                ze:help "BGP-LS source Protocol-ID.";
+            }
+            leaf native-instance {
+                type uint64;
+                mandatory true;
+                description "Native instance number published by the selected routing protocol.";
+                ze:help "Source instance identifier.";
+            }
+            leaf native-area {
+                type uint32;
+                mandatory true;
+                description "Native numeric OSPF area or IS-IS level published by the source.";
+                ze:help "Numeric source area or IS-IS level.";
+            }
+            leaf instance-id {
+                type uint64;
+                mandatory true;
+                description "Full-width Instance-ID placed in originated NLRIs for the selected domain.";
+                ze:help "Eight-octet routing-universe identifier.";
+            }
+        }
+    }
+}

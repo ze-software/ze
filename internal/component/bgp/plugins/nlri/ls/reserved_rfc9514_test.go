@@ -1,6 +1,8 @@
 package ls
 
 import (
+	"encoding/hex"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -122,4 +124,70 @@ func TestRFC9514PeerNodeSIDReservedIgnored(t *testing.T) {
 		require.NoError(t, err, "a non-zero Reserved field is not refused")
 		assert.Equal(t, base, set, "the Reserved field reaches no decoded field")
 	})
+}
+
+// TestRFC9514CapabilitiesDecode checks the operator-facing attribute decoder
+// with a nonzero capability flag word and a following attribute.
+// RFC requirement: RFC9514-3.1-3 positive -- with Reserved zero, the consumer decodes the capability flags and the following Node Name.
+func TestRFC9514CapabilitiesDecode(t *testing.T) {
+	attr := buildAttrTLV(nil, 1038, []byte{0x80, 0x01, 0, 0})
+	attr = buildAttrTLV(attr, TLVNodeName, []byte("core1"))
+	assert.Equal(t, map[string]any{
+		"srv6-capabilities": map[string]any{"flags": 32769},
+		"node-name":         "core1",
+	}, AttrTLVsToJSON(attr))
+}
+
+// TestRFC9514CapabilitiesReservedIgnored excludes the reserved word from the
+// decoded capability flags, including when every reserved bit is set.
+// RFC requirement: RFC9514-3.1-3 negative -- nonzero Reserved does not change the decoded capability flags or suppress the following Node Name.
+func TestRFC9514CapabilitiesReservedIgnored(t *testing.T) {
+	attr := buildAttrTLV(nil, 1038, []byte{0x40, 0x02, 0xff, 0xff})
+	attr = buildAttrTLV(attr, TLVNodeName, []byte("core2"))
+	assert.Equal(t, map[string]any{
+		"srv6-capabilities": map[string]any{"flags": 16386},
+		"node-name":         "core2",
+	}, AttrTLVsToJSON(attr))
+}
+
+// TestRFC9514LocatorDecode checks all defined fields and retains unknown
+// sub-TLV bytes in the operator-facing view.
+// RFC requirement: RFC9514-5.1-2 positive -- with Reserved zero, the consumer decodes locator flags, algorithm and metric without treating the reserved word as data.
+func TestRFC9514LocatorDecode(t *testing.T) {
+	attr := buildAttrTLV(nil, 1162, []byte{
+		0x80, 128, 0, 0, 0x01, 0x02, 0x03, 0x04,
+		0xfe, 0x01, 0, 1, 0xa5,
+	})
+	attr = buildAttrTLV(attr, TLVNodeName, []byte("core1"))
+	got := AttrTLVsToJSON(attr)
+	locator, ok := got["srv6-locator"].(map[string]any)
+	require.True(t, ok)
+	text, ok := locator["sub-tlvs"].(string)
+	require.True(t, ok)
+	value, prefixed := strings.CutPrefix(text, "0x")
+	require.True(t, prefixed)
+	subTLVs, err := hex.DecodeString(value)
+	require.NoError(t, err)
+	locator["sub-tlvs"] = subTLVs
+	assert.Equal(t, map[string]any{
+		"srv6-locator": map[string]any{
+			"flags": 128, "algorithm": 128, "metric": uint32(0x01020304),
+			"sub-tlvs": []byte{0xfe, 0x01, 0, 1, 0xa5},
+		},
+		"node-name": "core1",
+	}, got)
+}
+
+// TestRFC9514LocatorReservedIgnored checks the nonzero-reserved case through
+// the same attribute registry used by the CLI decoder.
+// RFC requirement: RFC9514-5.1-2 negative -- nonzero Reserved neither changes locator flags, algorithm and metric nor suppresses the following Node Name.
+func TestRFC9514LocatorReservedIgnored(t *testing.T) {
+	attr := buildAttrTLV(nil, 1162, []byte{0, 129, 0xff, 0xff, 0, 0, 0, 42})
+	attr = buildAttrTLV(attr, TLVNodeName, []byte("core2"))
+	assert.Equal(t, map[string]any{
+		"srv6-locator": map[string]any{
+			"flags": 0, "algorithm": 129, "metric": uint32(42),
+		},
+		"node-name": "core2",
+	}, AttrTLVsToJSON(attr))
 }

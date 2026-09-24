@@ -6,12 +6,9 @@ package ls
 // not defined MUST be set to 0 by the originator and MUST be ignored by the
 // receiver."
 //
-// ze is a BGP-LS Consumer decoder and Propagator, never a Producer: the plugin
-// registers both families with Mode "decode" (plugin.go, familyModeDecode), so
-// the originator half of the sentence has no encoder to exercise. The receiver
-// half is what these tests pin. The producers are decodeNodeFlagBits
-// (attr_node.go) and decodeIGPFlags (attr_prefix.go), reached through
-// decodeAllAttrTLVs (attr.go), the walk every received BGP-LS Attribute takes.
+// The public attribute decoder serves the offline CLI. The propagation path
+// retains attribute bytes and does not call these semantic decoders. The tests
+// below cover the receive half of the requirement, not originator policy.
 //
 // "Ignored" has two halves, and each test asserts both. The undefined bits do
 // not change what the defined bits decode to, and they do not stop the walk: the
@@ -122,4 +119,54 @@ func TestRFC9552IGPFlagsUndefinedBitsIgnored(t *testing.T) {
 	name, ok := set[1].(*lsNodeName)
 	require.True(t, ok, "the TLV after the flags still decodes")
 	assert.Equal(t, "core1", name.Name)
+}
+
+// TestRFC9552UndefinedNodeBitsDoNotSetDefinedFlags checks that reserved-only
+// flags cannot turn on a defined node capability in the consumer's JSON view.
+// RFC requirement: RFC9552-5.3.1.1-1 negative -- setting only the undefined node flag bits sets no defined O, T, E, B, R or V bit and does not suppress the following Node Name.
+func TestRFC9552UndefinedNodeBitsDoNotSetDefinedFlags(t *testing.T) {
+	got := AttrTLVsToJSON(flagAttrWithTrailer(TLVNodeFlagBits, 0x03))
+	flags, ok := got["node-flags"].(map[string]any)
+	require.True(t, ok)
+	delete(flags, jsonKeyReserved) // The CLI may display the raw reserved bits.
+	assert.Equal(t, map[string]any{
+		"node-flags": map[string]any{"O": 0, "T": 0, "E": 0, "B": 0, "R": 0, "V": 0},
+		"node-name":  "core1",
+	}, got)
+}
+
+// TestRFC9552UndefinedIGPBitsDoNotSetDefinedFlags checks that reserved-only
+// flags cannot become a routing flag in the consumer's JSON view.
+// RFC requirement: RFC9552-5.3.3.1-1 negative -- setting only the undefined IGP flag bits sets no defined D, N, L or P bit and does not suppress the following Node Name.
+func TestRFC9552UndefinedIGPBitsDoNotSetDefinedFlags(t *testing.T) {
+	got := AttrTLVsToJSON(flagAttrWithTrailer(TLVIGPFlags, 0x0f))
+	flags, ok := got["igp-flags"].(map[string]any)
+	require.True(t, ok)
+	delete(flags, jsonKeyReserved)
+	assert.Equal(t, map[string]any{
+		"igp-flags": map[string]any{"D": 0, "N": 0, "L": 0, "P": 0},
+		"node-name": "core1",
+	}, got)
+}
+
+// TestRFC9552MPLSProtocolMaskDecode checks both defined protocols through the
+// consumer registry rather than a direct call to the new decoder.
+// RFC requirement: RFC9552-5.3.2.2-3 positive -- LDP and RSVP-TE flags decode when the reserved bits are zero.
+func TestRFC9552MPLSProtocolMaskDecode(t *testing.T) {
+	attr := buildAttrTLV(nil, 1094, []byte{0xc0})
+	assert.Equal(t, map[string]any{
+		"mpls-protocol-mask": map[string]any{"L": 1, "R": 1},
+	}, AttrTLVsToJSON(attr))
+}
+
+// TestRFC9552MPLSProtocolMaskReservedIgnored checks that reserved-only bits
+// neither report an enabled MPLS protocol nor stop the next TLV.
+// RFC requirement: RFC9552-5.3.2.2-3 negative -- nonzero reserved bits set no defined MPLS protocol flag and do not suppress the following Node Name.
+func TestRFC9552MPLSProtocolMaskReservedIgnored(t *testing.T) {
+	attr := buildAttrTLV(nil, 1094, []byte{0x3f})
+	attr = buildAttrTLV(attr, TLVNodeName, []byte("core1"))
+	assert.Equal(t, map[string]any{
+		"mpls-protocol-mask": map[string]any{"L": 0, "R": 0},
+		"node-name":          "core1",
+	}, AttrTLVsToJSON(attr))
 }

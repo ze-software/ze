@@ -591,6 +591,17 @@ length, argument length, transposition length and transposition offset, in that
 order. Six is the count RFC 9252 Section 3.2.1 fixes, so five or seven is refused
 by name rather than padded.
 
+When a structure is supplied, the first four lengths must total at most 128 bits
+and cover the complete transposed range. A range ending exactly at that total is
+valid under RFC 9252 erratum 7817. Zero transposition length requires zero offset,
+and every transposed bit must already be zero in the advertised SID; the encoder
+does not move those bits into the route's label field.
+
+The encoder accepts a nonzero argument length only for End.DT2M (`0x0018`), the
+endpoint behaviour with arguments that it supports. Extra text after the
+structure or endpoint behaviour is refused. These are origination checks; a
+received Prefix-SID keeps its original wire bytes for receive-side processing.
+
 The command reaches the same encoder as the config file's `bgp-prefix-sid-srv6`
 statement, so the two spellings produce identical attribute bytes.
 

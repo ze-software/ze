@@ -321,9 +321,10 @@ func chaosRateFromEnv() float64 {
 //
 // Candidates are read before the authority chosen at startup, because
 // promotion follows acceptance by the reactor and every plugin.
+// CLI selectors retain the optional schemas that accepted the startup file.
 //
 // The reactor parameter is used to update dynamic groups on reload.
-func createReloadFunc(store storage.Storage, r *reactor.Reactor) reactor.ReloadFunc {
+func createReloadFunc(store storage.Storage, r *reactor.Reactor, cliPlugins []string) reactor.ReloadFunc {
 	return func(configPath string) ([]*reactor.PeerSettings, error) {
 		data, err := storage.ReadReloadConfig(store, configPath)
 		if err != nil {
@@ -332,7 +333,7 @@ func createReloadFunc(store storage.Storage, r *reactor.Reactor) reactor.ReloadF
 
 		// Use the daemon loader so hierarchical and set-format candidates take
 		// the same path. The web editor stages set commands.
-		loaded, err := config.LoadConfig(string(data), configPath, nil)
+		loaded, err := config.LoadConfig(string(data), configPath, cliPlugins)
 		if err != nil {
 			return nil, fmt.Errorf("parse config: %w", err)
 		}

@@ -40,6 +40,18 @@ checks kernel ownership before replacing or deleting an installed label.
 batch without an accepting owner is an error, as is a rejected kernel operation.
 Callers must not advertise forwarding that the owner refused.
 
+`mplsfib.RemoveLabelSource` retires the native owner's retained `AF_MPLS`
+swap/pop labels for one source. A replacement producer can use it even when its
+own label list was lost. The operation uses the same synchronous acknowledgment
+as an entry batch: no accepting owner is an error, and every failed deletion
+keeps its source claim for a later retry. Successfully removed labels stay
+removed; other sources and prefix-keyed push contexts are not swept. A producer
+must complete this cleanup before reassigning its retained labels to new peers.
+
+`TestMPLSIntegration_SourceResetRetainsFailedDeletes` exercises partial cleanup
+against a live kernel, preserves a foreign replacement and another source's
+forwarding, and refuses label reuse until a successful cleanup retry.
+
 RSVP bypass push entries use private tables in the `0x5a000000/0xffff0000`
 packet-mark namespace. An exact-mark selector chooses the table; an unreachable
 guard prevents a missing context from falling through to ordinary IP routing.

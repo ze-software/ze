@@ -322,6 +322,13 @@ func EncodePrefixSIDSRv6(s string) ([]byte, error) {
 			}
 			sidStruct = append(sidStruct, byte(v))
 		}
+		s = strings.TrimSpace(s[end+1:])
+		if err := validateSRv6OriginStructure(ipv6, behavior, sidStruct); err != nil {
+			return nil, err
+		}
+	}
+	if s != "" {
+		return nil, fmt.Errorf("invalid srv6 prefix-sid: unexpected trailing value %q", s)
 	}
 
 	// Build wire format per RFC 9252
@@ -359,4 +366,36 @@ func EncodePrefixSIDSRv6(s string) ([]byte, error) {
 	result = append(result, innerTLV...)
 
 	return result, nil
+}
+
+// validateSRv6OriginStructure checks the SID supplied for local advertisement.
+// Transposed bits must already be carried in the NLRI label, not in both fields.
+// RFC 9252 Section 3.2.1, including verified erratum 7817: the structure
+// sum may equal the end of the transposed field.
+func validateSRv6OriginStructure(sid netip.Addr, behavior uint16, structure []byte) error {
+	total := int(structure[0]) + int(structure[1]) + int(structure[2]) + int(structure[3])
+	length, offset := int(structure[4]), int(structure[5])
+	if total > 128 {
+		return errors.New("invalid srv6 SID structure: field lengths exceed 128 bits")
+	}
+	if offset+length > total {
+		return errors.New("invalid srv6 SID structure: field lengths do not cover the transposed bits")
+	}
+	if length == 0 {
+		if offset != 0 {
+			return errors.New("invalid srv6 SID structure: zero transposition length requires zero offset")
+		}
+	}
+	// RFC 8986 Section 4.12 defines Arg.FE2 for End.DT2M (0x0018).
+	// No other endpoint behavior supported by this encoder defines arguments.
+	if structure[3] != 0 && behavior != 0x0018 {
+		return errors.New("invalid srv6 SID structure: arguments require the End.DT2M endpoint behavior")
+	}
+	bits := sid.As16()
+	for bit := offset; bit < offset+length; bit++ {
+		if bits[bit/8]&(1<<uint(7-bit%8)) != 0 {
+			return errors.New("invalid srv6 SID: transposed bits must be zero in the advertised SID")
+		}
+	}
+	return nil
 }

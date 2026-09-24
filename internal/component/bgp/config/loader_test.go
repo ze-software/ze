@@ -1587,10 +1587,54 @@ set bgp peer beta session family ipv4/unicast prefix maximum 10000
 	_, err := storage.WriteCandidateVersion(store, configPath, []byte(candidate), time.Now())
 	require.NoError(t, err)
 
-	peers, err := createReloadFunc(store, &reactor.Reactor{})(configPath)
+	peers, err := createReloadFunc(store, &reactor.Reactor{}, nil)(configPath)
 	require.NoError(t, err)
 	require.Len(t, peers, 1)
 	assert.Equal(t, netip.MustParseAddr("192.0.2.2"), peers[0].Address)
+}
+
+// Optional schemas selected at boot must remain available to the file-backed
+// verifier, without admitting unknown fields or enabling unselected plugins.
+func TestReloadVerifierRetainsSelectedPluginSchema(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "ze.conf")
+	input := `bgp-ls-export { }
+bgp {
+	router-id 1.2.3.4
+	session { asn { local 65000; } }
+	peer collector {
+		connection { remote { ip 192.0.2.1; } local { ip 192.0.2.10; accept false; } }
+		session { asn { remote 65001; } family { ipv4/unicast { prefix { maximum 10000; } } } }
+	}
+}`
+	_, err := config.LoadConfig(input, configPath, nil)
+	require.Error(t, err, "an unselected optional schema must remain unavailable")
+	selected := []string{"ze.bgp-ls-export"}
+	loaded, err := config.LoadConfig(input, configPath, selected)
+	require.NoError(t, err)
+	// The load result owns its retained startup context, not this scratch slice.
+	selected[0] = "ze.bgp-rib"
+	require.NoError(t, os.WriteFile(configPath, []byte(input), 0o600))
+	store := newReloadFileStore(t, configPath)
+	r, err := CreateReactor(loaded, configPath, store, false)
+	require.NoError(t, err)
+	verifier, ok := r.ReactorLifecycleAdapter().(interface {
+		VerifyConfig(map[string]any) error
+	})
+	require.True(t, ok)
+
+	candidate := strings.Replace(input, "remote 65001", "remote 65002", 1)
+	_, err = storage.WriteCandidateVersion(store, configPath, []byte(candidate), time.Now())
+	require.NoError(t, err)
+	require.NoError(t, verifier.VerifyConfig(map[string]any{}))
+	// Verification does not commit. Abort this proposal through the store API
+	// before starting the independent invalid-candidate transaction.
+	require.NoError(t, storage.ClearCandidate(store, configPath))
+
+	invalid := strings.Replace(candidate, "bgp-ls-export { }", "bgp-ls-export { invalid-leaf true; }", 1)
+	_, err = storage.WriteCandidateVersion(store, configPath, []byte(invalid), time.Now())
+	require.NoError(t, err)
+	require.ErrorContains(t, verifier.VerifyConfig(map[string]any{}), "invalid-leaf")
+	require.NoError(t, storage.ClearCandidate(store, configPath))
 }
 
 func TestReloadFuncRefusesIncompleteCandidate(t *testing.T) {
@@ -1610,7 +1654,7 @@ func TestReloadFuncRefusesIncompleteCandidate(t *testing.T) {
 	_, err := storage.WriteCandidateVersion(store, configPath, []byte(candidate), time.Now())
 	require.NoError(t, err)
 
-	_, err = createReloadFunc(store, &reactor.Reactor{})(configPath)
+	_, err = createReloadFunc(store, &reactor.Reactor{}, nil)(configPath)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "incomplete peer definition")
 	assert.Contains(t, err.Error(), "broken:connection/remote/ip")

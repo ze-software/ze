@@ -21,12 +21,7 @@ type BGPLSNode struct {
 // NewBGPLSNode creates a new Node NLRI.
 // RFC 7752 Section 3.2.1 - Node NLRI (Type 1).
 func NewBGPLSNode(proto BGPLSProtocolID, id uint64, localNode NodeDescriptor) *BGPLSNode {
-	return &BGPLSNode{
-		nlriType:   BGPLSNodeNLRI,
-		protocolID: proto,
-		identifier: id,
-		LocalNode:  localNode,
-	}
+	return &BGPLSNode{bgplsBase: bgplsBase{nlriType: BGPLSNodeNLRI, protocolID: proto, identifier: id}, LocalNode: localNode}
 }
 
 // Bytes returns the wire-format encoding.
@@ -100,14 +95,9 @@ type BGPLSLink struct {
 // NewBGPLSLink creates a new Link NLRI.
 // RFC 7752 Section 3.2.2 - Link NLRI (Type 2).
 func NewBGPLSLink(proto BGPLSProtocolID, id uint64, local, remote NodeDescriptor, link LinkDescriptor) *BGPLSLink {
-	return &BGPLSLink{
-		nlriType:   BGPLSLinkNLRI,
-		protocolID: proto,
-		identifier: id,
-		LocalNode:  local,
+	return &BGPLSLink{bgplsBase: bgplsBase{nlriType: BGPLSLinkNLRI, protocolID: proto, identifier: id}, LocalNode: local,
 		RemoteNode: remote,
-		LinkDesc:   link,
-	}
+		LinkDesc:   link}
 }
 
 // Bytes returns the wire-format encoding per RFC 7752 Section 3.2.2.
@@ -190,25 +180,15 @@ type BGPLSPrefix struct {
 // NewBGPLSPrefixV4 creates a new IPv4 Prefix NLRI.
 // RFC 7752 Section 3.2.3 - IPv4 Topology Prefix NLRI (Type 3).
 func NewBGPLSPrefixV4(proto BGPLSProtocolID, id uint64, node NodeDescriptor, prefix PrefixDescriptor) *BGPLSPrefix {
-	return &BGPLSPrefix{
-		nlriType:   BGPLSPrefixV4NLRI,
-		protocolID: proto,
-		identifier: id,
-		LocalNode:  node,
-		PrefixDesc: prefix,
-	}
+	return &BGPLSPrefix{bgplsBase: bgplsBase{nlriType: BGPLSPrefixV4NLRI, protocolID: proto, identifier: id}, LocalNode: node,
+		PrefixDesc: prefix}
 }
 
 // NewBGPLSPrefixV6 creates a new IPv6 Prefix NLRI.
 // RFC 7752 Section 3.2.3 - IPv6 Topology Prefix NLRI (Type 4).
 func NewBGPLSPrefixV6(proto BGPLSProtocolID, id uint64, node NodeDescriptor, prefix PrefixDescriptor) *BGPLSPrefix {
-	return &BGPLSPrefix{
-		nlriType:   BGPLSPrefixV6NLRI,
-		protocolID: proto,
-		identifier: id,
-		LocalNode:  node,
-		PrefixDesc: prefix,
-	}
+	return &BGPLSPrefix{bgplsBase: bgplsBase{nlriType: BGPLSPrefixV6NLRI, protocolID: proto, identifier: id}, LocalNode: node,
+		PrefixDesc: prefix}
 }
 
 // Bytes returns the wire-format encoding per RFC 7752 Section 3.2.3.

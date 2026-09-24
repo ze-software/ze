@@ -240,6 +240,44 @@ func decodeTEDefaultMetric(data []byte) (lsAttrTLV, error) {
 	return &LsTEDefaultMetric{Metric: binary.BigEndian.Uint32(data)}, nil
 }
 
+// lsMPLSProtocolMask is the RFC 9552 Section 5.3.2.2 link capability mask.
+//
+// Value byte 0: |L|R|Reserved (6 bits)|. LDP is 0x80, RSVP-TE is 0x40.
+type lsMPLSProtocolMask struct {
+	Flags uint8
+}
+
+const tlvMPLSProtocolMask uint16 = 1094
+
+func (t *lsMPLSProtocolMask) Code() uint16 { return tlvMPLSProtocolMask }
+func (t *lsMPLSProtocolMask) Len() int     { return 5 }
+
+func (t *lsMPLSProtocolMask) WriteTo(buf []byte, off int) int {
+	n := writeTLV(buf, off, tlvMPLSProtocolMask, 1)
+	// RFC 9552 Section 5.3.2.2: "The bits that are not defined MUST be
+	// set to 0 by the originator and MUST be ignored by the receiver."
+	buf[off+4] = t.Flags & 0xc0
+	return n
+}
+
+func (t *lsMPLSProtocolMask) ToJSON() map[string]any {
+	return map[string]any{
+		"mpls-protocol-mask": map[string]any{
+			"L": int((t.Flags >> 7) & 1),
+			"R": int((t.Flags >> 6) & 1),
+		},
+	}
+}
+
+func decodeMPLSProtocolMask(data []byte) (lsAttrTLV, error) {
+	if len(data) < 1 {
+		return nil, ErrBGPLSTruncated
+	}
+	// RFC 9552 Section 5.3.2.2: "The bits that are not defined MUST be
+	// set to 0 by the originator and MUST be ignored by the receiver."
+	return &lsMPLSProtocolMask{Flags: data[0] & 0xc0}, nil
+}
+
 // --- TLV 1095: IGP Metric ---
 
 // lsIGPMetric represents BGP-LS IGP Metric (TLV 1095).

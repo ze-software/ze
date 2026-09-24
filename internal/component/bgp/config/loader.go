@@ -92,7 +92,7 @@ func CreateReactor(cfg *config.LoadConfigResult, configPath string, store storag
 
 	if configPath != "" && configPath != "-" {
 		r.SetConfigPath(configPath)
-		r.SetReloadFunc(createReloadFunc(store, r))
+		r.SetReloadFunc(createReloadFunc(store, r, cfg.CLIPlugins))
 	}
 
 	return r, nil

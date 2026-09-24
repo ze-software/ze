@@ -69,7 +69,7 @@ func TestReloadVerifyLeavesTheRenderedNotation(t *testing.T) {
 	// (nil, nil) for the empty tree below. A condition that changed under this
 	// test would then let verify succeed on the fallback, and the test would
 	// stay green over nothing.
-	reload := createReloadFunc(newReloadFileStore(t, configPath), r)
+	reload := createReloadFunc(newReloadFileStore(t, configPath), r, nil)
 	called := false
 	r.SetConfigPath(configPath)
 	r.SetReloadFunc(func(path string) ([]*reactor.PeerSettings, error) {

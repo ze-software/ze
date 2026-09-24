@@ -601,6 +601,11 @@ For the full table with RFC references and plugin attribution, see `docs/feature
 | IPv6 MVPN | 2/5 | Yes | Yes | Partial |
 | IPv4 RTC | 1/132 | No | Yes | No |
 
+The BGP-LS rows describe the general NLRI codec and route-configuration API.
+The separate [`bgp-ls-export`](architecture/wire/nlri-bgpls.md#consumer-decoding-and-origination)
+plugin originates standard SAFI 71 routes from native IGP or EPE state. It does
+not add generic text/API BGP-LS encoding or SAFI 72 origination.
+
 Families are registered dynamically by plugins via `PluginRegistry.Register()`, not
 a static list. New families are added by writing a plugin with NLRI encode/decode
 and registering it.

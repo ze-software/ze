@@ -1,4 +1,4 @@
-# BGP-LS NLRI Wire Format (RFC 7752)
+# BGP-LS NLRI Wire Format (RFC 9552)
 
 **Source:** ExaBGP `bgp/message/update/nlri/bgpls/`
 **Family:** AFI 16388 (BGP-LS), SAFI 71 (bgp_ls) or 72 (bgp_ls_vpn)
@@ -56,7 +56,7 @@
 | 2 | Link NLRI | Describes a link between nodes |
 | 3 | IPv4 Prefix NLRI | IPv4 reachability |
 | 4 | IPv6 Prefix NLRI | IPv6 reachability |
-| 5 | SRv6 SID NLRI | Segment Routing v6 |
+| 6 | SRv6 SID NLRI | Segment Routing v6 (RFC 9514) |
 
 <!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGPLSNLRIType constants -->
 
@@ -72,6 +72,7 @@
 | 4 | Direct |
 | 5 | Static |
 | 6 | OSPFv3 |
+| 7 | BGP Egress Peer Engineering |
 | 227 | FreeRTR (non-standard) |
 
 <!-- source: internal/component/bgp/plugins/nlri/ls/types.go -- BGPLSProtocolID, ProtoISISL1..ProtoOSPFv3 -->
@@ -130,7 +131,7 @@
 +---------------------------+
 |   Remote Node Descriptors |  TLV Type 257
 +---------------------------+
-|   Link Descriptors        |  TLV Type 258
+|   Link Descriptors        |  TLVs 258-263
 +---------------------------+
 ```
 
@@ -165,7 +166,7 @@
 +---------------------------+
 |   Local Node Descriptors  |  TLV Type 256
 +---------------------------+
-|   Prefix Descriptors      |  TLV Type 259
+|   Prefix Descriptors      |  TLVs 263-265
 +---------------------------+
 ```
 
@@ -330,9 +331,142 @@ var bgplsRegistry = map[uint16]BGPLSUnpacker{
     2: unpackLink,
     3: unpackPrefixV4,
     4: unpackPrefixV6,
-    5: unpackSRv6SID,
+    6: unpackSRv6SID,
 }
 ```
+
+### Consumer Decoding and Origination
+
+The `bgp-nlri-ls` codec registers both families in decode mode.
+`AttrTLVsToJSON` supplies the offline UPDATE decoder with the attribute
+view, including SRv6 Capabilities (1038), SRv6 Locator (1162), and MPLS Protocol
+Mask (1094). The SRv6 decoders omit the reserved words. The MPLS decoder uses
+only the LDP and RSVP-TE bits. Unknown locator sub-TLV bytes remain visible as
+hex in `sub-tlvs`.
+
+<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- init -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/plugin.go -- familyDecl -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/register_attr.go -- init -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/attr_srv6.go -- decodeSRv6Capabilities, decodeSRv6Locator -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/attr_link.go -- decodeMPLSProtocolMask -->
+<!-- source: internal/component/bgp/cli/decode_update.go -- renderAttributeZe -->
+
+The separate `bgp-ls-export` plugin originates standard BGP-LS NLRIs from
+native routing state. IS-IS and OSPF publish complete database snapshots through
+`linkstateevents`; no exporter imports an IGP plugin or reads its mutable state.
+Each source registers its event namespace. The exporter subscribes before asking
+for a replay, encodes the borrowed snapshot synchronously, and retains only its
+own wire bytes. Source generation numbers prevent an older snapshot from
+resurrecting a removed domain.
+
+Select the exporter before loading its configuration, for example with
+`ze --plugin ze.bgp-ls-export ...`, so its configuration schema is available.
+
+`bgp-ls-export { }` enables the internal exporter. Collector peers negotiate the
+`bgp-ls` family and attach the plugin with `state` and `refresh` event delivery
+and UPDATE-send permission. Each peer-up or BGP-LS refresh receives the current database.
+The exporter answers refreshes from its own topology snapshots. Receive-only
+AIGP or FlowSpec inputs to `bgp-rib` do not make that RIB a replay owner for these
+locally originated routes.
+Source replacement withdraws removed identities before announcing new ones;
+disabling the exporter withdraws its routes.
+The existing UPDATE command path handles next-hop selection, negotiated family
+framing, and session AS handling. The exporter does not use raw-message injection.
+The exporter requests `next-hop self`. RFC 9552 section 5.5 permits an IPv4 or IPv6
+next hop for BGP-LS AFI 16388; its different AFI does not require Extended Next Hop
+Encoding negotiation.
+Queued announcements retain `self` as a policy until delivery, when it resolves
+to the connected session's local endpoint. A reconnect therefore uses the new
+session's endpoint, not a configured address or a previously resolved address.
+Refresh retains the previous advertisement set, so a concurrent source removal
+still produces a withdrawal. Its surviving routes are sent with replay metadata
+to bypass the engine's duplicate-announcement suppression. Only acknowledged
+announcement or withdrawal counts advance the exporter's sent state, and a
+failed collector does not prevent delivery to the other collectors.
+Graceful plugin removal handles the SDK `bye` callback while the command
+connection remains open. It cancels and joins the export worker, disables
+snapshot intake, and withdraws accepted routes within the engine's shutdown
+grace. Internal bridge dispatch and socket writes honor cancellation; bounded
+cleanup reserves time for later collectors rather than spending the whole grace
+on a stalled first peer. Failed withdrawals refuse removal and remain available
+for another cleanup attempt. Configuration rollback or re-enable resumes the
+worker and requests current native snapshots. An abrupt connection loss cannot
+send this cleanup.
+
+The source adapters retain topology membership and LSA provenance. Link membership
+in several topologies produces separate NLRIs, and non-default prefixes carry an
+MT-ID. OSPF opaque Node, Link, and Prefix attributes accept only their RFC 9552
+source LSA classes. The originator clears reserved Node, IGP, MPLS, SRv6 Capability,
+and Locator fields. None of these checks changes received-route propagation.
+
+The shared snapshots retain the complete nonexpired LSDB and identify originators
+that native IGP SPF determines are unreachable. The BGP-LS exporter withdraws
+those originators' Nodes, locally originated Links, Prefixes, and SIDs. A reachable
+originator's half-link remains advertised even when its remote endpoint is
+unreachable. Native SPF completion republishes the view even without a route
+delta, so restored reachability re-advertises unchanged LSDB records as required
+by RFC 9552 Section 5.9. Other snapshot consumers retain the complete database.
+Purges, removals, retired areas, and protocol shutdown also withdraw records.
+For IPv6-only OSPF inter-AS links, the adapter correlates a remote ASBR's actual
+four-octet identity from live dual-ID TE evidence. Missing or ambiguous evidence
+withholds that link with a diagnostic; it never manufactures a Router-ID.
+
+The `domain` list maps a source namespace, Protocol-ID, native instance, and
+native area to an operator-chosen 64-bit `instance-id`. IS-IS uses native instance
+1 with areas 1 and 2 for its levels; OSPF uses its configured instance and numeric
+area. Without a mapping, the source's routing-universe identifier is retained.
+The exporter refuses a database replacement above 65536 routes and keeps the
+previous accepted state. It requires the engine event bus and refuses forked
+execution rather than running without native data.
+A replacement which gives an existing cross-domain NLRI different attributes is
+also refused before replacing accepted state. The operator can assign distinct
+Instance-IDs when two native domains describe different routing universes.
+
+`bgp-epe` is a separate native producer for configured PeerNode SIDs. Its `srgb`
+container names a locally assigned SRGB using inclusive lower and upper label
+bounds; each `peer` assigns a persistent `sid-index` and optional weight.
+Configured EPE sessions attach `bgp-epe` with state-event delivery. Live BGP
+state supplies both session endpoints' ASNs and BGP identifiers. The connected
+TCP local endpoint is used even when the local IP is configured as `auto`.
+The producer submits the computed pop-and-forward label to the native MPLS FIB
+owner. The SID is advertised only after successful installation acknowledgement.
+An index-encoded PeerNode SID
+is accompanied by the local Node's SRGB. Session loss, configuration removal,
+or failed replacement removes the corresponding advertisement. PeerAdj, PeerSet,
+and SRv6 EPE segment assignment are not implemented.
+If a label removal fails, the native MPLS owner retains its source claim and the
+producer withholds that label from reassignment. Before its first installation,
+including after a producer error exit, EPE requires acknowledged
+`mplsfib.RemoveLabelSource` cleanup of the source's retained AF_MPLS swap/pop
+labels. A refused cleanup blocks installation and advertisement. Graceful
+removal returns cleanup failures to the lifecycle owner for retry; successful
+retirement is idempotent, so a deferred old-source stop cannot clear a new
+producer's labels. This does not claim cleanup of prefix-keyed push contexts.
+
+The owner selected **Standard origination only** for private-use origination.
+`encodeTopology` produces standard Node, Link, IPv4/IPv6 Prefix, and SRv6 SID
+NLRIs; `originateAttributes` refuses private-use BGP-LS TLV types. There is no
+native vendor-private producer. RFC 9552 Section 5.4 requires a four-octet
+Enterprise Code at the start of the value of a private-use TLV and immediately
+after the Total NLRI Length in a private-use NLRI. Those requirements govern
+private origination, not this standard-only role. Received unknown/private NLRIs
+remain opaque on the propagation path; the originator restriction does not
+inspect or rewrite them. Caller-supplied raw BGP messages remain a separate
+operator interface without native topology provenance or originator guarantees.
+
+<!-- source: internal/core/linkstateevents/events.go -- Snapshot, RegisterSource, Request -->
+<!-- source: internal/plugins/isis/bgpls_export.go -- publishBGPLSLocked -->
+<!-- source: internal/plugins/ospf/bgpls_export.go -- publishBGPLSLocked -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/export_plugin.go -- runTopologyExporter -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/export_state.go -- replace, reconcile -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/export_encode.go -- encodeTopology, originateAttributes -->
+<!-- source: internal/component/bgp/message/chunk_mp_nlri.go -- bgpLSNLRISize -->
+<!-- source: internal/plugins/isis/spf/computer.go -- Reachability, SetOnComplete -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/export_config.go -- parseExportConfig -->
+<!-- source: internal/component/bgp/reactor/reactor_api.go -- establishedPeerInfo, connectedLocalEndpoint -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/epe_source.go -- publishLocked, emitLabel -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/epe_config.go -- parseEPEConfig -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- Session.SendRawMessage -->
 
 ### Receive-Path Fault Management (RFC 9552 Section 8.2.2)
 
@@ -389,4 +523,4 @@ attribute half gives.
 
 ---
 
-**Last Updated:** 2026-08-28
+**Last Updated:** 2026-09-23

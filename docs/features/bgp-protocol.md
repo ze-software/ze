@@ -28,6 +28,11 @@
 | IPv4 SR-Policy | `ipv4/sr-policy` | 1/73 | Yes | Yes | Yes |
 | IPv6 SR-Policy | `ipv6/sr-policy` | 2/73 | Yes | Yes | Yes |
 
+The BGP-LS rows describe the general NLRI codec and route-configuration API.
+The separate [`bgp-ls-export`](../architecture/wire/nlri-bgpls.md#consumer-decoding-and-origination)
+plugin originates standard SAFI 71 routes from native IGP or EPE state. It does
+not add generic text/API BGP-LS encoding or SAFI 72 origination.
+
 <!-- source: internal/component/bgp/plugins/nlri/evpn/register.go -- EVPN family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/srpolicy/register.go -- SR-Policy family registration -->
 <!-- source: internal/component/bgp/plugins/nlri/flowspec/register.go -- FlowSpec family registration -->

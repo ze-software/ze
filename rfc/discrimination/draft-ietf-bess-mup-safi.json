@@ -132,6 +132,28 @@
       "producer": "internal/component/bgp/plugins/nlri/mup/types.go::parseBodyT2ST",
       "producer-sha": "1f070d2ce1f171cc",
       "break": "body of parseBodyT2ST replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.5-1",
+      "polarity": "negative",
+      "unit": "internal/component/bgp/plugins/nlri/mup/tlv_applicability_test.go::TestMUPST1DoesNotInterpretInapplicableAddressTLV",
+      "unit-sha": "2abb52c80b0ba1e6",
+      "claim-sha": "f6b57323f897f916",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/mup.go::DecodeNLRIHex",
+      "producer-sha": "223b9c5f9e79e538",
+      "break": "body of DecodeNLRIHex replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    },
+    {
+      "rid": "DRAFT-IETF-BESS-MUP-SAFI-3.1.5-1",
+      "polarity": "positive",
+      "unit": "internal/component/bgp/plugins/nlri/mup/tlv_applicability_test.go::TestMUPST1IgnoresST2OnlyTLVs",
+      "unit-sha": "ba9546d17d18e150",
+      "claim-sha": "5ed2de3b1d187fec",
+      "route": "revert",
+      "producer": "internal/component/bgp/plugins/nlri/mup/mup.go::DecodeNLRIHex",
+      "producer-sha": "223b9c5f9e79e538",
+      "break": "body of DecodeNLRIHex replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     }
   ]
 }

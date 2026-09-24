@@ -165,7 +165,7 @@ func TestEncodePrefixSIDSRv6Integration(t *testing.T) {
 // RFC requirement: RFC9252-3.2-2 positive -- SID Information Sub-TLV Service SID Flags octet is emitted as 0 by the sender.
 // RFC requirement: RFC9252-3.2-3 positive -- SID Information Sub-TLV RESERVED2 is emitted as 0 by the sender.
 func TestEncodePrefixSIDSRv6_ReservedFieldsZero(t *testing.T) {
-	// Behavior 0x003e (End.DT6) forces a non-zero Behavior field so the assertions
+	// A nonzero behavior code (0x003e) ensures the assertions
 	// on the surrounding reserved/flags octets are not trivially satisfied by an
 	// all-zero value region.
 	ps, err := attribute.EncodePrefixSIDSRv6("l3-service 2001:db8::1 0x3e")

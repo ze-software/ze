@@ -119,6 +119,29 @@ Input = output symmetry: what you type is what you see.
 
 <!-- source: internal/component/bgp/plugins/nlri/ls/attr_srv6.go -- SRv6 attribute TLV decoding -->
 
+### Consumer Decoders for Capabilities, Locators, and MPLS
+
+These keys are emitted by the offline UPDATE attribute decoder. They do not
+declare an origination API.
+
+| TLV | RFC Name | JSON Key | Value |
+|-----|----------|----------|-------|
+| 1038 | SRv6 Capabilities | `srv6-capabilities` | Object with integer `flags` |
+| 1094 | MPLS Protocol Mask | `mpls-protocol-mask` | Object with integer `L` and `R` bits |
+| 1162 | SRv6 Locator | `srv6-locator` | Object with integer `flags`, `algorithm`, and `metric`, plus hex `sub-tlvs` when present |
+
+<!-- source: internal/component/bgp/plugins/nlri/ls/attr_srv6.go -- lsSRv6Capabilities.ToJSON, lsSRv6Locator.ToJSON -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/attr_link.go -- lsMPLSProtocolMask.ToJSON -->
+<!-- source: internal/component/bgp/cli/decode_update.go -- renderAttributeZe -->
+
+The reserved words of SRv6 Capabilities and Locator carry no decoded value.
+MPLS Protocol Mask reports only LDP (`L`) and RSVP-TE (`R`). This consumer
+decoding does not alter the bytes on the propagation path.
+
+<!-- source: internal/component/bgp/plugins/nlri/ls/attr_srv6.go -- decodeSRv6Capabilities, decodeSRv6Locator -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/attr_link.go -- decodeMPLSProtocolMask -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- init -->
+
 ## Unknown TLVs
 
 | Pattern | Ze Name | Type | Notes |
@@ -164,4 +187,4 @@ send bgp * update text bgp-ls igp-metric set 10 node-name set "router1" adj-sids
 For list attributes: `add` appends, `set` replaces, `del` removes.
 For scalar attributes: `set` replaces, `del` removes.
 
-**Last Updated:** 2026-03-21
+**Last Updated:** 2026-09-21

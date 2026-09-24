@@ -11,8 +11,9 @@
 <!-- rfc: rfc/short/rfc9252.md -- SRv6 overlay services -->
 
 Ze receives BGP routes carrying SRv6 Prefix-SID attributes (RFC 8669, RFC 9252),
-extracts SRv6 SIDs, validates them, and programs encapsulation into the FIB.
-Operates as an ingress PE: consumes received SRv6 SIDs but does not originate them.
+extracts SRv6 SIDs, validates them, and programs ingress encapsulation into the
+FIB. Static route configuration and `update text` can also advertise an explicit
+Service SID. Ze does not allocate local SIDs or install egress endpoint behaviors.
 
 | Feature | Description |
 |---------|-------------|
@@ -61,6 +62,57 @@ it does not reach a peer in this one.
 No additional configuration is needed for IBGP sessions or for FIB programming.
 When an SRv6 SID is present on a best-path route and the SID is resolvable,
 the FIB backend programs the encapsulation automatically.
+
+### Explicit Service SID advertisement
+
+The `bgp-prefix-sid-srv6` route attribute accepts an IPv6 Service SID, an optional
+endpoint behavior, and an optional SID structure:
+
+```
+bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:2:: 0x13 [64,0,32,0,16,64] )
+```
+
+The six structure fields are Locator Block Length, Locator Node Length, Function
+Length, Argument Length, Transposition Length, and Transposition Offset, in bits.
+The example advertises End.DT4 with 16 function bits supplied separately in the
+NLRI label field. Those bits must already be zero in the configured SID; Ze
+rejects a conflicting SID rather than discarding its bits. A zero Transposition
+Length requires a zero offset, and the structure must fit within 128 bits.
+
+Argument Length must be zero except for End.DT2M (`0x18`), whose Arg.FE2 carries
+the egress Ethernet-segment filtering argument. An endpoint behavior unknown to
+the encoder can be advertised without arguments. This is explicit signaling,
+not local endpoint installation: the configured SID must belong to an endpoint
+provisioned outside this ingress FIB path.
+
+### Per-neighbor service export
+
+Use a peer's export chain to control which SRv6 services it receives. Match the
+service's Route Target with `community-match`; rejecting a match withholds the
+whole route, not just its Prefix-SID attribute:
+
+```
+bgp {
+    policy {
+        community-match SERVICE-20 {
+            entry target:65000:10 { type extended; action reject; }
+            entry target:65000:20 { type extended; action accept; }
+        }
+    }
+    peer pe1 {
+        filter { export [ community-match:SERVICE-20 ]; }
+    }
+}
+```
+
+This peer receives service 20 but not service 10. Other peers can use different
+lists or no filter. Community-match lists deny unmatched routes, so include
+each service the peer should receive. This route-level control is separate from
+`propagate-srv6-prefix-sid`, which only controls the attribute at an EBGP SR
+domain boundary.
+
+<!-- source: internal/component/bgp/plugins/filter_community_match/match.go -- Route Target matching and implicit deny -->
+<!-- source: internal/component/bgp/reactor/session_write.go -- originated UPDATE export gate -->
 
 ## Data Flow
 
@@ -149,8 +201,9 @@ Routes with SRv6 SID are installed with SEG6 lightweight tunnel encapsulation:
 ip route add <prefix> via <nexthop> encap seg6 mode encap segs <SID>
 ```
 
-Implemented via `netlink.SEG6Encap` in `buildRichRoute`. MPLS labels take
-precedence: if both Labels and SRv6SID are present, MPLS encap is used.
+Implemented via `netlink.SEG6Encap` in `buildRichRoute`. A valid SRv6 Service SID
+selects IPv6 encapsulation even when the NLRI carries labels. Those fields can
+contain transposed SID bits and are not MPLS forwarding labels.
 
 ### VPP
 
@@ -192,16 +245,19 @@ the VPP dispatch logic.
 | NH changed: strip PrefixSID | 3.3 | Implemented (AttrModSuppress) |
 | Malformed Service TLV: treat-as-withdraw | 3.4 | Implemented |
 | Path ineligibility (no valid SID) | 5 | Implemented |
-| SID resolvability check | 5 | Implemented (Loc-RIB LPM) |
+| SID resolvability before best-path selection | 5 | Partial: sysrib blocks FIB installation without a resolvable SID; BGP pre-selection filtering is not implemented |
 
 ## Limitations
 
-- **Ingress PE only.** Ze consumes SRv6 SIDs from received routes. It does not
-  allocate or advertise local SRv6 SIDs. When re-advertising with a changed
-  next-hop, PrefixSID is stripped.
+- **SID reachability is a FIB guard, not a BGP selection filter.** Losing the
+  covering route withdraws the installed service route; restoring reachability
+  permits installation again. The guard runs after BGP selects a path, so it
+  cannot choose a reachable alternative over an unreachable selected SID.
+
+- **No local SID allocation or endpoint installation.** Ze can advertise an
+  explicitly configured SID but does not provision its egress behavior. When
+  re-advertising with a changed next-hop, PrefixSID is stripped.
 - **No SRv6 capability negotiation.** PrefixSID is optional-transitive, so it
   propagates without negotiation. Ze does not signal SRv6 support via capabilities.
-- **MPLS precedence.** If a route carries both MPLS labels and an SRv6 SID,
-  MPLS encap is used (kernel backend). VPP dispatches SRv6 first.
 - **No SRv6 policy.** Ze programs single-SID encapsulation. SRv6 segment lists
   (multi-hop SR paths) are not supported.

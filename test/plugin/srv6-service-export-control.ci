@@ -1,0 +1,75 @@
+# Test: SRv6 VPN services are independently controlled by destination peer and RT.
+# RFC requirement: RFC9252-3.2.1-5 positive -- peer-specific export policy advertises service RT20 while withholding service RT10 from one neighbor.
+# RFC requirement: RFC9252-3.2.1-5 negative -- the withheld service still reaches the control neighbor; rejecting it does not remove the permitted service or its SRv6 SID.
+# The second service is a wire fence after the first. Both peers linger while the
+# observer checks socket-write counters, so the reject remains active after EOR.
+stdin=filtered:terminator=EOF_FILTERED
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=linger:value=true
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000180
+reject=bgp:conn=1:pattern=20010DB8001000000000000000000000
+expect=bgp:conn=1:seq=2:contains=20010DB8002000000000000000000000
+EOF_FILTERED
+
+stdin=control:terminator=EOF_CONTROL
+option=tcp_connections:value=1
+option=timeout:value=30s
+option=linger:value=true
+option=open:value=router-id:id=1.2.3.6
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000180
+expect=bgp:conn=1:seq=2:contains=20010DB8001000000000000000000000
+expect=bgp:conn=1:seq=3:contains=20010DB8002000000000000000000000
+EOF_CONTROL
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external srv6-export {
+        run "ze-test fixture plugin/srv6-service-export-control"
+        encoder json
+    }
+}
+bgp {
+    policy {
+        community-match SERVICE-20 {
+            entry target:65000:10 { type extended; action reject; }
+            entry target:65000:20 { type extended; action accept; }
+        }
+    }
+    peer filtered-peer {
+        connection {
+            remote { ip 127.0.0.1; }
+            local { ip 127.0.0.3; accept false; }
+        }
+        session {
+            asn { local 1; remote 1; }
+            router-id 1.2.3.4
+            family { ipv4/mpls-vpn { prefix { maximum 10000; } } }
+        }
+        behavior { group-updates disable; }
+        filter { export [ community-match:SERVICE-20 ]; }
+        attach process srv6-export { send [ update ]; }
+    }
+    peer control-peer {
+        connection {
+            remote { ip 127.0.0.2; }
+            local { ip 127.0.0.4; accept false; }
+        }
+        session {
+            asn { local 1; remote 1; }
+            router-id 1.2.3.4
+            family { ipv4/mpls-vpn { prefix { maximum 10000; } } }
+        }
+        behavior { group-updates disable; }
+        attach process srv6-export { send [ update ]; }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=filtered
+cmd=background:seq=2:exec=ze-peer --bind 127.0.0.2 --port $PORT:stdin=control
+cmd=foreground:seq=3:exec=ze --plugin ze.bgp-filter-community-match --plugin ze.bgp-nlri-vpn -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
+reject=stderr:pattern=ZE-OBSERVER-FAIL

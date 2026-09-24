@@ -4,109 +4,106 @@
   "register": "prose",
   "source-path": "rfc/full/rfc8571.txt",
   "source-sha": "4418647079d036e7",
-  "signed-off": "2026-09-21",
-  "reviewer": "claude",
+  "signed-off": "2026-09-22",
+  "reviewer": "Main integration; independent source-mapping review: SourceIdentityReview",
+  "register-reason": "RFC 8571 has no capitalised RFC 2119 keywords or key-words section. Its lowercase modal sentences concern copyright boilerplate, the motivation for new TLVs, and security mechanisms attributed to other RFCs. Sections 2.1-2.7 specify wire layouts and incorporate RFC 8570 and RFC 7471 field semantics in descriptive prose. The absence of local keyword obligations does not make those formats optional or establish implementation conformance.",
+  "resign-reason": " Current source mappings were independently reviewed on 2026-09-22. This records the extraction mapping, not runtime conformance. ASPA retired 5-1/5-2 identities and RFC8571-x-4 retirement remain unresolved where applicable; no replacement obligation was invented.",
   "sections": [
     {
       "id": "front",
       "sites": 1,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Read abstract, status, copyright and contents. The sole lowercase must concerns the IETF Trust code-component licence."
     },
     {
       "id": "1",
       "sites": 1,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "The introduction explains why new Link Attribute TLVs are required to carry existing IGP metrics; it does not direct a speaker to originate all metrics."
     },
     {
       "id": "2",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Defines type codes 1114-1120 as Link Attribute TLVs and states that TLV formats follow RFC 7752. These descriptive format definitions remain in the summary."
     },
     {
       "id": "2.1",
       "sites": 0,
       "disposition": "walked",
-      "unsourced-ids": [
-        "RFC8571-x-4"
-      ]
+      "reason": "Type 1114, length 4, A bit, seven reserved bits and 24-bit Delay. The sentence referring semantics and values to RFC 8570 and RFC 7471 is descriptive incorporation, not a local MUST clause. No checklist ID is declared for it."
     },
     {
       "id": "2.2",
       "sites": 0,
       "disposition": "walked",
-      "unsourced-ids": [
-        "RFC8571-x-4"
-      ]
+      "reason": "Type 1115, length 8, A bit, seven reserved bits and 24-bit Min Delay, then eight reserved bits and 24-bit Max Delay. Incorporates IGP field semantics without a local keyword obligation."
     },
     {
       "id": "2.3",
       "sites": 0,
       "disposition": "walked",
-      "unsourced-ids": [
-        "RFC8571-x-4"
-      ]
+      "reason": "Type 1116, length 4, eight reserved bits and 24-bit Delay Variation. Incorporates IGP field semantics without a local keyword obligation."
     },
     {
       "id": "2.4",
       "sites": 0,
       "disposition": "walked",
-      "unsourced-ids": [
-        "RFC8571-x-4"
-      ]
+      "reason": "Type 1117, length 4, A bit, seven reserved bits and 24-bit Link Loss. Incorporates IGP field semantics without a local keyword obligation."
     },
     {
       "id": "2.5",
       "sites": 0,
       "disposition": "walked",
-      "unsourced-ids": [
-        "RFC8571-x-4"
-      ]
+      "reason": "Type 1118, length 4, Residual Bandwidth value with no reserved field. Incorporates IGP field semantics without a local keyword obligation."
     },
     {
       "id": "2.6",
       "sites": 0,
       "disposition": "walked",
-      "unsourced-ids": [
-        "RFC8571-x-4"
-      ]
+      "reason": "Type 1119, length 4, Available Bandwidth value with no reserved field. Incorporates IGP field semantics without a local keyword obligation."
     },
     {
       "id": "2.7",
       "sites": 0,
       "disposition": "walked",
-      "unsourced-ids": [
-        "RFC8571-x-4"
-      ]
+      "reason": "Type 1120, length 4, Utilized Bandwidth value with no reserved field. Incorporates IGP field semantics without a local keyword obligation."
     },
     {
       "id": "2.8",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Maps the seven BGP-LS types to IS-IS sub-TLVs 33-39 and OSPFv2/OSPFv3 sub-TLVs 27-33. The summary retains these mappings."
     },
     {
       "id": "3",
       "sites": 1,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Refers BGP security to existing documents and assumes IGP sources support security and authentication described in RFC 8570 and RFC 7471. States no additional risk beyond RFC 7752 link attributes; no independent RFC 8571 MUST is extracted."
     },
     {
       "id": "4",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Reports IANA assignments 1114-1120. The assigned values are retained in the summary."
     },
     {
       "id": "5",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Reference-list container; no speaker obligation."
     },
     {
       "id": "5.1",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Normative references identify RFC 7471, RFC 7752 and RFC 8570. The summary preserves their role in field semantics and base TLV format."
     },
     {
       "id": "5.2",
       "sites": 0,
-      "disposition": "walked"
+      "disposition": "walked",
+      "reason": "Informative references identify BGP security documents. Read the following acknowledgements, contributors and author addresses; the lowercase should concerns coauthor recognition."
     }
   ],
   "sites": [
@@ -115,21 +112,21 @@
       "quote": "Code Components extracted from this document must include Simplified BSD License text as described in Section 4.e of the Trust Legal Provisions and are provided without warranty as described in the Simplified BSD License.",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
-      "reason": "IETF Trust Legal Provisions boilerplate in the copyright notice. It binds whoever extracts code components from the document, not a BGP-LS implementation."
+      "reason": "The copyright notice's code-component licence sentence is IETF Trust boilerplate. It does not specify BGP-LS protocol behaviour."
     },
     {
       "id": "1:1",
       "quote": "New BGP-LS Link Attribute TLVs are required in order to carry the Traffic Engineering Metric Extensions defined in [RFC8570] and [RFC7471].",
       "disposition": "excluded",
       "excluded-kind": "not-a-requirement",
-      "reason": "The Introduction states why the document exists: new TLVs are needed to carry metrics RFC 8570 and RFC 7471 already define. It places no obligation on an implementation, and this document carries no RFC 2119 keyword anywhere in its text."
+      "reason": "The introductory sentence explains that new TLVs are required to carry the metrics defined in RFC 8570 and RFC 7471. It describes the motivation for the format definitions rather than requiring an implementation to advertise every metric."
     },
     {
       "id": "3:1",
       "quote": "It is assumed that the IGP instances originating these TLVs will support all the required security and authentication mechanisms (as described in [RFC8570] and [RFC7471]) in order to prevent any security issues when propagating the TLVs into BGP-LS.",
       "disposition": "excluded",
       "excluded-kind": "cross-document",
-      "reason": "The security and authentication mechanisms this sentence calls required are those of RFC 8570 and RFC 7471, which the sentence cites, and they bind the IGP instance that originates the metrics. RFC 8571 states its own position in the next paragraph: the advertisement presents no additional risk beyond the link attribute information RFC 7752 already carries."
+      "reason": "The sentence assumes IGP instances originating these TLVs support security and authentication mechanisms described in RFC 8570 and RFC 7471. Those mechanisms remain attributed to the cited IGP documents. This classification makes no claim that Ze or a layer acting for it has implemented or verified them."
     }
   ]
 }

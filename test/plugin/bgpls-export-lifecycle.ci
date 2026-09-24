@@ -1,0 +1,68 @@
+# Test: Native IS-IS database reaches a BGP-LS collector across refresh and reload.
+# VALIDATES: registered IS-IS source -> native exporter -> ordinary UPDATE command
+# dispatch -> negotiated SAFI 71 socket, including replay and two withdrawal paths.
+# PREVENTS: synthetic snapshot tests passing while native startup, refresh metadata,
+# source removal, or exporter disable leaves the collector missing or stale routes.
+# No interface is configured: the native IS-IS engine originates its own real LSP
+# without raw sockets. The observer fences each next rewrite on a completed,
+# applied reload as well as its wire transition; a withdrawal alone is too early.
+stdin=collector:terminator=EOF_PEER
+option=tcp_connections:value=1
+option=timeout:value=40s
+option=linger:value=true
+# Initial EOR and self Node may arrive in either order.
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003400447
+expect=bgp:conn=1:seq=1:contains=000100170100000000000000000100000A02030006000000000001
+# Standard ROUTE-REFRESH for AFI 16388, SAFI 71 must resend an unchanged Node.
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170540040047
+expect=bgp:conn=1:seq=3:contains=000100170100000000000000000100000A02030006000000000001
+# Remove the native source, not its downstream BGP collector or exporter.
+expect=bgp:conn=1:seq=4:contains=400447000100170100000000000000000100000A02030006000000000001
+# Restore the native source in the same session.
+expect=bgp:conn=1:seq=5:contains=000100170100000000000000000100000A02030006000000000001
+# Disable export while keeping the native IGP source alive.
+expect=bgp:conn=1:seq=6:contains=400447000100170100000000000000000100000A02030006000000000001
+EOF_PEER
+
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    internal native-export { use bgp-ls-export; }
+    external lifecycle {
+        run "ze-test fixture plugin/bgpls-export-lifecycle"
+        encoder json
+    }
+}
+bgp-ls-export { }
+isis {
+    net 49.0001.0000.0000.0001.00
+    level l1
+    hostname native-isis
+}
+bgp {
+    peer collector {
+        connection {
+            remote { ip 127.0.0.1; }
+            local { ip 127.0.0.2; accept false; }
+        }
+        session {
+            asn { local 1; remote 1; }
+            router-id 1.2.3.4
+            family { bgp-ls/bgp-ls { prefix { maximum 10000; } } }
+            capability { route-refresh enable; graceful-restart disable; }
+        }
+        behavior { group-updates disable; }
+        attach process native-export {
+            receive [ state refresh ]
+            send [ update ]
+        }
+    }
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=collector
+cmd=foreground:seq=2:exec=ze --plugin ze.bgp-ls-export -:stdin=ze-bgp:timeout=40s
+expect=exit:code=0
+expect=stderr:contains=OK native BGP-LS source replay and withdrawals reached collector
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error
