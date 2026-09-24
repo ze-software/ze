@@ -291,9 +291,23 @@ A stop and a reload have separate channels, each one signal deep. os/signal
 drops a signal that finds its channel full. With one shared channel, a SIGHUP
 queued during startup made a SIGTERM that followed it the dropped signal: the
 daemon reloaded, then ran on. On separate channels a dropped signal is only
-ever a second copy of a queued signal of the same kind. A process still in Go
-package initialization has registered nothing yet, so a SIGHUP in its first few
-hundred milliseconds still kills it.
+ever a second copy of a queued signal of the same kind.
+
+A process still in Go package initialization has registered nothing yet, so a
+SIGHUP in its first few hundred milliseconds still kills it. With CGO disabled,
+no ze code runs before package initialization, so ze cannot close this window
+itself. The supported remedy is in the supervisor: start ze with SIGHUP set to
+SIG_IGN. POSIX keeps an ignored disposition across exec, and the Go runtime
+keeps an inherited SIG_IGN for SIGHUP until `signal.Notify` registers the
+signal, which is step 1. A SIGHUP in the window is then lost, not fatal.
+
+| Supervisor | How SIGHUP starts ignored |
+|------------|---------------------------|
+| systemd (`ze install systemd`) | The generated unit runs `ExecStart=/bin/sh -c 'trap "" HUP; exec <ze> start'`. systemd has no directive that ignores a signal (`IgnoreSIGPIPE=` covers SIGPIPE only), and `exec` keeps ze as the main PID, so `ExecReload` still signals ze. `ze doctor` reads the ze path out of this line |
+| gokrazy appliance | Not settable: the gokrazy supervisor starts ze directly, and its package config (`gokrazy/ze/config.json`) carries flags and environment only. No appliance code sends SIGHUP, and `ze signal reload` sends `request reload` over SSH, not a signal |
+| Your own supervisor | Set SIGHUP to SIG_IGN in the process that execs ze (`trap "" HUP` in a shell), or send no SIGHUP until ze has started |
+<!-- source: internal/plugins/systemd/unit.go -- buildUnitFile, execStartShell -->
+<!-- source: internal/plugins/systemd/doctor.go -- execStartExecutable -->
 
 Step 1 also comes before step 5 because a plugin takes the process signal
 disposition. Every plugin opens `sdk.SignalContext`, and an in-process plugin

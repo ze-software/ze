@@ -154,6 +154,16 @@ Reload writes the edited config as a candidate version. The active pointer moves
 only after verification, apply, and subsystem reload succeed. A failed reload
 clears the candidate and keeps the previous active config.
 
+A SIGHUP that arrives while the process is still in Go package initialization,
+before `main` registers any handler, kills ze. That window is the first few
+hundred milliseconds after exec, and nothing in ze runs earlier. The remedy is
+the supervisor's: start ze with SIGHUP ignored. Go keeps an inherited ignored
+SIGHUP until ze registers it, so the signal is lost in that window instead of
+fatal, and every later SIGHUP reloads. `ze install systemd` writes this into the
+unit (`sh -c 'trap "" HUP; exec ze start'`), because systemd has no directive
+that ignores a signal. A supervisor you write yourself does the same, or never
+sends SIGHUP before ze is ready. Details: `docs/architecture/behavior/signals.md`.
+
 ### Exit Codes (signal command)
 
 | Code | Meaning |
@@ -343,7 +353,7 @@ Wants=network-online.target
 Type=simple
 User=ze
 Group=ze
-ExecStart=/usr/local/bin/ze start
+ExecStart=/bin/sh -c 'trap "" HUP; exec /usr/local/bin/ze start'
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5

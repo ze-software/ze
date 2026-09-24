@@ -1,6 +1,9 @@
 package systemd
 
 import (
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -14,7 +17,7 @@ func TestUnitFileContent(t *testing.T) {
 	assertContains(t, unit, "Description=Ze Network OS")
 	assertContains(t, unit, "After=network-online.target")
 	assertContains(t, unit, "Wants=network-online.target")
-	assertContains(t, unit, "ExecStart=/usr/local/bin/ze start")
+	assertContains(t, unit, `ExecStart=/bin/sh -c 'trap "" HUP; exec /usr/local/bin/ze start'`)
 	assertContains(t, unit, "WorkingDirectory=/etc/ze")
 	assertContains(t, unit, "Environment=ZE_CONFIG_DIR=/etc/ze")
 	assertContains(t, unit, "WantedBy=multi-user.target")
@@ -89,5 +92,51 @@ func assertContains(t *testing.T, got, want string) {
 	t.Helper()
 	if !strings.Contains(got, want) {
 		t.Fatalf("expected %q in:\n%s", want, got)
+	}
+}
+
+// TestUnitFileStartsZeWithSIGHUPIgnored runs the generated ExecStart command
+// line, with a probe standing in for ze, and sends the probe SIGHUP.
+//
+// VALIDATES: the process ExecStart execs inherits SIGHUP as ignored, which Go
+// keeps until signal.Notify registers it.
+// PREVENTS: a `systemctl reload` during Go package initialization killing ze.
+// DISCRIMINATES: drop the `trap "" HUP` from buildUnitFile and the probe dies
+// on its own SIGHUP before it prints.
+func TestUnitFileStartsZeWithSIGHUPIgnored(t *testing.T) {
+	probe := filepath.Join(t.TempDir(), "ze")
+	if err := os.WriteFile(probe, []byte("#!/bin/sh\nkill -HUP $$\necho alive \"$1\"\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	unit := buildUnitFile(unitSpec{BinaryPath: probe, ConfigDir: "/etc/ze"})
+	var execStart string
+	for line := range strings.SplitSeq(unit, "\n") {
+		if value, ok := strings.CutPrefix(line, "ExecStart="); ok {
+			execStart = value
+		}
+	}
+	if execStart == "" {
+		t.Fatalf("unit has no ExecStart:\n%s", unit)
+	}
+	// The line uses only the quoting systemd and sh share, so sh reads it as
+	// systemd does.
+	out, err := exec.CommandContext(t.Context(), "/bin/sh", "-c", execStart).CombinedOutput()
+	if err != nil || strings.TrimSpace(string(out)) != "alive start" {
+		t.Fatalf("ExecStart %q: err=%v output=%q, want the probe to survive SIGHUP", execStart, err, out)
+	}
+}
+
+// TestExecStartExecutableReadsTheInstalledWrapper feeds the doctor's unit
+// reader the ExecStart line buildUnitFile writes.
+//
+// VALIDATES: the doctor judges the ze binary the shell execs.
+// PREVENTS: the doctor checking /bin/sh and passing a unit whose ze is gone.
+func TestExecStartExecutableReadsTheInstalledWrapper(t *testing.T) {
+	unit := parseServiceUnit([]byte(buildUnitFile(unitSpec{BinaryPath: "/opt/ze/bin/ze", ConfigDir: "/etc/ze"})))
+	if unit.execStart != "/opt/ze/bin/ze" {
+		t.Fatalf("execStart = %q, want /opt/ze/bin/ze", unit.execStart)
+	}
+	if got := execStartExecutable("/usr/bin/ze start"); got != "/usr/bin/ze" {
+		t.Fatalf("plain ExecStart = %q, want /usr/bin/ze", got)
 	}
 }

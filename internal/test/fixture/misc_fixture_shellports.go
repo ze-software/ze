@@ -15,7 +15,6 @@ import (
 
 type reloadSignalPlan struct {
 	source, destination string
-	before              time.Duration
 	hups                int
 	requireReady        bool
 	// awaitEstablished holds the SIGHUP until ze-peer has created
@@ -38,7 +37,7 @@ func init() {
 		"reload/reload-add-bgp-trigger":                       {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/reload-add-peer-trigger":                      {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/reload-dynamic-peer-survives-trigger":         {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true, awaitEstablished: true},
-		"reload/reload-plugin-only-no-change-trigger":         {before: 200 * time.Millisecond, hups: 1},
+		"reload/reload-plugin-only-no-change-trigger":         {hups: 1, requireReady: true},
 		"reload/tx-bgp-rollback-trigger":                      {source: "bad-config.conf", destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/tx-iface-apply-trigger":                       {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/tx-iface-bgp-chain-trigger":                   {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
@@ -82,11 +81,6 @@ func reloadSignalDriver(plan reloadSignalPlan) Driver {
 		if err != nil {
 			return err
 		}
-		if plan.before != 0 {
-			if err := waitDuration(ctx, plan.before); err != nil {
-				return err
-			}
-		}
 		if plan.source != "" {
 			data, err := os.ReadFile(plan.source)
 			if err != nil {
@@ -107,17 +101,6 @@ func reloadSignalDriver(plan reloadSignalPlan) Driver {
 		// fixed delay after the SIGHUP raced the reload under load: shutdown
 		// canceled a verify that was still running.
 		return nil
-	}
-}
-
-func waitDuration(ctx context.Context, duration time.Duration) error {
-	timer := time.NewTimer(duration)
-	defer timer.Stop()
-	select {
-	case <-timer.C:
-		return nil
-	case <-ctx.Done():
-		return ctx.Err()
 	}
 }
 

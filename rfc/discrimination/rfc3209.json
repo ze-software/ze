@@ -288,28 +288,6 @@
       "break": "line 630: \"!msg.HasRRO \u0026\u0026 lsp.RSB != nil\" -\u003e \"false\""
     },
     {
-      "rid": "RFC3209-4.4.3-4",
-      "polarity": "positive",
-      "unit": "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209RRODropSticksAcrossRefresh",
-      "unit-sha": "55152afd7bb390aa",
-      "claim-sha": "7919f2236be9b1f7",
-      "route": "revert",
-      "producer": "internal/plugins/rsvpte/engine.go::handleResvTransit",
-      "producer-sha": "4d036fca3ebb248d",
-      "break": "body of handleResvTransit replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "RFC3209-4.4.3-4",
-      "polarity": "negative",
-      "unit": "internal/plugins/rsvpte/relay_rfc3209_test.go::TestRFC3209RRORefreshRecordsWhenNeverDropped",
-      "unit-sha": "1c0e9e89da4362d5",
-      "claim-sha": "fe29ce4ae19fed13",
-      "route": "revert",
-      "producer": "internal/plugins/rsvpte/engine.go::recordRoute",
-      "producer-sha": "e6f35f31b79b0af8",
-      "break": "body of recordRoute replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
       "rid": "RFC3209-4.7.3-1",
       "polarity": "positive",
       "unit": "internal/plugins/rsvpte/wire_rfc3209_test.go::TestRFC3209SessionAttributeLengthOnSend",

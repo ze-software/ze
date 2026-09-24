@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"unicode"
 
 	"github.com/ze-software/ze/internal/component/config/storage"
@@ -106,12 +107,21 @@ func (rt *serviceRuntime) resolveBinaryPath() (string, error) {
 		return "", errors.New("resolved binary path is not absolute")
 	}
 	if containsUnitPathUnsafeChar(resolved) {
-		return "", errors.New("resolved binary path contains invalid characters (whitespace or control)")
+		return "", errors.New("resolved binary path contains invalid characters (whitespace, control, or a character systemd or /bin/sh interprets)")
 	}
 	return resolved, nil
 }
 
+// unitPathShellChars are the characters that systemd (% specifiers, $
+// variables, quotes, backslash escapes) or the ExecStart shell (buildUnitFile)
+// would interpret inside the unit line, so a path holding one would start
+// something other than the path.
+const unitPathShellChars = "'\"\\$%;&|<>()`*?[]"
+
 func containsUnitPathUnsafeChar(path string) bool {
+	if strings.ContainsAny(path, unitPathShellChars) {
+		return true
+	}
 	for _, r := range path {
 		if unicode.IsSpace(r) || unicode.IsControl(r) {
 			return true

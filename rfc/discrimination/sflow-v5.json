@@ -69,17 +69,6 @@
     },
     {
       "rid": "SFLOW-V5-x-27",
-      "polarity": "positive",
-      "unit": "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5CompactEncodingForEveryInterface",
-      "unit-sha": "33ace0b2c13dfeaf",
-      "claim-sha": "c06e5872e7e4efc2",
-      "route": "revert",
-      "producer": "internal/plugins/flowexport/sflow/encoder.go::writeCounterDatagrams",
-      "producer-sha": "ce3f971ccf866620",
-      "break": "body of writeCounterDatagrams replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "SFLOW-V5-x-27",
       "polarity": "negative",
       "unit": "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5CompactFormatsNeverMixedIn",
       "unit-sha": "e87829fdad2ffd4c",
@@ -99,17 +88,6 @@
       "producer": "internal/plugins/flowexport/sflow/counter.go::writeCounterSample",
       "producer-sha": "521594d4f3179ebd",
       "break": "body of writeCounterSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
-    },
-    {
-      "rid": "SFLOW-V5-x-27",
-      "polarity": "negative",
-      "unit": "internal/plugins/flowexport/sflow/sflow_v5_test.go::TestSFlowV5ExpandedFormatsNeverMixedIn",
-      "unit-sha": "c4ff1bb8445e4315",
-      "claim-sha": "c5adecb65d618959",
-      "route": "revert",
-      "producer": "internal/plugins/flowexport/sflow/flow_adapter.go::EncodeFlowSample",
-      "producer-sha": "4a9d9aefd3f9501b",
-      "break": "body of EncodeFlowSample replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
     },
     {
       "rid": "SFLOW-V5-x-28",

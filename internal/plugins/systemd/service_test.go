@@ -24,7 +24,7 @@ func TestServiceInstallGeneratesUnit(t *testing.T) {
 	}
 
 	unit := fake.files[defaultUnitPath]
-	assertContains(t, unit, "ExecStart=/usr/local/bin/ze start")
+	assertContains(t, unit, `ExecStart=/bin/sh -c 'trap "" HUP; exec /usr/local/bin/ze start'`)
 	assertContains(t, unit, "WorkingDirectory=/etc/ze")
 	assertCalls(t, fake.runCalls,
 		"groupadd --system ze",
@@ -276,7 +276,7 @@ func TestServiceInstallDryRunPrintsUnitOnly(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("dry-run exit code = %d, stderr=%s", code, stderr.String())
 	}
-	assertContains(t, stdout.String(), "ExecStart=/usr/local/bin/ze start")
+	assertContains(t, stdout.String(), `ExecStart=/bin/sh -c 'trap "" HUP; exec /usr/local/bin/ze start'`)
 	assertContains(t, stdout.String(), "WorkingDirectory=/custom/path")
 	if len(fake.runCalls) != 0 {
 		t.Fatalf("dry-run executed commands: %#v", fake.runCalls)
@@ -337,6 +337,23 @@ func TestServiceInstallRejectsWhitespaceInBinaryPath(t *testing.T) {
 		t.Fatalf("install whitespace binary exit code = %d", code)
 	}
 	assertContains(t, stderr.String(), "invalid characters")
+}
+
+func TestServiceInstallRejectsShellCharsInBinaryPath(t *testing.T) {
+	// VALIDATES: a binary path holding a character systemd or the ExecStart
+	// shell interprets is rejected before unit generation.
+	// PREVENTS: a quote or a $ in the path ending the `sh -c` script early, so
+	// the unit starts something other than ze.
+	for _, path := range []string{"/opt/it's/ze", "/opt/$HOME/ze", "/opt/50%/ze", "/opt/a;b/ze"} {
+		fake := newFakeServiceOps()
+		fake.executablePath = path
+		rt, _, stderr := newTestRuntime(fake)
+
+		if code := rt.cmdInstall([]string{"--dry-run", "--config", "/etc/ze"}); code != 1 {
+			t.Fatalf("install %q exit code = %d, want 1", path, code)
+		}
+		assertContains(t, stderr.String(), "invalid characters")
+	}
 }
 
 type fakeServiceOps struct {

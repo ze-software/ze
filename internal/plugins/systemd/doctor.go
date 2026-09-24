@@ -143,7 +143,7 @@ func parseServiceUnit(data []byte) serviceUnitInfo {
 		}
 		switch strings.TrimSpace(key) {
 		case "ExecStart":
-			unit.execStart = firstSystemdCommand(value)
+			unit.execStart = execStartExecutable(value)
 		case "User":
 			unit.user = strings.TrimSpace(value)
 		case "Group":
@@ -151,6 +151,22 @@ func parseServiceUnit(data []byte) serviceUnitInfo {
 		}
 	}
 	return unit
+}
+
+// execStartExecutable answers the program an ExecStart line runs. A unit ze
+// installs starts ze through `/bin/sh -c 'trap "" HUP; exec <ze> start'`
+// (buildUnitFile), and the executable that matters is the one the shell execs,
+// not the shell.
+func execStartExecutable(value string) string {
+	cmd := firstSystemdCommand(value)
+	if cmd != execStartShell {
+		return cmd
+	}
+	_, script, ok := strings.Cut(value, "; exec ")
+	if !ok {
+		return cmd
+	}
+	return firstSystemdCommand(script)
 }
 
 func firstSystemdCommand(value string) string {

@@ -17,6 +17,9 @@ type unitSpec struct {
 	ConfigDir  string
 }
 
+// execStartShell is the shell that starts ze with SIGHUP ignored.
+const execStartShell = "/bin/sh"
+
 func buildUnitFile(spec unitSpec) string {
 	var b textbuf.Buffer
 	b.Grow(945 + len(spec.BinaryPath) + len(spec.ConfigDir)*2)
@@ -29,9 +32,18 @@ func buildUnitFile(spec unitSpec) string {
 	b.Str("Type=simple\n")
 	b.Str("User=ze\n")
 	b.Str("Group=ze\n")
+	// ze starts with SIGHUP ignored. Go keeps an inherited SIG_IGN for SIGHUP
+	// until signal.Notify registers the signal, and ze registers it first thing
+	// in main. Without this, a `systemctl reload` that lands during Go package
+	// initialization, before any handler can exist, kills the daemon. systemd has
+	// no directive that sets a signal to SIG_IGN (IgnoreSIGPIPE= covers SIGPIPE
+	// only), so the shell sets it and execs ze, which keeps the main PID.
+	// execStartExecutable (doctor.go) reads this shape back.
 	b.Str("ExecStart=")
+	b.Str(execStartShell)
+	b.Str(" -c 'trap \"\" HUP; exec ")
 	b.Str(spec.BinaryPath)
-	b.Str(" start\n")
+	b.Str(" start'\n")
 	b.Str("ExecReload=/bin/kill -HUP $MAINPID\n")
 	b.Str("Restart=on-failure\n")
 	b.Str("RestartSec=5\n")

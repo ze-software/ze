@@ -75,7 +75,7 @@ Wants=network-online.target
 Type=simple
 User=ze
 Group=ze
-ExecStart=<prefix>/bin/ze start
+ExecStart=/bin/sh -c 'trap "" HUP; exec <prefix>/bin/ze start'
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=on-failure
 RestartSec=5
@@ -95,6 +95,14 @@ RuntimeDirectory=ze
 [Install]
 WantedBy=multi-user.target
 ```
+
+The shell in `ExecStart` starts ze with SIGHUP ignored, then execs it, so ze
+keeps the main PID. A `systemctl reload` during the first few hundred
+milliseconds, before ze can register a handler, is then lost instead of killing
+the daemon (`docs/architecture/behavior/signals.md`). The install refuses a
+binary or config path holding a character that systemd or `/bin/sh` interprets:
+a quote, a backslash, `$`, `%`, `;`, `&`, `|`, `<`, `>`, parentheses, a
+backtick, or a glob character.
 
 `ze install systemd` requires `<config-dir>/database/` and refuses while another
 process owns the store. It creates the `ze` user and group if missing,
