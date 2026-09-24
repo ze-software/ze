@@ -495,7 +495,7 @@ as `Check` does today for `ai/DOCS-TO-CODE.md`.
 | AC-28 | `./le --name test`, `./le --name test-linux-amd64`, and a name whose `bin/le-<name>` equals a `bin/le-test*` artifact path | the launcher exits 2 and names the artifact that owns the path; any other valid name still builds `bin/le-<name>/le` |
 | AC-29 | `./le doc index check` and `./le doc index write` | `check` fails when `ai/DOCS-TO-CODE.md` or `ai/CODE-TO-DOCS.md` is stale or an anchor does not resolve, as `docs-to-code check` plus `index-check` did; `write` regenerates both files |
 | AC-30 | the Phase 3 tree | the harness is built with the tag `le_test`; no file under `cmd/`, `feature-gates.txt`, `.github/`, the Dockerfiles or `internal/le` names the tag `ze_test`; `zetest` is unchanged |
-| AC-31 | folded from the superseded spec (its AC-11): `./le go`, `./le test`, `./le spec` or any other bare namespace token | lists the members of the namespace with their descriptions; an unknown first word still prints `unknown command` and exits 1. The exit code of the bare token is the one `TestBareNamespaceTokenListsItsMembers` pins (1) until the owner rules on it; see "Folded in from the superseded spec" |
+| AC-31 | folded from the superseded spec (its AC-11): `./le go`, `./le test`, `./le spec` or any other bare namespace token | lists the members of the namespace with their descriptions; an unknown first word still prints `unknown command` and exits 1. The bare token exits 0 (owner decision, 2026-09-24): `Dispatch` changes from 1 to 0 and `TestBareNamespaceTokenListsItsMembers` pins 0 |
 
 ## 🧪 TDD Test Plan
 
@@ -526,7 +526,7 @@ as `Check` does today for `ai/DOCS-TO-CODE.md`.
 | `TestLeLauncherRefusesHarnessNames` | `cmd/ze/root_launcher_test.go` | AC-28: `test` and `test-linux-amd64` exit 2 and name the artifact; a valid other name still builds | |
 | `TestDocIndexCheckCoversBothFilesAndAnchors` | `internal/le/doc/index/index_test.go` | AC-29: a stale `ai/DOCS-TO-CODE.md`, a stale `ai/CODE-TO-DOCS.md` and an unresolved anchor each fail `check`; `write` regenerates both files | |
 | `TestHarnessTagIsLeTest` | `internal/test/runner/runner_test.go` | AC-30: `TestBuildTags` starts with `le_test` and holds no `ze_test` | |
-| `TestBareNamespaceTokenListsItsMembers` (existing) | `internal/le/leroot/namespace_test.go` | AC-31: members listed with descriptions, exit 1 as pinned; an unknown first word answers `unknown command` | |
+| `TestBareNamespaceTokenListsItsMembers` (existing, updated) | `internal/le/leroot/namespace_test.go` | AC-31: members listed with descriptions, exit 0 (changed from 1); an unknown first word answers `unknown command` and exit 1 | |
 | `TestRetiredCommandSweepHonorsDeclaredExceptions` (extended) | `internal/le/doc/check/retired_test.go` | AC-15, AC-16: `zetest` and the environment spelling `ze_test_bgp_port` are not matches of the tag `ze_test` | |
 
 ### Boundary Tests (numeric inputs)
@@ -546,7 +546,7 @@ as `Check` does today for `ai/DOCS-TO-CODE.md`.
 N-A: tooling. The interop suites run as regression proof that the harness rename reaches the container (AC-8).
 
 ## Files to Modify
-- `internal/le/leroot/dispatch.go`, `leroot.go` - the alias dispatch entry; aliases hidden from `Commands()`
+- `internal/le/leroot/dispatch.go`, `leroot.go` - the alias dispatch entry; aliases hidden from `Commands()`; `Dispatch` answers a bare namespace token with exit 0 (AC-31)
 - `internal/le/register.go` - new import paths; alias registration after all areas
 - every package in the rename map - moved to its new directory, registration name changed
 - `internal/le/verify/engine/stages.go`, `run.go` - stage names; the `stageLogPath` comment that pins the old file name
@@ -732,10 +732,10 @@ AC-17 are delivered in the tree: the two-word names resolve, and
 
 | Old AC | Fate here |
 |--------|-----------|
-| AC-11 (bare namespace token lists its members, exit 0) | still open: folded in as AC-31. The superseded spec's closure found that `Dispatch` exits 1 and `TestBareNamespaceTokenListsItsMembers` pins 1. The exit code still needs the owner's ruling |
+| AC-11 (bare namespace token lists its members, exit 0) | still open: folded in as AC-31. The superseded spec's closure found that `Dispatch` exits 1 and `TestBareNamespaceTokenListsItsMembers` pins 1. The owner ruled exit 0 on 2026-09-24 |
 | AC-13 (le feeder, `test` the only exception) | kept as a feeder, exception list dropped: AC-19 |
 | AC-14 (every stage keeps its log file name) | REVERSED: AC-18. `internal/le/verify/stagelogname_test.go` pins the old names and changes with the stage names |
-The bare namespace exit code is carried here as AC-31, not in the superseded spec. Until the owner rules, this spec keeps the exit code `Dispatch` answers (1).
+The bare namespace exit code is carried here as AC-31, not in the superseded spec. The owner ruled on 2026-09-24: a bare namespace token exits 0.
 
 ## RFC Documentation (Scope: protocol)
 
