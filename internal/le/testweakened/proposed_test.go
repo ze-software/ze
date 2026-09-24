@@ -152,27 +152,19 @@ func TestProposedInputAndReconstructedFilesAreBounded(t *testing.T) {
 	}
 }
 
-func TestProposedVerificationArchiveIsExcludedBeforeReads(t *testing.T) {
+// TestProposedCleansAPathThatLeavesItsDirectory proves a proposed path is
+// cleaned before it is judged. The request names a test through a directory it
+// then leaves, and the check MUST still judge the canonical file it reaches.
+func TestProposedCleansAPathThatLeavesItsDirectory(t *testing.T) {
 	root := t.TempDir()
-	archived := filepath.Join(root, "plan", "verification-evidence", "a_test.go")
-	if err := os.MkdirAll(archived, 0o750); err != nil {
-		t.Fatal(err)
-	}
-	report, err := proposedFixture(root, ProposedRequest{
-		Tool: "Write", ToolInput: ProposedToolInput{FilePath: archived, Content: "package a\n"},
-	})
-	if err != nil || report.ExitCode() != 0 || report.Blocking || report.Notice {
-		t.Fatalf("archive path reached file or approval checks: %#v, %v", report, err)
-	}
-
 	oldText := "package a\nfunc TestA(t *testing.T) { require.Equal(t, 1, got) }\n"
 	newText := "package a\nfunc TestA(t *testing.T) { t.Skip(\"later\"); require.Equal(t, 1, got) }\n"
 	writeProposedFile(t, root, fixtureShard, fixtureLedgerHeader)
-	report, err = proposedFixture(root, ProposedRequest{
-		Path: "plan/verification-evidence/../../pkg/a_test.go", Tool: "Edit", Old: &oldText, New: &newText,
+	report, err := proposedFixture(root, ProposedRequest{
+		Path: "plan/other/../../pkg/a_test.go", Tool: "Edit", Old: &oldText, New: &newText,
 	})
 	if err != nil || !report.Blocking || len(report.Weakened) != 1 || report.Weakened[0].Name != "TestA" {
-		t.Fatalf("a path that leaves the archive escaped canonical checks: %#v, %v", report, err)
+		t.Fatalf("a path that leaves its directory escaped canonical checks: %#v, %v", report, err)
 	}
 }
 

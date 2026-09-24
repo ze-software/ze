@@ -1,6 +1,6 @@
 // Design: docs/architecture/core-design.md -- le's checkout discovery
 //
-// Package lepath provides checkout discovery and repository-relative path policy.
+// Package lepath provides checkout discovery and the module path of a checkout.
 //
 // ZE_REPO_ROOT wins when it is set, because the environment knows things the
 // filesystem cannot: a container that mounted the tree elsewhere, a worktree, a
@@ -144,12 +144,4 @@ func Module(root string) (string, error) {
 		return "", err
 	}
 	return "", fmt.Errorf("module directive not found in %s", path)
-}
-
-// IsVerificationArchive reports whether a repository-relative path belongs to
-// historical verification data rather than current verification inputs.
-func IsVerificationArchive(path string) bool {
-	const directory = "plan/verification-evidence"
-	path = filepath.ToSlash(filepath.Clean(path))
-	return path == directory || strings.HasPrefix(path, directory+"/")
 }

@@ -1,7 +1,0 @@
-{
-  "purpose": "Live userspace progression diagnosis; original carrier assertions are unchanged.",
-  "observed_owned_namespaces": [],
-  "samples": 0,
-  "carrier_exit_code": 1,
-  "boundary": "Existing daemon/carrier artifacts; this does not validate concurrent source edits."
-}

@@ -1,4 +1,0 @@
-{
-  "command": "env CGO_ENABLED=0 /home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le le qemu run kernel tmp/kernel/build/vmlinuz packages \"iproute2 python3 strace openssh-client sshpass\" timeout 8m command \"python3 /workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/diagnose-guest.py /workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/rsvpte.test /workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/ze /workspace/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/attempt-005\"",
-  "status": "invoked"
-}

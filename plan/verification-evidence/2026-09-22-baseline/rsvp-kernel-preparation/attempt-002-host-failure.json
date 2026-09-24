@@ -1,8 +1,0 @@
-{
-  "status": "diagnostic setup failed before carrier launch",
-  "exit_code": 1,
-  "runtime_kernel": "7.2",
-  "error": "JSONDecodeError in namespaces(): ip -j netns list produced no JSON for an empty namespace list.",
-  "invocation": "host-invocation-002.json",
-  "correction": "Use ip netns list text output for namespace discovery; no carrier assertion or timer changed."
-}

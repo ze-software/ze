@@ -1,7 +1,0 @@
-{
-  "runtime_kernel": "7.2",
-  "runtime_kernel_verified_by_native_qemu_action": true,
-  "status": "failed",
-  "observed_rejection": "l2tp-auth-local: no users configured; rejecting; PPP session failed with auth rejected: no users configured",
-  "root_cause": "Not yet established. The no-auth configuration, PPP callback and authentication provider contracts need inspection."
-}

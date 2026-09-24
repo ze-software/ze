@@ -398,12 +398,6 @@ func (c *checker) walkGoFiles(fn func(path string)) {
 			return nil
 		}
 		// Skip hidden dirs (except the root itself), vendor, research, caches, tmp.
-		if lepath.IsVerificationArchive(rel) {
-			if info.IsDir() {
-				return filepath.SkipDir
-			}
-			return nil
-		}
 		if info.IsDir() {
 			base := filepath.Base(path)
 			if base == "vendor" || base == "node_modules" || base == "research" || base == "modcache" || base == "tmp" {

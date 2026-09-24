@@ -1,7 +1,0 @@
-{
-  "status": "invalid-runtime-attempt",
-  "observed": "producer.log reports strace exec: No such file or directory. file identified both rebuilt executables as dynamically linked x86-64 ELF with /lib64/ld-linux-x86-64.so.2, unavailable in the Alpine guest.",
-  "cause": "Main omitted CGO_ENABLED=0 from both target builds.",
-  "correction": "Rebuild both Linux amd64 target artifacts with CGO_ENABLED=0. Do not change protocol source, readiness or assertions.",
-  "protocol_failure_claimed": false
-}

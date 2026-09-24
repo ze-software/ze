@@ -14,7 +14,6 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/le/derived"
-	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/leroot"
 )
 
@@ -164,9 +163,6 @@ func rebuildLedger(root string) error {
 // comparison used to catch. The cost of being broad is a rebuild, which is
 // loud, bounded, and correct.
 func feedsRFCLedger(_, path string) bool {
-	if lepath.IsVerificationArchive(path) {
-		return false
-	}
 	for _, directory := range [...]string{
 		summaryRel, auditRel, discriminationRel, extractionRel, fullRel, draftsRel, workflowsRel,
 	} {

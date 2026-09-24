@@ -8,9 +8,6 @@ go 1.27.0
 // Go 1.27 also removed the tlsunsafeekm escape hatch that Ze must not permit,
 // so no build can restore it.
 
-// Historical verification data is not part of the module's package population.
-ignore ./plan/verification-evidence
-
 require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.0.9

@@ -1,8 +1,0 @@
-{
-  "exit_code": 0,
-  "started": "2026-09-22T19:58:27.767Z",
-  "finished": "2026-09-22T19:58:49.497Z",
-  "stdout": "plan/verification-evidence/2026-09-22-baseline/test-health-update-002.stdout",
-  "stderr": "plan/verification-evidence/2026-09-22-baseline/test-health-update-002.stderr",
-  "scope": "Structural report generation only; not a test or whole-tree verification pass."
-}

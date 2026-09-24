@@ -1,8 +1,0 @@
-PING 10.20.0.1 (10.20.0.1) from 10.20.0.2 ppp0: 56(84) bytes of data.
-64 bytes from 10.20.0.1: icmp_seq=1 ttl=64 time=0.069 ms
-64 bytes from 10.20.0.1: icmp_seq=2 ttl=64 time=0.085 ms
-64 bytes from 10.20.0.1: icmp_seq=3 ttl=64 time=0.062 ms
-
---- 10.20.0.1 ping statistics ---
-3 packets transmitted, 3 received, 0% packet loss, time 2061ms
-rtt min/avg/max/mdev = 0.062/0.072/0.085/0.009 ms

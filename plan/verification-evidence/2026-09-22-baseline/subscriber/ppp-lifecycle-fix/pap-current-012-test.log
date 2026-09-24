@@ -1,8 +1,0 @@
-=== RUN   TestPAPDecisionEndsWhenLCPInterruptsNCP
-=== RUN   TestPAPDecisionEndsWhenLCPInterruptsNCP/terminate-request
-=== RUN   TestPAPDecisionEndsWhenLCPInterruptsNCP/configure-request
---- PASS: TestPAPDecisionEndsWhenLCPInterruptsNCP (0.00s)
-    --- PASS: TestPAPDecisionEndsWhenLCPInterruptsNCP/terminate-request (0.00s)
-    --- PASS: TestPAPDecisionEndsWhenLCPInterruptsNCP/configure-request (0.00s)
-PASS
-ok  	command-line-arguments	1.034s

@@ -15,7 +15,6 @@ import (
 
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 const cannotRunPrefix = "check could not run: "
@@ -353,28 +352,13 @@ func weakenedTests(
 		removedSet[path] = true
 	}
 	for _, pair := range renamePairs {
-		oldArchive := lepath.IsVerificationArchive(pair.OldPath)
-		newArchive := lepath.IsVerificationArchive(pair.NewPath)
-		if oldArchive {
-			if newArchive || !isTestPath(pair.NewPath) {
-				continue
-			}
-			pair.OldPath = pair.NewPath
-		} else if newArchive {
-			if !isTestPath(pair.OldPath) {
-				continue
-			}
-			pair.NewPath = ""
-		}
 		if seen[pair.OldPath] || seen[pair.NewPath] {
 			problems = append(problems, text.Reset().Str(cannotRunPrefix).
 				Str("rename path appears in more than one pair, so no rename was compared").String())
 			continue
 		}
 		seen[pair.OldPath] = true
-		if pair.NewPath != "" {
-			seen[pair.NewPath] = true
-		}
+		seen[pair.NewPath] = true
 		pairFindings, problem := comparePath(root, pair.OldPath, pair.NewPath, anchor)
 		if problem != "" {
 			problems = append(problems, text.Reset().Str(cannotRunPrefix).Str(problem).String())
@@ -650,9 +634,6 @@ func findingNameCount(findings []Finding, name string) int {
 }
 
 func isTestPath(path string) bool {
-	if lepath.IsVerificationArchive(path) {
-		return false
-	}
 	if strings.HasSuffix(path, "_test.go") {
 		return true
 	}

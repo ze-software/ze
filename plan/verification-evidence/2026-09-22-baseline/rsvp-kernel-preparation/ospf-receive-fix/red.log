@@ -1,9 +1,0 @@
-=== RUN   TestReceiveProgressWhileOriginationBlocked
-    receive_origination_test.go:90: neighbors while origination is blocked = 1, want one on each of three interfaces
---- FAIL: TestReceiveProgressWhileOriginationBlocked (0.00s)
-=== RUN   TestSRAdjSIDPublicationAndReuse
-    sr_adjsid_test.go:152: IPv4 origination can advertise the SID before install emission completes
---- FAIL: TestSRAdjSIDPublicationAndReuse (0.00s)
-FAIL
-FAIL	github.com/ze-software/ze/internal/plugins/ospf	0.070s
-FAIL

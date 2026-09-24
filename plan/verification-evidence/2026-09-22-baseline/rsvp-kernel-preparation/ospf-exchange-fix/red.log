@@ -1,7 +1,0 @@
---- FAIL: TestOSPFLocalMasterSendsNextDDAfterNegotiation (0.00s)
-    nsm_test.go:352: next DD = &{InterfaceMTU:1500 Options:E Flags:0 DDSequence:167772164 Headers:[] AFBit:false}, want final master DD seq 167772164
---- FAIL: TestOSPFDDPeerExchange (0.00s)
-    nsm_test.go:424: DD from 198.18.2.1 to 198.18.1.1: flags=0x2 seq=3323068930: seq-number-mismatch
-FAIL
-FAIL	github.com/ze-software/ze/internal/plugins/ospf/neighbor	0.043s
-FAIL

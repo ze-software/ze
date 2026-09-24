@@ -1,7 +1,0 @@
-{
-  "index_exit": 0,
-  "verify_exit": 1,
-  "guide": "docs/guide/rsvp-te.md",
-  "generated": "ai/CODE-TO-DOCS.md",
-  "runtime_claim_added": false
-}

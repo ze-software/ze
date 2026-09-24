@@ -1,2 +1,0 @@
-FATAL: env.Get called with unregistered key: ze.plugin.name
-exit status 2

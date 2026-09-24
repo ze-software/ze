@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 const (
@@ -151,10 +150,7 @@ func trackedGoFiles(root string) ([]string, error) {
 		if len(token) == 0 || !bytes.HasSuffix(token, []byte(".go")) {
 			continue
 		}
-		rel := filepath.ToSlash(string(token))
-		if !lepath.IsVerificationArchive(rel) {
-			files = append(files, rel)
-		}
+		files = append(files, filepath.ToSlash(string(token)))
 	}
 	slices.Sort(files)
 	return files, nil

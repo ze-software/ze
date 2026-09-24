@@ -1,5 +1,0 @@
-{
-  "Replace": {
-    "/home/thomas/Code/github.com/ze-software/ze/main/internal/plugins/ospf/neighbor/dd.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-exchange-fix/before/internal/plugins/ospf/neighbor/dd.go"
-  }
-}

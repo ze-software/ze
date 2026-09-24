@@ -254,9 +254,6 @@ func templRepositoryPaths(root string) ([]string, error) {
 			continue
 		}
 		rel := filepath.ToSlash(string(token))
-		if lepath.IsVerificationArchive(rel) {
-			continue
-		}
 		_, statErr := os.Stat(filepath.Join(root, filepath.FromSlash(rel)))
 		if statErr == nil {
 			paths = append(paths, rel)

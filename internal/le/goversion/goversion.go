@@ -321,11 +321,8 @@ func Check(root string, files []string, declared string) (Result, error) {
 }
 
 // walked reports whether a tracked path is in this gate's walk at all: a
-// container build file or Go source, outside excluded trees and historical data.
+// container build file or Go source, outside excluded trees.
 func walked(rel string) bool {
-	if lepath.IsVerificationArchive(rel) {
-		return false
-	}
 	for part := range strings.SplitSeq(filepath.ToSlash(rel), "/") {
 		if excludedDirectories[part] {
 			return false

@@ -1,7 +1,0 @@
-{
-  "Replace": {
-    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/ppp/manager_test.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/manager-helpers.go.txt",
-    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/ppp/ncp.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/assignment-barrier-before/ncp.go.txt",
-    "/home/thomas/Code/github.com/ze-software/ze/main/internal/component/l2tp/ppp/session_run.go": "/home/thomas/Code/github.com/ze-software/ze/main/plan/verification-evidence/2026-09-22-baseline/subscriber/ppp-lifecycle-fix/assignment-barrier-before/session_run.go.txt"
-  }
-}

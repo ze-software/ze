@@ -1,7 +1,0 @@
-{
-  "status": "invoked",
-  "command": "'env' 'CGO_ENABLED=0' '/home/thomas/Code/github.com/ze-software/ze/main/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le' 'le' 'qemu' 'run' 'kernel' 'tmp/kernel/build/vmlinuz' 'packages' 'iproute2' 'timeout' '8m' 'command' '/workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/rsvpte.test -test.v -test.run=^TestRSVPNativeProducer$ -test.timeout=4m -rsvp-producer-daemon /workspace/tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-fixed/bin/ze'",
-  "artifact_identity": "attempt-007/invocation.json",
-  "purpose": "Distinguish intrinsic receive/maintenance failure from temporary strace and extra SSH observer overhead. The native carrier, its timers and all assertions are unchanged.",
-  "limitation": "Diagnostic carrier-only run. No syscall trace or raw-state retention is claimed; it does not silently replace the retained baseline evidence requirement."
-}

@@ -1,1 +1,0 @@
-error: rfc/discrimination/rfc2205.json: fingerprint key 'internal/plugins/rsvpte/transport_linux.go::rawTransport.SendPath' is not '<repo-relative-path>::<FuncName>' or a bare '<repo-relative-path>', either of which may carry a '#2' or higher ordinal when one unit holds more than one tag

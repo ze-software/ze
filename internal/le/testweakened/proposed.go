@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/rfc"
 )
 
@@ -152,9 +151,6 @@ func Proposed(root string, input io.Reader) (ProposedReport, error) {
 		return ProposedReport{}, err
 	}
 	report := ProposedReport{Path: path, Tool: request.Tool}
-	if lepath.IsVerificationArchive(path) {
-		return report, nil
-	}
 	if request.Exists != nil && !*request.Exists {
 		return report, nil
 	}

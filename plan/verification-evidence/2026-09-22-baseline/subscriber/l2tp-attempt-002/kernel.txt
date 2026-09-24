@@ -1,1 +1,0 @@
-Linux localhost 7.2.0 #1 SMP PREEMPT_DYNAMIC Tue Sep 22 02:19:30 UTC 2026 x86_64 GNU/Linux

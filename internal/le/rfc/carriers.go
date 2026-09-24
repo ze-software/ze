@@ -24,7 +24,6 @@ import (
 
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/functional"
-	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/leroot"
 )
 
@@ -330,9 +329,6 @@ func carriersFor(suites []string, scheduled map[string]string) []Carrier {
 // Interoplab tests exercise foreign implementations and can carry protocol
 // evidence when their native action is scheduled.
 func CarrierFor(rel string, carriers []Carrier) (Carrier, bool) {
-	if lepath.IsVerificationArchive(rel) {
-		return Carrier{}, false
-	}
 	if strings.HasPrefix(rel, draftPrefix) ||
 		(strings.HasPrefix(rel, developmentToolsPrefix) && !strings.HasPrefix(rel, "internal/le/interoplab/")) {
 		return Carrier{}, false

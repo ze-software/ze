@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 // ErrNoGit says that git did not answer and the population is unknown. This is a
@@ -103,13 +102,6 @@ func globTree(root, pattern string) ([]string, error) {
 			return err
 		}
 		if entry.IsDir() {
-			rel, relErr := filepath.Rel(root, path)
-			if relErr != nil {
-				return relErr
-			}
-			if lepath.IsVerificationArchive(rel) {
-				return fs.SkipDir
-			}
 			return nil
 		}
 		ok, matchErr := filepath.Match(name, entry.Name())
@@ -226,7 +218,7 @@ func Candidates(root string, named []string) ([]pair, error) {
 				continue
 			}
 			before := name
-			if from, ok := renames[name]; ok && !lepath.IsVerificationArchive(from) {
+			if from, ok := renames[name]; ok {
 				before = from
 			}
 			keep = append(keep, pair{Current: name, Before: before})
@@ -265,9 +257,6 @@ func Candidates(root string, named []string) ([]pair, error) {
 	for _, candidate := range all {
 		if _, ok := surfaceOf(candidate.Current); !ok || excluded(candidate.Current) {
 			continue
-		}
-		if lepath.IsVerificationArchive(candidate.Before) {
-			candidate.Before = candidate.Current
 		}
 		if isFile(filepath.Join(root, filepath.FromSlash(candidate.Current))) {
 			keep = append(keep, candidate)

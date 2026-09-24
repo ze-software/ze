@@ -31,11 +31,8 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"slices"
 	"strings"
 	"time"
-
-	"github.com/ze-software/ze/internal/le/lepath"
 )
 
 // factsFile is the committed file, relative to the checkout root. It sits
@@ -376,7 +373,7 @@ func trackedPaths(root string, patterns ...string) ([]string, error) {
 	if err != nil {
 		return nil, fmt.Errorf("sitefacts: read the tracked %v of %s: %w", patterns, root, err)
 	}
-	return slices.DeleteFunc(records(raw), lepath.IsVerificationArchive), nil
+	return records(raw), nil
 }
 
 // countGoPackages counts the Go packages of the checkout at root that git holds

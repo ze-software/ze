@@ -21,7 +21,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/gaterun"
 	"github.com/ze-software/ze/internal/le/gotoolchain"
-	"github.com/ze-software/ze/internal/le/lepath"
 	"github.com/ze-software/ze/internal/le/population"
 )
 
@@ -510,9 +509,6 @@ func (r *Runner) population() (map[string]bool, error) {
 	for _, raw := range paths {
 		path := filepath.ToSlash(string(raw))
 		if path == "" || strings.HasPrefix(path, "vendor/") || strings.HasPrefix(path, "gokrazy/modcache/") {
-			continue
-		}
-		if lepath.IsVerificationArchive(path) {
 			continue
 		}
 		// A testdata directory is invisible to the Go tool by convention, so

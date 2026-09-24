@@ -1,4 +1,0 @@
-{
-  "command": "env CGO_ENABLED=1 tmp/session/2026-09-21-97650314-2770-467e-8578-1739803540cf/scratch/baseline-runtime-accepted/bin/le le 'job' 'run' 'label' 'ospf-exchange-red' 'quiet' 'command' 'go' 'test' '-race' '-overlay=plan/verification-evidence/2026-09-22-baseline/rsvp-kernel-preparation/ospf-exchange-fix/before-overlay.json' '-count=1' '-run' '^(TestOSPFLocalMasterSendsNextDDAfterNegotiation|TestOSPFDDPeerExchange)$' './internal/plugins/ospf/neighbor'",
-  "status": "invoked"
-}

@@ -1,1 +1,0 @@
-9: ppp0    inet 10.20.0.2 peer 10.20.0.1/32 scope global ppp0\       valid_lft forever preferred_lft forever
