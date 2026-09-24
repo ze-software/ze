@@ -20,8 +20,22 @@ the ARP-flux it replaces.
 
 <!-- source: internal/plugins/vrrp/dataplane_linux.go -- macvlan sysctl recipe, apply and restore -->
 
-The engine applies this at macvlan create and restores it at teardown. It is
-byte-identical in effect to keepalived's `use_vmac`.
+The engine applies this at macvlan create and restores shared settings at teardown.
+The ARP settings follow keepalived's `use_vmac`; Ze also selects ICMP error sources
+from the inbound virtual-MAC device.
+
+Setup fails if a required sysctl cannot be read or written. Before changing
+shared knobs, Ze saves their original values. A failed setup acquires no group
+reference and attempts to restore the values it changed. If restoration also
+fails, the snapshot retains exactly those failed keys, independently of the
+successful-group reference counts.
+
+A later setup retries outstanding restoration before recording new originals;
+it cannot save a leftover recipe value as the original. Teardown also retries
+saved values for parents with no remaining groups and, after the last IPv4
+group, the namespace-wide values. Failed restores remain saved for another
+attempt. A failed setup on a second parent does not restore global settings
+still owned by an active group on the first parent.
 
 - macvlan in PRIVATE mode, not bridge mode.
 - Install the VIP with the parent's SUBNET prefix, for example /24, not /32. The
@@ -29,6 +43,7 @@ byte-identical in effect to keepalived's `use_vmac`.
 - `conf.<parent>.arp_ignore=1`, `arp_filter=1`, `rp_filter=1`
 - `conf.<macvlan>.arp_ignore=1`, `rp_filter=0`
 - `conf.all.rp_filter=0`
+- `net.ipv4.icmp_errors_use_inbound_ifaddr=1`
 
 `conf.all.rp_filter=0` is required. The effective `rp_filter` is
 `max(all, iface)`, so the macvlan cannot reach 0 while `all` is 1. This is the
@@ -101,12 +116,35 @@ election, failover and the dataplane are unaffected.
 
 iface emits `arp_ignore`, `arp_filter` and `rp_filter` from unit config on every
 apply, which clobbers the recipe. The engine re-asserts the recipe on every config
-apply, so the state self-heals.
+apply and logs any write failure.
 
-### `all.rp_filter=0` is host-global and is not restored on SIGKILL
+### ICMP redirects identify the virtual router
 
-keepalived has the same property. Document it for the operator. Do not build
-crash-safe cleanup for it.
+Linux demultiplexes a received virtual destination MAC to that group's macvlan.
+With `icmp_errors_use_inbound_ifaddr=1`, `net/ipv4/icmp.c::__icmp_send`
+selects the source address from that inbound device. A non-owner Master's
+redirect therefore names that group's VIP even when the reverse route to the
+host uses the parent or another virtual router. This implements RFC 3768
+Section 8.1, retained by RFC 9568 Section 8.1.1.
+
+The knob applies to IPv4 ICMP errors throughout the network namespace. Ze saves
+it with `all.rp_filter` on the first IPv4 group, reasserts both on config apply,
+and restores the saved values after the last group. It leaves `send_redirects`
+unchanged. Linux's normal redirect eligibility and rate limits still apply.
+
+`TestVRRPRedirectSourceFollowsVirtualMAC` injects packets through two private
+macvlans with distinct VIPs and virtual MACs on one parent, and captures the
+forwarded packets and redirects on the peer. Its physical-MAC control expects
+the parent's real source address. The test runs under `integration && linux`
+against the runtime kernel; it exercises the product's netlink backend,
+`vipCIDRs`, and the apply/reassert sysctl path.
+
+### Namespace-wide settings are not restored on SIGKILL
+
+An abrupt termination leaves both `all.rp_filter=0` and
+`icmp_errors_use_inbound_ifaddr=1` in the network namespace. Normal teardown
+restores their saved values. keepalived has the same abrupt-termination
+property; crash-safe cleanup is not implemented.
 
 ## How it was found
 

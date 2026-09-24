@@ -26,6 +26,23 @@ every caller passes all three. No prober calls `net.ListenPacket` on its own:
 the one that did would have to repeat the socket options below, and the one
 that forgot would fragment silently while reporting a measured path.
 
+### The router's ICMP producer
+
+The Linux data plane also implements ICMP for traffic Ze forwards and for
+packets addressed to the router. Ze enables forwarding through the interface
+sysctls and installs routes through its netlink backend. Linux `ip_forward`
+discards packets whose TTL is exhausted or whose DF bit prevents fragmentation
+at the outgoing MTU; `ip_rcv_core` and `ip_options_compile` reject unprocessable
+headers. Linux generates the resulting ICMP errors.
+
+`internal/plugins/vrrp/gateway_icmp_integration_linux_test.go` exercises this
+boundary with Ethernet packet injection in an isolated namespace. It captures
+both the forwarding path and the return path, with valid controls for each
+discard condition, and checks reserved fields in emitted errors. RFC 1191
+assigns the next-hop MTU field, and RFC 4884 assigns the quoted-datagram length
+octet; these fields and Parameter Problem's pointer are excluded from the
+unused-bit check. These tests require Ze's runtime kernel under QEMU.
+
 ## The Don't Fragment mode
 
 `probe.DFMode` is a typed enum whose zero value, `DFUnspecified`, is refused

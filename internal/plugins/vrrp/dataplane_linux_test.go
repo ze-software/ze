@@ -5,6 +5,7 @@ package vrrp
 import (
 	"fmt"
 	"maps"
+	"path/filepath"
 	"testing"
 )
 
@@ -39,13 +40,20 @@ func (f *fakeSysctl) install(t *testing.T) {
 		return nil
 	}
 	dataplaneMu.Lock()
+	oldParentRefs, oldParentSaved := parentRefs, parentSaved
+	oldGlobalRefs, oldGlobalSaved := globalRefs, globalSaved
 	parentRefs = map[string]int{}
 	parentSaved = map[string][]sysctlKV{}
 	globalRefs = 0
-	globalHave = false
-	globalSaved = sysctlKV{}
+	globalSaved = nil
 	dataplaneMu.Unlock()
-	t.Cleanup(func() { sysctlRead, sysctlWrite = origR, origW })
+	t.Cleanup(func() {
+		sysctlRead, sysctlWrite = origR, origW
+		dataplaneMu.Lock()
+		parentRefs, parentSaved = oldParentRefs, oldParentSaved
+		globalRefs, globalSaved = oldGlobalRefs, oldGlobalSaved
+		dataplaneMu.Unlock()
+	})
 }
 
 func (f *fakeSysctl) get(path string) string { return f.values[path] }
@@ -65,6 +73,7 @@ func TestDataplaneApplyIPv4SetsRecipe(t *testing.T) {
 	// RFC requirement: RFC9568-8.1.2-1 positive -- the parent's arp_ignore/arp_filter are set so the parent's physical MAC never answers ARP for the virtual address (parentSysctls dataplane_linux.go:73).
 	// RFC requirement: RFC5798-8.1.2-1 positive -- the parent's arp_ignore and arp_filter are set so the parent's physical MAC never answers ARP for the virtual address (parentSysctls dataplane_linux.go:73).
 	f := newFakeSysctl(map[string]string{
+		filepath.Join(procNetRoot, "ipv4", "icmp_errors_use_inbound_ifaddr"): "0",
 		allRPFilterPath():              "1",
 		ipv4Conf("eth0", "arp_ignore"): "0",
 		ipv4Conf("eth0", "arp_filter"): "0",
@@ -126,6 +135,7 @@ func TestDataplaneRestoreOnLastGroup(t *testing.T) {
 	// RFC requirement: RFC9568-8.1.2-1 negative -- the physical-MAC suppression is scoped to a live VRRP group: the parent's arp_ignore/arp_filter return to their pre-VRRP values on the last teardown (revertDataplaneSysctls dataplane_linux.go:199).
 	// RFC requirement: RFC5798-8.1.2-1 negative -- the physical-MAC suppression is scoped to a live VRRP group: the parent's arp_ignore and arp_filter return to their pre-VRRP values on the last teardown (revertDataplaneSysctls dataplane_linux.go:199).
 	f := newFakeSysctl(map[string]string{
+		filepath.Join(procNetRoot, "ipv4", "icmp_errors_use_inbound_ifaddr"): "0",
 		allRPFilterPath():              "1",
 		ipv4Conf("eth0", "arp_ignore"): "0",
 		ipv4Conf("eth0", "arp_filter"): "0",
@@ -149,6 +159,9 @@ func TestDataplaneRestoreOnLastGroup(t *testing.T) {
 	if got := f.get(allRPFilterPath()); got != "0" {
 		t.Fatalf("after first revert all.rp_filter = %q, want still 0", got)
 	}
+	if got := f.get(filepath.Join(procNetRoot, "ipv4", "icmp_errors_use_inbound_ifaddr")); got != "1" {
+		t.Fatalf("after first revert ICMP inbound source selection = %q, want still 1", got)
+	}
 
 	// Last teardown restores the saved values.
 	revertDataplaneSysctls("eth0", "zv4-2-20", familyIPv4)
@@ -157,6 +170,7 @@ func TestDataplaneRestoreOnLastGroup(t *testing.T) {
 		ipv4Conf("eth0", "arp_filter"): "0",
 		ipv4Conf("eth0", "rp_filter"):  "2",
 		allRPFilterPath():              "1",
+		filepath.Join(procNetRoot, "ipv4", "icmp_errors_use_inbound_ifaddr"): "0",
 	} {
 		if got := f.get(path); got != want {
 			t.Errorf("after last revert %s = %q, want restored %q", path, got, want)
