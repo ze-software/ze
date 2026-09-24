@@ -215,6 +215,27 @@ type Config struct {
 	// does the post-completion KEEPALIVE loop of option=linger -- silent with
 	// linger is not silent. Sink and echo are separate modes and ignore it.
 	Silent bool
+	// EstablishedFile names a file ze-peer creates, empty, when the daemon's
+	// first UPDATE arrives (option=established-file:path=<name>). A relative
+	// name resolves against ze-peer's working directory, which the functional
+	// runner sets to the test's own work directory, so a compiled fixture finds
+	// it under the same name.
+	//
+	// It exists so a fixture can act on "the session is Established" as a state
+	// rather than guess it with a fixed delay. The first UPDATE, not ze's
+	// KEEPALIVE, is the event. RFC 4271 Section 9: "An UPDATE message may be
+	// received only in the Established state." A conforming daemon therefore
+	// sends one only once it is Established itself, so the UPDATE proves the
+	// DAEMON reached that state. ze's KEEPALIVE proves only that it left
+	// OpenSent, and the daemon can still be reading ze-peer's KEEPALIVE when
+	// it arrives. The daemon logs
+	// "session established" before it sends its initial routes
+	// (peer_run.go), so the file also implies that line was written.
+	//
+	// The file is written once, for the first session that reaches that point.
+	// A session that never receives an UPDATE never writes it, and the fixture
+	// waiting on it then fails with its own message.
+	EstablishedFile string
 	// IPv6: bind to IPv6 instead of IPv4
 	IPv6 bool
 	// Decode: decode messages to human-readable format in output
@@ -334,6 +355,9 @@ type Peer struct {
 	// decide whether the batch must wait for those teardowns before it accepts
 	// the next batch (see waitBatchClosed in peer_connmap.go).
 	signalFired atomic.Bool
+	// established records that Config.EstablishedFile was written, so later
+	// UPDATEs and later sessions do not write it again.
+	established atomic.Bool
 }
 
 // New creates a new test peer.
@@ -596,6 +620,24 @@ func (p *Peer) replyKeepalive(conn net.Conn) {
 	}
 }
 
+// markEstablished creates Config.EstablishedFile once, on the daemon's first
+// UPDATE. It does nothing when no file was declared. A failed write is returned
+// rather than logged: the fixture waiting on the file would otherwise time out
+// with no word of the cause.
+func (p *Peer) markEstablished() error {
+	if p.config.EstablishedFile == "" {
+		return nil
+	}
+	if !p.established.CompareAndSwap(false, true) {
+		return nil
+	}
+	if err := os.WriteFile(p.config.EstablishedFile, nil, 0o600); err != nil {
+		return fmt.Errorf("write established-file %q: %w", p.config.EstablishedFile, err)
+	}
+	p.printf("\nsession established, wrote %s\n", p.config.EstablishedFile)
+	return nil
+}
+
 func (p *Peer) printf(format string, args ...any) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -804,6 +846,12 @@ func (p *Peer) runMessageLoop(ctx context.Context, conn net.Conn, senderAS uint3
 		// before any expectation is consumed (reject.go).
 		if res, rejected := p.rejected(msg); rejected {
 			return res
+		}
+
+		if header[18] == MsgUPDATE {
+			if err := p.markEstablished(); err != nil {
+				return Result{Success: false, Error: err}
+			}
 		}
 
 		// For sink/echo modes, handle all messages

@@ -18,16 +18,26 @@ type reloadSignalPlan struct {
 	before              time.Duration
 	hups                int
 	requireReady        bool
+	// awaitEstablished holds the SIGHUP until ze-peer has created
+	// peerEstablishedFile, which it does on the daemon's first UPDATE. A test
+	// that needs a session Established before the reload sets it and declares
+	// option=established-file:path=established in its peer block.
+	awaitEstablished bool
 }
+
+// peerEstablishedFile is the name a .ci gives ze-peer's
+// option=established-file. ze-peer and this fixture both run in the test's
+// work directory, so the relative name is the same file for both.
+const peerEstablishedFile = "established"
 
 func init() {
 	for name, plan := range map[string]reloadSignalPlan{
 		"reload/config-apply-ordering-coarse-root-trigger":    {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/config-apply-ordering-create-trigger":         {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/config-apply-ordering-mixed-rollback-trigger": {source: fileConfig2Conf, destination: fileBGPConf, before: 2 * time.Second, hups: 1, requireReady: true},
+		"reload/config-apply-ordering-mixed-rollback-trigger": {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true, awaitEstablished: true},
 		"reload/reload-add-bgp-trigger":                       {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/reload-add-peer-trigger":                      {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
-		"reload/reload-dynamic-peer-survives-trigger":         {source: fileConfig2Conf, destination: fileBGPConf, before: 3 * time.Second, hups: 1, requireReady: true},
+		"reload/reload-dynamic-peer-survives-trigger":         {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true, awaitEstablished: true},
 		"reload/reload-plugin-only-no-change-trigger":         {before: 200 * time.Millisecond, hups: 1},
 		"reload/tx-bgp-rollback-trigger":                      {source: "bad-config.conf", destination: fileBGPConf, hups: 1, requireReady: true},
 		"reload/tx-iface-apply-trigger":                       {source: fileConfig2Conf, destination: fileBGPConf, hups: 1, requireReady: true},
@@ -64,6 +74,9 @@ func reloadSignalDriver(plan reloadSignalPlan) Driver {
 		}
 		if plan.requireReady && !waitForFile(ctx, "daemon.ready", 300, 100*time.Millisecond) {
 			return errors.New("daemon.ready not found")
+		}
+		if plan.awaitEstablished && !waitForFile(ctx, peerEstablishedFile, WaitAttempts(50, 100*time.Millisecond, 300), 100*time.Millisecond) {
+			return errors.New("ze-peer wrote no " + peerEstablishedFile + " file: the daemon sent it no UPDATE, so the session never reached Established")
 		}
 		pid, err := readPID("daemon.pid")
 		if err != nil {

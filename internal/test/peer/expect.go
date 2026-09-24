@@ -13,6 +13,7 @@ import (
 	"bufio"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -314,6 +315,14 @@ func parseOptionConfig(config *Config, optType string, kv map[string]string) (cl
 
 	case "silent":
 		config.Silent = kv["value"] == optTrue
+
+	case "established-file":
+		// A missing path would make the peer write nothing, and the fixture
+		// waiting on the file would then fail as a timeout naming no cause.
+		if kv["path"] == "" {
+			return false, errors.New("option=established-file needs path=<name>, the file ze-peer creates on the daemon's first UPDATE")
+		}
+		config.EstablishedFile = kv["path"]
 
 	case "tcp_connections":
 		v, cerr := strconv.Atoi(kv["value"])

@@ -49,6 +49,11 @@ option=tcp_connections:value=2
 # closed connection 1 the moment its route arrived, ze dialed again on its
 # retry timer, and connection 2 then appeared whether or not any rollback ran.
 option=linger:value=true
+# ze-peer creates this file on the daemon's first UPDATE, and the trigger holds
+# the SIGHUP until it exists. A reload that ran before the session was
+# Established would remove a peer that never announced its route, and
+# connection 1's first expectation below would then never be met.
+option=established-file:path=established
 
 # Connection 1: the peer from the initial config. The remove-peer operation
 # ends it with Cease "Peer De-configured" (RFC 4486 Section 4, subcode 3).

@@ -47,6 +47,11 @@ option=env:var=ze.log.bgp.reactor:value=info
 stdin=peer:terminator=EOF_PEER
 option=asn:value=65010
 option=tcp_connections:value=1
+# ze-peer creates this file on the daemon's first UPDATE, which RFC 4271 lets
+# ze send only once the session is Established. The trigger holds the SIGHUP
+# until it exists (reloadSignalPlan.awaitEstablished,
+# internal/test/fixture/misc_fixture_shellports.go).
+option=established-file:path=established
 
 # One message on the wire, after the reload, on the SAME connection: Cease
 # (code 6) / Administrative Shutdown (subcode 2, RFC 4486) with the RFC 8203
@@ -179,17 +184,17 @@ bgp {
 }
 EOF_CONF2
 
-# Trigger: wait for the daemon, let the dynamic peer establish, reload. The runner
+# Trigger: wait for the daemon, wait for the dynamic peer's established file, reload. The runner
 # then stops the daemon once "sighup reload complete" is on stderr (the await
 # below). Stopping only after the reload finished is what makes the NOTIFICATION
 # evidence of survival rather than of timing: a peer the reload would have torn
 # down is already gone.
 #
-# The sleep before the SIGHUP does not carry the verdict and cannot make this
-# file pass for the wrong reason. A sleep too short for the session to establish
-# trips the reject below, because the peer is then built after the signal. It
-# only has to cover a dial the peer retries every 500ms against a daemon that has
-# already written daemon.ready.
+# The wait before the SIGHUP is on state, not on time. The daemon logs "session
+# established" before it sends the UPDATE that makes ze-peer write the file
+# (peer_run.go), so the rejects below hold for every run that reaches the
+# signal. A session that never establishes fails the trigger with its own
+# message instead of racing the reload.
 
 # Process orchestration. The peer is the background process, as in every other
 # reload test, so the runner collects its output and drives the verdict from it.
